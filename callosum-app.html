@@ -642,6 +642,20 @@
   .detail-acquire-err { color: var(--danger); }
   .detail-tierline { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
+  /* Wanted list (inc 76) — reuses the .oa-chip recipe above for the acquired-summary chips. */
+  .wanted-coverage { font-size: 12px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .wanted-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .wanted-add { flex: 1; min-width: 140px; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 9px; }
+  .wanted-add:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .wanted-summary { font-size: 12px; color: var(--ink-2); background: var(--verified-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .wanted-acquired { margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .wanted-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .wanted-row-info { flex: 1; min-width: 0; }
+  .wanted-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
+  .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
+  .wanted-status.fulfilled { background: var(--verified-soft); color: var(--verified); border-color: var(--verified-soft); }
+
   .prov {
     margin-top: 14px; padding: 11px 13px; border-radius: var(--radius);
     background: var(--accent-soft); border: 1px solid var(--accent-line);
@@ -1326,7 +1340,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     trashView, selectedLibraryIds, librarySort, onSortChange, onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
                     onBulkSummarize, onBulkExport, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates }) {
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
@@ -1338,6 +1352,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           <span className="lib-head-actions">
+            {!trashView &&
+              <button className="trash-toggle" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
@@ -3334,6 +3350,153 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
     </div>
   );
 }
+// Wanted-list modal (inc 76). The OA acquisition "track" loop: a persistent list of papers you want an
+// open-access copy of (library-linked or external), a manual "Re-check OA" job that runs the resolver
+// cascade over the list and auto-acquires hits, plus a coverage readout. Clones DuplicatesModal's poll
+// lifecycle; reuses the inc-74 .oa-chip recipe for the acquired summary.
+
+function _wantedTitle(it) {
+  return it.paper_title || it.title || it.doi || "Untitled";
+}
+
+function WantedModal({ onClose, onOpenPaper, onChanged }) {
+  const [items, setItems] = useState([]);
+  const [coverage, setCoverage] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [addDoi, setAddDoi] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [recheck, setRecheck] = useState({ status: "idle" });  // idle | running | done | error
+
+  const refresh = useCallback(() => {
+    return Promise.all([api("/wanted"), api("/wanted/coverage")]).then(([li, cov]) => {
+      if (li.ok) setItems(li.data.items || []);
+      if (cov.ok) setCoverage(cov.data);
+      setLoading(false);
+    });
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const syncLibrary = async () => {
+    setBusy(true);
+    await apiPost("/wanted/sync-library", {});
+    setBusy(false);
+    refresh();
+  };
+
+  const addExternal = async () => {
+    const doi = addDoi.trim();
+    if (!doi) return;
+    setBusy(true);
+    const r = await apiPost("/wanted", { doi });
+    setBusy(false);
+    if (r.ok) { setAddDoi(""); refresh(); }
+  };
+
+  const removeItem = async (id) => {
+    const r = await apiDelete(`/wanted/${id}`);
+    if (r.ok) refresh();
+  };
+
+  const runRecheck = () => {
+    setRecheck({ status: "running" });
+    const poll = (jobId) => {
+      api(`/wanted/recheck/${jobId}`).then(r => {
+        if (!r.ok) { setRecheck({ status: "error", error: r.error }); return; }
+        const d = r.data;
+        if (d.status === "done") {
+          setRecheck({ status: "done", summary: d.summary });
+          refresh();
+          if (onChanged) onChanged();  // acquired PDFs → refresh the main library
+        } else if (d.status === "error") {
+          setRecheck({ status: "error", error: d.detail || "Re-check failed." });
+        } else {
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+    };
+    apiPost("/wanted/recheck", {}).then(r => {
+      if (!r.ok) { setRecheck({ status: "error", error: r.error }); return; }
+      poll(r.data.job_id);
+    });
+  };
+
+  const cov = coverage;
+  const summary = recheck.summary;
+  return (
+    <div className="axis-modal-overlay" onClick={onClose}>
+      <div className="axis-modal" onClick={e => e.stopPropagation()}>
+        <div className="axis-modal-head">
+          <span>Wanted list</span>
+          <button className="axis-link" onClick={onClose}>×</button>
+        </div>
+        <div className="axis-modal-note">
+          Papers you want an open-access copy of. <b>Sync from library</b> adds your PDF-less papers;{" "}
+          <b>Re-check OA</b> searches the open-access sources and imports any authorized copy it finds
+          (bronze = unstable). Add an external paper by DOI.
+        </div>
+
+        {cov &&
+          <div className="wanted-coverage">
+            {cov.with_pdf} of {cov.library_total} papers have PDFs · acquired{" "}
+            {cov.acquired_oa.gold} gold / {cov.acquired_oa.green} green / {cov.acquired_oa.bronze} bronze ·{" "}
+            {cov.wanted_open} wanted
+          </div>}
+
+        <div className="wanted-actions">
+          <button className="axis-link" disabled={busy} onClick={syncLibrary}>Sync from library</button>
+          <button className="btn btn-primary" disabled={recheck.status === "running"} onClick={runRecheck}>
+            {recheck.status === "running" ? "Re-checking…" : "Re-check OA"}
+          </button>
+          <input className="wanted-add" placeholder="Add by DOI…" value={addDoi}
+            onChange={e => setAddDoi(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") addExternal(); }} />
+          <button className="axis-link" disabled={busy || !addDoi.trim()} onClick={addExternal}>Add</button>
+        </div>
+
+        {recheck.status === "error" && <div className="axis-err">Re-check failed: {recheck.error}</div>}
+        {recheck.status === "done" && summary &&
+          <div className="wanted-summary">
+            Acquired {summary.acquired.length} · {summary.still_wanted} still wanted
+            {summary.skipped ? ` · ${summary.skipped} need an identifier` : ""}
+            {summary.errors ? ` · ${summary.errors} error${summary.errors === 1 ? "" : "s"}` : ""}
+            {summary.acquired.length > 0 &&
+              <div className="oa-meta wanted-acquired">
+                {summary.acquired.map((a, i) =>
+                  <span key={i} className={"oa-chip " + (a.oa_color === "bronze" ? "oa-bronze" : "oa-durable")}>
+                    {a.oa_color}/{a.oa_version}
+                  </span>)}
+              </div>}
+          </div>}
+
+        {loading && <div className="axis-hint">Loading…</div>}
+        {!loading && items.length === 0 &&
+          <div className="axis-hint">Your wanted list is empty. Sync from library or add a DOI.</div>}
+        {items.map(it => (
+          <div key={it.id} className="wanted-row">
+            <div className="wanted-row-info">
+              <div className="wanted-row-title">{_wantedTitle(it)}</div>
+              <div className="wanted-row-meta">
+                {it.paper_id ? "library" : "external"}
+                {it.paper_year ? " · " + it.paper_year : ""}
+                {it.last_result ? " · " + it.last_result : ""}
+              </div>
+            </div>
+            <span className={"wanted-status" + (it.status === "fulfilled" ? " fulfilled" : "")}>{it.status}</span>
+            {it.paper_id && it.status === "fulfilled" &&
+              <button className="axis-link"
+                onClick={() => onOpenPaper && onOpenPaper({ id: it.paper_id, title: _wantedTitle(it) })}>open</button>}
+            <button className="axis-link" title="Remove from the wanted list" onClick={() => removeItem(it.id)}>×</button>
+          </div>
+        ))}
+
+        <div className="axis-form-actions">
+          <button className="axis-link" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function PdfViewer({ paperId, title, target, annoRefresh }) {
   const [state, setState] = useState({ status: "loading" });
   const [scale, setScale] = useState(1.15);
@@ -3951,6 +4114,7 @@ function App() {
   const [librarySort, setLibrarySort] = useState("added");  // inc-69: library ordering (added/recent/title/year_*/author)
   const [libRefresh, setLibRefresh] = useState(0);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
+  const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
 
   const openPdf = useCallback((paper, target) => {
     const key = "pdf:" + paper.id;
@@ -4197,6 +4361,7 @@ function App() {
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
+          onOpenWanted: () => setWantedOpen(true),
         }}
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
@@ -4214,6 +4379,12 @@ function App() {
       {duplicatesOpen &&
         <DuplicatesModal
           onClose={() => setDuplicatesOpen(false)}
+          onOpenPaper={openPdf}
+          onChanged={() => setLibRefresh(n => n + 1)}
+        />}
+      {wantedOpen &&
+        <WantedModal
+          onClose={() => setWantedOpen(false)}
           onOpenPaper={openPdf}
           onChanged={() => setLibRefresh(n => n + 1)}
         />}

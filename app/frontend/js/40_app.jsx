@@ -87,6 +87,7 @@ function App() {
   const [librarySort, setLibrarySort] = useState("added");  // inc-69: library ordering (added/recent/title/year_*/author)
   const [libRefresh, setLibRefresh] = useState(0);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
+  const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
 
   const openPdf = useCallback((paper, target) => {
     const key = "pdf:" + paper.id;
@@ -333,6 +334,7 @@ function App() {
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
+          onOpenWanted: () => setWantedOpen(true),
         }}
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
@@ -350,6 +352,12 @@ function App() {
       {duplicatesOpen &&
         <DuplicatesModal
           onClose={() => setDuplicatesOpen(false)}
+          onOpenPaper={openPdf}
+          onChanged={() => setLibRefresh(n => n + 1)}
+        />}
+      {wantedOpen &&
+        <WantedModal
+          onClose={() => setWantedOpen(false)}
           onOpenPaper={openPdf}
           onChanged={() => setLibRefresh(n => n + 1)}
         />}

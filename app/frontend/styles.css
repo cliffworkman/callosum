@@ -617,6 +617,20 @@
   .detail-acquire-err { color: var(--danger); }
   .detail-tierline { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
+  /* Wanted list (inc 76) — reuses the .oa-chip recipe above for the acquired-summary chips. */
+  .wanted-coverage { font-size: 12px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .wanted-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+  .wanted-add { flex: 1; min-width: 140px; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 9px; }
+  .wanted-add:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .wanted-summary { font-size: 12px; color: var(--ink-2); background: var(--verified-soft); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .wanted-acquired { margin-top: 5px; display: flex; gap: 5px; flex-wrap: wrap; }
+  .wanted-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .wanted-row-info { flex: 1; min-width: 0; }
+  .wanted-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
+  .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
+  .wanted-status.fulfilled { background: var(--verified-soft); color: var(--verified); border-color: var(--verified-soft); }
+
   .prov {
     margin-top: 14px; padding: 11px 13px; border-radius: var(--radius);
     background: var(--accent-soft); border: 1px solid var(--accent-line);

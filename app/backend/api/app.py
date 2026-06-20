@@ -18,7 +18,18 @@ from fastapi.responses import FileResponse, HTMLResponse
 
 from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
 from app.backend.api.job_store import JobStore
-from app.backend.api.routers import acquisition, annotations, axes, duplicates, health, help, papers, summaries, tags
+from app.backend.api.routers import (
+    acquisition,
+    annotations,
+    axes,
+    duplicates,
+    health,
+    help,
+    papers,
+    summaries,
+    tags,
+    wanted,
+)
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
@@ -76,6 +87,8 @@ def create_app(
     api.state.axis_suggest_jobs = JobStore()
     api.state.dedup_jobs = JobStore()
     api.state.acquire_jobs = JobStore()
+    api.state.wanted_jobs = JobStore()
+    api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
     api.state.vector_store = vector_store
@@ -112,6 +125,7 @@ def create_app(
     api.include_router(health.router)
     api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
     api.include_router(acquisition.router)  # before papers so "/papers/acquire-oa*" wins over "/papers/{paper_id}"
+    api.include_router(wanted.router)
     api.include_router(papers.router)
     api.include_router(annotations.router)
     api.include_router(tags.router)

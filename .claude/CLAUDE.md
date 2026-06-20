@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 75** (see Increment workflow) with **334 pytest tests
+It is currently at **Increment 76** (see Increment workflow) with **347 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -193,10 +193,11 @@ callosum/
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,duplicates,
-│   │   │                          acquisition,annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
+│   │   │                          acquisition,wanted,annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
-│   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74])
+│   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
+│   │   │                          wanted_repo.py [wanted-list data access, inc 76])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, location.py, cli.py)
 │   │   ├── embeddings/            (models.py, pipeline.py, vector_store.py [sqlite-vec], retrieval.py)
@@ -212,8 +213,9 @@ callosum/
 │   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py,
 │   │   │                          paper_edits.py, citation_export.py [BibTeX/RIS/CSL-JSON, inc 70])
 │   │   └── acquisition/           (registry.py [OaLocation OA-only seam + cascade], fetch.py [download/validate/
-│   │                              name/import], resolvers/{openalex,doaj,europepmc,crossref,core,arxiv,biorxiv,
-│   │                              osf}_resolver.py; the OA acquisition clean lane, inc 74 + cascade inc 75)
+│   │                              name/import], wanted.py [wanted-list re-check service, inc 76], resolvers/{openalex,
+│   │                              doaj,europepmc,crossref,core,arxiv,biorxiv,osf}_resolver.py; the OA acquisition
+│   │                              clean lane, inc 74 + cascade inc 75 + wanted list inc 76)
 │   ├── frontend/                  ← the UI SOURCE: index.html shell + styles.css + js/*.jsx chunks
 │   │                              (assembled by app/backend/api/frontend.py; build → callosum-app.html)
 │   └── desktop-shell/             (placeholder — Tauri, post-V1)
@@ -226,7 +228,7 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0007_attachment_oa_labels)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0008_wanted_items)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
@@ -331,7 +333,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 75). Each increment of real work
+callosum is built in **numbered increments** (currently at 76). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -532,6 +534,7 @@ before large design changes:
 |---|---|
 | Acquisition bright lines enforced structurally via the `OaLocation` seam (inc 74) | The legally-clear OA-acquisition lane must never become a generic/non-OA fetcher. Rather than enforce that by convention, the `Resolver` Protocol returns a **frozen `OaLocation`** whose `oa_color` is **required** (gold/green/bronze; **no "closed"/"none" member**) and the downloader `download_oa_pdf(location: OaLocation)` takes the dataclass — there is **no function that fetches a bare URL**. So OA-ness is decided by the database (OpenAlex), never by callosum, and an arbitrary/non-OA fetch is structurally inexpressible (same seam-enforcement idea as the inc-58 egress gate; pinned by structural tests). Fetched copies land in the **local library** (`managed` storage, named per the existing `Authors - Year - Venue.pdf` convention) — nothing server-side. Honors the `APPROACH-AVOIDANCE.md` no-paywall-circumvention veto + realizes the A8 access-equity value. New `app/backend/acquisition/` + `integrations/openalex/` + migration 0007. The legally-ambiguous lane is deferred (counsel-gated), **absent** from this build. New resolvers (inc B) register into `build_default_registry` without editing the cascade. |
 | OA resolver cascade fanned out to 7 sources, gold→green→preprint, first authorized copy wins (inc 75) | Increment B realizes the inc-74 seam's promise: `build_default_registry` registers OpenAlex (primary, best-of) then **DOAJ** (gold) → **Europe PMC** (OA full text) → **Crossref-OA** (publisher PDF + registered license) → **CORE** (green repo) → **arXiv** → **bioRxiv/medRxiv** → **OSF/PsyArXiv** (preprints). Each is the same shape as the OpenAlex adapter (injectable `fetcher` Protocol, `external_api_cache` under a distinct provider, `lookup_oa → OaLocation|None`, fail-closed) + a thin resolver; the `resolve()` loop is **untouched** (new sources only `register()`). OA-ness stays each database's assertion — a source with no honest https direct-PDF returns **None**, never a landing page or a guess (DOAJ requires a real PDF link; Europe PMC requires `isOpenAccess=Y`; Crossref-OA requires a registered license, CC→gold else bronze). Shared `integrations/api_cache.py` (the pre-existing openalex/crossref keep their private copies — not refactored). **CORE** needs `CALLOSUM_CORE_API_KEY` (Bearer header, never in a URL/cache/log; **absent → silent no-op**). **arXiv** reads the Atom id with a targeted regex, NOT a stdlib XML parser (XXE/entity surface on untrusted input, rule #4) → **no new dependency**. No new endpoint/migration/frontend (the Acquire button + OA chips already work); migration head stays 0007. Audit `.claude/security-audits/2026-06-20_oa-acquisition-b.md` PASS. Increment C (wanted-list + OA-only re-check) is next. |
+| Wanted list + auto-acquiring OA re-check + coverage (inc 76) | Completes the acquisition arc's **track** loop. A persistent `wanted_items` table (migration **0008**; library-linked `paper_id` set, or external `paper_id` NULL with its own doi/pmid/title) backs a unified wanted list that auto-includes PDF-less library papers (`sync_from_library`) and accepts external adds. A manual async **re-check** (`acquisition/wanted.py::run_recheck`, kept out of the router for testability) runs the **same registry cascade** over open wants and **auto-acquires** hits — library wants fill the existing paper; external wants `create_paper` then `import_oa_pdf` (which enriches from Crossref). The OA-only bright line is **free + structural**: the re-check resolves only through the `ResolverRegistry` (which can return only an `OaLocation`), so there is no non-OA/arbitrary-URL path (test-pinned). External wants are fulfilled **only with a doi/pmid** (title-only → skipped `needs-id`) so a paper is never minted from a fuzzy match; soft-deleted papers are excluded from sync/coverage/re-check; per-item errors never abort a run; a logged per-run cap bounds bulk fetching. New `persistence/wanted_repo.py` + `acquisition/wanted.py` + `routers/wanted.py` (`/wanted` CRUD + sync-library + coverage + async recheck) + `26_wanted.jsx` (a Wanted modal in the lib-head). **No new dependency.** Audit `.claude/security-audits/2026-06-20_wanted-list.md` PASS. This completes Acquisition A/B/C. |
 | Generic `JobStore[R]` for async jobs + ruff is the linter (release-readiness Phase 5, 2026-06-20) | The four async-job subsystems (summarize, axis score, axis suggest, dedup) each carried a near-identical `_XJob` dataclass + `_XJobStore` class differing only in the result type — consolidated into one thread-safe generic `app/backend/api/job_store.py` (`Job`/`JobStore[R]`), instantiated per-subsystem in `create_app` and typed `JobStore[XResponse]` at each use. **New async jobs reuse `JobStore`, don't re-roll a store.** Linting/formatting is **ruff** (config in `pyproject.toml`: line-length 120, `select=E,F,W,I,B`, `ignore=E501`, bugbear `extend-immutable-calls` for FastAPI `Depends`/`Query`/… so B008 doesn't false-positive); `requirements-dev.txt` carries the dev/CI toolchain (pytest, httpx, ruff, pip-audit, playwright, pytest-playwright). Run `ruff check --fix .` + `ruff format .` before committing. |
 | Local-first FastAPI + SQLite, browser frontend | Lowest-friction local-first path; keeps everything free and offline-capable; no server to operate. |
 | `sqlite-vec` as the vector store (not a separate vector DB) | In-process, single-file, zero daemon — fits the local-first, single-user model and the SQLite metadata store. |
@@ -617,7 +620,24 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 75 (literature acquisition — fan out the resolver cascade, B): the
+*Last updated: 2026-06-20 — increment 76 (literature acquisition — the wanted list + OA re-check + coverage, C):
+completes the acquisition arc's **track** loop. A persistent **wanted list** (`wanted_items`, migration **0008**)
+that auto-includes PDF-less library papers (**Sync from library**) and accepts external adds (**Add by DOI**),
+a manual async **Re-check OA** job that runs the same resolver cascade over the list and **auto-acquires** hits
+(library wants fill the paper; external wants create a paper then import + enrich), and a **coverage readout**.
+The OA-only bright line is **free + structural** — the re-check resolves only through the `ResolverRegistry` (so
+no non-OA/arbitrary-URL path; test-pinned); external wants need a doi/pmid (title-only → skipped, never a fuzzy
+mint); per-item errors never abort a run; a logged per-run cap bounds bulk fetching. New
+`persistence/wanted_repo.py` + `acquisition/wanted.py` (the testable re-check service) + `routers/wanted.py`
+(`/wanted` CRUD + sync-library + coverage + async recheck) + `26_wanted.jsx` (a **Wanted** modal in the lib-head).
+**No new dependency, no new egress** (OA databases only, NOT the Gemini gate). pytest **347** (+13: repo +
+run_recheck library/external/skip/miss/error-isolation/registry-only + endpoints); audit
+`.claude/security-audits/2026-06-20_wanted-list.md` **PASS**; help corpus gained an acquisition/wanted section
+(`HELP-DOCS-SYNCED` → inc 76). **This completes Acquisition A/B/C.** NEXT: Phase 8 (the future-tracks watched
+inbox) + deferred follow-ons in `INCREMENT-BACKLOG.md`; the legally-ambiguous lane stays counsel-gated (its
+inbox spec is gitignored).
+
+Earlier — increment 75 (literature acquisition — fan out the resolver cascade, B): the
 inc-74 OA lane gains a **7-source cascade** (gold→green→preprint, first authorized copy wins) behind the
 unchanged `OaLocation` seam — OpenAlex (primary) → **DOAJ** → **Europe PMC** → **Crossref-OA** → **CORE** →
 **arXiv** → **bioRxiv/medRxiv** → **OSF/PsyArXiv**. Each is the OpenAlex-adapter shape (injectable fetcher,

@@ -256,6 +256,23 @@ Privacy: acquisition is local-first. The PDF is stored on your machine, not on a
 
 Optional: the **CORE** source needs a free API key. Set `CALLOSUM_CORE_API_KEY` in your environment to enable it; without a key, Callosum simply skips CORE and uses the other sources.
 
+<!-- section: wanted-list -->
+## Wanted list & re-checking for copies
+The wanted list tracks papers you want an open-access copy of, so Callosum can keep looking for one. Open it from the **Wanted** button at the top of the library.
+
+It holds two kinds of entries:
+
+- **Library papers** that don't have a PDF yet — click **Sync from library** to add all of them at once.
+- **External papers** you don't have yet — click **Add by DOI** to add one by its DOI.
+
+Click **Re-check OA** to search every open-access source for each wanted paper and **import any authorized copy it finds**, in one pass. When it finishes you get a summary: how many were acquired (with their OA color), how many are still wanted, and how many need an identifier. A library paper that gets a copy now has its PDF; an external paper becomes a new paper in your library. The coverage line at the top shows how much of your library has PDFs and how many copies you've acquired, by OA color.
+
+Notes:
+
+- Re-checking only ever downloads authorized open-access copies (the same rule as Acquire OA copy) — nothing paywalled, and nothing leaves your machine except the open-access lookups.
+- An external want needs a **DOI or PMID** to be fetched automatically; a title-only entry is marked "needs an identifier" so Callosum never imports the wrong paper from a fuzzy title match.
+- A **bronze** copy is free-to-read but unlicensed and may revert to paywalled; a preprint is not the final published version.
+
 <!-- section: axes-overview -->
 ## Axes: organizing papers by a lens
 An axis is a lens for organizing your library around a construct, theme, method, population, theory, or question. It is not a folder, and it is not a permanent truth about a paper. It is a scored relationship between your curated vocabulary and the papers in your library.

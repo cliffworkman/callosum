@@ -9,9 +9,34 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-## 2026-06-20 — Increment 75: literature acquisition — fan out the resolver cascade (B)
+## 2026-06-20 — Increment 76: literature acquisition — the wanted list + OA re-check + coverage (C)
 
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 75 (2026-06-20) — added an "Acquiring an open-access copy" section covering the multi-source OA cascade (this also clears the inc-74 acquisition help debt). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 76 (2026-06-20) — added a "Wanted list & re-checking for copies" section (and the inc-75 acquisition cascade section). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **What:** completes the acquisition arc's *track* loop — a persistent **wanted list** of papers you want an
+  OA copy of (unified: auto-includes PDF-less library papers AND external papers you add by DOI), a manual
+  async **Re-check OA** job that runs the resolver cascade over the list and **auto-acquires** any authorized
+  copy, and a **coverage readout**. Opened from a **Wanted** button in the library head.
+- **Why:** turns the per-paper acquire into a standing "fill my gaps" workflow + a way to watch for copies of
+  papers you don't own yet (preprints get published, embargoes lift, repositories deposit).
+- **How:** `wanted_items` table (migration **0008**; `paper_id` set = library, NULL = external w/ doi/pmid/title).
+  The re-check service `acquisition/wanted.py::run_recheck` (kept out of the router → directly testable) resolves
+  each open want through the **same `ResolverRegistry`** and on a hit downloads + imports — library wants fill
+  the paper; external wants `create_paper` then `import_oa_pdf` (enriches from Crossref). OA-only is **free +
+  structural** (registry-only → no non-OA/arbitrary-URL path, test-pinned); external wants need a doi/pmid
+  (title-only → skipped `needs-id`, never a fuzzy mint); per-item errors never abort a run; a logged per-run cap.
+- **Files:** `persistence/wanted_repo.py` + `schema.py`/migration 0008; `acquisition/wanted.py`;
+  `routers/wanted.py` (`GET/POST/DELETE /wanted`, `POST /wanted/sync-library`, `GET /wanted/coverage`, async
+  `POST /wanted/recheck` + poll) + `app.py` wiring (`wanted_jobs` + an `acquire_registry` test seam);
+  `26_wanted.jsx` + a **Wanted** button in `10_pdf_layer.jsx` + `40_app.jsx`; rebuilt `callosum-app.html`.
+- **Gates:** security audit `.claude/security-audits/2026-06-20_wanted-list.md` — **PASS** (OA-only structural,
+  input validation, no fuzzy-mint, bulk-fetch politeness, bound-param, no new dep, no new egress).
+- **Verify:** `ruff` clean; `pytest` **347 passed, 1 skipped** (+13); migration head `0008`; route surface
+  extended with `/wanted*`. Notes: `INCREMENT-76-NOTES.md`. **Completes Acquisition A/B/C.**
+- **Revert:** restore touched files from a `.claude/backups/` snapshot; no down-migration by design (the
+  `wanted_items` table is additive + inert if unused).
+
+## 2026-06-20 — Increment 75: literature acquisition — fan out the resolver cascade (B)
 
 - **What:** the inc-74 OA lane gains a **7-source resolver cascade** (gold→green→preprint, first authorized
   copy wins) behind the unchanged `OaLocation` seam: OpenAlex (primary) → **DOAJ** → **Europe PMC** →

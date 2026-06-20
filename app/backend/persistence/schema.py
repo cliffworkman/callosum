@@ -440,6 +440,29 @@ dismissed_duplicate_pairs = Table(
     UniqueConstraint("paper_id_low", "paper_id_high", name="uq_dismissed_duplicate_pairs_low_high"),
 )
 
+# The wanted list (inc 76): papers the user wants an open-access copy of. A row is either library-linked
+# (``paper_id`` set — a PDF-less library paper to fill) or external (``paper_id`` NULL — a paper not yet
+# imported, carrying its own doi/pmid/title). The OA re-check runs the resolver cascade over open rows and
+# auto-acquires hits. ``status``: wanted | fulfilled. ``last_result`` is a short code (e.g. gold/vor, none,
+# needs-id, error:…).
+wanted_items = Table(
+    "wanted_items",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE")),  # NULL = an external (not-yet-owned) want
+    Column("doi", String(255)),
+    Column("pmid", String(100)),
+    Column("title", Text),
+    Column("note", Text),
+    Column("status", String(20), nullable=False, server_default="wanted"),
+    Column("last_checked_at", DateTime),
+    Column("last_result", String(100)),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Index("ix_wanted_items_paper_id", "paper_id"),
+    Index("ix_wanted_items_status", "status"),
+)
+
 jobs = Table(
     "jobs",
     metadata,
