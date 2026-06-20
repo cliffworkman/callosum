@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Phase 7: published to GitHub + follow-up (inbox 3rd batch, README badges)
+
+- **PUBLISHED:** `https://github.com/cliffworkman/callosum` (public, AGPL-3.0), initial commit `58c4ce3`,
+  307 files, **verified secret-free** (the `git init` secret-gate caught + fixed a `.gitignore` inline-comment
+  bug that had leaked `callosum_TDL.txt` into staging; remote-tree re-check clean). Push needed two fixes: the
+  `workflow` token scope (`gh auth refresh -s workflow`) and the git credential helper (`gh auth setup-git` →
+  push as the active `cliffworkman` account instead of the cached personal account). **CI is configured but
+  blocked by a GitHub account billing lock** ("account locked due to a billing issue") — not a code/config
+  issue; resolve at github.com/settings/billing, then re-run.
+- **Local prep:** `LICENSE` (verbatim AGPL-3.0), `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `.github/`
+  (`workflows/ci.yml` = ruff + pytest + the opt-in e2e job; PR template; bug/feature issue templates;
+  `CODEOWNERS` → `@cliffworkman`), `.gitignore` finalized (+ `callosum_TDL.txt`).
+- **Inbox (3rd batch) processed:** filed two **process/dev-infra roadmaps** → `future-tracks/`
+  (`harnesshardening.md` = post-git hardening — uv / pre-commit / CI-ratchet / `staged-harnesses/` registry /
+  branch protection / repo furniture; `readmescopeaudit.md` = expand the README into a full contributor front
+  door) + indexed them + captured both in a new backlog section *Dev-infra & repo hardening (post-git)*.
+  Removed the re-synced already-actioned `approachavoidanceharness.md` dupe again. Inbox empty.
+- **README badges:** added CI-status + AGPL-3.0 license badges.
+- **Verify:** repo live + public; remote tree secret-clean; follow-up commit pushed.
+
 ## 2026-06-20 — Phase 6 (cont.): scrubbed key values out of the backup zips (user-requested)
 
 - Removed the key-bearing entry `.claude/GEMINI_API.txt` from all **16** affected backup zips via a **validated

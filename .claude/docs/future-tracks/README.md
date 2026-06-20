@@ -30,3 +30,16 @@ detailed source the backlog references rather than recapitulates.
 purpose): **OpenAlex** (gapfinder, my-publications, discovery, acquisition), **Semantic Scholar** (discovery,
 suggest), **GROBID** (section/reference structure for Track C section-scoping), **Unpaywall** (Track D),
 **mendeley** (import-via-bridge).
+
+---
+
+## Process & repo roadmaps (NOT literature tracks)
+
+Dropped via the import inbox (2026-06-20); filed here for reference — the backlog tracks them under
+*Dev-infra & repo hardening (post-git)*. These are execution roadmaps for the repo/tooling, not the
+inspectable-literature vision above.
+
+| File | Scope |
+|---|---|
+| `opus4.8_future-tracks_harnesshardening.md` | Post-git dev-infra hardening: **uv** lockfile, **pre-commit**, CI gates ratcheted **one at a time** (`alembic check`, pip-audit, Dependabot), a **`.claude/staged-harnesses/`** registry for dormant checks (Pyright/tach/coverage/Hypothesis/embedding-drift/bandit) with activation triggers, branch protection after CI green, and repo furniture (SECURITY.md, `.env.example`, CITATION.cff, CHANGELOG, SPDX). |
+| `opus4.8_future-tracks_readmescopeaudit.md` | Expand the top-level `README.md` into a full **contributor front door**: safety note, cross-platform setup, known-limitations, first-run model download, `.env.example` + both egress gates, pointers to CONTRIBUTING/SECURITY/CITATION, a UI screenshot. |

@@ -1,5 +1,8 @@
 # Callosum
 
+[![CI](https://github.com/cliffworkman/callosum/actions/workflows/ci.yml/badge.svg)](https://github.com/cliffworkman/callosum/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+
 Callosum is a local-first, AI-assisted reference manager for scholarly PDFs. Its core thesis is simple: every AI claim must be independently verified against the source. The application imports papers, extracts PDF text with page and bounding-box coordinates, builds local retrieval indexes, and presents synthesis as inspectable evidence rather than authority.
 
 The project is a working MVP at Increment 73. Longer-term plans live under `.claude/docs/future-tracks/`; this README describes the implemented application.

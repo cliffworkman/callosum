@@ -412,6 +412,30 @@ core UX above comes first. See `future-tracks/README.md` for the index; do not r
 
 ---
 
+## Dev-infra & repo hardening (post-git) — added 2026-06-20 (from the inbox)
+
+Two roadmap docs filed under `future-tracks/` (detail there — reference, don't recapitulate). This is the
+near-term work now that the repo is live.
+
+- [ ] **Harness hardening** (`future-tracks/opus4.8_future-tracks_harnesshardening.md`) — adopt **uv**
+  (`uv.lock`); **pre-commit** (ruff, whitespace, a 600-line size-budget script); add CI gates **one at a time**
+  (`alembic check` + a temp-DB migration test, **pip-audit** + **Dependabot**); **stage** expensive/judgment
+  checks as dormant drafts in a new **`.claude/staged-harnesses/`** + `REGISTRY.md` with activation triggers
+  (Pyright strict, tach boundary contracts, coverage gate, Hypothesis, embedding/vector-drift harness, bandit);
+  **branch protection** after CI is green; reclassify the principles gate as **governance, not a fitness
+  function**; remaining repo furniture: **SECURITY.md, `.env.example`, CITATION.cff, CHANGELOG, SPDX
+  `AGPL-3.0-or-later` in `pyproject.toml`**. Standing rule: **ratchet — one new blocking gate at a time**;
+  subtraction is the tie-breaker.
+- [ ] **README front-door expansion** (`future-tracks/opus4.8_future-tracks_readmescopeaudit.md`) — the README
+  is accurate but scoped as an app description; expand it into a contributor front door: known-limitations /
+  rough-edges, a **safety note** (127.0.0.1, no auth/rate-limiting, don't expose), **cross-platform** (bash)
+  setup + venv/uv, dev-vs-user setup + the frontend build step, first-run model-download note, secrets /
+  `.env.example` + **both** egress gates (incl. `CALLOSUM_HELP_ASSISTANT_ENABLED`), pointers to
+  CONTRIBUTING/SECURITY/CITATION, the auto-migrate note, an honest "built with AI assistance" note, and a UI
+  screenshot. (Status + license **badges added 2026-06-20**.)
+
+---
+
 ## Security follow-up (do whenever; NOT blocking) — added 2026-06-20
 
 - [ ] **Rotate the 4 Gemini API keys.** They remain in **Dropbox version history** (and were embedded in 16 local
