@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 
 from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
 from app.backend.api.job_store import JobStore
-from app.backend.api.routers import annotations, axes, duplicates, health, help, papers, summaries, tags
+from app.backend.api.routers import acquisition, annotations, axes, duplicates, health, help, papers, summaries, tags
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
@@ -28,6 +28,7 @@ from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.verification import SupportScorer, VerificationConfig
 from integrations.crossref import CrossrefClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester
+from integrations.openalex import OpenAlexClient
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
 FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
@@ -49,6 +50,7 @@ def create_app(
     axis_term_suggester: AxisTermSuggester | None = None,
     axis_cluster_labeler: AxisClusterLabeler | None = None,
     crossref_client: CrossrefClient | None = None,
+    openalex_client: OpenAlexClient | None = None,
     help_assistant: HelpAssistant | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
@@ -73,6 +75,7 @@ def create_app(
     api.state.axis_score_jobs = JobStore()
     api.state.axis_suggest_jobs = JobStore()
     api.state.dedup_jobs = JobStore()
+    api.state.acquire_jobs = JobStore()
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
     api.state.vector_store = vector_store
@@ -81,6 +84,7 @@ def create_app(
     api.state.axis_term_suggester = axis_term_suggester
     api.state.axis_cluster_labeler = axis_cluster_labeler
     api.state.crossref_client = crossref_client
+    api.state.openalex_client = openalex_client
     api.state.help_assistant = help_assistant
 
     api.add_middleware(
@@ -107,6 +111,7 @@ def create_app(
 
     api.include_router(health.router)
     api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
+    api.include_router(acquisition.router)  # before papers so "/papers/acquire-oa*" wins over "/papers/{paper_id}"
     api.include_router(papers.router)
     api.include_router(annotations.router)
     api.include_router(tags.router)

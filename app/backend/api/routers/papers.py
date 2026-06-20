@@ -64,6 +64,13 @@ class AttachmentResponse(BaseModel):
     import_source: str | None = None
     attachment_type: str | None = None
     role: str | None = None
+    # Open-access acquisition labels (set when fetched from an OA database; null for user-imported files).
+    oa_color: str | None = None  # gold / green / bronze
+    oa_version: str | None = None  # vor / am / preprint
+    oa_source: str | None = None  # resolver id (e.g. "openalex")
+    oa_landing_page_url: str | None = None
+    oa_license: str | None = None
+    oa_bronze_unstable: bool = False  # bronze: free-to-read without a license, may revert to paywalled
 
 
 class PaperTagRef(BaseModel):
@@ -523,6 +530,12 @@ def _attachment_response(row: Any) -> AttachmentResponse:
         import_source=row["import_source"],
         attachment_type=row["attachment_type"],
         role=row["role"],
+        oa_color=row["oa_color"],
+        oa_version=row["oa_version"],
+        oa_source=row["oa_source"],
+        oa_landing_page_url=row["oa_landing_page_url"],
+        oa_license=row["oa_license"],
+        oa_bronze_unstable=bool(row["oa_bronze_unstable"]),
     )
 
 

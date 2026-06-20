@@ -113,6 +113,13 @@ attachments = Table(
     Column("import_source", String(100)),
     Column("attachment_type", String(100)),
     Column("role", String(100)),
+    # OA-acquisition labels (inc: acquisition clean lane) — set when a copy is fetched from an OA database.
+    Column("oa_color", String(20)),  # gold / green / bronze (bronze = unstable; see oa_bronze_unstable)
+    Column("oa_version", String(20)),  # vor / am / preprint
+    Column("oa_source", String(100)),  # resolver id (e.g. "openalex")
+    Column("oa_landing_page_url", Text),
+    Column("oa_license", String(100)),
+    Column("oa_bronze_unstable", Integer),  # 1 iff oa_color == "bronze"
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     enum_check("storage_mode", ATTACHMENT_STORAGE_MODES, "storage_mode_valid"),
     enum_check("availability", ATTACHMENT_AVAILABILITY, "availability_valid"),

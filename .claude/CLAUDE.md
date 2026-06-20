@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 73** (see Increment workflow) with **275 pytest tests
+It is currently at **Increment 74** (see Increment workflow) with **303 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -193,10 +193,10 @@ callosum/
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,duplicates,
-│   │   │                          annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
+│   │   │                          acquisition,annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
-│   │   │                          tags_repo.py [tag data access, inc 71])
+│   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, location.py, cli.py)
 │   │   ├── embeddings/            (models.py, pipeline.py, vector_store.py [sqlite-vec], retrieval.py)
@@ -209,20 +209,22 @@ callosum/
 │   │   ├── help/                  (help_content.md [served corpus, inc 59], corpus.py [loader + allowlisted
 │   │   │                          md→html], assistant.py [HelpAssistant Protocol + dataclasses, inc 60])
 │   │   ├── importers/             (zotero.py)
-│   │   └── metadata/              (doi.py, enrichment.py, abstract_display.py,
-│   │                              paper_edits.py, citation_export.py [BibTeX/RIS/CSL-JSON, inc 70])
+│   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py,
+│   │   │                          paper_edits.py, citation_export.py [BibTeX/RIS/CSL-JSON, inc 70])
+│   │   └── acquisition/           (registry.py [OaLocation OA-only seam], fetch.py [download/validate/name/import],
+│   │                              resolvers/openalex_resolver.py; the OA acquisition clean lane, inc 74)
 │   ├── frontend/                  ← the UI SOURCE: index.html shell + styles.css + js/*.jsx chunks
 │   │                              (assembled by app/backend/api/frontend.py; build → callosum-app.html)
 │   └── desktop-shell/             (placeholder — Tauri, post-V1)
-├── integrations/                  (external adapters: zotero, crossref, gemini [impl];
-│                                  openalex, semantic-scholar, grobid, mendeley [planned])
+├── integrations/                  (external adapters: zotero, crossref, gemini, openalex [impl];
+│                                  semantic-scholar, grobid, mendeley [planned])
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
-├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 275 passing;
+├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0006_dismissed_duplicate_pairs)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0007_attachment_oa_labels)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
@@ -327,7 +329,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 73). Each increment of real work
+callosum is built in **numbered increments** (currently at 74). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -526,6 +528,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Acquisition bright lines enforced structurally via the `OaLocation` seam (inc 74) | The legally-clear OA-acquisition lane must never become a generic/non-OA fetcher. Rather than enforce that by convention, the `Resolver` Protocol returns a **frozen `OaLocation`** whose `oa_color` is **required** (gold/green/bronze; **no "closed"/"none" member**) and the downloader `download_oa_pdf(location: OaLocation)` takes the dataclass — there is **no function that fetches a bare URL**. So OA-ness is decided by the database (OpenAlex), never by callosum, and an arbitrary/non-OA fetch is structurally inexpressible (same seam-enforcement idea as the inc-58 egress gate; pinned by structural tests). Fetched copies land in the **local library** (`managed` storage, named per the existing `Authors - Year - Venue.pdf` convention) — nothing server-side. Honors the `APPROACH-AVOIDANCE.md` no-paywall-circumvention veto + realizes the A8 access-equity value. New `app/backend/acquisition/` + `integrations/openalex/` + migration 0007. The legally-ambiguous lane is deferred (counsel-gated), **absent** from this build. New resolvers (inc B) register into `build_default_registry` without editing the cascade. |
 | Generic `JobStore[R]` for async jobs + ruff is the linter (release-readiness Phase 5, 2026-06-20) | The four async-job subsystems (summarize, axis score, axis suggest, dedup) each carried a near-identical `_XJob` dataclass + `_XJobStore` class differing only in the result type — consolidated into one thread-safe generic `app/backend/api/job_store.py` (`Job`/`JobStore[R]`), instantiated per-subsystem in `create_app` and typed `JobStore[XResponse]` at each use. **New async jobs reuse `JobStore`, don't re-roll a store.** Linting/formatting is **ruff** (config in `pyproject.toml`: line-length 120, `select=E,F,W,I,B`, `ignore=E501`, bugbear `extend-immutable-calls` for FastAPI `Depends`/`Query`/… so B008 doesn't false-positive); `requirements-dev.txt` carries the dev/CI toolchain (pytest, httpx, ruff, pip-audit, playwright, pytest-playwright). Run `ruff check --fix .` + `ruff format .` before committing. |
 | Local-first FastAPI + SQLite, browser frontend | Lowest-friction local-first path; keeps everything free and offline-capable; no server to operate. |
 | `sqlite-vec` as the vector store (not a separate vector DB) | In-process, single-file, zero daemon — fits the local-first, single-user model and the SQLite metadata store. |
@@ -611,7 +614,24 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 73 (author/index keywords as first-order tags — Crossref `subject`):
+*Last updated: 2026-06-20 — increment 74 (literature acquisition — the legally-clear open-access lane, A):
+resolve a PDF-less paper (DOI/PMID/title) → an OpenAlex-asserted **authorized open-access** PDF → download +
+validate → import locally as a **`managed`** attachment named per the library convention
+(`Authors - Year - Venue.pdf`) + labeled OA color/version/source (bronze flagged unstable). The bright lines
+are enforced **structurally** by the `OaLocation` seam (required OA color, no "closed" member; the downloader
+takes an `OaLocation`, never a bare URL → an arbitrary/non-OA fetch is inexpressible — same idea as the inc-58
+egress gate). New `app/backend/acquisition/` (registry + fetch + resolvers), `integrations/openalex/`, migration
+**0007** (OA-label columns on `attachments`), async `POST /papers/{id}/acquire-oa`, and a per-paper **"Acquire
+OA copy"** button on PDF-less papers. pytest **303** (+24: structural OA-only, OpenAlex mapping/cache/fail-closed,
+download validation, managed import+labeling, filename convention); audit
+`.claude/security-audits/2026-06-20_oa-acquisition.md` **PASS**; e2e green; the spec is
+`future-tracks/opus4.8_future-tracks_acquisitionclean.md`. **NEXT:** Increment B (resolver cascade —
+DOAJ/CORE/arXiv·bioRxiv·PsyArXiv·PMC/Crossref) then C (wanted-list + OA-only re-check + coverage). The
+legally-ambiguous lane stays deferred/counsel-gated. (The release-readiness arc Phases 1–7 shipped callosum to
+**github.com/cliffworkman/callosum** — public, AGPL-3.0; follow-ons — CI billing, collaborator/branch-protection,
+Phase 8 watched-inbox rule, dev-infra hardening roadmap — are tracked in `INCREMENT-BACKLOG.md`.)
+
+Earlier — increment 73 (author/index keywords as first-order tags — Crossref `subject`):
 a paper's **Crossref subject categories** import as first-order tags (`import_source="keyword:crossref"`) —
 automatically on **🔎 re-resolve** / batch enrich, and across the existing library via
 `python tools/backfill_keyword_tags.py` (full: cache-first, re-resolve the rest; **tag-only**, idempotent).

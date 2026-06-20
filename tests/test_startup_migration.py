@@ -10,7 +10,7 @@ from alembic.config import Config
 # Bind the startup module (where the auto-migration machinery lives) for direct calls/monkeypatch.
 app_module = importlib.import_module("app.backend.api.startup")
 
-HEAD = "0006_dismissed_duplicate_pairs"
+HEAD = "0007_attachment_oa_labels"
 BEHIND = "0001_persistence_core"
 
 

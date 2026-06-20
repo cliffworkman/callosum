@@ -606,6 +606,15 @@
   .detail-file { display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer; padding: 2px 0; text-align: left; }
   .detail-file:hover .src-tag { border-color: var(--accent); color: var(--accent); }
   .detail-file-role { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.04em; }
+  /* OA-acquisition labels (acquisition clean lane) — pill recipe; durable (gold/green) = verified pair,
+     bronze = flag/status pair (free-to-read, no license → may revert). */
+  .oa-chip { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 1px 7px; border: 1px solid transparent; }
+  .oa-chip.oa-durable { background: var(--verified-soft); color: var(--verified); border-color: var(--verified-soft); }
+  .oa-chip.oa-bronze { background: var(--flag-soft); color: var(--flag); border-color: var(--flag-line); }
+  .oa-meta { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+  .detail-acquire { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 2px; }
+  .detail-acquire-msg { font-size: 12px; color: var(--ink-2); }
+  .detail-acquire-err { color: var(--danger); }
   .detail-tierline { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
 
   .prov {

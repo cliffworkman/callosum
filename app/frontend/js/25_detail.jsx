@@ -300,6 +300,46 @@ function TagsRow({ paperId, initialTags, onFilterToTag }) {
   );
 }
 
+// Acquisition clean lane (Increment A): fetch a free, rights-holder-authorized open-access copy via OpenAlex
+// and import it into the local library. Shown only when a paper has no available PDF. Async job → poll →
+// refresh the detail on success (or an honest "no authorized open-access copy found").
+function AcquireOaRow({ paperId, onAcquired }) {
+  const [status, setStatus] = useState("idle"); // idle | running | done | error
+  const [msg, setMsg] = useState(null);
+  const poll = async (jobId) => {
+    const r = await api(`/papers/acquire-oa/${jobId}`);
+    if (!r.ok) { setStatus("error"); setMsg(r.error || "Acquisition status check failed."); return; }
+    const j = r.data;
+    if (j.status === "done") {
+      setStatus("done");
+      if (j.found) {
+        setMsg("Imported a " + j.oa_color + (j.bronze_unstable ? " (unstable)" : "") + " open-access copy.");
+        onAcquired && onAcquired();
+      } else {
+        setMsg(j.detail || "No authorized open-access copy found.");
+      }
+      return;
+    }
+    if (j.status === "error") { setStatus("error"); setMsg(j.detail || "Acquisition failed."); return; }
+    setTimeout(() => poll(jobId), 1200); // pending / running → keep polling
+  };
+  const start = async () => {
+    setStatus("running"); setMsg(null);
+    const r = await apiPost(`/papers/${paperId}/acquire-oa`, {});
+    if (!r.ok) { setStatus("error"); setMsg(r.error || "Couldn't start acquisition."); return; }
+    poll(r.data.job_id);
+  };
+  return (
+    <div className="detail-acquire">
+      <button className="btn btn-primary" disabled={status === "running"} onClick={start}
+        title="Fetch a free, rights-holder-authorized open-access copy via OpenAlex and import it locally">
+        {status === "running" ? "Acquiring…" : "Acquire OA copy"}
+      </button>
+      {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
+    </div>
+  );
+}
+
 function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
@@ -348,6 +388,11 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
     }
   }, [paperId]);
 
+  const onAcquired = useCallback(() => {
+    if (paperId == null) return;
+    api(`/papers/${paperId}`).then((r) => { if (r.ok) setState({ status: "ready", paper: r.data }); });
+  }, [paperId]);
+
   const saveAuthors = useCallback((text) => {
     const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
     return saveField("authors", list);
@@ -368,6 +413,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
   const extras = Object.keys(p.csl_json || {}).filter(
     (k) => !CORE_CSL_KEYS.has(k) && isScalarValue(p.csl_json[k])
   );
+  const hasPdf = (p.attachments || []).some((a) => a.attachment_type === "pdf" && a.availability === "available");
 
   return (
     <div className="detail-edit-pane" style={{ padding: "12px 18px 32px" }}>
@@ -419,6 +465,8 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
           ))}
         </DetailSection>}
 
+      {!hasPdf && <AcquireOaRow paperId={p.id} onAcquired={onAcquired} />}
+
       {p.attachments && p.attachments.length > 0 &&
         <div className="detail-files">
           <span className="detail-files-label">Files</span>
@@ -428,6 +476,9 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
                 onClick={() => onOpenPaper && onOpenPaper({ id: p.id, title: p.title })}>
                 <span className="src-tag">{a.filename || "file"}</span>
                 {a.role ? <span className="detail-file-role">{a.role}</span> : null}
+                {a.oa_color ? <span className={"oa-chip " + (a.oa_bronze_unstable ? "oa-bronze" : "oa-durable")}
+                  title={a.oa_bronze_unstable ? "Bronze OA: free-to-read without an open license — may revert to paywalled" : a.oa_color + " open access"}>{a.oa_color}</span> : null}
+                {a.oa_version ? <span className="oa-meta">{a.oa_version}{a.oa_source ? " · " + a.oa_source : ""}</span> : null}
               </button>
             ))}
           </div>

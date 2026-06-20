@@ -1,4 +1,9 @@
-"""Temporary one-PDF ingest scaffolding for the PDF coordinate slice."""
+"""One-PDF ingest: create a paper + attachment + chunks for a local PDF, or attach a PDF to an existing paper.
+
+`attach_pdf_to_paper` is the reusable core (create the attachment, extract + chunk, refresh the tier) shared by
+the original `ingest_pdf_scaffold` (which also creates the paper) and by OA acquisition (which attaches a
+fetched PDF to an already-existing paper).
+"""
 
 from __future__ import annotations
 
@@ -16,50 +21,40 @@ from app.backend.pdf_processing.extraction import (
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, refresh_processing_tier
 
 
-def ingest_pdf_scaffold(
+def attach_pdf_to_paper(
     conn: Connection,
+    paper_id: int,
     pdf_path: str | Path,
     *,
-    title: str | None = None,
+    storage_mode: str = "managed",
+    availability: str = "available",
+    original_path: str | None = None,
+    import_source: str = "pdf-scaffold",
+    role: str = "primary",
     chunking_strategy: str = DEFAULT_CHUNKING_STRATEGY,
 ) -> dict[str, Any]:
-    """Create a paper, linked attachment, and chunks for one local PDF.
+    """Attach a local PDF to an EXISTING paper: create the attachment, extract + chunk, refresh the tier.
 
-    This is throwaway scaffolding for the vertical slice. The real Zotero
-    importer will replace paper/attachment creation in a later increment.
+    Does NOT create a paper. Returns ``{attachment_id, chunk_ids, checksum, chunk_version}``.
     """
     path = Path(pdf_path)
     checksum = file_sha256(path)
-    paper_title = title or path.stem
-
-    paper_id = create_paper(
-        conn,
-        title=paper_title,
-        csl_json={"id": f"local-{checksum[:12]}", "type": "document", "title": paper_title},
-        imported_source="pdf-scaffold",
-        processing_tier="metadata-only",
-    )
     attachment_id = create_attachment(
         conn,
         paper_id=paper_id,
-        storage_mode="linked",
-        availability="available",
-        original_path=str(path),
+        storage_mode=storage_mode,
+        availability=availability,
+        original_path=original_path if original_path is not None else str(path),
         resolved_path=str(path.resolve()),
         checksum=checksum,
         file_size=path.stat().st_size,
         content_type="application/pdf",
-        import_source="pdf-scaffold",
+        import_source=import_source,
         attachment_type="pdf",
-        role="primary",
+        role=role,
     )
-
     extraction = extract_pdf(path)
-    drafts = make_chunk_drafts(
-        extraction,
-        source_attachment_checksum=checksum,
-        chunking_strategy=chunking_strategy,
-    )
+    drafts = make_chunk_drafts(extraction, source_attachment_checksum=checksum, chunking_strategy=chunking_strategy)
     chunk_ids = [
         create_chunk(
             conn,
@@ -82,11 +77,40 @@ def ingest_pdf_scaffold(
         for draft in drafts
     ]
     refresh_processing_tier(conn, paper_id)
-
     return {
-        "paper_id": paper_id,
         "attachment_id": attachment_id,
         "chunk_ids": chunk_ids,
         "checksum": checksum,
         "chunk_version": drafts[0].chunk_version if drafts else None,
     }
+
+
+def ingest_pdf_scaffold(
+    conn: Connection,
+    pdf_path: str | Path,
+    *,
+    title: str | None = None,
+    chunking_strategy: str = DEFAULT_CHUNKING_STRATEGY,
+) -> dict[str, Any]:
+    """Create a paper, linked attachment, and chunks for one local PDF (vertical-slice scaffold)."""
+    path = Path(pdf_path)
+    checksum = file_sha256(path)
+    paper_title = title or path.stem
+    paper_id = create_paper(
+        conn,
+        title=paper_title,
+        csl_json={"id": f"local-{checksum[:12]}", "type": "document", "title": paper_title},
+        imported_source="pdf-scaffold",
+        processing_tier="metadata-only",
+    )
+    result = attach_pdf_to_paper(
+        conn,
+        paper_id,
+        path,
+        storage_mode="linked",
+        original_path=str(path),
+        import_source="pdf-scaffold",
+        role="primary",
+        chunking_strategy=chunking_strategy,
+    )
+    return {"paper_id": paper_id, **result}

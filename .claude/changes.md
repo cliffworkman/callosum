@@ -9,6 +9,38 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 74: literature acquisition — the legally-clear open-access lane (A)
+
+- **What:** the keystone of the *track → acquire → read → interrogate → cite* ecosystem (**clean lane only** —
+  the legally-ambiguous lane is deferred/counsel-gated, not built or scaffolded). A per-paper **"Acquire OA
+  copy"** button on a PDF-less paper resolves it (DOI/PMID/title) → an **OpenAlex-asserted authorized
+  open-access** PDF → downloads + validates → imports locally as a **`managed`** attachment named per the
+  library convention (`Authors - Year - Venue.pdf`) + labeled OA color/version/source (bronze flagged unstable).
+- **Why:** turns callosum from a reference manager into a full acquire→cite ecosystem, while keeping OA
+  judgment with the databases (realizes the A8 access-equity value; honors the no-paywall-circumvention veto).
+- **Bright lines enforced structurally** (not by convention): the `OaLocation` seam — required OA color (**no
+  "closed" member**), the downloader takes an `OaLocation` not a URL → **no arbitrary/non-OA fetch is
+  expressible**; OA-ness delegated to OpenAlex; fetched copies local-only. Same idea as the inc-58 egress gate.
+- **Files:** `app/backend/acquisition/{registry,fetch}.py` + `resolvers/openalex_resolver.py`;
+  `integrations/openalex/adapter.py`; `app/backend/pdf_processing/ingest.py` (extracted reusable
+  `attach_pdf_to_paper`, behavior-preserving); migration **0007** + `schema.py` +
+  `persistence/acquisition_repo.py` + `AttachmentResponse` OA fields; `app/backend/api/routers/acquisition.py`
+  (async `POST /papers/{id}/acquire-oa` + `GET /papers/acquire-oa/{job_id}`, included before `papers.router`) +
+  `app.py` wiring (`openalex_client` + `acquire_jobs`); `25_detail.jsx` button + OA chips + `styles.css` +
+  rebuilt `callosum-app.html`. New env: `CALLOSUM_OPENALEX_MAILTO` (polite pool), `CALLOSUM_LIBRARY_DIR`
+  (managed dir, default `library/`).
+- **Gates:** Principles + values gate — clean pass. Security audit
+  `.claude/security-audits/2026-06-20_oa-acquisition.md` — **PASS** (SSRF guard, 80 MiB size cap, PDF
+  magic + PyMuPDF validation, structural OA-only, no new dependency, polite-pool/cache).
+- **Verify:** `ruff` clean; `pytest` **303 passed, 1 skipped** (+24); e2e smoke green; migration head `0007`.
+  Notes: `INCREMENT-74-NOTES.md`.
+- **Help-docs:** ⚠️ the served help corpus does **not** yet cover acquisition — add an "Acquiring open-access
+  copies" section (this entry sits above the `HELP-DOCS-SYNCED` marker → flagged for review).
+- **NEXT:** Increment B (resolver cascade — DOAJ/CORE/arXiv·bioRxiv·PsyArXiv·PMC/Crossref) then C (wanted-list
+  + OA-only re-check + coverage).
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot; no down-migration by design — the
+  0007 columns are additive nullable and inert if unused.
+
 ## 2026-06-20 — Phase 7: published to GitHub + follow-up (inbox 3rd batch, README badges)
 
 - **PUBLISHED:** `https://github.com/cliffworkman/callosum` (public, AGPL-3.0), initial commit `58c4ce3`,
