@@ -31,3 +31,6 @@ library/
 .claude/plans/
 # personal raw to-do scratch (actionable items already folded into the backlog)
 .claude/callosum_TDL.txt
+# the future-tracks watched inbox is a LOCAL dropzone (Phase 8); it may hold counsel-gated /
+# unreviewed prompts (e.g. the deferred legally-ambiguous acquisition lane) — never publish it.
+.claude/docs/future-tracks-import/
