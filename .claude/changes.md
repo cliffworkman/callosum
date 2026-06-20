@@ -9,6 +9,37 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 75: literature acquisition — fan out the resolver cascade (B)
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 75 (2026-06-20) — added an "Acquiring an open-access copy" section covering the multi-source OA cascade (this also clears the inc-74 acquisition help debt). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **What:** the inc-74 OA lane gains a **7-source resolver cascade** (gold→green→preprint, first authorized
+  copy wins) behind the unchanged `OaLocation` seam: OpenAlex (primary) → **DOAJ** → **Europe PMC** →
+  **Crossref-OA** → **CORE** → **arXiv** → **bioRxiv/medRxiv** → **OSF/PsyArXiv**. Now a PDF-less paper has many
+  authorized OA sources tried in turn, not just OpenAlex.
+- **Why:** OpenAlex misses copies (new preprints, DOAJ gold, repository green, Europe PMC OA); the cascade
+  fills the gaps while keeping OA judgment with the databases.
+- **How (additive to a proven seam):** each source = the OpenAlex-adapter shape — an `integrations/<source>/`
+  client (injectable `fetcher` Protocol, `external_api_cache` under a distinct provider, `lookup_oa →
+  OaLocation|None`, fail-closed, https-only) + a thin `resolvers/<source>_resolver.py` + one `register(...)` in
+  `build_default_registry`. The `resolve()` loop is untouched. OA-ness stays each database's assertion — a
+  source with no honest https direct-PDF returns None (DOAJ needs a real PDF link; Europe PMC needs
+  `isOpenAccess=Y`; Crossref-OA needs a registered license → CC=gold else bronze; never a guess).
+- **Files:** `integrations/api_cache.py` (shared cache helper) + `integrations/{doaj,europepmc,core,arxiv,
+  biorxiv,osf}/` + `integrations/crossref/oa.py`; `app/backend/acquisition/resolvers/{doaj,europepmc,crossref,
+  core,arxiv,biorxiv,osf}_resolver.py` + the `build_default_registry` cascade; help corpus +
+  "Acquiring an open-access copy" section.
+- **Secrets:** **CORE** uses `CALLOSUM_CORE_API_KEY` (env only; Bearer header, never in a URL/cache/log;
+  **absent → silent no-op**). The key value is in no file/code/doc/git. (Rotate it after testing — pasted in chat.)
+- **No new dependency:** arXiv's Atom id is read with a targeted regex, **not** a stdlib XML parser (XXE/entity
+  surface on untrusted input, rule #4). No new endpoint, no migration (head stays 0007), no frontend change.
+- **Gates:** security audit `.claude/security-audits/2026-06-20_oa-acquisition-b.md` — **PASS** (per-source
+  OA-assertion delegation, https/SSRF, CORE key handling, fail-closed, no new dep).
+- **Verify:** `ruff` clean; `pytest` **334 passed, 1 skipped** (+31 hermetic per-source + cascade + structural).
+  Notes: `INCREMENT-75-NOTES.md`.
+- **NEXT:** Increment C (wanted-list + an OA-DB-only re-check job + a coverage readout).
+- **Revert:** restore touched files from a `.claude/backups/` snapshot; no migration to undo.
+
 ## 2026-06-20 — Increment 74: literature acquisition — the legally-clear open-access lane (A)
 
 - **What:** the keystone of the *track → acquire → read → interrogate → cite* ecosystem (**clean lane only** —
@@ -293,8 +324,6 @@ Pre-GitHub prep (docs/infra only; no app-code or schema change — increment cou
   without losing institutional memory (vestigial dirs are archived, never destroyed).
 - **Revert:** restore moved dirs from `.claude/deprecated/`; READMEs/CLAUDE.md from Dropbox version history or
   `.claude/backups/`.
-
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 73 (2026-06-20) — the tags section now covers Crossref keyword tags + the backfill tool. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 ## 2026-06-20 — Import Crossref subjects as first-order keyword tags (increment 73)
 

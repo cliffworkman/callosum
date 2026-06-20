@@ -118,12 +118,27 @@ class ResolverRegistry:
 
 
 def build_default_registry(*, openalex_client=None) -> ResolverRegistry:
-    """The single wiring point for the cascade. Increment B appends ``register(...)`` calls here in
-    gold→green→preprint order; the ``resolve()`` loop never changes."""
-    # Imported here (not at module top) to avoid a load-time cycle: the resolver imports OaLocation/PaperRef
+    """The single wiring point for the cascade, in gold→green→preprint order; the ``resolve()`` loop never
+    changes. OpenAlex stays primary (best-of across colors); the rest are gap-fillers it misses. Each resolver
+    lazily constructs its own client (CORE reads ``CALLOSUM_CORE_API_KEY`` and no-ops if it is absent)."""
+    # Imported here (not at module top) to avoid a load-time cycle: each resolver imports OaLocation/PaperRef
     # from this module.
+    from app.backend.acquisition.resolvers.arxiv_resolver import ArxivResolver
+    from app.backend.acquisition.resolvers.biorxiv_resolver import BiorxivResolver
+    from app.backend.acquisition.resolvers.core_resolver import CoreResolver
+    from app.backend.acquisition.resolvers.crossref_resolver import CrossrefResolver
+    from app.backend.acquisition.resolvers.doaj_resolver import DoajResolver
+    from app.backend.acquisition.resolvers.europepmc_resolver import EuropePmcResolver
     from app.backend.acquisition.resolvers.openalex_resolver import OpenAlexResolver
+    from app.backend.acquisition.resolvers.osf_resolver import OsfResolver
 
     registry = ResolverRegistry()
-    registry.register(OpenAlexResolver(client=openalex_client))
+    registry.register(OpenAlexResolver(client=openalex_client))  # primary — best-of, all colors
+    registry.register(DoajResolver())  # gold (DOAJ-listed)
+    registry.register(EuropePmcResolver())  # gold/green — Europe PMC OA full text
+    registry.register(CrossrefResolver())  # gold/bronze — publisher PDF link + asserted license
+    registry.register(CoreResolver())  # green — CORE repository full text (skips without a key)
+    registry.register(ArxivResolver())  # preprint
+    registry.register(BiorxivResolver())  # preprint
+    registry.register(OsfResolver())  # preprint — PsyArXiv et al.
     return registry

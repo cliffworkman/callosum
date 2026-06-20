@@ -230,6 +230,32 @@ Possible outcomes:
 
 Gotcha: Re-resolve can overwrite fields from Crossref because you explicitly requested a refresh. If you have carefully hand-edited a record, use this intentionally.
 
+<!-- section: acquiring-open-access -->
+## Acquiring an open-access copy
+When a paper in your library has no PDF, Callosum can try to fetch a **rights-holder-authorized open-access** copy and import it for you. Callosum never decides on its own that something is open access — it only downloads a copy that a maintained open-access database has already declared free to read.
+
+To acquire a copy:
+
+- Select a paper that has no PDF (it needs at least a DOI, PMID, or title).
+- In the Detail pane, click **Acquire OA copy**.
+- Callosum checks a cascade of open-access sources and stops at the first authorized copy.
+
+The sources it tries, in order: **OpenAlex** (broadest), **DOAJ** (gold open-access journals), **Europe PMC** (open-access full text), **Crossref** (publisher links that carry an open license), **CORE** (repository copies), and the preprint servers **arXiv**, **bioRxiv/medRxiv**, and **OSF/PsyArXiv**.
+
+Every acquired copy is labeled so you know exactly what you got:
+
+- **OA color** — **gold**/**green** are durable open access; **bronze** means free-to-read on the publisher site without an open license, so it is flagged as unstable (it can revert to paywalled).
+- **Version** — version of record, accepted manuscript, or preprint. A preprint is not the final published version.
+
+Outcomes:
+
+- **A copy was imported.** The PDF is saved into your local library, named like the rest of your library (`Authors - Year - Venue.pdf`), and opens in the viewer with its OA label.
+- **No authorized open-access copy found.** No source had a free, authorized PDF. Callosum will not fetch anything paywalled.
+
+Privacy: acquisition is local-first. The PDF is stored on your machine, not on any server. The only things that leave your computer are ordinary metadata lookups to the public open-access databases above (plus the download of the copy they point to) — this is normal public lookup, **not** the Gemini data-egress gate, and it never sends your library text to an LLM.
+
+Optional: the **CORE** source needs a free API key. Set `CALLOSUM_CORE_API_KEY` in your environment to enable it; without a key, Callosum simply skips CORE and uses the other sources.
+
 <!-- section: axes-overview -->
 ## Axes: organizing papers by a lens
 An axis is a lens for organizing your library around a construct, theme, method, population, theory, or question. It is not a folder, and it is not a permanent truth about a paper. It is a scored relationship between your curated vocabulary and the papers in your library.

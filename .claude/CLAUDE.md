@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 74** (see Increment workflow) with **303 pytest tests
+It is currently at **Increment 75** (see Increment workflow) with **334 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -211,13 +211,15 @@ callosum/
 │   │   ├── importers/             (zotero.py)
 │   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py,
 │   │   │                          paper_edits.py, citation_export.py [BibTeX/RIS/CSL-JSON, inc 70])
-│   │   └── acquisition/           (registry.py [OaLocation OA-only seam], fetch.py [download/validate/name/import],
-│   │                              resolvers/openalex_resolver.py; the OA acquisition clean lane, inc 74)
+│   │   └── acquisition/           (registry.py [OaLocation OA-only seam + cascade], fetch.py [download/validate/
+│   │                              name/import], resolvers/{openalex,doaj,europepmc,crossref,core,arxiv,biorxiv,
+│   │                              osf}_resolver.py; the OA acquisition clean lane, inc 74 + cascade inc 75)
 │   ├── frontend/                  ← the UI SOURCE: index.html shell + styles.css + js/*.jsx chunks
 │   │                              (assembled by app/backend/api/frontend.py; build → callosum-app.html)
 │   └── desktop-shell/             (placeholder — Tauri, post-V1)
-├── integrations/                  (external adapters: zotero, crossref, gemini, openalex [impl];
-│                                  semantic-scholar, grobid, mendeley [planned])
+├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
+│                                  arxiv, biorxiv, osf [impl]; api_cache.py [shared cache helper]; semantic-scholar,
+│                                  grobid, mendeley [planned])
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
@@ -329,7 +331,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 74). Each increment of real work
+callosum is built in **numbered increments** (currently at 75). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -529,6 +531,7 @@ before large design changes:
 | Decision | Rationale |
 |---|---|
 | Acquisition bright lines enforced structurally via the `OaLocation` seam (inc 74) | The legally-clear OA-acquisition lane must never become a generic/non-OA fetcher. Rather than enforce that by convention, the `Resolver` Protocol returns a **frozen `OaLocation`** whose `oa_color` is **required** (gold/green/bronze; **no "closed"/"none" member**) and the downloader `download_oa_pdf(location: OaLocation)` takes the dataclass — there is **no function that fetches a bare URL**. So OA-ness is decided by the database (OpenAlex), never by callosum, and an arbitrary/non-OA fetch is structurally inexpressible (same seam-enforcement idea as the inc-58 egress gate; pinned by structural tests). Fetched copies land in the **local library** (`managed` storage, named per the existing `Authors - Year - Venue.pdf` convention) — nothing server-side. Honors the `APPROACH-AVOIDANCE.md` no-paywall-circumvention veto + realizes the A8 access-equity value. New `app/backend/acquisition/` + `integrations/openalex/` + migration 0007. The legally-ambiguous lane is deferred (counsel-gated), **absent** from this build. New resolvers (inc B) register into `build_default_registry` without editing the cascade. |
+| OA resolver cascade fanned out to 7 sources, gold→green→preprint, first authorized copy wins (inc 75) | Increment B realizes the inc-74 seam's promise: `build_default_registry` registers OpenAlex (primary, best-of) then **DOAJ** (gold) → **Europe PMC** (OA full text) → **Crossref-OA** (publisher PDF + registered license) → **CORE** (green repo) → **arXiv** → **bioRxiv/medRxiv** → **OSF/PsyArXiv** (preprints). Each is the same shape as the OpenAlex adapter (injectable `fetcher` Protocol, `external_api_cache` under a distinct provider, `lookup_oa → OaLocation|None`, fail-closed) + a thin resolver; the `resolve()` loop is **untouched** (new sources only `register()`). OA-ness stays each database's assertion — a source with no honest https direct-PDF returns **None**, never a landing page or a guess (DOAJ requires a real PDF link; Europe PMC requires `isOpenAccess=Y`; Crossref-OA requires a registered license, CC→gold else bronze). Shared `integrations/api_cache.py` (the pre-existing openalex/crossref keep their private copies — not refactored). **CORE** needs `CALLOSUM_CORE_API_KEY` (Bearer header, never in a URL/cache/log; **absent → silent no-op**). **arXiv** reads the Atom id with a targeted regex, NOT a stdlib XML parser (XXE/entity surface on untrusted input, rule #4) → **no new dependency**. No new endpoint/migration/frontend (the Acquire button + OA chips already work); migration head stays 0007. Audit `.claude/security-audits/2026-06-20_oa-acquisition-b.md` PASS. Increment C (wanted-list + OA-only re-check) is next. |
 | Generic `JobStore[R]` for async jobs + ruff is the linter (release-readiness Phase 5, 2026-06-20) | The four async-job subsystems (summarize, axis score, axis suggest, dedup) each carried a near-identical `_XJob` dataclass + `_XJobStore` class differing only in the result type — consolidated into one thread-safe generic `app/backend/api/job_store.py` (`Job`/`JobStore[R]`), instantiated per-subsystem in `create_app` and typed `JobStore[XResponse]` at each use. **New async jobs reuse `JobStore`, don't re-roll a store.** Linting/formatting is **ruff** (config in `pyproject.toml`: line-length 120, `select=E,F,W,I,B`, `ignore=E501`, bugbear `extend-immutable-calls` for FastAPI `Depends`/`Query`/… so B008 doesn't false-positive); `requirements-dev.txt` carries the dev/CI toolchain (pytest, httpx, ruff, pip-audit, playwright, pytest-playwright). Run `ruff check --fix .` + `ruff format .` before committing. |
 | Local-first FastAPI + SQLite, browser frontend | Lowest-friction local-first path; keeps everything free and offline-capable; no server to operate. |
 | `sqlite-vec` as the vector store (not a separate vector DB) | In-process, single-file, zero daemon — fits the local-first, single-user model and the SQLite metadata store. |
@@ -614,7 +617,22 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 74 (literature acquisition — the legally-clear open-access lane, A):
+*Last updated: 2026-06-20 — increment 75 (literature acquisition — fan out the resolver cascade, B): the
+inc-74 OA lane gains a **7-source cascade** (gold→green→preprint, first authorized copy wins) behind the
+unchanged `OaLocation` seam — OpenAlex (primary) → **DOAJ** → **Europe PMC** → **Crossref-OA** → **CORE** →
+**arXiv** → **bioRxiv/medRxiv** → **OSF/PsyArXiv**. Each is the OpenAlex-adapter shape (injectable fetcher,
+`external_api_cache`, `lookup_oa → OaLocation|None`, fail-closed) + a thin resolver; the `resolve()` loop is
+untouched (new sources only `register()` in `build_default_registry`). OA-ness stays each database's assertion
+(no honest https PDF → None, never a guess); shared `integrations/api_cache.py`; **CORE** uses
+`CALLOSUM_CORE_API_KEY` (Bearer; absent → silent no-op); **arXiv** parses the Atom id by regex not stdlib XML
+(XXE surface, rule #4) → **no new dependency, no migration (head 0007), no new endpoint, no frontend change**.
+pytest **334** (+31 hermetic per-source + cascade + structural); audit
+`.claude/security-audits/2026-06-20_oa-acquisition-b.md` **PASS**; help corpus gained an "Acquiring an
+open-access copy" section (`HELP-DOCS-SYNCED` → inc 75, clearing the inc-74 help debt). **NEXT:** Increment C
+(wanted-list table + an OA-DB-only re-check job + a coverage readout). The legally-ambiguous lane stays
+deferred/counsel-gated (its inbox spec is gitignored).
+
+Earlier — increment 74 (literature acquisition — the legally-clear open-access lane, A):
 resolve a PDF-less paper (DOI/PMID/title) → an OpenAlex-asserted **authorized open-access** PDF → download +
 validate → import locally as a **`managed`** attachment named per the library convention
 (`Authors - Year - Venue.pdf`) + labeled OA color/version/source (bronze flagged unstable). The bright lines
