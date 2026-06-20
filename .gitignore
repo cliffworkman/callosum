@@ -1,0 +1,33 @@
+.local/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*.sqlite
+*.db
+*.pdf
+
+# --- Secrets (NEVER commit) ---
+.env
+.env.*
+# Any Gemini/Google key file, under any name we've used (GEMINI_API.txt, GEMINI_API_KEYS.md, …) anywhere.
+*GEMINI_API*
+*.key
+.claude/GEMINI_API_KEYS.md
+# Snapshot zips (.claude/backups/* etc.) predate the keys→.env move and the OLD ones embed key values
+# (inside .claude/GEMINI_API.txt) — exclude every zip anywhere, on top of the .claude/backups/ dir rule.
+*.zip
+
+# --- Tool / editor scratch ---
+.ruff_cache/
+.playwright-mcp/
+*.tmp.*
+
+# --- Large local data (not code) ---
+library/
+
+# --- Dev-only .claude working space (not for the public repo; the rest of .claude/ IS committed) ---
+.claude/backups/
+.claude/deprecated/
+.claude/plans/
+# personal raw to-do scratch (actionable items already folded into the backlog)
+.claude/callosum_TDL.txt

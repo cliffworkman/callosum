@@ -1,0 +1,158 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+
+from alembic import command
+from alembic.config import Config
+from app.backend.api import create_app
+from tests.api_helpers import (
+    _seed_library,
+)
+
+
+def test_health_reports_reachable_and_migrated(temp_db_url: str) -> None:
+    response = TestClient(create_app(db_url=temp_db_url)).get("/health")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["app"] == "callosum"
+    assert body["verification_version"] == "local-verifier-v1"
+    assert body["db_reachable"] is True
+    assert body["db_migrated"] is True  # at head
+    assert body["db_revision"] == "0006_dismissed_duplicate_pairs"
+    assert body["db_head_revision"] == "0006_dismissed_duplicate_pairs"
+
+
+def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
+    # A DB stamped one revision behind head must report db_migrated=False with the gap visible.
+    db_url = f"sqlite:///{(tmp_path / 'behind.sqlite').as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", db_url)
+    command.upgrade(config, "0001_persistence_core")
+
+    # No `with` → the lifespan startup auto-migrate does NOT run, so the DB stays behind.
+    body = TestClient(create_app(db_url=db_url)).get("/health").json()
+
+    assert body["db_reachable"] is True
+    assert body["db_migrated"] is False
+    assert body["db_revision"] == "0001_persistence_core"
+    assert body["db_head_revision"] == "0006_dismissed_duplicate_pairs"
+
+
+def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:
+    frontend = tmp_path / "callosum-app.html"
+    frontend.write_text("<!doctype html><html><head><title>Callosum</title></head><body>Callosum shell</body></html>")
+    client = TestClient(create_app(db_url=temp_db_url, frontend_path=frontend))
+
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "<title>Callosum</title>" in response.text
+    assert "Callosum shell" in response.text
+
+
+def test_frontend_static_route_does_not_shadow_json_endpoints(temp_db_url: str, tmp_path: Path) -> None:
+    _seed_library(temp_db_url)
+    frontend = tmp_path / "callosum-app.html"
+    frontend.write_text("<!doctype html><title>Callosum</title>")
+    client = TestClient(create_app(db_url=temp_db_url, frontend_path=frontend))
+
+    health = client.get("/health")
+    papers = client.get("/papers")
+
+    assert health.status_code == 200
+    assert health.headers["content-type"].startswith("application/json")
+    assert health.json()["db_migrated"] is True
+    assert papers.status_code == 200
+    assert papers.headers["content-type"].startswith("application/json")
+    assert [paper["title"] for paper in papers.json()] == ["Facial Anomaly Perception", "Signal Detection Theory"]
+
+
+def test_missing_frontend_file_is_graceful_and_api_still_works(temp_db_url: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(db_url=temp_db_url, frontend_path=tmp_path / "missing.html"))
+
+    frontend = client.get("/")
+    health = client.get("/health")
+
+    assert frontend.status_code == 200
+    assert frontend.headers["content-type"].startswith("text/html")
+    assert "Callosum frontend file not found" in frontend.text
+    assert "CALLOSUM_FRONTEND_PATH" in frontend.text
+    assert health.status_code == 200
+    assert health.json()["db_reachable"] is True
+
+
+def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
+    app = create_app(db_url=temp_db_url)
+    client = TestClient(app)
+    allowed_route_paths = {
+        "/",
+        "/health",
+        "/papers",
+        "/papers/{paper_id}",
+        "/papers/{paper_id}/chunks",
+        "/papers/{paper_id}/annotations",
+        "/papers/{paper_id}/pdf",
+        "/papers/duplicates/{job_id}",
+        "/papers/duplicates/dismissed",
+        "/axes",
+        "/axes/{axis_id}/clusters",
+        "/axes/score/{job_id}",
+        "/axes/suggest/{job_id}",
+        "/summarize/{job_id}",
+        "/summaries",
+        "/summaries/{summary_id}",
+        "/help/corpus",
+        "/tags",
+        "/papers/{paper_id}/suggested-tags",
+    }
+    allowed_mutation_routes = {
+        ("/summarize", frozenset({"POST"})),
+        ("/summaries/{summary_id}", frozenset({"DELETE"})),
+        ("/papers/{paper_id}", frozenset({"PATCH"})),
+        ("/papers/{paper_id}", frozenset({"DELETE"})),
+        ("/papers/{paper_id}/permanent", frozenset({"DELETE"})),
+        ("/papers/trash/empty", frozenset({"POST"})),
+        ("/papers/export", frozenset({"POST"})),
+        ("/papers/{paper_id}/re-resolve", frozenset({"POST"})),
+        ("/papers/{paper_id}/restore", frozenset({"POST"})),
+        ("/papers/duplicates", frozenset({"POST"})),
+        ("/papers/duplicates/dismiss", frozenset({"POST"})),
+        ("/papers/duplicates/undismiss", frozenset({"POST"})),
+        ("/papers/{paper_id}/annotations", frozenset({"POST"})),
+        ("/annotations/{annotation_id}", frozenset({"DELETE"})),
+        ("/annotations/{annotation_id}", frozenset({"PATCH"})),
+        ("/axes", frozenset({"POST"})),
+        ("/axes/suggest-terms", frozenset({"POST"})),
+        ("/axes/suggest", frozenset({"POST"})),
+        ("/axes/merge", frozenset({"POST"})),
+        ("/axes/{axis_id}", frozenset({"PATCH"})),
+        ("/axes/{axis_id}", frozenset({"DELETE"})),
+        ("/axes/{axis_id}/score", frozenset({"POST"})),
+        ("/axes/{axis_id}/papers", frozenset({"POST"})),
+        ("/axes/{axis_id}/papers/{paper_id}", frozenset({"DELETE"})),
+        ("/help/ask", frozenset({"POST"})),
+        ("/papers/{paper_id}/tags", frozenset({"POST"})),
+        ("/papers/{paper_id}/tags/{tag_id}", frozenset({"DELETE"})),
+    }
+    api_routes = [
+        route
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        and route.path in allowed_route_paths | {path for path, _ in allowed_mutation_routes}
+    ]
+    write_routes = [route for route in api_routes if not (route.methods or set()) <= {"GET"}]
+
+    assert api_routes
+    assert {route.path for route in api_routes} == allowed_route_paths | {path for path, _ in allowed_mutation_routes}
+    assert all(
+        (route.methods or set()) <= {"GET"}
+        or (route.path, frozenset(route.methods or set())) in allowed_mutation_routes
+        for route in api_routes
+    )
+    assert {(route.path, frozenset(route.methods or set())) for route in write_routes} == allowed_mutation_routes
+    assert client.post("/papers").status_code == 405

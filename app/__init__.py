@@ -1,0 +1,1 @@
+"""Callosum application package."""

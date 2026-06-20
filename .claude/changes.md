@@ -1,0 +1,1321 @@
+# Changes
+
+Running human-readable log of non-trivial changes (newest first). The increment notes
+are the design diary; this is the chronological "what & why" record.
+
+> **Help-doc sync markers:** a `<!-- HELP-DOCS-SYNCED … -->` line marks where the served help corpus
+> (`app/backend/help/help_content.md`) was last brought current. Because this log is newest-first, **every
+> entry _above_ the topmost marker is a change made since the last help sync** — the set to review when
+> deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
+> the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
+
+## 2026-06-20 — Phase 6 (cont.): scrubbed key values out of the backup zips (user-requested)
+
+- Removed the key-bearing entry `.claude/GEMINI_API.txt` from all **16** affected backup zips via a **validated
+  atomic rewrite** (each temp zip `testzip`-checked before `os.replace`, with a lock retry; 0 corrupt). Re-scan of
+  all **43** zips' contents = **0 key-pattern matches**. With the `.gitignore` rules + the `git check-ignore`
+  proof, the backups now carry no secrets and cannot reach GitHub.
+- **Key rotation** (the 4 keys still in Dropbox history) was added to `INCREMENT-BACKLOG.md` → *Security follow-up*
+  as **non-blocking**, at the user's request.
+- **Files:** the 16 `.claude/backups/callosum_claudecode_inc{43–48,64–73}.zip` (gitignored; never committed).
+- **Verify:** content re-scan = 0 matches; all 43 zips pass `testzip`.
+
+## 2026-06-20 — Phase 6 (cont.): backups secret exposure verified + .gitignore hardened (user-flagged)
+
+- **User flagged** that `.claude/backups/` zips predate the keys→`.env` move and could carry secrets. Verified:
+  scanning zip **contents** found the 4 key values in **16 backup zips** (inc43–48 ×1, inc64–73 ×4) — embedded in
+  the **old `.claude/GEMINI_API.txt`** filename (which predated `GEMINI_API_KEYS.md`, so the earlier name-only
+  check missed it). **The live tree is clean** (only `.env`).
+- **GitHub path neutralized + PROVEN.** `.gitignore` already excluded `.claude/backups/`; hardened further with
+  `*.zip`, `*GEMINI_API*` (catches the old filename if Dropbox resurrects it), and `*.key`. A throwaway
+  `git init` + **`git check-ignore`** confirmed `.claude/backups/`, every `*.zip`, `.env`, and the key files are
+  ignored; the throwaway `.git/` was removed (working tree is not a repo). → **the keys cannot reach GitHub.**
+- **Residual (local/Dropbox only):** the keys persist in those 16 local zips + Dropbox version history →
+  **key rotation RECOMMENDED** (revoke + reissue in Google AI Studio, update `.env`) as the only way to neutralize
+  copies outside git. Recorded in the security audit.
+- **Files:** `.gitignore` (`*.zip` / `*GEMINI_API*` / `*.key`); `.claude/security-audits/2026-06-20_pre-github-fullsweep.md`.
+- **Verify:** `git check-ignore` PASS for all secret-bearing paths; live-tree sweep clean.
+
+## 2026-06-20 — Phase 6 (cont.): 2nd inbox round + codex doc-refresh accepted
+
+- **Codex doc-refresh reviewed + accepted.** The 7 refreshed `docs/*.md` (architecture, data-contracts,
+  product-scope, ux-scope, risk-register, glossary, docs-README) verified accurate against the code — they even
+  capture the *contrasted* (product term) vs `contradicted` (storage status) nuance and flag the PyMuPDF-AGPL
+  redistribution risk; no overclaiming. (`build-log.md` left as a historical record.)
+- **2nd inbox round** (the user dropped more material mid-session): **Research-impact analytics** track folded →
+  `future-tracks/` + the index + a Longer-horizon backlog bullet (opt-in, local-first, **commons**; HSR-grade
+  consent; Project A = zero-egress instrumentation seam + personal dashboard near-term, Project B = far-future
+  gated). The re-synced `approachavoidanceharness.md` (already actioned in the 1st round) was removed again — its
+  reappearance is **Dropbox restoring my earlier delete**; if it recurs, delete it from Dropbox so the delete
+  propagates. Inbox empty again.
+- **Files:** moved `…_researchimpactanalytics.md` → `future-tracks/`; `future-tracks/README.md`;
+  `INCREMENT-BACKLOG.md`.
+- **Verify:** docs-only; `pytest` unaffected (279 passed, 1 skipped).
+
+## 2026-06-20 — Phase 6 (cont.): stdlib .env auto-loader; archived/refreshed stale planning docs
+
+- **.env auto-loader (functional completion of the keys relocation).** `startup.load_local_env()` (+ pure,
+  tested `_parse_dotenv`) populates the process env from a gitignored `.env` for any **unset** key (an exported
+  shell var always wins — handy for swapping BYO test keys); called once in `app.py` before the default
+  `create_app()`. **Skipped under pytest** (guarded on `"pytest" in sys.modules`) so the suite stays hermetic and
+  never ingests a real `.env`. No new dependency (stdlib `KEY=VALUE` parser; `#` comments + quotes handled).
+  Tested by `tests/test_env_loader.py` (+4). So `.env` now "just works": set `GOOGLE_API_KEY` there + run.
+- **Archived stale planning docs.** `roadmap.md` (stale since ~inc 7) + `backlog-future-tracks.md` (superseded by
+  `future-tracks/`) → `.claude/deprecated/`; the reference rows in CLAUDE.md + the INCREMENT-BACKLOG scope note
+  were redirected. The 7 still-useful planning docs (architecture / data-contracts / product-scope / ux-scope /
+  risk-register / glossary / docs-README) were **refreshed to current reality via `codex exec`, reviewed against
+  the code** (same pattern as the Phase-3 README refresh).
+- **Files:** `app/backend/api/startup.py` (+ loader), `app/backend/api/app.py` (call it),
+  `tests/test_env_loader.py` (new); moved `roadmap.md` + `backlog-future-tracks.md` → `deprecated/`; refreshed
+  the 7 `docs/*.md`; `CLAUDE.md` + `INCREMENT-BACKLOG.md` reference updates.
+- **Verify:** `ruff` clean; `pytest` → **279 passed, 1 skipped** (+4 env-loader).
+
+## 2026-06-20 — Phase 6: Gemini API keys relocated to .env (security gate)
+
+- **What:** moved the **4** Gemini keys (newer `AQ.*` format) from `.claude/GEMINI_API_KEYS.md` → a **gitignored
+  `.env`** (`GOOGLE_API_KEY` + 3 alternates for BYO-key testing); **deleted** the md; hardened `.gitignore` to
+  exclude `.env` / `.env.*` / the md + `.ruff_cache/` / `.playwright-mcp/` / `*.tmp.*` / `library/` +
+  `.claude/{backups,deprecated,plans}`.
+- **How (no leak):** a masking Python script did the read→write — **no key value was ever read or printed** to
+  the transcript (only counts + masked structure). Whole-tree secret sweep (`AQ.*` / `AIza*` patterns) = **clean**
+  (only `.env`, which is gitignored; binary backup zips are skipped by grep + are gitignored).
+- **Note:** the app reads `GOOGLE_API_KEY` from the **process env** and does **not** auto-load `.env` yet — so the
+  run workflow is unchanged (set the env var before `uvicorn`). A tiny **stdlib `.env` loader** (no new dep,
+  shell-override-preserving) is offered as the functional follow-up. Keys still live in local backup zips +
+  Dropbox history (not git); optional key **rotation** is the user's call.
+- **Files:** **new** `.env` (gitignored); `.gitignore`; **deleted** `.claude/GEMINI_API_KEYS.md`.
+- **Why:** the security audit's hard pre-commit gate; enables the BYO-key model.
+
+## 2026-06-20 — Release-readiness arc, Phase 6 (start): processed the future-tracks inbox + TDL; wired the values layer
+
+Collaborative `.claude/` phase (user chose: process the inbox/TDL now + a full per-item inventory). Docs-only.
+
+- **Values layer wired in.** Actioned the inbox's `…_approachavoidanceharness.md` directive (a meta task, not a
+  track): **`APPROACH-AVOIDANCE.md`** (the value substrate beneath PRINCIPLES) is now the Principles gate's
+  **deeper, *conditional* layer** — consulted only for novel / value-level / future-track changes (derive the
+  check from the value; veto-level hard boundaries = no paywall circumvention / no reaching into other tools'
+  stores / no accusation of individuals; the confirmed/extended/emergent/divergent drift typology). CLAUDE.md
+  gate section + rule #9 + kickoff #8 + reference table + directory layout updated; explicitly **not** a second
+  mandatory gate. The harness directive was removed from the inbox (actioned).
+- **Equity & integrity signals track folded in.** Moved `…_equityintegritysignals.md` → `future-tracks/`; added
+  it to the `future-tracks/` index + a "Longer-horizon" backlog bullet (HACKADEMIA-derived, **repointed to
+  non-accusatory inspectable signals**; OpenAlex + findings-subsystem dependent; gated by the A-A no-accusation
+  veto). Inbox now empty; added `future-tracks-import/README.md` documenting the inbox convention.
+- **`callosum_TDL.txt` folded.** ~12 net-new near-term UX items captured into a new backlog section (watch
+  library folders; UNSORTED/DOI-failed cluster; filter-by-type; card tidy-ups; viewer page-views; reading mode;
+  **Gemini API key in Settings = BYO-key**; account/login + publishing name; hide-uncertain-by-default; progress
+  bars; re-score wrap fix), deduped against shipped increments.
+- **Files:** `.claude/CLAUDE.md`; `.claude/docs/INCREMENT-BACKLOG.md`; `.claude/docs/future-tracks/README.md` +
+  the moved-in equity doc; **new** `.claude/docs/future-tracks-import/README.md`.
+- **Still TODO this phase:** the full per-item `.claude/` inventory (user ruling on each) + the
+  **Gemini-keys → `.env`** relocation (security gate before any commit).
+- **Why:** the user pre-loaded the watched inbox + a TDL; integrate so the plan captures everything, and wire
+  the values layer the harness doc requested. **Verify:** docs-only; `pytest` unaffected (275/1).
+
+## 2026-06-20 — Release-readiness arc, Phase 5.5 (README coverage + planned→backlog reconciliation)
+
+User-requested docs sweep (docs-only; no code touched).
+
+- **Hygiene:** removed 3 atomic-write orphans (`app/backend/api/routers/*.tmp.26380.*`) + emptied the stray
+  `.playwright-mcp/` MCP-scratch dir (dir handle was locked; files cleared). **Phase-7 `.gitignore` must add
+  `.playwright-mcp/` + `*.tmp.*`.**
+- **planned→backlog reconciliation:** swept every README for "planned / not-yet-implemented" items and checked
+  each against `INCREMENT-BACKLOG.md` + `future-tracks/`. openalex/semantic-scholar/grobid were already
+  **visible** (they cite future-tracks). Two were **invisible** → now captured:
+  - **Mendeley** — its README correctly said *no track depends on it*, yet the backlog mis-framed it as "shared
+    infra these unlock." It's **import coverage**, not track infra → new **"Import coverage — additional
+    sources"** item (Theme 2: Mendeley via Zotero-bridge/exports + BibTeX/RIS/CSL-JSON import); backlog line
+    328 corrected; mendeley README points at the item.
+  - **Desktop-shell (Tauri) + OS keychain + desktop distribution** (desktop-shell + ops READMEs) — entirely
+    absent from the plan → new **"Packaging & distribution (post-V1)"** item (Theme 4); both READMEs point at it.
+- **README coverage:** added `tests/e2e/README.md` (the one genuine gap — the opt-in browser smoke +
+  `CALLOSUM_RUN_E2E`). **Did NOT** blanket-add per-Python-package READMEs: the component READMEs (app/,
+  app/backend/, integrations/, tests/) already map their subpackages, and per-package stubs would duplicate
+  CLAUDE.md's directory layout and risk drift (rule #6). Offered deeper coverage if wanted.
+- **Files:** `tests/e2e/README.md` (new); `.claude/docs/INCREMENT-BACKLOG.md`; `integrations/mendeley/README.md`,
+  `app/desktop-shell/README.md`, `ops/README.md`.
+- **Why:** docs better-scoped + the plan now captures all README-described planned functionality (user ask).
+- **Verify:** no code touched (`pytest` unaffected at 275 passed, 1 skipped).
+
+## 2026-06-20 — Release-readiness arc, Phase 5 (modularize · dedup · dead-code · lint/format · security audit)
+
+Pre-GitHub code hardening (no API/schema/behavior change; increment counter stays 73).
+
+- **Linting adopted — ruff.** Config in `pyproject.toml` (line-length 120, `select=E,F,W,I,B`, `ignore=E501`,
+  bugbear `extend-immutable-calls` for FastAPI `Depends`/`Query`/… to kill B008 false positives). Applied
+  **318 auto-fixes** (229 unused-import, import-sort, whitespace, etc.) + 7 manual (unused loop var, B023
+  loop-capture, an `# noqa: E402` for the `sys.path` shim) + **`ruff format` repo-wide** (58 files). `ruff
+  check` + `ruff format --check` now clean & idempotent. `requirements-dev.txt` carries pytest/httpx/ruff/
+  pip-audit/playwright/pytest-playwright.
+- **Modularize (600-line cap).** Only one app-source file was over: `axis_scoring.py` (617). Split the
+  manual-assignment + read-state API → new **`app/backend/clustering/axis_assignments.py`** (167);
+  `axis_scoring.py` → 463 (scoring engine only). Importers repointed (router, axis_operations, tests).
+  **No app/integrations file now exceeds 600** (largest: repository 577, papers 576).
+- **Dedup (lizard + difflib).** difflib flagged the 4 async-job subsystems as 0.87–0.92 similar — they each
+  carried a near-identical `_XJob`/`_XJobStore` (differing only in result type). Consolidated into a generic
+  **`app/backend/api/job_store.py`** (`Job`/`JobStore[R]`); `create_app` instantiates one per subsystem;
+  routers type them `JobStore[XResponse]`. Removed ~130 lines of duplication. lizard complexity hotspots
+  (clustering/dedup/merge fns) are inherent algorithmic complexity, left as-is (not duplication).
+- **Dead code.** ruff F-series clean; removed one genuinely-unused back-compat alias
+  (`canonicalize_quote_text_variants` in extraction.py). Hardcoded-secret grep: none.
+- **Security audit:** `.claude/security-audits/2026-06-20_pre-github-fullsweep.md` — **PASS** for the local
+  single-user model. Two tracked follow-ups: (1) secrets hygiene before first commit (`.env` relocation +
+  `.gitignore` + working-tree secret scan — Phase 6/7 publication gates); (2) `pip-audit` found transitive
+  CVEs in `transformers`/`urllib3` (LOW risk locally — trusted models + trusted endpoints; requirements use
+  ranges so fresh installs patch) — upgrade + wire pip-audit into CI before any hosted deployment. (`yt-dlp`
+  flagged but is NOT a callosum dependency — environment noise.)
+- **Files:** `pyproject.toml` (ruff config); `requirements-dev.txt`; **new** `axis_assignments.py`,
+  `job_store.py`; `axis_scoring.py`, `axis_operations.py`, `routers/{axes,summaries,duplicates}.py`,
+  `app.py`, `extraction.py`, `tests/test_axes.py`, + ~60 files reformatted; security-audit doc.
+- **Why:** ship a lint-clean, duplication-reduced, cap-compliant, audited codebase for the public repo.
+- **Verify:** `ruff check` clean; `pytest` → **275 passed, 1 skipped**. **Revert:** restore from
+  `.claude/backups/callosum_pre-phase5_20260620_1242.zip`.
+
+## 2026-06-20 — Release-readiness arc, Phase 4 (test-harness audit + extension; usage-logging prod fix)
+
+Pre-GitHub test hardening (docs/infra/test-only; increment counter stays 73).
+
+- **New automated coverage (+19 tests, 256 → 275):**
+  - `tests/test_egress_gate.py` (9) — direct unit tests of the inc-58 `EgressGated*` wrappers (the
+    authoritative egress boundary): when egress is OFF each wrapper raises **and the inner provider is
+    never invoked** (a spy inner records calls); ON delegates + passes metadata. Pins the security
+    property the API-level tests could only imply, including the help assistant's independent toggle.
+  - `tests/test_usage_logging.py` (5) — `llm/usage.py` was untested: logs the token counts, is silent on
+    missing/None `usage_metadata`, never raises on malformed metadata, **and survives an Alembic
+    migration** (regression for the fix below).
+  - `tests/test_frontend_assembly.py` (5) — deterministic, offline frontend smoke: assembles without
+    error, both `{{STYLES}}`/`{{SCRIPT}}` placeholders consumed, `#root` + babel script present, all 3
+    CDN scripts carry SRI, **every** `app/frontend/js/*.jsx` chunk is included, and `callosum-app.html`
+    is byte-in-sync with the live assembly (catches a forgotten `build_frontend.py`).
+  - `tests/e2e/test_smoke.py` (1, **opt-in**) — committed Playwright browser smoke: launches the real
+    `app:app` against a seeded temp DB, loads `/` in headless Chromium, asserts React mounts with **zero**
+    console errors. Skipped unless `CALLOSUM_RUN_E2E=1` (keeps the default suite offline/deterministic);
+    CI runs it after `playwright install chromium`. Verified green locally (23s).
+- **Production fix surfaced by the new usage test:** `alembic/env.py` now calls
+  `fileConfig(..., disable_existing_loggers=False)`. The default (`True`) disabled every app logger not
+  named in `alembic.ini` on each migrate — so a real startup auto-migration left `callosum.llm.usage`
+  disabled, **silently killing inc-61 token-usage logging until the next restart** (`_loud` only revived
+  the `callosum` parent). `_loud` kept as defense-in-depth.
+- **`requirements-dev.txt` created** (pytest, httpx, ruff, pip-audit, playwright, pytest-playwright) —
+  also resolves a stale CLAUDE.md reference to a file that didn't exist.
+- **Files:** `tests/test_egress_gate.py`, `tests/test_usage_logging.py`, `tests/test_frontend_assembly.py`,
+  `tests/e2e/{__init__,test_smoke}.py` (new); `alembic/env.py` (logging fix); `requirements-dev.txt`
+  (new); `tests/README.md` (codex Phase-3 draft + browser-smoke section); `.claude/CLAUDE.md` (test count,
+  tree, migration-logging decision row).
+- **Why:** close the survey-flagged gaps (egress-gate isolation, usage logging, no committed frontend
+  test) before exposing the repo + CI; the audit also caught a live observability bug.
+- **Verify:** `pytest` → **275 passed, 1 skipped** (e2e gated); `CALLOSUM_RUN_E2E=1 pytest tests/e2e` →
+  1 passed. **Revert:** delete the new test files + `requirements-dev.txt`; restore `alembic/env.py` from
+  Dropbox history.
+
+## 2026-06-20 — Release-readiness arc, Phases 1–3 (principles gate · future-tracks fold-in · README/dir cleanup)
+
+Pre-GitHub prep (docs/infra only; no app-code or schema change — increment counter stays 73).
+
+- **Phase 1 — principles gate.** Added a **Principles alignment gate** section + **rule #9 (Principle
+  fidelity)** + session-kickoff item #8 to `.claude/CLAUDE.md`, keyed to the new `.claude/PRINCIPLES.md`
+  charter (10 commitments + THEORY contract + 4 worked examples). The gate is a *reflective pause* before
+  adding/removing a literature-claim/signal feature: name the principle(s) + worked example, name the
+  misalignment risk, and **propose the aligned alternative** (not just the objection). Added PRINCIPLES.md +
+  future-tracks rows to the reference table.
+- **Phase 2 — backlog reflects the full vision.** Moved the 7 root `opus4.8_future-tracks*.md` docs →
+  **`.claude/docs/future-tracks/`** (+ a `README.md` index table); `INCREMENT-BACKLOG.md` now references each
+  track (statcheck, Word/LibreOffice plugin, highlight-to-suggest/evaluate, acquisition, my-publications,
+  theory/methods, plugins, gapfinder, Feed/Search) + shared deps
+  (OpenAlex/Unpaywall/Semantic-Scholar/GROBID/mendeley); reconciled the stale
+  `opus4.8_callosum_backlog-future-tracks.md` reference. Relocated increment notes 65–73 into
+  `.claude/docs/increment-notes/`.
+- **Phase 3 — GitHub strip-down + README refresh.** Archived vestigial planning-only `pipelines/` (+6
+  subdirs) and `data/` (+library-store/sqlite/vector-store) → **`.claude/deprecated/`** (kept, not deleted —
+  their real code lives in `app/backend/`). Removed 3 `.tmp.26380.*` crash orphans. Refreshed all **13 kept
+  READMEs** (root front door + `app/**`, `integrations/**`, `tests/**`, `research/`, `ops/`) to current
+  reality via `codex exec`, **each draft reviewed against the code** (root README rewritten from the stale
+  "planning skeleton" to an accurate, principles-linked front door). Updated the CLAUDE.md root directory
+  tree (dropped `pipelines/`; added `research/`, `ops/`).
+- **Files:** `.claude/CLAUDE.md`; `.claude/docs/future-tracks/` (7 moved docs + new README);
+  `.claude/docs/INCREMENT-BACKLOG.md`; `.claude/docs/increment-notes/` (65–73 moved); `.claude/deprecated/`
+  (pipelines/, data/ moved); `README.md`, `app/README.md`, `app/frontend/README.md`,
+  `app/desktop-shell/README.md`, `integrations/README.md` + the 4 planned stubs, `tests/README.md`,
+  `tests/fixtures/README.md`, `research/README.md`, `ops/README.md`.
+- **Why:** prepare an honest, principle-coherent, clutter-free tree for a public **AGPL-3.0** GitHub release
+  without losing institutional memory (vestigial dirs are archived, never destroyed).
+- **Revert:** restore moved dirs from `.claude/deprecated/`; READMEs/CLAUDE.md from Dropbox version history or
+  `.claude/backups/`.
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 73 (2026-06-20) — the tags section now covers Crossref keyword tags + the backfill tool. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+## 2026-06-20 — Import Crossref subjects as first-order keyword tags (increment 73)
+
+- **Files:** `integrations/crossref/adapter.py` (capture `subject`); `app/backend/persistence/tags_repo.py`
+  (`import_source` param + `add_tags_to_paper`); `app/backend/metadata/enrichment.py`
+  (`apply_crossref_subject_tags` + hook); **new** `tools/backfill_keyword_tags.py`;
+  `app/frontend/js/25_detail.jsx` (TagsRow re-sync bugfix) + rebuilt `callosum-app.html`;
+  `app/backend/help/help_content.md`; `tests/{test_papers,test_tags,test_backfill_keyword_tags}.py`. Audit:
+  `.claude/security-audits/2026-06-20_keyword-tags.md`. Notes: `INCREMENT-73-NOTES.md`.
+- **What:** a paper's **Crossref subject categories** are imported as **first-order tags**
+  (`import_source="keyword:crossref"`) — automatically on 🔎 re-resolve / batch enrich, and across the
+  existing library via `python tools/backfill_keyword_tags.py` (full: cache-first, re-resolve the rest).
+- **Why:** authors/indexers already did the concept work of naming a paper's dimensions — privilege it; the
+  inc-72 c-TF-IDF suggester is the second-order gap-filler. (Zotero tags already imported via inc 71.)
+- **How:** adapter keeps `subject` in `csl_json`; `apply_crossref_subject_tags` mirrors it to tags
+  (additive, idempotent, **never clobbers metadata**). DOI-only to public Crossref (NOT the egress gate);
+  no migration; no new endpoint. **Bugfix:** TagsRow now re-syncs on detail refetch so 🔎-added chips show.
+- **Verify:** pytest **256** (+5: adapter dedupe, re-resolve→tags + provenance preserved, backfill
+  cache/fetch/idempotent/metadata-safe); live E2E (`.local/keyword_tags_e2e/`) 0 console errors; audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc73.zip` (or revert the adapter/enrichment/
+  tags_repo edits + remove the tool, rebuild).
+- **Help docs:** user-facing → tags section now covers Crossref keyword tags + the backfill (`HELP-DOCS-SYNCED`
+  → inc 73).
+- **NEXT (deferred):** the **provenance UI** (style/group tags by source — "author keywords" vs "your tags"
+  vs system facts), OpenAlex/PubMed keyword sources, and the tags↔findings cross-cut. See `INCREMENT-BACKLOG.md`.
+
+## 2026-06-20 — Auto-suggest tags via local c-TF-IDF (increment 72)
+
+- **Files:** **new** `app/backend/clustering/tag_suggestion.py` + `app/backend/api/routers/tags.py`
+  (`GET /papers/{id}/suggested-tags`); `app/frontend/js/25_detail.jsx` + `styles.css` (✨ Suggest + candidate
+  chips) + rebuilt `callosum-app.html`; `app/backend/help/help_content.md` (tags section);
+  `tests/{test_tag_suggestion,test_health}.py`. Audit: `.claude/security-audits/2026-06-20_tag-suggest.md`.
+  Notes: `INCREMENT-72-NOTES.md`.
+- **What:** a **✨ Suggest** button on the Details Tags row proposes candidate tags via **local c-TF-IDF**
+  (terms most distinctive of the paper vs the library); the user clicks to accept (added via the inc-71 path).
+  The per-paper analogue of inc-52's axis suggestion.
+- **Why:** speeds tagging by mining the paper's own text; complements manual tags + (future) imported keywords.
+- **Backend:** `suggest_tags_for_paper` (tf·idf, reuses `axis_suggestion._paper_tokens`; excludes existing
+  tags; trashed/missing → []); `GET /papers/{id}/suggested-tags`. **Purely local — no embeddings, no Gemini,
+  no egress** (user's explicit choice). No migration.
+- **Verify:** pytest **251** (+3: distinctive ranking, idf demotes common terms, exclude-existing, endpoint);
+  route-surface +1; live E2E (`.local/tag_suggest_e2e/`) — Suggest → accept a candidate, 0 console errors;
+  audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc72.zip` (or remove `tag_suggestion.py` + the
+  endpoint + the TagsRow Suggest UI, rebuild).
+- **Help docs:** user-facing → tags section now covers ✨ Suggest + **moved the `HELP-DOCS-SYNCED` marker to
+  inc 72**.
+- **FOLLOW-UP (user, 2026-06-20):** **author/expert keywords as first-order tags** — privilege the authors'
+  own concept work; the c-TF-IDF pass is the *second-order* gap-filler. Recorded in `INCREMENT-BACKLOG.md`
+  with the **tag-provenance** model + the **tags ↔ findings/system-facts** cross-cut (e.g. a future RETRACTED
+  tag from the retraction producer). See that file + the future-tracks "Tags hook" notes.
+
+## 2026-06-20 — Tags: per-paper labels + filter the library by tag (increment 71)
+
+- **Files:** **new** `app/backend/persistence/tags_repo.py` + `app/backend/api/routers/tags.py` +
+  `app/backend/api/app.py` (include router); `app/backend/persistence/repository.py` (`list_papers` tag_id) +
+  `app/backend/api/routers/papers.py` (detail `tags` field + `tag_id` param);
+  `app/frontend/js/{25_detail,40_app,10_pdf_layer,20_synthesis}.jsx` + `styles.css` (Tags row + filter
+  banner) + rebuilt `callosum-app.html`; `app/backend/help/help_content.md` (tags section);
+  `tests/{test_tags,test_health}.py`. Audit: `.claude/security-audits/2026-06-20_tags.md`. Notes:
+  `INCREMENT-71-NOTES.md`.
+- **What:** lightweight free-form **tags** on papers — view/add/remove on the Details pane, click a tag to
+  **filter the library** to it. Surfaces the tags the Zotero importer already populates (previously invisible).
+- **Why:** a reference-manager basic — manual labels complementing the heavyweight semantic axes; the
+  `tags`/`paper_tags` tables existed but had no UI.
+- **Backend:** new `tags_repo.py` (get/list/add[get-or-create+idempotent]/remove[+orphan prune]);
+  `GET /tags`, `POST`/`DELETE /papers/{id}/tags*`; `tag_id` filter on `GET /papers` (IN subquery, mirrors
+  inc-63). **No migration, local, bound-param.** Name trimmed/capped, rendered as plain text.
+- **Frontend:** Details `TagsRow` (chips: name→filter, ×→remove; add input + `/tags` datalist); the inc-63
+  axis-filter mirrored for tags (`libraryTagFilter`, mutually exclusive with the axis filter) + a "Filtered
+  to tag …" banner.
+- **Verify:** pytest **248** (+4); route-surface +3; live E2E (`.local/tags_e2e/`) — add→filter→clear→remove,
+  0 console errors; audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc71.zip` (or remove `tags_repo.py`/
+  `routers/tags.py` + the detail field + the four frontend edits, rebuild).
+- **Help docs:** user-facing → added a "Tagging papers" section + **moved the `HELP-DOCS-SYNCED` marker to
+  inc 71**.
+- **NEXT (chosen):** inc 72 — **auto-suggest tags** per paper via **local c-TF-IDF** (no Gemini), reusing the
+  inc-52 axis-suggestion machinery; candidates curated → added through this increment's tag path.
+
+## 2026-06-20 — Citation export: BibTeX + RIS + CSL-JSON (increment 70)
+
+- **Files:** **new** `app/backend/metadata/citation_export.py` (formatters) + `app/backend/persistence/repository.py`
+  (`get_papers_for_export`) + `app/backend/api/routers/papers.py` (`POST /papers/export`);
+  `app/frontend/js/{10_pdf_layer,40_app,25_detail}.jsx` + `styles.css` (bulk export picker + Details "Cite"
+  row) + rebuilt `callosum-app.html`; `app/backend/help/help_content.md` (new export section);
+  `tests/{test_citation_export,test_papers,test_health}.py`. Audit:
+  `.claude/security-audits/2026-06-20_citation-export.md`. Notes: `INCREMENT-70-NOTES.md`.
+- **What:** export papers' citations in **BibTeX / RIS / CSL-JSON** from the stored `csl_json` — a **bulk
+  file download** (select papers → export… → a `.bib`/`.ris`/`.json`) and a **per-paper clipboard copy**
+  (Details → Cite row). The first way to get citations *out* of the library.
+- **Why:** callosum is a reference manager you import into but couldn't export from — a core gap.
+- **Backend:** `POST /papers/export {paper_ids, format:Literal}` → `render_citations`; live papers only
+  (trashed never exported); 422 on bad format / no live ids. Read-only, **local (no egress)**, no migration;
+  formatters escape their output; constant download filename. BibTeX deduped author+year key fallback.
+- **Frontend:** `apiPost` forces `.json()`, so export uses a **raw fetch** → blob→`<a download>` (bulk) or
+  →`navigator.clipboard` (per-paper copy, secure context on 127.0.0.1). Cite links reuse the inc-68
+  canonical `.btn-link`.
+- **Verify:** pytest **244** (+8: 7 formatter unit + 1 endpoint, route-surface +1); live E2E
+  (`.local/citation_export_e2e/`) — bulk `.bib` download (both papers) + clipboard copy, 0 console errors;
+  audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc70.zip` (or remove the endpoint +
+  `citation_export.py` + the three frontend edits, rebuild).
+- **Help docs:** user-facing → added an "Exporting citations" section + **moved the `HELP-DOCS-SYNCED` marker
+  to inc 70**.
+
+## 2026-06-20 — Sort the library (increment 69)
+
+- **Files:** `app/backend/persistence/repository.py` (`_paper_sort_order` + `list_papers(sort=…)`) +
+  `app/backend/api/routers/papers.py` (`sort` query param); `app/frontend/js/{10_pdf_layer,40_app}.jsx` +
+  `styles.css` (Sort dropdown) + rebuilt `callosum-app.html`; `app/backend/help/help_content.md` (library
+  section); `tests/test_papers.py`. Notes: `INCREMENT-69-NOTES.md`.
+- **What:** a **Sort** dropdown orders the library by date added (oldest/recent), title (A–Z), publication
+  year (newest/oldest), or first author (A–Z). NULL year/author sort last; `id` is the stable tiebreak.
+- **Why:** the library only ever listed in import order — sorting is a reference-manager basic (the axes
+  panel had it since inc 43; the library didn't).
+- **Backend:** the sort key indexes an **allowlist** (rule #3 — never interpolated into SQL); unknown →
+  default `added` (= prior `id ASC` behavior). No new route, no migration, no egress; composes with
+  q/deleted/axis_id/pagination.
+- **Verify:** pytest **236** (+1: every sort order + NULL-last + unknown→default); live E2E
+  (`.local/library_sort_e2e/`) — list re-orders by title/year/recency, 0 console errors. No audit gate
+  (read-only query param).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc69.zip` (or revert the `sort` param +
+  the frontend dropdown, rebuild).
+- **Help docs:** user-facing → documented the Sort control + **moved the `HELP-DOCS-SYNCED` marker to inc 69**.
+
+## 2026-06-20 — Canonical .btn-* button classes (DESIGN.md §3 #5) (increment 68)
+
+- **Files:** `app/frontend/styles.css` (canonical button layer + consolidation) + `.claude/DESIGN.md` (§2
+  Buttons rewritten, §3 #5 → PARTIAL); rebuilt `callosum-app.html`. Notes: `INCREMENT-68-NOTES.md`.
+- **What:** added canonical `.btn`/`.btn-primary`/`.btn-ghost`/`.btn-link`/`.btn-icon` + `.danger` classes
+  and folded the cleanly-identical ad-hoc button blocks into them (primary: `.axis-btn` + `.synth-actions
+  button`; ghost: `.pginate button`; link: `.axis-link`; icon: `.axis-icon-btn`). **CSS-only, zero visual
+  change, no JSX touched.**
+- **Why:** DESIGN.md §3 #5 standing worklist item — ~10 near-duplicate button blocks re-typing the same
+  recipe. Establishes the single source of truth so new buttons conform instead of drifting.
+- **How (safety):** consolidation by **selector grouping** (alias the existing class names into the canonical
+  rules) only where every grouped property is byte-identical to the original — near-zero regression risk,
+  no className churn (`.axis-link` has dozens of call sites). Size-divergent ghost/icon buttons left as-is
+  (value-shifting → deferred to a per-button JSX-className migration).
+- **Verify:** no Python changed → pytest unchanged at **235**; live E2E (`.local/btn_dry_e2e/`) asserts each
+  canonical class's computed style equals the intended recipe + a real `.synth-actions button` keeps its
+  sizing delta, 0 console errors. No audit gate (styling only).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc68.zip` (or revert the styles.css button
+  section, rebuild).
+
+## 2026-06-20 — Un-dismiss / manage dismissals for duplicate detection (increment 67)
+
+- **Files:** **new** `app/backend/persistence/dedup_repo.py` (the dedup-dismiss data access, extracted from
+  `repository.py`) + `app/backend/api/routers/duplicates.py` (GET dismissed + POST undismiss) +
+  `app/backend/clustering/duplicate_detection.py` (import repoint); `app/frontend/js/19_duplicates.jsx` +
+  `styles.css` ("Previously dismissed" section) + rebuilt `callosum-app.html`;
+  `app/backend/help/help_content.md` (duplicates section); `tests/{test_papers,test_health}.py`. Audit:
+  `.claude/security-audits/2026-06-20_undismiss-duplicates.md`. Notes: `INCREMENT-67-NOTES.md`.
+- **What:** the Duplicates modal now has a **Previously dismissed (N)** section listing the pairs you marked
+  "not a duplicate" (inc 64), each with an **un-dismiss** button that lets the scan flag them again. Adds the
+  in-app undo inc-64 deferred.
+- **Why:** a persistent dismiss with no way to see or reverse it was a trust gap.
+- **Backend:** `GET /papers/duplicates/dismissed` (registered before `/{job_id}` so "dismissed" isn't a job
+  id) + `POST /papers/duplicates/undismiss {paper_ids}` (non-destructive, idempotent, local, bound-param).
+  No migration (reuses the inc-64 table).
+- **Module split (rule #1):** the two new data-access fns pushed `repository.py` to **604** (>600), so the
+  dedup-dismiss concern (4 fns) was **moved verbatim** to new `persistence/dedup_repo.py` (63);
+  `repository.py` → **555**; two importers repointed. Behavior-preserving.
+- **Verify:** pytest **235** (+1: list → undismiss → re-flag, idempotent, 422); route-surface +2; live E2E
+  (`.local/undismiss_e2e/`) — dismiss → previously-dismissed → un-dismiss → re-flagged, 0 console errors;
+  audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc67.zip` (or revert the two endpoints +
+  frontend section, fold `dedup_repo.py` back into `repository.py`, rebuild).
+- **Help docs:** user-facing → added un-dismiss to the duplicates section + **moved the `HELP-DOCS-SYNCED`
+  marker to inc 67**.
+
+## 2026-06-20 — Exclude trashed papers from synthesis retrieval (increment 66)
+
+- **Files:** `app/backend/summarization/pipeline.py` (`_source_chunks_for_scope` live-paper filter) +
+  `app/backend/embeddings/retrieval.py` (`_candidate_embedding_ids` excludes trashed);
+  `app/backend/help/help_content.md` (trash gotcha); `tests/{test_summaries,test_papers}.py`. Notes:
+  `INCREMENT-66-NOTES.md`.
+- **What:** a paper in **Trash** (soft-deleted, not yet purged) is no longer a retrieval candidate, so it
+  can't be cited in a **new** synthesis. Closes the last soft-delete leak (inc-65 deferred item).
+- **Why:** a trashed paper surfacing in a fresh synthesis is wrong; the user deleted it.
+- **Where it actually was:** the synthesis pipeline doesn't use `search_similar` — `_source_chunks_for_scope`
+  builds its own candidate SQL, and the **query** scope was `select(chunks)` with no paper filter (pulled
+  every paper). Fixed there (covers query + hardens papers/cluster scopes); also hardened the general
+  `_candidate_embedding_ids` primitive (defense-in-depth, used by the validation harness).
+- **Verify:** pytest **234** (+2: query-scope `_source_chunks_for_scope` + `search_similar` both drop a paper
+  after it's trashed, keep the live one). Backend-only — no migration/endpoint/egress/frontend; no audit
+  gate; behavior-preserving when nothing is trashed (harness unaffected).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc66.zip` (or revert the two filter edits).
+- **Help docs:** user-facing → updated the trash gotcha + **moved the `HELP-DOCS-SYNCED` marker to inc 66**.
+
+## 2026-06-20 — Permanent delete: delete forever / empty Trash (increment 65)
+
+- **Files:** `app/backend/embeddings/vector_store.py` (`VectorStore.delete`) +
+  `app/backend/persistence/repository.py` (`purge_paper`/`purge_all_trashed`/`_purge_paper_embeddings`) +
+  `app/backend/api/routers/papers.py` (`DELETE /papers/{id}/permanent`, `POST /papers/trash/empty`,
+  `_vector_store`); `app/frontend/js/{10_pdf_layer,40_app}.jsx` + `styles.css` (Delete forever / Empty Trash,
+  danger-styled, confirm) + rebuilt `callosum-app.html`; `app/backend/help/help_content.md` (trash section);
+  `tests/{test_papers,test_health}.py`. Audit: `.claude/security-audits/2026-06-20_permanent-delete.md`.
+  Notes: `INCREMENT-65-NOTES.md`.
+- **What:** a **trashed** paper can now be **permanently deleted** — per-paper **Delete forever** or
+  **Empty Trash** — removing the paper, its dependent rows, AND its embeddings + sqlite-vec vectors. Finishes
+  inc-54's soft-delete (Trash had no way to be emptied).
+- **Why:** completes the library-delete feature; a real reference manager must be able to free space / truly
+  remove a record.
+- **Orphan-safety:** `embeddings.target_id` has no FK and the store had no delete, so a naive paper delete
+  left embeddings + vectors behind → an orphaned paper-embedding crashes `retrieval._resolve_hit`. Purge now
+  deletes the paper's embeddings + vectors **before** the paper row (CASCADE handles the rest), in one
+  transaction → no orphan, no crash (unit-proven via a post-purge `search_similar`).
+- **Safety:** **only reachable from Trash** (`purge_paper` returns False for a live paper → 404), so a live
+  paper can never be purged in one step; the UI double-confirms. Local-only, no egress; bound-param SQL.
+  **No migration** (pure DML; head stays 0006).
+- **Verify:** pytest **232** (+4); live E2E (`.local/permanent_delete_e2e/`) — delete-forever + empty-trash,
+  live paper survives, 0 console errors; audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc65.zip` (or revert the vector_store/repo/
+  router/frontend edits + rebuild; no schema to undo).
+- **Help docs:** user-facing → updated the trash-and-restore section + **moved the `HELP-DOCS-SYNCED` marker
+  to inc 65**.
+
+## 2026-06-20 — Persistent "not a duplicate" dismiss (increment 64)
+
+- **Files:** `app/backend/persistence/schema.py` (+`dismissed_duplicate_pairs`) +
+  `alembic/versions/0006_dismissed_duplicate_pairs.py` (head 0005→0006) +
+  `app/backend/persistence/repository.py` (`get_dismissed_duplicate_pairs`/`dismiss_duplicate_pairs`) +
+  `app/backend/clustering/duplicate_detection.py` (drop dismissed pairs before union-find);
+  **new** `app/backend/api/routers/duplicates.py` (the dedup concern extracted from `papers.py`) +
+  `app/backend/api/app.py` (include it before `papers.router`); `app/frontend/js/19_duplicates.jsx`
+  (dismiss → persist) + rebuilt `callosum-app.html`; `app/backend/help/help_content.md` (duplicates section);
+  `tests/{test_papers,test_health,test_startup_migration}.py`. Audit:
+  `.claude/security-audits/2026-06-20_dedup-dismiss.md`. Notes: `INCREMENT-64-NOTES.md`.
+- **What:** marking a duplicate group **"not a duplicate"** is now **persistent** — the scan stores the
+  group's pairs in `dismissed_duplicate_pairs` and drops them on every future scan, so a legitimate
+  preprint+published pair stops re-flagging. Finishes inc-56's deferred "persistent dedup-dismiss."
+- **Why:** session-only dismiss meant the same false positives reappeared every scan.
+- **Backend:** `POST /papers/duplicates/dismiss {paper_ids}` (≥2 existing live papers → else 422) stores all
+  canonical `(low<high)` pairs; bound-param `INSERT OR IGNORE` (rule #3); local-only (no egress);
+  non-destructive (records a preference, never deletes). The drop happens in `find_duplicate_groups` before
+  the union-find, so a dismissed pair never links its papers into a group.
+- **Module split (rule #1):** extending dedup pushed `routers/papers.py` to **636** (>600), so the duplicates
+  concern (models + `_DedupJobStore` + the 3 endpoints + `_run_dedup_job`) was **moved verbatim** to the new
+  `routers/duplicates.py` (157); `papers.py` → **497**. Behavior-preserving (full suite green); `app.py`
+  includes `duplicates.router` before `papers.router` so `/papers/duplicates*` still wins over
+  `/papers/{paper_id}`.
+- **Verify:** pytest **228** (+1: dismiss → re-scan flags 0; idempotent; <2 ids → 422); migration-head +
+  route-surface asserts bumped to `0006` / +`/papers/duplicates/dismiss`; live E2E
+  (`.local/dedup_dismiss_e2e/`) — dismiss → reopen modal → "No likely duplicates found.", 0 console errors;
+  audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc64.zip` (or drop migration 0006 + the
+  `dismissed_duplicate_pairs` table, revert the duplicate_detection filter, and fold `duplicates.py` back
+  into `papers.py`).
+- **Help docs:** user-facing → corrected the duplicates section (dismiss is persistent, not session-only) +
+  **moved the `HELP-DOCS-SYNCED` marker to inc 64**.
+
+## 2026-06-20 — Filter the library by axis (+ select-all) (increment 63)
+
+- **Files:** `app/backend/persistence/repository.py` (`list_papers` `axis_id` filter) +
+  `app/backend/api/routers/papers.py` (`axis_id` query param); `app/frontend/js/{40_app,10_pdf_layer,15_axes}.jsx`
+  + `styles.css` (clickable count badge → filter; "Filtered to axis …" banner; "select all");
+  `app/backend/help/help_content.md` (axis-review section); `tests/test_papers.py`; rebuilt
+  `callosum-app.html`. Notes: `INCREMENT-63-NOTES.md`.
+- **What:** click an axis's **count badge** → the Library narrows to that axis's papers (with a clearable
+  "Filtered to axis …" banner). Server-side filter (pagination/search compose). Pairs with inc-62: filter →
+  **select all → summarize** = a verified synthesis of a whole topic cluster.
+- **Why:** completes the axes-as-a-navigation-lens vision (backlog "open proposal: filter the library by
+  axis").
+- **Backend:** bound-param `IN` subquery over `cluster_node_papers`→`cluster_nodes` (rule #3); no new
+  endpoint/egress/ingestion/migration; trashed papers stay excluded.
+- **Verify:** pytest **227** (+1); live E2E (`.local/library_axis_filter_e2e/`) — filter narrows 2→1 +
+  banner + select-all→summarize verified + clear restores, 0 console errors. Read-only feature → security
+  note in the increment notes (no separate audit doc).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc63.zip` (or revert the `axis_id` filter +
+  the three frontend files, rebuild).
+- **Help docs:** user-facing → updated the axis-review section + **moved the `HELP-DOCS-SYNCED` marker to inc
+  63**.
+
+## 2026-06-20 — Summarize selected papers: multi-paper verified synthesis from the library (increment 62)
+
+- **Files:** `app/backend/summarization/pipeline.py` (`_round_robin_by_paper` coverage fix);
+  `app/frontend/js/{10_pdf_layer,40_app,20_synthesis}.jsx` + `styles.css` (bulk-bar **summarize** button →
+  papers-scope synthesis + scope-note badge); `app/backend/help/help_content.md` (synthesis section);
+  `tests/test_summarize_selected.py`; rebuilt `callosum-app.html`. Audit:
+  `.claude/security-audits/2026-06-20_summarize-selected.md`. Notes: `INCREMENT-62-NOTES.md`.
+- **What:** checkbox-select papers in the Library → click **summarize** → a **verified, citation-grounded
+  synthesis of just that subset** runs in the always-on Synthesis pane (with an "N selected papers" note).
+  Reuses the existing `/summarize` papers scope + local verification + the inc-61 cache.
+- **Why:** the verified-synthesis crown jewel, applied to a user-chosen subset — backlog item "Multi-paper
+  summary from a library selection" (the selection→summarize half; the critical-review supplement stays
+  deferred behind the Auditability standard).
+- **Backend fix:** a multi-paper, no-query summary previously took the first `top_k` chunks by id (filling
+  from the lowest-id paper, ignoring the rest); now **round-robin across the selected papers** so the
+  summary covers them all. Single-paper / query scopes unchanged.
+- **Verify:** pytest **226** (+3); live E2E (`.local/summarize_selected_e2e/`) — select 2 → summarize →
+  verified result + scope note, 0 console errors; audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc62.zip` (or revert the four frontend files
+  + the `_round_robin_by_paper` block, rebuild).
+- **Help docs:** user-facing → updated the synthesis section + **moved the `HELP-DOCS-SYNCED` marker to inc
+  62** (the convention working).
+
+## 2026-06-20 — Backlog curation: record future objectives (docs only, no code)
+
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md` (new "Multi-paper summary from a library selection"
+  item [Partial] under Theme 3 + a cross-cutting "Auditability standard" gating note + fixed a stale
+  future-tracks path pointer); `.claude/docs/backlog-future-tracks.md` (augmented Track C with the captured
+  verification-funnel / low-friction / flow-state design intent; Track B cross-ref; an Auditability-standard
+  note in the intro).
+- **What:** recorded three stated future objectives as tracked commitments — (2) word-processor plugin
+  [Not started → already designed as Track B + C], (3) in-flow accuracy/meaning check [Not started → Track C
+  "Evaluate"], (4) multi-paper summary from a library selection [Partial] — each WITH its design intent +
+  the cross-cutting auditability gate. Item 1 (automatic axis nomination) confirmed **[Done]** (inc 52) and
+  not re-added.
+- **Why:** make future objectives tracked commitments rather than undocumented intentions (user request);
+  deduped against the existing Tracks B/C (augmented in place, not duplicated).
+- **Revert:** restore the three docs from `.claude/backups/callosum_claudecode_inc61.zip` (or remove the new
+  blocks). No code/app/API change; no increment bump.
+- **Noted (not fixed):** `README.md` is still stale ("planning skeleton"); `CLAUDE.md`'s reference-table row
+  for the future-tracks doc points at a stale path (the canonical doc is `.claude/docs/backlog-future-tracks.md`).
+
+## 2026-06-20 — Reduce LLM token spend: content-addressed summary cache + usage logging (increment 61)
+
+- **Files:** new `app/backend/llm/{cache.py, usage.py}`; `alembic/versions/0005_llm_generation_cache.py` +
+  `schema.py` (`llm_cache` table); `summarization/generators.py` + `integrations/gemini/generator.py` +
+  `llm/egress.py` (thread `conn` through `generate`; `SUMMARY_PROMPT_VERSION` + `cache_signature`);
+  `routers/summaries.py` (wrap with `CachedSummaryGenerator`); `summarization/pipeline.py` (pass `conn`);
+  usage logging in the 4 gemini modules; `tests/test_llm_cache.py` + head bumps. Audit:
+  `.claude/security-audits/2026-06-20_llm-cache.md`. Notes: `INCREMENT-61-NOTES.md`.
+- **What:** a **persistent content-addressed cache** on the token-expensive **summary generation** step (a
+  cache hit costs zero tokens) — keyed by a content hash of model + prompt-version + the chunk set +
+  scope, so any input change misses automatically (no explicit invalidation). Plus lightweight **token-usage
+  logging** at all 4 LLM call sites.
+- **Why:** cut LLM token spend (the summary path is the top offender) without degrading the
+  citation-verification guarantees. The cache wraps generation ONLY — local verification re-runs on every
+  result; the egress gate stays byte-for-byte unchanged (cache layered inside it).
+- **Verify:** pytest **223** (+6); audit PASS. Other levers (cache extension, output caps, top_k, provider
+  prefix caching, Batch API) are **proposed with a measurement plan and deferred for review** (see notes).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc61.zip` (or remove `app/backend/llm/{cache,
+  usage}.py` + migration 0005 + the `conn`/`cache_signature` plumbing + the factory wrap).
+- **Help docs:** backend-only, **no user-facing change** → the `HELP-DOCS-SYNCED` marker is NOT moved (this
+  entry sits above it as a since-sync change that does not warrant a help update — the convention working).
+
+## 2026-06-20 — AI help assistant, separate gate (increment 60)
+
+- **Files:** new `app/backend/help/assistant.py`, `integrations/gemini/help_assistant.py`;
+  `app/backend/llm/egress.py` (+`HelpAssistantDisabledError` + `EgressGatedHelpAssistant`);
+  `integrations/gemini/generator.py` (`GeminiConfig.help_assistant_enabled`); `routers/help.py` (`POST
+  /help/ask` + factory), `app.py` (param/state); `app/frontend/js/18_help.jsx` + `styles.css` (chat);
+  `app/backend/help/help_content.md` (+`ai-help-assistant` section); `tests/test_help.py`,
+  `tests/test_health.py`, `tests/conftest.py`. Audit: `.claude/security-audits/2026-06-20_help-assistant.md`.
+  Notes: `INCREMENT-60-NOTES.md`.
+- **What:** an AI help assistant in the help modal — ask a question, get an answer + reference chips that
+  scroll to and highlight the matching help section (reusing inc-59's `flashHelpSection`). Multi-turn, NO
+  RAG (whole corpus stuffed), defensive parse (failure → answer, no refs, never 500); the router drops
+  hallucinated section ids.
+- **Why:** condition the synthesis "probe → route to source" workflow over the app's own help; close the
+  help loop started in inc 59.
+- **Separate gate (the key constraint):** keyed on a NEW **`CALLOSUM_HELP_ASSISTANT_ENABLED`** (off by
+  default), **independent** of `CALLOSUM_ALLOW_DATA_EGRESS` — the bot sends only the question + the public
+  help docs, never library text, so it works with the library gate off. Enforced at the inc-58 seam.
+- **Verify:** pytest **217** (+7: answer+refs, gate-independence, hole-closed 503, unknown-id drop, 422,
+  parse degradation, provider self-check); live E2E (`.local/help_assistant_e2e/`, **library egress off**)
+  — ask → answer + chips → chip scroll+flash, 0 console errors; audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc60.zip` (or remove the new files + the
+  `18_help.jsx` chat + the egress wrapper + the `/help/ask` handler + the config field, rebuild).
+
+## 2026-06-20 — Help corpus + navigable help modal (increment 59)
+
+- **Files:** new `app/backend/help/{help_content.md, corpus.py, __init__.py}`,
+  `app/backend/api/routers/help.py` (`GET /help/corpus`), `app/backend/api/app.py` (wire router);
+  `app/frontend/js/18_help.jsx` (rewrite) + `styles.css`; `tests/test_help.py`, `tests/test_health.py`
+  (route surface); rebuilt `callosum-app.html`. Audit: `.claude/security-audits/2026-06-19_help-corpus.md`.
+  Notes: `INCREMENT-59-NOTES.md`.
+- **What:** the in-app help is now extensive end-user documentation served as a structured **corpus**
+  (22 sections, stable anchor ids) and rendered in a **navigable two-column modal** (TOC + sections +
+  scroll-to-flash). Replaces the old single hard-coded tips block.
+- **Why:** a real help surface (groundwork for the inc-60 AI help assistant, whose references deep-link to
+  these stable section ids); first pass generated by **Codex** to save Claude-Code tokens, then reviewed
+  against the real code and shipped.
+- **Also:** introduced the `HELP-DOCS-SYNCED` changelog-marker convention (above) + a CLAUDE.md
+  start-of-session check, so future sessions can tell from the changelog whether the corpus needs updating.
+- **Verify:** pytest **210** (+7); live E2E (`.local/help_e2e/`) — 22 sections render, TOC scroll+flash,
+  0 console errors; audit PASS. Backend-only egress posture (the corpus endpoint is ungated, app-owned).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc59.zip` (or remove `app/backend/help/`
+  + `routers/help.py` + the `18_help.jsx` rewrite, restore the static HelpModal, rebuild).
+
+## 2026-06-19 — Provider-agnostic egress gate at the DI seam (increment 58)
+
+- **Files:** new `app/backend/llm/egress.py` (+`__init__.py`); `integrations/gemini/generator.py`
+  (re-export `DataEgressDisabledError`); `app/backend/api/routers/summaries.py` + `routers/axes.py`
+  (wrap at `_summary_generator` / `_axis_term_suggester` / `_axis_cluster_labeler`);
+  `tests/conftest.py` (autouse egress-consent default); `tests/test_summaries.py` + `tests/test_axes.py`
+  (+4 tests). Audit: `.claude/security-audits/2026-06-19_egress-gate-seam.md`. Notes:
+  `INCREMENT-58-NOTES.md`.
+- **What:** moved data-egress enforcement from per-provider self-checks to a **provider-neutral gate at
+  the DI seam**, applied in all three Gemini provider factories so an **injected** provider can no longer
+  bypass the egress check. `DataEgressDisabledError`'s canonical home is now the neutral module
+  (re-exported from Gemini). Provider self-checks kept as defense-in-depth.
+- **Why:** closed the hole where `create_app(summary_generator=…)`/suggester/labeler instances were
+  returned unchecked — invariant #3 is now enforced at the boundary, not by convention.
+- **Verify:** pytest **203** (+4: hole-closed + behavior-preserved for the generator/suggester/labeler);
+  re-export identity smoke test; route-surface invariant green; audit PASS. Behavior-preserving for the
+  real Gemini path (egress-on → identical; egress-off → same `DataEgressDisabledError` → same 503).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc58.zip` (or remove `app/backend/llm/`,
+  restore the local `DataEgressDisabledError` in `generator.py`, and revert the three factories +
+  conftest fixture).
+- **Housekeeping:** removed 25 stray `*.tmp.26380.*` atomic-write orphans left across the tree by an
+  earlier crashed process.
+
+## 2026-06-19 — Always-on Synthesis + contextual Details split (increment 57)
+
+- **Files:** `app/frontend/js/20_synthesis.jsx` (`RightPane` tabs → vertical split); `app/frontend/js/40_app.jsx`
+  (`_beginDrag` passes clientX **and** clientY); `app/frontend/styles.css` (`.pane-split`/`.rp-synth`/
+  `.rp-detail`/`.divider-h`; removed dead `.pane-tabs`); rebuilt `callosum-app.html`. Notes:
+  `INCREMENT-57-NOTES.md`.
+- **What:** the right pane is no longer tabbed — **Synthesis stays on top always**, and selecting a paper
+  shows its (editable) **Details in a lower section** with a draggable divider between them (height
+  persisted to localStorage). No tab-switching; Details auto-appear when a paper is selected.
+- **Why:** backlog F — elevate the inc-49 editable Details into the daily flow + keep the crown-jewel
+  synthesis always visible (a coherent research workspace).
+- **Verify:** pytest 199 (unchanged, frontend-only); live E2E (`.local/synthesis_split_e2e/`) — no-paper→
+  Synthesis only, paper→both, drag resizes + persists across reload, 0 console errors. No audit gate.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc57.zip` (or revert RightPane + the CSS +
+  the 1-line _beginDrag change, rebuild).
+
+## 2026-06-19 — Duplicate detection (layered, flag-only) + review modal (increment 56)
+
+- **Files:** `app/backend/clustering/duplicate_detection.py` (new — layered pairs + union-find);
+  `api/routers/papers.py` (`_DedupJobStore`, `POST`/`GET /papers/duplicates`, models, `_run_dedup_job`,
+  `_embedding_model`); `api/app.py` (`dedup_jobs` store); frontend `19_duplicates.jsx` (new modal) +
+  `10_pdf_layer.jsx` ("Duplicates" button) + `40_app.jsx` (mount); `styles.css`; rebuilt
+  `callosum-app.html`. Tests: `test_duplicate_detection.py` (+7), `test_papers.py` (+2), `test_health.py`
+  (route surface). Docs: `INCREMENT-56-NOTES.md`, `.claude/security-audits/2026-06-19_duplicate-detection.md`.
+- **What:** a **"Duplicates"** scan surfaces likely-duplicate paper groups with a confidence + reason,
+  layered (shared PMID/arXiv → title+author+year → embedding ≥0.92, union-find). Flag-only: the user
+  reviews each group and deletes the redundant copy (soft-delete → Trash) or inspects it; **merge deferred**.
+- **Why:** backlog E — retroactively catch dups (preprint↔published, unresolved re-imports) that import-time
+  identity dedup missed. Now well-set-up by G (clean identifiers) + inc-54 (trash as the resolution).
+- **Verify:** pytest 199 (+9); live E2E (`.local/duplicates_e2e/`) — scan→group→delete→resolve, 0 console
+  errors. Audit PASS (read-only, local, flag-only).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc56.zip` (or delete the new module +
+  chunk, revert the endpoints/wiring, rebuild). No migration.
+
+## 2026-06-19 — Fix: strip JATS from the editable abstract + suggest-axes terms (increment 55)
+
+- **Files:** `app/backend/metadata/abstract_display.py` (new `abstract_plain_text`); `api/routers/papers.py`
+  (`PaperDetailResponse.abstract_text`); `clustering/axis_suggestion.py` (`_paper_tokens` strips JATS);
+  `app/frontend/js/25_detail.jsx` (abstract textarea → `abstract_text`); rebuilt `callosum-app.html`.
+  Tests: `test_abstract_display.py` (+6), `test_papers.py` (+assertions), `test_axes.py` (+1). Notes:
+  `INCREMENT-55-NOTES.md`.
+- **What:** raw Crossref JATS XML was leaking — as `<jats:p>` tags in the editable abstract textarea
+  (inc-49) and as the term "jats" in suggested axes (the c-TF-IDF tokenizer). A shared plain-text strip
+  (`abstract_plain_text`) now feeds both (the textarea via a new `abstract_text` field; the tokenizer
+  directly).
+- **Why:** two user-reported leaks with one root cause (the abstract is stored raw JATS, inc-33).
+- **Verify:** pytest 190 (+7); live E2E (`.local/jats_fix_e2e/`) — abstract textarea is tag-free, 0 console
+  errors. Deferred: cleaning the abstract in the embedding text (`paper_embedding_text`) — needs a
+  re-embed.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc55.zip` (or revert the 4 files, rebuild).
+
+## 2026-06-19 — Library delete (soft) + multi-select + Trash / Restore (increment 54)
+
+- **Files:** `alembic/versions/0004_paper_soft_delete.py` (new); `app/backend/persistence/schema.py`
+  (`papers.deleted_at`); `repository.py` (`soft_delete_paper`/`restore_paper`, `list_papers` only_deleted,
+  cluster-node filter); `clustering/axis_suggestion.py` (exclude trashed); `api/routers/papers.py`
+  (`?deleted` listing + `DELETE /papers/{id}` + `POST /papers/{id}/restore`); frontend `40_app.jsx`
+  (multi-select + trashView + handlers) + `10_pdf_layer.jsx` (checkboxes + bulk bar + Trash toggle +
+  Restore) + `styles.css`; rebuilt `callosum-app.html`. Tests: `test_papers.py` (+4), `test_health.py`
+  (route surface), `test_health.py`/`test_startup_migration.py` (head→0004). Docs:
+  `INCREMENT-54-NOTES.md`, `.claude/security-audits/2026-06-19_library-delete.md`.
+- **What:** the first way to delete a paper — checkbox multi-select + a bulk-delete bar (mirrors the
+  inc-43 axis pattern) → **soft-delete** (a `deleted_at` stamp; hidden from library/axes/clustering but
+  kept), with a **Trash ⇄ Library** toggle + per-row **Restore**.
+- **Why:** the biggest CRUD gap. Soft because hard-delete orphans embeddings/vectors (no FK +
+  no vector-store delete) and crashes retrieval — and soft is reversible, which the user wanted.
+- **Verify:** pytest 183 (+4); live E2E (`.local/library_delete_e2e/`) — select→delete→trash→restore,
+  0 console errors. Audit PASS. Permanent-delete/empty-trash deferred (needs vector cleanup).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc54.zip` (the additive `deleted_at`
+  migration can stay; or revert the endpoints + frontend, rebuild).
+
+## 2026-06-19 — Polish pass: SRI · radius scale · in-app HELP · favicon dark-swap (increment 53)
+
+- **Files:** `app/frontend/index.html` (SRI integrity+crossorigin on React/ReactDOM/Babel; favicon split
+  into 2 media-query links); `app/frontend/styles.css` (`--radius-sm/-lg/-pill` tokens + migrate
+  pills/modal); `app/frontend/js/18_help.jsx` (new HelpModal) + `10_pdf_layer.jsx` (? button) +
+  `40_app.jsx` (helpOpen + mount); `tools/inline_brand_assets.py` (two favicon targets); rebuilt
+  `callosum-app.html`. Notes: `INCREMENT-53-NOTES.md`.
+- **What:** four deferred quick wins — (1) Subresource Integrity hashes on the CDN scripts; (2) a radius
+  scale (`--radius-sm/-lg/-pill`) with the clean pill/modal values migrated; (3) an in-app **? Help**
+  viewer surfacing the axes/tiers tips from HELP.md; (4) the favicon swaps to the OS color scheme via
+  `media="(prefers-color-scheme:…)"` links (no JS).
+- **Why:** hardening (SRI) + DESIGN.md hygiene (radius tokens) + discoverability (help) + a dark-mode finish.
+- **Verify:** pytest 179 (unchanged, frontend-only); live E2E (`.local/polish_e2e/`) — app renders under
+  SRI (hashes correct), both favicon links present, help modal opens, 0 console errors. No audit gate.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc53.zip` (or revert the index.html SRI +
+  favicon, the styles.css radius tokens, delete 18_help.jsx + its wiring, rebuild).
+
+## 2026-06-19 — Suggest optimal axes (unsupervised discovery + coverage-with-diversity) (increment 52)
+
+- **Files:** `app/backend/clustering/axis_suggestion.py` (new — cluster + novelty filter + MMR-lite +
+  local c-TF-IDF labels + `apply_labels`); `integrations/gemini/axis_cluster_labeler.py` (new,
+  egress-gated) + `__init__.py`; `app/backend/api/routers/axes.py` (`_AxisSuggestJobStore`, `POST
+  /axes/suggest`, `GET /axes/suggest/{job_id}`, accessor, models); `app/backend/api/app.py` (inject
+  labeler + suggest job store); `app/frontend/js/17_axes_suggest.jsx` (new) + `15_axes.jsx` (✨ button +
+  modal) + `styles.css`; rebuilt `callosum-app.html`. Tests: `tests/test_axes.py` (+5),
+  `tests/test_health.py` (route surface). Docs: `INCREMENT-52-NOTES.md`,
+  `.claude/security-audits/2026-06-19_suggest-axes.md`.
+- **What:** a ✨ Suggest button mines the library's embeddings → proposes a diverse set of candidate axes
+  that don't duplicate each other or existing axes → the user curates (rename + toggle term chips) and
+  creates the ones they like. Labels are local-from-your-papers (always) with optional egress-gated
+  Gemini polish (degrades to local; never 503).
+- **Why:** the AI-clustering finally surfaces *as discovery* — a new user no longer faces a blank axes
+  panel; coverage-with-diversity ensures suggestions blanket the literature.
+- **Verify:** pytest 179 (+5); live E2E (`.local/suggest_axes_e2e/`, fake model, no network) — ✨ → cards
+  → create → axis appears, 0 console errors. Audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc52.zip` (or delete the two new modules
+  + the new frontend chunk, revert the axes.py/app.py/15_axes.jsx wiring, rebuild). No migration.
+
+## 2026-06-19 — B′: eyeball toggle to hide/show UNCERTAIN papers (increment 51)
+
+- **Files:** `app/frontend/js/15_axes.jsx` (`AxisItem` `hideUncertain` state + 👁 toggle in the
+  re-score row + filtered list + "show" restore hint); `app/frontend/styles.css` (`.axis-eye`,
+  `.axis-eye-hint`); rebuilt `callosum-app.html`. Notes: `INCREMENT-51-NOTES.md`.
+- **What:** an eye toggle (shown only when an axis has uncertain papers) collapses the list to an
+  assigned/manual-only view; a "N uncertain hidden — show" hint restores them.
+- **Why:** a focused, assigned-only view of an axis once the user has triaged the uncertain tier
+  (pairs with inc-45's cutoff + inc-50's ✓-confirm). Pure display filter — no backend.
+- **Verify:** pytest 174 (unchanged); live E2E (`.local/eye_e2e/`) — hide/show works, 0 console errors.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc51.zip` (or revert the 15_axes.jsx +
+  styles.css changes, rebuild).
+
+## 2026-06-19 — Axes manual-assignment cleanup (B) + library focus-mode add (C) (increment 50)
+
+- **Files:** `app/backend/clustering/axis_scoring.py` (`add_manual_assignment` upsert-to-NULL;
+  `restore_manual_assignments` force-NULL even when present); `app/frontend/js/15_axes.jsx`
+  (AxisTierBadge drops the assigned tag; AxisPaperRow ✓-confirm; ＋ enters focus; AddPaperPicker
+  removed; `axisRefresh`); `10_pdf_layer.jsx` (Sidebar forwards focus props; PaperList focus card +
+  per-row add buttons); `40_app.jsx` (focus state + handlers); `styles.css` (`.axis-confirm`,
+  `.focus-card`, `.paper-axis-add`); rebuilt `callosum-app.html`. Tests: `tests/test_axes.py` (+2).
+  Docs: `INCREMENT-50-NOTES.md`, `.claude/security-audits/2026-06-19_axes-manual-assignment.md`.
+- **What:** (B) the redundant ASSIGNED tag is gone (assigned = no tag; amber = uncertain; dashed =
+  manual) and a **✓** on uncertain rows promotes them to a manual override; (C) the axis **＋** opens a
+  **library focus-mode** (reminder card + per-row +add/−remove buttons) to add the papers the scorer
+  missed, **staged and committed on Save**. The inc-38 in-card AddPaperPicker is retired.
+- **Why:** the axes panel is the AI-clustering surface; its manual-override UX was cramped + the tags
+  obscured titles. Confirms/manual-adds must survive re-scores → `confidence IS NULL` is now the single,
+  durable encoding of a human override (fixes a latent revert-on-re-score bug too).
+- **Verify:** pytest 174 (+2); live E2E (`.local/axes_manual_e2e/`, fake model) — no ASSIGNED tag,
+  ✓→manual, focus card + Save commits, 0 console errors. Audit PASS (no new endpoint/surface).
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc50.zip` (or revert the two
+  axis_scoring.py functions + the four frontend files, rebuild). No migration to undo.
+
+## 2026-06-19 — Editable Details pane (Mendeley-style) + DOI correction / re-resolve (increment 49)
+
+- **Files:** `app/backend/metadata/paper_edits.py` (new — `build_paper_update`, the safe partial
+  csl_json merge + column projection); `app/backend/metadata/enrichment.py` (`USER_EDITED_SOURCE` +
+  `force` flag); `app/backend/api/routers/papers.py` (`PaperUpdateRequest`, `PATCH /papers/{id}`,
+  `POST /papers/{id}/re-resolve`, `_crossref` accessor); `app/backend/api/app.py`
+  (`crossref_client` injectable); `app/frontend/js/25_detail.jsx` (new — inline-editable pane),
+  `20_synthesis.jsx` (DetailContent removed → forwards `onOpenPaper`), `40_app.jsx`
+  (`onOpenPaper=openPdf`), `styles.css` (`.detail-edit*` recipe; dead `.detail-title`/`.author-list`/
+  `.abstract` removed); rebuilt `callosum-app.html`. Tests: `tests/test_paper_edits.py` (new),
+  `tests/test_papers.py` (+9), `tests/test_health.py` (route surface). Docs: `INCREMENT-49-NOTES.md`,
+  `.claude/security-audits/2026-06-19_paper-edit-doi.md`, `.claude/DESIGN.md` (§2 inline-editable variant).
+- **What:** The Detail pane is now a Mendeley-style **always-editable** bibliographic editor (inline
+  fields, "Add …" placeholders, auto-save on blur, Literature Type dropdown, collapsible Identifiers,
+  a "More" section that auto-surfaces extra DOI-populated fields, a Files list, honest provenance). A
+  wrong/missing **DOI can be corrected and re-fetched from Crossref** (🔎). No schema migration —
+  `csl_json` is already the canonical record; scalar columns are projections kept in sync.
+- **Why:** "reference manager first" — metadata quality is upstream of everything (clustering, dedup,
+  citations, synthesis); fixing a DOI and re-resolving is table-stakes for a Zotero/Mendeley replacement.
+- **Verify:** pytest 172 (+22); live E2E (`.local/detail_edit_e2e/`, fake Crossref) — inline edit
+  auto-saves (prov→user-edited), re-resolve fills metadata (prov→crossref), 0 console errors. Audit PASS.
+- **Revert:** restore from `.claude/backups/callosum_claudecode_inc49.zip` (or delete `paper_edits.py` +
+  `25_detail.jsx`, revert the PATCH/re-resolve routes + `crossref_client`, restore DetailContent in
+  `20_synthesis.jsx`, rebuild). No migration to undo (`scoring_gain` head 0003 unchanged).
+
+## 2026-06-19 — Sidebar density (axis filter + green "+") + cutoff acts on displayed precision (increment 48)
+
+- **Files:** `app/frontend/js/10_pdf_layer.jsx` (drop "local reference workbench" subtitle);
+  `app/frontend/js/15_axes.jsx` (filter state + `Filter axes…` input, "+ new"→green "+", one no-wrap
+  controls row, `visibleAxes` filter, no-match hint); `app/frontend/styles.css` (`.axis-controls`/
+  `.axis-filter`, green `.axis-new`, removed dead `.axis-head-actions` + `.brand .sub`);
+  `app/backend/clustering/axis_scoring.py` (`_confidence_from_cosine_distance` rounds to 2dp);
+  `tests/test_axes.py` (+1) → rebuilt `callosum-app.html`. Notes: `INCREMENT-48-NOTES.md`.
+- **What:** (1) Rest of B″ density — removed the subtitle, added an axis **filter** (matches title or
+  terms), turned "+ new" into a green **"+"**, all controls on one no-wrap row → more axes visible.
+  (2) **Cutoff rounding:** confidences now stored/compared at the 2 decimals the UI shows, so a paper
+  displayed as "0.35" can't be tagged UNCERTAIN because its raw score was 0.349 (user-caught).
+- **Why:** density (power-user sees more axes) + honesty (displayed number == the number that decides the
+  tier).
+- **Verify:** pytest 150 (+1 rounding unit test); live E2E (`.local/density_e2e/`) — subtitle gone, filter
+  narrows/restores, controls one row (no wrap), 0 console errors. Frontend density is rebuild-only; the
+  rounding affects new scores (re-score to apply).
+- **Revert:** restore the listed files from `.claude/backups/callosum_claudecode_inc47.zip` + rebuild.
+
+## 2026-06-19 — Connection status shown by the logo (increment 47)
+
+- **Files:** `app/frontend/styles.css` (4 `--logo-*` bg-image tokens + `.brand-logo` div rules
+  theme×.connected; removed dead `.brand-logo-light/dark` + `.conn`/`.led*`); `app/frontend/js/10_pdf_layer.jsx`
+  (two `<img>` → one status `<div>`; removed `ConnStatus` + usage); `tools/inline_brand_assets.py` (logo
+  targets → 4 CSS tokens); recompressed `app/media/logo_on.png` + `logo_dm_on.png` (423KB→~57KB) → rebuilt
+  `callosum-app.html`. Notes: `INCREMENT-47-NOTES.md`.
+- **What:** The brand logo now indicates connection — a green dot in the brain's cell-body when connected
+  (the user's `logo_on`/`logo_dm_on` assets) — replacing the `● connected · local-verifier-v1` text line.
+  Driven as a 4-state CSS background-image (theme × `.connected`); base64 lives in CSS (not the Babel
+  script, avoiding the 500KB deopt).
+- **Why:** declutter the header (B″ density step) while keeping the signal, using the user's assets.
+- **Verify:** pytest 149 (frontend-only); live E2E (`.local/conn_logo_e2e/`) — `.connected` class, `.conn`
+  text gone, bg-image swaps on connection + theme, 0 console errors (no Babel note); dark screenshot shows
+  the green dot. No backend/migration/egress.
+- **Revert:** restore `styles.css`/`10_pdf_layer.jsx`/`inline_brand_assets.py` + `logo_on.png`/`logo_dm_on.png`
+  from `.claude/backups/callosum_claudecode_inc46.zip`, + rebuild.
+
+## 2026-06-19 — DESIGN.md token consolidation + dark mode + Settings modal (increment 46)
+
+- **Files:** `app/frontend/styles.css` (new chrome tokens + `:root[data-theme="dark"]` override + hex→token
+  replacements + `--on-fill` + settings/logo-toggle CSS); `app/frontend/index.html` (no-flash theme
+  bootstrap in `<head>`); `app/frontend/js/10_pdf_layer.jsx` (two themed brand logos + gear button); new
+  `app/frontend/js/35_settings.jsx` (`SettingsModal`); `app/frontend/js/40_app.jsx` (theme + settings
+  state); `tools/inline_brand_assets.py` (light+dark logo targets); recompressed `app/media/logo_dm.png`
+  (427KB→57KB, lossless) → rebuilt `callosum-app.html`. Docs: `.claude/DESIGN.md` (tokens + §1b Dark theme
+  + §3 status), `.claude/CLAUDE.md`, audit `.claude/security-audits/2026-06-19_dark-mode-settings.md`,
+  `INCREMENT-46-NOTES.md`.
+- **What:** Finished DESIGN.md's color-token consolidation (scattered hex → tokens; split destructive color
+  reconciled to `--danger`) and added a **warm-dark theme** via `data-theme` + CSS-variable overrides,
+  toggled in a new sparse **Settings modal** (gear icon in the sidebar). No-flash bootstrap; theme-matched
+  logo swap; the **rendered PDF page stays light** in both themes; `--on-fill` keeps text legible on the
+  now-light semantic fills.
+- **Why:** "wrap up DESIGN.md" + add dark mode — the token consolidation IS the dark-mode groundwork; the
+  Settings modal establishes the prefs surface (backlog H).
+- **Verify:** pytest 149 (frontend-only, unchanged); live E2E (`.local/dark_mode_e2e/`) — toggle dark→
+  `data-theme=dark` + `--bg`=#1a1815 + logo swap, persists across reload (no flash), back to light, 0
+  console errors; audit PASS. HTML 989KB→495KB after the dark-logo recompress.
+- **Revert:** restore the listed frontend files + `inline_brand_assets.py` + `logo_dm.png` from
+  `.claude/backups/callosum_claudecode_inc45.zip`, delete `35_settings.jsx`, + rebuild.
+
+## 2026-06-19 — Design dictionary (`DESIGN.md`) + badge-encodes-scoring-status
+
+- **Files:** new `.claude/DESIGN.md`; `.claude/CLAUDE.md` (rule #8 "read DESIGN.md before any CSS change" +
+  reference-table + 2 decision-log rows); `.claude/docs/INCREMENT-BACKLOG.md`; `app/frontend/js/15_axes.jsx`
+  (badge status class, removed the `.axis-state` text line) + `styles.css` (badge color modifiers; dropped
+  the dead `.axis-state`/`.axis-flag-*` rules) → rebuilt `callosum-app.html`.
+- **What:** (1) Created **`DESIGN.md`** — a two-pass design dictionary (Pass 1 = the CSS as-is: tokens +
+  element recipes; Pass 2 = inconsistencies + canonical rules + a consolidation worklist, e.g. the split
+  destructive colors `--flag` vs `#b3261e`, three indigos, repeated hover/border hexes, ~10 near-duplicate
+  buttons). CLAUDE.md now **requires reading it before any CSS/inline-style edit** (rule #8). (2) The axis
+  **count badge now encodes scoring status by color** — green `--verified` (scored & fresh), amber `--flag`
+  (`.is-stale`, edited → re-score), muted `--line-2` (not scored) — and the textual `.axis-state` status
+  line was **removed** (status lives in the badge color + tooltip; reclaims sidebar density).
+- **Why:** set the design tether *before* the upcoming UI wave (sidebar density, settings + dark mode,
+  synthesis redesign) to prevent design-by-committee drift; the badge change is a first dictionary-driven
+  consistency decision (status-by-color, not by text).
+- **Verify:** live check (`.local/badge_status_e2e/`) — `.axis-state` gone, badge neutral→green on score,
+  0 console errors; build clean (`15_axes.jsx` 376). No backend change (pytest unaffected, 149).
+- **Revert:** delete `DESIGN.md`, revert the CLAUDE.md rule/rows + the `15_axes.jsx`/`styles.css` badge
+  edits, + rebuild.
+
+## 2026-06-19 — Adjustable assignment cutoff ("gain") + axis-card redesign (increment 45)
+
+- **Files:** `schema.py` (`axes.scoring_gain`); `alembic/versions/0003_axis_scoring_gain.py`;
+  `app/backend/clustering/axis_scoring.py` (absolute-cutoff badge + shared never-empty helper);
+  `app/backend/api/routers/axes.py` (`DEFAULT_AXIS_CUTOFF`, score `gain` param + clamp + persist, read
+  re-tiers by axis cutoff, `AxisResponse.scoring_gain`); `tests/test_axes.py`, `tests/test_health.py`,
+  `tests/test_startup_migration.py`; `app/frontend/js/15_axes.jsx` (card icon buttons + red count badge +
+  Re-score/cutoff-flipper row, tip removed) + `styles.css` → rebuilt `callosum-app.html`. New
+  `.claude/HELP.md`. Audit: `.claude/security-audits/2026-06-19_axis-gain.md`. Notes: `INCREMENT-45-NOTES.md`.
+- **What:** Replaced inc-39's relative natural-break badge (which assigned only the top 2–6 papers — the
+  largest gap sits near the top of smooth declines) with an **absolute cutoff** (default 0.35), now a
+  **per-axis, persisted, user-adjustable** value (a "Cutoff" flipper on the Re-score row). Redesigned the
+  axis card: ✎/＋/🗑 icon buttons (＋ auto-expands + opens the picker; ✎ doesn't expand) + a circular red
+  count badge; Re-score is the lone in-list control. Moved the relative-tiers tip to `.claude/HELP.md`.
+- **Why:** the dynamic cut was systematically too exclusive (user evidence across 3 axes); 0.35 captures
+  the relevant ~half, and the user wanted it tunable as the library grows.
+- **Verify:** pytest 149 (+1 cutoff-persistence; recalibrated fake model; head→0003); live E2E
+  (`.local/axis_gain_e2e/`) — card icons + badge, ✎ no-expand, ＋ expands, flipper persists `scoring_gain`
+  across reload, tip gone, 0 console errors; audit PASS. Additive migration 0003 (auto-applies on startup);
+  existing axes re-tier at 0.35 on read — no re-score needed.
+- **Revert:** restore the listed files from `.claude/backups/callosum_claudecode_inc44.zip`, drop the
+  `scoring_gain` column (or `alembic downgrade`), + rebuild.
+
+## 2026-06-19 — Fix (interim): axis edit modal lost its term pills on reopen when the description was blank
+
+- **Files:** `app/frontend/js/16_axes_merge.jsx` (`_axisBase`/`_axisRelatedTerms` parser) → rebuilt
+  `callosum-app.html`; also removed stray `app/frontend/js/*.jsx.tmp.*` files (interrupted-write leftovers).
+- **What:** Editing an axis to clear the description prose, then saving, composed the description as just
+  `"Related: …"` (no leading blank line, since the empty prose is dropped before `join("\n\n")`). The
+  parser split only on the literal `"\n\nRelated:"`, so on reopen it failed to recover the terms — the
+  pills vanished and the whole `"Related: …"` string showed up in the description box. Fixed the parser to
+  split on any `Related:` marker (with/without leading newlines, multiple blocks) + case-insensitively
+  dedupe; it now round-trips empty-prose axes and also cleans up the double-`Related:` descriptions old
+  merges left.
+- **Why:** user hit it on resting-state after clearing the description and adding many terms; the string
+  *looked* editable so they deleted it (a UX trap any user would fall into).
+- **Verify:** live E2E (`.local/axis_terms_roundtrip_e2e/`) — empty-prose axis with 3 terms survives
+  save→reopen as 3 pills, description box empty, 0 console errors. Frontend-only (hard-reload). pytest 148
+  (unchanged).
+- **Note:** this is the **interim** fix. The real fix (next increment) promotes the terms to a first-class
+  field separate from the description prose, so the `"Related:"`-in-description convention — and this whole
+  class of parsing bug — goes away. (Per the user: "the pills should effectively replace 'Related:'
+  tracking via string in the description.")
+- **Revert:** restore `16_axes_merge.jsx` from `.claude/backups/callosum_claudecode_inc44.zip` + rebuild.
+
+## 2026-06-19 — Fix: axis perpetually "re-score" after merge + restore the 600-line cap
+
+- **Files:** `app/backend/clustering/axis_scoring.py` (`axis_score_state` membership check; trimmed
+  `_axis_text`/`_embed_axis` comments back under 600); `tests/test_axes.py` (+1 regression test).
+- **What:** An axis could show "description changed — re-score" forever even right after re-scoring.
+  Root cause: `_embed_axis` adds one embedding row per distinct scored text version and never prunes, and
+  `axis_score_state` judged freshness from the **newest row by id**. A merge/edit cycle that revisits a
+  prior text version leaves a stale row with a *higher* id than the row matching the current text →
+  perpetually stale. Fix: an axis is fresh if **any** stored embedding matches the current text
+  (`score_axis` always embeds the current text, so a match means the live assignments reflect it).
+  Self-heals existing DBs on the next `/axes` read — no re-score needed. Also fixes a 600-line-cap
+  violation: the inc-44 `_axis_text` comment had pushed `axis_scoring.py` to 603 → trimmed to 598.
+- **Why:** user hit it on `anomalous-is-bad` after merging two related axes (`resting-state` was unaffected
+  because its newest row happened to match); confirmed by replaying `axis_score_state` on the live DB
+  (now `stale=False`). The newest-by-id heuristic was simply wrong given accumulating embedding rows.
+- **Verify:** pytest 148 (+1: freshness survives text revisiting a prior scored version); read-only replay
+  on `.local/validation-summarize/validation.sqlite` → anomalous-is-bad/resting-state/major-depression all
+  `stale=False`. Backend-only (restart uvicorn; no rebuild). Known minor follow-up: embedding rows still
+  accumulate per axis (harmless — axis vectors aren't read for scoring; a future prune could tidy them).
+- **Revert:** restore `axis_scoring.py` + `tests/test_axes.py` from `.claude/backups/callosum_claudecode_inc44.zip`.
+
+## 2026-06-19 — Axis edit modal + title/term decoupling + click-to-open (increment 44, backlog A + A′)
+
+- **Files:** `app/backend/clustering/axis_scoring.py` (`_axis_text` embeds description-only w/ label
+  fallback); new `app/frontend/js/14_axes_edit.jsx` (`AxisEditModal`); `app/frontend/js/15_axes.jsx`
+  (quick-name create, removed inline create/edit forms + old terms modal + `.axis-desc` preview, A′
+  openPaper); `app/frontend/js/40_app.jsx` + `10_pdf_layer.jsx` (thread `onOpenPaper`); `styles.css`;
+  `tests/test_axes.py` (+2 tests) → rebuilt `callosum-app.html`. Audit:
+  `.claude/security-audits/2026-06-19_axis-edit-modal.md`. Notes: `INCREMENT-44-NOTES.md`.
+- **What:** One **Edit Axis modal** for create/edit/term-search. The **title is now a cosmetic display
+  name**; the search vocabulary is a curated terms list (stored in the description's `Related:` block,
+  primary term first, embedded — the label is no longer the query). Suggested terms are **deselected by
+  default** (selected sort to top). Clicking an axis-listed article **opens its PDF** (A′).
+- **Why:** name a lens naturally without the name polluting the embedding; consolidate scattered forms;
+  keep the human in the loop on AI terms; make the axes panel a clickable library overview.
+- **Verify:** pytest 147 (+2: scoring keys on description not label; label-only fallback); live E2E
+  (`.local/axis_edit_e2e/`) — deselect-by-default, no `.axis-desc`, click-to-open PDF, 0 console errors;
+  audit PASS. No migration, no new egress/endpoint (existing axes show stale → re-score once).
+- **Revert:** delete `14_axes_edit.jsx`, restore `axis_scoring.py`/`15_axes.jsx`/`40_app.jsx`/
+  `10_pdf_layer.jsx`/`styles.css`/`tests/test_axes.py` from `.claude/backups/callosum_claudecode_inc43.zip`
+  + rebuild.
+
+## 2026-06-19 — Axis management: sort + multi-select + bulk delete + curated merge (increment 43)
+
+- **Files:** new `app/backend/clustering/axis_operations.py` (`merge_axes`); `app/backend/api/routers/axes.py`
+  (`POST /axes/merge` + `MergeAxesRequest` + `created_at` on `AxisResponse`); `tests/test_axes.py`,
+  `tests/test_health.py`; `app/frontend/js/15_axes.jsx` (sort select + checkbox multi-select + bulk bar) +
+  new `app/frontend/js/16_axes_merge.jsx` (`MergeAxesModal` comparison view) + `styles.css` → rebuilt
+  `callosum-app.html`. Audit: `.claude/security-audits/2026-06-19_axis-merge.md`. Notes: `INCREMENT-43-NOTES.md`.
+- **What:** The Axes panel is now sortable (name / paper count / newest), supports checkbox multi-select with a
+  bulk-action bar (delete N, or merge ≥2), and a **merge** that consolidates axes into one surviving axis via a
+  comparison/curation view — you pick which axis's identity survives and curate the merged label + description.
+  Each folded axis's label is carried into the survivor's `Related:` terms by default, so a re-score keeps the
+  papers each source axis used to surface discoverable; manual assignments are unioned; the survivor auto-re-scores.
+- **Why:** as axes accumulate (esp. after the inc-41 synonym suggester), the user needs to order, bulk-act on, and
+  consolidate near-duplicate lenses without losing the vocabulary that made each one find its papers.
+- **Verify:** pytest 145 (merge + validation tests; route-surface invariant adds `/axes/merge`); live E2E
+  (`.local/axes_manage_e2e/`) — sort, multi-select, comparison-view merge (folded label → `Related:`), bulk delete,
+  0 console errors; security audit PASS. No migration, no egress.
+- **Revert:** delete `axis_operations.py` + `16_axes_merge.jsx`, restore `axes.py`/`15_axes.jsx`/`styles.css`/tests
+  from `.claude/backups/callosum_claudecode_inc42.zip` + rebuild.
+
+## 2026-06-19 — Resizable + collapsible side panels (increment 42)
+
+- **Files:** `app/frontend/js/40_app.jsx` (Divider component + drag/collapse + persisted layout state),
+  `app/frontend/styles.css` (divider/collapsed styles; removed the narrow-screen media query) → rebuilt
+  `callosum-app.html`. Notes: `INCREMENT-42-NOTES.md`.
+- **What:** The left (Axes) and right (Synthesis) panels are now drag-resizable and collapsible via a
+  divider with a grip + chevron toggle; the center PDF/library area expands as a side collapses. Widths +
+  open/closed state persist to localStorage. Frontend-only; no backend/migration/egress (no audit).
+- **Why:** let users focus on the PDF viewer and tune the layout.
+- **Verify:** pytest 143 (Python untouched); live E2E — collapse/expand both panels, drag-resize, center
+  widens, 0 console errors.
+- **Revert:** restore the two frontend files from `.claude/backups/callosum_claudecode_inc41.zip` + rebuild.
+
+## 2026-06-19 — Gemini axis synonym suggester (increment 41)
+
+- **Files:** new `integrations/gemini/axis_terms.py` + `__init__` export; `app/backend/api/app.py`
+  (`axis_term_suggester` wiring); `app/backend/api/routers/axes.py` (`POST /axes/suggest-terms` + accessor
+  + models); `tests/test_axes.py`, `tests/test_health.py`; `app/frontend/js/15_axes.jsx` + `styles.css`
+  (suggest-terms modal) → rebuilt `callosum-app.html`. Audit:
+  `.claude/security-audits/2026-06-19_axis-term-suggester.md`. Notes: `INCREMENT-41-NOTES.md`.
+- **What:** Optional AI assist to broaden niche axes: Gemini proposes related terms, the user curates
+  them in a **modal**, and the chosen terms fold into the axis description (re-score to apply). New
+  `POST /axes/suggest-terms` (sync, stateless) is **egress-gated** (off → 503 guidance; other failure →
+  502, never 500); untrusted model output is deduped/capped/echo-stripped. Human-in-the-loop + transparent
+  (terms are visible/editable text in the description). No migration.
+- **Why:** raise recall on niche axes (e.g. surface more than the literal phrasing matches) while keeping
+  the human in control and the default local-first path intact.
+- **Verify:** pytest **143** (140 + 3 new: terms returned, empty-label 422, egress-off→503 hermetic,
+  `_parse_terms` cleaning); live E2E (curate → apply → description folded, 0 console errors). Audit: PASS.
+- **Usage:** set `CALLOSUM_ALLOW_DATA_EGRESS=1` + `GOOGLE_API_KEY`, restart, then "suggest terms" on an axis.
+- **Revert:** restore the listed files (and delete `integrations/gemini/axis_terms.py`) from
+  `.claude/backups/callosum_claudecode_inc40.zip`.
+
+## 2026-06-19 — Axis punctuation normalization (increment 40)
+
+- **Files:** `app/backend/embeddings/models.py` (`strip_punctuation`), `app/backend/clustering/axis_scoring.py`
+  (apply to `_embed_axis` + `axis_score_state`), `tests/test_axes.py`. Notes: `INCREMENT-40-NOTES.md`.
+- **What:** Axes differing only in punctuation/spacing scored differently ("anomalous-is-bad" vs
+  "anomalous is bad"; "resting-state" vs "resting state") because `normalize_text` keeps punctuation, so
+  MiniLM tokenizes them differently. Now the axis text is run through a new `strip_punctuation` util
+  (punctuation/underscores → spaces, unicode-aware) before embedding + text-versioning, so equivalent
+  phrasings produce an identical axis embedding → identical results. Axis-side only — no paper re-embed,
+  no migration, no frontend change.
+- **Why:** equivalent axis phrasings should give the same results.
+- **Verify:** pytest **140** (138 + 2 new: a `strip_punctuation` unit test + an integration test where
+  two punctuation-variant axes score identically under a punctuation-sensitive fake model).
+- **User action:** re-score existing punctuated axes once (they'll show stale).
+- **Revert:** restore the two source files from `.claude/backups/callosum_claudecode_inc39.zip`.
+
+## 2026-06-18 — Axis scoring calibration: natural-break relative tiering (increment 39)
+
+- **Files:** `app/backend/clustering/axis_scoring.py` (+`natural_break` mode + 2 helpers),
+  `app/backend/api/routers/axes.py` (`SUPERVISED_AXIS_CONFIG`; relative read tier),
+  `app/frontend/js/15_axes.jsx` + `styles.css` (relative caption) → rebuilt `callosum-app.html`,
+  `tests/test_axes.py`. Notes: `INCREMENT-39-NOTES.md`.
+- **What:** Inc-38's absolute thresholds (assigned ≥0.7 / uncertain ≥0.5) assigned **nothing** on real
+  data — `all-MiniLM-L6-v2` axis-vs-paper-metadata cosine maxes ~0.37 (median 0.02), though the ranking
+  is correct. Switched to **natural-break relative tiering**: assigned = the cluster above the largest
+  gap in the axis's ranking (above a 0.2 MiniLM-calibrated noise floor), uncertain = the rest of the
+  eligible, never-empty fallback shows the closest few. Tiers are **recomputed on read** from the
+  stored confidences (no migration; read == score). Raw similarity still shown honestly.
+- **Why:** make supervised axes actually surface relevant papers (validated: the anomalous-is-bad axis
+  now assigns its facial-difference papers, excludes off-topic ones).
+- **Verify:** pytest **138** (136 + 2 new); real-data read-only check + live E2E (tiers populate, 0
+  console errors). Users must **re-score** axes scored under the old logic.
+- **Revert:** restore the listed files from `.claude/backups/callosum_claudecode_inc38.zip`.
+
+## 2026-06-17 — Axes increment 1: create / browse / score / correct user-defined axes (increment 38)
+
+- **Files:** `app/backend/clustering/axis_scoring.py` (new reuse helpers), `app/backend/api/routers/axes.py`
+  (6 new mutations + 1 GET + async score job + extended reads), `app/backend/api/app.py`
+  (`axis_score_jobs` wiring), `tests/test_health.py` (route surface), `tests/test_axes.py` (hermetic
+  suite), `app/frontend/js/15_axes.jsx` (new AxesPanel) + `10_pdf_layer.jsx`/`40_app.jsx`/`styles.css`,
+  rebuilt `callosum-app.html`. Notes: `INCREMENT-38-NOTES.md`; audit:
+  `.claude/security-audits/2026-06-17_axes-supervised.md`.
+- **What:** Exposed the existing `axis_scoring.py` engine as write endpoints + UI. Create an axis from
+  a label + description; score it (async job, `assignment_mode="absolute"` → assigned ≥0.7 / uncertain
+  ≥0.5 / below-threshold not stored); browse assigned papers by honest tier + confidence; manually
+  add/remove papers (human override, `confidence IS NULL` = manual vs scored float); edit (→ stale until
+  re-scored, via the axis embedding's text-version) and delete (CASCADE, axis-tree only). Re-score
+  preserves manual adds. **No migration, no egress** (scoring is fully local).
+- **Why:** the Axes sidebar panel was read-only/inert; this makes user-defined axes usable end-to-end
+  (increment 1 of a staged feature; unsupervised clustering / synthesis-scope / multi-pole deferred).
+- **Verify:** pytest **136 passed** (129 + 7 new, route-surface updated); hermetic fake-model tiers,
+  stale, re-score-preserves-manual, manual add/remove, narrow cascade, graceful model-unavailable.
+  Live browser E2E: create → score → tiers (1 assigned / 1 uncertain, far excluded) → manual-add,
+  **0 console errors**. Security audit: PASS.
+- **Revert:** restore the listed files from `.claude/backups/callosum_claudecode_inc37.zip` (pre-inc-38).
+
+## 2026-06-17 — Restore `callosum-app.html` as a generated build artifact (inc 37 follow-up)
+
+- **Files:** new `tools/build_frontend.py`; `app/backend/api/app.py` (serve precedence); regenerated
+  `callosum-app.html`.
+- **What:** Kept the modular `app/frontend/` source, but `tools/build_frontend.py` now rebuilds the
+  single-file `callosum-app.html` from it (verified **byte-identical** to the pre-split original,
+  CRLF and all). The `/` route serves that file by default (restoring the prior behavior file-based
+  UI testing relies on), with live assembly as the fallback when it's absent.
+- **Why:** preserve the user's existing frontend-testing workflow, which expects that particular file.
+- **Verify:** `python tools/build_frontend.py` → 375312 bytes, identical to the original; `GET /`
+  serves it (200, text/html, app markers present); pytest **129**.
+- **Revert:** delete `callosum-app.html` + `tools/build_frontend.py` and restore the default-assembly
+  `/` route.
+
+## 2026-06-17 — Modularize the monolith files (increment 37)
+
+- **Files:** new `app/backend/api/{dependencies,startup,frontend}.py` + `app/backend/api/routers/*.py`;
+  new `app/backend/pdf_processing/quote_matching.py`; new `tools/validation/{reports,report_renderer}.py`;
+  new `app/frontend/{index.html,styles.css,js/*.jsx}`; new `tests/{conftest,api_helpers,test_papers,
+  test_annotations,test_axes,test_summaries,test_health}.py`. Slimmed `app/backend/api/app.py`,
+  `extraction.py`, `tools/validation_harness.py`. Deleted `callosum-app.html` + `tests/test_api.py`.
+  Updated importers + `tools/inline_brand_assets.py`. Notes: `INCREMENT-37-NOTES.md`; audit:
+  `.claude/security-audits/2026-06-17_frontend-assembly.md`.
+- **What:** Behavior-preserving split of the oversized files at their natural joints into
+  descriptively-named modules so directed code reviews touch one concern at a time. `app.py`
+  1108→113 (factory + per-resource routers; only logic change: `/summarize*` read the job store via
+  `request.app.state`). `extraction.py` 662→555 (+`quote_matching.py`). `test_api.py` →
+  conftest + per-resource files. `validation_harness.py` 1298→898 (report dataclasses + markdown
+  renderer extracted; probes stay — exempt tool). `callosum-app.html` 2023 → modular `app/frontend/`
+  **assembled at serve time** into one document at `/` (no build step, no new file-serving surface;
+  JSX concatenated into one `<script>` so the shared scope is identical).
+- **Why:** `app.py`/`extraction.py` were over the 600-line hard limit (overdue standing-split tasks);
+  the rest were unwieldy for review. Now **no file under `app/`/`integrations/` exceeds 600** (largest
+  `extraction.py` 555).
+- **Verify:** `pytest` **129 passed** after every phase; route-surface invariant green (no endpoint
+  drift); inc-36 E2E re-run against the **assembled** frontend — reload-drift **0.0px**, **0 console
+  errors** (faithful in-browser reassembly). Security audit: PASS.
+- **Revert:** restore the affected files from `.claude/backups/callosum_claudecode_inc36.zip`
+  (pre-increment-37 snapshot).
+
+## 2026-06-17 — Synthesis → annotation bridge: save a citation as a highlight (increment 36 / suite C)
+
+- **Files:** `app/backend/api/app.py`, `callosum-app.html`, `tests/test_api.py`,
+  `INCREMENT-36-NOTES.md`, `.claude/security-audits/2026-06-17_synthesis-source.md`.
+- **What:** A verified, exact-coordinate synthesis citation can now be **saved as a durable
+  annotation** (`source="synthesis"`). Backend: `POST /papers/{id}/annotations` accepts an optional
+  `source`, allowlist-validated (`NATIVE_ANNOTATION_SOURCES`, forged → 422), defaulting to `"user"`;
+  the handler stopped hardcoding `"user"`. No new route, no migration. Frontend: a "Save as
+  highlight" control on each `CitationCard`, **enabled only for exact+verified** citations and
+  otherwise **disabled with a tooltip** (honesty contract); `App.saveCitationHighlight` POSTs the
+  citation's bboxes/quote as a synthesis annotation and bumps an `annoRefresh` nonce so an open
+  `PdfViewer` refetches **without a reload** (no-flicker effect). Synthesis highlights render with a
+  distinct **dashed `.pdf-synthesis-outline`** marker (user choice: outline only; fill palette
+  unchanged), drawn outside the multiply group so it stays crisp.
+- **Why:** unite the ephemeral citation-overlay system with durable user highlights, so a machine-
+  found passage becomes a first-class, annotatable highlight — without ever presenting a
+  region/null/flagged citation as a precise highlight.
+- **Verify:** pytest **129 passed** (126 + 3 new source accept/default/forged tests). Headless E2E
+  (`.local/inc36_e2e/`, real uvicorn + real PDF, Chromium): gating proof (1 enabled / 1 disabled+
+  tooltip), save persists `source="synthesis"`, **live refresh** (`.pdf-synthesis-outline` 0→1 with
+  the tab open), **reload-drift 0.0px**, 0 console errors. Security audit: PASS.
+- **Revert:** restore `app/backend/api/app.py` + `callosum-app.html` + `tests/test_api.py` from the
+  pre-increment snapshot `.claude/backups/callosum_claudecode_inc33-35.zip`.
+
+## 2026-06-17 — Fix multi-line highlight opacity doubling (increment 35)
+
+- **Files:** `callosum-app.html`, `INCREMENT-35-NOTES.md`.
+- **What:** A multi-line highlight's overlapping per-line rects double-filled the interior (darker
+  band); the pre-existing per-fill `mix-blend-mode: multiply` didn't help (multiply compounds at
+  overlap). Fix: wrap each annotation's rects in an isolated per-annotation group
+  (`.pdf-user-highlight-group{position:absolute;inset:0;isolation:isolate;mix-blend-mode:multiply;opacity:0.7}`)
+  with **opaque** per-line fills that union with no doubling; the group composites once → uniform on
+  every row, darkening toward the text. Removed the per-fill multiply + inset border (would seam the
+  union). No geometry change.
+- **Why:** even, legible highlighting (worsens with the longer passages increment C will create).
+- **Verify (headless):** 60-rect highlight — gap-row luminance top/mid/bottom 250.7/253.1/251.9 →
+  **spread 2.4 (~1%)**, uniform; screenshot confirms no interior band; reload-drift **0.0px**; zoom
+  unchanged. Citation overlay (low-alpha/bordered, transient) left as-is; text layer untouched.
+  pytest **126 passed**.
+- **Revert:** restore `callosum-app.html` from the pre-increment zip snapshot in `.claude/backups/`.
+
+## 2026-06-17 — Fix PDF text-layer/canvas misalignment (scale + DPR sync) (increment 34)
+
+- **Files:** `callosum-app.html`, `INCREMENT-34-NOTES.md`.
+- **What:** The invisible text layer drifted from the rendered PDF text (worse toward the page
+  bottom) and desynced under zoom/HiDPI. Root causes: `Math.floor` truncation of the canvas/text
+  containers vs un-floored span coords; responsive `width:100%`/`max-width:100%` shrinking the canvas
+  but not the fixed-px text layer; no `devicePixelRatio`. Fix: every layer now derives from one
+  `getViewport({scale})` with **exact un-floored CSS dims**; canvas backing store at device
+  resolution (`round(css*dpr)` + a `[dpr,0,0,dpr,0,0]` render transform) with the exact CSS box;
+  text layer + wrapper + overlays sized identically; removed the responsive shrink (too-wide pages
+  scroll, `overflow:auto`); a `matchMedia` DPR listener re-renders on browser zoom/HiDPI change.
+- **Why:** selection/highlighting requires the text layer to sit exactly over the visible text.
+- **Verify (headless):** bottom-of-page drift **−7.97px → −0.20px** (wide@115%; regression across the
+  full page −0.83px); narrow pane went from desynced to −0.20px; HiDPI dpr=2 backing now 2× with the
+  exact CSS box (bottom offset −0.10). **Highlight reload-drift = 0.0px at 50/75/115/195% and dpr=2.**
+  pytest 126 passed (frontend-only).
+- **Revert:** restore `callosum-app.html` from the pre-increment zip snapshot in `.claude/backups/`.
+
+## 2026-06-17 — Loud startup auto-migration + honest /health migration check
+
+- **Files:** `app/backend/api/app.py`, `tests/test_api.py`, `tests/test_startup_migration.py` (new).
+- **What:** (1) The startup auto-migrate now **announces itself** — INFO "startup migration check:
+  db=… current=… head=…", a WARNING "database auto-migrated … X -> Y" when it actually migrates, an
+  INFO "already at head …" when not, and an ERROR (non-fatal) on failure. A minimal stdout logging
+  setup + a `_loud()` helper keep these visible even though Alembic's `env.py` runs
+  `fileConfig(disable_existing_loggers=True)` on every migrate (which had been silencing our logger
+  mid-startup — the post-upgrade line would otherwise never appear). (2) `/health` is now **honest**:
+  `db_migrated` means *at head* (compares the DB's current Alembic revision to head), not merely
+  "some version stamped"; added `db_revision` + `db_head_revision` so a behind-DB is diagnosable from
+  /health alone.
+- **Why:** a silent schema mutation on the user's DB must be surfaced, and the health check that was
+  supposed to warn of a behind-DB was lying (this is what hid the earlier silent-500).
+- **Verify:** pytest 126 passed (behind-DB reports not-at-head; at-head reports up-to-date; startup
+  emits the from→to WARNING + at-head INFO; a forced migration failure logs ERROR but is non-fatal and
+  the app still serves /health). Sample real log lines captured (from→to + at-head). No schema change;
+  env.py untouched; non-fatal-on-failure preserved.
+- **Revert:** restore the two app/test files from the pre-change zip snapshot in `.claude/backups/`.
+
+## 2026-06-17 — Clean JATS abstract rendering (increment 33)
+
+- **Files:** `app/backend/metadata/abstract_display.py` (new), `app/backend/api/app.py`,
+  `callosum-app.html`, `tests/test_abstract_display.py` (new), `tests/test_api.py`,
+  `INCREMENT-33-NOTES.md`, `.claude/security-audits/2026-06-17_jats-abstract-display.md`.
+- **What:** Crossref abstracts (stored raw as JATS XML) now render as clean structured text in the
+  Detail pane instead of literal `<jats:…>` tags. New pure transform `clean_abstract_for_display`
+  emits a small allowlist of attribute-free HTML (`p/em/strong/sub/sup`); `PaperDetailResponse`
+  gains a derived `abstract_display` (raw `abstract` unchanged); the frontend renders it via the
+  app's only `dangerouslySetInnerHTML` (allowlisted backend output).
+- **Why:** readable abstracts (italics, bold, sub/sup for formulae/p-values) without mutating the
+  faithful stored value (store raw, render structured).
+- **Verify:** pytest 122 passed (real HBM + Alves fixtures, plain-text, malformed, entities/sub-sup,
+  allowlist/security, purity, stored-unchanged API test); headless Firefox renders clean, no console
+  errors. No schema/migration change.
+- **Revert:** restore the listed files from the pre-increment zip snapshot in `.claude/backups/`.
+
+## 2026-06-17 — Fix: highlight create 500'd on stale (un-migrated) DBs + robustness
+
+- **Files:** `app/backend/api/app.py`, `callosum-app.html`; plus migrated all
+  `.local/**/validation.sqlite` to head.
+- **Root cause:** the running DB predated increments 30/31 and lacked the `annotations`
+  columns (`color`, …); every create-annotation INSERT returned **500**, and the frontend
+  **swallowed the error silently** → "highlighting does nothing." Found via the user's
+  uvicorn traceback (`table annotations has no column named color`).
+- **What:** (B) **auto-migrate on startup** — `create_app`'s lifespan now runs
+  `alembic upgrade head` (absolute `script_location`, defensive) against the configured DB,
+  so the app self-heals any DB it opens. (C) **surface API errors** — `apiPost/apiPatch/apiDelete`
+  `console.warn` on failure, and the annotation actions show a transient `.pdf-toast`
+  ("Couldn't save highlight — …") instead of failing silently. (A) ran `alembic upgrade head`
+  on all 10 existing `.local` validation DBs (`color` now present).
+- **Why:** the code/migration were correct; the DB just hadn't run `0002`. Auto-migrate +
+  visible errors prevent this class of silent failure recurring.
+- **Verify:** end-to-end — a stale DB copy auto-migrated on startup (`color` false→true) and
+  an HTTP create returned 201; Firefox highlight renders; a forced 500 shows the toast +
+  console.warn. `pytest` 113 passed (lifespan auto-migrate doesn't affect the non-`with`
+  TestClient tests). No schema/migration change (single head stays `0002`).
+- **Revert:** restore the two files from the pre-change zip snapshot in `.claude/backups/`.
+
+## 2026-06-17 — Highlight visibility + note-on-create affordance (annotation UX)
+
+- **Files:** `callosum-app.html`.
+- **What:** (1) Made user highlights clearly visible — overlay fill 0.38 → **0.55** alpha and a
+  crisper inset edge (the old marker was so faint over the page that, since clicking a swatch also
+  clears the blue text-selection, it read as "nothing happened"). (2) Added a **"✎ note" button to
+  the create picker** (`createHighlightWithNote`) that makes the highlight and immediately opens the
+  note editor — notes are no longer only reachable by clicking an existing highlight.
+- **Why:** User reported highlighting "doesn't highlight" (it did — it persisted to the DB — but was
+  too subtle) and that the create menu had no way to add a note.
+- **Verify:** headless **Firefox** — highlight renders at 0.55 alpha (screenshot confirmed),
+  "✎ note" → POST 201 → editor opens → note saves (PATCH) → note-dot shows; no console errors.
+  No Python changed (suite unaffected).
+- **Revert:** restore `callosum-app.html` from the pre-change zip snapshot in `.claude/backups/`.
+
+## 2026-06-16 — Brand logo + favicon (increment 32)
+
+- **Files:** `callosum-app.html` (+ user-added `app/media/logo.png`, `app/media/favicon.png`),
+  `INCREMENT-32-NOTES.md`.
+- **What:** Brand lockup in the sidebar header — the brain logo (62px) stacked **above** the
+  "Callosum" wordmark, centered, with the subtitle/status centered under it; favicon wired. Both
+  PNGs inlined as base64 `data:` URIs (favicon `<link rel="icon">` + a `.brand-logo` `<img>`);
+  replaced the old accent `.dot` (rule removed); `.brand` is a centered column and the sidebar
+  header is centered.
+- **Why:** Branding. Inline data URIs (matching the existing `data:,` favicon placeholder) avoid a
+  new file-serving route/surface and keep the single-file, offline frontend self-contained.
+- **Verify:** headless Chromium PASS (logo decodes 348px → 62px, stacked centered above the
+  wordmark, favicon is a PNG data URI, no console errors); `pytest` still 113 passed (no Python touched).
+- **Revert:** restore `callosum-app.html` from the pre-increment zip snapshot in `.claude/backups/`.
+
+## 2026-06-16 — Annotation notes + management panel (increment 31 / suite B)
+
+- **Files:** `app/backend/api/app.py`, `app/backend/persistence/repository.py`,
+  `callosum-app.html`, `tests/test_api.py`, `tests/test_persistence_core.py`,
+  `INCREMENT-31-NOTES.md`, `.claude/security-audits/2026-06-16_annotation-notes.md`.
+- **What:** Comments/notes on highlights + a per-paper annotation panel. `note` accepted on
+  create; new `PATCH /annotations/{id}` (note and/or color; note capped at 4000) — the
+  project's first update endpoint; `update_annotation` repo helper. Frontend: clicking a
+  highlight opens a note+color editor (replaces delete-only), a note dot marks commented
+  highlights, and a collapsible in-viewer panel lists/edits/deletes/jumps-to annotations.
+- **Why:** Suite increment B; activates the `note` column scaffolded in A. No migration (the
+  column already exists). Synthesis-sourcing + re-anchoring remain later increments.
+- **Verify:** `pytest` (113 passed); headless E2E PASS — note persists across reload with the
+  highlight still at **0.0 px** drift; two PATCH round-trips; delete-from-panel clears UI + DB.
+- **Revert:** restore the listed files from the pre-increment zip snapshot in `.claude/backups/`
+  (no schema/migration change to undo).
+
+## 2026-06-16 — Annotation highlights (increment 30 / annotation suite A)
+
+- **Files:** `app/backend/persistence/schema.py`, `alembic/versions/0002_annotation_highlights.py`,
+  `app/backend/persistence/repository.py`, `app/backend/api/app.py`, `callosum-app.html`,
+  `tests/test_api.py`, `tests/test_persistence_core.py`, `INCREMENT-30-NOTES.md`,
+  `.claude/security-audits/2026-06-16_annotations.md`.
+- **What:** First user-authored persistent data + first mutating endpoints. PDF.js text
+  layer added so text is selectable; selecting text offers a color and creates a durable
+  highlight (POST), highlights load + render on open and stay zoom-aligned (reusing the
+  increment-29 coordinate model), and can be deleted. Backend: extended the existing
+  `annotations` table with native columns (color/bboxes_json/anchor_text/prefix/suffix/
+  source/note/updated_at), repository CRUD, and `POST/GET /papers/{id}/annotations` +
+  `DELETE /annotations/{id}`.
+- **Why:** Foundation of the staged annotation suite (comments, synthesis-linking,
+  re-anchoring come later). `note`/`source` columns scaffold those without building them.
+- **Verify:** `pytest` (107 passed); headless Playwright E2E PASS (highlight lands on
+  text 98.6%, persists at 0px after reload, 0% zoom drift, delete clears UI + DB).
+- **Revert:** restore the listed files from the pre-increment zip snapshot in
+  `.claude/backups/`; on any already-migrated DB, the 0002 columns are additive/nullable
+  and can be left in place (downgrade available via `alembic downgrade 0001_persistence_core`).

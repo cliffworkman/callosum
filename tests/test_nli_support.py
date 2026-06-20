@@ -1,0 +1,295 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from types import SimpleNamespace
+
+import fitz
+import pytest
+from sqlalchemy import select
+
+from alembic import command
+from alembic.config import Config
+from app.backend.embeddings.models import DEFAULT_NORMALIZATION, normalize_text
+from app.backend.embeddings.vector_store import InMemoryVectorStore
+from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
+from app.backend.persistence.database import make_engine
+from app.backend.persistence.schema import chunks, citation_mappings, evidence_quotes
+from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence, FakeSummaryGenerator
+from app.backend.summarization.pipeline import SummaryScope, summarize_scope
+from app.backend.summarization.verification import (
+    DEFAULT_SUPPORT_THRESHOLD,
+    EmbeddingSupportScorer,
+    LocalCitationVerifier,
+    NLISupportScorer,
+    SupportScorer,
+    VerificationConfig,
+)
+
+
+@dataclass(frozen=True)
+class TopicalFakeEmbeddingModel:
+    name: str = "fake-topical-embedding"
+    version: str = "v1"
+    dimension: int = 3
+    normalization: str = DEFAULT_NORMALIZATION
+
+    def encode_texts(self, texts: list[str]) -> list[list[float]]:
+        return [_topical_vector(normalize_text(text, self.normalization)) for text in texts]
+
+
+@dataclass(frozen=True)
+class FakeNLISupportScorer:
+    scores: dict[tuple[str, str], float]
+
+    def score(self, *, sentence: str, passage: str) -> float:
+        return self.scores[(passage, sentence)]
+
+
+@dataclass(frozen=True)
+class ConstantSupportScorer:
+    value: float
+
+    def score(self, *, sentence: str, passage: str) -> float:
+        return self.value
+
+
+class UnavailableNLIModel:
+    def __call__(self):
+        raise OSError("model is not cached")
+
+
+def test_nli_support_scorer_satisfies_protocol_without_loading_real_model() -> None:
+    scorer: SupportScorer = NLISupportScorer(_loader=lambda: _StubCrossEncoder([[0.05, 0.9, 0.05]]))
+
+    assert scorer.score(sentence="A source entails this.", passage="A source entails this.") == 0.9
+
+
+def test_verifier_default_uses_nli_with_embedding_fallback() -> None:
+    model = TopicalFakeEmbeddingModel()
+    verifier = LocalCitationVerifier(model=model, vector_store=InMemoryVectorStore())
+
+    assert VerificationConfig().support_threshold == DEFAULT_SUPPORT_THRESHOLD == 0.55
+    assert isinstance(verifier.support_scorer, NLISupportScorer)
+    assert isinstance(verifier.support_scorer.fallback_scorer, EmbeddingSupportScorer)
+    assert verifier.support_scorer.fallback_scorer.model is model
+
+
+def test_topically_similar_unentailed_claim_fails_with_nli_but_passes_embedding(tmp_path: Path) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = TopicalFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    sentence = "Criterion shifts increase with age."
+    quote = "Criterion shifts can occur in signal detection tasks."
+
+    with engine.begin() as conn:
+        fixture = _ingest_nli_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text=sentence,
+                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+                )
+            ]
+        )
+        embedding_result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=EmbeddingSupportScorer(model),
+        )
+        nli_result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=FakeNLISupportScorer(scores={(quote, sentence): 0.2}),
+        )
+        quote_rows = list(conn.execute(select(evidence_quotes).order_by(evidence_quotes.c.id)).mappings())
+        mapping_rows = list(conn.execute(select(citation_mappings).order_by(citation_mappings.c.id)).mappings())
+
+    assert embedding_result.sentences[0].citations[0].support_confidence == 1.0
+    assert embedding_result.sentences[0].citations[0].status == "verified"
+    assert nli_result.sentences[0].citations[0].support_confidence == 0.2
+    assert nli_result.sentences[0].citations[0].status == "weak"
+    assert nli_result.sentences[0].flagged is True
+    assert [row["status"] for row in mapping_rows] == ["verified", "weak"]
+    assert [row["support_confidence"] for row in quote_rows] == [1.0, 0.2]
+
+
+def test_genuinely_entailed_sentence_passes_with_nli_scorer(tmp_path: Path) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = TopicalFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    sentence = "Criterion shifts can occur in signal detection tasks."
+    quote = "Criterion shifts can occur in signal detection tasks."
+
+    with engine.begin() as conn:
+        fixture = _ingest_nli_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text=sentence,
+                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+                )
+            ]
+        )
+        result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=FakeNLISupportScorer(scores={(quote, sentence): 0.92}),
+        )
+
+    assert result.status == "verified"
+    assert result.sentences[0].citations[0].support_confidence == 0.92
+    assert result.sentences[0].citations[0].status == "verified"
+
+
+def test_nli_support_scorer_falls_back_when_model_unavailable() -> None:
+    scorer = NLISupportScorer(
+        local_files_only=True,
+        fallback_scorer=ConstantSupportScorer(0.73),
+        _loader=UnavailableNLIModel(),
+    )
+
+    assert scorer.score(sentence="Any sentence.", passage="Any passage.") == 0.73
+
+
+def test_default_nli_path_falls_back_without_crashing_when_model_unavailable(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = TopicalFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    sentence = "Criterion shifts can occur in signal detection tasks."
+    quote = "Criterion shifts can occur in signal detection tasks."
+
+    def unavailable(self: NLISupportScorer) -> object:
+        raise OSError("model is not cached")
+
+    monkeypatch.setattr(NLISupportScorer, "_load_model", unavailable)
+
+    with engine.begin() as conn:
+        fixture = _ingest_nli_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text=sentence,
+                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+                )
+            ]
+        )
+        result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+        )
+
+    assert result.status == "verified"
+    assert result.sentences[0].citations[0].support_confidence == 1.0
+    assert result.sentences[0].citations[0].status == "verified"
+
+
+def test_default_support_threshold_boundary_is_inclusive(tmp_path: Path) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = TopicalFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    sentence = "Criterion shifts can occur in signal detection tasks."
+    quote = "Criterion shifts can occur in signal detection tasks."
+
+    with engine.begin() as conn:
+        fixture = _ingest_nli_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text=sentence,
+                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+                )
+            ]
+        )
+        pass_result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=ConstantSupportScorer(0.55),
+        )
+        fail_result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=ConstantSupportScorer(0.54),
+        )
+
+    assert VerificationConfig().support_threshold == 0.55
+    assert pass_result.sentences[0].citations[0].support_confidence == 0.55
+    assert pass_result.sentences[0].citations[0].status == "verified"
+    assert fail_result.sentences[0].citations[0].support_confidence == 0.54
+    assert fail_result.sentences[0].citations[0].status == "weak"
+
+
+def _migrated_engine(tmp_path: Path):
+    db_path = tmp_path / "callosum-nli-support.sqlite"
+    url = f"sqlite:///{db_path.as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    return make_engine(url)
+
+
+def _ingest_nli_fixture(conn, tmp_path: Path) -> dict[str, int]:
+    pdf_path = _make_nli_pdf(tmp_path / "nli-fixture.pdf")
+    ingest = ingest_pdf_scaffold(conn, pdf_path, title="NLI Fixture")
+    row = (
+        conn.execute(
+            select(chunks).where(
+                chunks.c.paper_id == ingest["paper_id"],
+                chunks.c.text == "Criterion shifts can occur in signal detection tasks.",
+            )
+        )
+        .mappings()
+        .one()
+    )
+    return {"paper_id": int(ingest["paper_id"]), "criterion_chunk_id": int(row["id"])}
+
+
+def _make_nli_pdf(path: Path) -> Path:
+    document = fitz.open()
+    page = document.new_page(width=500, height=420)
+    page.insert_text((50, 70), "Criterion shifts can occur in signal detection tasks.", fontsize=12)
+    page.insert_text((50, 115), "Unrelated control material appears here.", fontsize=12)
+    document.save(path)
+    document.close()
+    return path
+
+
+def _topical_vector(text: str) -> list[float]:
+    if any(token in text for token in ("criterion", "shift", "signal", "detection", "age")):
+        return [1.0, 0.0, 0.0]
+    if "unrelated" in text:
+        return [0.0, 1.0, 0.0]
+    return [0.0, 0.0, 1.0]
+
+
+class _StubCrossEncoder:
+    def __init__(self, scores: list[list[float]]) -> None:
+        self.scores = scores
+        self.model = SimpleNamespace(
+            config=SimpleNamespace(id2label={0: "contradiction", 1: "entailment", 2: "neutral"})
+        )
+
+    def predict(self, pairs, apply_softmax: bool):  # type: ignore[no-untyped-def]
+        assert apply_softmax is True
+        return self.scores

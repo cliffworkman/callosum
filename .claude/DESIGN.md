@@ -1,0 +1,212 @@
+# DESIGN.md — callosum design dictionary
+
+The canonical reference for how callosum's UI looks. **Any change to `app/frontend/styles.css` (or inline
+`style={{…}}` in `app/frontend/js/*.jsx`) MUST start with a read-through of this file** (CLAUDE.md rule).
+The goal is to prevent design-by-committee drift as new controls land in an existing codebase: a new
+button/input/badge conforms to a recipe here rather than inventing its own styling.
+
+**Design intent (from `styles.css`):** *a quiet, dense reading instrument, not a landing page. Ink-on-paper
+neutrals; one structural accent (deep indigo) reserved for provenance/verification — the thing that makes
+Callosum Callosum. Type does the work: a humanist sans for chrome, a readable serif for paper titles.*
+
+Two-pass document (per the user): **Pass 1** describes the CSS *as it is today*; **Pass 2** flags
+inconsistencies and proposes canonical rules + consolidations. Pass-2 consolidations are a **worklist** —
+apply them opportunistically or on request; new CSS should already follow the canonical rules. This is a
+first attempt — expect iteration.
+
+---
+
+## 1. Tokens (the foundation — `:root` in `styles.css`)
+
+**Use a token; never re-type a raw hex that a token already names.**
+
+| Token | Value | Meaning / use |
+|---|---|---|
+| `--bg` | `#fbfaf7` | warm paper white — app background, inset inputs |
+| `--panel` | `#ffffff` | raised surfaces (cards, modals, list) |
+| `--panel-2` | `#f4f2ec` | sidebar / detail / inset surfaces |
+| `--ink` | `#1c1b19` | primary text |
+| `--ink-2` | `#55514a` | secondary text |
+| `--ink-3` | `#8a8479` | tertiary / metadata / placeholders |
+| `--line` | `#e6e2d8` | hairline rules / dividers |
+| `--line-2` | `#d8d3c6` | control borders (inputs, buttons) |
+| `--accent` | `#2f2a6b` | **deep indigo — provenance/verification + primary actions ONLY** |
+| `--accent-soft` | `#ecebf5` | accent backgrounds (active chips, soft panels) |
+| `--verified` / `--verified-soft` | `#2f6b45` / `#e6f0e9` | grounded/verified (green) |
+| `--flag` / `--flag-soft` | `#9a5b2e` / `#f4ebe2` | **unresolved / region / uncertain (amber-brown)** — a *status*, not "delete" |
+| `--sel` | `#eef1fb` | selected row background |
+| `--hover` | `#ece9e0` | row / card hover (inc 46) |
+| `--accent-line` | `#dad8ee` | border partner for `--accent-soft` |
+| `--flag-line` / `--flag-ink` | `#e6cdb4` / `#6e4421` | border + text partners for `--flag-soft` |
+| `--danger` / `--danger-line` | `#b3261e` / `#e3b1ac` | **destructive actions** (delete) — distinct from `--flag` (status) |
+| `--accent-overlay` | `#5c55b0` | on-page indigo (PDF highlight/synthesis) — **constant across themes** (white page) |
+| `--on-fill` | `#ffffff` | text on a filled semantic color (primary button, status badge) — **flips in dark** |
+| `--radius` | `7px` | default corner radius |
+| `--radius-sm` / `--radius-lg` / `--radius-pill` | `5px` / `12px` / `999px` | radius scale (inc 53): small controls / modals / pills (DESIGN.md §3 #6) |
+| `--mono` / `--sans` / `--serif` | (stacks) | mono = metadata/numbers; sans = chrome; serif = paper titles, summary sentences, quotes |
+
+Type roles: **serif** (`--serif`) = paper/summary/quote titles (reads like a bibliography); **sans** =
+all chrome/controls; **mono** = confidences, counts, IDs, status, timestamps.
+
+---
+
+## 1b. Dark theme (inc 46)
+
+**Mechanism:** `:root` holds the light tokens; **`:root[data-theme="dark"]`** overrides their *values*
+for a warm-dark palette. Nothing else changes — every chrome color flows through a token, so the override
+cascades. `data-theme` is set on `<html>` by a **no-flash bootstrap** `<script>` in `index.html`'s `<head>`
+(reads `localStorage["callosum.theme"]`, else `prefers-color-scheme`); the Settings modal toggle writes the
+same attribute + storage.
+
+**Rules that make dark mode work — follow them for any new CSS:**
+- **Every chrome color is a token.** Never inline a raw hex for chrome; if dark needs a different value,
+  it must be a token overridden in the dark block.
+- **The rendered PDF page stays light in BOTH themes.** `.pdf-page*` `#fff`, the on-page highlight rgba
+  (`.pdf-highlight`, `.textLayer ::selection`), and `--accent-overlay` are intentionally *not* themed —
+  they sit on the white document. Only app *chrome* (toolbar, scroll backdrop, annotation panel) themes.
+- **Text on filled semantic colors uses `--on-fill`,** not `#fff` — because the fills (`--accent`,
+  `--verified`, `--flag`, `--danger`) become *light* pastels in dark, so the text must flip to dark.
+- **Theme-matched / status assets swap via CSS, not JS, with the base64 in CSS vars (NOT the Babel
+  script).** The brand logo is a `<div className="brand-logo">` whose `background-image` is a `--logo-*`
+  token picked by `[data-theme]` × a `.connected` class — **4 states** (light/dark × off/on; the "on"
+  variant adds the green **connection** dot, so the logo encodes connection status; see inc 47). Four
+  logos in the Babel script would blow its 500KB deopt cap, so they live in CSS `:root` vars filled by
+  `inline_brand_assets.py`. Keep inlined PNGs **small** (~57KB; recompress oversized exports losslessly).
+
+The dark palette values live in `styles.css` `:root[data-theme="dark"]` (warm-dark; user-tunable).
+
+## 2. Element recipes (Pass 1 — canonical "this is how X looks")
+
+### Surfaces
+- **Panel/card:** `--panel` bg, `1px var(--line)` border, `var(--radius)`. Inset/sidebar surfaces use
+  `--panel-2`. Modals: `--panel`, `1px var(--line-2)`, radius 12px, shadow `0 14px 48px rgba(0,0,0,.32)`,
+  over a `rgba(20,16,12,.42)` overlay.
+- **Focus ring (inputs):** `outline: 2px solid var(--accent-soft); border-color: var(--accent);` — applied
+  consistently on `.axis-input`, `.searchbar input`, `.synth-input`. **This is the canonical focus state.**
+
+### Text inputs
+Border `1px var(--line-2)`, `var(--radius)`, `--sans`, color `--ink`, + the focus ring above. Background is
+`--panel` for inputs on inset surfaces, `--bg` for inputs on white. Textareas add `resize: vertical` +
+`min-height`.
+
+**Inline-editable variant (`.detail-edit`, inc 49 — the Details pane):** an always-editable field that
+*reads as text* until interacted with — `border: 1px solid transparent` + transparent bg by default;
+**hover** → `border-color: var(--line-2)`; **focus** → the canonical ring (`outline 2px var(--accent-soft);
+border-color var(--accent)`) + `background: var(--panel)`. Empty shows the grey `--ink-3` italic
+placeholder ("Add …"). Same recipe at title scale via `.detail-title-input` (serif 18px). Use this when a
+whole pane is directly editable (no view/edit toggle) so static metadata and its editor look identical.
+
+### Buttons — canonical `.btn-*` classes (inc 68)
+There are now **canonical button classes** in `styles.css` (one definition per variant); the historical
+ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed. **New buttons use
+`.btn` + a variant** (`.btn-primary` / `.btn-ghost` / `.btn-link` / `.btn-icon`) + optional `.danger`.
+- **`.btn-primary` (filled):** `var(--accent)` bg + border, `--on-fill` text, `var(--radius)`, weight 600.
+  (grouped: `.axis-btn`, `.synth-actions button` [keeps a larger-padding delta]. `.hl-editor-actions
+  button.primary` is a *ghost base + accent fill* — a separate construction, not migrated.)
+- **`.btn-ghost` (outline/secondary):** `var(--bg)` bg, `1px var(--line-2)` border, `--ink-2` text,
+  `var(--radius)`; hover → `border-color/color: var(--accent)`. (grouped: `.pginate button`. **Still
+  divergent, not yet migrated:** `.axis-sort`, `.axis-new`, `.pdf-zoom button`, `.source-jump`,
+  `.history-delete`, `.hl-editor-actions button` — they differ in radius/bg/size/hover; normalizing them
+  is *value-shifting*, deferred per §3 #6.)
+- **`.btn-link`:** no border/bg, `--accent` text, hover underline; disabled → `--ink-3`. (grouped:
+  `.axis-link`.) Canonical `.btn-link.danger` = red `--danger`; the legacy `.axis-link.axis-danger` is
+  still amber `--flag` (pending migration — see §3 #1).
+- **`.btn-icon`:** `1px transparent` border, transparent bg, `--ink-3`, `--radius-sm`; hover → `--accent`
+  + faint `--line-2` border + `--panel` bg. (grouped: `.axis-icon-btn` [keeps its amber danger-hover].
+  **Not migrated:** `.axis-x`, `.frame-tab-close` — borderless symbol-close buttons with a flag hover.)
+- **`.danger` modifier:** red `--danger` text (+ `--danger-line` border for icon hover). The canonical
+  destructive color (DESIGN §4); use it on new destructive buttons.
+- **Disabled (all):** `opacity:.45` (ghost uses `.4`) + `--line-2` bg/border + `--ink-3` text; `cursor:default`.
+
+### Pills / badges (mono, uppercase, soft-bg + matching ink)
+Recipe: `--mono`, ~10px, `text-transform:uppercase`, `letter-spacing:.04em`, padded `2px 7px`, pill
+radius. Semantic color **pairs**: verified → `--verified-soft`/`--verified`; flag/uncertain/region →
+`--flag-soft`/`--flag`; neutral → `--line`/`--ink-2`; accent/manual → `--accent-soft`/`--accent`.
+(`.tier*`, `.axis-tier*`, `.sent-badge/.cite-status/.coord`, `.needs-doi`, `.chip`.)
+
+### Chips (interactive, rounded-pill, toggle)
+`--term-chip`: dashed `--line-2` border + `--panel` bg when off; solid `--accent` border + `--accent-soft`
+bg + `--accent` text when **on**. Radius 999px.
+
+### Status / provenance accents
+Connection LED, synthesis "running" pulse, the provenance box (`.prov`: `--accent-soft` bg + accent border
++ accent bold) — indigo = provenance. Verified green / flagged amber on summary sentences (left border 3px).
+
+**Status-by-color, not by text (a deliberate pattern — keep UI dense, status in the affordance):** the
+**axis count badge** (`.axis-count-badge`) encodes *scoring status* in its **background color** — muted
+`--line-2` (not scored), `--verified` green (scored & fresh), `--flag` amber (`.is-stale`, edited →
+re-score) — with the status in its `title` tooltip. There is **no separate status text line** (the old
+`.axis-state` "scored / re-score / not scored yet" strings were removed). White text on the green/amber
+states. Prefer this pattern (color + tooltip on an existing element) over a dedicated text line when space
+is at a premium.
+
+### Hover (rows/cards)
+List rows + cards darken to a warm neutral on hover (`.axis:hover`, `.cluster:hover`, `.frame-tab:hover`,
+`.history-row:hover` → `#ece9e0`; `.paper:hover` → `#faf8f3` — *two different hovers, see Pass-2*).
+
+---
+
+## 3. Consistency findings + proposed consolidations (Pass 2 — a worklist)
+
+> **Status (inc 46):** the **color-token** consolidations below (#1 split destructive → `--danger`, #2
+> overlay indigo → `--accent-overlay`, #3 border/ink partners → `--accent-line`/`--flag-line`/`--flag-ink`,
+> #4 unified `--hover`) are **DONE** — those tokens now exist and the scattered hex was replaced (this was
+> the dark-mode groundwork). **Remaining:** #5 the `.btn-*` class DRY and #6 the radius scale.
+
+Ranked; "legit" = a context difference worth keeping.
+
+1. **Destructive color is split — fix first.** Deleting an **axis** uses `--flag` (#9a5b2e amber-brown:
+   `.axis-link.axis-danger`, `.axis-icon-danger`, `.axis-x:hover`), but deleting a **highlight/summary**
+   uses a true red `#b3261e` (+ `rgba(179,38,30,.4)`: `.hl-* .danger`, `.pdf-annot-actions .danger`).
+   `--flag` *also* means "unresolved/uncertain/region" — so amber-brown is overloaded onto "delete."
+   **Proposal:** add **`--danger: #b3261e`** (+ `--danger-line`) and use it for *all* destructive actions;
+   reserve `--flag` for status only. (The `.axis-count-badge` is **no longer a fixed color** — it now
+   encodes scoring status (green `--verified` / amber `--flag` / neutral `--line-2`; see §2), which retired
+   the earlier "is the badge red or amber?" question; it uses `--flag` only for the *stale* state.)
+2. **The indigo is three colors.** `--accent #2f2a6b` (chrome/provenance), an **overlay indigo
+   `#5c55b0`/`rgba(92,85,176,…)`** (PDF highlight, text selection, synthesis outline, `.source-*` hovers),
+   and `#b9b6dd` (manual-tier dashed border). The overlay indigo is arguably **legit** (a brighter indigo
+   reads better as a translucent overlay on the page than the dark `--accent`), but it's a raw hex repeated
+   ~6×. **Proposal:** add **`--accent-overlay: #5c55b0`** (document it as the on-page highlight indigo);
+   make `#b9b6dd` a token or reference `--accent-soft`.
+3. **Off-token border hexes that pair with soft backgrounds.** `#dad8ee` (the border for `--accent-soft`
+   surfaces: `.axis.active`, `.axis-bulk-bar`, `.pane-tabs .active`, `.prov`) and `#e6cdb4` (border for
+   `--flag-soft`: `.axis-err`, `.errbox`) and `#6e4421` (the ink for `--flag-soft` error text). **Proposal:**
+   `--accent-line: #dad8ee`, `--flag-line: #e6cdb4`, `--flag-ink: #6e4421`. (Every soft bg should have a
+   named line + ink partner.)
+4. **Two hover backgrounds.** Rows/cards use `#ece9e0`, but `.paper:hover` uses `#faf8f3`. **Proposal:**
+   one `--hover: #ece9e0` token; treat `.paper:hover` as either the same or a documented exception.
+5. **~10 near-duplicate button blocks.** **PARTIAL (inc 68):** the canonical `.btn` / `.btn-primary` /
+   `.btn-ghost` / `.btn-link` / `.btn-icon` + `.danger` classes now exist (see §2), and the cleanly-identical
+   duplicates were consolidated by grouping their ad-hoc selectors into the canonical rules — **no re-typing,
+   no visual change** (every grouped property was byte-identical): primary (`.axis-btn` + `.synth-actions
+   button`), ghost (`.pginate button`), link (`.axis-link`), icon (`.axis-icon-btn`). **Remaining:** the
+   size-/color-divergent ghost & icon buttons (`.axis-sort`, `.axis-new`, `.pdf-zoom button`, `.source-jump`,
+   `.history-delete`, `.hl-editor-actions button`, `.axis-x`, `.frame-tab-close`) — folding them in would
+   *value-shift* their look (different radius/padding/bg/hover), so it's deferred like §3 #6; do it by
+   **migrating the JSX className to `.btn-*`** and adjusting each, not by forcing them into the group.
+6. **Radius is semi-tokenized.** **PARTIAL (inc 53):** the scale now exists — `--radius-sm:5px`,
+   `--radius:7px`, `--radius-lg:12px`, `--radius-pill:999px` — and the clean values are migrated (every
+   pill `999px`/`20px` → `--radius-pill`; the `12px` modal → `--radius-lg`; the `20px↔999px` pill
+   inconsistency standardized to fully-round). **Remaining:** the messy middle (`4/5/6/8/9px`) is still
+   hardcoded — consolidate opportunistically (value-shifting, so not bundled into a polish pass).
+7. **One-off backgrounds (mostly legit):** toast `#43210f`/`#ffe9dc`, flagged-sentence `#fffaf6`,
+   `.axis-preview #f1efe7`, `.pdf-scroll #eceae3`, skeleton gradient. Keep as documented one-offs, but pull
+   any that recur into tokens.
+
+---
+
+## 4. Rules for new CSS
+
+1. **Read this file first.** (Enforced by the CLAUDE.md rule.)
+2. **Reference tokens, never re-type a named hex.** Need a color that isn't a token? Add a token here in
+   the same change and explain it — don't inline a raw hex.
+3. **Reuse a recipe.** A new button/input/pill/card should match §2. If it genuinely needs to differ,
+   say why (a documented context exception) rather than drifting silently.
+4. **Semantics of color are fixed:** indigo `--accent` = provenance/verification + primary action; green
+   `--verified` = affirmative — grounded/verified, **connection-OK (the logo dot), and the "go"/create
+   affordance (the new-axis "+")**; amber `--flag` = unresolved/uncertain/region (a *status*); red
+   `--danger` = destructive. Don't borrow one for another.
+5. **Type roles are fixed:** serif for paper/summary/quote text; sans for chrome; mono for
+   numbers/IDs/status.
+6. When a change reveals a new inconsistency, **add it to §3** so the dictionary stays the source of truth.

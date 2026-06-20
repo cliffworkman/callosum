@@ -1,0 +1,165 @@
+"""FastAPI application factory for local Callosum library access and synthesis.
+
+Thin orchestrator: it wires shared state, runs the startup auto-migration, mounts CORS, serves
+the frontend at `/`, and includes the per-resource routers (see `app/backend/api/routers/`).
+All endpoint logic + response models live in those router modules.
+"""
+
+from __future__ import annotations
+
+import os
+from contextlib import asynccontextmanager
+from html import escape
+from pathlib import Path
+
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+
+from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
+from app.backend.api.job_store import JobStore
+from app.backend.api.routers import annotations, axes, duplicates, health, help, papers, summaries, tags
+from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
+from app.backend.embeddings.models import EmbeddingModel
+from app.backend.embeddings.vector_store import VectorStore
+from app.backend.help.assistant import HelpAssistant
+from app.backend.persistence.database import make_engine
+from app.backend.summarization.generators import SummaryGenerator
+from app.backend.summarization.verification import SupportScorer, VerificationConfig
+from integrations.crossref import CrossrefClient
+from integrations.gemini import AxisClusterLabeler, AxisTermSuggester
+
+DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
+FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
+# The frontend source of truth is app/frontend/ (assembled by frontend.py). For convenience
+# and to support file-based UI testing, `tools/build_frontend.py` rebuilds this single file
+# from that source; it is served by default when present, with live assembly as the fallback.
+DEFAULT_FRONTEND_PATH = PROJECT_ROOT / "callosum-app.html"
+
+
+def create_app(
+    db_url: str | None = None,
+    frontend_path: str | Path | None = None,
+    *,
+    summary_generator: SummaryGenerator | None = None,
+    embedding_model: EmbeddingModel | None = None,
+    vector_store: VectorStore | None = None,
+    support_scorer: SupportScorer | None = None,
+    verifier_config: VerificationConfig | None = None,
+    axis_term_suggester: AxisTermSuggester | None = None,
+    axis_cluster_labeler: AxisClusterLabeler | None = None,
+    crossref_client: CrossrefClient | None = None,
+    help_assistant: HelpAssistant | None = None,
+) -> FastAPI:
+    resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
+    resolved_frontend_path = _resolve_frontend_path(frontend_path)
+    engine = make_engine(resolved_db_url)
+
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        # Self-heal: bring the opened DB to the latest schema before serving, so a
+        # pre-existing database that predates a migration can't 500 on writes.
+        _upgrade_database_to_head(resolved_db_url)
+        try:
+            yield
+        finally:
+            engine.dispose()
+
+    api = FastAPI(title="Callosum Local API", version="0.1.0", lifespan=lifespan)
+    api.state.engine = engine
+    api.state.db_url = resolved_db_url
+    api.state.frontend_path = resolved_frontend_path
+    api.state.summary_jobs = JobStore()
+    api.state.axis_score_jobs = JobStore()
+    api.state.axis_suggest_jobs = JobStore()
+    api.state.dedup_jobs = JobStore()
+    api.state.summary_generator = summary_generator
+    api.state.embedding_model = embedding_model
+    api.state.vector_store = vector_store
+    api.state.support_scorer = support_scorer
+    api.state.verifier_config = verifier_config
+    api.state.axis_term_suggester = axis_term_suggester
+    api.state.axis_cluster_labeler = axis_cluster_labeler
+    api.state.crossref_client = crossref_client
+    api.state.help_assistant = help_assistant
+
+    api.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_credentials=False,
+        allow_methods=["GET"],
+        allow_headers=["*"],
+    )
+
+    @api.get("/", response_model=None, include_in_schema=False)
+    def frontend_shell() -> FileResponse | HTMLResponse:
+        # Precedence: an explicit CALLOSUM_FRONTEND_PATH / frontend_path wins; else serve the
+        # built callosum-app.html when present (the default, rebuilt from app/frontend/ via
+        # tools/build_frontend.py); else assemble the modular source live so we are never broken.
+        path = api.state.frontend_path
+        if path is not None:
+            return _frontend_response(path)
+        if DEFAULT_FRONTEND_PATH.is_file():
+            return FileResponse(DEFAULT_FRONTEND_PATH, media_type="text/html")
+        if frontend_sources_available():
+            return HTMLResponse(build_frontend_document(), media_type="text/html")
+        return _assembly_unavailable_response()
+
+    api.include_router(health.router)
+    api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
+    api.include_router(papers.router)
+    api.include_router(annotations.router)
+    api.include_router(tags.router)
+    api.include_router(axes.router)
+    api.include_router(summaries.router)
+    api.include_router(help.router)
+
+    return api
+
+
+def _resolve_frontend_path(frontend_path: str | Path | None) -> Path | None:
+    # An explicit path (arg or CALLOSUM_FRONTEND_PATH) serves a single prebuilt file;
+    # None means "assemble the modular source under app/frontend/ at serve time".
+    configured = frontend_path or os.environ.get(FRONTEND_PATH_ENV)
+    return Path(configured) if configured else None
+
+
+def _assembly_unavailable_response() -> HTMLResponse:
+    expected = escape(str(FRONTEND_DIR))
+    env_name = escape(FRONTEND_PATH_ENV)
+    return HTMLResponse(
+        content=(
+            "<!doctype html><html><head><title>Callosum frontend not found</title></head>"
+            "<body>"
+            "<h1>Callosum frontend source not found</h1>"
+            f"<p>The API is running, but the frontend source was not found at <code>{expected}</code>.</p>"
+            f"<p>Reinstall the app, or set <code>{env_name}</code> to a prebuilt single-file frontend.</p>"
+            "</body></html>"
+        ),
+        status_code=200,
+    )
+
+
+def _frontend_response(frontend_path: Path) -> FileResponse | HTMLResponse:
+    if frontend_path.is_file():
+        return FileResponse(frontend_path, media_type="text/html")
+    expected = escape(str(frontend_path))
+    env_name = escape(FRONTEND_PATH_ENV)
+    return HTMLResponse(
+        content=(
+            "<!doctype html><html><head><title>Callosum frontend not found</title></head>"
+            "<body>"
+            "<h1>Callosum frontend file not found</h1>"
+            f"<p>The API is running, but no frontend HTML file was found at <code>{expected}</code>.</p>"
+            f"<p>Set <code>{env_name}</code> to the path of <code>callosum-app.html</code>, "
+            "or place the file at the default repository-root location.</p>"
+            "</body></html>"
+        ),
+        status_code=200,
+    )
+
+
+# Load a local .env (gitignored) into the environment before building the default app, so a
+# user's GOOGLE_API_KEY / flags are picked up without manual export (no-op under pytest).
+load_local_env()
+app = create_app()
