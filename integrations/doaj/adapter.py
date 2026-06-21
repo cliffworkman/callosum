@@ -48,10 +48,17 @@ class DoajClient:
             status, body = self.fetcher(query, headers=_headers(), timeout=self.timeout)
         except Exception as exc:  # fail closed — never raise to the caller
             put_cached(
-                conn, DOAJ_PROVIDER, cache_key, request_json={"query": query}, response_json={"error": str(exc)}, status_code=None
+                conn,
+                DOAJ_PROVIDER,
+                cache_key,
+                request_json={"query": query},
+                response_json={"error": str(exc)},
+                status_code=None,
             )
             return None
-        put_cached(conn, DOAJ_PROVIDER, cache_key, request_json={"query": query}, response_json=body, status_code=status)
+        put_cached(
+            conn, DOAJ_PROVIDER, cache_key, request_json={"query": query}, response_json=body, status_code=status
+        )
         return body if status == 200 and isinstance(body, dict) else None
 
 

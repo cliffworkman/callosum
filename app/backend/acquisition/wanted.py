@@ -41,8 +41,12 @@ def run_recheck(
         rows = wanted_repo.list_open(conn)
     truncated = len(rows) > MAX_RECHECK_PER_RUN
     if truncated:
-        logger.warning("wanted re-check: %d open items exceeds the per-run cap %d; processing the first %d",
-                       len(rows), MAX_RECHECK_PER_RUN, MAX_RECHECK_PER_RUN)
+        logger.warning(
+            "wanted re-check: %d open items exceeds the per-run cap %d; processing the first %d",
+            len(rows),
+            MAX_RECHECK_PER_RUN,
+            MAX_RECHECK_PER_RUN,
+        )
         rows = rows[:MAX_RECHECK_PER_RUN]
 
     summary: dict[str, Any] = {

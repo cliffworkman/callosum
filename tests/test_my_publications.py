@@ -54,7 +54,9 @@ class _FakeAuthorClient:
         return self.works
 
 
-_ADA = ResolvedAuthor(author_id="A1", display_name="Ada Lovelace", orcid="0000-0002-1825-0097", works_count=2, matched_by="orcid")
+_ADA = ResolvedAuthor(
+    author_id="A1", display_name="Ada Lovelace", orcid="0000-0002-1825-0097", works_count=2, matched_by="orcid"
+)
 
 
 # --- resolver --------------------------------------------------------------------------------------------
@@ -64,10 +66,22 @@ def test_resolver_confirms_doi_and_flags_name_candidate(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
-        confirmed = create_paper(conn, title="Note on the Engine", csl_json=_csl("Note on the Engine", "10.1/engine"), doi="10.1/engine")
-        candidate = create_paper(conn, title="Untitled Memoir", csl_json=_csl("Untitled Memoir"), first_author_family_name="Lovelace")
-        other = create_paper(conn, title="Banana", csl_json=_csl("Banana", "10.9/banana"), doi="10.9/banana", first_author_family_name="Turing")
-    client = _FakeAuthorClient(author=_ADA, works=[AuthorWork(doi="10.1/engine", title="Note on the Engine", year=1843)])
+        confirmed = create_paper(
+            conn, title="Note on the Engine", csl_json=_csl("Note on the Engine", "10.1/engine"), doi="10.1/engine"
+        )
+        candidate = create_paper(
+            conn, title="Untitled Memoir", csl_json=_csl("Untitled Memoir"), first_author_family_name="Lovelace"
+        )
+        other = create_paper(
+            conn,
+            title="Banana",
+            csl_json=_csl("Banana", "10.9/banana"),
+            doi="10.9/banana",
+            first_author_family_name="Turing",
+        )
+    client = _FakeAuthorClient(
+        author=_ADA, works=[AuthorWork(doi="10.1/engine", title="Note on the Engine", year=1843)]
+    )
 
     with engine.begin() as conn:
         summary = resolve_my_publications(conn, author_client=client, force=True)
@@ -131,7 +145,14 @@ def test_import_hook_adds_cached_work(temp_db_url):
         upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
         resolve_my_publications(conn, author_client=client, force=True)  # creates the axis + sets the author id
         # the fake client doesn't write the works cache the way the real one does — simulate it:
-        put_cached(conn, OPENALEX_WORKS_PROVIDER, "A1", request_json={}, response_json={"works": [{"doi": "10.1/new", "title": "New", "year": 2020}]}, status_code=200)
+        put_cached(
+            conn,
+            OPENALEX_WORKS_PROVIDER,
+            "A1",
+            request_json={},
+            response_json={"works": [{"doi": "10.1/new", "title": "New", "year": 2020}]},
+            status_code=200,
+        )
         new_pid = create_paper(conn, title="New", csl_json=_csl("New", "10.1/new"), doi="10.1/new")
         maybe_add_to_my_publications(conn, new_pid)
         members = _members(conn)
@@ -163,11 +184,21 @@ class _AuthorFetcher:
 
 
 def test_author_client_resolves_by_orcid(temp_db_url):
-    body = {"id": "https://openalex.org/A1", "display_name": "Ada", "orcid": "https://orcid.org/0000-x", "works_count": 3}
+    body = {
+        "id": "https://openalex.org/A1",
+        "display_name": "Ada",
+        "orcid": "https://orcid.org/0000-x",
+        "works_count": 3,
+    }
     client = OpenAlexAuthorClient(fetcher=_AuthorFetcher({"/authors/orcid:": (200, body)}))
     with make_engine(temp_db_url).begin() as conn:
         author = client.resolve_author(conn, orcid="0000-x")
-    assert author.author_id == "A1" and author.matched_by == "orcid" and author.orcid == "0000-x" and author.works_count == 3
+    assert (
+        author.author_id == "A1"
+        and author.matched_by == "orcid"
+        and author.orcid == "0000-x"
+        and author.works_count == 3
+    )
 
 
 def test_author_client_resolves_by_name(temp_db_url):
@@ -180,7 +211,9 @@ def test_author_client_resolves_by_name(temp_db_url):
 
 def test_author_client_works_mapping_and_cache(temp_db_url):
     body = {
-        "results": [{"id": "https://openalex.org/W1", "doi": "https://doi.org/10.1/A", "title": "A", "publication_year": 2020}],
+        "results": [
+            {"id": "https://openalex.org/W1", "doi": "https://doi.org/10.1/A", "title": "A", "publication_year": 2020}
+        ],
         "meta": {"next_cursor": None},
     }
     fetcher = _AuthorFetcher({"/works": (200, body)})
@@ -211,7 +244,9 @@ def test_author_client_fails_closed(temp_db_url):
 def test_profile_endpoints(temp_db_url):
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.get("/my-publications/profile").json()["display_name"] is None
-    r = client.put("/my-publications/profile", json={"display_name": "Ada", "name_variants": ["A L"], "orcid": "0000-x"})
+    r = client.put(
+        "/my-publications/profile", json={"display_name": "Ada", "name_variants": ["A L"], "orcid": "0000-x"}
+    )
     assert r.status_code == 200 and r.json()["display_name"] == "Ada" and r.json()["name_variants"] == ["A L"]
     assert client.get("/my-publications/profile").json()["orcid"] == "0000-x"
 

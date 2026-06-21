@@ -67,7 +67,12 @@ class BiorxivClient:
             )
             return None
         put_cached(
-            conn, BIORXIV_PROVIDER, cache_key, request_json={"server": server, "doi": doi}, response_json=body, status_code=status
+            conn,
+            BIORXIV_PROVIDER,
+            cache_key,
+            request_json={"server": server, "doi": doi},
+            response_json=body,
+            status_code=status,
         )
         return _record(body) if status == 200 and isinstance(body, dict) else None
 
@@ -84,7 +89,9 @@ def _record(body: dict[str, Any]) -> dict[str, Any] | None:
 def _httpx_fetcher(server: str, doi: str, *, timeout: float) -> tuple[int, dict[str, Any] | None]:
     url = f"{BIORXIV_DETAILS_BASE}/{server}/{quote(doi, safe='/')}"
     response = httpx.get(
-        url, headers={"User-Agent": "Callosum/0.1 (local-first reference manager)", "Accept": "application/json"}, timeout=timeout
+        url,
+        headers={"User-Agent": "Callosum/0.1 (local-first reference manager)", "Accept": "application/json"},
+        timeout=timeout,
     )
     try:
         body = response.json()

@@ -53,7 +53,14 @@ class OsfClient:
         try:
             status, body = self.fetcher(doi, timeout=self.timeout)
         except Exception as exc:  # fail closed
-            put_cached(conn, OSF_PROVIDER, cache_key, request_json={"doi": doi}, response_json={"error": str(exc)}, status_code=None)
+            put_cached(
+                conn,
+                OSF_PROVIDER,
+                cache_key,
+                request_json={"doi": doi},
+                response_json={"error": str(exc)},
+                status_code=None,
+            )
             return None
         put_cached(conn, OSF_PROVIDER, cache_key, request_json={"doi": doi}, response_json=body, status_code=status)
         return body if status == 200 and isinstance(body, dict) else None

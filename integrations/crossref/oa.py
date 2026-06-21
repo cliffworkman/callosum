@@ -46,7 +46,9 @@ def _oa_from_message(message: dict[str, Any]) -> OaLocation | None:
         return None  # no asserted license → we do not guess OA
     color: OaColor = "gold" if "creativecommons.org" in license_url.lower() else "bronze"
     try:
-        return OaLocation(pdf_url=pdf_url, oa_color=color, version="vor", source=CROSSREF_OA_SOURCE, license=license_url)
+        return OaLocation(
+            pdf_url=pdf_url, oa_color=color, version="vor", source=CROSSREF_OA_SOURCE, license=license_url
+        )
     except ValueError:
         return None
 
@@ -59,7 +61,11 @@ def _pdf_link(links: Any) -> str | None:
             continue
         url = link.get("URL")
         ctype = str(link.get("content-type") or "").lower()
-        if isinstance(url, str) and url.startswith("https://") and (ctype == "application/pdf" or url.lower().endswith(".pdf")):
+        if (
+            isinstance(url, str)
+            and url.startswith("https://")
+            and (ctype == "application/pdf" or url.lower().endswith(".pdf"))
+        ):
             return url
     return None
 

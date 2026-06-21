@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — CI fix: pin ruff + apply ruff format (green CI after the billing unlock)
+
+- **What:** the first real CI run (once the GitHub Actions **billing lock** was cleared — every prior run had
+  failed in ~4s, "account is locked due to a billing issue", before any step ran) failed `lint-and-test`: CI's
+  **unpinned** ruff resolved to **0.15.18** while local was **0.9.6** (its 0.x *minors* change isort/format
+  behavior), and the codebase had never been run through `ruff format`. Fix: **pin `ruff==0.9.6`** in
+  `requirements-dev.txt` (so CI matches the dev version — bump deliberately later) + `ruff format .` (12 files
+  reformatted — cosmetic line-wrapping, no logic change).
+- **Verify:** `ruff check` + `ruff format --check` clean (166 files); `pytest` **361 passed, 1 skipped**; the
+  `e2e-smoke` job was already green once billing unblocked it.
+- **Files:** `requirements-dev.txt` + 12 ruff-formatted source/test files (the inc-74/75/76/78 additions).
+- **Follow-up:** a full lockfile / exact pins of the rest of the dev toolchain is the deferred *harness
+  hardening* track; this pins only the tool that broke.
+- **Revert:** restore from a `.claude/backups/` snapshot.
+
 ## 2026-06-20 — Increment 78: My Publications — the auto-axis of your own papers (Part 1)
 
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 78 (2026-06-20) — added a "My Publications" section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->

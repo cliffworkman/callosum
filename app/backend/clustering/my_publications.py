@@ -68,13 +68,21 @@ def resolve_my_publications(conn: Connection, *, author_client, force: bool = Fa
     for paper_id in sorted(doi_matched):
         if paper_id in manual_ids or paper_id in rejected:
             continue
-        conn.execute(insert(cluster_node_papers).values(cluster_node_id=node_id, paper_id=paper_id, confidence=CONFIRMED_CONFIDENCE))
+        conn.execute(
+            insert(cluster_node_papers).values(
+                cluster_node_id=node_id, paper_id=paper_id, confidence=CONFIRMED_CONFIDENCE
+            )
+        )
         confirmed_written += 1
     candidates_written = 0
     for paper_id in sorted(name_candidates):
         if paper_id in manual_ids or paper_id in rejected:
             continue
-        conn.execute(insert(cluster_node_papers).values(cluster_node_id=node_id, paper_id=paper_id, confidence=CANDIDATE_CONFIDENCE))
+        conn.execute(
+            insert(cluster_node_papers).values(
+                cluster_node_id=node_id, paper_id=paper_id, confidence=CANDIDATE_CONFIDENCE
+            )
+        )
         candidates_written += 1
 
     return {
@@ -120,7 +128,11 @@ def maybe_add_to_my_publications(conn: Connection, paper_id: int) -> None:
         )
     ).first()
     if already is None:
-        conn.execute(insert(cluster_node_papers).values(cluster_node_id=node_id, paper_id=paper_id, confidence=CONFIRMED_CONFIDENCE))
+        conn.execute(
+            insert(cluster_node_papers).values(
+                cluster_node_id=node_id, paper_id=paper_id, confidence=CONFIRMED_CONFIDENCE
+            )
+        )
 
 
 def _get_axis_id(conn: Connection) -> int | None:

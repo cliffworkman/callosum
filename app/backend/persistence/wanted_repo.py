@@ -106,9 +106,7 @@ def sync_from_library(conn: Connection) -> int:
     already = select(wanted_items.c.paper_id).where(wanted_items.c.paper_id.is_not(None))
     paper_ids = (
         conn.execute(
-            select(papers.c.id).where(
-                papers.c.deleted_at.is_(None), ~_has_available_pdf(), papers.c.id.not_in(already)
-            )
+            select(papers.c.id).where(papers.c.deleted_at.is_(None), ~_has_available_pdf(), papers.c.id.not_in(already))
         )
         .scalars()
         .all()
@@ -181,10 +179,13 @@ def coverage_stats(conn: Connection) -> dict[str, Any]:
         if color in acquired:
             acquired[color] = int(n)
     wanted_open = (
-        conn.execute(select(func.count()).select_from(wanted_items).where(wanted_items.c.status == "wanted")).scalar() or 0
+        conn.execute(select(func.count()).select_from(wanted_items).where(wanted_items.c.status == "wanted")).scalar()
+        or 0
     )
     wanted_fulfilled = (
-        conn.execute(select(func.count()).select_from(wanted_items).where(wanted_items.c.status == "fulfilled")).scalar()
+        conn.execute(
+            select(func.count()).select_from(wanted_items).where(wanted_items.c.status == "fulfilled")
+        ).scalar()
         or 0
     )
     return {

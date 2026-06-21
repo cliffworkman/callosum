@@ -49,21 +49,30 @@ class AuthorFetcher(Protocol):
 
 
 class OpenAlexAuthorClient:
-    def __init__(self, *, fetcher: AuthorFetcher | None = None, mailto: str | None = None, timeout: float = 10.0) -> None:
+    def __init__(
+        self, *, fetcher: AuthorFetcher | None = None, mailto: str | None = None, timeout: float = 10.0
+    ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
         self.mailto = mailto or os.environ.get("CALLOSUM_OPENALEX_MAILTO")
         self.timeout = timeout
 
-    def resolve_author(self, conn: Connection, *, orcid: str | None = None, name: str | None = None) -> ResolvedAuthor | None:
+    def resolve_author(
+        self, conn: Connection, *, orcid: str | None = None, name: str | None = None
+    ) -> ResolvedAuthor | None:
         if orcid and orcid.strip():
             o = orcid.strip()
-            body = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, "orcid:" + o.lower(), f"{OPENALEX_ROOT}/authors/orcid:{o}", {})
+            body = self._fetch(
+                conn, OPENALEX_AUTHOR_PROVIDER, "orcid:" + o.lower(), f"{OPENALEX_ROOT}/authors/orcid:{o}", {}
+            )
             return _author_from_obj(_pick_author(body), matched_by="orcid") if body is not None else None
         if name and name.strip():
             n = name.strip()
             key = "name:" + hashlib.sha256(n.lower().encode("utf-8")).hexdigest()[:24]
             body = self._fetch(
-                conn, OPENALEX_AUTHOR_PROVIDER, key, f"{OPENALEX_ROOT}/authors",
+                conn,
+                OPENALEX_AUTHOR_PROVIDER,
+                key,
+                f"{OPENALEX_ROOT}/authors",
                 {"filter": f"display_name.search:{n}", "per-page": "1"},
             )
             return _author_from_obj(_pick_author(body), matched_by="name") if body is not None else None
@@ -78,8 +87,12 @@ class OpenAlexAuthorClient:
         works, ok = self._fetch_all_works(author_id)
         if ok:  # only cache a real result — never cache a transient total failure
             put_cached(
-                conn, OPENALEX_WORKS_PROVIDER, author_id,
-                request_json={"author_id": author_id}, response_json={"works": [asdict(w) for w in works]}, status_code=200,
+                conn,
+                OPENALEX_WORKS_PROVIDER,
+                author_id,
+                request_json={"author_id": author_id},
+                response_json={"works": [asdict(w) for w in works]},
+                status_code=200,
             )
         return works
 
@@ -89,9 +102,13 @@ class OpenAlexAuthorClient:
             status = int(cached["status_code"]) if cached["status_code"] is not None else None
             return cached["response_json"] if status == 200 and isinstance(cached["response_json"], dict) else None
         try:
-            status, body = self.fetcher(url, params={**params, **self._polite()}, headers=self._headers(), timeout=self.timeout)
+            status, body = self.fetcher(
+                url, params={**params, **self._polite()}, headers=self._headers(), timeout=self.timeout
+            )
         except Exception as exc:  # fail closed
-            put_cached(conn, provider, key, request_json={"url": url}, response_json={"error": str(exc)}, status_code=None)
+            put_cached(
+                conn, provider, key, request_json={"url": url}, response_json={"error": str(exc)}, status_code=None
+            )
             return None
         put_cached(conn, provider, key, request_json={"url": url}, response_json=body, status_code=status)
         return body if status == 200 and isinstance(body, dict) else None
@@ -109,7 +126,10 @@ class OpenAlexAuthorClient:
             }
             try:
                 status, body = self.fetcher(
-                    f"{OPENALEX_ROOT}/works", params={**params, **self._polite()}, headers=self._headers(), timeout=self.timeout
+                    f"{OPENALEX_ROOT}/works",
+                    params={**params, **self._polite()},
+                    headers=self._headers(),
+                    timeout=self.timeout,
                 )
             except Exception:
                 break
@@ -135,7 +155,9 @@ class OpenAlexAuthorClient:
         return {"User-Agent": ua, "Accept": "application/json"}
 
 
-def _httpx_fetcher(url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float) -> tuple[int, dict[str, Any] | None]:
+def _httpx_fetcher(
+    url: str, *, params: dict[str, str], headers: dict[str, str], timeout: float
+) -> tuple[int, dict[str, Any] | None]:
     response = httpx.get(url, params=params, headers=headers, timeout=timeout)
     try:
         body = response.json()
@@ -183,7 +205,7 @@ def _normalize_doi(value: Any) -> str | None:
     doi = value.strip().lower()
     for prefix in ("https://doi.org/", "http://doi.org/", "doi:"):
         if doi.startswith(prefix):
-            doi = doi[len(prefix):]
+            doi = doi[len(prefix) :]
     return doi or None
 
 
@@ -193,5 +215,5 @@ def _normalize_orcid(value: Any) -> str | None:
     orcid = value.strip()
     for prefix in ("https://orcid.org/", "http://orcid.org/"):
         if orcid.startswith(prefix):
-            orcid = orcid[len(prefix):]
+            orcid = orcid[len(prefix) :]
     return orcid or None

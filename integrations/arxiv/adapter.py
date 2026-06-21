@@ -63,10 +63,24 @@ class ArxivClient:
         try:
             status, text = self.fetcher(params, timeout=self.timeout)
         except Exception as exc:  # fail closed
-            put_cached(conn, ARXIV_PROVIDER, cache_key, request_json=params, response_json={"error": str(exc)}, status_code=None)
+            put_cached(
+                conn,
+                ARXIV_PROVIDER,
+                cache_key,
+                request_json=params,
+                response_json={"error": str(exc)},
+                status_code=None,
+            )
             return None
         arxiv_id = _parse_first_id(text) if status == 200 and text else None
-        put_cached(conn, ARXIV_PROVIDER, cache_key, request_json=params, response_json={"arxiv_id": arxiv_id}, status_code=status)
+        put_cached(
+            conn,
+            ARXIV_PROVIDER,
+            cache_key,
+            request_json=params,
+            response_json={"arxiv_id": arxiv_id},
+            status_code=status,
+        )
         return arxiv_id
 
 
@@ -79,7 +93,10 @@ def _arxiv_id_from_doi(doi: str | None) -> str | None:
 
 def _httpx_fetcher(params: dict[str, str], *, timeout: float) -> tuple[int, str | None]:
     response = httpx.get(
-        ARXIV_API_URL, params=params, headers={"User-Agent": "Callosum/0.1 (local-first reference manager)"}, timeout=timeout
+        ARXIV_API_URL,
+        params=params,
+        headers={"User-Agent": "Callosum/0.1 (local-first reference manager)"},
+        timeout=timeout,
     )
     return response.status_code, response.text
 

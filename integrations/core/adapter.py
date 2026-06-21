@@ -28,7 +28,9 @@ class CoreFetcher(Protocol):
 
 
 class CoreClient:
-    def __init__(self, *, fetcher: CoreFetcher | None = None, api_key: str | None = None, timeout: float = 15.0) -> None:
+    def __init__(
+        self, *, fetcher: CoreFetcher | None = None, api_key: str | None = None, timeout: float = 15.0
+    ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
         # Key from env only; never echoed/stored. None/empty → the client (and so the resolver) is a no-op.
         self.api_key = api_key if api_key is not None else os.environ.get("CALLOSUM_CORE_API_KEY")
@@ -54,10 +56,17 @@ class CoreClient:
             status, body = self.fetcher(query, api_key=self.api_key, timeout=self.timeout)
         except Exception as exc:  # fail closed (the message never includes the key — it's a header, not a URL)
             put_cached(
-                conn, CORE_PROVIDER, cache_key, request_json={"query": query}, response_json={"error": str(exc)}, status_code=None
+                conn,
+                CORE_PROVIDER,
+                cache_key,
+                request_json={"query": query},
+                response_json={"error": str(exc)},
+                status_code=None,
             )
             return None
-        put_cached(conn, CORE_PROVIDER, cache_key, request_json={"query": query}, response_json=body, status_code=status)
+        put_cached(
+            conn, CORE_PROVIDER, cache_key, request_json={"query": query}, response_json=body, status_code=status
+        )
         return body if status == 200 and isinstance(body, dict) else None
 
 

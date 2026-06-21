@@ -109,7 +109,9 @@ def enrich_paper_metadata_from_crossref(
         **_paper_values_from_csl(resolution.csl_json, imported_source=CROSSREF_SOURCE),
     )
     apply_crossref_subject_tags(conn, paper_id, resolution.csl_json)
-    _hook_my_publications(conn, paper_id)  # inc 78: incremental My Publications add (cache-based; additive no-op when unused)
+    _hook_my_publications(
+        conn, paper_id
+    )  # inc 78: incremental My Publications add (cache-based; additive no-op when unused)
     tier = refresh_processing_tier(conn, paper_id)
     return MetadataEnrichmentResult(
         paper_id=paper_id,
