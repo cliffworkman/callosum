@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from app.backend.help.assistant import HelpAnswer, HelpAssistant, HelpTurn
     from integrations.gemini.axis_cluster_labeler import AxisClusterLabeler
     from integrations.gemini.axis_terms import AxisTermSuggester
+    from integrations.gemini.research_summary import ResearchSummaryGenerator
 
 
 class DataEgressDisabledError(RuntimeError):
@@ -92,6 +93,20 @@ class EgressGatedAxisTermSuggester:
         if not self.data_egress_enabled:
             raise DataEgressDisabledError("Gemini axis-term suggestion requires explicit data-egress consent.")
         return self.inner.suggest(label=label, description=description)
+
+
+@dataclass(frozen=True)
+class EgressGatedResearchSummaryGenerator:
+    """Egress gate around a ``ResearchSummaryGenerator`` (injected or default) — it sends the user's own
+    publication titles/abstracts (library text), so it rides the library egress gate (inc 81)."""
+
+    inner: "ResearchSummaryGenerator"
+    data_egress_enabled: bool
+
+    def generate(self, *, documents: list[dict[str, str]]) -> str:
+        if not self.data_egress_enabled:
+            raise DataEgressDisabledError("Gemini research-summary generation requires explicit data-egress consent.")
+        return self.inner.generate(documents=documents)
 
 
 @dataclass(frozen=True)

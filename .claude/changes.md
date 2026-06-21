@@ -9,9 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-## 2026-06-20 — Increment 80: the "Unsorted" library view (needs-review filter)
+## 2026-06-20 — Increment 81: My Publications Part 2 — the impact dashboard (Layer 1)
 
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 80 (2026-06-20) — added the "Unsorted" Library control to the browsing section + folded the inc-77 hide-uncertain default and the inc-79 count-badge behavior into the axis-review section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 81 (2026-06-20) — extended the My Publications section with the impact dashboard (📊), the metric tiles + gap, and the editable AI research summary. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** migration `0010_my_publications_summary.py` + `schema.py` (`profile.research_summary`);
+  `integrations/openalex/author.py` (enriched `ResolvedAuthor` + cache-only `cached_author`);
+  `app/backend/clustering/my_publications.py` (`build_dashboard` + `my_publication_documents`);
+  `integrations/gemini/research_summary.py` + `app/backend/llm/egress.py` (egress seam) + `app.py` wiring;
+  `app/backend/api/routers/my_publications.py` (3 endpoints); `profile_repo.py`; frontend
+  `31_mypubs_dashboard.jsx` + `40_app.jsx`/`30_viewer.jsx`/`15_axes.jsx`/`10_pdf_layer.jsx`/`styles.css`;
+  `callosum-app.html` (rebuilt); help corpus; tests; the security audit.
+- **What:** a 📊 impact **dashboard tab** for the My Publications axis — headline OpenAlex metrics, a
+  publications-by-year SVG chart (+ citations-by-year), the indexed-vs-library gap, and an editable AI research
+  summary. The dashboard read is **cache-only / egress-free** (gated on a prior Settings→Refresh); the AI
+  summary is the only egress (library text → the `CALLOSUM_ALLOW_DATA_EGRESS` gate at the inc-58 seam; off → 503).
+- **Why:** the chosen "carrot" — make the user's own corpus a first-class impact surface (My Pubs Part 2,
+  Layer 1; Layers 2–4 deferred).
+- **Scope:** migration 0010 (additive); 3 new endpoints (1 read-only GET + generate POST + persist PUT); a new
+  egress path (the summary), gated. pytest **370** (+8); `ruff` clean; audit PASS.
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop the 3 endpoints + `build_dashboard` +
+  `research_summary.py` + the `31_mypubs_dashboard.jsx` wiring + migration 0010.
+
+## 2026-06-20 — Increment 80: the "Unsorted" library view (needs-review filter)
 
 - **Files:** `app/backend/persistence/repository.py`, `app/backend/api/routers/papers.py`,
   `app/frontend/js/40_app.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `tests/test_papers.py`,

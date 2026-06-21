@@ -490,7 +490,9 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
       </div>
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
-          <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} />
+          {t.type === "dashboard"
+            ? <MyPubsDashboard axisId={t.axisId} />
+            : <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} />}
         </div>
       ))}
     </div>

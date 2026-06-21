@@ -114,6 +114,15 @@ function App() {
     openPdf({ id: target.paperId, title: target.paperTitle }, target);
   }, [openPdf]);
 
+  // inc-81: open the My Publications impact dashboard as a frame tab (reuses the LibraryFrame tab system).
+  const openMyPubsDashboard = useCallback((axis) => {
+    const key = "dashboard:my-publications";
+    setTabs(prev => (prev.some(t => t.key === key)
+      ? prev
+      : [...prev, { key, type: "dashboard", title: "My Publications", axisId: axis && axis.id }]));
+    setActiveTab(key);
+  }, []);
+
   // Save a verified, exact-coordinate citation passage as a durable annotation
   // (source="synthesis"). Re-checks the honesty contract here too, so the precise-save
   // path can never be reached for region/null/flagged citations. Does NOT force-open the
@@ -336,7 +345,7 @@ function App() {
   return (
     <div className="app" style={{ gridTemplateColumns: cols }}>
       {leftOpen
-        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
+        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} onOpenMyPubsDashboard={openMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
         : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}

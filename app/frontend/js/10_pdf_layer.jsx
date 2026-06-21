@@ -110,7 +110,7 @@ function ProgressBar({ label }) {
   );
 }
 
-function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
+function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault }) {
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
@@ -121,7 +121,7 @@ function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettin
           <h1>Callosum</h1>
         </div>
       </div>
-      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
+      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} onOpenMyPubsDashboard={onOpenMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
     </div>
   );
 }

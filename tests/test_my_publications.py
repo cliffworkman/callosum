@@ -7,13 +7,18 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.backend.api import create_app
-from app.backend.clustering.my_publications import maybe_add_to_my_publications, resolve_my_publications
+from app.backend.clustering.my_publications import (
+    build_dashboard,
+    maybe_add_to_my_publications,
+    resolve_my_publications,
+)
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.profile_repo import (
     get_decisions,
     get_profile,
     set_decision,
     set_my_publications_dismissed,
+    set_openalex_author_id,
     upsert_profile,
 )
 from app.backend.persistence.repository import create_paper
@@ -50,12 +55,35 @@ class _FakeAuthorClient:
     def resolve_author(self, conn, *, orcid=None, name=None):
         return self.author
 
+    def cached_author(self, conn, *, orcid=None, name=None):
+        return self.author
+
     def fetch_author_works(self, conn, author_id):
         return self.works
 
 
+class _FakeSummaryGen:
+    def generate(self, *, documents):
+        return f"Ada's work spans {len(documents)} publications on analytical engines."
+
+
 _ADA = ResolvedAuthor(
     author_id="A1", display_name="Ada Lovelace", orcid="0000-0002-1825-0097", works_count=2, matched_by="orcid"
+)
+
+_ADA_STATS = ResolvedAuthor(
+    author_id="A1",
+    display_name="Ada Lovelace",
+    orcid="0000-0002-1825-0097",
+    works_count=4,
+    matched_by="orcid",
+    cited_by_count=120,
+    h_index=5,
+    i10_index=3,
+    counts_by_year=(
+        {"year": 2019, "works_count": 1, "cited_by_count": 40},
+        {"year": 2020, "works_count": 2, "cited_by_count": 80},
+    ),
 )
 
 
@@ -269,3 +297,120 @@ def test_delete_dismisses_keeps_profile(temp_db_url):
     with make_engine(temp_db_url).begin() as conn:
         profile = get_profile(conn)
     assert profile["my_publications_dismissed"] == 1 and profile["display_name"] == "Ada"  # profile survives
+
+
+# --- dashboard (inc 81) ----------------------------------------------------------------------------------
+
+
+def test_author_client_parses_stats_and_counts_by_year(temp_db_url):
+    body = {
+        "id": "https://openalex.org/A1",
+        "display_name": "Ada",
+        "orcid": "https://orcid.org/0000-x",
+        "works_count": 3,
+        "cited_by_count": 99,
+        "summary_stats": {"h_index": 7, "i10_index": 4},
+        "counts_by_year": [{"year": 2021, "works_count": 1, "cited_by_count": 10}],
+    }
+    client = OpenAlexAuthorClient(fetcher=_AuthorFetcher({"/authors/orcid:": (200, body)}))
+    with make_engine(temp_db_url).begin() as conn:
+        author = client.resolve_author(conn, orcid="0000-x")
+    assert author.cited_by_count == 99 and author.h_index == 7 and author.i10_index == 4
+    assert author.counts_by_year == ({"year": 2021, "works_count": 1, "cited_by_count": 10},)
+
+
+def test_cached_author_reads_cache_without_fetching(temp_db_url):
+    body = {
+        "id": "https://openalex.org/A1",
+        "display_name": "Ada",
+        "orcid": "https://orcid.org/0000-x",
+        "cited_by_count": 5,
+    }
+    fetcher = _AuthorFetcher({"/authors/orcid:": (200, body)})
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assert client.cached_author(conn, orcid="0000-x") is None  # cold cache → None, and...
+    assert fetcher.calls == []  # ...never fetches
+    with engine.begin() as conn:
+        client.resolve_author(conn, orcid="0000-x")  # warm the cache
+    calls = len(fetcher.calls)
+    with engine.begin() as conn:
+        author = client.cached_author(conn, orcid="0000-x")
+    assert author is not None and author.cited_by_count == 5 and len(fetcher.calls) == calls  # served from cache
+
+
+def test_dashboard_ok_returns_metrics_and_pubs_by_year(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+        create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+    works = [
+        AuthorWork(doi="10.1/engine", title="Engine", year=2019),
+        AuthorWork(doi="10.2/x", title="X", year=2020),
+        AuthorWork(doi="10.3/y", title="Y", year=2020),
+    ]
+    with engine.begin() as conn:
+        dash = build_dashboard(conn, author_client=_FakeAuthorClient(author=_ADA_STATS, works=works))
+    assert dash["status"] == "ok"
+    assert dash["metrics"] == {"works_count": 4, "cited_by_count": 120, "h_index": 5, "i10_index": 3}
+    assert dash["pubs_by_year"] == [{"year": 2019, "count": 1}, {"year": 2020, "count": 2}]
+    assert dash["indexed_works"] == 4 and dash["in_library"] == 1 and dash["gap"] == 3
+
+
+def test_dashboard_not_resolved_and_no_identity(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:  # blank profile → no-identity
+        assert build_dashboard(conn, author_client=_FakeAuthorClient(author=_ADA_STATS))["status"] == "no-identity"
+    with engine.begin() as conn:  # identity but never resolved (no author id) → not-resolved
+        upsert_profile(conn, display_name="Ada", name_variants=[], orcid=None)
+        assert build_dashboard(conn, author_client=_FakeAuthorClient(author=_ADA_STATS))["status"] == "not-resolved"
+
+
+def test_dashboard_endpoint(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=[AuthorWork(doi="10.1/a", title="A", year=2020)])
+    client = TestClient(create_app(db_url=temp_db_url, openalex_author_client=fake))
+    r = client.get("/my-publications/dashboard")
+    assert r.status_code == 200 and r.json()["status"] == "ok" and r.json()["metrics"]["h_index"] == 5
+
+
+def _resolved_member_app(temp_db_url, **overrides):
+    """A create_app whose My Publications axis already has one confirmed member (so summary generation has input)."""
+    engine = make_engine(temp_db_url)
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=[AuthorWork(doi="10.1/engine", title="Engine", year=1843)])
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+        resolve_my_publications(conn, author_client=fake, force=True)  # creates the axis + the member + author id
+    return create_app(
+        db_url=temp_db_url, openalex_author_client=fake, research_summary_generator=_FakeSummaryGen(), **overrides
+    )
+
+
+def test_summary_generate_and_persist(temp_db_url):  # conftest sets CALLOSUM_ALLOW_DATA_EGRESS=1 by default
+    client = TestClient(_resolved_member_app(temp_db_url))
+    r = client.post("/my-publications/summary/generate", json={})
+    assert r.status_code == 200 and "publications" in r.json()["summary"]  # generated from the member doc(s)
+    assert client.put("/my-publications/summary", json={"summary": "My edited summary."}).status_code == 200
+    assert client.get("/my-publications/dashboard").json()["research_summary"] == "My edited summary."
+
+
+def test_summary_generate_egress_off_returns_503(temp_db_url, monkeypatch):
+    monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
+    client = TestClient(_resolved_member_app(temp_db_url))
+    assert client.post("/my-publications/summary/generate", json={}).status_code == 503
+
+
+def test_summary_generate_no_members_returns_422(temp_db_url):
+    # Profile set + author id, but no My Publications axis members yet → nothing to summarize.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+    client = TestClient(create_app(db_url=temp_db_url, research_summary_generator=_FakeSummaryGen()))
+    assert client.post("/my-publications/summary/generate", json={}).status_code == 422

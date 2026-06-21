@@ -65,6 +65,18 @@ def set_my_publications_dismissed(conn: Connection, dismissed: bool) -> None:
     )
 
 
+def set_research_summary(conn: Connection, text: str | None) -> None:
+    """Persist the dashboard's editable research summary (inc 81). No-op if the profile is unset."""
+    existing = get_profile(conn)
+    if existing is None:
+        return
+    conn.execute(
+        update(profile)
+        .where(profile.c.id == int(existing["id"]))
+        .values(research_summary=(text or "").strip() or None, updated_at=func.current_timestamp())
+    )
+
+
 def get_decisions(conn: Connection) -> dict[str, set[int]]:
     """{'confirmed': {paper_id, …}, 'rejected': {…}} — applied by the resolver every run."""
     out: dict[str, set[int]] = {"confirmed": set(), "rejected": set()}

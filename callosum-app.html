@@ -1001,6 +1001,38 @@
     position: absolute; border: 1.5px dashed var(--accent-overlay); border-radius: 2px;
     background: transparent; pointer-events: none;
   }
+
+  /* My Publications impact dashboard (inc 81) — a frame-tab surface; tokens only (rule #8). */
+  .mypubs-dashboard { flex: 1; overflow: auto; padding: 22px 26px; font-family: var(--sans); color: var(--ink); }
+  .mypubs-empty { max-width: 480px; margin: 40px auto; text-align: center; color: var(--ink-2); line-height: 1.55; }
+  .mypubs-empty h2 { color: var(--ink); margin: 0 0 8px; }
+  .mypubs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .mypubs-head h2 { margin: 0; font-size: 20px; color: var(--ink); }
+  .mypubs-source { font-size: 12px; color: var(--ink-3); }
+  .metric-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .metric-tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .metric-value { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .metric-label { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+  .mypubs-gap { font-size: 13px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 18px; }
+  .mypubs-gap b { color: var(--ink); }
+  .mypubs-gap-nudge { color: var(--flag-ink); }
+  .mypubs-charts { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 20px; }
+  .mypubs-chart { flex: 1; min-width: 280px; }
+  .mypubs-chart-title { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+  .pubs-chart-svg { width: 100%; max-width: 100%; height: 140px; overflow: visible; }
+  .pubs-bar { fill: var(--accent); }
+  .pubs-bar-count { fill: var(--ink-2); font-size: 9px; }
+  .pubs-bar-year { fill: var(--ink-3); font-size: 9px; }
+  .mypubs-summary { border-top: 1px solid var(--line); padding-top: 16px; }
+  .mypubs-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .mypubs-ai-tag { font-size: 11px; font-weight: 500; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 1px 8px; margin-left: 6px; }
+  .mypubs-summary-actions { display: flex; gap: 8px; }
+  .mypubs-summary-text {
+    width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--sans); font-size: 14px;
+    line-height: 1.55; color: var(--ink); background: var(--bg); border: 1px solid var(--line-2);
+    border-radius: var(--radius); padding: 10px 12px;
+  }
+  .mypubs-summary-text:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); background: var(--panel); }
 </style>
 </head>
 <body>
@@ -1373,7 +1405,7 @@ function ProgressBar({ label }) {
   );
 }
 
-function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
+function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault }) {
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
@@ -1384,7 +1416,7 @@ function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettin
           <h1>Callosum</h1>
         </div>
       </div>
-      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
+      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} onOpenMyPubsDashboard={onOpenMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
     </div>
   );
 }
@@ -1770,6 +1802,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           <span className="axis-card-actions">
             {!isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
             {!isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
+            {isMyPubs && <button className="axis-icon-btn" title="Open the impact dashboard" onClick={stop(() => handlers.openMyPubsDashboard(axis))}>📊</button>}
             <button className="axis-icon-btn axis-icon-danger"
               title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
               onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>
@@ -1835,7 +1868,7 @@ function _tierRank(p) {
   return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -2023,8 +2056,13 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     if (onFilterToAxis) onFilterToAxis({ id: axis.id, label: axis.label });
   }, [onFilterToAxis]);
 
+  const openMyPubsDashboard = useCallback((axis) => {
+    if (onOpenMyPubsDashboard) onOpenMyPubsDashboard(axis);
+  }, [onOpenMyPubsDashboard]);
+
   const handlers = {
-    toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis, toggleSelect, openEdit, openPaper,
+    toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis,
+    openMyPubsDashboard, toggleSelect, openEdit, openPaper,
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.
@@ -4110,13 +4148,159 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
       </div>
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
-          <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} />
+          {t.type === "dashboard"
+            ? <MyPubsDashboard axisId={t.axisId} />
+            : <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} />}
         </div>
       ))}
     </div>
   );
 }
 
+// My Publications impact dashboard (inc 81, Part 2 Layer 1). Opens as a frame tab (LibraryFrame) from the
+// 📊 button on the pinned My Publications axis card. A cache-only read of the resolved OpenAlex record + the
+// local library — headline metrics are OpenAlex's authoritative figures (shown verbatim + attributed), the
+// gap is an import nudge, and the research summary is an editable, AI-generated *draft* (egress-gated).
+
+function MyPubsTile({ label, value }) {
+  return (
+    <div className="metric-tile">
+      <div className="metric-value">{(value == null ? 0 : value).toLocaleString()}</div>
+      <div className="metric-label">{label}</div>
+    </div>
+  );
+}
+
+// A hand-rolled, dependency-free SVG bar chart (token-themed via CSS). bars = [{label, value}].
+function MyPubsBarChart({ bars, ariaLabel }) {
+  if (!bars || bars.length === 0) return <div className="axis-hint">No data yet.</div>;
+  const max = Math.max(1, ...bars.map(b => b.value));
+  const barW = 24, gap = 8, padX = 6, h = 132, padBottom = 18, padTop = 14;
+  const w = padX * 2 + bars.length * (barW + gap);
+  const plotH = h - padBottom;
+  return (
+    <svg className="pubs-chart-svg" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMinYMid meet" role="img" aria-label={ariaLabel}>
+      {bars.map((b, i) => {
+        const barH = Math.max(2, Math.round((b.value / max) * (plotH - padTop)));
+        const x = padX + i * (barW + gap);
+        const y = plotH - barH;
+        return (
+          <g key={b.label}>
+            <rect className="pubs-bar" x={x} y={y} width={barW} height={barH} rx="2">
+              <title>{b.label}: {b.value}</title>
+            </rect>
+            <text className="pubs-bar-count" x={x + barW / 2} y={y - 3} textAnchor="middle">{b.value}</text>
+            <text className="pubs-bar-year" x={x + barW / 2} y={h - 5} textAnchor="middle">{String(b.label).slice(2)}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function MyPubsDashboard({ axisId }) {
+  const [data, setData] = useState({ status: "loading" });
+  const [summary, setSummary] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [gen, setGen] = useState({ status: "idle" });   // idle | running | error
+  const [save, setSave] = useState("idle");             // idle | saving | saved
+
+  useEffect(() => {
+    let live = true;
+    api("/my-publications/dashboard").then(r => {
+      if (!live) return;
+      if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
+      else setData({ status: "error", error: r.error });
+    });
+    return () => { live = false; };
+  }, []);
+
+  const generate = async () => {
+    setGen({ status: "running" });
+    const r = await apiPost("/my-publications/summary/generate", {});
+    if (r.ok) { setSummary(r.data.summary || ""); setDirty(true); setSave("idle"); setGen({ status: "idle" }); }
+    else setGen({ status: "error", error: r.error });
+  };
+
+  const saveSummary = async () => {
+    setSave("saving");
+    const r = await apiPut("/my-publications/summary", { summary });
+    if (r.ok) { setSave("saved"); setDirty(false); } else setSave("idle");
+  };
+
+  if (data.status === "loading") return <div className="mypubs-dashboard"><div className="axis-hint">Loading…</div></div>;
+  if (data.status === "error") return <div className="mypubs-dashboard"><div className="axis-err">Couldn't load the dashboard: {data.error}</div></div>;
+  if (data.status === "no-identity" || data.status === "not-resolved")
+    return (
+      <div className="mypubs-dashboard">
+        <div className="mypubs-empty">
+          <h2>My Publications</h2>
+          <p>{data.status === "no-identity"
+            ? "Set your name and ORCID in ⚙ Settings → My Publications, then click Refresh to gather your publications."
+            : "Resolve your publications first — open ⚙ Settings → My Publications and click Refresh. The dashboard reads only cached data, so it never fetches on its own."}</p>
+        </div>
+      </div>
+    );
+
+  const m = data.metrics || {};
+  const pubsBars = (data.pubs_by_year || []).map(p => ({ label: p.year, value: p.count }));
+  const citeBars = (data.counts_by_year || []).map(c => ({ label: c.year, value: c.cited_by_count }));
+  const asOf = data.as_of ? String(data.as_of).slice(0, 10) : null;
+  return (
+    <div className="mypubs-dashboard">
+      <div className="mypubs-head">
+        <h2>{data.name || "My Publications"}</h2>
+        <span className="mypubs-source">source: OpenAlex{asOf ? " · as of " + asOf : ""} · refresh in ⚙ Settings</span>
+      </div>
+
+      <div className="metric-tiles">
+        <MyPubsTile label="Citations" value={m.cited_by_count} />
+        <MyPubsTile label="h-index" value={m.h_index} />
+        <MyPubsTile label="i10-index" value={m.i10_index} />
+        <MyPubsTile label="Indexed works" value={m.works_count} />
+      </div>
+
+      <div className="mypubs-gap">
+        <b>{data.indexed_works}</b> works indexed by OpenAlex · <b>{data.in_library}</b> in your library
+        {data.gap > 0 && <span className="mypubs-gap-nudge"> — {data.gap} not yet imported</span>}
+      </div>
+
+      <div className="mypubs-charts">
+        <div className="mypubs-chart">
+          <div className="mypubs-chart-title">Publications by year</div>
+          <MyPubsBarChart bars={pubsBars} ariaLabel="Publications by year" />
+        </div>
+        {citeBars.some(b => b.value > 0) &&
+          <div className="mypubs-chart">
+            <div className="mypubs-chart-title">Citations by year</div>
+            <MyPubsBarChart bars={citeBars} ariaLabel="Citations by year" />
+          </div>}
+      </div>
+
+      <div className="mypubs-summary">
+        <div className="mypubs-summary-head">
+          <span>Research summary <span className="mypubs-ai-tag">AI-generated draft — edit freely</span></span>
+          <span className="mypubs-summary-actions">
+            <button className="btn btn-ghost" disabled={gen.status === "running"} onClick={generate}>
+              {gen.status === "running" ? "Generating…" : (summary ? "Regenerate" : "Generate")}
+            </button>
+            <button className="btn btn-primary" disabled={save === "saving" || !dirty} onClick={saveSummary}>
+              {save === "saving" ? "Saving…" : (save === "saved" && !dirty ? "Saved" : "Save")}
+            </button>
+          </span>
+        </div>
+        {gen.status === "running" && <ProgressBar label="Writing a draft from your publications…" />}
+        {gen.status === "error" && <div className="axis-err">{gen.error}</div>}
+        <textarea
+          className="mypubs-summary-text" rows={5}
+          placeholder="Generate a draft from your publications, or write your own."
+          value={summary}
+          onChange={e => { setSummary(e.target.value); setDirty(true); setSave("idle"); }}
+        />
+      </div>
+    </div>
+  );
+}
 // Settings modal (inc 46) — the app-wide preferences surface. Appearance → Dark mode (theme + onTheme); Axes →
 // hide-uncertain-by-default (hideUncertainDefault + onHideUncertainDefault). Controlled by App; toggles persist
 // to localStorage. Reuses the .axis-modal overlay pattern.
@@ -4357,6 +4541,15 @@ function App() {
     openPdf({ id: target.paperId, title: target.paperTitle }, target);
   }, [openPdf]);
 
+  // inc-81: open the My Publications impact dashboard as a frame tab (reuses the LibraryFrame tab system).
+  const openMyPubsDashboard = useCallback((axis) => {
+    const key = "dashboard:my-publications";
+    setTabs(prev => (prev.some(t => t.key === key)
+      ? prev
+      : [...prev, { key, type: "dashboard", title: "My Publications", axisId: axis && axis.id }]));
+    setActiveTab(key);
+  }, []);
+
   // Save a verified, exact-coordinate citation passage as a durable annotation
   // (source="synthesis"). Re-checks the honesty contract here too, so the precise-save
   // path can never be reached for region/null/flagged citations. Does NOT force-open the
@@ -4579,7 +4772,7 @@ function App() {
   return (
     <div className="app" style={{ gridTemplateColumns: cols }}>
       {leftOpen
-        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
+        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} onOpenMyPubsDashboard={openMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
         : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}

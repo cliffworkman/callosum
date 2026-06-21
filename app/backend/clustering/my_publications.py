@@ -18,9 +18,10 @@ from app.backend.clustering.axis_assignments import (
     ensure_axis_node,
     manual_assignment_paper_ids,
 )
+from app.backend.metadata.abstract_display import abstract_plain_text
 from app.backend.persistence.profile_repo import get_decisions, get_profile, set_openalex_author_id
 from app.backend.persistence.repository import get_paper
-from app.backend.persistence.schema import axes, cluster_node_papers, papers
+from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
 from integrations.api_cache import get_cached
 from integrations.openalex.author import OPENALEX_WORKS_PROVIDER
 
@@ -189,3 +190,74 @@ def _family_tokens(profile: dict[str, Any]) -> set[str]:
         if parts:
             tokens.add(parts[-1].lower())
     return tokens
+
+
+def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
+    """Assemble the My Publications impact dashboard (Layer 1, inc 81) from ALREADY-CACHED OpenAlex data + the
+    local library — a cache-only read that makes NO network call (gated on the profile having been resolved).
+    Returns a status summary; the caller renders by status. Headline metrics are OpenAlex's authoritative
+    figures (works_count over the whole indexed record, NOT the library subset), shown verbatim + attributed."""
+    profile = get_profile(conn)
+    if not profile or not ((profile.get("display_name") or "").strip() or (profile.get("orcid") or "").strip()):
+        return {"status": "no-identity"}
+    if not profile.get("openalex_author_id"):
+        return {"status": "not-resolved"}
+
+    author = author_client.cached_author(conn, orcid=profile.get("orcid"), name=profile.get("display_name"))
+    if author is None:
+        return {"status": "not-resolved"}
+
+    works = author_client.fetch_author_works(conn, author.author_id)  # cache-first; warm when author_id is set
+    pubs_by_year: dict[int, int] = {}
+    for work in works:
+        if work.year:
+            pubs_by_year[work.year] = pubs_by_year.get(work.year, 0) + 1
+    work_dois = {w.doi for w in works if w.doi}
+    in_library = len(_live_papers_by_doi(conn, work_dois)) if work_dois else 0
+
+    cached_works = get_cached(conn, OPENALEX_WORKS_PROVIDER, author.author_id)
+    as_of = str(cached_works["fetched_at"]) if cached_works is not None and cached_works.get("fetched_at") else None
+
+    return {
+        "status": "ok",
+        "name": author.display_name or (profile.get("display_name") or "").strip() or None,
+        "as_of": as_of,
+        "metrics": {
+            "works_count": author.works_count,
+            "cited_by_count": author.cited_by_count,
+            "h_index": author.h_index,
+            "i10_index": author.i10_index,
+        },
+        "pubs_by_year": [{"year": y, "count": pubs_by_year[y]} for y in sorted(pubs_by_year)],
+        "counts_by_year": [dict(c) for c in author.counts_by_year],
+        "indexed_works": author.works_count,
+        "in_library": in_library,
+        "gap": max(0, author.works_count - in_library),
+        "research_summary": profile.get("research_summary"),
+    }
+
+
+def my_publication_documents(conn: Connection, *, limit: int = 100) -> list[dict[str, str]]:
+    """The titles (+ JATS-stripped abstract) of the papers in the My Publications axis — the grounded input
+    for the research-summary generation. Live papers only; capped. Empty list if the axis has no members."""
+    axis_id = _get_axis_id(conn)
+    if axis_id is None:
+        return []
+    node_id = conn.execute(
+        select(cluster_nodes.c.id)
+        .where(and_(cluster_nodes.c.axis_id == int(axis_id), cluster_nodes.c.parent_id.is_(None)))
+        .limit(1)
+    ).scalar_one_or_none()
+    if node_id is None:
+        return []
+    rows = conn.execute(
+        select(papers.c.title, papers.c.abstract)
+        .select_from(cluster_node_papers.join(papers, papers.c.id == cluster_node_papers.c.paper_id))
+        .where(and_(cluster_node_papers.c.cluster_node_id == int(node_id), papers.c.deleted_at.is_(None)))
+        .limit(limit)
+    )
+    documents: list[dict[str, str]] = []
+    for title, abstract in rows:
+        if title:
+            documents.append({"title": str(title), "abstract": abstract_plain_text(abstract) if abstract else ""})
+    return documents

@@ -79,6 +79,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           <span className="axis-card-actions">
             {!isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
             {!isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
+            {isMyPubs && <button className="axis-icon-btn" title="Open the impact dashboard" onClick={stop(() => handlers.openMyPubsDashboard(axis))}>📊</button>}
             <button className="axis-icon-btn axis-icon-danger"
               title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
               onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>
@@ -144,7 +145,7 @@ function _tierRank(p) {
   return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -332,8 +333,13 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     if (onFilterToAxis) onFilterToAxis({ id: axis.id, label: axis.label });
   }, [onFilterToAxis]);
 
+  const openMyPubsDashboard = useCallback((axis) => {
+    if (onOpenMyPubsDashboard) onOpenMyPubsDashboard(axis);
+  }, [onOpenMyPubsDashboard]);
+
   const handlers = {
-    toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis, toggleSelect, openEdit, openPaper,
+    toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis,
+    openMyPubsDashboard, toggleSelect, openEdit, openPaper,
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.

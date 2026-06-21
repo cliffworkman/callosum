@@ -32,6 +32,12 @@ class ResolvedAuthor:
     orcid: str | None
     works_count: int
     matched_by: str  # "orcid" (high confidence) or "name" (lower confidence)
+    # inc 81 — the dashboard's headline metrics (parsed from the same author object; defaults keep existing
+    # construction sites + test fixtures valid). These are OpenAlex's authoritative figures, shown verbatim.
+    cited_by_count: int = 0
+    h_index: int = 0
+    i10_index: int = 0
+    counts_by_year: tuple[dict[str, int], ...] = ()  # [{"year", "works_count", "cited_by_count"}, …]
 
 
 @dataclass(frozen=True)
@@ -59,24 +65,31 @@ class OpenAlexAuthorClient:
     def resolve_author(
         self, conn: Connection, *, orcid: str | None = None, name: str | None = None
     ) -> ResolvedAuthor | None:
-        if orcid and orcid.strip():
-            o = orcid.strip()
-            body = self._fetch(
-                conn, OPENALEX_AUTHOR_PROVIDER, "orcid:" + o.lower(), f"{OPENALEX_ROOT}/authors/orcid:{o}", {}
-            )
-            return _author_from_obj(_pick_author(body), matched_by="orcid") if body is not None else None
-        if name and name.strip():
-            n = name.strip()
-            key = "name:" + hashlib.sha256(n.lower().encode("utf-8")).hexdigest()[:24]
-            body = self._fetch(
-                conn,
-                OPENALEX_AUTHOR_PROVIDER,
-                key,
-                f"{OPENALEX_ROOT}/authors",
-                {"filter": f"display_name.search:{n}", "per-page": "1"},
-            )
-            return _author_from_obj(_pick_author(body), matched_by="name") if body is not None else None
-        return None
+        keyed = _author_cache_key(orcid=orcid, name=name)
+        if keyed is None:
+            return None
+        key, matched_by = keyed
+        if matched_by == "orcid":
+            url, params = f"{OPENALEX_ROOT}/authors/orcid:{orcid.strip()}", {}
+        else:
+            url, params = f"{OPENALEX_ROOT}/authors", {"filter": f"display_name.search:{name.strip()}", "per-page": "1"}
+        body = self._fetch(conn, OPENALEX_AUTHOR_PROVIDER, key, url, params)
+        return _author_from_obj(_pick_author(body), matched_by=matched_by) if body is not None else None
+
+    def cached_author(
+        self, conn: Connection, *, orcid: str | None = None, name: str | None = None
+    ) -> ResolvedAuthor | None:
+        """Cache-only author lookup (inc 81) — return the enriched author from cache, or None; NEVER fetches.
+        The dashboard uses this so opening it makes ZERO egress (the resolve that set ``openalex_author_id``
+        already warmed this cache under the same key)."""
+        keyed = _author_cache_key(orcid=orcid, name=name)
+        if keyed is None:
+            return None
+        key, matched_by = keyed
+        cached = get_cached(conn, OPENALEX_AUTHOR_PROVIDER, key)
+        if cached is None or int(cached["status_code"] or 0) != 200 or not isinstance(cached["response_json"], dict):
+            return None
+        return _author_from_obj(_pick_author(cached["response_json"]), matched_by=matched_by)
 
     def fetch_author_works(self, conn: Connection, author_id: str) -> list[AuthorWork]:
         cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, author_id)
@@ -166,6 +179,16 @@ def _httpx_fetcher(
     return response.status_code, body
 
 
+def _author_cache_key(*, orcid: str | None, name: str | None) -> tuple[str, str] | None:
+    """(cache_key, matched_by) for an author lookup, or None. The single source of truth for the key, so
+    ``resolve_author`` (write) and ``cached_author`` (cache-only read) can never drift apart."""
+    if orcid and orcid.strip():
+        return "orcid:" + orcid.strip().lower(), "orcid"
+    if name and name.strip():
+        return "name:" + hashlib.sha256(name.strip().lower().encode("utf-8")).hexdigest()[:24], "name"
+    return None
+
+
 def _pick_author(body: dict[str, Any] | None) -> dict[str, Any] | None:
     if not isinstance(body, dict):
         return None
@@ -181,12 +204,27 @@ def _author_from_obj(obj: dict[str, Any] | None, *, matched_by: str) -> Resolved
     author_id = raw_id.rsplit("/", 1)[-1] if raw_id else ""
     if not author_id:
         return None
+    stats = obj.get("summary_stats") if isinstance(obj.get("summary_stats"), dict) else {}
+    counts = []
+    for row in obj.get("counts_by_year") or []:
+        if isinstance(row, dict) and isinstance(row.get("year"), int):
+            counts.append(
+                {
+                    "year": int(row["year"]),
+                    "works_count": int(row.get("works_count") or 0),
+                    "cited_by_count": int(row.get("cited_by_count") or 0),
+                }
+            )
     return ResolvedAuthor(
         author_id=author_id,
         display_name=str(obj.get("display_name") or ""),
         orcid=_normalize_orcid(obj.get("orcid")),
         works_count=int(obj.get("works_count") or 0),
         matched_by=matched_by,
+        cited_by_count=int(obj.get("cited_by_count") or 0),
+        h_index=int(stats.get("h_index") or 0),
+        i10_index=int(stats.get("i10_index") or 0),
+        counts_by_year=tuple(sorted(counts, key=lambda c: c["year"])),
     )
 
 

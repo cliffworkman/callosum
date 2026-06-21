@@ -976,3 +976,35 @@
     position: absolute; border: 1.5px dashed var(--accent-overlay); border-radius: 2px;
     background: transparent; pointer-events: none;
   }
+
+  /* My Publications impact dashboard (inc 81) — a frame-tab surface; tokens only (rule #8). */
+  .mypubs-dashboard { flex: 1; overflow: auto; padding: 22px 26px; font-family: var(--sans); color: var(--ink); }
+  .mypubs-empty { max-width: 480px; margin: 40px auto; text-align: center; color: var(--ink-2); line-height: 1.55; }
+  .mypubs-empty h2 { color: var(--ink); margin: 0 0 8px; }
+  .mypubs-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .mypubs-head h2 { margin: 0; font-size: 20px; color: var(--ink); }
+  .mypubs-source { font-size: 12px; color: var(--ink-3); }
+  .metric-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .metric-tile { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px 16px; }
+  .metric-value { font-size: 26px; font-weight: 700; color: var(--accent); line-height: 1.1; }
+  .metric-label { font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+  .mypubs-gap { font-size: 13px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 18px; }
+  .mypubs-gap b { color: var(--ink); }
+  .mypubs-gap-nudge { color: var(--flag-ink); }
+  .mypubs-charts { display: flex; flex-wrap: wrap; gap: 24px; margin-bottom: 20px; }
+  .mypubs-chart { flex: 1; min-width: 280px; }
+  .mypubs-chart-title { font-size: 13px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+  .pubs-chart-svg { width: 100%; max-width: 100%; height: 140px; overflow: visible; }
+  .pubs-bar { fill: var(--accent); }
+  .pubs-bar-count { fill: var(--ink-2); font-size: 9px; }
+  .pubs-bar-year { fill: var(--ink-3); font-size: 9px; }
+  .mypubs-summary { border-top: 1px solid var(--line); padding-top: 16px; }
+  .mypubs-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .mypubs-ai-tag { font-size: 11px; font-weight: 500; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 1px 8px; margin-left: 6px; }
+  .mypubs-summary-actions { display: flex; gap: 8px; }
+  .mypubs-summary-text {
+    width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--sans); font-size: 14px;
+    line-height: 1.55; color: var(--ink); background: var(--bg); border: 1px solid var(--line-2);
+    border-radius: var(--radius); padding: 10px 12px;
+  }
+  .mypubs-summary-text:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); background: var(--panel); }

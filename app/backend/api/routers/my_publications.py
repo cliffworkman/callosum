@@ -19,18 +19,28 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
-from app.backend.clustering.my_publications import _get_axis_id, resolve_my_publications
+from app.backend.clustering.my_publications import (
+    _get_axis_id,
+    build_dashboard,
+    my_publication_documents,
+    resolve_my_publications,
+)
+from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchSummaryGenerator
 from app.backend.persistence.profile_repo import (
     get_profile,
     set_decision,
     set_my_publications_dismissed,
+    set_research_summary,
     upsert_profile,
 )
 from app.backend.persistence.repository import get_paper
 from app.backend.persistence.schema import axes
+from integrations.gemini import GeminiConfig, GeminiResearchSummaryGenerator, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient
 
 router = APIRouter()
+
+MAX_SUMMARY_LEN = 4000  # cap the persisted research summary (mirrors the annotation-note cap)
 
 
 class ProfileResponse(BaseModel):
@@ -68,6 +78,45 @@ class RefreshJobResponse(BaseModel):
 class DecideRequest(BaseModel):
     paper_id: int
     decision: Literal["confirmed", "rejected"]
+
+
+class DashboardMetrics(BaseModel):
+    works_count: int = 0
+    cited_by_count: int = 0
+    h_index: int = 0
+    i10_index: int = 0
+
+
+class YearCount(BaseModel):
+    year: int
+    count: int
+
+
+class YearImpact(BaseModel):
+    year: int
+    works_count: int = 0
+    cited_by_count: int = 0
+
+
+class DashboardResponse(BaseModel):
+    status: str  # "ok" | "no-identity" | "not-resolved"
+    name: str | None = None
+    as_of: str | None = None  # when the OpenAlex data was cached (honest snapshot timestamp)
+    metrics: DashboardMetrics | None = None
+    pubs_by_year: list[YearCount] = []
+    counts_by_year: list[YearImpact] = []
+    indexed_works: int | None = None
+    in_library: int | None = None
+    gap: int | None = None
+    research_summary: str | None = None
+
+
+class SummaryResponse(BaseModel):
+    summary: str
+
+
+class SummaryUpdateRequest(BaseModel):
+    summary: str | None = None
 
 
 @router.get("/my-publications/profile", response_model=ProfileResponse)
@@ -121,6 +170,49 @@ def decide_my_publications(payload: DecideRequest, conn: Connection = Depends(ge
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
+@router.get("/my-publications/dashboard", response_model=DashboardResponse)
+def get_my_publications_dashboard(request: Request, conn: Connection = Depends(get_connection)) -> DashboardResponse:
+    # Layer-1 impact dashboard: a cache-only read of the resolved OpenAlex record + works + the local library.
+    # Makes NO network call (gated on the profile having been resolved → openalex_author_id set).
+    return DashboardResponse(**build_dashboard(conn, author_client=_author_client(request.app)))
+
+
+@router.post("/my-publications/summary/generate", response_model=SummaryResponse)
+def generate_my_publications_summary(request: Request, conn: Connection = Depends(get_connection)) -> SummaryResponse:
+    # Generate a DRAFT research summary from the user's OWN publication titles/abstracts. Library text →
+    # egress-gated (off → 503, like suggest-terms). Does NOT persist; the user reviews/edits then PUTs.
+    documents = my_publication_documents(conn)
+    if not documents:
+        raise HTTPException(
+            status_code=422,
+            detail="No publications in your My Publications axis yet — set your profile and Refresh first.",
+        )
+    try:
+        summary = _research_summary_generator(request.app).generate(documents=documents)
+    except DataEgressDisabledError:
+        raise HTTPException(
+            status_code=http_status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI summary needs data egress: set CALLOSUM_ALLOW_DATA_EGRESS=1 and GOOGLE_API_KEY, then restart.",
+        ) from None
+    except Exception as exc:  # any Gemini/network failure → surface, never 500
+        raise HTTPException(
+            status_code=http_status.HTTP_502_BAD_GATEWAY, detail=f"Summary generation failed: {exc}"
+        ) from None
+    return SummaryResponse(summary=summary)
+
+
+@router.put("/my-publications/summary", response_model=SummaryResponse)
+def put_my_publications_summary(
+    payload: SummaryUpdateRequest, conn: Connection = Depends(get_connection)
+) -> SummaryResponse:
+    text = (payload.summary or "").strip()
+    if len(text) > MAX_SUMMARY_LEN:
+        raise HTTPException(status_code=422, detail=f"Summary must be at most {MAX_SUMMARY_LEN} characters.")
+    set_research_summary(conn, text or None)
+    conn.commit()
+    return SummaryResponse(summary=(get_profile(conn) or {}).get("research_summary") or "")
+
+
 @router.delete("/my-publications", status_code=http_status.HTTP_204_NO_CONTENT)
 def dismiss_my_publications(conn: Connection = Depends(get_connection)) -> Response:
     # Dismiss the card (the deleted-don't-auto-regenerate flag) + remove the axis (CASCADE clears memberships).
@@ -148,6 +240,16 @@ def _profile_response(profile: dict[str, Any] | None) -> ProfileResponse:
 def _author_client(app: FastAPI) -> OpenAlexAuthorClient:
     injected = app.state.openalex_author_client
     return injected if injected is not None else OpenAlexAuthorClient()
+
+
+def _research_summary_generator(app: FastAPI) -> ResearchSummaryGenerator:
+    inner = app.state.research_summary_generator
+    if inner is None:
+        inner = GeminiResearchSummaryGenerator(config=GeminiConfig.from_environment())
+    # Authoritative egress gate at the seam — covers the injected generator AND the default (invariant #3).
+    return EgressGatedResearchSummaryGenerator(
+        inner=inner, data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled
+    )
 
 
 def _run_refresh_job(app: FastAPI, job_id: str) -> None:

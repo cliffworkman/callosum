@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 80** (see Increment workflow) with **362 pytest tests
+It is currently at **Increment 81** (see Increment workflow) with **370 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -230,7 +230,7 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0009_my_publications)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0010_my_publications_summary)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 80). Each increment of real work
+callosum is built in **numbered increments** (currently at 81). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -534,6 +534,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| My Publications dashboard (Part 2, Layer 1) = a cache-only, egress-free read; metrics are OpenAlex's verbatim figures; the AI summary is the only (gated) egress (inc 81) | The impact dashboard reads ONLY already-cached OpenAlex data + the local library (`build_dashboard` via `cached_author`, which never fetches; gated on `profile.openalex_author_id` ⟹ the cache is warm from a prior Settings→Refresh), so opening the tab makes **zero network calls** ("explicit refresh, never on plain tab open"). Headline metrics (citations/h-index/i10/works) are OpenAlex's **authoritative figures over the whole indexed record** — shown verbatim + attributed ("source: OpenAlex · as of <date>"), never a callosum-invented composite "impact score" (computing them over the library subset is forbidden — it would disagree with Scholar + erode trust); the indexed-vs-library gap is a fact + import nudge. The author object inc-78 already cached carries `cited_by_count`/`summary_stats`/`counts_by_year`, so the stats need **no new API call** (re-parsed via an enriched `_author_from_obj`; a shared `_author_cache_key` keeps `resolve_author`/`cached_author` from drifting). The **editable AI research summary** is the sole egress — LLM narration over the user's OWN publication titles/abstracts (library text), gated at the inc-58 seam (`EgressGatedResearchSummaryGenerator`; egress-off → 503), marked an editable non-load-bearing draft. The tab reuses the LibraryFrame tab system (`type:"dashboard"`); charts are hand-rolled SVG (no chart library, per spec). Migration **0010** (`profile.research_summary`). Layers 2–4 deferred. |
 | "Unsorted" library view = a `needs_review` query param on `GET /papers`, filtering an `imported_source` allowlist (inc 80) | Surfaces papers whose metadata still needs review (raw `pdf-scaffold`, `crossref-unresolved`, or NULL source) instead of letting them disappear into the library — aligned with "silence is not a certificate." Same class of change as the inc-63 axis filter / inc-69 sort: `list_papers(needs_review=…)` filters `imported_source IN NEEDS_REVIEW_SOURCES OR IS NULL` (a **local literal allowlist** in `repository.py` — bound-param `IN`, rule #3; kept local to avoid an `enrichment → repository` import cycle, since the strings are stable DB values). Composes with the deleted/q/axis/tag/pagination clauses (trashed excluded). Frontend: a `libraryNeedsReview` view-state mirroring `trashView` (exclusive with trash/axis/tag/focus but keeps checkbox-select on → select-all → bulk re-resolve/export/delete) + an **Unsorted** header toggle (reuses `.trash-toggle`, label flips to "← Library", no new CSS) + a clearable `.focus-card` banner. **No migration, no new endpoint, no egress.** |
 | My Publications = an OpenAlex-resolved, LLM-free auto-axis with facts-vs-candidates + confirm-and-learn (inc 78) | The own-papers axis makes an **authorship claim**, so it follows the facts-vs-candidates principle: ORCID/DOI matches are **confirmed members** (`cluster_node_papers.confidence` 0.95 → "assigned"); name-only matches are **candidates** (0.25 → the existing "uncertain" tier), confirmed/rejected by the human and **persisted** in `my_publication_decisions` (a rejected paper is never re-proposed; a confirmed one becomes a manual `confidence IS NULL` member surviving every re-match). The resolver (`clustering/my_publications.py`) rewrites only the AUTO memberships each run (preserves manual). **LLM-free** (author disambiguation is structured-metadata work — zero tokens); OpenAlex author/works lookup is **metadata egress** (public name/ORCID/DOIs, like the Crossref DOI lookup), explicitly **NOT** the Gemini library-text gate. New `integrations/openalex/author.py` (`OpenAlexAuthorClient`, fail-closed + cached), `persistence/profile_repo.py` (single-row profile + decisions), migration **0009** (`axes.kind` + `profile` + `my_publication_decisions`). The import hook (`enrichment.py`) is a **cache-based, lazy-imported, try/except-guarded no-op when unused** → strictly additive (existing import/axis/summary paths untouched). The pinned card reuses `AxisItem` branched on `kind` (no fork). Part 2 (the impact dashboard tab) is deferred. |
 | Acquisition bright lines enforced structurally via the `OaLocation` seam (inc 74) | The legally-clear OA-acquisition lane must never become a generic/non-OA fetcher. Rather than enforce that by convention, the `Resolver` Protocol returns a **frozen `OaLocation`** whose `oa_color` is **required** (gold/green/bronze; **no "closed"/"none" member**) and the downloader `download_oa_pdf(location: OaLocation)` takes the dataclass — there is **no function that fetches a bare URL**. So OA-ness is decided by the database (OpenAlex), never by callosum, and an arbitrary/non-OA fetch is structurally inexpressible (same seam-enforcement idea as the inc-58 egress gate; pinned by structural tests). Fetched copies land in the **local library** (`managed` storage, named per the existing `Authors - Year - Venue.pdf` convention) — nothing server-side. Honors the `APPROACH-AVOIDANCE.md` no-paywall-circumvention veto + realizes the A8 access-equity value. New `app/backend/acquisition/` + `integrations/openalex/` + migration 0007. The legally-ambiguous lane is deferred (counsel-gated), **absent** from this build. New resolvers (inc B) register into `build_default_registry` without editing the cascade. |
@@ -632,7 +633,26 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 80 (the "Unsorted" library view — a needs-review filter): an **Unsorted**
+*Last updated: 2026-06-20 — increment 81 (My Publications Part 2 — the impact dashboard, Layer 1): an Overview
+**dashboard tab** for the pinned My Publications axis (opened by a **📊** button on the card), turning the
+user's own corpus into a first-class impact surface — headline OpenAlex metrics (citations / h-index / i10 /
+indexed works), a hand-rolled **publications-by-year SVG chart** (+ citations-by-year), the **indexed-vs-library
+gap** (an import nudge), and an **editable AI research summary**. The dashboard is a **cache-only, egress-free
+read** (`build_dashboard` via `cached_author`, which never fetches; gated on `profile.openalex_author_id` ⟹ the
+cache is warm) — the OpenAlex author object inc-78 already cached carries the stats, so headline metrics need
+**no new API call**, are OpenAlex's authoritative figures shown **verbatim + attributed** (never a callosum
+composite). The only egress is the research summary — LLM narration over the user's OWN titles/abstracts
+(library text), **egress-gated at the inc-58 seam** (`EgressGatedResearchSummaryGenerator`; off → 503), a
+non-load-bearing editable draft. New `integrations/gemini/research_summary.py`, `31_mypubs_dashboard.jsx`,
+3 endpoints (`GET /my-publications/dashboard`, `POST /summary/generate`, `PUT /summary`), migration **0010**
+(`profile.research_summary`). pytest **370** (+8); audit
+`.claude/security-audits/2026-06-20_my-publications-dashboard.md` **PASS**; help corpus's My Publications
+section extended (`HELP-DOCS-SYNCED` → inc 81). Layers 2–4 (domain decomposition / enriched cards / grounded
+prospection) deferred. **NEXT:** open backlog — a separate **discovery** track the user floated (find papers
+beyond the library / external search / a gapfinder) stays a parked future-track, plus the standing backlog
+(library merge, etc.).
+
+Earlier — increment 80 (the "Unsorted" library view — a needs-review filter): an **Unsorted**
 toggle in the Library header (+ a clearable banner) that narrows the list to papers whose metadata still needs
 review — raw PDF scaffolds, Crossref-unresolved imports, and papers with no recorded source — so they don't
 silently disappear into the library. Backend: a `needs_review` query param on `GET /papers` →

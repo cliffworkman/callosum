@@ -188,10 +188,15 @@ gate** before any build. Sequenced *toward*, not queued — the core UX above co
   (backward/forward gap, followed authors) with transparent provenance, ranked by axis relevance, add-or-dismiss.
   Depends on the OpenAlex adapter.
 - [ ] **My Publications — Part 2: impact dashboard tab** (`…_mypublications.md`): **Part 1 shipped inc 78**
-  (the auto-axis — OpenAlex/ORCID resolution, facts-vs-candidates, confirm-and-learn, import hook). Remaining:
-  the dashboard **tab** (Layers 1–4 — publications-by-year SVG, headline OpenAlex metrics + indexed-vs-library
-  gap, domain decomposition into sub-axes, enriched citation cards, grounded prospection). The author-resolution
-  infra (`integrations/openalex/author.py`) now also unlocks the **gap-finder**.
+  (the auto-axis); **Layer 1 shipped inc 81** (the 📊 dashboard tab — headline OpenAlex metrics + the
+  indexed-vs-library gap + a publications-by-year SVG chart + an editable AI research summary; cache-only read,
+  the summary egress-gated). Remaining: **Layer 2** domain decomposition (cluster the user's own corpus into
+  sub-axes via `abstract_clustering.py`, citations per domain, re-filter the Layer-1 plot/tiles); **Layer 3**
+  enriched paper cards (per-paper OpenAlex citation count + citing-works modal, field/year percentile,
+  citations-by-year sparkline, self-vs-external split); **Layer 4** grounded prospection (citation gaps,
+  emerging citing-topics, candidate collaborators — LLM narration over graph data only). The author-resolution
+  infra (`integrations/openalex/author.py`) now also unlocks the **gap-finder** / discovery track (a separate
+  parked future-track the user floated: find papers beyond the library / external search).
 - [ ] **User-authored modules** (`…_plugins.md`): **deferred record only** — capture the extension-point idea +
   open questions; do NOT build a plugin system until a dedicated design pass.
 - [ ] **Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived): inspectable,

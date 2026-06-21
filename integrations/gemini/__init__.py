@@ -4,6 +4,7 @@ from integrations.gemini.axis_cluster_labeler import AxisClusterLabeler, GeminiA
 from integrations.gemini.axis_terms import AxisTermSuggester, GeminiAxisTermSuggester
 from integrations.gemini.generator import DataEgressDisabledError, GeminiConfig, GeminiSummaryGenerator
 from integrations.gemini.help_assistant import GeminiHelpAssistant
+from integrations.gemini.research_summary import GeminiResearchSummaryGenerator, ResearchSummaryGenerator
 
 __all__ = [
     "AxisClusterLabeler",
@@ -13,5 +14,7 @@ __all__ = [
     "GeminiAxisTermSuggester",
     "GeminiConfig",
     "GeminiHelpAssistant",
+    "GeminiResearchSummaryGenerator",
     "GeminiSummaryGenerator",
+    "ResearchSummaryGenerator",
 ]

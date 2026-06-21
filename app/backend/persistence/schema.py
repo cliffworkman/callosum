@@ -478,6 +478,7 @@ profile = Table(
     Column("orcid", String(64)),
     Column("openalex_author_id", String(64)),
     Column("my_publications_dismissed", Integer, nullable=False, server_default="0"),
+    Column("research_summary", Text),  # inc 81: the dashboard's editable, AI-generated research summary
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
