@@ -77,6 +77,19 @@ def set_research_summary(conn: Connection, text: str | None) -> None:
     )
 
 
+def set_research_domains(conn: Connection, domains: list[dict[str, Any]] | None) -> None:
+    """Persist the dashboard's domain decomposition (inc 83) — a list of {label, terms, paper_ids}. No-op if
+    the profile is unset."""
+    existing = get_profile(conn)
+    if existing is None:
+        return
+    conn.execute(
+        update(profile)
+        .where(profile.c.id == int(existing["id"]))
+        .values(research_domains=domains or None, updated_at=func.current_timestamp())
+    )
+
+
 def get_decisions(conn: Connection) -> dict[str, set[int]]:
     """{'confirmed': {paper_id, …}, 'rejected': {…}} — applied by the resolver every run."""
     out: dict[str, set[int]] = {"confirmed": set(), "rejected": set()}

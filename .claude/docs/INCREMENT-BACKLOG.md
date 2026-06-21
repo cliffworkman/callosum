@@ -41,6 +41,27 @@ _Italic notes are light implementation pointers, not designs._
 
 ---
 
+## My Publications — follow-ups (user, 2026-06-20, post inc-81/83)
+
+- [ ] **Star key publications + scope the AI summary to starred.** Let the user "star" flagship papers in My
+  Publications; add a toggle that restricts the **AI research-description** generation (inc 81) to starred pubs
+  only (so the summary centers the user's most important work, not every paper). _Needs a per-paper star flag
+  (a `my_publication_decisions`-style store, or a `starred` set) + a generate-scope toggle threaded into
+  `my_publication_documents`._
+- [ ] **Review queue for OpenAlex works MISSING from My Publications.** The dashboard's indexed-vs-library gap
+  (inc 81: "79 indexed · 40 in library") should be actionable: list the OpenAlex-indexed works **not** matched
+  to a library paper, with **accept / reject** per work (persisted, like the inc-78 candidate decisions) so the
+  user curates the true own-papers set (79 over-counts; 40 under-counts). _Reuses the cached author works
+  (`fetch_author_works`) minus the DOI-matched set; a new decision store for external works (keyed by
+  DOI/OpenAlex-work-id, not paper_id, since they're not in the library yet)._
+- [ ] **Import missing own-papers into the library.** From that missing-works queue, offer to **import** a work
+  into the library via the **existing acquisition/import architecture** (inc 74–76 OA lane: `create_paper` +
+  `import_oa_pdf` + Crossref enrich; or wanted-list add) — turning "indexed but absent" into a real library
+  entry that then auto-joins My Publications (inc-78 import hook). _Pairs with the review queue above; the
+  OA-only bright line + the wanted-list flow already exist._
+
+---
+
 ## Cross-cutting — `DESIGN.md` Pass-2 consolidation (open remainder)
 
 - [ ] **Apply the Pass-2 consolidation worklist** (DESIGN.md §3) — opportunistically or on request: migrate the
@@ -186,8 +207,9 @@ gate** before any build. Sequenced *toward*, not queued — the core UX above co
 - [ ] **My Publications — Part 2: impact dashboard tab** (`…_mypublications.md`): **Part 1 shipped inc 78**
   (the auto-axis); **Layer 1 shipped inc 81** (the 📊 dashboard tab — headline OpenAlex metrics + the
   indexed-vs-library gap + a publications-by-year SVG chart + an editable AI research summary; cache-only read,
-  the summary egress-gated). Remaining: **Layer 2** domain decomposition (cluster the user's own corpus into
-  sub-axes via `abstract_clustering.py`, citations per domain, re-filter the Layer-1 plot/tiles); **Layer 3**
+  the summary egress-gated); **Layer 2 shipped inc 83** (the **Research domains** section — local clustering of
+  confirmed own-papers into domains + impact-by-domain citation sums + a click-to-re-filter chart; stored as
+  `profile.research_domains` JSON, not child cluster_nodes). Remaining: **Layer 3**
   enriched paper cards (per-paper OpenAlex citation count + citing-works modal, field/year percentile,
   citations-by-year sparkline, self-vs-external split); **Layer 4** grounded prospection (citation gaps,
   emerging citing-topics, candidate collaborators — LLM narration over graph data only). The author-resolution

@@ -1008,3 +1008,18 @@
     border-radius: var(--radius); padding: 10px 12px;
   }
   .mypubs-summary-text:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); background: var(--panel); }
+  /* Research domains (inc 83) — impact-by-domain bars; click to filter the pubs chart. */
+  .mypubs-domains { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 18px; }
+  .mypubs-domain-summary { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+  .domain-list { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .domain-row {
+    position: relative; display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel);
+    padding: 7px 10px; cursor: pointer; overflow: hidden; font-family: var(--sans);
+  }
+  .domain-row:hover { border-color: var(--accent); }
+  .domain-row.on { border-color: var(--accent); background: var(--accent-soft); }
+  .domain-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-soft); z-index: 0; }
+  .domain-row.on .domain-fill { background: var(--accent-line); }
+  .domain-label { position: relative; z-index: 1; flex: 1; font-size: 13px; color: var(--ink); font-weight: 500; }
+  .domain-meta { position: relative; z-index: 1; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }

@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 83: My Publications Part 2 — domain decomposition (Layer 2)
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 83 (2026-06-20) — extended the My Publications dashboard section with research-domain decomposition (impact-by-domain + the chart re-filter). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** migration `0011_my_publication_domains.py` + `schema.py` (`profile.research_domains`);
+  `profile_repo.py`; `integrations/openalex/author.py` (`AuthorWork.cited_by_count` + `fetch_author_works(refresh=)`);
+  `app/backend/clustering/my_publications.py` (`decompose_domains` + `_dashboard_domains`);
+  `routers/my_publications.py` (2 endpoints + `DashboardResponse.domains`) + `app.py` (JobStore); frontend
+  `31_mypubs_dashboard.jsx` + `styles.css`; `callosum-app.html` (rebuilt); help corpus; tests; the audit.
+- **What:** a **Research domains** section on the My Pubs dashboard — cluster your confirmed own-papers into
+  domains, show **impact-by-domain** (citation sums), and click a domain to re-filter the publications-by-year
+  chart. LLM-free local clustering; the only egress is the OpenAlex works refresh (metadata, not the Gemini gate).
+- **Why:** the chosen carrot — My Pubs Part 2 Layer 2 (the spec's differentiator).
+- **Scope:** migration 0011; 2 new endpoints (1 read-only GET poll + 1 POST decompose job); stored as isolated
+  `profile.research_domains` JSON (NOT child cluster_nodes — avoids double-counting the inc-78/79 card badge).
+  pytest **375** (+5); `ruff` clean; audit PASS.
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop `decompose_domains`/`_dashboard_domains` +
+  the 2 endpoints + the `31_mypubs_dashboard.jsx` domains section + migration 0011.
+
 ## 2026-06-20 — Increment 82: library-card tidy + double-click/text-select fix
 
 - **Files:** `app/frontend/js/10_pdf_layer.jsx`, `callosum-app.html` (rebuilt).
@@ -20,8 +39,6 @@ are the design diary; this is the chronological "what & why" record.
 - **Revert:** restore the chunks chip + the unconditional `onDoubleClick` in `10_pdf_layer.jsx`.
 
 ## 2026-06-20 — Increment 81: My Publications Part 2 — the impact dashboard (Layer 1)
-
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 81 (2026-06-20) — extended the My Publications section with the impact dashboard (📊), the metric tiles + gap, and the editable AI research summary. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 - **Files:** migration `0010_my_publications_summary.py` + `schema.py` (`profile.research_summary`);
   `integrations/openalex/author.py` (enriched `ResolvedAuthor` + cache-only `cached_author`);

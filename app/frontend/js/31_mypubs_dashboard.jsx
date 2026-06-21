@@ -45,6 +45,12 @@ function MyPubsDashboard({ axisId }) {
   const [dirty, setDirty] = useState(false);
   const [gen, setGen] = useState({ status: "idle" });   // idle | running | error
   const [save, setSave] = useState("idle");             // idle | saving | saved
+  const [domainJob, setDomainJob] = useState({ status: "idle" });  // idle | running | error | too-few
+  const [selectedDomains, setSelectedDomains] = useState(() => new Set());  // indices of domains filtering the chart
+
+  const refetch = () => api("/my-publications/dashboard").then(r => {
+    if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
+  });
 
   useEffect(() => {
     let live = true;
@@ -69,6 +75,31 @@ function MyPubsDashboard({ axisId }) {
     if (r.ok) { setSave("saved"); setDirty(false); } else setSave("idle");
   };
 
+  const decompose = () => {
+    setDomainJob({ status: "running" });
+    setSelectedDomains(new Set());
+    const poll = (jobId) => api(`/my-publications/domains/${jobId}`).then(r => {
+      if (!r.ok) { setDomainJob({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") {
+        if (d.result_status === "too-few") setDomainJob({ status: "too-few" });
+        else { setDomainJob({ status: "idle" }); refetch(); }
+      } else if (d.status === "error") {
+        setDomainJob({ status: "error", error: d.detail || "Decompose failed." });
+      } else setTimeout(() => poll(jobId), 1500);
+    });
+    apiPost("/my-publications/domains", {}).then(r => {
+      if (!r.ok) { setDomainJob({ status: "error", error: r.error }); return; }
+      poll(r.data.job_id);
+    });
+  };
+
+  const toggleDomain = (i) => setSelectedDomains(prev => {
+    const next = new Set(prev);
+    if (next.has(i)) next.delete(i); else next.add(i);
+    return next;
+  });
+
   if (data.status === "loading") return <div className="mypubs-dashboard"><div className="axis-hint">Loading…</div></div>;
   if (data.status === "error") return <div className="mypubs-dashboard"><div className="axis-err">Couldn't load the dashboard: {data.error}</div></div>;
   if (data.status === "no-identity" || data.status === "not-resolved")
@@ -87,6 +118,25 @@ function MyPubsDashboard({ axisId }) {
   const pubsBars = (data.pubs_by_year || []).map(p => ({ label: p.year, value: p.count }));
   const citeBars = (data.counts_by_year || []).map(c => ({ label: c.year, value: c.cited_by_count }));
   const asOf = data.as_of ? String(data.as_of).slice(0, 10) : null;
+
+  // Domain re-filter: when domain(s) are selected, the pubs-by-year chart shows the union of their papers.
+  const domains = data.domains || [];
+  const activeDomains = domains.filter((_, i) => selectedDomains.has(i));
+  const maxDomainCites = Math.max(1, ...domains.map(d => d.citation_count));
+  let chartBars = pubsBars;
+  let domainSummary = null;
+  if (activeDomains.length) {
+    const yearCounts = {};
+    let papers = 0;
+    let citations = 0;
+    activeDomains.forEach(d => {
+      papers += d.paper_count;
+      citations += d.citation_count;
+      (d.paper_years || []).forEach(y => { yearCounts[y] = (yearCounts[y] || 0) + 1; });
+    });
+    chartBars = Object.keys(yearCounts).map(Number).sort((a, b) => a - b).map(y => ({ label: y, value: yearCounts[y] }));
+    domainSummary = `${papers} paper${papers === 1 ? "" : "s"} · ${citations} citation${citations === 1 ? "" : "s"} in ${activeDomains.length} selected domain${activeDomains.length === 1 ? "" : "s"}`;
+  }
   return (
     <div className="mypubs-dashboard">
       <div className="mypubs-head">
@@ -108,13 +158,42 @@ function MyPubsDashboard({ axisId }) {
 
       <div className="mypubs-charts">
         <div className="mypubs-chart">
-          <div className="mypubs-chart-title">Publications by year</div>
-          <MyPubsBarChart bars={pubsBars} ariaLabel="Publications by year" />
+          <div className="mypubs-chart-title">Publications by year{activeDomains.length ? " · filtered to selected domain(s)" : ""}</div>
+          <MyPubsBarChart bars={chartBars} ariaLabel="Publications by year" />
+          {domainSummary &&
+            <div className="mypubs-domain-summary">{domainSummary} · <button className="axis-link" onClick={() => setSelectedDomains(new Set())}>clear</button></div>}
         </div>
-        {citeBars.some(b => b.value > 0) &&
+        {!activeDomains.length && citeBars.some(b => b.value > 0) &&
           <div className="mypubs-chart">
             <div className="mypubs-chart-title">Citations by year</div>
             <MyPubsBarChart bars={citeBars} ariaLabel="Citations by year" />
+          </div>}
+      </div>
+
+      <div className="mypubs-domains">
+        <div className="mypubs-summary-head">
+          <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · grouped by similarity — click to filter the chart</span>}</span>
+          <span className="mypubs-summary-actions">
+            <button className="btn btn-ghost" disabled={domainJob.status === "running"} onClick={decompose}>
+              {domainJob.status === "running" ? "Working…" : (domains.length ? "Re-decompose" : "Break down by domain")}
+            </button>
+          </span>
+        </div>
+        {domainJob.status === "running" && <ProgressBar label="Clustering your publications…" />}
+        {domainJob.status === "error" && <div className="axis-err">{domainJob.error}</div>}
+        {domainJob.status === "too-few" && <div className="axis-hint">Need at least a few confirmed publications to break down by domain.</div>}
+        {domains.length === 0 && domainJob.status === "idle" &&
+          <div className="axis-hint">Group your publications into research domains to see impact by area.</div>}
+        {domains.length > 0 &&
+          <div className="domain-list">
+            {domains.map((d, i) => (
+              <button key={i} type="button" className={"domain-row" + (selectedDomains.has(i) ? " on" : "")}
+                title={(d.terms || []).join(", ")} onClick={() => toggleDomain(i)}>
+                <span className="domain-fill" style={{ width: `${Math.round((d.citation_count / maxDomainCites) * 100)}%` }} />
+                <span className="domain-label">{d.label}</span>
+                <span className="domain-meta">{d.paper_count}p · {d.citation_count} cites</span>
+              </button>
+            ))}
           </div>}
       </div>
 

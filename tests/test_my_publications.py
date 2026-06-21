@@ -9,6 +9,7 @@ from sqlalchemy import select
 from app.backend.api import create_app
 from app.backend.clustering.my_publications import (
     build_dashboard,
+    decompose_domains,
     maybe_add_to_my_publications,
     resolve_my_publications,
 )
@@ -58,13 +59,30 @@ class _FakeAuthorClient:
     def cached_author(self, conn, *, orcid=None, name=None):
         return self.author
 
-    def fetch_author_works(self, conn, author_id):
+    def fetch_author_works(self, conn, author_id, *, refresh=False):
         return self.works
 
 
 class _FakeSummaryGen:
     def generate(self, *, documents):
         return f"Ada's work spans {len(documents)} publications on analytical engines."
+
+
+class _ClusterModel:
+    """A 3-D fake embedding model: 'alpha'/'beta' titles map to separated unit vectors so clustering yields
+    two clean domains (inc 83 decomposition tests)."""
+
+    name = "cluster-fake"
+    version = "v1"
+    dimension = 3
+    normalization = "none"
+
+    def encode_texts(self, texts):
+        out = []
+        for text in texts:
+            low = (text or "").lower()
+            out.append([1.0, 0.0, 0.0] if "alpha" in low else ([0.0, 1.0, 0.0] if "beta" in low else [0.0, 0.0, 1.0]))
+        return out
 
 
 _ADA = ResolvedAuthor(
@@ -414,3 +432,118 @@ def test_summary_generate_no_members_returns_422(temp_db_url):
         set_openalex_author_id(conn, "A1")
     client = TestClient(create_app(db_url=temp_db_url, research_summary_generator=_FakeSummaryGen()))
     assert client.post("/my-publications/summary/generate", json={}).status_code == 422
+
+
+# --- domain decomposition (inc 83) -----------------------------------------------------------------------
+
+
+def _seed_confirmed_corpus(conn):
+    """4 alpha/beta confirmed papers + 1 name-only candidate; returns ({a1,a2,b1,b2}, candidate_id, works)."""
+    upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+    ids = {}
+    for key, title in [
+        ("a1", "Alpha study one"),
+        ("a2", "Alpha study two"),
+        ("b1", "Beta study one"),
+        ("b2", "Beta study two"),
+    ]:
+        ids[key] = create_paper(conn, title=title, csl_json=_csl(title, f"10.1/{key}"), doi=f"10.1/{key}")
+    cand = create_paper(conn, title="Gamma memoir", csl_json=_csl("Gamma memoir"), first_author_family_name="Lovelace")
+    works = [
+        AuthorWork(doi="10.1/a1", title="a1", year=2019, cited_by_count=10),
+        AuthorWork(doi="10.1/a2", title="a2", year=2020, cited_by_count=5),
+        AuthorWork(doi="10.1/b1", title="b1", year=2019, cited_by_count=100),
+        AuthorWork(doi="10.1/b2", title="b2", year=2021, cited_by_count=50),
+    ]
+    return ids, cand, works
+
+
+def test_author_work_cited_by_count_and_refresh(temp_db_url):
+    body = {
+        "results": [
+            {
+                "id": "https://openalex.org/W1",
+                "doi": "https://doi.org/10.1/a",
+                "title": "A",
+                "publication_year": 2020,
+                "cited_by_count": 42,
+            }
+        ],
+        "meta": {"next_cursor": None},
+    }
+    fetcher = _AuthorFetcher({"/works": (200, body)})
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assert client.fetch_author_works(conn, "A1")[0].cited_by_count == 42  # parsed from the live fetch
+    calls = len(fetcher.calls)
+    with engine.begin() as conn:
+        client.fetch_author_works(conn, "A1")  # cache hit
+    assert len(fetcher.calls) == calls
+    with engine.begin() as conn:
+        client.fetch_author_works(conn, "A1", refresh=True)  # bypasses + re-fetches
+    assert len(fetcher.calls) > calls
+
+
+def test_decompose_domains_clusters_confirmed_members(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        ids, cand, works = _seed_confirmed_corpus(conn)
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=works)
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)  # a*/b* confirmed; gamma → 0.25 candidate
+        result = decompose_domains(conn, model=_ClusterModel(), author_client=fake)
+        domains = get_profile(conn)["research_domains"]
+    assert result["status"] == "ok" and result["domain_count"] == 2
+    groups = sorted(sorted(d["paper_ids"]) for d in domains)
+    assert groups == sorted([sorted([ids["a1"], ids["a2"]]), sorted([ids["b1"], ids["b2"]])])  # alpha / beta split
+    assert all(d["terms"] for d in domains)  # each domain has c-TF-IDF terms
+    assert cand not in {pid for d in domains for pid in d["paper_ids"]}  # the unconfirmed candidate is excluded
+
+
+def test_decompose_too_few(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        create_paper(conn, title="Alpha", csl_json=_csl("Alpha", "10.1/a1"), doi="10.1/a1")
+    fake = _FakeAuthorClient(
+        author=_ADA_STATS, works=[AuthorWork(doi="10.1/a1", title="a", year=2020, cited_by_count=1)]
+    )
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)
+        assert decompose_domains(conn, model=_ClusterModel(), author_client=fake)["status"] == "too-few"
+
+
+def test_dashboard_includes_domains_sorted_by_citations(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _, _, works = _seed_confirmed_corpus(conn)
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=works)
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)
+        decompose_domains(conn, model=_ClusterModel(), author_client=fake)
+        dash = build_dashboard(conn, author_client=fake)
+    domains = dash["domains"]
+    assert len(domains) == 2
+    assert domains[0]["citation_count"] == 150 and domains[1]["citation_count"] == 15  # beta first (impact order)
+    assert domains[0]["paper_count"] == 2
+
+
+def test_domains_endpoint(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _, _, works = _seed_confirmed_corpus(conn)
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=works)
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)
+    client = TestClient(create_app(db_url=temp_db_url, openalex_author_client=fake, embedding_model=_ClusterModel()))
+    started = client.post("/my-publications/domains", json={})
+    assert started.status_code == 202
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(20):
+        result = client.get(f"/my-publications/domains/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+    assert result["status"] == "done" and result["result_status"] == "ok" and result["domain_count"] == 2
+    assert len(client.get("/my-publications/dashboard").json()["domains"]) == 2

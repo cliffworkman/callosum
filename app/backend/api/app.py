@@ -92,6 +92,7 @@ def create_app(
     api.state.acquire_jobs = JobStore()
     api.state.wanted_jobs = JobStore()
     api.state.mypubs_jobs = JobStore()
+    api.state.mypubs_domain_jobs = JobStore()
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model

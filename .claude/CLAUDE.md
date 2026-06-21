@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 82** (see Increment workflow) with **370 pytest tests
+It is currently at **Increment 83** (see Increment workflow) with **375 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -230,7 +230,7 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0010_my_publications_summary)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0011_my_publication_domains)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 82). Each increment of real work
+callosum is built in **numbered increments** (currently at 83). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -534,6 +534,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| My Publications domain decomposition (Part 2, Layer 2) = local clustering stored as an isolated JSON artifact, NOT child cluster_nodes (inc 83) | Layer 2 clusters the user's CONFIRMED own-papers into research **domains** (impact-by-domain + a dashboard chart re-filter), reusing the inc-52 axis-suggestion machinery (`model.encode_texts` → `AgglomerativeAbstractClusterer` → c-TF-IDF labels). The spec suggested child cluster_nodes under the my_publications axis, but **`axis_score_state` counts members by `axis_id` across ALL of an axis's nodes** — so children would double-count the inc-78 card badge + skew the inc-79 `uncertain_count`. So the decomposition is persisted as **`profile.research_domains` JSON** (`[{label, terms, paper_ids}]`, like `name_variants`) — isolated, zero impact on the membership/count machinery (migration **0011**). **LLM-free** (clustering is local); the only egress is the OpenAlex works **refresh** (`fetch_author_works(refresh=True)` adds per-work `cited_by_count` for impact-by-domain) — metadata egress, already audited (inc 78), NOT the Gemini gate. Impact-by-domain is an honest citation **sum** (no composite score); domains show their member papers + the terms that named them (inspectable); the 0.25 name-only candidates are excluded. `decompose_domains` is async (`mypubs_domain_jobs`); the dashboard read stays cache-only/egress-free; the chart re-filter is client-side from each domain's `paper_years`. Layers 3–4 deferred. |
 | My Publications dashboard (Part 2, Layer 1) = a cache-only, egress-free read; metrics are OpenAlex's verbatim figures; the AI summary is the only (gated) egress (inc 81) | The impact dashboard reads ONLY already-cached OpenAlex data + the local library (`build_dashboard` via `cached_author`, which never fetches; gated on `profile.openalex_author_id` ⟹ the cache is warm from a prior Settings→Refresh), so opening the tab makes **zero network calls** ("explicit refresh, never on plain tab open"). Headline metrics (citations/h-index/i10/works) are OpenAlex's **authoritative figures over the whole indexed record** — shown verbatim + attributed ("source: OpenAlex · as of <date>"), never a callosum-invented composite "impact score" (computing them over the library subset is forbidden — it would disagree with Scholar + erode trust); the indexed-vs-library gap is a fact + import nudge. The author object inc-78 already cached carries `cited_by_count`/`summary_stats`/`counts_by_year`, so the stats need **no new API call** (re-parsed via an enriched `_author_from_obj`; a shared `_author_cache_key` keeps `resolve_author`/`cached_author` from drifting). The **editable AI research summary** is the sole egress — LLM narration over the user's OWN publication titles/abstracts (library text), gated at the inc-58 seam (`EgressGatedResearchSummaryGenerator`; egress-off → 503), marked an editable non-load-bearing draft. The tab reuses the LibraryFrame tab system (`type:"dashboard"`); charts are hand-rolled SVG (no chart library, per spec). Migration **0010** (`profile.research_summary`). Layers 2–4 deferred. |
 | "Unsorted" library view = a `needs_review` query param on `GET /papers`, filtering an `imported_source` allowlist (inc 80) | Surfaces papers whose metadata still needs review (raw `pdf-scaffold`, `crossref-unresolved`, or NULL source) instead of letting them disappear into the library — aligned with "silence is not a certificate." Same class of change as the inc-63 axis filter / inc-69 sort: `list_papers(needs_review=…)` filters `imported_source IN NEEDS_REVIEW_SOURCES OR IS NULL` (a **local literal allowlist** in `repository.py` — bound-param `IN`, rule #3; kept local to avoid an `enrichment → repository` import cycle, since the strings are stable DB values). Composes with the deleted/q/axis/tag/pagination clauses (trashed excluded). Frontend: a `libraryNeedsReview` view-state mirroring `trashView` (exclusive with trash/axis/tag/focus but keeps checkbox-select on → select-all → bulk re-resolve/export/delete) + an **Unsorted** header toggle (reuses `.trash-toggle`, label flips to "← Library", no new CSS) + a clearable `.focus-card` banner. **No migration, no new endpoint, no egress.** |
 | My Publications = an OpenAlex-resolved, LLM-free auto-axis with facts-vs-candidates + confirm-and-learn (inc 78) | The own-papers axis makes an **authorship claim**, so it follows the facts-vs-candidates principle: ORCID/DOI matches are **confirmed members** (`cluster_node_papers.confidence` 0.95 → "assigned"); name-only matches are **candidates** (0.25 → the existing "uncertain" tier), confirmed/rejected by the human and **persisted** in `my_publication_decisions` (a rejected paper is never re-proposed; a confirmed one becomes a manual `confidence IS NULL` member surviving every re-match). The resolver (`clustering/my_publications.py`) rewrites only the AUTO memberships each run (preserves manual). **LLM-free** (author disambiguation is structured-metadata work — zero tokens); OpenAlex author/works lookup is **metadata egress** (public name/ORCID/DOIs, like the Crossref DOI lookup), explicitly **NOT** the Gemini library-text gate. New `integrations/openalex/author.py` (`OpenAlexAuthorClient`, fail-closed + cached), `persistence/profile_repo.py` (single-row profile + decisions), migration **0009** (`axes.kind` + `profile` + `my_publication_decisions`). The import hook (`enrichment.py`) is a **cache-based, lazy-imported, try/except-guarded no-op when unused** → strictly additive (existing import/axis/summary paths untouched). The pinned card reuses `AxisItem` branched on `kind` (no fork). Part 2 (the impact dashboard tab) is deferred. |
@@ -633,7 +634,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 82 (library-card tidy + double-click/text-select fix): two small
+*Last updated: 2026-06-20 — increment 83 (My Publications Part 2 — domain decomposition, Layer 2): the
+dashboard's **Research domains** section — cluster your CONFIRMED own-papers into research domains
+(**impact-by-domain**: citation sums) and **click a domain to re-filter** the publications-by-year chart.
+**LLM-free** local clustering (reuses the inc-52 axis-suggestion machinery); the only egress is the OpenAlex
+works **refresh** that adds per-work `cited_by_count` (metadata, not the Gemini gate). Stored as an **isolated
+`profile.research_domains` JSON** artifact (migration **0011**), NOT child `cluster_nodes` — because
+`axis_score_state` counts members by `axis_id` across all nodes, so children would double-count the inc-78/79
+card badge. New `decompose_domains` + `_dashboard_domains` (my_publications.py), `AuthorWork.cited_by_count` +
+`fetch_author_works(refresh=…)`, `POST/GET /my-publications/domains`, `DashboardResponse.domains`; frontend
+domains section (impact bars + select-to-refilter) in `31_mypubs_dashboard.jsx`. Impact = honest citation
+**sums** (no composite score); domains show member papers + terms (inspectable); 0.25 candidates excluded.
+pytest **375** (+5); audit `.claude/security-audits/2026-06-20_my-publications-domains.md` **PASS**; help corpus's
+My Publications section extended (`HELP-DOCS-SYNCED` → inc 83). Layers 3–4 deferred. **Also captured to the
+backlog (user, deferred):** star key pubs + scope the AI summary to starred; a review queue for OpenAlex works
+**missing** from My Pubs (the 79-indexed vs 40-in-library gap → accept/reject); import the missing ones via the
+acquisition lane. **NEXT:** those My-Pubs follow-ups, or Layer 3 (enriched per-paper cards), or another
+chore/carrot cluster.
+
+Earlier — increment 82 (library-card tidy + double-click/text-select fix): two small
 library-card UX chores (frontend-only, `10_pdf_layer.jsx`). (1) Dropped the "N chunks" chip from cards —
 chunk count is processing-internal, not bibliographic (cards keep title·authors·year·venue + tier/file/needs-DOI).
 (2) A card's double-click now opens the PDF **only when it didn't select text** (`getSelection().isCollapsed`):

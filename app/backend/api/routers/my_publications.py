@@ -22,9 +22,11 @@ from app.backend.clustering.axis_assignments import add_manual_assignment, remov
 from app.backend.clustering.my_publications import (
     _get_axis_id,
     build_dashboard,
+    decompose_domains,
     my_publication_documents,
     resolve_my_publications,
 )
+from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchSummaryGenerator
 from app.backend.persistence.profile_repo import (
     get_profile,
@@ -98,6 +100,14 @@ class YearImpact(BaseModel):
     cited_by_count: int = 0
 
 
+class Domain(BaseModel):
+    label: str
+    terms: list[str] = []
+    paper_count: int = 0
+    citation_count: int = 0
+    paper_years: list[int] = []  # for the dashboard's client-side chart re-filter
+
+
 class DashboardResponse(BaseModel):
     status: str  # "ok" | "no-identity" | "not-resolved"
     name: str | None = None
@@ -109,6 +119,7 @@ class DashboardResponse(BaseModel):
     in_library: int | None = None
     gap: int | None = None
     research_summary: str | None = None
+    domains: list[Domain] = []  # inc 83: the domain decomposition, sorted by citations (impact)
 
 
 class SummaryResponse(BaseModel):
@@ -117,6 +128,14 @@ class SummaryResponse(BaseModel):
 
 class SummaryUpdateRequest(BaseModel):
     summary: str | None = None
+
+
+class DomainJobResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    detail: str | None = None
+    domain_count: int | None = None
+    result_status: str | None = None  # the decompose outcome: ok | too-few | not-resolved
 
 
 @router.get("/my-publications/profile", response_model=ProfileResponse)
@@ -175,6 +194,24 @@ def get_my_publications_dashboard(request: Request, conn: Connection = Depends(g
     # Layer-1 impact dashboard: a cache-only read of the resolved OpenAlex record + works + the local library.
     # Makes NO network call (gated on the profile having been resolved → openalex_author_id set).
     return DashboardResponse(**build_dashboard(conn, author_client=_author_client(request.app)))
+
+
+@router.post("/my-publications/domains", response_model=DomainJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
+def decompose_my_publications(background_tasks: BackgroundTasks, request: Request) -> DomainJobResponse:
+    # Async: clustering loads the embedding model + refreshes the works cache. Returns a job id to poll.
+    job_id = request.app.state.mypubs_domain_jobs.create()
+    background_tasks.add_task(_run_domains_job, request.app, job_id)
+    return DomainJobResponse(job_id=job_id, status="pending")
+
+
+@router.get("/my-publications/domains/{job_id}", response_model=DomainJobResponse)
+def decompose_my_publications_status(job_id: str, request: Request) -> DomainJobResponse:
+    job = request.app.state.mypubs_domain_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Domain job not found")
+    if job.status == "done" and job.result is not None:
+        return job.result
+    return DomainJobResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
 @router.post("/my-publications/summary/generate", response_model=SummaryResponse)
@@ -263,3 +300,32 @@ def _run_refresh_job(app: FastAPI, job_id: str) -> None:
         jobs.mark_done(job_id, RefreshJobResponse(job_id=job_id, status="done", summary=MyPubsSummary(**summary)))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+
+
+def _run_domains_job(app: FastAPI, job_id: str) -> None:
+    jobs: JobStore[DomainJobResponse] = app.state.mypubs_domain_jobs
+    jobs.mark_running(job_id)
+    try:
+        model = _embedding_model(app)
+        client = _author_client(app)
+        # Local clustering; the works refresh inside is OpenAlex metadata egress, NOT the Gemini gate.
+        with app.state.engine.begin() as conn:
+            summary = decompose_domains(conn, model=model, author_client=client)
+        jobs.mark_done(
+            job_id,
+            DomainJobResponse(
+                job_id=job_id,
+                status="done",
+                domain_count=summary.get("domain_count"),
+                result_status=summary.get("status"),
+            ),
+        )
+    except Exception as exc:
+        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+
+
+def _embedding_model(app: FastAPI) -> EmbeddingModel:
+    injected = app.state.embedding_model
+    if injected is not None:
+        return injected
+    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)

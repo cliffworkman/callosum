@@ -45,6 +45,7 @@ class AuthorWork:
     doi: str | None  # normalized: "10.xxxx/yyyy" lower-case (no https://doi.org/ prefix)
     title: str | None
     year: int | None
+    cited_by_count: int = 0  # inc 83 — per-work OpenAlex citations, for impact-by-domain (default keeps old caches valid)
 
 
 class AuthorFetcher(Protocol):
@@ -91,12 +92,21 @@ class OpenAlexAuthorClient:
             return None
         return _author_from_obj(_pick_author(cached["response_json"]), matched_by=matched_by)
 
-    def fetch_author_works(self, conn: Connection, author_id: str) -> list[AuthorWork]:
-        cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, author_id)
-        if cached is not None and isinstance(cached["response_json"], dict):
-            works = cached["response_json"].get("works")
-            if isinstance(works, list):
-                return [AuthorWork(doi=w.get("doi"), title=w.get("title"), year=w.get("year")) for w in works]
+    def fetch_author_works(self, conn: Connection, author_id: str, *, refresh: bool = False) -> list[AuthorWork]:
+        if not refresh:  # refresh=True bypasses + re-caches, so an old cache (no cited_by_count) upgrades (inc 83)
+            cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, author_id)
+            if cached is not None and isinstance(cached["response_json"], dict):
+                works = cached["response_json"].get("works")
+                if isinstance(works, list):
+                    return [
+                        AuthorWork(
+                            doi=w.get("doi"),
+                            title=w.get("title"),
+                            year=w.get("year"),
+                            cited_by_count=int(w.get("cited_by_count") or 0),
+                        )
+                        for w in works
+                    ]
         works, ok = self._fetch_all_works(author_id)
         if ok:  # only cache a real result — never cache a transient total failure
             put_cached(
@@ -135,7 +145,7 @@ class OpenAlexAuthorClient:
                 "filter": f"author.id:{author_id}",
                 "per-page": str(_WORKS_PER_PAGE),
                 "cursor": cursor or "*",
-                "select": "id,doi,title,publication_year",
+                "select": "id,doi,title,publication_year,cited_by_count",
             }
             try:
                 status, body = self.fetcher(
@@ -234,7 +244,12 @@ def _work_from_obj(work: dict[str, Any]) -> AuthorWork | None:
     doi = _normalize_doi(work.get("doi") or (work.get("ids") or {}).get("doi"))
     title = work.get("title") or work.get("display_name")
     year = work.get("publication_year")
-    return AuthorWork(doi=doi, title=str(title) if title else None, year=int(year) if isinstance(year, int) else None)
+    return AuthorWork(
+        doi=doi,
+        title=str(title) if title else None,
+        year=int(year) if isinstance(year, int) else None,
+        cited_by_count=int(work.get("cited_by_count") or 0),
+    )
 
 
 def _normalize_doi(value: Any) -> str | None:
