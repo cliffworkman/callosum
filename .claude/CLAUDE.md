@@ -272,9 +272,9 @@ callosum/
 ```
 
 `.gitignore` excludes `.local/`, `.pytest_cache/`, `__pycache__/`, `*.py[cod]`, `*.sqlite`,
-`*.db`, `*.pdf`. **NB: callosum is not currently a git repo** (no `.git/`) — the `.gitignore`
-documents intended exclusions for when it becomes one. Recovery today is via zip snapshots +
-Dropbox version history (see Backup & snapshot protocol).
+`*.db`, `*.pdf`. **callosum IS a git repo** (remote `origin` → `github.com/cliffworkman/callosum`,
+public, AGPL-3.0; CI in `.github/workflows/ci.yml`). Recovery is git history + the off-machine
+GitHub backup, plus zip snapshots + Dropbox version history (see Backup & snapshot protocol).
 
 ---
 
@@ -484,13 +484,19 @@ real code. If in doubt, put it in `.claude/`.
 
 ## Backup & snapshot protocol
 
-callosum is **not a git repo**, so backups are deliberate:
+callosum is a **git repo** (remote `origin` → `github.com/cliffworkman/callosum`, public, AGPL-3.0):
 
-1. **Zip snapshots** of the working tree land in `.claude/backups/` (`callosum_HHMMpm.zip`,
+1. **Git + GitHub is the primary, off-machine backup.** **Convention: commit + push at the end of each work
+   session by default** (no need to be asked) so the remote — the user's geographically-orthogonal backup —
+   never drifts behind; a single catch-up commit for a span is fine (the per-increment story lives in
+   `changes.md` + the increment notes). The base "commit/push only when asked" default is overridden for the
+   end-of-session case on this project. **Before pushing, run `ruff format` (not just `ruff check`)** — CI's
+   lint job runs `ruff format --check .` too (see the verification note below) — and confirm CI goes green.
+2. **Zip snapshots** of the working tree land in `.claude/backups/` (`callosum_HHMMpm.zip`,
    `callosum_inc29.zip` style). Take one before a risky refactor or at the end of a substantial
    increment.
-2. **Dropbox version history** is the always-on safety net for individual files.
-3. **Plan-file backups:** plan files at `~/.claude/plans/*.md` are per-conversation and get
+3. **Dropbox version history** is the always-on safety net for individual files.
+4. **Plan-file backups:** plan files at `~/.claude/plans/*.md` are per-conversation and get
    cleared. For any plan worth continuing, copy it to
    `.claude/backups/plans/YYYY-MM-DD_<short-description>.md` and keep it updated. On startup,
    check there when the user asks to continue earlier work.
@@ -614,7 +620,7 @@ before large design changes:
 | Supervised axes expose `axis_scoring.py` with NO migration (inc 38) | Manual-vs-scored assignment = `cluster_node_papers.confidence IS NULL` (manual override) vs a float (scored) — the column was already nullable and the scorer always writes a float, so no schema change. Staleness reuses the axis embedding's stored `source_text_version` + `normalization` (recompute the current axis text-version, compare) — no stored flag needed. Scoring runs async (mirrors the summarize job; fully local, no egress); tiering is calibrated per the inc-39 row (absolute 0.7/0.5 thresholds were unreachable for MiniLM and replaced by relative natural-break). Re-score preserves manual adds (snapshot NULL rows → restore after `score_axis` rewrites the scored set), honoring "the human overrides the embedding". |
 | Axis tiering is RELATIVE (natural-break), not absolute (inc 39) | `all-MiniLM-L6-v2` cosine between a short axis phrase and paper metadata is compressed near 0 (observed max ~0.37, median 0.02), so absolute 0.5/0.7 cutoffs assigned nothing. New `assignment_mode="natural_break"` + `SUPERVISED_AXIS_CONFIG` (floor 0.2, minimum_gap 0.03): **assigned** = the cluster above the largest gap in this axis's ranking (≥ floor); **uncertain** = the rest of the eligible; never-empty fallback shows the closest few. The 0.2 floor is a documented MiniLM constant. Tiers are **recomputed on read** from the stored confidences (`natural_break_assigned_ids`, same config) so read == score with NO persisted tier column / migration. Raw similarity still shown honestly. Axis text is **punctuation-normalized** before embedding (inc 40, `strip_punctuation` in `embeddings/models.py`) so phrasings differing only in punctuation/spacing (e.g. "anomalous-is-bad" ≡ "anomalous is bad") embed identically; axis-side only (papers unchanged). |
 | Gemini axis synonym suggester is egress-gated + human-curated (inc 41) | `POST /axes/suggest-terms` (sync, stateless) proposes related terms via Gemini; the user curates them in a modal and the chosen terms fold into the axis **description** (reuses the existing axis-text→embed + staleness paths — no new persistence/migration). Mirrors `GeminiSummaryGenerator`: opt-in via `CALLOSUM_ALLOW_DATA_EGRESS` (off → 503 before any genai call), only the user's own axis text leaves the machine, model output is deduped/capped/echo-stripped, failures → 502 (never 500). The suggester is injectable (`api.state.axis_term_suggester`) so tests are hermetic. |
-| Zip-snapshot + Dropbox backups instead of git | Matches the user's single-machine workflow today; `.gitignore` is staged for when git is adopted. |
+| Git + GitHub (public, AGPL-3.0) is the off-machine backup; zip snapshots + Dropbox are secondary | Git was adopted in the release-readiness arc (~inc 74; remote `github.com/cliffworkman/callosum` + CI). Convention: **commit + push at end of each work session by default** (the user's geographically-orthogonal backup must not drift behind — see Backup & snapshot protocol). Zip snapshots + Dropbox version history remain as local belt-and-suspenders. |
 | Increment-based development with `INCREMENT-NN-NOTES.md` | A lightweight, durable design diary that survives session resets and records the manual verification for each change. |
 | 600-line hard limit on app source | Keeps files scannable, responsibilities separated, and review tractable; forces per-concern modularity. |
 | One shared `annotations` table for imported + user + synthesis (inc 30) | The Zotero importer already owned `annotations`; rather than fork it, native highlights extend it with nullable columns and a `source` discriminator (imported rows leave it NULL; viewer lists `source IN ('user','synthesis')`). Keeps one home for all annotation origins. |
