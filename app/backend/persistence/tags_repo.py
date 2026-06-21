@@ -16,9 +16,10 @@ TAG_NAME_MAX = 100
 
 
 def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
-    """The paper's tags as ``{id, name}``, ordered case-insensitively by name."""
+    """The paper's tags as ``{id, name, import_source}``, ordered case-insensitively by name. `import_source`
+    (inc 100) lets the UI distinguish imported author/index keywords from tags you added."""
     stmt = (
-        select(tags.c.id, tags.c.name)
+        select(tags.c.id, tags.c.name, tags.c.import_source)
         .select_from(paper_tags.join(tags, tags.c.id == paper_tags.c.tag_id))
         .where(paper_tags.c.paper_id == paper_id)
         .order_by(func.lower(tags.c.name))
@@ -27,11 +28,11 @@ def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
 
 
 def list_tags(conn: Connection) -> list[RowMapping]:
-    """Every tag as ``{id, name, paper_count}`` (counts via LEFT JOIN), ordered by name. Powers autocomplete."""
+    """Every tag as ``{id, name, import_source, paper_count}`` (counts via LEFT JOIN), ordered by name."""
     stmt = (
-        select(tags.c.id, tags.c.name, func.count(paper_tags.c.paper_id).label("paper_count"))
+        select(tags.c.id, tags.c.name, tags.c.import_source, func.count(paper_tags.c.paper_id).label("paper_count"))
         .select_from(tags.outerjoin(paper_tags, paper_tags.c.tag_id == tags.c.id))
-        .group_by(tags.c.id, tags.c.name)
+        .group_by(tags.c.id, tags.c.name, tags.c.import_source)
         .order_by(func.lower(tags.c.name))
     )
     return list(conn.execute(stmt).mappings())
@@ -42,10 +43,18 @@ def add_tag_to_paper(conn: Connection, paper_id: int, name: str, *, import_sourc
     `import_source` provenance is set only when the tag is **created** — an existing tag keeps its original
     source (so a user-named tag is never relabeled by a later keyword import). Returns ``{id, name}``."""
     clean = name.strip()[:TAG_NAME_MAX]
-    row = conn.execute(select(tags.c.id, tags.c.name).where(tags.c.name == clean)).mappings().first()
+    row = (
+        conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source).where(tags.c.name == clean))
+        .mappings()
+        .first()
+    )
     if row is None:
         tag_id = int(conn.execute(insert(tags).values(name=clean, import_source=import_source)).inserted_primary_key[0])
-        row = conn.execute(select(tags.c.id, tags.c.name).where(tags.c.id == tag_id)).mappings().one()
+        row = (
+            conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source).where(tags.c.id == tag_id))
+            .mappings()
+            .one()
+        )
     conn.execute(insert(paper_tags).prefix_with("OR IGNORE").values(paper_id=paper_id, tag_id=int(row["id"])))
     return row
 

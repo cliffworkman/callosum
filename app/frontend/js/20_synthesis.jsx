@@ -323,7 +323,7 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
 // Right pane = a vertical split (inc 57, backlog F): Synthesis always on top; when a paper is selected
 // its editable Details (25_detail.jsx) appear in a lower section sized by a draggable divider. No tabs.
 // The divider reuses the inc-42 drag helpers (_beginDrag/_clampW/_loadLayout/_saveLayout — hoisted globals).
-function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFilterToTag, pendingSummarize }) {
+function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFilterToTag, onTagsChanged, pendingSummarize }) {
   const [detailH, setDetailH] = useState(() => Number(_loadLayout("callosum.detailH", 300)) || 300);
   useEffect(() => { _saveLayout("callosum.detailH", detailH); }, [detailH]);
   const onDragStart = (e) => {
@@ -342,7 +342,7 @@ function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFi
           <div className="rp-detail" style={{ height: detailH }}>
             <p className="eyebrow rp-detail-head">Detail</p>
             {/* DetailContent lives in 25_detail.jsx (the Mendeley-style editable pane). */}
-            <DetailContent paperId={paperId} onOpenPaper={onOpenPaper} onFilterToTag={onFilterToTag} />
+            <DetailContent paperId={paperId} onOpenPaper={onOpenPaper} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} />
           </div>
         </>}
     </div>

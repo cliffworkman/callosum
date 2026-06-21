@@ -10,7 +10,10 @@ from alembic.config import Config
 from app.backend.api import create_app
 from tests.api_helpers import (
     _seed_library,
+    alembic_head,
 )
+
+HEAD = alembic_head()  # the real Alembic head — never a hardcoded revision string (see api_helpers.alembic_head)
 
 
 def test_health_reports_reachable_and_migrated(temp_db_url: str) -> None:
@@ -22,8 +25,8 @@ def test_health_reports_reachable_and_migrated(temp_db_url: str) -> None:
     assert body["verification_version"] == "local-verifier-v1"
     assert body["db_reachable"] is True
     assert body["db_migrated"] is True  # at head
-    assert body["db_revision"] == "0013_my_publication_dismissed_works"
-    assert body["db_head_revision"] == "0013_my_publication_dismissed_works"
+    assert body["db_revision"] == HEAD
+    assert body["db_head_revision"] == HEAD
 
 
 def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
@@ -39,7 +42,7 @@ def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
     assert body["db_reachable"] is True
     assert body["db_migrated"] is False
     assert body["db_revision"] == "0001_persistence_core"
-    assert body["db_head_revision"] == "0013_my_publication_dismissed_works"
+    assert body["db_head_revision"] == HEAD
 
 
 def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:
@@ -93,6 +96,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/",
         "/health",
         "/papers",
+        "/papers/item-types",
         "/papers/{paper_id}",
         "/papers/{paper_id}/chunks",
         "/papers/{paper_id}/annotations",
@@ -109,6 +113,10 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/help/corpus",
         "/tags",
         "/papers/{paper_id}/suggested-tags",
+        "/papers/{paper_id}/statcheck",
+        "/methods/statcheck/summary",
+        "/methods/statcheck/run/{job_id}",
+        "/citations/styles",
         "/papers/acquire-oa/{job_id}",
         "/wanted",
         "/wanted/coverage",
@@ -118,6 +126,9 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/my-publications/dashboard",
         "/my-publications/domains/{job_id}",
         "/library/scan/{job_id}",
+        "/library/import/{job_id}",
+        "/library/watched",
+        "/library/watched/rescan/{job_id}",
     }
     allowed_mutation_routes = {
         ("/summarize", frozenset({"POST"})),
@@ -161,8 +172,15 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/my-publications/star", frozenset({"POST"})),
         ("/my-publications/works/import", frozenset({"POST"})),
         ("/my-publications/works/dismiss", frozenset({"POST"})),
+        ("/my-publications/works/undismiss", frozenset({"POST"})),
         ("/my-publications", frozenset({"DELETE"})),
         ("/library/scan", frozenset({"POST"})),
+        ("/library/import", frozenset({"POST"})),
+        ("/library/watched/{folder_id}", frozenset({"DELETE"})),
+        ("/library/watched/rescan", frozenset({"POST"})),
+        ("/methods/statcheck/run", frozenset({"POST"})),
+        ("/citations/render", frozenset({"POST"})),
+        ("/citations/render-document", frozenset({"POST"})),
     }
     api_routes = [
         route

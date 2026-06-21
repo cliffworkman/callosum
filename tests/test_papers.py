@@ -109,6 +109,84 @@ def test_papers_list_needs_review_filter(temp_db_url: str) -> None:
     assert {p["id"] for p in client.get("/papers", params={"needs_review": "true"}).json()} == {unresolved, no_source}
 
 
+def test_search_covers_all_authors_and_scopes(temp_db_url: str) -> None:
+    # The old search only looked at title + first_author_family_name → a non-first author was unfindable.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        coauthored = create_paper(
+            conn,
+            title="Resilience signature",
+            csl_json={
+                "type": "article-journal",
+                "title": "Resilience signature",
+                "author": [{"family": "Lythe"}, {"family": "Workman", "given": "Clifford"}],
+                "container-title": "Psychological Medicine",
+            },
+            first_author_family_name="Lythe",
+            venue="Psychological Medicine",
+        )
+        other = create_paper(
+            conn,
+            title="Banana farming",
+            csl_json={"type": "article-journal", "title": "Banana farming", "author": [{"family": "Turing"}]},
+            first_author_family_name="Turing",
+            venue="Agriculture Today",
+        )
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    def ids(**params):
+        return {p["id"] for p in client.get("/papers", params=params).json()}
+
+    # default "all" finds the co-authored paper by its NON-first author (the bug fix)
+    assert ids(q="workman") == {coauthored}
+    # scope=author finds it; scope=title does not (workman isn't in the title)
+    assert ids(q="workman", search_field="author") == {coauthored}
+    assert ids(q="workman", search_field="title") == set()
+    # scope=journal matches the venue; "all" also reaches the journal field
+    assert ids(q="psychological", search_field="journal") == {coauthored}
+    assert ids(q="agriculture") == {other}
+
+
+def test_filter_by_item_type_and_item_types_endpoint(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        art1 = create_paper(
+            conn,
+            title="Article One",
+            csl_json={"type": "article-journal", "title": "Article One"},
+            item_type="article-journal",
+        )
+        art2 = create_paper(
+            conn,
+            title="Article Two",
+            csl_json={"type": "article-journal", "title": "Article Two"},
+            item_type="article-journal",
+        )
+        book = create_paper(conn, title="A Book", csl_json={"type": "book", "title": "A Book"}, item_type="book")
+        typeless = create_paper(conn, title="Typeless", csl_json={"title": "Typeless"})  # item_type NULL
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    def ids(**params):
+        return {p["id"] for p in client.get("/papers", params=params).json()}
+
+    # exact item_type filter (bound value); composes with the no-filter listing
+    assert ids(item_type="article-journal") == {art1, art2}
+    assert ids(item_type="book") == {book}
+    assert ids(item_type="thesis") == set()  # a type not present → empty
+    assert ids() == {art1, art2, book, typeless}  # no filter → everything live
+
+    # the facet endpoint: only types actually present, with counts, most-common first; NULL item_type excluded
+    assert client.get("/papers/item-types").json() == [
+        {"item_type": "article-journal", "count": 2},
+        {"item_type": "book", "count": 1},
+    ]
+
+    # composes with soft-delete: trashing the book drops it from both the filter and the facet list
+    client.delete(f"/papers/{book}")
+    assert ids(item_type="book") == set()
+    assert [f["item_type"] for f in client.get("/papers/item-types").json()] == ["article-journal"]
+
+
 def test_library_sort_orders(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:  # titles/years/authors chosen so each sort key yields a distinct order
@@ -145,9 +223,11 @@ def test_library_sort_orders(temp_db_url: str) -> None:
     assert titles("added") == ["Cherry", "Apple", "Banana", "Durian"]  # id asc (creation order) — the default
     assert titles("recent") == ["Durian", "Banana", "Apple", "Cherry"]  # id desc
     assert titles("title") == ["Apple", "Banana", "Cherry", "Durian"]  # A–Z
+    assert titles("title_desc") == ["Durian", "Cherry", "Banana", "Apple"]  # Z–A (inc 94)
     assert titles("year_desc") == ["Apple", "Cherry", "Banana", "Durian"]  # 2024, 2020, 2011, NULL-last
     assert titles("year_asc") == ["Banana", "Cherry", "Apple", "Durian"]  # 2011, 2020, 2024, NULL-last
     assert titles("author") == ["Apple", "Banana", "Cherry", "Durian"]  # Adams, Baker, Carter, NULL-last
+    assert titles("author_desc") == ["Cherry", "Banana", "Apple", "Durian"]  # Carter, Baker, Adams, NULL-last (inc 94)
     assert titles("bogus") == ["Cherry", "Apple", "Banana", "Durian"]  # unknown key → default "added"
 
 

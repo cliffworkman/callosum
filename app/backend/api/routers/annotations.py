@@ -12,15 +12,15 @@ from sqlalchemy import Connection
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
-from app.backend.persistence.repository import (
+from app.backend.persistence.annotations_repo import (
     NATIVE_ANNOTATION_SOURCES,
     create_annotation,
     delete_annotation,
     get_annotation,
-    get_paper,
     list_annotations_for_paper,
     update_annotation,
 )
+from app.backend.persistence.repository import get_paper
 
 router = APIRouter()
 

@@ -1,3 +1,40 @@
+// inc-91: friendly labels for the library Type filter. Known CSL types get a readable name; an unknown
+// raw type is prettified ("article-newspaper" → "Article newspaper") so nothing shows as a bare slug.
+const _CSL_TYPE_LABELS = {
+  "article-journal": "Journal article", "article": "Article", "paper-conference": "Conference paper",
+  "chapter": "Book chapter", "book": "Book", "report": "Report", "thesis": "Thesis", "dataset": "Dataset",
+  "posted-content": "Preprint", "manuscript": "Manuscript", "webpage": "Web page", "review": "Review",
+};
+function _typeLabel(t) {
+  if (_CSL_TYPE_LABELS[t]) return _CSL_TYPE_LABELS[t];
+  const s = String(t || "").replace(/[-_]+/g, " ").trim();
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : String(t);
+}
+
+// inc-93→94: the "bring papers in" actions (Scan folder + Import) folded into one "+ Add ▾" menu to declutter
+// the library header. Closes on outside-click. The trigger styles as a .trash-toggle so it blends with the row.
+function AddMenu({ onScan, onImport }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const pick = (fn) => { setOpen(false); fn(); };
+  return (
+    <span className="add-menu" ref={ref}>
+      <button className="trash-toggle" onClick={() => setOpen(o => !o)} title="Add papers to the library">+ Add ▾</button>
+      {open &&
+        <div className="add-menu-pop">
+          <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
+          <button onClick={() => pick(onImport)} title="Import a BibTeX, RIS, or CSL-JSON citation file">Import file…</button>
+        </div>}
+    </span>
+  );
+}
+
 function clearUserAnnotations(host) {
   if (!host) return;
   host.querySelectorAll(".pdf-user-highlight-group, .pdf-user-highlight, .pdf-synthesis-outline").forEach(node => node.remove());
@@ -110,7 +147,59 @@ function ProgressBar({ label }) {
   );
 }
 
-function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault }) {
+// inc-96: a sidebar Tags browser — the whole tag vocabulary (each with its paper count), click to filter the
+// library (reuses the inc-71 tag filter). Read-only; refetches when `tagRefresh` bumps (a tag added/removed in
+// Details). Stacks below the Axes panel; the sidebar scrolls as one column. No panel when there are no tags.
+function TagsPanel({ onFilterToTag, tagRefresh }) {
+  const [tags, setTags] = useState(null);
+  const [open, setOpen] = useState(true);
+  const [filter, setFilter] = useState("");
+  const [src, setSrc] = useState("all");  // inc-105: all | mine | imported — filter by tag provenance (inc-73/100 source)
+  useEffect(() => { api("/tags").then(r => setTags(r.ok ? r.data : [])); }, [tagRefresh]);
+  if (tags == null || tags.length === 0) return null;
+  const q = filter.trim().toLowerCase();
+  const hasImported = tags.some(t => tagIsImported(t.source));
+  const hasMine = tags.some(t => !tagIsImported(t.source));
+  const shown = tags.filter(t =>
+    (!q || t.name.toLowerCase().includes(q)) &&
+    (src === "all" || (src === "imported") === tagIsImported(t.source))
+  );
+  return (
+    <div className="axis-group tags-panel">
+      <div className="axis-group-head">
+        <button className="tags-panel-toggle" onClick={() => setOpen(o => !o)} title={open ? "Collapse tags" : "Expand tags"}>
+          <span className="tags-panel-chevron">{open ? "▾" : "▸"}</span>
+          <span className="eyebrow">Tags</span>
+        </button>
+      </div>
+      {open && <>
+        {tags.length > 8 &&
+          <input className="axis-filter" placeholder="Filter tags…" value={filter} onChange={e => setFilter(e.target.value)} spellCheck={false} />}
+        {hasImported && hasMine &&
+          <div className="tags-srcfilter">
+            {[["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => (
+              <button key={k} className={"tags-srcfilter-btn" + (src === k ? " on" : "")}
+                title={k === "imported" ? "Show only imported author/index keywords" : k === "mine" ? "Show only tags you added" : "Show all tags"}
+                onClick={() => setSrc(k)}>{lbl}</button>
+            ))}
+          </div>}
+        <div className="tags-panel-list">
+          {shown.map(t => (
+            <button key={t.id} className={"tags-panel-item" + (tagIsImported(t.source) ? " tags-panel-item-imported" : "")}
+              title={tagSourceLabel(t.source) + " · filter the library to “" + t.name + "”"}
+              onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>
+              <span className="tags-panel-name">{t.name}</span>
+              <span className="tags-panel-count">{t.paper_count}</span>
+            </button>
+          ))}
+          {shown.length === 0 && <span className="tag-suggest-empty">no matching tags</span>}
+        </div>
+      </>}
+    </div>
+  );
+}
+
+function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onFilterToTag, onOpenMyPubsDashboard, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault }) {
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
@@ -121,31 +210,81 @@ function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettin
           <h1>Callosum</h1>
         </div>
       </div>
-      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} onOpenMyPubsDashboard={onOpenMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
+      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} onOpenMyPubsDashboard={onOpenMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} axisCutoffDefault={axisCutoffDefault} />
+      <TagsPanel onFilterToTag={onFilterToTag} tagRefresh={tagRefresh} />
     </div>
+  );
+}
+
+// inc-103: per-card quick-copy of the paper's BibTeX. Since .paper cards are user-select:none (inc 98), this
+// restores a one-click way to grab a card's citation. Reuses the inc-70 /papers/export endpoint (raw fetch —
+// apiPost forces .json(); clipboard works on the 127.0.0.1 secure context). Mirrors 25_detail.jsx CiteRow.
+function ClipboardIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  );
+}
+function PaperCopyButton({ paperId }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async (e) => {
+    e.stopPropagation();  // don't select/open the card
+    try {
+      const res = await fetch(API_BASE + "/papers/export", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paper_ids: [paperId], format: "bibtex" }),
+      });
+      if (!res.ok) { console.warn("[callosum] copy BibTeX failed:", res.status); return; }
+      await navigator.clipboard.writeText(await res.text());
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (err) { console.warn("[callosum] copy BibTeX error:", err); }
+  };
+  return (
+    <button
+      className={"paper-copy" + (copied ? " copied" : "")} onClick={copy}
+      title={copied ? "Copied BibTeX ✓" : "Copy BibTeX citation"} aria-label="Copy BibTeX citation"
+    >
+      {copied ? <CheckIcon /> : <ClipboardIcon />}
+    </button>
   );
 }
 
 function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, total, onOpenPdf,
                     focusAxis, focusMembers, focusPending, onToggleFocusPaper, onSaveFocus, onCancelFocus,
-                    trashView, selectedLibraryIds, librarySort, onSortChange, onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
-                    onBulkSummarize, onBulkExport, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
+                    libraryItemType, itemTypes, onItemTypeChange, onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
+                    onBulkSummarize, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
-                    libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan }) {
+                    libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
+                    statcheckFlagged, onShowStatcheckFlagged,
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan, onOpenImport }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
   const selecting = !focusAxis && !trashView;            // checkbox multi-select mode (inc 54)
   const selCount = selectedLibraryIds ? selectedLibraryIds.size : 0;
+  const [citeStyles, setCiteStyles] = useState([]);  // inc-106: bundled CSL styles for the bulk "bibliography…" picker
+  useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setCiteStyles(r.data.styles || []); }); }, []);
   return (
     <div className="pane-list-body">
       <div className="pane-head">
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           <span className="lib-head-actions">
-            {!trashView &&
-              <button className="trash-toggle" onClick={onOpenScan} title="Scan a folder for PDFs and add new ones to the library">Scan folder</button>}
+            {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} />}
+            {!trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" &&
+              <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
+                title="Papers with a reporting inconsistency from the last statistics check — usually innocent; a list to review">⚠ {statcheckFlagged} flagged</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
                 title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
@@ -197,21 +336,42 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <button className="axis-link" onClick={onClearNeedsReview}>clear</button>
             </div>
           </div>}
+        {librarySignalFilter === "statcheck-inconsistent" &&
+          <div className="focus-card">
+            <div className="focus-card-head">Reporting inconsistencies — papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict.</div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
+              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+            </div>
+          </div>}
         <div className="searchbar">
           <input
-            placeholder="Search title or author…"
+            placeholder="Search title, author, journal…"
             value={query}
             onChange={e => onQuery(e.target.value)}
             spellCheck={false}
           />
+          <select className="lib-sort" value={librarySearchField} onChange={e => onSearchFieldChange(e.target.value)} title="Search in">
+            <option value="all">All fields</option>
+            <option value="title">Title</option>
+            <option value="author">Author</option>
+            <option value="journal">Journal</option>
+          </select>
+          {itemTypes && itemTypes.length > 0 &&
+            <select className="lib-sort" value={libraryItemType} onChange={e => onItemTypeChange(e.target.value)} title="Filter by type">
+              <option value="">All types</option>
+              {itemTypes.map(t => <option key={t.item_type} value={t.item_type}>{_typeLabel(t.item_type)} ({t.count})</option>)}
+            </select>}
           <span className="lib-sort-label">Sort</span>
           <select className="lib-sort" value={librarySort} onChange={e => onSortChange(e.target.value)} title="Sort the library">
             <option value="added">Date added</option>
             <option value="recent">Recently added</option>
             <option value="title">Title (A–Z)</option>
+            <option value="title_desc">Title (Z–A)</option>
             <option value="year_desc">Year (newest)</option>
             <option value="year_asc">Year (oldest)</option>
             <option value="author">Author (A–Z)</option>
+            <option value="author_desc">Author (Z–A)</option>
           </select>
         </div>
         {state.status === "ready" &&
@@ -235,6 +395,12 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <option value="ris">RIS (.ris)</option>
             <option value="csl-json">CSL-JSON</option>
           </select>
+          {citeStyles.length > 0 &&
+            <select className="bulk-export" value="" title="Download a formatted bibliography for the selected papers"
+              onChange={e => { if (e.target.value) { onBulkBibliography(e.target.value); e.target.value = ""; } }}>
+              <option value="" disabled>bibliography…</option>
+              {citeStyles.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>}
           <button className="axis-link axis-danger" onClick={onBulkDelete}>delete</button>
           <button className="axis-link" onClick={onClearLibrarySelect}>clear</button>
         </div>}
@@ -270,9 +436,10 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             key={p.id}
             className={"paper" + (selected === p.id ? " sel" : "")}
             onClick={() => onSelect(p.id)}
-            onDoubleClick={() => { const sel = window.getSelection(); if (onOpenPdf && (!sel || sel.isCollapsed)) onOpenPdf(p); }}
-            title="Double-click to open the PDF (double-click text to select it)"
+            onDoubleClick={() => onOpenPdf && onOpenPdf(p)}  // inc-98: always open; .paper has user-select:none so the title isn't word-selected (copy from Details)
+            title="Double-click to open the PDF"
           >
+            {selecting && <PaperCopyButton paperId={p.id} />}
             {selecting &&
               <input
                 type="checkbox" className="paper-select" checked={selectedLibraryIds.has(p.id)}

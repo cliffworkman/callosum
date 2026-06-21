@@ -22,11 +22,14 @@ from app.backend.api.routers import (
     acquisition,
     annotations,
     axes,
+    citations,
     duplicates,
     health,
     help,
     library,
+    methods,
     my_publications,
+    paper_files,
     papers,
     summaries,
     tags,
@@ -95,6 +98,8 @@ def create_app(
     api.state.mypubs_jobs = JobStore()
     api.state.mypubs_domain_jobs = JobStore()
     api.state.library_scan_jobs = JobStore()
+    api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
+    api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
@@ -128,7 +133,13 @@ def create_app(
         if DEFAULT_FRONTEND_PATH.is_file():
             return FileResponse(DEFAULT_FRONTEND_PATH, media_type="text/html")
         if frontend_sources_available():
-            return HTMLResponse(build_frontend_document(), media_type="text/html")
+            try:
+                # Live assembly precompiles the JSX with esbuild (inc 102). If the build toolchain
+                # is absent, degrade to the unavailable response rather than 500 — the normal path
+                # serves the prebuilt callosum-app.html and never reaches here.
+                return HTMLResponse(build_frontend_document(), media_type="text/html")
+            except RuntimeError:
+                return _assembly_unavailable_response()
         return _assembly_unavailable_response()
 
     api.include_router(health.router)
@@ -137,6 +148,9 @@ def create_app(
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
     api.include_router(papers.router)
+    api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
+    api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
+    api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
     api.include_router(annotations.router)
     api.include_router(tags.router)
     api.include_router(library.router)

@@ -126,6 +126,27 @@ def dismiss_work(conn: Connection, doi: str) -> None:
     )
 
 
+def undismiss_work(conn: Connection, doi: str) -> None:
+    """Un-dismiss a previously-dismissed missing work (inc 91), by normalized DOI — it returns to the
+    missing-works review queue (mirror of inc-67's un-dismiss-duplicates). No-op if the profile is unset,
+    the DOI is blank, or it wasn't dismissed."""
+    normalized = (doi or "").strip().lower()
+    if not normalized:
+        return
+    existing = get_profile(conn)
+    if existing is None:
+        return
+    dois = {str(d).strip().lower() for d in (existing.get("dismissed_work_dois") or []) if str(d).strip()}
+    if normalized not in dois:
+        return
+    dois.discard(normalized)
+    conn.execute(
+        update(profile)
+        .where(profile.c.id == int(existing["id"]))
+        .values(dismissed_work_dois=sorted(dois) or None, updated_at=func.current_timestamp())
+    )
+
+
 def get_decisions(conn: Connection) -> dict[str, set[int]]:
     """{'confirmed': {paper_id, …}, 'rejected': {…}} — applied by the resolver every run."""
     out: dict[str, set[int]] = {"confirmed": set(), "rejected": set()}

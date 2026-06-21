@@ -125,11 +125,12 @@
   }
   .pane-sidebar .pane-head, .pane-detail .pane-head { background: var(--panel-2); }
   .pane-list .pane-head { background: var(--panel); }
-  /* Center the brand lockup (logo stacked above the wordmark) + subtitle/status. */
+  /* Center the brand lockup (logo + wordmark on one horizontal row); the buttons sit in the top corners (⚙ left, ? right). */
   .pane-sidebar .pane-head { text-align: center; }
 
   .brand {
-    display: flex; flex-direction: column; align-items: center; gap: 5px; margin-bottom: 6px;
+    display: flex; flex-direction: row; align-items: center; justify-content: center; gap: 14px;
+    margin-top: 8px; margin-bottom: 6px;
   }
   /* The logo encodes connection status (inc 47): a div whose background-image is the theme-matched
      variant, swapping to the green-dot "on" variant when .connected. base64 lives in CSS vars (above),
@@ -140,7 +141,7 @@
   :root[data-theme="dark"] .brand-logo.connected { background-image: var(--logo-dark-on); }
   .brand h1 {
     font-family: var(--serif);
-    font-size: 19px; font-weight: 600; letter-spacing: -0.01em;
+    font-size: 36px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap;
     margin: 0; color: var(--ink);
   }
 
@@ -151,17 +152,17 @@
 
   /* ---- settings: gear entry + modal toggle (inc 46) ---- */
   .icon-gear {
-    position: absolute; top: 12px; right: 14px; z-index: 6;
-    border: 1px solid transparent; background: none; color: var(--ink-3);
+    position: absolute; top: 19px; right: 60px; z-index: 6;   /* inc-104: same Y as help, 27px left of it (gap −3px); both shifted left 15px */
+    border: 1px solid currentColor; background: none; color: var(--ink-3);   /* inc-104: always-on outline, icon-colored at rest */
     border-radius: 6px; padding: 2px 5px; font-size: 15px; line-height: 1; cursor: pointer;
   }
-  .icon-gear:hover { color: var(--accent); border-color: var(--line-2); background: var(--panel); }
+  .icon-gear:hover { color: var(--accent); border-color: var(--accent); background: var(--panel); }   /* outline matches the icon on hover */
   .icon-help {
-    position: absolute; top: 12px; left: 14px; z-index: 6;
-    border: 1px solid transparent; background: none; color: var(--ink-3);
+    position: absolute; top: 19px; right: 33px; z-index: 6;   /* inc-104: down 7px, left 4px; then shifted left 15px */
+    border: 1px solid currentColor; background: none; color: var(--ink-3);   /* inc-104: always-on outline, icon-colored at rest */
     border-radius: 6px; padding: 2px 7px; font-size: 14px; line-height: 1; font-weight: 700; cursor: pointer;
   }
-  .icon-help:hover { color: var(--accent); border-color: var(--line-2); background: var(--panel); }
+  .icon-help:hover { color: var(--accent); border-color: var(--accent); background: var(--panel); }   /* outline matches the icon on hover */
   .settings-modal { width: min(420px, 94vw); }
   .help-modal { width: min(880px, 95vw); max-height: 86vh; display: flex; flex-direction: column; overflow: hidden; }
   .help-empty { font-size: 12.5px; color: var(--ink-3); padding: 18px 4px; }
@@ -203,6 +204,10 @@
   .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 2px 10px; }
   .settings-label { font-size: 13px; color: var(--ink); }
   .settings-sub { display: block; font-size: 11px; color: var(--ink-3); margin-top: 3px; max-width: 300px; font-weight: 400; }
+  /* Default-axis-cutoff slider (inc 105) */
+  .settings-cutoff { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+  .settings-cutoff input[type="range"] { width: 110px; accent-color: var(--accent); cursor: pointer; }
+  .settings-cutoff-val { font-family: var(--mono); font-size: 11px; color: var(--ink-2); min-width: 28px; text-align: right; }
 
   /* My Publications settings form (inc 78) */
   .settings-field { margin: 8px 0; }
@@ -231,6 +236,27 @@
 
   /* ---- sidebar: axes ---- */
   .axis-group { padding: 6px 10px 18px; }
+  /* sidebar Tags browser (inc 96) — stacks below the Axes panel; the sidebar scrolls as one column. */
+  .tags-panel { border-top: 1px solid var(--line); padding-top: 12px; }
+  .tags-panel-toggle { display: flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0; }
+  .tags-panel-chevron { font-size: 9px; color: var(--ink-3); }
+  /* Tags source filter (inc 105) — all / yours / imported-keywords; shown only when both kinds exist. */
+  .tags-srcfilter { display: flex; gap: 4px; margin: 6px 0 2px; }
+  .tags-srcfilter-btn {
+    flex: 1; padding: 3px 6px; font-size: 11px; font-family: var(--sans); cursor: pointer;
+    color: var(--ink-3); background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  }
+  .tags-srcfilter-btn:hover { color: var(--accent); border-color: var(--accent); }
+  .tags-srcfilter-btn.on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); font-weight: 600; }
+  .tags-panel-list { display: flex; flex-direction: column; gap: 1px; margin-top: 6px; }
+  .tags-panel-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: none; border: none; cursor: pointer; text-align: left;
+    padding: 4px 6px; border-radius: var(--radius-sm); font-family: var(--sans); font-size: 12px; color: var(--ink-2);
+  }
+  .tags-panel-item:hover { background: var(--hover); color: var(--accent); }
+  .tags-panel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tags-panel-count { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); flex: none; }
   .axis {
     border: 1px solid transparent; border-radius: var(--radius);
     padding: 9px 11px; cursor: pointer; margin-bottom: 2px;
@@ -390,12 +416,15 @@
 
   /* axis card icon buttons + count badge (inc 45) */
   .axis-card-actions { display: flex; align-items: center; gap: 3px; flex: none; }
-  /* .axis-icon-btn base + :hover are the canonical .btn-icon recipe (grouped above). Only its danger-hover differs. */
-  .axis-icon-btn.axis-icon-danger:hover { color: var(--flag); border-color: var(--flag-line); }
+  /* .axis-icon-btn base + :hover follow the canonical .btn-icon recipe (grouped above), but hover the OUTLINE to
+     the accent (icon) color so it matches the svg; the danger variant hovers both icon + outline amber. */
+  .axis-icon-btn:hover { border-color: var(--accent); }                                        /* edit/add/dashboard/eye: outline = accent icon */
+  .axis-icon-btn.axis-icon-danger:hover { color: var(--flag); border-color: var(--flag-line); }  /* delete: orangish, unchanged */
   /* count badge — its background color encodes scoring status (see DESIGN.md): default = not scored
      (muted), .is-scored = green (scored + fresh), .is-stale = amber (edited → re-score). */
   .axis-count-badge {
-    flex: none; min-width: 18px; height: 18px; padding: 0 5px; border: 0; border-radius: var(--radius-pill);
+    flex: none; margin-left: 3px;   /* +3px gap from the edit/add/delete icons (on top of the .axis-card-actions gap) */
+    min-width: 18px; height: 18px; padding: 0 5px; border: 0; border-radius: var(--radius-pill);
     background: var(--line-2); color: var(--ink-2); font-size: 10.5px; font-weight: 700; font-family: var(--mono);
     display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
   }
@@ -447,7 +476,7 @@
 
   /* ---- middle: paper list ---- */
   .searchbar {
-    display: flex; gap: 8px; align-items: center; margin-top: 10px;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px;
   }
   .searchbar input {
     flex: 1; padding: 8px 11px; border: 1px solid var(--line-2);
@@ -465,8 +494,20 @@
   /* citation export (inc 70): the bulk-bar format picker + the Details "Cite" row (links reuse .btn-link) */
   .bulk-export { border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); border-radius: var(--radius-sm); padding: 2px 4px; font-size: 11px; font-family: var(--sans); cursor: pointer; }
   .bulk-export:hover { border-color: var(--accent); }
-  .detail-cite { display: flex; align-items: center; gap: 10px; margin: 14px 0 4px; }
+  .detail-cite { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 4px; }   /* inc-106: now stacked */
+  .detail-cite-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .detail-cite-label { font-family: var(--sans); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .detail-cite-style {
+    flex: 1; min-width: 0; max-width: 230px; padding: 3px 6px; cursor: pointer;
+    font-family: var(--sans); font-size: 11.5px; color: var(--ink);
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  }
+  /* The live formatted-citation preview (inc-106) — server-sanitized HTML; hanging indent like a reference list. */
+  .detail-cite-preview {
+    font-family: var(--serif); font-size: 12.5px; line-height: 1.4; color: var(--ink-2);
+    padding: 7px 9px 7px 22px; text-indent: -13px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  }
   /* tags (inc 71): a Details row of pill chips (name click → filter, × → remove) + an inline add input */
   .detail-tags { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 4px; }
   .detail-tags .detail-cite-label { margin-top: 4px; }
@@ -476,6 +517,11 @@
   .tag-chip-name:hover { text-decoration: underline; }
   .tag-chip-x { background: none; border: none; color: var(--accent); font-size: 13px; line-height: 1; cursor: pointer; padding: 0 2px; opacity: .55; }
   .tag-chip-x:hover { opacity: 1; color: var(--danger); }
+  /* imported author/index keywords (inc 100): neutral/muted vs the user's own indigo tags — aesthetic only,
+     the source is in the tooltip. (Sidebar: a lighter muting.) */
+  .tag-chip-imported { border-color: var(--line-2); background: var(--bg); }
+  .tag-chip-imported .tag-chip-name, .tag-chip-imported .tag-chip-x { color: var(--ink-2); }
+  .tags-panel-item-imported .tags-panel-name { color: var(--ink-3); }
   .tag-add { border: 1px solid transparent; background: none; color: var(--ink); font-family: var(--sans); font-size: 11.5px; padding: 2px 4px; min-width: 90px; }
   .tag-add:hover { border-color: var(--line-2); border-radius: var(--radius-sm); }
   .tag-add:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); border-radius: var(--radius-sm); }
@@ -522,7 +568,31 @@
   .trash-toggle { background: none; border: none; color: var(--ink-3); font-size: 11px; cursor: pointer; font-family: var(--sans); padding: 0; }
   .trash-toggle:hover { color: var(--accent); }
   .trash-toggle.danger, .trash-toggle.danger:hover { color: var(--danger); }   /* Empty Trash — destructive */
+  .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
+  /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
+  .add-menu { position: relative; display: inline-flex; }
+  .add-menu-pop {
+    position: absolute; top: calc(100% + 5px); left: 0; z-index: 20;
+    display: flex; flex-direction: column; min-width: 132px;
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); overflow: hidden;
+  }
+  .add-menu-pop button {
+    text-align: left; padding: 7px 12px; border: none; background: none; cursor: pointer;
+    font-family: var(--sans); font-size: 12px; color: var(--ink-2); white-space: nowrap;
+  }
+  .add-menu-pop button:hover { background: var(--hover); color: var(--accent); }
   .paper-select { position: absolute; top: 13px; right: 14px; margin: 0; cursor: pointer; accent-color: var(--accent); }
+  /* inc-103: per-card copy-BibTeX icon button, just left of the checkbox (same vertical position). */
+  .paper-copy {
+    position: absolute; top: 10px; right: 36px;
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; padding: 0; border: none; background: transparent;
+    color: var(--ink-3); cursor: pointer; border-radius: var(--radius-sm);
+  }
+  .paper-copy:hover { color: var(--accent); background: var(--hover); }
+  .paper-copy.copied { color: var(--verified); }
+  .paper-copy svg { width: 14px; height: 14px; }
   .paper-restore {
     margin-left: auto; font-family: var(--sans); font-size: 11px; padding: 2px 9px; border-radius: var(--radius-sm);
     cursor: pointer; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2);
@@ -535,12 +605,14 @@
     position: relative;   /* anchor the multi-select checkbox (inc 54) */
     padding: 13px 18px; border-bottom: 1px solid var(--line); cursor: pointer;
     transition: background .1s;
+    -webkit-user-select: none; user-select: none;   /* inc-98 double-click opens; don't word-select the title */
   }
   .paper:hover { background: var(--hover); }
   .paper.sel { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
   .paper-title {
     font-family: var(--serif); font-size: 15px; line-height: 1.32;
     color: var(--ink); margin: 0 0 4px; font-weight: 500;
+    padding-right: 46px;   /* clear the top-right controls (copy button + checkbox), inc 103 */
   }
   .paper-meta { font-size: 12px; color: var(--ink-2); display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
   .paper-authors { color: var(--ink-2); }
@@ -639,6 +711,28 @@
   .detail-acquire-msg { font-size: 12px; color: var(--ink-2); }
   .detail-acquire-err { color: var(--danger); }
   .detail-tierline { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  /* "More → + add field" — add an arbitrary CSL field by hand (inc 97). */
+  .detail-addfield { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+  .detail-addfield-key, .detail-addfield-val {
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 7px;
+    font-family: var(--sans); font-size: 12px; background: var(--bg); color: var(--ink);
+  }
+  .detail-addfield-key { flex: 0 0 38%; min-width: 0; }
+  .detail-addfield-val { flex: 1; min-width: 0; }
+  .detail-addfield-key:focus, .detail-addfield-val:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* statcheck — recomputed-p-value reporting signal (inc 95). Reuses the .cite-status pill (green/amber). */
+  .detail-statcheck { margin: 14px 0 4px; }
+  .statcheck-summary { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0; }
+  .statcheck-list { display: flex; flex-direction: column; gap: 4px; }
+  .statcheck-item {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%;
+    text-align: left; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--panel); padding: 5px 8px; cursor: pointer;
+  }
+  .statcheck-item:hover { border-color: var(--accent); background: var(--hover); }
+  .statcheck-raw { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+  .statcheck-computed { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .statcheck-caveat { font-size: 11px; color: var(--ink-3); margin-top: 8px; line-height: 1.45; }
 
   /* Wanted list (inc 76) — reuses the .oa-chip recipe above for the acquired-summary chips. */
   .wanted-coverage { font-size: 12px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
@@ -800,6 +894,20 @@
     cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; border-radius: 4px;
   }
   .frame-tab-close:hover { color: var(--flag); background: var(--flag-soft); }
+  /* Reading mode toggle (inc 101) — a tab-bar control pushed to the right; accent = "mode active". */
+  .frame-reading {
+    margin-left: auto; flex: 0 0 auto; margin-bottom: 6px; cursor: pointer; white-space: nowrap;
+    font-family: var(--sans); font-size: 11px; color: var(--ink-2);
+    background: transparent; border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm); padding: 4px 9px;
+  }
+  .frame-reading:hover { border-color: var(--accent); color: var(--accent); }
+  .frame-reading.active {
+    background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 600;
+  }
+  /* Keep divider grid items in flow. display:none shifts LibraryFrame from column 3 into the zero-width
+     column 2, blanking the UI and making the Exit control unreachable. */
+  .app.reading .divider { visibility: hidden; pointer-events: none; }
   .frame-pane { flex: 1 1 auto; min-height: 0; flex-direction: column; }
 
   /* the paper list now lives inside the frame and owns its own scroll */
@@ -1041,3 +1149,10 @@
   .scan-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
   .scan-row .wanted-add { flex: 1; }
   .scan-summary { font-size: 12px; color: var(--ink-2); margin: 8px 0; }
+  /* watched-folders list (inc 98) */
+  .watched-list { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; }
+  .watched-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); padding: 6px 9px; }
+  .watched-info { min-width: 0; }
+  .watched-path { font-family: var(--mono); font-size: 11.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .watched-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }

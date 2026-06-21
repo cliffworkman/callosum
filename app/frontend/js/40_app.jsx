@@ -6,6 +6,10 @@ function _saveLayout(key, value) {
   try { window.localStorage.setItem(key, String(value)); } catch (e) { /* ignore */ }
 }
 function _clampW(w, lo, hi) { return Math.max(lo, Math.min(hi, w)); }
+// inc-104: side-panel min widths + Spotify-style pull-to-collapse. While dragging, a panel sticks at its min
+// (the clamp floors it); pulling the resizer ~80px further past the min crosses COLLAPSE_AT → the panel collapses.
+const LEFT_MIN = 300, LEFT_MAX = 600, LEFT_COLLAPSE_AT = 220;
+const RIGHT_MIN = 415, RIGHT_MAX = 640, RIGHT_COLLAPSE_AT = 335;
 function _beginDrag(e, onMove) {
   e.preventDefault();
   const move = (ev) => onMove(ev.clientX, ev.clientY);  // horizontal callers use x; the vertical split uses y
@@ -52,16 +56,35 @@ function App() {
     setHideUncertainDefaultState(on);
     _saveLayout("callosum.hideUncertainDefault", on ? "1" : "0");
   }, []);
+  // inc-105: default axis cutoff — the value a new/unscored axis's re-score flipper starts at (per-axis override still wins).
+  const [axisCutoffDefault, setAxisCutoffDefaultState] = useState(() => {
+    const v = Number(_loadLayout("callosum.axisCutoffDefault", "0.35"));
+    return v >= 0.2 && v <= 0.6 ? v : 0.35;
+  });
+  const setAxisCutoffDefault = useCallback((v) => {
+    setAxisCutoffDefaultState(v);
+    _saveLayout("callosum.axisCutoffDefault", v);
+  }, []);
+  const [autoScanWatched, setAutoScanWatchedState] = useState(() => _loadLayout("callosum.autoScanWatched", "1") === "1");  // inc-98: re-scan watched folders on launch
+  const setAutoScanWatched = useCallback((on) => {
+    setAutoScanWatchedState(on);
+    _saveLayout("callosum.autoScanWatched", on ? "1" : "0");
+  }, []);
 
   // side-panel layout (persisted): widths + collapsed state.
-  const [leftW, setLeftW] = useState(() => Number(_loadLayout("callosum.leftW", 270)) || 270);
-  const [rightW, setRightW] = useState(() => Number(_loadLayout("callosum.rightW", 400)) || 400);
+  const [leftW, setLeftW] = useState(() => Math.max(LEFT_MIN, Number(_loadLayout("callosum.leftW", LEFT_MIN)) || LEFT_MIN));
+  const [rightW, setRightW] = useState(() => Math.max(RIGHT_MIN, Number(_loadLayout("callosum.rightW", RIGHT_MIN)) || RIGHT_MIN));
   const [leftOpen, setLeftOpen] = useState(() => _loadLayout("callosum.leftOpen", "1") !== "0");
   const [rightOpen, setRightOpen] = useState(() => _loadLayout("callosum.rightOpen", "1") !== "0");
   useEffect(() => { _saveLayout("callosum.leftW", leftW); }, [leftW]);
   useEffect(() => { _saveLayout("callosum.rightW", rightW); }, [rightW]);
   useEffect(() => { _saveLayout("callosum.leftOpen", leftOpen ? "1" : "0"); }, [leftOpen]);
   useEffect(() => { _saveLayout("callosum.rightOpen", rightOpen ? "1" : "0"); }, [rightOpen]);
+
+  // inc-101: Reading mode is a transient visual override. It must not mutate leftOpen/rightOpen: those values
+  // are persisted, so doing so would leave both panels collapsed after a reload from Reading mode.
+  const [readingMode, setReadingMode] = useState(false);
+  const toggleReading = useCallback(() => setReadingMode(on => !on), []);
 
   const [listState, setListState] = useState({ status: "loading", papers: [] });
   const [query, setQuery] = useState("");
@@ -91,11 +114,20 @@ function App() {
   const [libraryTagFilter, setLibraryTagFilter] = useState(null);    // inc-71: {id, name} → library shows only this tag's papers
   const [trashView, setTrashView] = useState(false);
   const [libraryNeedsReview, setLibraryNeedsReview] = useState(false);  // inc-79: the "Unsorted" (needs-metadata) view
-  const [librarySort, setLibrarySort] = useState("added");  // inc-69: library ordering (added/recent/title/year_*/author)
+  const [librarySignalFilter, setLibrarySignalFilter] = useState(null);  // inc-97: a Methods-signal view, e.g. "statcheck-inconsistent"
+  const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
+  const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
+    try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
+  });
+  const [librarySearchField, setLibrarySearchField] = useState("all");  // inc-89: search scope (all/title/author/journal)
+  const [libraryItemType, setLibraryItemType] = useState("");  // inc-91: filter to a single CSL item type ("" = all)
+  const [itemTypes, setItemTypes] = useState([]);  // inc-91: distinct item types present in the library (Type dropdown)
   const [libRefresh, setLibRefresh] = useState(0);
+  const [tagRefresh, setTagRefresh] = useState(0);  // inc-96: bump to refetch the sidebar Tags browser (tag add/remove)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
+  const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
 
   const openPdf = useCallback((paper, target) => {
     const key = "pdf:" + paper.id;
@@ -154,6 +186,7 @@ function App() {
     setFocusAxis(axis);
     setLibraryAxisFilter(null);  // the add-papers focus replaces any view filter
     setLibraryTagFilter(null);
+    setLibrarySignalFilter(null);
     setFocusPending({});
     setFocusMembers(new Set());
     setActiveTab("library");  // bring the library list (where the add buttons live) into view
@@ -242,6 +275,26 @@ function App() {
     })();
   }, [selectedLibraryIds]);
 
+  // inc-106: download a FORMATTED bibliography for the selection (citeproc engine → sanitized HTML → .html file).
+  const bulkBibliography = useCallback((style) => {
+    const ids = [...selectedLibraryIds];
+    if (!ids.length) return;
+    (async () => {
+      const r = await apiPost("/citations/render", { paper_ids: ids, style });
+      if (!r.ok) { console.warn("[callosum] bibliography failed:", r.error); return; }
+      const entries = (r.data && r.data.bibliography_html) || [];
+      if (!entries.length) return;
+      const body = entries.map(e => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
+      const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title>` +
+        `<body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
+      const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = `callosum-bibliography-${style}.html`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })();
+  }, [selectedLibraryIds]);
+
   const restorePaper = useCallback((id) => {
     apiPost(`/papers/${id}/restore`, {}).then(r => { if (r.ok) setLibRefresh(n => n + 1); });
   }, []);
@@ -263,6 +316,7 @@ function App() {
     setLibraryAxisFilter(null);        // Trash is its own view — drop any axis/tag filter
     setLibraryTagFilter(null);
     setLibraryNeedsReview(false);      // …and the Unsorted view
+    setLibrarySignalFilter(null);      // …and the statcheck signal view
     setPage(0);
   }, []);
 
@@ -276,6 +330,7 @@ function App() {
     setSelectedLibraryIds(new Set());
     setTrashView(false);
     setLibraryNeedsReview(false);
+    setLibrarySignalFilter(null);
     cancelFocus();
   }, [cancelFocus]);
   const clearAxisFilter = useCallback(() => { setLibraryAxisFilter(null); setPage(0); }, []);
@@ -289,18 +344,23 @@ function App() {
     setSelectedLibraryIds(new Set());
     setTrashView(false);
     setLibraryNeedsReview(false);
+    setLibrarySignalFilter(null);
     cancelFocus();
   }, [cancelFocus]);
   const clearTagFilter = useCallback(() => { setLibraryTagFilter(null); setPage(0); }, []);
   const selectAllLibrary = useCallback((ids) => setSelectedLibraryIds(new Set(ids)), []);
-  const changeSort = useCallback((s) => { setLibrarySort(s); setPage(0); }, []);  // inc-69: re-sort from page 1
+  const changeSort = useCallback((s) => {  // inc-69: re-sort from page 1; inc-94: persist the choice
+    setLibrarySort(s);
+    setPage(0);
+    try { localStorage.setItem("callosum.librarySort", s); } catch (e) { /* ignore */ }
+  }, []);
 
   // inc-79: the "Unsorted" view — papers whose metadata still needs review (raw scaffolds / Crossref-unresolved
   // / no source). A view like Trash (exclusive with trash/axis/tag/focus) but keeps checkbox-select usable.
   const toggleNeedsReview = useCallback(() => {
     setLibraryNeedsReview(v => {
       const next = !v;
-      if (next) { setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); cancelFocus(); }
+      if (next) { setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); cancelFocus(); }
       return next;
     });
     setSelectedLibraryIds(new Set());
@@ -308,11 +368,42 @@ function App() {
   }, [cancelFocus]);
   const clearNeedsReview = useCallback(() => { setLibraryNeedsReview(false); setPage(0); }, []);
 
+  // inc-97: the statcheck library lens — set from Settings after a batch run. A view like the others (clears
+  // trash/axis/tag/needs-review/focus); filters to papers with a persisted reporting inconsistency.
+  const showStatcheckFlagged = useCallback(() => {
+    setLibrarySignalFilter("statcheck-inconsistent");
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); cancelFocus();
+    setSelectedLibraryIds(new Set());
+    setSettingsOpen(false);
+    setActiveTab("library");
+    setPage(0);
+  }, [cancelFocus]);
+  const clearSignalFilter = useCallback(() => { setLibrarySignalFilter(null); setPage(0); }, []);
+
   // health check
   useEffect(() => {
     api("/health").then(r => {
       if (r.ok) setConn({ state: "ok", version: (r.data && (r.data.verification_version || r.data.version)) || null });
       else setConn({ state: "bad" });
+    });
+  }, []);
+
+  // inc-98: re-scan watched folders on launch (default on; Settings toggle). Non-blocking background job — the
+  // rescan endpoint no-ops if there are no watched folders. Bumps libRefresh/tagRefresh when new papers land.
+  const didAutoScan = useRef(false);
+  useEffect(() => {
+    if (didAutoScan.current || !autoScanWatched) return;
+    didAutoScan.current = true;
+    apiPost("/library/watched/rescan", {}).then(r => {
+      if (!r.ok) return;
+      const poll = (jobId) => api(`/library/watched/rescan/${jobId}`).then(rr => {
+        if (!rr.ok) return;
+        if (rr.data.status === "done") {
+          const sm = rr.data.summary;
+          if (sm && (sm.added || sm.removed)) { setLibRefresh(n => n + 1); setTagRefresh(n => n + 1); }
+        } else if (rr.data.status !== "error") setTimeout(() => poll(jobId), 2000);
+      });
+      poll(r.data.job_id);
     });
   }, []);
 
@@ -328,10 +419,13 @@ function App() {
     setListState(s => ({ ...s, status: "loading" }));
     const qs = new URLSearchParams({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
     if (debounced.trim()) qs.set("q", debounced.trim());
+    if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
     if (trashView) qs.set("deleted", "true");
     if (libraryAxisFilter) qs.set("axis_id", libraryAxisFilter.id);
     if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
+    if (libraryItemType) qs.set("item_type", libraryItemType);
     if (libraryNeedsReview) qs.set("needs_review", "true");
+    if (librarySignalFilter) qs.set("signal", librarySignalFilter);
     if (librarySort !== "added") qs.set("sort", librarySort);
     api(`/papers?${qs.toString()}`).then(r => {
       if (!live) return;
@@ -339,18 +433,46 @@ function App() {
       else setListState({ status: "error", error: r.error, papers: [] });
     });
     return () => { live = false; };
-  }, [page, debounced, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySort]);
+  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
 
-  const cols = `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
+  // inc-91: distinct item types present in the library (for the Type filter dropdown); refresh on library change
+  useEffect(() => {
+    api("/papers/item-types").then(r => { if (r.ok) setItemTypes(r.data); });
+  }, [libRefresh]);
+
+  // inc-100: the statcheck "N flagged" header chip count. Refetched on mount and whenever Settings closes (where
+  // the batch "Check all" runs) so the chip reflects the latest run without extra wiring.
+  useEffect(() => {
+    if (settingsOpen) return;
+    api("/methods/statcheck/summary").then(r => { if (r.ok) setStatcheckFlagged(r.data.flagged || 0); });
+  }, [settingsOpen]);
+
+  // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
+  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen;
+  useEffect(() => {
+    if (!readingMode) return;
+    const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [readingMode, anyModalOpen, toggleReading]);
+
+  // Reading mode zeroes the divider tracks too (the panel tracks are already 0 via leftOpen/rightOpen).
+  const cols = readingMode
+    ? "0px 0px minmax(340px, 1fr) 0px 0px"
+    : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
 
   return (
-    <div className="app" style={{ gridTemplateColumns: cols }}>
-      {leftOpen
-        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} onOpenMyPubsDashboard={openMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
+    <div className={"app" + (readingMode ? " reading" : "")} style={{ gridTemplateColumns: cols }}>
+      {leftOpen && !readingMode
+        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} onFilterToTag={filterToTag} onOpenMyPubsDashboard={openMyPubsDashboard} axisRefresh={axisRefresh} tagRefresh={tagRefresh} hideUncertainDefault={hideUncertainDefault} axisCutoffDefault={axisCutoffDefault} />
         : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
-        onDragStart={(e) => { const sx = e.clientX, sw = leftW; _beginDrag(e, (x) => setLeftW(_clampW(sw + (x - sx), 180, 600))); }}
+        onDragStart={(e) => { const sx = e.clientX, sw = leftW; _beginDrag(e, (x) => {
+          const proposed = sw + (x - sx);
+          if (proposed < LEFT_COLLAPSE_AT) setLeftOpen(false);
+          else { setLeftOpen(true); setLeftW(_clampW(proposed, LEFT_MIN, LEFT_MAX)); }
+        }); }}
       />
       <LibraryFrame
         libraryProps={{
@@ -361,29 +483,39 @@ function App() {
           focusAxis, focusMembers, focusPending,
           onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
           trashView, selectedLibraryIds, librarySort, onSortChange: changeSort,
+          librarySearchField, onSearchFieldChange: (f) => { setLibrarySearchField(f); setPage(0); },
+          libraryItemType, itemTypes, onItemTypeChange: (t) => { setLibraryItemType(t); setPage(0); },
           onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-          onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkExport: bulkExportPapers, onSelectAll: selectAllLibrary,
+          onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkExport: bulkExportPapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
           libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
           libraryTagFilter, onClearTagFilter: clearTagFilter,
           libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,
+          librarySignalFilter, onClearSignalFilter: clearSignalFilter,
+          statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
           onOpenWanted: () => setWantedOpen(true),
           onOpenScan: () => setScanOpen(true),
+          onOpenImport: () => setImportOpen(true),
         }}
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
         annoRefresh={annoRefresh}
+        readingMode={readingMode} onToggleReading={toggleReading}
       />
       <Divider
         side="right" open={rightOpen} onToggle={() => setRightOpen(o => !o)}
-        onDragStart={(e) => { const sx = e.clientX, sw = rightW; _beginDrag(e, (x) => setRightW(_clampW(sw - (x - sx), 280, 640))); }}
+        onDragStart={(e) => { const sx = e.clientX, sw = rightW; _beginDrag(e, (x) => {
+          const proposed = sw - (x - sx);
+          if (proposed < RIGHT_COLLAPSE_AT) setRightOpen(false);
+          else { setRightOpen(true); setRightW(_clampW(proposed, RIGHT_MIN, RIGHT_MAX)); }
+        }); }}
       />
-      {rightOpen
-        ? <RightPane paperId={selected} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenPaper={openPdf} onFilterToTag={filterToTag} pendingSummarize={pendingSummarize} />
+      {rightOpen && !readingMode
+        ? <RightPane paperId={selected} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenPaper={openPdf} onFilterToTag={filterToTag} onTagsChanged={() => setTagRefresh(n => n + 1)} pendingSummarize={pendingSummarize} />
         : <div className="pane-collapsed" />}
-      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} onShowStatcheckFlagged={showStatcheckFlagged} autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} onClose={() => setSettingsOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {duplicatesOpen &&
         <DuplicatesModal
@@ -401,6 +533,11 @@ function App() {
         <ScanModal
           onClose={() => setScanOpen(false)}
           onScanned={() => setLibRefresh(n => n + 1)}
+        />}
+      {importOpen &&
+        <ImportModal
+          onClose={() => setImportOpen(false)}
+          onImported={() => setLibRefresh(n => n + 1)}
         />}
     </div>
   );

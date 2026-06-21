@@ -36,6 +36,7 @@ from app.backend.persistence.profile_repo import (
     set_my_publications_dismissed,
     set_research_summary,
     set_starred,
+    undismiss_work,
     upsert_profile,
 )
 from app.backend.persistence.repository import get_paper
@@ -131,6 +132,7 @@ class DashboardResponse(BaseModel):
     research_summary: str | None = None
     domains: list[Domain] = []  # inc 83: the domain decomposition, sorted by citations (impact)
     missing_works: list[MissingWork] = []  # inc 85: indexed works not in the library (the gap), by citations
+    dismissed_works: list[MissingWork] = []  # inc 91: works dismissed from the queue (so a dismissal can be undone)
 
 
 class SummaryResponse(BaseModel):
@@ -267,6 +269,15 @@ def import_my_publications_work(
 @router.post("/my-publications/works/dismiss", status_code=http_status.HTTP_204_NO_CONTENT)
 def dismiss_my_publications_work(payload: WorkActionRequest, conn: Connection = Depends(get_connection)) -> Response:
     dismiss_work(conn, payload.doi)
+    conn.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/my-publications/works/undismiss", status_code=http_status.HTTP_204_NO_CONTENT)
+def undismiss_my_publications_work(payload: WorkActionRequest, conn: Connection = Depends(get_connection)) -> Response:
+    # Un-dismiss a previously-dismissed missing work (inc 91) → it returns to the review queue. Mirror of the
+    # inc-67 un-dismiss-duplicates control. Local, idempotent, non-destructive.
+    undismiss_work(conn, payload.doi)
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 

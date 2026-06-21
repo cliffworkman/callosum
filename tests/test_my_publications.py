@@ -22,6 +22,7 @@ from app.backend.persistence.profile_repo import (
     set_decision,
     set_my_publications_dismissed,
     set_openalex_author_id,
+    undismiss_work,
     upsert_profile,
 )
 from app.backend.persistence.repository import create_paper
@@ -673,3 +674,30 @@ def test_import_rejects_non_author_doi_and_dismiss_endpoint(temp_db_url):
     assert client.post("/my-publications/works/import", json={"doi": "10.1/not-mine"}).status_code == 422
     # the dismiss endpoint is local + always 204
     assert client.post("/my-publications/works/dismiss", json={"doi": "10.1/mine"}).status_code == 204
+
+
+def test_undismiss_returns_work_to_missing_queue(temp_db_url):
+    # A dismissed missing work can be undone (inc 91, mirror of inc-67): it surfaces in dismissed_works, and
+    # un-dismissing moves it back to missing_works.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+    fake = _FakeAuthorClient(
+        author=_ADA_STATS, works=[AuthorWork(doi="10.1/miss", title="Missing", year=2020, cited_by_count=3)]
+    )
+    with engine.begin() as conn:
+        assert [w["doi"] for w in build_dashboard(conn, author_client=fake)["missing_works"]] == ["10.1/miss"]
+        dismiss_work(conn, "10.1/miss")
+        dash = build_dashboard(conn, author_client=fake)
+    assert dash["missing_works"] == []  # dismissed → out of the queue
+    assert [w["doi"] for w in dash["dismissed_works"]] == ["10.1/miss"]  # …and visible as "previously dismissed"
+    with engine.begin() as conn:
+        undismiss_work(conn, "10.1/MISS")  # case-insensitive
+        dash2 = build_dashboard(conn, author_client=fake)
+    assert [w["doi"] for w in dash2["missing_works"]] == ["10.1/miss"]  # back in the queue
+    assert dash2["dismissed_works"] == []
+
+    # the undismiss endpoint is local + always 204 (idempotent)
+    client = TestClient(create_app(db_url=temp_db_url, openalex_author_client=fake))
+    assert client.post("/my-publications/works/undismiss", json={"doi": "10.1/miss"}).status_code == 204

@@ -110,3 +110,18 @@ def test_tag_endpoints_add_remove_filter_and_validation(temp_db_url: str) -> Non
     assert client.delete(f"/papers/{a}/tags/{tid}").status_code == 204
     assert client.get(f"/papers/{a}").json()["tags"] == []
     assert client.delete(f"/papers/{a}/tags/{tid}").status_code == 404  # gone (+ pruned)
+
+
+def test_tag_source_exposed_on_responses(temp_db_url: str) -> None:
+    # inc-100: the UI distinguishes imported author/index keywords from tags you added, by the `source` field.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="P", csl_json={"title": "P"})
+        add_tags_to_paper(conn, a, ["Neuroscience"], import_source="keyword:crossref")  # an imported keyword
+        add_tag_to_paper(conn, a, "my-note")  # a user tag
+    client = TestClient(create_app(db_url=temp_db_url))
+    detail = {t["name"]: t["source"] for t in client.get(f"/papers/{a}").json()["tags"]}
+    assert detail == {"Neuroscience": "keyword:crossref", "my-note": "user"}
+    listed = {t["name"]: t["source"] for t in client.get("/tags").json()}
+    assert listed["Neuroscience"] == "keyword:crossref" and listed["my-note"] == "user"
+    assert client.post(f"/papers/{a}/tags", json={"name": "fresh"}).json()["source"] == "user"  # POST returns it

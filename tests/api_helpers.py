@@ -17,6 +17,16 @@ from app.backend.persistence.schema import (
 from app.backend.summarization.generators import FakeSummaryGenerator
 
 
+def alembic_head() -> str:
+    """The current Alembic head revision, read from the migration scripts. Tests assert against THIS rather than
+    a hardcoded revision string — which drifts every time a migration lands and only the full suite catches
+    (the stale-constant failure that bit inc 91/98). Assumes the single linear head the project maintains."""
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+
+    return ScriptDirectory.from_config(Config("alembic.ini")).get_current_head()
+
+
 @dataclass(frozen=True)
 class ApiFakeEmbeddingModel:
     name: str = "fake-api-embedding"

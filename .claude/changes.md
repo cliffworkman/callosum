@@ -9,9 +9,403 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-## 2026-06-21 — Increment 87: scan / refresh a library folder
+## 2026-06-21 — Increment 108: LibreOffice (UNO) citation adapter — word-processor track, first adapter
 
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 87 (2026-06-21) — added a "Scanning a folder for PDFs" section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+- **Files:** NEW `adapters/` tree — `adapters/libreoffice/{callosum_cite.py [the macro], README.md,
+  selftest_uno.py [headless harness]}`; `tests/test_libreoffice_adapter.py` (+5); `THIRD-PARTY-NOTICES.md`
+  (Zotero `CSL_CITATION` pattern credit); the audit; `INCREMENT-108-NOTES.md`.
+- **What:** a drop-in LibreOffice Writer Python macro for cite-while-you-write — insert live citation fields
+  (ReferenceMarks carrying CSL-JSON), refresh/restyle/renumber, build/maintain the bibliography, and flatten to
+  static text — all riding the inc-107 `POST /citations/render-document`. The adapter places fields; the backend
+  citeproc engine formats (so output matches the in-app "Cite as…").
+- **Why:** the first piece of the word-processor track that's visible *inside a word processor*; proves the
+  render→place→read-back→write-back loop + the field abstraction the Word/Docs adapters reuse.
+- **Scope:** client-side, **no server change** (no new endpoint/migration/route/egress; local 127.0.0.1 only); no
+  third-party dep (stdlib `urllib` in LO's bundled Python). Verified by the **headless UNO round-trip** (real
+  LibreOffice: IEEE `[1]`/`[2]`, APA author-date, flatten preserves text — SELFTEST OK) + 5 pytest pure-logic
+  tests. Four UNO traps found+fixed (Hidden-load crash; bib stale-anchor; ReferenceMark write-back deleting the
+  mark; stale-collection-ref hang / flatten deleting text). pytest **424** (+5); `ruff` clean. Audit
+  `.claude/security-audits/2026-06-21_libreoffice-adapter.md` PASS.
+- **Revert:** delete the `adapters/` tree + `tests/test_libreoffice_adapter.py` + the `THIRD-PARTY-NOTICES.md`
+  adapter section. (No app code touched.)
+
+## 2026-06-21 — Increment 107: position-aware document-render layer — word-processor track, Phase 2
+
+- **Files:** `app/backend/citations/citeproc_runner.js` (new `mode:"document"` branch), `render.py`
+  (`_run_engine`→`_run`; new `render_document`), `app/backend/api/routers/citations.py` (new endpoint + models);
+  `tests/{test_citations,test_health}.py`; the audit; `INCREMENT-107-NOTES.md`.
+- **What:** `POST /citations/render-document` renders a word-processor document's **ordered citation clusters**
+  position-aware via citeproc's `rebuildProcessorState` — numeric renumbering `[1][2][3]`, author-date
+  disambiguation `2020a`/`2020b`, + the bibliography. The shared contract every word-processor adapter (LibreOffice
+  → Word → Google Docs) will call; the adapter places fields, the engine formats. Self-contained (renders from the
+  passed CSL-JSON; no library lookup).
+- **Why:** the inc-106 engine renders each cite in isolation (right for a *selection*, wrong for a live document).
+  This is the substrate before any LibreOffice client — fully pytest-testable, de-risks render correctness.
+- **Scope:** backend-only; **no frontend change** (no rebuild); no new dependency, no egress, no migration; output
+  sanitized (`_safe_html`); input capped (clusters/items/total). pytest **419** (+3); `ruff` clean. Audit
+  `.claude/security-audits/2026-06-21_citation-render-document.md` PASS.
+- **Revert:** drop the `mode:"document"` branch in the runner, `render_document` + the `_run` rename, the
+  `/citations/render-document` endpoint + models, and the test + route-allowlist additions.
+
+## 2026-06-21 — Increment 106: citation & bibliography engine (citeproc-js) — word-processor track, Phase 1
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 106 (2026-06-21) — Exporting-citations section notes formatted styles (Cite as …) + the bulk formatted bibliography. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** NEW `app/backend/citations/` (`render.py`, `citeproc_runner.js`, `csl/{styles,locales}` bundled CSL
+  data) + `app/backend/api/routers/citations.py`; `app/backend/api/app.py` (router include); `package.json` +
+  `package-lock.json` (citeproc); `25_detail.jsx` (Cite-as), `10_pdf_layer.jsx` + `40_app.jsx` (bulk
+  bibliography), `styles.css`; `callosum-app.html`; `tests/{test_citations,test_health}.py`; `THIRD-PARTY-NOTICES.md`;
+  the audit; help corpus.
+- **What:** formatted citations + bibliographies (APA/MLA/Chicago/IEEE/Nature/Harvard) rendered from
+  `papers.csl_json` by **citeproc-js** (Node sidecar) over bundled CSL styles. In-app: Details **"Cite as …"**
+  (style dropdown + live sanitized preview + copy) + a bulk **"bibliography…"** `.html` download.
+  `GET /citations/styles` + `POST /citations/render`.
+- **Why:** the foundation of word-processor integration (the citation engine every adapter rides) — and it closes
+  the "no formatted styles" gap inside the app (inc-70 export was machine-readable only).
+- **Scope:** new dep `citeproc` (pinned; audit gate → PASS); **no egress** (bundled styles); citeproc HTML
+  sanitized server-side before in-app render. pytest **416** (+5); `ruff` clean; opt-in e2e (0 console errors).
+- **Revert:** drop the `citations` package + router (+ app.py include), the frontend Cite-as/bibliography wiring,
+  `citeproc` from package.json, and the bundled `csl/` data; rebuild.
+
+## 2026-06-21 — Increment 105: default axis cutoff in Settings + a tag source filter (2 chores)
+
+- **Files:** `40_app.jsx` (axisCutoffDefault state + threading), `15_axes.jsx` (AxisItem cutoff fallback + AxesPanel
+  key), `35_settings.jsx` (Default-axis-cutoff slider), `10_pdf_layer.jsx` (Sidebar/AxesPanel threading +
+  TagsPanel All/Yours/Keywords filter), `styles.css` (`.settings-cutoff`, `.tags-srcfilter`); `callosum-app.html`;
+  help corpus.
+- **What:** (1) a **Default axis cutoff** slider in Settings → Axes (persisted; a new/unscored axis's re-score
+  flipper starts there; per-axis gain still wins). (2) an **All / Yours / Keywords** segmented filter in the
+  sidebar Tags panel (filters by the inc-100 tag `source`; shown only when both kinds exist).
+- **Why:** the "2 chores" of a fresh patter (carrot = the literature gap-finder, next, plan-mode).
+- **Scope:** both **frontend-only** over existing data — no Python, no migration, no egress, no new endpoint.
+  pytest **411** unchanged; `ruff` clean; opt-in Playwright smoke (2) passed (0 console errors).
+- **Revert:** restore the touched frontend files (drop `axisCutoffDefault` threading + the TagsPanel `src` filter
+  + the two CSS blocks); rebuild.
+
+## 2026-06-21 — Tweak: hover outline matches the icon color (gear/help + axis edit/add)
+
+- **Files:** `app/frontend/styles.css` (`.icon-gear:hover`, `.icon-help:hover`, new `.axis-icon-btn:hover`);
+  `callosum-app.html`.
+- **What:** on hover, the **settings/help** buttons and the axis **edit/add** (and dashboard/eye) buttons now turn
+  their **outline the same accent (icon) color** as the svg — `border-color: var(--line-2)` → `var(--accent)` for
+  gear/help; a scoped `.axis-icon-btn:hover { border-color: var(--accent) }` for the axis icons. The axis
+  **delete** (`.axis-icon-danger`) is unchanged (icon + outline amber — already ideal); the canonical `.btn-icon`
+  recipe is untouched (only `.axis-icon-btn` is used in JSX, so the override is scoped).
+- **Why:** user request — outline should match the icon color on mouseover (delete already did this).
+- **Scope:** CSS-only (tokens; rule #8 — canonical recipe unchanged). pytest unaffected (411).
+- **Revert:** restore the three hover rules' `border-color` to `var(--line-2)` / remove the `.axis-icon-btn:hover`.
+
+## 2026-06-21 — Process: future-tracks inbox processed (8 specs filed + 1 principle captured)
+
+- **What:** ran the inbox-processing pass on `.claude/docs/future-tracks-import/` (10 content files + README).
+  Moved the **8 capability/build specs** (citation-bibliography engine, Bayesian auditor, LMM auditor,
+  citation-equity, CRediT builder, meta-analysis extraction workbench, BYOK provider keys, credit-help backfill)
+  → `.claude/docs/future-tracks/`; added them to `future-tracks/README.md` (index) + `INCREMENT-BACKLOG.md`
+  (longer-horizon tracks + a near-term credit-backfill maintenance note). Captured the cross-cutting
+  **credit-the-lineage principle** into the values layer at **`.claude/CREDIT-THE-LINEAGE.md`** (registered in
+  CLAUDE.md's tree + reference-docs table). Left the **parked** `…_acquisitiondeferred.md` (counsel-gated) + the
+  inbox `README.md` in place, untouched.
+- **Why:** the user dropped 10 md files in the inbox; the documented Phase-8 protocol is audit → fold into the
+  backlog/index → move to `future-tracks/` (parked items stay). The future-state characterization had *covered*
+  all 9 genuine specs but hadn't *integrated* them — this closes that.
+- **Scope:** docs/process only; no app/code/test change. **Open decision flagged:** whether credit-the-lineage
+  should be elevated to a hard rule-#9 gate trigger (currently a values-layer commitment, not yet wired); and the
+  principle could be folded into `APPROACH-AVOIDANCE.md` instead of a standalone file if preferred.
+- **Revert:** move the 8 files back to the inbox + `CREDIT-THE-LINEAGE.md` back; undo the index/backlog/CLAUDE.md
+  additions.
+
+## 2026-06-21 — Increment 104: panel min-widths + Spotify pull-to-collapse + sidebar-button reposition
+
+- **Files:** `app/frontend/js/40_app.jsx` (min/collapse constants + init clamps + both divider drag handlers),
+  `app/frontend/styles.css` (`.icon-gear`/`.icon-help` positions); `callosum-app.html`.
+- **What:** (1) left (AXES) panel min drag width **300px**, right (Synthesis/Details) **415px**; (2) dragging a
+  resizer ~80px past its min **auto-collapses** that panel (no chevron); (3) repositioned the header buttons —
+  help down 7px / left 4px then both nudged left 15px (`top:19;right:33`), settings to the same height 27px left of
+  help (`top:19;right:60`, was top-left); (4) both buttons now show an **always-on outline** (`border: 1px solid currentColor` — the icon
+  color at rest), hover look unchanged.
+- **Why:** user request (wider, Spotify-like resizable panels + a button-layout tweak).
+- **Scope:** frontend-only — no backend/migration/egress. pytest **411** unchanged; `ruff` clean; opt-in
+  Playwright smoke (incl. reading-mode panel test) passed (0 console errors). Thresholds + button offsets are
+  one-line tunables.
+- **Revert:** restore the two `40_app.jsx` divider handlers + init lines (and drop the constants), and the two
+  `.icon-*` CSS rules; rebuild.
+
+## 2026-06-21 — Increment 103: per-card "copy BibTeX" clipboard button
+
+- **Files:** `app/frontend/js/10_pdf_layer.jsx` (`PaperCopyButton` + `ClipboardIcon`/`CheckIcon` + render before
+  the checkbox), `app/frontend/styles.css` (`.paper-copy` + `.paper-title` padding-right); `callosum-app.html`;
+  help corpus.
+- **What:** each Library card now shows a small **clipboard SVG button** just left of its checkbox that copies the
+  paper's **BibTeX** to the clipboard in one click (icon → ✓ ~1.5s).
+- **Why:** inc-98's `.paper { user-select:none }` (which fixed the double-click word-select) removed the ability
+  to select/copy card text — this restores a one-click citation copy.
+- **Scope:** frontend-only; reuses the tested inc-70 `POST /papers/export {format:"bibtex"}` → `navigator.clipboard`
+  (mirrors the Details `CiteRow`); `stopPropagation` so it never selects/opens the card; shown only in the normal
+  library `selecting` view. **No backend/endpoint/migration/egress.** pytest **411** unchanged; `ruff` clean;
+  opt-in Playwright smoke passed (0 console errors). Also synced the help corpus (per-card copy + Reading mode +
+  a stale "chunk count" fix) → `HELP-DOCS-SYNCED` moved to 103.
+- **Revert:** remove `PaperCopyButton`/the two icons + the card render line + the two CSS blocks; rebuild.
+
+## 2026-06-21 — Chore: ruff format hygiene pass (pre-existing drift)
+
+- **Files:** `app/backend/api/routers/papers.py`, `app/backend/metadata/citation_import.py`,
+  `app/backend/methods/statcheck.py`, `app/backend/persistence/tags_repo.py`, `tests/test_papers.py`,
+  `tests/test_citation_import.py`, `tests/test_statcheck.py`.
+- **What:** ran `ruff format .` — 7 files had pre-existing formatting drift (compact multi-arg calls from
+  incs 91–97 that ruff 0.9.6 expands to one-arg-per-line). Pure formatting, no logic change.
+- **Why:** surfaced while adding the inc-102 CI `npm ci` step; CI runs `ruff format --check .`, so this would
+  have failed it. CLAUDE.md convention is to run `ruff format .` before committing. (Likely undetected because
+  CI billing isn't active yet — a known inc-74 follow-on.)
+- **Scope:** formatting only; `ruff check` clean; the reformatted test files re-run green (61 passed). pytest 411.
+- **Revert:** the change is mechanical formatting; re-running the prior ruff version would differ — leave as-is.
+
+## 2026-06-21 — Increment 102: precompile the JSX with esbuild (drop in-browser Babel)
+
+- **Files:** NEW `package.json` + `package-lock.json` + `.gitignore` (`node_modules/`); `app/backend/api/frontend.py`
+  (`assemble_jsx` + `_transpile_jsx` esbuild + `build_frontend_document`); `app/frontend/index.html` (drop babel
+  CDN, plain `<script>`); `app/backend/api/app.py` (live-fallback try/except); `tests/test_frontend_assembly.py`
+  + `tests/e2e/test_smoke.py`; `.github/workflows/ci.yml` (setup-node + npm ci); `callosum-app.html`; the audit.
+- **What:** the frontend JSX is now **precompiled to plain JS by esbuild at build time** and served as a normal
+  `<script>`; the `babel-standalone` CDN + `<script type="text/babel">` runtime transform are gone.
+- **Why:** the in-browser Babel transformer emitted two dev-console messages (a "precompile for production"
+  warning + a `babel.min.js.map` 404) and cost a ~500KB download — user asked to clear them. (The third console
+  line, `XrayWrapper … content-script.js`, is an external browser extension — not callosum.)
+- **Scope:** new **build-time** dependency (esbuild 0.28.1, pinned; `npm install`/`npm ci`; audit gate → PASS);
+  the **server stays Python-only** (serves the prebuilt file). No app-behavior change (esbuild IIFE preserves the
+  shared scope). pytest **411** unchanged; `ruff` clean; **opt-in Playwright smoke passed with 0 console errors**;
+  `node --check` on the output clean.
+- **Revert:** restore `index.html` (re-add the babel `<script>` + `type="text/babel"`), `frontend.py`
+  (concatenate-only `build_frontend_document`), `app.py`, the tests + CI; remove `package.json`/lockfile; rebuild.
+
+## 2026-06-21 — Fix (post-inc-101): double-click no longer word-selects a library card's title
+
+- **Files:** `app/frontend/styles.css` (`.paper` rule), `10_pdf_layer.jsx` (comment), `callosum-app.html`.
+- **What:** added `-webkit-user-select: none; user-select: none;` to the `.paper` card so double-clicking a card
+  opens the PDF (inc-98) **without** the browser also highlighting the title word under the cursor.
+- **Why:** inc-98 made `onDoubleClick` always open but never suppressed the browser's default double-click
+  word-selection, so the title flashed highlighted on every open — user-reported.
+- **Scope:** frontend-only CSS; interaction property, not a token/color/recipe (no DESIGN.md concern). Trade-off
+  (user-confirmed): card text is no longer drag-selectable — it stays copyable in the **Details** pane. Card
+  buttons/checkbox unaffected (`user-select` governs text selection only). pytest unchanged **411**; `ruff` clean.
+- **Revert:** remove the `user-select: none` line from `.paper` and rebuild.
+
+## 2026-06-21 — Increment 101: Reading mode (one-click distraction-free reader)
+
+- **Files:** `40_app.jsx` (readingMode state + toggle + Esc + `cols`/className), `30_viewer.jsx` (`LibraryFrame`
+  `.frame-reading` toggle), `styles.css` (`.frame-reading` + `.app.reading .divider`); `callosum-app.html`.
+- **What:** a **⛶ Read** toggle at the right of the center tab bar hides both side panels and their dividers to
+  maximize the open PDF; **⤢ Exit** or **Esc** restores the prior layout. Transient (a reload returns to normal).
+- **Why:** the carrot of the inc 100–101 patter — a focused reading view, built on the inc-42 collapsible panels.
+- **Scope:** frontend-only — no backend/migration/egress/new token (tokens-only CSS, rule #8). pytest **411**
+  unchanged; `ruff` clean. Visual QA delegated (no Playwright MCP this session). No help-corpus change (the labeled
+  toggle + tooltip are self-evident).
+- **Revert:** restore the three frontend files (drop `readingMode`/`toggleReading` + the `.frame-reading` button +
+  the two CSS rules) and rebuild.
+
+## 2026-06-21 — Increment 100: statcheck "flagged" header chip + tag-source aesthetic differentiation
+
+- **Files:** `persistence/signals_repo.py` (+`count_statcheck_flagged`), `routers/methods.py` (+`GET
+  /methods/statcheck/summary`); `persistence/tags_repo.py` + `routers/papers.py` + `routers/tags.py` (expose tag
+  `source`/`import_source`); `00_lib.jsx` (`tagIsImported`/`tagSourceLabel`), `25_detail.jsx`, `10_pdf_layer.jsx`
+  (chip + sidebar/Details tag styling), `40_app.jsx` (flagged count + wiring), `styles.css`; `callosum-app.html`;
+  `tests/{test_tags,test_statcheck,test_health}.py`; help corpus (tags + statcheck sections).
+- **What:** (1) a **⚠ N flagged** chip in the Library header (when the inc-97 batch run flagged any papers) that
+  jumps to the flagged-papers filter — a more prominent door to a feature previously only in Settings. (2) Tags
+  from different sources (imported Crossref/OpenAlex/Zotero keywords vs the ones you typed) are now distinguished
+  by a **muted visual style + a source tooltip** instead of an on-screen label — declutters the Details pane.
+- **Why:** user request — surface the library-wide statcheck result more visibly, and "use aesthetic means of
+  differentiating tags from different sources to avoid cluttering up the details view."
+- **Scope:** both are read-only projections of already-persisted facts (inc-97 signals; inc-73 `import_source`) —
+  **no migration, no egress, no LLM, no new dependency.** The tag `source` field is additive (default null).
+  pytest **411** (+1 `test_tag_source_exposed_on_responses`; statcheck-summary assertion folded into an existing
+  test); `ruff` clean. Principles gate: chip = a more prominent path to a *filter* (no rank/verdict; no-accusation
+  boundary holds); tag styling = provenance made visible (inspectability).
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `count_statcheck_flagged` +
+  the `/methods/statcheck/summary` route + the tag `source` plumbing + the two CSS blocks.
+
+## 2026-06-21 — Increment 99: tests derive the Alembic head, not a hardcoded revision
+
+- **Files:** `tests/api_helpers.py` (new `alembic_head()`), `tests/test_health.py`, `tests/test_startup_migration.py`.
+- **What:** added `alembic_head()` (reads the head from the migration scripts) and repointed the two test files'
+  head assertions to it, replacing hardcoded `"00NN_…"` revision constants.
+- **Why:** a migration that bumps the head used to require editing those constants, and a missed edit only failed
+  on the *full* suite (bit inc 91 + inc 98). Now a new migration needs zero test edits for the head.
+- **Scope:** tests-only — no app code, no migration, no behavior change. pytest **410** unchanged; `ruff` clean.
+- **Revert:** restore the three test files (re-hardcode the head constant).
+
+## 2026-06-21 — Increment 98: double-click-to-open fix + watched library folders
+
+- **Files:** `10_pdf_layer.jsx` (double-click always opens + the "Watched folders…" menu label); NEW
+  `persistence/watched_repo.py` + `alembic/versions/0014_watched_folders.py` + `schema.py` (watched_folders table);
+  `routers/library.py` (register-on-scan + watched endpoints + rescan worker + shared `_process_scan_result`);
+  `27_scan.jsx` (Watched-folders modal), `40_app.jsx` (auto-rescan on launch + toggle), `35_settings.jsx`
+  (toggle); `callosum-app.html`; `tests/{test_watched_folders,test_health,test_persistence_core}.py`; help corpus;
+  backlog; the audit.
+- **What:** (A) **bug** — double-clicking a paper's title selected the word instead of opening (inc-82 guard);
+  double-click now always opens. (B) **feature** — Zotero/Mendeley-style **watched folders**: scanning a folder
+  watches it, and watched folders are re-scanned automatically on launch (+ a manual "Re-scan all") so new PDFs
+  appear without re-adding; manage them in "+ Add → Watched folders…".
+- **Why:** the user reported the double-click regression and asked for real folder-watching.
+- **Scope:** migration **0014** (additive/guarded); reuses the inc-87 scan (content-dedup → no dupes); only egress
+  is Crossref (not the Gemini gate); **no live OS file-watcher** (on-launch + manual). pytest **410** (+2);
+  `ruff` clean; audit PASS. Server-side folder read now persisted + auto-read → deployment-gate note extended.
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `watched_repo.py` + the
+  watched endpoints + the 0014 table + the auto-rescan effect (and restore the inc-82 double-click guard).
+
+## 2026-06-21 — Increment 97: statcheck as a library-wide lens
+
+- **Files:** NEW `app/backend/persistence/signals_repo.py`; `repository.py` (`signal` filter + `SIGNAL_FILTERS` +
+  `list_live_paper_ids`), `routers/methods.py` (batch endpoints + worker), `routers/papers.py` (`signal` param),
+  `api/app.py` (JobStore); frontend `35_settings.jsx` (`StatcheckSettings`), `40_app.jsx` (`librarySignalFilter`
+  view + wiring), `10_pdf_layer.jsx` (banner); `callosum-app.html`; `tests/{test_statcheck,test_health}.py`; help
+  corpus; backlog; the audit.
+- **What:** a batch **Check all papers** (Settings) persists each paper's statcheck summary to
+  `open_science_signals`, and a library **filter** shows only papers with reporting inconsistencies (reached via
+  "Show flagged papers" + a banner). The inc-95 per-paper check is unchanged.
+- **Why:** the patter's carrot — turn statcheck into whole-library triage.
+- **Scope:** a **filter, never a rank/score or a "bad papers" list** (Principles gate run). No migration (the
+  table existed since 0001), no egress, no LLM, no new dependency. pytest **408** (+3); `ruff` clean; audit PASS.
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `signals_repo.py` + the batch
+  endpoints + the `signal` filter + the Settings section + the `librarySignalFilter` view.
+
+## 2026-06-21 — Increment 96: sidebar Tags browser + Details "More → + add field"
+
+- **Files:** `app/frontend/js/10_pdf_layer.jsx` (`TagsPanel` + Sidebar), `40_app.jsx` (`tagRefresh` + wiring),
+  `20_synthesis.jsx` + `25_detail.jsx` (`onTagsChanged`; `AddFieldRow` + always-on More), `styles.css`;
+  `callosum-app.html`; help corpus.
+- **What:** (1) a sidebar **Tags** browser (every tag + count → click to filter the library; live-refreshed on
+  per-paper tag edits); (2) a **"+ add field"** control in the Details **More** section (add an arbitrary CSL
+  field by hand, via the inc-49 validated `csl` patch).
+- **Why:** the patter's two chores — make the tag vocabulary browsable (it was per-paper only), and complete the
+  inc-49 "More add-field" deferral (reference-manager parity).
+- **Scope:** **frontend-only** (both reuse tested endpoints — `GET /tags`, the `csl` patch); no migration, no
+  egress, no new endpoint. pytest **405** unchanged; `ruff` clean.
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `TagsPanel` + the
+  `tagRefresh`/`onTagsChanged` wiring + `AddFieldRow`.
+
+## 2026-06-21 — Increment 95: statcheck — deterministic statistics-reporting signal
+
+- **Files:** NEW `app/backend/methods/{__init__,statcheck}.py`, NEW `app/backend/api/routers/methods.py`;
+  `api/app.py` (register), `requirements.txt` (scipy explicit); frontend `25_detail.jsx` (`StatcheckRow`) +
+  `styles.css`; `callosum-app.html`; `tests/{test_statcheck,test_health}.py`; help corpus; backlog; the audit.
+- **What:** a Details-pane **"Check statistics"** action that recomputes reported APA NHST p-values (t/F/r/χ²/z)
+  from the paper's extracted text and flags reported-vs-computed disagreements (consistent / inconsistent /
+  decision-error), with rounding + one-tailed tolerance, per-test rows + counts (no composite score), a
+  non-accusatory caveat, and route-to-page. Deterministic, local, no LLM.
+- **Why:** the patter's carrot; Track A's v1 — the project's verification ethos on the Methods side.
+- **Scope:** `GET /papers/{id}/statcheck` (sync, read-only); `scipy` made explicit (already transitive); no
+  migration, no egress, no persistence (deferred to the findings subsystem). pytest **405** (+10); `ruff` clean;
+  audit PASS. Principles gate run (Example 3 / value A6; no-accusation veto honored).
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `methods/statcheck.py` +
+  `routers/methods.py` + the `StatcheckRow` + the scipy line.
+
+## 2026-06-21 — Increment 94: library-header "+ Add ▾" menu + persistent/descending Sort
+
+- **Files:** `app/frontend/js/10_pdf_layer.jsx` (`AddMenu` + Sort options), `app/frontend/js/40_app.jsx` (persist
+  `librarySort`), `app/frontend/styles.css` (`.add-menu*`), `app/backend/persistence/repository.py`
+  (`title_desc`/`author_desc` sort keys), `callosum-app.html`, `tests/test_papers.py` (+2 sort assertions).
+- **What:** (1) folded the header's Scan folder + Import into one **"+ Add ▾"** dropdown (6 header actions → 5);
+  (2) the library **Sort** choice now persists across reloads (localStorage) and offers **Title/Author (Z–A)**.
+- **Why:** the patter's two chores — declutter the header I flagged last round + remove the sort-resets papercut.
+- **Scope:** frontend-only bar one backend allowlist line; no migration/egress/endpoint. pytest **395** unchanged;
+  `ruff` clean. Help corpus unchanged (control relocation / sort options aren't described there).
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `AddMenu` + the
+  `title_desc`/`author_desc` keys + the localStorage persistence.
+
+## 2026-06-21 — Increment 93: BibTeX / RIS / CSL-JSON import
+
+- **Files:** NEW `app/backend/metadata/citation_import.py`, NEW `app/frontend/js/28_import.jsx`;
+  `routers/library.py` (import endpoint + worker), `api/app.py` (JobStore), `10_pdf_layer.jsx` (Import button),
+  `40_app.jsx` (wiring); `callosum-app.html`; `tests/{test_citation_import,test_health}.py`; help corpus; backlog;
+  the security audit.
+- **What:** import a BibTeX / RIS / CSL-JSON file → parse (hand-rolled, no new dep) → dedup → create metadata-only
+  library papers → embed. The inverse of inc-70 export; reference-manager-first parity (also covers
+  Mendeley/EndNote, which export these). An **Import** button in the library header opens a file-picker modal.
+- **Why:** the patter's carrot; the only importer was Zotero.
+- **Scope:** **entirely local — no egress** (the file is authoritative; no Crossref/Gemini), no multipart/upload
+  surface (browser POSTs the file text as JSON), no new dependency, no migration. pytest **395** (+9); `ruff` clean;
+  audit PASS. Completes the inc 91–93 patter.
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `citation_import.py` +
+  `28_import.jsx` + the `/library/import` endpoint + JobStore + the Import button.
+
+## 2026-06-21 — Increment 92: un-dismiss for My-Publications missing works
+
+- **Files:** `persistence/profile_repo.py` (`undismiss_work`), `clustering/my_publications.py`
+  (`_dashboard_dismissed_works` + `build_dashboard`), `routers/my_publications.py` (`dismissed_works` field +
+  `/works/undismiss` endpoint); frontend `31_mypubs_dashboard.jsx`; `callosum-app.html`;
+  `tests/{test_my_publications,test_health}.py`; docs + backlog.
+- **What:** completes inc-85's missing-works review queue with an **undo** for Dismiss — the dashboard now shows a
+  "Previously dismissed (N)" section, and **Restore** sends a work back to the review queue (`POST
+  /my-publications/works/undismiss`).
+- **Why:** chore 2 of the patter; the inc-85 deferred follow-on (mirrors inc-67's un-dismiss-duplicates).
+- **Scope:** pure `profile.dismissed_work_dois` JSON edit — no migration, no egress (dashboard stays cache-only).
+  pytest **386** (+1); `ruff` clean.
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot, or drop `undismiss_work` +
+  `dismissed_works` + the `/works/undismiss` endpoint + the dashboard section.
+
+## 2026-06-21 — Increment 91: filter the library by type (+ prerequisite module splits)
+
+- **Files:** NEW `app/backend/persistence/annotations_repo.py`, NEW `app/backend/api/routers/paper_files.py`;
+  `repository.py`, `routers/papers.py`, `routers/annotations.py`, `api/app.py`; frontend `40_app.jsx`,
+  `10_pdf_layer.jsx`, `styles.css`; `callosum-app.html`; `tests/{test_persistence_core,test_health,test_papers}.py`;
+  docs + backlog.
+- **What:** (1) **Rule-#1 splits** (behavior-preserving): native-annotations data-access moved out of
+  `repository.py` (625→538) → `annotations_repo.py`; PDF file-serving moved out of `papers.py` (600→539) →
+  `routers/paper_files.py`. (2) **Feature:** filter the library by CSL item type — a Type dropdown in the header,
+  an `item_type` query param on `GET /papers` (bound `WHERE`), and a `GET /papers/item-types` facet endpoint
+  (distinct live types + counts).
+- **Why:** chore 1 of a "2 chores + 1 carrot" patter; adding the filter surfaced that two core files had drifted
+  over the 600-line hard limit, so they were modularized first (rule #1).
+- **Scope:** no migration, no egress; the PDF route kept its path so the only new route is `/papers/item-types`.
+  pytest **385** (+1); `ruff` clean. Backlog reconciled (Unsorted→inc 80, re-score-wrap→inc 86, filter-by-type→inc 91).
+- **Revert:** restore the touched files from a `.claude/backups/` snapshot; the splits can be undone by moving the
+  functions back and repointing imports, the feature by dropping the `item_type` param + `list_item_types` + the
+  dropdown.
+
+## 2026-06-21 — Increment 90: sidebar header redesign (horizontal logo + larger wordmark)
+
+- **Files:** `app/frontend/styles.css` (`.brand`, `.brand h1`, `.icon-help`, `.icon-gear`), `callosum-app.html`
+  (rebuilt).
+- **What:** the sidebar brand header became a **horizontal lockup** — logo on the left, a **36px** "Callosum"
+  wordmark to its right — with the `⚙` settings button in the **top-left** corner and the `?` help button in the
+  **top-right**. Was a vertical stack (logo over a 19px wordmark). _(Two same-day tweaks after the user saw it:
+  wordmark trimmed ~10% 40→36px; the buttons split back into the two corners — settings left, help right.)_
+- **Why:** user request (a more prominent, conventional brand lockup that reclaims vertical space) — matched to
+  the user's mockup + alignment guides.
+- **Scope:** **CSS-only** (the JSX already supported it — buttons are absolute, `.brand` is a flex container);
+  connection-status logo (inc 47) untouched; no new tokens/hexes (serif wordmark + `--ink`, existing `.icon-*`
+  recipes). pytest **384** unchanged (frontend-only). Visual QA delegated to the user; font-size 36px is the
+  flagged tunable.
+- **Revert:** restore `styles.css` from a `.claude/backups/` snapshot, or revert the 4 rules (`.brand` →
+  `flex-direction: column`, `.brand h1` → 19px, `.icon-gear` → `right: 14px`, `.icon-help` → `left: 14px`).
+
+## 2026-06-21 — Increment 89: search across all fields + a search-scope dropdown
+
+- **Files:** `app/backend/persistence/repository.py` (`_search_clause` + `search_field` on `list_papers`),
+  `app/backend/api/routers/papers.py` (`search_field` query param); frontend `40_app.jsx` (`librarySearchField`
+  state + fetch) + `10_pdf_layer.jsx` (scope dropdown + placeholder); `callosum-app.html`; help corpus;
+  `tests/test_papers.py` (+1).
+- **What:** the library search now covers **all** stored fields (every author, journal, year, DOI, abstract, the
+  whole `csl_json` record) instead of only title + first author, and a **scope dropdown** (All / Title / Author /
+  Journal) lets the user narrow it. Fixes the bug where searching a co-author's surname found only first-authored
+  papers (6 instead of 40).
+- **Why:** user request — non-first authors were unsearchable, and the Detail pane has since gained many fields
+  the search never covered.
+- **Scope:** no migration, no new endpoint (a query param), no egress; the `field` key is an allowlist (rule #3),
+  the pattern is bound. pytest **384** (+1); `ruff` clean.
+- **Revert:** restore `repository.py`/`papers.py`/the two JSX chunks from a `.claude/backups/` snapshot, or drop
+  the `search_field` param + `_search_clause` (reverting to the old title/first-author `OR`).
+
+## 2026-06-21 — Increment 88: search + sort on one row
+
+- **Files:** `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/styles.css`, `callosum-app.html` (rebuilt).
+- **What:** moved the **Sort** control inline to the right of the search box (into the `.searchbar` flex row;
+  dropped the `.lib-sort-row` wrapper), reclaiming a vertical row in the library pane.
+- **Why:** user request (tighter library header).
+- **Scope:** frontend-only — no migration/endpoint/egress. pytest **383** unchanged.
+- **Revert:** restore `10_pdf_layer.jsx` + `styles.css` from a `.claude/backups/` snapshot.
+
+## 2026-06-21 — Increment 87: scan / refresh a library folder
 
 - **Files:** `app/backend/pdf_processing/library_scan.py` (NEW), `app/backend/api/routers/library.py` (NEW),
   `app/backend/api/app.py` (router + JobStore); frontend `27_scan.jsx` (NEW) + `10_pdf_layer.jsx` +

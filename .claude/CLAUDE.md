@@ -21,8 +21,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 88** (see Increment workflow) with **383 pytest tests
-passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
+It is currently at **Increment 108** (see Increment workflow) with **424 pytest tests
+passing** (+ opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
 - **Backend:** Python 3.11+, FastAPI + Uvicorn (`app/backend/api/app.py`).
@@ -30,17 +30,32 @@ passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough pl
 - **Vectors:** `sqlite-vec` (in-process, no separate daemon) + sentence-transformers
   (default embed model `all-MiniLM-L6-v2`; `bge-base-en-v1.5` also supported).
 - **Clustering:** scikit-learn agglomerative clustering + local axis scoring.
+- **Methods (deterministic, local, no-LLM):** statcheck NHST p-value recomputation (`scipy.stats`), inc 95.
+- **Citations (formatted):** **citeproc-js** run as a Node sidecar (same subprocess pattern as esbuild) over
+  bundled CSL styles/locales → formatted in-text citations + bibliographies from `papers.csl_json`
+  (`app/backend/citations/`, inc 106). The **word-processor-integration spine** (adapters ride this engine):
+  inc 106 renders a *selection* per-item; **inc 107 adds position-aware *document* render** (`render_document` /
+  `POST /citations/render-document`, `rebuildProcessorState` — numeric renumbering + author-date disambiguation
+  across an ordered document — the contract the LibreOffice/Word/Docs adapters call). Local, no egress.
+  `citeproc` is an npm dep (`package.json`); see `THIRD-PARTY-NOTICES.md`. **inc 108** ships the **first adapter**:
+  a LibreOffice (UNO) cite-while-you-write macro (`adapters/libreoffice/`) that places ReferenceMark live fields +
+  rides `render-document` — client-side, no server change.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective):** `google-genai` → Gemini `gemini-2.5-flash-lite`, **summary generation
   only**, OFF by default (see Core design invariants). Verification NLI runs locally
   (`cross-encoder/nli-MiniLM2-L6-H768`).
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
-  ordered `js/*.jsx` React chunks, pdf.js via CDN), assembled by `app/backend/api/frontend.py`.
-  `tools/build_frontend.py` rebuilds the single-file `callosum-app.html` (byte-identical to the
-  old hand-maintained file) from that source; FastAPI serves it at `/` by default, falling back
-  to live assembly if it's absent. No bundler, no extra file-serving surface (the JSX is
-  concatenated into one `<script>`, so its shared global scope is identical to the old file).
-  **Re-run `python tools/build_frontend.py` after editing anything under `app/frontend/`.**
+  ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
+  `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by
+  esbuild at build time** (inc 102 — `package.json` pins esbuild; `npm install` once), then injected
+  into one `<script>`. (Through inc 101 the JSX was transpiled in-browser by `babel-standalone`;
+  precompiling dropped that ~500KB CDN download + runtime transform + its dev-console warnings.)
+  `tools/build_frontend.py` rebuilds the single-file `callosum-app.html`; FastAPI serves it at `/`
+  by default, falling back to live assembly if it's absent. No bundler (just a transpile pass), no
+  extra file-serving surface (esbuild emits one IIFE, so the chunks' shared scope is preserved); the
+  **server stays Python-only** — it serves the prebuilt file, never running Node at serve time.
+  **Run `npm install` once, then re-run `python tools/build_frontend.py` after editing anything under
+  `app/frontend/`.**
 - **HTTP client:** httpx (external metadata/discovery APIs).
 
 > **Gotcha:** `README.md` is **stale** — it still says "planning skeleton / planning mode."
@@ -153,6 +168,8 @@ Run from the project root. The shell is **PowerShell** (Windows).
 |---|---|
 | `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite`) |
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
+| `npm install` | Install the build-time frontend toolchain (pinned `esbuild`) — required once before `tools/build_frontend.py` / live assembly (inc 102) |
+| `python tools/build_frontend.py` | Rebuild `callosum-app.html` from `app/frontend/` (esbuild-precompiles the JSX) — run after any `app/frontend/` edit |
 | `pytest` | Run the full test suite (`testpaths=tests`, `pythonpath=.`) |
 | `pytest tests/test_api.py -k summary` | Run a focused subset |
 | `alembic upgrade head` | Apply DB migrations |
@@ -175,13 +192,14 @@ callosum/
 │   ├── CLAUDE.md                  (this file)
 │   ├── PRINCIPLES.md              (the project charter — the Principles alignment gate, rule #9)
 │   ├── APPROACH-AVOIDANCE.md      (the value substrate beneath PRINCIPLES — the gate's deeper conditional layer)
+│   ├── CREDIT-THE-LINEAGE.md      (values-layer cross-cutting principle — credit + library-add the scholarly work a tool stands on; inbox-captured 2026-06-21)
 │   ├── DESIGN.md                  (the design dictionary — rule #8)
 │   ├── docs/                      (planning suite: product-scope, data-contracts, architecture, risk-register,
 │   │   ├── increment-notes/       glossary, INCREMENT-BACKLOG, README; increment-notes/ = the per-increment diary;
 │   │   ├── future-tracks/         future-tracks/ = longer-horizon docs; future-tracks-import/ = the watched inbox
-│   │   └── future-tracks-import/  (session-kickoff watch rule, Phase 8; gitignored — local-only dropzone).
+│   │   ├── future-tracks-import/  (session-kickoff watch rule, Phase 8; gitignored — local-only dropzone);
+│   │   └── research/              research/ = deep-research planning + feedback baselines + ref-manager surveys.
 │   │                              NB roadmap.md + backlog-future-tracks.md were archived → deprecated/)
-│   ├── research/                  (deep-research planning + feedback docs)
 │   ├── deprecated/                (vestigial scaffolding archived here, not deleted)
 │   ├── backups/                   (timestamped zip snapshots: callosum_HHMMpm.zip;
 │   │   └── plans/                 plus plan-file backups — this is the recovery net)
@@ -193,12 +211,17 @@ callosum/
 │   │   ├── api/                   (app.py [thin create_app factory + lifespan + CORS + frontend route],
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
-│   │   │                          frontend.py [serve-time assembler], routers/{health,papers,duplicates,
-│   │   │                          acquisition,wanted,my_publications,library,annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
+│   │   │                          frontend.py [serve-time assembler], routers/{health,papers,paper_files [PDF
+│   │   │                          file-serving, inc 91],methods [statcheck, inc 95],citations [formatted-citation
+│   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
+│   │   │                          annotations,tags,axes,summaries,help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
-│   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78])
+│   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78],
+│   │   │                          annotations_repo.py [native-annotation data access, inc 91],
+│   │   │                          signals_repo.py [open_science_signals: statcheck summaries, inc 97],
+│   │   │                          watched_repo.py [watched_folders, inc 98])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
 │   │   │                          location.py, cli.py)
@@ -207,14 +230,19 @@ callosum/
 │   │                          axis_assignments.py [manual-override + state API], axis_suggestion.py,
 │   │                          axis_operations.py, duplicate_detection.py, tag_suggestion.py [inc 72],
 │   │                          my_publications.py [own-papers resolver + import hook, inc 78])
+│   │   ├── methods/               (statcheck.py [deterministic NHST p-value recomputation, inc 95]; GRIM/p-curve later)
+│   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
+│   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
+│   │   │                          citeproc_runner.js [Node sidecar; per-item + mode:"document"], csl/{styles,locales} [bundled CSL data, CC-BY-SA])
 │   │   ├── summarization/         (pipeline.py, generators.py, verification.py)
 │   │   ├── llm/                   (egress.py [provider-neutral DataEgressDisabledError + seam-gate wrappers, inc 58];
 │   │   │                          cache.py [content-addressed summary-generation cache, inc 61]; usage.py [token logging])
 │   │   ├── help/                  (help_content.md [served corpus, inc 59], corpus.py [loader + allowlisted
 │   │   │                          md→html], assistant.py [HelpAssistant Protocol + dataclasses, inc 60])
 │   │   ├── importers/             (zotero.py)
-│   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py,
-│   │   │                          paper_edits.py, citation_export.py [BibTeX/RIS/CSL-JSON, inc 70])
+│   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py, paper_edits.py,
+│   │   │                          citation_export.py [→BibTeX/RIS/CSL-JSON, inc 70],
+│   │   │                          citation_import.py [←parse BibTeX/RIS/CSL-JSON, inc 93])
 │   │   └── acquisition/           (registry.py [OaLocation OA-only seam + cascade], fetch.py [download/validate/
 │   │                              name/import], wanted.py [wanted-list re-check service, inc 76], resolvers/{openalex,
 │   │                              doaj,europepmc,crossref,core,arxiv,biorxiv,osf}_resolver.py; the OA acquisition
@@ -222,6 +250,9 @@ callosum/
 │   ├── frontend/                  ← the UI SOURCE: index.html shell + styles.css + js/*.jsx chunks
 │   │                              (assembled by app/backend/api/frontend.py; build → callosum-app.html)
 │   └── desktop-shell/             (placeholder — Tauri, post-V1)
+├── adapters/                      ← word-processor adapters (CLIENT code, ships into the word processor; NOT the
+│   └── libreoffice/               app, NOT a server integration). inc 108: callosum_cite.py [UNO cite-while-you-write
+│                                  macro], README.md, selftest_uno.py [headless round-trip harness]. Word/Docs next.
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf [impl]; api_cache.py [shared cache helper]; semantic-scholar,
 │                                  grobid, mendeley [planned])
@@ -231,8 +262,10 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0013_my_publication_dismissed_works)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0014_watched_folders)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
+├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
+├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
 └── .local/                        (generated validation DBs + debug images; gitignored)
@@ -257,13 +290,14 @@ shared/core code loading first.
 **Exempt-but-watched:** `tests/` and `tools/` (the validation harness is allowed to be large),
 and non-code (Markdown, SQL, config).
 
-**Standing split tasks:** none currently over the limit — the release-readiness Phase-5 pass split
-`axis_scoring.py` (617→463) by moving the manual-assignment/state API to `axis_assignments.py` (167), and
-consolidated the four duplicated async-job stores into a generic `app/backend/api/job_store.py`
-(`Job`/`JobStore[R]`). Largest app-source files now: `repository.py` (~577),
-`app/backend/api/routers/papers.py` (~576), `extraction.py` (~551), `routers/axes.py` (~527),
-`schema.py` (~494) — all comfortably under 600. (The editable Detail pane lives in its own chunk
-`app/frontend/js/25_detail.jsx`; the edit-mapping logic is `app/backend/metadata/paper_edits.py`.)
+**Standing split tasks:** none currently over the limit. **Inc 91** split two files that had silently drifted
+over (the prior "~577/~576" note here was stale — re-measure, don't trust this line): `repository.py` (625→538,
+extracting native-annotations data-access → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539,
+extracting PDF file-serving → `routers/paper_files.py`). Largest app-source files now (re-measure before
+trusting): `schema.py` (~559), `repository.py` (~556), `routers/papers.py` (~554), `extraction.py` (~551),
+`routers/axes.py` (~537) — all under 600, but several are **close**, so check `wc -l` before adding to them.
+(The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
+`app/backend/metadata/paper_edits.py`.)
 
 **Watch (exempt but large):** `tools/validation_harness.py` (~898 — inc 37 extracted the report
 dataclasses + markdown renderer to `tools/validation/`; the probes remain, a candidate for a future
@@ -336,7 +370,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 88). Each increment of real work
+callosum is built in **numbered increments** (currently at 108). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -420,9 +454,10 @@ work is called done:
 **Before any public/internet-facing deployment** (not done today — track it):
 - There is **no authentication and no rate limiting.** Add both before exposing the app.
 - The localhost-only CORS + PDF/file-serving paths must be re-reviewed for a hosted context.
-- **`POST /library/scan` reads a user-supplied folder server-side** (inc 87) — fine on 127.0.0.1 (the server is
-  the user's machine), but a remote caller could enumerate/read server files. **Gate or remove it before any
-  hosted deployment.**
+- **`POST /library/scan` reads a user-supplied folder server-side** (inc 87), and **watched folders (inc 98)
+  persist those paths + auto-read them on launch** (`POST /library/watched/rescan`) — fine on 127.0.0.1 (the
+  server is the user's machine), but a remote caller could enumerate/read server files. **Gate or remove these
+  before any hosted deployment.**
 - Re-audit the egress gate, secret storage, and per-IP resource caps.
 
 ---
@@ -516,6 +551,7 @@ before large design changes:
 |---|---|
 | `.claude/PRINCIPLES.md` | **The project charter — read before ANY claim/signal/judgment feature (rule #9 / Principles alignment gate): the 10 commitments, the THEORY contract, and four aligned-vs-misaligned worked examples. When at odds, propose the aligned alternative.** |
 | `.claude/APPROACH-AVOIDANCE.md` | **The value substrate *beneath* the charter — the deeper, *conditional* layer of the gate (consulted for novel / value-level / future-track changes only, not every gated edit): 8 approach values + standalone veto-level avoidance boundaries (no paywall circumvention / no reaching into other tools' stores / no accusation of individuals) + the confirmed/extended/emergent/divergent drift typology. Derive the check from the value when no principle directly applies.** |
+| `.claude/CREDIT-THE-LINEAGE.md` | **Values-layer cross-cutting principle (inbox-captured 2026-06-21): any tool that implements/operationalizes/is-built-on identifiable scholarly work must credit it *in-context* + offer the source paper(s) to the library (one-click), and credit a prior *tool* by citation + library-add, never by appropriating its name. Apply to every method-implementing feature; the retroactive credit-help backfill is in the backlog. Not yet wired as a hard rule-#9 gate trigger.** |
 | `.claude/DESIGN.md` | **Design dictionary — read before ANY CSS/inline-style change (rule #8): tokens, element recipes, fixed color/type semantics, consolidation worklist** |
 | `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
@@ -528,8 +564,8 @@ before large design changes:
 | `.claude/deprecated/roadmap.md` | **Archived (Phase 6, 2026-06-20, stale)** — the old staged skeleton→discovery roadmap; current status lives in the increment diary + `INCREMENT-BACKLOG.md`. |
 | `.claude/docs/glossary.md` | Domain terms |
 | `.claude/docs/increment-notes/INCREMENT-NN-NOTES.md` | Per-increment design diary (all increments, oldest→newest) |
-| `.claude/research/opus4.8_deepresearch_callosum_plan.md` | Architecture + tech survey baseline |
-| `.claude/research/opus4.8_deepresearch_callosum_feedback.md` | Review of the planning skeleton |
+| `.claude/docs/research/opus4.8_deepresearch_callosum_plan.md` | Architecture + tech survey baseline |
+| `.claude/docs/research/opus4.8_deepresearch_callosum_feedback.md` | Review of the planning skeleton |
 | `.claude/deprecated/backlog-future-tracks.md` | **Archived (Phase 6, 2026-06-20)** — earlier capture of the external tracks, superseded by `.claude/docs/future-tracks/` (the canonical source). |
 
 ---
@@ -538,6 +574,25 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| LibreOffice (UNO) citation adapter = a thin client-side field-placer on the inc-107 render-document contract; the first word-processor adapter (inc 108) | The first piece that places citations **inside a word processor**. A drop-in LibreOffice Writer **Python UNO macro** (`adapters/libreoffice/callosum_cite.py`) — new top-level **`adapters/`** tree (client code that ships into the user's LibreOffice; NOT the FastAPI app, NOT a server-side `integrations/` client). It is a **thin field-placer** (the spec's contract): place/track a live field, read the full ordered set, write back what the backend rendered — it **never formats** (citeproc does, so output matches the in-app "Cite as…"). Live fields = **ReferenceMarks** whose name carries the cited work's **CSL-JSON** (base64), the Zotero `CSL_CITATION` **pattern** (credited, not code → `THIRD-PARTY-NOTICES.md`). Four entry points: Insert (paper id → `/papers/export csl-json` → ReferenceMark), Refresh (full-document-order scan via `XTextRangeCompare` → `POST /citations/render-document` → write back in-text + bibliography), SetStyle (validated vs `/citations/styles`, persisted as doc user-properties), Flatten (live→static). **No server change** — no new endpoint/migration/route/egress (talks only to 127.0.0.1); stdlib `urllib` (LO's bundled Python has no pip). **Verification:** the headless UNO round-trip (`.local/lo_roundtrip/`, real LibreOffice → IEEE `[1]/[2]`, APA author-date, flatten preserves text — SELFTEST OK) + 5 pytest pure-logic tests. **Four UNO traps found+fixed** (worth knowing for the next adapters): `loadComponentFromURL` needs `Hidden=True`; clearing the bib invalidates its bookmark anchor (reuse the cursor); `setString` on a ReferenceMark anchor **destroys the mark** (recreate it around the new text); holding `ReferenceMarks` collection items across a mutation hangs on a stale handle (capture names, re-fetch) + removing a mark deletes its text (flatten re-inserts it). Audit `.claude/security-audits/2026-06-21_libreoffice-adapter.md` PASS. **Next:** Word (Office.js — needs the CORS/origin change) then Google Docs (cloud opt-in). |
+| Position-aware document render = a 2nd citeproc mode (`rebuildProcessorState`) + endpoint; the word-processor adapter contract (inc 107) | The inc-106 engine renders each cite **in isolation** (`makeCitationCluster`) — right for a *selection* (in-app "Cite as …" / bulk bibliography), **wrong for a live document** (numeric styles must renumber `[1][2][3]` by order; author-date must disambiguate `2020a`/`2020b` across the whole doc). Inc 107 adds the **position-aware** layer every word-processor adapter calls: the runner gains a **`mode:"document"`** branch using citeproc's **`rebuildProcessorState(clusters,"html")`** (the standard "render this ordered saved set" call — how Zotero renders a doc), returning per-cluster in-text `[citationID,noteIndex,string]` + `makeBibliography()`; the inc-106 per-item path is the unchanged default. `render.py` refactors the subprocess into **`_run(request)`** (both modes build their own request) + adds **`render_document(citations,*,style,locale)`** — **self-contained** (renders from the passed CSL-JSON payloads, **no library lookup / no DB**), caps clusters/items-per-cluster/total, sanitizes output (`_safe_html`). **`POST /citations/render-document`** `{citations:[{citationID?,items:[CSL-JSON]}],style,locale}` — *the adapter contract*: an adapter scans the doc for citation fields (each carrying its embedded CSL-JSON), POSTs them **in document order**, gets back the **position-aware** in-text per field + the bibliography to write back. Stateless per request (always the full ordered set → no server-side doc state). Same status contract as `/citations/render` (503/422/502, never 500). **No frontend change, no migration, no egress, no new dependency.** Audit `.claude/security-audits/2026-06-21_citation-render-document.md` PASS. **Next:** the LibreOffice (UNO) adapter — the live-field loop (insert→render→update→flatten) on this endpoint. |
+| Citation & bibliography engine = citeproc-js rendered backend-side via a Node sidecar; the word-processor spine (inc 106) | The biggest gap to Zotero/Mendeley parity. **citeproc-js** (the reference CSL processor) runs as a **Node sidecar** — invoked exactly like esbuild (`render.py::_run_engine` mirrors `frontend.py::_transpile_jsx`: `shutil.which("node")` + fixed-arg `subprocess.run`, request JSON on stdin, result on stdout, fail-closed → `CitationEngineUnavailable`/503). One central render = byte-identical output everywhere (the **adapters will only place fields, never format** — LibreOffice → Word → Google Docs ride this same engine). Reuses `papers.csl_json` + `get_papers_for_export`. CSL **styles/locales are bundled** verbatim under `app/backend/citations/csl/` (CC-BY-SA, `<rights>` preserved; **no fetch-on-demand → no egress** this increment). citeproc HTML is **sanitized server-side** (`_safe_html`: bare inline tags only, attrs/other-tags dropped, text escaped) before any in-app `dangerouslySetInnerHTML` — same posture as inc-33/59. Endpoints `GET /citations/styles` + `POST /citations/render`; in-app surface = Details "Cite as …" (style dropdown + live preview + copy) + a bulk "bibliography…" `.html` download. `citeproc` pinned in `package.json`; CI `npm ci` covers tests; data files exempt from the 600-line rule. Honors **credit-the-lineage** (`THIRD-PARTY-NOTICES.md`). Audit `.claude/security-audits/2026-06-21_citation-engine.md` PASS. **Next:** the LibreOffice (UNO) adapter (the live-field loop). |
+| Default axis cutoff in Settings + a tag source filter — both frontend-only over existing data (inc 105) | Two chores. (1) A **`callosum.axisCutoffDefault`** localStorage pref (Settings → Axes slider, clamped [0.2,0.6], default 0.35; mirrors the inc-77 hide-uncertain pattern) threads App→Sidebar→AxesPanel→`AxisItem`, whose cutoff flipper falls back to it when `axis.scoring_gain == null` (a stored per-axis gain still wins; AxesPanel keys cards on the default so a change re-inits unscored cards). Sets what the flipper *proposes*; no backend change (unscored read-time tiering still uses the backend 0.35 until scored). (2) The sidebar `TagsPanel` gained an **All / Yours / Keywords** segmented control filtering by the inc-100 `source` (`tagIsImported`), shown only when both kinds exist — purely client-side over the already-fetched `/tags`. No migration, no egress, no new endpoint; pytest 411 unchanged. |
+| Side panels have min widths (left 300 / right 415) + Spotify-style pull-to-collapse; header buttons regrouped (inc 104) | `40_app.jsx` constants `LEFT_MIN=300/RIGHT_MIN=415` (+ `*_MAX`, `*_COLLAPSE_AT = min−80`). The `leftW`/`rightW` init clamps the persisted value up to the min; each divider's drag computes the unclamped `proposed` width and **auto-collapses** the panel (`setLeftOpen/​setRightOpen(false)`) when `proposed < COLLAPSE_AT`, else clamps to `[MIN,MAX]`. The panel "sticks" at its min then snaps shut once pulled ~80px past — works because `_beginDrag` uses document-level listeners (the grip unmounting mid-drag doesn't end the drag; re-expand within one drag works, else the collapse chevron). Auto-collapse persists like a chevron collapse; widths stay ≥ min. **CSS:** `.icon-help` → `top:19px;right:33px` (down 7/left 4, then both nudged left 15px); `.icon-gear` → `top:19px;right:60px` (same Y, 27px left of help — the two become a right-aligned pair, top-left vacated). Both buttons also gained an **always-on outline** (`border:1px solid currentColor`, the icon color at rest; hover still → `--line-2` border + `--accent` text + `--panel` bg). Frontend-only; tokens-untouched position values (rule #8). |
+| Per-card "copy BibTeX" clipboard button restores card-citation copy after the inc-98 `user-select:none` (inc 103) | inc-98's `.paper { user-select:none }` (needed so a double-click opens without word-selecting the title) removed text-copy from cards, so a small **clipboard SVG button** (`PaperCopyButton` in `10_pdf_layer.jsx`) sits just left of the checkbox (`.paper-copy` absolute at `top:10px;right:36px`, vs the checkbox at `right:14px`; `.paper-title` got `padding-right:46px` to clear both). It copies the paper's **BibTeX** via the tested inc-70 `POST /papers/export {paper_ids:[id], format:"bibtex"}` → `navigator.clipboard` (mirrors the Details `CiteRow`; `stopPropagation` so copy never selects/opens; icon → ✓ for ~1.5s). Shown only in `selecting` mode (the normal library view), matching "alongside the checkbox"; the checkbox is untouched. **Frontend-only — no backend/endpoint/migration/egress** (reuses a validated local read-only endpoint). Two inline Feather SVGs (the user asked for an SVG; most icons are emoji). |
+| Frontend JSX is precompiled by esbuild at build time; the in-browser Babel transformer is dropped (inc 102) | The served page used `babel-standalone` (cdnjs) to transpile `<script type="text/babel">` JSX **in the browser at runtime** (the inc-37 design), which emitted two dev-console messages (a "precompile for production" warning + a `babel.min.js.map` 404 source-map error) and cost a ~500KB download + runtime transform. Now `frontend.py` concatenates the chunks (`assemble_jsx`) and **precompiles them with esbuild** (`_transpile_jsx`: `node node_modules/esbuild/bin/esbuild --loader=jsx --jsx=transform --jsx-factory=React.createElement --jsx-fragment=React.Fragment --format=iife --target=esnext`, JSX piped via stdin — fixed arg list, no shell) into one `<script>`; the Babel CDN line is gone from `index.html`. esbuild is a **build-time** dep (`package.json` pins 0.28.1; `npm install`/`npm ci`; `node_modules/` gitignored); the **server stays Python-only** — it serves the prebuilt `callosum-app.html` and never runs Node at serve time (the rare live-assembly fallback transpiles on demand and degrades to the unavailable-response if esbuild is absent — `app.py` try/except, never a 500). The IIFE keeps every chunk in one shared scope (identical runtime to the old single text/babel script). Output is byte-stable per pinned esbuild version, so the `callosum-app.html`-in-sync test still holds; `test_every_js_chunk_is_included` checks `assemble_jsx()` (raw) so completeness needs no toolchain. CI gained `setup-node` + `npm ci`. Verified: `node --check` on the output + the opt-in Playwright smoke (0 console errors). Audit `.claude/security-audits/2026-06-21_precompile-esbuild.md` PASS. (The third console line the user saw — `XrayWrapper … content-script.js` — is an external **browser extension**, not callosum.) |
+| Reading mode = a transient view that collapses both panels + dividers; restores the prior layout on exit (inc 101) | A one-click distraction-free reader (the inc-100/101 carrot), built on the inc-42 collapsible panels. `readingMode` state in `40_app.jsx`: `toggleReading` snapshots `leftOpen`/`rightOpen`, collapses both, and on exit restores the snapshot (so an asymmetric layout returns intact); `cols` zeroes the divider tracks too and `.app.reading .divider{display:none}` hides their chevrons, leaving the center pane only. **Not persisted** (a reload returns to normal — never strands the user with hidden chrome). The `.frame-reading` toggle (right of the tab bar) + **Esc** (guarded to defer to an open modal) are the only ways back, since the sidebar — and its ⚙/❓ — is hidden. Frontend-only; no backend/migration/egress/new token (tokens-only CSS, rule #8). |
+| Tag provenance is shown by style + tooltip, not a label; statcheck flagged-count is a header chip (inc 100) | Two read-only projections of already-persisted facts. (1) The `import_source` stored per tag (inc 73) is exposed on the tag responses (`PaperTagRef.source` / `TagRef`/`TagSummary.source`) and drives a **muted style + a source tooltip** on imported keyword tags (Crossref/OpenAlex/Zotero) vs the accent-colored tags you typed — the user asked to differentiate sources **aesthetically** to avoid cluttering Details with labels (strengthens the inc-73 fact-vs-candidate distinction; "inspectability over authority"). (2) `signals_repo.count_statcheck_flagged` + `GET /methods/statcheck/summary` feed a **⚠ N flagged** Library-header chip that jumps to the inc-97 flagged-papers **filter** — a more prominent door to a Settings-only feature (still a list-to-review, never a rank/score/verdict; the no-accusation boundary holds). Both: **no migration, no egress, no LLM**; the tag `source` field is additive (default null); the count is cache-only (the inc-97 batch stays the only persister). |
+| Tests derive the Alembic head from the scripts (`api_helpers.alembic_head()`), never a hardcoded revision (inc 99) | A migration that bumps the head used to require editing a hardcoded `"00NN_…"` constant in `test_health.py` + `test_startup_migration.py` — and a missed edit only went red on the *full* suite (bit inc 91 + inc 98). `alembic_head()` (`ScriptDirectory…get_current_head()`) makes the head assertions follow the scripts, so a new migration needs zero test edits for the head. **Convention: never hardcode the Alembic head in a test — use `alembic_head()`.** |
+| Watched folders = persist scanned folders + auto-rescan on launch; "watching" without a live OS watcher (inc 98) | Zotero/Mendeley-style without the complexity. New `watched_folders` table (migration **0014**, guarded) + `persistence/watched_repo.py`; **scanning a folder registers it** as watched (`add_watched_folder`) and stamps `last_scanned`. `GET/DELETE /library/watched` (un-watch is non-destructive — keeps papers) + `POST/GET /library/watched/rescan` (async, re-scan ALL watched folders, reusing the inc-87 scan body via a shared `_process_scan_result` + the `library_scan_jobs` store). The frontend auto-triggers a rescan **on launch** (default-on Settings toggle), plus a "Re-scan all". Safe to re-scan the library folder because `scan_library_folder` content-dedups by `file_sha256` (Zotero stores the same hash) → no duplicates. **NOT a live OS file-watcher** (no `watchdog`; on-launch + manual only) — deferred. Server-side folder read (persisted + auto-read) extends the inc-87 deployment-gate note. Audit `.claude/security-audits/2026-06-21_watched-folders.md` PASS. (Same increment: the double-click-to-open bug — the inc-82 `getSelection` guard suppressed opening when the title was double-clicked; now `onDoubleClick` always opens. **Post-inc-101 follow-up:** `onDoubleClick` always opening still left the browser word-selecting the title on each open, so `.paper` got `user-select: none` — double-click opens with no highlight; card text isn't drag-selectable but stays copyable in Details.) |
+| statcheck library-wide lens = persist a per-paper summary + a batch run + a library FILTER (never a rank/score) (inc 97) | Turns the inc-95 per-paper check into library triage. New `persistence/signals_repo.py` (first writer of the pre-built `open_science_signals` table — no migration) upserts **one summary row per paper** (`signal_type/source="statcheck"`, `status=inconsistent` iff any test flagged, counts in `evidence_snippet`) via `insert(...).prefix_with("OR REPLACE")` on the unique `(paper_id, signal_type, source)` (idempotent re-runs). An async **`POST /methods/statcheck/run`** (`routers/methods.py`, `statcheck_jobs`) batch-checks every live paper (the **only** persister; the inc-95 per-paper GET stays live/read-only); a `signal` query param on `GET /papers` → `SIGNAL_FILTERS` allowlist → a bound IN-subquery (rule #3). UI: a Settings "Statistics check → Check all papers" section + a **"Show flagged papers"** link → a mutually-exclusive library **view** + a non-accusatory banner. **Principles gate (rule #9):** the aggregate is a **filter to review, never a rank/score (#7) or a "bad papers" verdict (#2 + no-accusation veto)** — the declined easy path was a reproducibility-score leaderboard. No migration, no egress, no LLM. Audit `.claude/security-audits/2026-06-21_statcheck-library.md` PASS. |
+| Sidebar Tags browser + Details "More → + add field" (inc 96) | Two frontend-only chores reusing tested endpoints. (1) A **`TagsPanel`** in the left sidebar (below Axes) lists every tag + its paper count, click to filter the library (reuses `GET /tags` + the inc-71 `filterToTag`); a `tagRefresh` nonce + an `onTagsChanged` callback (App→RightPane→DetailContent→TagsRow) keep it in sync with per-paper tag edits. (2) The Details **"More"** section now always renders + has an **`AddFieldRow`** to add an arbitrary bibliographic field by hand, reusing the inc-49 validated generic `csl` patch (`PATCH /papers/{id}` — letter-led `[A-Za-z0-9_-]` keys; reserved/core keys 422). **No Python changed** (both ride existing tested paths); no migration, no egress, no new endpoint. |
+| statcheck = a deterministic, local, no-LLM per-paper signal; on-demand, no persistence, no composite score, no accusation (inc 95) | The carrot + Track A's v1. `methods/statcheck.py` (new `methods/` package) recomputes reported APA NHST p-values (t/F/r/χ²/z) from the paper's extracted chunk text via `scipy.stats`, classifying each test **consistent / inconsistent / decision-error** with **rounding + one-tailed tolerance** so correct reporting isn't false-flagged. `GET /papers/{id}/statcheck` (`routers/methods.py`, sync read-only; no chunks → `checked:0`). The Details "Statistical reporting" section shows per-test rows (verbatim match + recomputed p + a green/amber `.cite-status` pill) + transparent **counts** (never a composite "reproducibility score" — the A-A "scoring temptation" divergence, declined) + the **non-accusatory** coverage caveat (amber not red; "a prompt to look, not a verdict"; inline-APA-only so absence ≠ clean), routing each row to its page (page-open, not a fake exact highlight). **PRINCIPLES Example 3 / extends value A6; honors the veto-level no-accusation boundary.** `scipy` made an explicit dep (already transitive via scikit-learn; needed for the t/F/χ² CDFs). **No persistence (v1)** — the `open_science_signals` table + a library-wide facet defer to the findings subsystem. **No migration, no egress, no LLM.** Audit `.claude/security-audits/2026-06-21_statcheck.md` PASS. |
+| Library-header "+ Add ▾" menu + persistent/descending Sort (inc 94) | Two small UX chores. (1) The six-action library header folds its two "bring papers in" actions (Scan folder + Import) into one **"+ Add ▾"** dropdown (`AddMenu` in `10_pdf_layer.jsx`: a `.trash-toggle`-styled trigger + an outside-click-closing `.add-menu-pop` popup; token-based CSS) → 6 actions → 5. (2) The **Sort** choice now persists to `localStorage["callosum.librarySort"]` (mirrors the theme / hide-uncertain prefs), and **Title (Z–A)** / **Author (Z–A)** were added via new `title_desc`/`author_desc` keys in the `_paper_sort_order` allowlist (rule #3; NULL author still last, `papers.id` tiebreak). Frontend-only bar the one allowlist addition; **no migration, no egress, no new endpoint.** |
+| BibTeX / RIS / CSL-JSON import = hand-rolled parsers → CSL → dedup → create → embed; entirely local, no egress (inc 93) | The inverse of inc-70 export + reference-manager-first parity (also covers Mendeley/EndNote, which export these). `metadata/citation_import.py` hand-rolls all three parsers (**no new dependency** — project ethos, cf. the inc-75 arXiv parser): each yields a **CSL dict** (inverting `citation_export`'s field/type maps), then `csl_record_to_paper_fields` → `create_paper` kwargs (`csl_json` stored whole → CSL-JSON round-trips losslessly; `item_type` = CSL type so the inc-91 Type facet labels it). `import_citations` dedups via `find_existing_paper_by_identity` (DOI → title+year+author) in per-record `begin_nested()` savepoints (a bad entry is skipped+counted, never fatal); caps bytes + record count. **Entirely local — NO egress** (the file is authoritative; no Crossref/Gemini), and the browser POSTs the file **text in the JSON body** (no multipart/upload surface, and no server-side file path → no traversal surface, unlike the inc-87 scan). `<fmt>-import` is outside enrichment's update allowlist (won't clobber the file's metadata, like user-edits). Async job + frontend reuse the inc-87 scan scaffolding (`POST/GET /library/import` in `routers/library.py`; `28_import.jsx` clones `ScanModal`). Audit `.claude/security-audits/2026-06-21_citation-import.md` PASS. v1 deferred: PDF-attach on import, optional enrich/My-Pubs hook, hardened BibTeX (`@string`/`#`-concat/`(`-delimited). |
+| Un-dismiss for My-Publications missing works = `build_dashboard.dismissed_works` + `POST /works/undismiss`; pure profile-JSON edit (inc 92) | Completes inc-85's review queue with the undo inc-67 added for duplicates. `profile_repo.undismiss_work` removes a normalized DOI from `profile.dismissed_work_dois` (mirror of `dismiss_work`; empty → NULL); `build_dashboard` returns a new **`dismissed_works`** (the author's cached works whose DOI ∈ dismissed, via `_dashboard_dismissed_works` — titles come from the cached OpenAlex works, so a DOI no longer in the works list just isn't shown) alongside `missing_works`, sharing one dismissed-set computation. `DashboardResponse.dismissed_works` reuses the `MissingWork` model; `POST /my-publications/works/undismiss` (local, idempotent, 204) mirrors the dismiss endpoint; the dashboard gains a collapsible "Previously dismissed" section with **Restore**. Cache-only (no network), no migration, no egress — facts-vs-candidates preserved (the human restores; nothing auto-acts). |
+| Filter the library by item type = an `item_type` param on `GET /papers` + a `GET /papers/item-types` facet endpoint; preceded by splitting two over-limit files (inc 91) | Same param family as inc-69 sort / inc-63/71 axis-tag filters: `list_papers(item_type=…)` adds `WHERE item_type == :bound` (rule #3 — exact equality on a bound value, no allowlist needed), composing with q/deleted/axis/tag/needs-review/sort. The Type dropdown is driven by `list_item_types` (distinct **live** types + counts, NULL excluded) so it only offers **honest** facets that exist — a `_typeLabel` map prettifies CSL types ("article-journal" → "Journal article (32)"). `.searchbar` gained `flex-wrap` for the 4th control. **Forced module splits first (rule #1):** adding this surfaced that `repository.py` (625) + `routers/papers.py` (600) were at/over the 600-line cap, so before the feature, native-annotations data-access moved verbatim → `persistence/annotations_repo.py` (repository.py→538; precedent dedup_repo/tags_repo) and PDF file-serving moved → `routers/paper_files.py` (papers.py→539; precedent duplicates.py). The PDF route kept its path (`/papers/{paper_id}/pdf`), so the only route-surface change is the new `/papers/item-types`. **No migration, no egress.** Trade-off (v1): the facet list is library-wide, not scoped to the active axis/tag/trash view. |
+| Library search covers the whole `csl_json` record (all authors + every field), scoped by an allowlisted `search_field` param (inc 89) | Search was title + `first_author_family_name` only, so a co-author's name found just first-authored papers (the user's surname returned 6 of 40) and none of the fields the Detail pane has since added were searchable. `repository._search_clause(field, pattern)` now searches `lower(cast(csl_json AS String)) LIKE` — the full bibliographic record holds every author, journal, year, DOI, publisher, … — with `first_author_family_name` kept as belt-and-suspenders (no regression). A `search_field` allowlist (`all`/`title`/`author`/`journal`; key indexes a constant, never interpolated — rule #3; pattern bound) drives a scope **dropdown** beside the search box (default **all**). Same class as the inc-69 sort / inc-80 needs-review param: a query param on `GET /papers`, composes with sort/deleted/axis/tag/pagination. **No migration, no new endpoint, no egress.** Trade-offs (v1): the `author` scope matches the whole record (a name query in a title/venue could match) and `all` includes the JATS `abstract` — fine for real queries; a precise per-author `json_each` query is a future refinement. |
 | Scan a library folder = an app-level orchestrator over the existing ingest primitives; linked in-place, checksum-dedup, async (inc 87) | The first app-level "ingest a folder of PDFs" (previously only the Zotero importer + the dev validation harness). New `pdf_processing/library_scan.py::scan_library_folder` reuses `attach_pdf_to_paper` (extract+chunk) + `file_sha256` + the indexed `attachments.checksum`: **new** = checksum not in the library → `create_paper("pdf-scaffold")` + `attach_pdf_to_paper(storage_mode="linked", import_source="library-scan")` in a per-file **savepoint** (a corrupt PDF is isolated, not fatal); **unchanged** = checksum present (re-scan idempotent); **removed** = a previously-scanned path gone → `availability="missing"` (non-destructive). PDFs stay in place (**linked** — nothing copied). The async job (`library_scan_jobs`, `routers/library.py`) then enriches new papers from Crossref (unresolved → the inc-80 Unsorted view) + embeds new chunks/papers. **No migration** (reuses `attachments`); only egress is the Crossref DOI lookup (NOT the Gemini gate); the folder is read **server-side** — fine on 127.0.0.1, but gate before any hosted deploy (Security baseline). v1 = new/unchanged/removed; **changed** in-place files add a new paper (true re-ingest deferred — needs inc-65 vector cleanup); **watch**/auto + a persisted watched-folder are deferred. Audit `.claude/security-audits/2026-06-21_library-scan.md` PASS. |
 | My Publications missing-works review/import = guardrailed, metadata-only import of the author's own indexed works (inc 85) | The dashboard gap ("79 indexed · 40 in library") becomes a **review queue** (`build_dashboard.missing_works` = cached author works whose DOI ∉ live library ∉ `profile.dismissed_work_dois`, sorted by citations; cache-only). **Import** (`import_missing_work`) reuses the inc-74–76 lane but is **metadata-only** (`create_paper` + `enrich_paper_metadata_from_crossref(force=True)` — `openalex-import` isn't in the auto-update allowlist, so force, like re-resolve; the OA-**PDF** path stays the separate "Acquire OA copy"). **Guardrail:** the DOI must be one of the resolved author's cached works → no arbitrary-DOI minting (else 422). My-Pubs membership is added **directly** via `_add_confirmed_member` (cache-independent — not via `maybe_add_to_my_publications`, which re-derives from the cached works), so it works regardless of cache warmth / Crossref outcome; an imported work then matches a live paper and drops from the queue. **Reject** = `dismiss_work` (a normalized DOI in `profile.dismissed_work_dois` JSON, migration **0013**). Facts-vs-candidates (the human imports/dismisses — no auto-action); only egress is the Crossref DOI lookup (not the Gemini gate); the list + dismiss are local. `POST /my-publications/works/{import,dismiss}`. Audit `.claude/security-audits/2026-06-21_my-pubs-missing-works.md` PASS. |
 | Star key publications = an isolated `profile.starred_paper_ids` JSON list; the AI summary can scope to it (inc 84) | ⭐ star key papers in the My Pubs sidebar card (the star state surfaces on the `my_publications` axis clusters response — `ClusterPaperResponse.starred`, gated to that axis so the generic endpoint does no extra work for standard axes). `POST /my-publications/star`; the generate endpoint's `starred_only` body → `my_publication_documents(only_paper_ids=…)` (empty starred + starred_only → 422). Stored as `profile.starred_paper_ids` JSON (migration **0012**; like `research_domains`) — no new table, no coupling to the membership machinery. LLM-free plumbing (the summary path is the inc-81 gated seam). |
@@ -555,7 +610,7 @@ before large design changes:
 | **Gemini egress off by default** (`CALLOSUM_ALLOW_DATA_EGRESS`) | Library text must never leave the machine without explicit consent; default-deny with `DataEgressDisabledError`. Local models do everything else. |
 | `pdf-points-top-left` coordinates + percentage overlays | A single canonical coordinate space (stored once) rendered as page-percentages keeps highlights aligned across zoom and responsive resizing; rotated pages degrade to page-open-only. |
 | exact / region / null `coordinate_precision` | Honesty contract — the UI must never present an approximate or absent location as an exact quote highlight. |
-| Modular `app/frontend/` source + a rebuilt single-file `callosum-app.html` artifact (inc 37) | Splitting the 2023-line monolith for directed review while preserving the single file (file-based UI testing expects it). Source of truth: `app/frontend/` (`index.html` shell + `styles.css` + ordered `js/*.jsx`). `app/backend/api/frontend.py` concatenates them into one document (JSX into a single `<script>`, so the shared global scope is identical to the old file); `tools/build_frontend.py` writes that to `callosum-app.html` (byte-identical to the pre-split file). `/` serves the built `callosum-app.html` when present (default), else assembles live (never broken); `CALLOSUM_FRONTEND_PATH` overrides. Trade-off vs the old "no build step" rule: editing the UI now means re-running `build_frontend.py` (the live-assembly fallback keeps the server correct meanwhile) — no bundler, still no extra file-serving surface. |
+| Modular `app/frontend/` source + a rebuilt single-file `callosum-app.html` artifact (inc 37) | Splitting the 2023-line monolith for directed review while preserving the single file (file-based UI testing expects it). Source of truth: `app/frontend/` (`index.html` shell + `styles.css` + ordered `js/*.jsx`). `app/backend/api/frontend.py` concatenates them into one document (JSX into a single `<script>`, so the shared global scope is identical to the old file); `tools/build_frontend.py` writes that to `callosum-app.html` (byte-identical to the pre-split file). `/` serves the built `callosum-app.html` when present (default), else assembles live (never broken); `CALLOSUM_FRONTEND_PATH` overrides. Trade-off vs the old "no build step" rule: editing the UI now means re-running `build_frontend.py` (the live-assembly fallback keeps the server correct meanwhile) — no bundler, still no extra file-serving surface. **Superseded in part by inc 102:** the JSX is now esbuild-**precompiled** at build time (the `<script type="text/babel">` + babel-standalone CDN are gone); `build_frontend.py` now requires the `npm install`ed esbuild, and the "byte-identical to the old hand-maintained file" property no longer holds (the script is transpiled). |
 | Supervised axes expose `axis_scoring.py` with NO migration (inc 38) | Manual-vs-scored assignment = `cluster_node_papers.confidence IS NULL` (manual override) vs a float (scored) — the column was already nullable and the scorer always writes a float, so no schema change. Staleness reuses the axis embedding's stored `source_text_version` + `normalization` (recompute the current axis text-version, compare) — no stored flag needed. Scoring runs async (mirrors the summarize job; fully local, no egress); tiering is calibrated per the inc-39 row (absolute 0.7/0.5 thresholds were unreachable for MiniLM and replaced by relative natural-break). Re-score preserves manual adds (snapshot NULL rows → restore after `score_axis` rewrites the scored set), honoring "the human overrides the embedding". |
 | Axis tiering is RELATIVE (natural-break), not absolute (inc 39) | `all-MiniLM-L6-v2` cosine between a short axis phrase and paper metadata is compressed near 0 (observed max ~0.37, median 0.02), so absolute 0.5/0.7 cutoffs assigned nothing. New `assignment_mode="natural_break"` + `SUPERVISED_AXIS_CONFIG` (floor 0.2, minimum_gap 0.03): **assigned** = the cluster above the largest gap in this axis's ranking (≥ floor); **uncertain** = the rest of the eligible; never-empty fallback shows the closest few. The 0.2 floor is a documented MiniLM constant. Tiers are **recomputed on read** from the stored confidences (`natural_break_assigned_ids`, same config) so read == score with NO persisted tier column / migration. Raw similarity still shown honestly. Axis text is **punctuation-normalized** before embedding (inc 40, `strip_punctuation` in `embeddings/models.py`) so phrasings differing only in punctuation/spacing (e.g. "anomalous-is-bad" ≡ "anomalous is bad") embed identically; axis-side only (papers unchanged). |
 | Gemini axis synonym suggester is egress-gated + human-curated (inc 41) | `POST /axes/suggest-terms` (sync, stateless) proposes related terms via Gemini; the user curates them in a modal and the chosen terms fold into the axis **description** (reuses the existing axis-text→embed + staleness paths — no new persistence/migration). Mirrors `GeminiSummaryGenerator`: opt-in via `CALLOSUM_ALLOW_DATA_EGRESS` (off → 503 before any genai call), only the user's own axis text leaves the machine, model output is deduped/capped/echo-stripped, failures → 502 (never 500). The suggester is injectable (`api.state.axis_term_suggester`) so tests are hermetic. |
@@ -641,7 +696,334 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-21 — increment 88 (search + sort on one row): a small library-pane tweak (user request) —
+*Last updated: 2026-06-21 — increment 108 (LibreOffice (UNO) citation adapter — the first word-processor adapter):
+the first piece that places citations **inside a word processor**, riding the inc-107 `POST /citations/render-document`
+contract. A drop-in LibreOffice Writer **Python UNO macro** in a new top-level **`adapters/`** tree (client code
+that ships into the user's LibreOffice — NOT the FastAPI app, NOT a server-side `integrations/` client). A **thin
+field-placer**: place/track a live field, read the full ordered set, write back what the backend rendered — it
+**never formats** (citeproc does). Live fields = **ReferenceMarks** whose name carries the cited work's CSL-JSON
+(base64), the Zotero `CSL_CITATION` **pattern** (credited in `THIRD-PARTY-NOTICES.md`, not code). Four macros:
+Insert (paper id → `/papers/export` csl-json → ReferenceMark), Refresh (full-document-order scan via
+`XTextRangeCompare` → `render-document` → write back in-text + bibliography), SetStyle (validated vs
+`/citations/styles`, persisted as doc user-properties), Flatten (live→static). **No server change** — no new
+endpoint/migration/route/egress (127.0.0.1 only); stdlib `urllib` (LO's bundled Python has no pip). **Verified by a
+headless UNO round-trip** (`.local/lo_roundtrip/run_roundtrip.py` drives a real LibreOffice → IEEE `[1]/[2]`, APA
+`(Vaswani & Shazeer, 2017)` author-date, flatten preserves text — **SELFTEST OK**) + **5 pytest pure-logic tests**.
+**Four UNO traps found+fixed** (carry forward to the next adapters): `loadComponentFromURL` needs `Hidden=True`;
+clearing the bib invalidates its bookmark anchor (reuse the cursor); `setString` on a ReferenceMark anchor
+**destroys the mark** (recreate around the new text); holding `ReferenceMarks` items across a mutation hangs on a
+stale handle (capture names → re-fetch) + removing a mark deletes its text (flatten re-inserts it). pytest **424**
+(+5 `test_libreoffice_adapter.py`); `ruff` clean; audit `.claude/security-audits/2026-06-21_libreoffice-adapter.md`
+**PASS**; help corpus unchanged (no in-app surface). **NEXT (the track):** **Word (Office.js)** — one cross-platform
+add-in over the same `render-document` engine (needs the CORS/origin change, content-controls/ADDIN fields, Win+Mac
+parity); then **Google Docs** (named ranges, the fenced cloud opt-in, built last). Deferred for LibreOffice: `.oxt`
+packaging + toolbar, a library-search picker, grouped cites/locators, note-style footnotes, Track-Changes handling.
+
+Earlier — increment 107 (position-aware document-render layer — Phase 2 of word-processor
+integration): the shared contract every word-processor adapter (LibreOffice → Word → Google Docs) will call.
+The inc-106 engine renders each cite **in isolation** (`makeCitationCluster`) — right for a *selection*, **wrong
+for a live document** (numeric must renumber `[1][2][3]` by order; author-date must disambiguate `2020a`/`2020b`
+across the doc). Inc 107 adds the position-aware layer: the runner gains a **`mode:"document"`** branch using
+citeproc's **`rebuildProcessorState`** (the inc-106 per-item path is the unchanged default); `render.py` refactors
+the subprocess into **`_run(request)`** + adds **`render_document(citations,*,style,locale)`** (self-contained —
+renders from the passed CSL-JSON, **no library lookup / no DB**; caps clusters/items/total; output `_safe_html`-
+sanitized); **`POST /citations/render-document`** `{citations:[{citationID?,items:[CSL-JSON]}],style,locale}` is
+*the adapter contract* (scan doc for citation fields → POST in document order → get back position-aware in-text per
+field + the bibliography to write back; stateless per request; 503/422/502, never 500). **Backend-only — no
+frontend change (no rebuild), no migration, no egress, no new dependency.** pytest **419** (+3 `test_citations.py`
+document-render: IEEE `[1][2][3]`+renumber-on-reorder, APA `2020a`/`2020b` disambiguation, unknown-style 422;
+route-surface +1); `ruff` clean; audit `.claude/security-audits/2026-06-21_citation-render-document.md` **PASS**;
+help corpus unchanged (no user-facing surface). **NEXT (the track):** the **LibreOffice (UNO) adapter** — the
+live-field loop (insert → render → update → flatten) riding this endpoint; then Word (Office.js, needs the
+CORS/origin change); then Google Docs (opt-in). Deferred: note-style footnote management, locators/prefixes, a
+shared subprocess timeout, Vancouver + more styles.
+
+Earlier — increment 106 (citation & bibliography engine — Phase 1 of word-processor
+integration): the foundation of the word-processor track + the close of the "no formatted citation styles" gap.
+**citeproc-js** runs as a **Node sidecar** (invoked exactly like esbuild — `citations/render.py::_run_engine`
+mirrors `frontend.py::_transpile_jsx`, request JSON on stdin / result on stdout, fail-closed → 503) over **bundled
+CSL styles + locales** (`app/backend/citations/csl/`, committed verbatim, CC-BY-SA) to render `papers.csl_json`
+into formatted in-text citations + bibliographies (APA/MLA/Chicago/IEEE/Nature/Harvard). One central render = the
+**word-processor adapters will only place fields, never format** (LibreOffice → Word → Google Docs ride this
+engine). citeproc HTML is **sanitized server-side** (`_safe_html`) before any in-app render. Endpoints
+`GET /citations/styles` + `POST /citations/render`; in-app surface = Details **"Cite as …"** (style dropdown + live
+preview + copy) + a bulk **"bibliography…"** `.html` download. `citeproc` pinned (`package.json`); **no egress**
+(bundled styles). Credit in `THIRD-PARTY-NOTICES.md` (credit-the-lineage). pytest **416** (+5 `test_citations.py`;
+route-surface +2); `ruff` clean; opt-in Playwright smoke (0 console errors); audit
+`.claude/security-audits/2026-06-21_citation-engine.md` **PASS**; help corpus gained a formatted-citations note
+(`HELP-DOCS-SYNCED` → 106). **NEXT (the track):** the **LibreOffice (UNO) adapter** — the live-field loop (insert →
+render → update → flatten) on this engine; then Word (Office.js, needs the CORS/origin change); then Google Docs
+(opt-in). Deferred: fetch-on-demand styles, Vancouver + more styles, rich-clipboard copy, CRediT builder,
+highlight-to-suggest/evaluate.
+
+Earlier — increment 105 (two chores: default axis cutoff in Settings + a tag source filter):
+the "2 chores" half of a fresh patter (carrot = the **literature gap-finder** (backward gap), next, in its own
+plan-mode increment). Both **frontend-only over existing data**. (1) A **`callosum.axisCutoffDefault`** localStorage
+pref — a "Default axis cutoff" slider in **Settings → Axes** (clamped [0.2,0.6], default 0.35; mirrors the inc-77
+hide-uncertain pattern) — threads App→Sidebar→AxesPanel→`AxisItem`, whose re-score cutoff flipper falls back to it
+when `axis.scoring_gain == null` (a stored per-axis gain still wins; AxesPanel keys cards on the default so a change
+re-inits unscored cards). Sets what the flipper *proposes*; no backend change. (2) The sidebar `TagsPanel` gained an
+**All / Yours / Keywords** segmented control filtering by the inc-100 tag `source` (`tagIsImported`), shown only
+when both kinds exist — purely client-side over the already-fetched `/tags`. `styles.css` `.settings-cutoff` +
+`.tags-srcfilter` (tokens only, rule #8). pytest **411** unchanged; `ruff` clean; opt-in Playwright smoke (2 tests)
+passed (0 console errors); `callosum-app.html` rebuilt; help corpus tags section noted the source filter
+(`HELP-DOCS-SYNCED` → 105). **NEXT:** the carrot — **literature gap-finder (backward gap)**: surface papers cited
+by ≥k of your library's papers but missing from it ("cited by N of your papers on [axis]"), axis-ranked,
+add-or-dismiss; uses the OpenAlex adapter (`referenced_works`). Gets **plan-mode + the Principles gate + a security
+audit** (new external fetch / discovery signal).
+
+Earlier — increment 104 (panel min-widths + Spotify pull-to-collapse + sidebar-button
+reposition): three small layout tweaks (frontend-only). The **left (AXES)** panel now has a **300px** min drag
+width and the **right (Synthesis/Details)** panel **415px**; dragging a resizer ~80px past its min auto-collapses
+that panel (no chevron needed) — `40_app.jsx` constants `LEFT_MIN/RIGHT_MIN` + `*_COLLAPSE_AT`, each divider's
+drag collapses when the unclamped `proposed` width crosses the threshold (else clamps to `[MIN,MAX]`); the
+persisted width init clamps up to the min. The panel sticks at its min then snaps shut (works via `_beginDrag`'s
+document-level listeners); re-expand = the collapse chevron. The two sidebar-header buttons regrouped:
+`.icon-help` → `top:19px;right:33px` (down 7 / left 4, then both nudged left 15px), `.icon-gear` →
+`top:19px;right:60px` (same Y, 27px left of help — a right-aligned pair, top-left vacated), both with an always-on
+`currentColor` outline (hover unchanged).
+pytest **411** unchanged; `ruff` clean; opt-in Playwright smoke
+(incl. the reading-mode panel test) passed (0 console errors); `callosum-app.html` rebuilt. Visual QA delegated.
+**NEXT:** the user's call — more layout polish, another patter, or deferred backlog (a live OS file-watcher,
+GRIM/p-curve, the discovery/gapfinder track, My Pubs Layer 3, tag-provenance grouping/protection).
+
+Earlier — increment 103 (per-card "copy BibTeX" clipboard button): a small library-card
+affordance the user requested. inc-98's `.paper { user-select:none }` (which fixed the double-click word-select)
+removed card text-copy, so each card now carries a small **clipboard SVG button** just left of its checkbox that
+copies the paper's **BibTeX** in one click (`PaperCopyButton` in `10_pdf_layer.jsx`, reusing the inc-70
+`POST /papers/export {format:"bibtex"}` → `navigator.clipboard`; `stopPropagation` so it never selects/opens the
+card; icon → green ✓ for ~1.5s). `.paper-copy` is absolutely positioned at `top:10px;right:36px` (the checkbox
+stays at `right:14px`, untouched); `.paper-title` gained `padding-right:46px` to clear both controls; two inline
+Feather SVGs. Shown only in `selecting` mode (the normal library view), matching "alongside the checkbox".
+**Frontend-only — no backend/endpoint/migration/egress** (reuses a validated, tested local read-only endpoint).
+pytest **411** unchanged; `ruff` clean; the opt-in Playwright smoke passed (0 console errors, confirming the SVG
+JSX compiled under the inc-102 esbuild precompile); help corpus's "Exporting citations" section gained a line.
+**NEXT:** the user's call — another patter, or deferred backlog (a live OS file-watcher, GRIM/p-curve, the
+discovery/gapfinder track, My Pubs Layer 3, tag-provenance grouping/protection).
+
+Earlier — increment 102 (precompile the JSX with esbuild; drop in-browser Babel): a console-
+hygiene change the user requested. The served page transpiled `<script type="text/babel">` JSX **in the browser**
+via `babel-standalone` (cdnjs) — emitting a "precompile for production" warning + a `babel.min.js.map` 404
+source-map error, plus a ~500KB download. Now `frontend.py` **esbuild-precompiles** the concatenated chunks
+(`assemble_jsx` → `_transpile_jsx`: `node node_modules/esbuild/bin/esbuild --loader=jsx --jsx=transform
+--jsx-factory=React.createElement --jsx-fragment=React.Fragment --format=iife --target=esnext`, JSX via stdin, no
+shell) into one plain `<script>`; the Babel CDN line is removed from `index.html`. esbuild is a **build-time** dep
+(`package.json` pins 0.28.1; `npm install`; `node_modules/` gitignored); the **server stays Python-only** (serves
+the prebuilt `callosum-app.html`; the live-assembly fallback degrades gracefully if esbuild is absent — `app.py`
+try/except, no 500). The IIFE preserves the chunks' shared scope (identical runtime). `test_frontend_assembly.py`
+updated (precompiled markers; `test_every_js_chunk_is_included` checks the raw `assemble_jsx()` so completeness
+needs no toolchain); CI gained `setup-node` + `npm ci`. Verified: `node --check` on the output (153
+`React.createElement`, 0 leftover JSX) **and the opt-in Playwright smoke passed with 0 console errors**. pytest
+**411** unchanged; `ruff` clean; audit `.claude/security-audits/2026-06-21_precompile-esbuild.md` **PASS**. (The
+third console line — `XrayWrapper … content-script.js` — is an external **browser extension**, not callosum;
+nothing to fix in the repo.) **NEXT:** the user's call — another patter, or deferred backlog (a live OS
+file-watcher, GRIM/p-curve, the discovery/gapfinder track, My Pubs Layer 3, the tag-provenance
+grouping/protection).
+
+Earlier — fix (post-inc-101): double-click on a library card no longer word-selects the title — `.paper` got
+`user-select: none` (inc-98 `onDoubleClick` always opens; the browser's default word-select on double-click was
+the residual highlight). Card text isn't drag-selectable now but stays copyable in the Details pane. Frontend-only;
+pytest 411 unchanged.
+
+Earlier — increment 101 (Reading mode — one-click distraction-free reader): the carrot of the
+inc 100–101 patter. A **⛶ Read** toggle (right of the center tab bar) hides **both** side panels and their
+dividers to maximize the open PDF; **⤢ Exit** or **Esc** returns. `readingMode` state in `40_app.jsx`
+(`toggleReading` snapshots `leftOpen`/`rightOpen` → collapses both → restores the snapshot on exit, so an
+asymmetric layout returns intact); `cols` zeroes the divider tracks + `.app.reading .divider{display:none}` so
+only the center pane shows; Esc is guarded to defer to an open modal. **Transient** (a reload returns to normal —
+never strands the user with hidden chrome). Frontend-only (`40_app.jsx`, `30_viewer.jsx` `LibraryFrame`,
+`styles.css` `.frame-reading` — tokens only, rule #8); no backend/migration/egress. pytest **411** unchanged;
+`ruff` clean; `callosum-app.html` rebuilt. Visual QA delegated (no Playwright MCP this session). **NEXT:** the
+user's call — another patter, or deferred backlog (a live OS file-watcher, GRIM/p-curve, the discovery/gapfinder
+track, My Pubs Layer 3, the remaining tag-provenance grouping/protection).
+
+Earlier — increment 100 (statcheck "flagged" header chip + tag-source aesthetic
+differentiation): a "2 chores" half-patter (carrot = Reading mode, inc 101). (1) A **⚠ N flagged**
+chip in the Library header — when the inc-97 batch statcheck run flagged any papers — jumps to the flagged-papers
+filter (a more prominent door to a Settings-only feature). `signals_repo.count_statcheck_flagged` + `GET
+/methods/statcheck/summary` (cache-only count; the inc-97 batch stays the only persister) → a `statcheckFlagged`
+state in `40_app.jsx` → the chip in `10_pdf_layer.jsx`. (2) Tags from different sources (imported
+Crossref/OpenAlex/Zotero keywords vs the ones you typed) are differentiated **aesthetically** — a muted style +
+a source tooltip, no on-screen label (user request, to declutter Details). The inc-73 `import_source` is exposed
+on the tag responses (`PaperTagRef`/`TagRef`/`TagSummary.source`) and read by `tagIsImported`/`tagSourceLabel`
+(`00_lib.jsx`) → `tag-chip-imported`/`tags-panel-item-imported` in `25_detail.jsx` + `10_pdf_layer.jsx`. Both are
+read-only projections of persisted facts — **no migration, no egress, no LLM**; the `source` field is additive
+(default null). Principles gate: chip = a path to a *filter* (no rank/verdict; no-accusation boundary holds); tag
+styling = provenance made visible (inspectability). pytest **411** (+1 `test_tag_source_exposed_on_responses`;
+statcheck-summary assertion folded into an existing test); `ruff` clean; help corpus tags + statcheck sections
+updated (`HELP-DOCS-SYNCED` → 100). **NEXT:** the carrot — **Reading mode** (a one-click distraction-free reader:
+collapse both side panels, maximize the open PDF, Esc to return; frontend-only, builds on the inc-42 collapsible
+panels); or another patter / deferred backlog (a live OS file-watcher, GRIM/p-curve, the discovery/gapfinder
+track, My Pubs Layer 3).
+
+Earlier — increment 99 (tests derive the Alembic head, not a hardcoded revision): a small
+dev-infra cleanup killing a recurring failure class — a migration bumps the head, but `test_health.py` +
+`test_startup_migration.py` hardcoded the old revision string, so a missed edit only went red on the *full* suite
+(it bit inc 91 + inc 98). New `tests/api_helpers.py::alembic_head()` (`ScriptDirectory…get_current_head()`); the
+two files now use `HEAD = alembic_head()` instead of `"00NN_…"` literals — a new migration needs **zero** test
+edits for the head, and `test_health`'s `db_revision == HEAD` (vs a migrated DB) is the wiring proof. Tests-only;
+no app code/migration/behavior change. pytest **410** unchanged; `ruff` clean. **NEXT:** the user's call —
+another patter, or deferred backlog (a live OS file-watcher, GRIM/p-curve, the discovery/gapfinder track, My Pubs
+Layer 3, reading mode / page-view options).
+
+Earlier — increment 98 (double-click-to-open fix + watched library folders): a user-reported
+bug + a requested feature. **(A) Double-click bug:** the inc-82 `getSelection().isCollapsed` guard suppressed the
+open when the **title** was double-clicked (browser auto-selects the word) — so `onDoubleClick` now **always
+opens** (`10_pdf_layer.jsx`); titles stay copyable in Details. (Independent of the scan — the wiring was intact;
+coincidental timing.) **(B) Watched folders (Zotero/Mendeley-style, minus a live OS watcher):** scanning a folder
+now **registers** it (`watched_folders` table, migration **0014**, `persistence/watched_repo.py`), and watched
+folders are **re-scanned automatically on launch** (default-on Settings toggle) + via "Re-scan all" — new PDFs
+appear without re-adding. `GET/DELETE /library/watched` (un-watch keeps papers) + `POST/GET
+/library/watched/rescan` (async, reuses the inc-87 scan body via a shared `_process_scan_result`); the "+ Add ▾"
+menu item → **"Watched folders…"** with a managed list. Safe to re-scan the library folder (content-dedup by
+`file_sha256` → no dupes), answering the user's "no need to re-add" concern. Server-side folder read is now
+persisted + auto-read → the deployment-gate note extended. pytest **410** (+2 `test_watched_folders.py`;
+migration head → 0014); `ruff` clean; audit `.claude/security-audits/2026-06-21_watched-folders.md` **PASS**; help
+corpus's scanning section reworked → watched folders (`HELP-DOCS-SYNCED` → 98). **NEXT:** the user's call —
+another patter, or deferred backlog (a live OS file-watcher, changed-file re-ingest, GRIM/p-curve, the
+discovery/gapfinder track, My Pubs Layer 3, reading mode / page-view options).
+
+Earlier — increment 97 (statcheck as a library-wide lens): the patter's **carrot** (chores =
+inc 96). Turns the inc-95 per-paper statcheck into **library triage**: a batch "Check all papers" (⚙ Settings →
+Statistics check) persists a per-paper summary into the pre-built `open_science_signals` table (new
+`persistence/signals_repo.py`, OR-REPLACE upsert — no migration), and a library **filter**
+(`GET /papers?signal=statcheck-inconsistent`, allowlisted → bound subquery) shows only papers with a reporting
+inconsistency, reached via a **"Show flagged papers"** link + a non-accusatory banner. Async
+`POST/GET /methods/statcheck/run` (`routers/methods.py`, `statcheck_jobs`); the batch is the **only** persister
+(the inc-95 per-paper GET stays live/read-only). **Principles gate run:** the aggregate is a **FILTER, never a
+rank/score (#7) or a "bad papers" verdict (#2 + the no-accusation veto)** — the declined easy path was a
+reproducibility-score leaderboard. Reuses the inc-95 engine unchanged; **no migration, no egress, no LLM, no new
+dependency.** pytest **408** (+3 `test_statcheck.py`); `ruff` clean; audit
+`.claude/security-audits/2026-06-21_statcheck-library.md` **PASS**; help corpus's statcheck section gained the
+library-wide check (`HELP-DOCS-SYNCED` → 97). **This completes the inc 96–97 patter.** **NEXT:** the user's call
+— another patter, or deferred backlog (a permanent header entry for the filter, GRIM/p-curve, a unified findings
+facet, the discovery/gapfinder track, My Pubs Layer 3, reading mode / page-view options).
+
+Earlier — increment 96 (sidebar Tags browser + Details "More → + add field"): the two
+**chores** of a fresh patter (carrot = statcheck-as-a-library-lens, next, in its own plan-mode increment). Both
+**frontend-only**, reusing already-tested endpoints. (1) A **`TagsPanel`** in the left sidebar (below Axes,
+`10_pdf_layer.jsx`) lists every tag + paper count → click to filter the library (reuses `GET /tags` + the inc-71
+`filterToTag`); a `tagRefresh` nonce + an `onTagsChanged` callback (App→RightPane→DetailContent→TagsRow) keep it
+live with per-paper tag edits. (2) The Details **"More"** section always renders now + has an **`AddFieldRow`** to
+add an arbitrary CSL field by hand (reuses the inc-49 validated `csl` patch; letter-led `[A-Za-z0-9_-]` keys,
+reserved/core 422). **No Python changed**; rebuilt `callosum-app.html`. pytest **405** unchanged; `ruff` clean;
+help corpus updated (tags + Details sections; `HELP-DOCS-SYNCED` → 96). **NEXT:** the carrot — **statcheck as a
+library-wide lens** (persist results to `open_science_signals` + a batch run + a "reporting inconsistencies"
+library filter; plan-mode + Principles gate — keep it a *filter with counts*, never a rank/"bad papers" list).
+
+Earlier — increment 95 (statcheck — an inspectable, deterministic statistics-reporting signal):
+the patter's **carrot** (chores = inc 94) and Track A's v1. A **"Check statistics"** button in the Details
+**Statistical reporting** section recomputes reported APA NHST p-values (t/F/r/χ²/z) from the paper's extracted
+text and flags reported-vs-computed disagreements — **deterministic, local, no-LLM.** `methods/statcheck.py` (new
+`methods/` package): anchored regexes → `recompute_p` via `scipy.stats` → classify **consistent / inconsistent /
+decision-error** with **rounding + one-tailed tolerance** (so correct reporting isn't false-flagged); per-chunk so
+each result carries its page. `GET /papers/{id}/statcheck` (`routers/methods.py`, sync read-only; no chunks →
+`checked:0`). UI shows per-test rows (verbatim match + recomputed p + green/amber `.cite-status` pill) + **counts,
+never a composite score** + a **non-accusatory** caveat (amber not red; inline-APA-only ⟹ absence ≠ clean), each
+row routing to its page. **Principles gate (rule #9) run:** PRINCIPLES Example 3 / extends value A6; honors the
+veto-level **no-accusation** boundary (#2/#7 — signal-not-verdict, no opaque score). `scipy` made explicit
+(already transitive via scikit-learn; needed for the t/F/χ² CDFs). **No persistence v1** (the `open_science_signals`
+table + a library-wide facet defer to the findings subsystem); **no migration, no egress.** pytest **405** (+10
+`test_statcheck.py`); `ruff` clean; audit `.claude/security-audits/2026-06-21_statcheck.md` **PASS**; help corpus
+gained a "Checking statistics (statcheck)" section (`HELP-DOCS-SYNCED` → 95). **This completes the inc 94–95
+patter.** **NEXT:** the user's call — another patter, or deferred backlog (statcheck persistence + library-wide
+facet, GRIM/p-curve, the discovery/gapfinder track, My Pubs Layer 3, reading mode / page-view options).
+
+Earlier — increment 94 (library-header "+ Add ▾" menu + persistent/descending Sort): the two
+**chores** of a fresh patter (carrot = statcheck, next, in its own plan-mode increment). (1) The library header's
+two "bring papers in" actions (Scan folder + Import) folded into one **"+ Add ▾"** dropdown (`AddMenu` in
+`10_pdf_layer.jsx`: a `.trash-toggle`-styled trigger + an outside-click-closing popup; token-based CSS) — 6
+header actions → 5. (2) The **Sort** choice now **persists** (`localStorage["callosum.librarySort"]`, like the
+theme/hide-uncertain prefs) and gained **Title (Z–A)** / **Author (Z–A)** (new `title_desc`/`author_desc` keys in
+the `_paper_sort_order` allowlist; NULL author still last, `papers.id` tiebreak). Frontend-only bar the one
+allowlist line; rebuilt `callosum-app.html`. pytest **395** unchanged (+2 assertions on the existing sort test);
+`ruff` clean. **No migration, no egress.** **NEXT:** the carrot — **statcheck** (Track A: a local, inspectable
+per-paper open-science signal that recomputes reported NHST p-values from the extracted text and flags
+inconsistencies — never a verdict). Gets **plan-mode + the Principles gate** first (it produces a signal about
+the literature).
+
+Earlier — increment 93 (BibTeX / RIS / CSL-JSON import): the patter's **carrot** (chores were
+inc 91 filter-by-type + inc 92 un-dismiss). The inverse of inc-70 export: **Import** a `.bib`/`.ris`/`.json`
+(library header, next to Scan folder) → parse → dedup → create metadata-only papers → embed. New
+`metadata/citation_import.py` **hand-rolls** all three parsers (**no new dependency** — project ethos, cf.
+inc-75); each yields a CSL dict (inverting `citation_export`'s maps), `csl_record_to_paper_fields` → `create_paper`
+kwargs (`csl_json` stored whole → lossless round-trip; `item_type` = CSL type → the inc-91 Type facet labels it);
+`import_citations` dedups via `find_existing_paper_by_identity` in per-record savepoints (a bad entry is
+skipped+counted, never fatal); caps bytes + record count. **Entirely local — NO egress** (the file is
+authoritative; no Crossref/Gemini); the browser POSTs the file **text in the JSON body** (no multipart/upload
+surface, no server-side path → no traversal surface). Async `POST/GET /library/import` (`routers/library.py`,
+reusing the inc-87 scan scaffolding) + `28_import.jsx` (clones `ScanModal`, a file picker). `<fmt>-import` is
+outside enrichment's update allowlist (won't clobber the imported metadata, like user-edits). pytest **395**
+(+9 `test_citation_import.py`); `ruff` clean; audit `.claude/security-audits/2026-06-21_citation-import.md`
+**PASS**; help corpus gained an "Importing a citation file" section (`HELP-DOCS-SYNCED` → 93). **No migration, no
+egress, no new dependency.** **This completes the "2 chores + 1 carrot" patter (inc 91–93).** Deferred: PDF-attach
+on import, optional enrich/My-Pubs hook, a hardened BibTeX parser. **NEXT:** the user's call — another patter, or
+deferred backlog (statcheck, the discovery/gapfinder track, page-view options / reading mode, full `.btn-*`
+normalization).
+
+Earlier — increment 92 (un-dismiss for My-Publications missing works): chore 2 of the patter.
+Completes inc-85's missing-works review queue with the **undo** inc-67 added for duplicate-dismissals — a
+mistakenly-dismissed own-paper can be **Restored** to the queue. `profile_repo.undismiss_work` removes a
+normalized DOI from `profile.dismissed_work_dois`; `build_dashboard` now also returns **`dismissed_works`**
+(the author's cached works whose DOI is dismissed — titles from the cached OpenAlex works) beside `missing_works`,
+sharing one dismissed-set computation; `DashboardResponse.dismissed_works` reuses `MissingWork`; new **`POST
+/my-publications/works/undismiss`** (local, idempotent, 204) mirrors the dismiss endpoint; the dashboard
+(`31_mypubs_dashboard.jsx`) gains a collapsible **"Previously dismissed (N)"** section with a **Restore** link.
+Cache-only (no network call), **no migration, no egress** (pure profile-JSON edit). pytest **386** (+1:
+`test_undismiss_returns_work_to_missing_queue`); `ruff` clean; backlog reconciled (the inc-85 deferred follow-on
+marked done). **NEXT (this patter):** the carrot — **BibTeX/RIS/CSL-JSON import** (plan-mode + security-audit
+first; new ingestion path, the complement to inc-70 export).
+
+Earlier — increment 91 (filter the library by type + prerequisite module splits): chore 1
+of a "2 chores + 1 carrot" patter. A **Type** dropdown in the library header filters to a single CSL item type
+(article-journal / book / preprint / …): `list_papers(item_type=…)` adds a **bound** `WHERE item_type == :v`
+(rule #3), and a new **`GET /papers/item-types`** facet endpoint (distinct **live** types + counts via
+`list_item_types`, NULL excluded) drives the dropdown so it only offers types that exist — a `_typeLabel` map
+prettifies them ("article-journal" → "Journal article (32)"). `.searchbar` gained `flex-wrap`. **Rule #1 forced
+a split first:** adding this surfaced `repository.py` (625) + `routers/papers.py` (600) at/over the 600-line cap
+(the CLAUDE "~577" note had silently drifted), so native-annotations data-access moved verbatim →
+`persistence/annotations_repo.py` (repository.py→538) and PDF file-serving → `routers/paper_files.py`
+(papers.py→539), both behavior-preserving (precedents: dedup_repo/tags_repo, duplicates.py). The PDF route kept
+its path, so the only route-surface change is `/papers/item-types`. Frontend: `40_app.jsx` `libraryItemType` +
+`itemTypes` state; `10_pdf_layer.jsx` Type `<select>`; rebuilt `callosum-app.html`. pytest **385** (+1:
+`test_filter_by_item_type_and_item_types_endpoint`); `ruff` clean; backlog reconciled (Unsorted=inc 80,
+re-score-wrap=inc 86, filter-by-type=inc 91 marked done; progress-indication partial). **No migration, no egress,
+no audit gate.** **NEXT (this patter):** chore 2 — un-dismiss for My-Pubs missing works (mirror inc-67); then the
+carrot — **BibTeX/RIS/CSL-JSON import** (plan-mode + security-audit; new ingestion path).
+
+Earlier — increment 90 (sidebar header redesign: horizontal logo + larger wordmark):
+a frontend-only brand-header reorg (user request, matched to a mockup + alignment guides). The sidebar brand
+became a **horizontal lockup** — the brain logo on the left, a **36px** "Callosum" serif wordmark to its right
+(was a 19px wordmark stacked *under* a centered logo) — with the `⚙` settings button in the **top-left** corner
+and the `?` help button in the **top-right**. **CSS-only** (`app/frontend/styles.css`: `.brand` column→row +
+center + `margin-top`; `.brand h1` 19→36px + nowrap; `.icon-gear` →top-left `left:14`; `.icon-help` →top-right
+`right:14`): the JSX already supported it (the buttons are `position:absolute` so DOM order is irrelevant;
+`.brand` is a flex container). The inc-47 connection-status logo (green-dot `.connected` swap, theme-matched) is
+untouched; no new tokens/hexes (serif + `--ink`, existing `.icon-*` recipes). Rebuilt `callosum-app.html`. pytest
+**384** unchanged (no Python touched); visual QA delegated to the user; **font-size 36px is the flagged tunable**.
+_(Two same-day tweaks after first look: wordmark 40→36px; buttons split back into the two corners, settings left /
+help right.)_
+**NEXT:** the user has broader tweaks coming (likely My Pubs); or a fresh chore/carrot cluster (deferred:
+BibTeX/RIS import, statcheck, the discovery/gapfinder track, scan watch/auto + changed-file re-ingest, full
+button `.btn-*` normalization if the user wants it eyeballed).
+
+Earlier — increment 89 (search across all fields + a search-scope dropdown): two related
+search upgrades (user request). (1) **Fixed the all-authors bug** — search only looked at title +
+`first_author_family_name`, so a co-author's surname found only first-authored papers (the user's name returned
+6 of 40); it now searches the whole `csl_json` record (every author + journal + year + DOI + abstract + …). (2)
+A **scope dropdown** beside the search box (All fields / Title / Author / Journal, default All) narrows it.
+Backend: `repository._search_clause(field, pattern)` + a `search_field` query param on `GET /papers` (key from a
+`SEARCH_FIELDS` allowlist — rule #3; pattern bound); composes with sort/deleted/axis/tag/pagination.
+Frontend: a `librarySearchField` state + the scope `<select>` (`40_app.jsx`, `10_pdf_layer.jsx`). **No migration,
+no new endpoint, no egress.** pytest **384** (+1: `test_search_covers_all_authors_and_scopes` — a 2nd author is
+found under all/author, not title; journal matches venue); `ruff` clean; help corpus's "Browsing and searching"
+search paragraph rewritten (`HELP-DOCS-SYNCED` → 89). Trade-off (v1): the `author` scope matches the whole
+record + `all` includes the JATS abstract — a precise per-author `json_each` query is a deferred refinement.
+**NEXT:** the user has broader tweaks coming (likely My Pubs); or a fresh chore/carrot cluster (deferred:
+BibTeX/RIS import, statcheck, the discovery/gapfinder track, scan watch/auto + changed-file re-ingest, full
+button `.btn-*` normalization if the user wants it eyeballed).
+
+Earlier — increment 88 (search + sort on one row): a small library-pane tweak (user request) —
 the **Sort** control moved inline to the right of the search box (into the `.searchbar` flex row; dropped the
 `.lib-sort-row` wrapper), reclaiming a vertical row. Frontend-only (`10_pdf_layer.jsx` + `styles.css`); pytest
 **383** unchanged.

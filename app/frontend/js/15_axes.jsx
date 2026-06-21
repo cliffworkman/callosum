@@ -56,10 +56,11 @@ function MyPubsPrompt() {
   );
 }
 
-function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault }) {
+function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
   const scoring = job && job.status === "running";
   const isMyPubs = axis.kind === "my_publications";  // inc 78: the pinned own-papers axis (variant UI, no scoring)
-  const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : 0.35);
+  // inc-105: an unscored axis's flipper starts at the Settings default cutoff; a stored per-axis gain still wins.
+  const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
   // B′: eye toggle — show assigned/manual only. Starts from the Settings default (re-keyed on change → remount).
   const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
@@ -150,7 +151,7 @@ function _tierRank(p) {
   return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -418,8 +419,9 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
         : <MyPubsPrompt />)}
       {standardVisible && standardVisible.map(axis => (
         <AxisItem
-          key={axis.id + (hideUncertainDefault ? "-h" : "-s")}
+          key={axis.id + (hideUncertainDefault ? "-h" : "-s") + "-c" + axisCutoffDefault}
           hideUncertainDefault={hideUncertainDefault}
+          axisCutoffDefault={axisCutoffDefault}
           axis={axis}
           detail={details[axis.id]}
           job={jobs[axis.id]}

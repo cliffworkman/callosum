@@ -557,3 +557,15 @@ open_science_signals = Table(
     Index("ix_open_science_signals_paper_id", "paper_id"),
     UniqueConstraint("paper_id", "signal_type", "source", name="uq_open_science_signal_paper_type_source"),
 )
+
+# Watched library folders (inc 98): folders callosum re-scans to pick up new PDFs (Zotero/Mendeley-style).
+# Scanning a folder registers it here; auto-rescan-on-launch + a manual "Re-scan all" reconcile them.
+watched_folders = Table(
+    "watched_folders",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("path", Text, nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("last_scanned_at", DateTime),
+    UniqueConstraint("path", name="uq_watched_folders_path"),
+)

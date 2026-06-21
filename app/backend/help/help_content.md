@@ -55,29 +55,42 @@ Gotchas:
 - Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.
 
 <!-- section: scanning-a-folder -->
-## Scanning a folder for PDFs
-If your PDFs live in a folder (not Zotero), point Callosum at it: click **Scan folder** at the top of the Library, enter the folder's path on this computer, and click **Scan**.
+## Watched folders (scanning for PDFs)
+If your PDFs live in a folder (not Zotero), point Callosum at it: open **+ Add → Watched folders…** at the top of the Library, enter the folder's path on this computer, and click **Add + scan**.
 
 Callosum walks the folder for PDFs and reconciles them with your library:
 
 - **New** PDFs are added — text extracted, chunked, embedded, and metadata fetched from Crossref where a DOI is found. Any whose DOI doesn't resolve land under **Unsorted** so you can fix them.
-- **Unchanged** PDFs (already in the library, matched by content) are skipped — re-scanning is safe and idempotent.
+- **Unchanged** PDFs (already in the library, matched by **content**, not filename) are skipped — re-scanning is safe and never creates duplicates.
 - **Removed** PDFs (a previously-scanned file that's now gone from the folder) are flagged as missing, not deleted.
 
-Your PDFs stay where they are — scanning links to them in place and never moves or copies anything. The folder path is remembered, so re-scanning to pick up new files is one click. Scanning reads only that folder on your own machine and never sends your PDFs anywhere (only the DOI lookup talks to Crossref, the same public metadata service used elsewhere).
+Once you've added a folder it becomes a **watched folder**: Callosum re-scans your watched folders **automatically each time the app starts**, so new PDFs you drop into them are picked up without re-adding (you can also click **Re-scan all** in the dialog). The dialog lists your watched folders with when each was last scanned; **remove** stops watching a folder but keeps the papers it already imported. Because matching is by content, the folder your existing library came from is safe to add — re-scanning it just confirms everything's already there. You can turn the on-launch re-scan off in **⚙ Settings → Library**.
+
+Your PDFs stay where they are — watching links to them in place and never moves or copies anything. It reads only the folders you've added, on your own machine, and never sends your PDFs anywhere (only the DOI lookup talks to Crossref, the same public metadata service used elsewhere).
+
+<!-- section: importing-citations -->
+## Importing a citation file (BibTeX, RIS, CSL-JSON)
+To bring in references from another reference manager, open **+ Add → Import file…** at the top of the Library and choose a **BibTeX** (`.bib`), **RIS** (`.ris`), or **CSL-JSON** (`.json`) file. Zotero, Mendeley, EndNote, and Callosum itself can all export one of these formats. This is the mirror image of **Exporting citations** — what you export, you can re-import.
+
+Each entry in the file becomes a metadata-only library paper (title, authors, year, journal, DOI, type, …). Entries already in your library are skipped (matched by DOI, or by title + year + first author when there's no DOI), so re-importing the same file is safe and creates no duplicates. Anything the parser can't read is skipped and counted rather than failing the whole import; the summary reports "N imported · M already in library · K skipped".
+
+Import brings in **metadata only** — no PDF is attached (add PDFs via **Scan folder**, Zotero, or **Acquire OA copy**). It runs **entirely on your machine**: the file is read in your browser and nothing is sent anywhere — no DOI lookup, no other network call. Imported papers are searchable and can be filtered by **type**; because the file is treated as your authoritative metadata, a later batch re-resolve won't overwrite it unless you explicitly re-resolve that paper.
 
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library
-The Library is for quickly finding papers and opening the ones you want to read. It shows each paper's title, authors, year, venue, processing tier, chunk count, and file count.
+The Library is for quickly finding papers and opening the ones you want to read. It shows each paper's title, authors, year, venue, processing tier, and file count.
 
-Use the search box to filter by title or author. Search is debounced, so results update shortly after you stop typing. The list shows up to 50 papers per page; use **Prev** and **Next** when there are more results.
+Use the search box to filter the library. By default it searches across **all** of a paper's stored fields — title, **every** author (not just the first), journal, year, DOI, abstract, and the rest of the bibliographic record — so searching your own surname finds every paper you co-authored, not only the ones you led. Use the dropdown beside the search box to narrow the scope to **Title**, **Author**, or **Journal** when a broad match returns too much. Search is debounced, so results update shortly after you stop typing. The list shows up to 50 papers per page; use **Prev** and **Next** when there are more results.
 
-Use the **Sort** dropdown to order the library by date added (oldest or most recent), title (A–Z), publication year (newest or oldest), or first author (A–Z). Papers without a year or author sort to the end. Sorting works alongside search, the Trash view, and an axis filter.
+Use the **Sort** dropdown to order the library by date added (oldest or most recent), title (A–Z or Z–A), publication year (newest or oldest), or first author (A–Z or Z–A). Papers without a year or author sort to the end. Your sort choice is remembered across sessions, and sorting works alongside search, the Trash view, and an axis filter.
+
+Use the **Type** dropdown (shown when your library has typed papers) to narrow the list to one document type — journal article, book, conference paper, preprint, and so on. It only offers types that are actually present, each with a count, and composes with search and sort.
 
 Common Library actions:
 
 - Click a paper once to select it and show its Detail pane.
 - Double-click a paper to open the PDF.
+- Click the small **clipboard icon** on a card (just left of its checkbox) to copy that paper's **BibTeX** to your clipboard.
 - Use the checkbox beside papers to select them for bulk delete.
 - Click **Unsorted** to see only the papers whose metadata still needs review.
 - Click **Duplicates** to scan for likely duplicates.
@@ -99,6 +112,8 @@ The toolbar shows:
 - A **Notes** button with the number of saved annotations.
 
 Callosum renders the PDF pages and an invisible selectable text layer. That means you can select text to highlight, while the visible page stays aligned with highlights and citation overlays across zoom levels.
+
+For distraction-free reading, click **⛶ Read** at the right of the tab bar — it hides both side panels to give the page the full width. Click **⤢ Exit** or press **Esc** to bring the panels back exactly as they were. (Reading mode is temporary; reloading the page returns to the normal layout.)
 
 Gotchas:
 
@@ -169,6 +184,8 @@ Most fields are always editable:
 
 Fields auto-save when you leave them. For authors, enter one author per line. For numeric date fields, non-numeric input is ignored and the previous value is restored.
 
+The **More** section holds any extra bibliographic fields (for example ones a DOI lookup filled in beyond the core set), and lets you **add your own**: type a field name (letters, digits, `-`/`_`) and a value, then **+ add**. Fields that have their own editor above (title, DOI, …) are reserved and can't be re-added there.
+
 The **Files** area lists available attachments. Click a file to open the paper's PDF.
 
 Gotchas:
@@ -178,8 +195,15 @@ Gotchas:
 - If the title is empty, Callosum will not save it. Every paper needs a title.
 
 <!-- section: exporting-citations -->
-## Exporting citations
-Callosum can export your papers' bibliographic records in three formats, all generated from the stored metadata: **BibTeX** (`.bib`), **RIS** (`.ris`), and **CSL-JSON**. The export runs entirely on your machine — nothing is sent anywhere.
+## Exporting & formatting citations
+Callosum can export your papers' bibliographic records in three machine-readable formats — **BibTeX** (`.bib`), **RIS** (`.ris`), and **CSL-JSON** — and can render **formatted citations** in real styles (APA, MLA, Chicago, IEEE, Nature, Harvard). Everything runs entirely on your machine — nothing is sent anywhere.
+
+**Formatted citations (APA / MLA / Chicago / …):**
+
+- In a paper's **Details** pane, the **Cite as** row has a **style dropdown** and a live preview of the formatted reference; click **Copy** to put it on your clipboard.
+- For a whole reference list: in the Library, check the papers you want, then in the bulk bar open the **bibliography…** dropdown and pick a style — Callosum downloads a formatted `.html` bibliography (open it in your browser or word processor). *(Full cite-while-you-write inside Word/LibreOffice is on the way; this is the engine that powers it.)*
+
+**Machine-readable export:**
 
 To export several papers at once:
 
@@ -189,8 +213,8 @@ To export several papers at once:
 
 To copy one paper's citation:
 
-- Click a paper to open its Details pane.
-- In the **Cite** row, click **BibTeX**, **RIS**, or **CSL-JSON** — the citation is copied to your clipboard (the link briefly shows "Copied ✓"). Paste it into your manuscript, a reference manager, or a `.bib` file.
+- **Fastest:** each card in the Library has a small **clipboard button** just left of its checkbox — click it to copy that paper's **BibTeX** straight to your clipboard (the icon flips to a ✓). No need to open the paper.
+- **From Details:** click a paper to open its Details pane, and in the **Cite** row click **BibTeX**, **RIS**, or **CSL-JSON** — the citation is copied to your clipboard (the link briefly shows "Copied ✓"). Paste it into your manuscript, a reference manager, or a `.bib` file.
 
 Notes:
 
@@ -217,10 +241,13 @@ Callosum also imports **author/index keywords** as tags so the authors' own conc
 
 The **✨ Suggest** pass then fills gaps the authors' keywords missed (it skips terms you already have).
 
+Tags you added and tags that were **imported** (Zotero tags, Crossref subject keywords) are distinguished by a subtle visual difference rather than an extra label — imported keyword tags appear in a quieter, muted style, while the ones you typed keep the accent color. Hover any tag to see exactly where it came from. They all behave the same — click to filter, **×** to remove.
+
 To browse and remove:
 
-- Click a tag's name to **filter the library** to every paper carrying that tag (a "Filtered to tag …" banner appears; click **clear** to return). The tag filter and the axis filter are mutually exclusive.
-- Click the **×** on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically.
+- The left **sidebar** has a **Tags** panel (below Axes) listing every tag with its paper count. Click a tag there to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the panel to narrow the list by source.
+- Click a tag's name in a paper's **Tags** row to **filter the library** to every paper carrying that tag (a "Filtered to tag …" banner appears; click **clear** to return). The tag filter and the axis filter are mutually exclusive.
+- Click the **×** on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically (and disappears from the sidebar panel).
 
 Tags are stored locally; nothing is sent anywhere.
 
@@ -461,7 +488,7 @@ The card shows a publication count and doubles as a "show only my papers" filter
 
 **Research domains.** On the dashboard, click **Break down by domain** to group your confirmed publications into research areas (clustered locally by similarity). Each domain shows its paper count and total citations — your **impact by area** — and clicking a domain re-filters the publications-by-year chart to just that domain's papers (click again to clear; select several to combine). Domains are a lens, not a fixed taxonomy: each is labeled from its papers' distinctive terms, and **Re-decompose** recomputes them. This is **LLM-free** local clustering.
 
-**Works not in your library.** The dashboard shows how many works OpenAlex indexes for you versus how many are in your library; expand **Review N indexed works not in your library** to act on the gap. Each entry shows its title, year, citations, and DOI. Click **Import** to add one to your library (it's fetched as a metadata record from Crossref and joins My Publications automatically — only works OpenAlex attributes to *you* can be imported), or **Dismiss** to drop it from the list for good (useful when OpenAlex over-attributes works that aren't yours). Import brings in the record only; use a paper's **Acquire OA copy** button afterward if you also want the PDF.
+**Works not in your library.** The dashboard shows how many works OpenAlex indexes for you versus how many are in your library; expand **Review N indexed works not in your library** to act on the gap. Each entry shows its title, year, citations, and DOI. Click **Import** to add one to your library (it's fetched as a metadata record from Crossref and joins My Publications automatically — only works OpenAlex attributes to *you* can be imported), or **Dismiss** to drop it from the list (useful when OpenAlex over-attributes works that aren't yours). Import brings in the record only; use a paper's **Acquire OA copy** button afterward if you also want the PDF. Changed your mind about a dismissal? Expand **Previously dismissed** below the list and click **Restore** to send a work back to the review queue.
 
 Resolving your publications and the dashboard metrics are **LLM-free** and work offline — only your name/ORCID and public identifiers go to OpenAlex (the same kind of public lookup as resolving a DOI). The one exception is the optional research-summary **Generate**, which sends your own publication titles/abstracts to Gemini and therefore works only with the data-egress gate (`CALLOSUM_ALLOW_DATA_EGRESS`) on; with it off, the charts and metrics still render and Generate shows a consent note.
 
@@ -525,6 +552,20 @@ Gotchas:
 - Region-level and page-only citations cannot be saved as precise highlights.
 - Flagged citations cannot be saved through this path.
 - Saving a highlight does not force-open the PDF; if the PDF is already open, the viewer refreshes its annotations.
+
+<!-- section: checking-statistics -->
+## Checking statistics (statcheck)
+In a paper's **Details** pane, the **Statistical reporting** section has a **Check statistics** button. It scans the paper's extracted text for inline APA-style statistical tests — `t(28) = 2.10, p = .04`, `F(2, 45) = 3.1, p < .05`, `r(30) = .42, p = .01`, `χ²(1) = 5.2, p = .02`, `z = 2.1, p = .03` — **recomputes** the p-value from the reported test statistic and degrees of freedom, and shows where the reported and recomputed values disagree. It's the statcheck method: a "spellchecker for statistics."
+
+This runs **entirely on your machine** — pure computation over the already-extracted text, no AI and no network. Each result shows the **verbatim matched text** and its **recomputed p**, with a status pill: **consistent** (green), **inconsistent** (amber — the values disagree), or **decision error** (amber — the disagreement flips significance at p = .05). A count summary reads "N checked · M inconsistent · K decision errors" — these are plain counts, never a hidden "reproducibility score." Click any result to open the PDF at the page the statistic was found on.
+
+Read it as a **prompt to look, never a verdict**:
+
+- An inconsistency is usually innocent — a typo, rounding, a one-tailed test, or an adjusted value. It is **not** an accusation of error or misconduct. The recomputation already accounts for the statistic's rounding and tries the one-tailed reading, so correctly-reported results are not flagged.
+- It reads only **inline APA-format** tests — it cannot see statistics in tables, Bayesian reporting, or confidence-interval-only reporting. **A clean result is not a clean bill** — it means nothing was surfaced by this specific check.
+- It needs the paper's **extracted text**, so it's available once a PDF has been processed (the button explains this otherwise). PDF-to-text conversion can garble symbols like `<`/`>`/`=`, which is why the exact matched text is always shown — so you can see an artifact for what it is.
+
+**Across your whole library:** open **⚙ Settings → Statistics check → Check all papers**. Callosum runs statcheck over every paper and reports "N papers with statistics checked · M with inconsistencies." If any are flagged, a **⚠ N flagged** chip also appears in the Library header as a shortcut. Either click that chip or **Show flagged papers** in Settings to filter the Library to just them (a banner appears; **clear** to return) — then open any one to see its specific tests. This is a **list to review, not a ranking**: papers aren't scored or ordered by inconsistency, and the same caveats apply (usually innocent; inline-APA only; absence isn't a clean bill). Re-run the check after editing papers to refresh it.
 
 <!-- section: duplicates -->
 ## Finding possible duplicates

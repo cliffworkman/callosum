@@ -1,14 +1,13 @@
-"""Papers, chunks, and PDF-streaming endpoints (read-only)."""
+"""Papers, chunks, and library-facet endpoints (PDF file-serving lives in `paper_files.py`)."""
 
 from __future__ import annotations
 
 import re
-from pathlib import Path, PurePosixPath, PureWindowsPath
+from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
-from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 from sqlalchemy.exc import IntegrityError, NoResultFound
@@ -25,6 +24,7 @@ from app.backend.persistence.repository import (
     get_paper,
     get_paper_counts,
     get_papers_for_export,
+    list_item_types,
     list_papers,
     purge_all_trashed,
     purge_paper,
@@ -76,6 +76,7 @@ class AttachmentResponse(BaseModel):
 class PaperTagRef(BaseModel):
     id: int
     name: str
+    source: str | None = None  # tag provenance (user / zotero / keyword:crossref / …) — the UI styles by it
 
 
 class PaperDetailResponse(BaseModel):
@@ -167,10 +168,15 @@ def papers_index(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     q: str | None = Query(default=None),
+    search_field: str = Query(default="all"),  # search scope: all / title / author / journal (allowlisted in repo)
     deleted: bool = Query(default=False),  # true → the Trash listing (soft-deleted papers)
     axis_id: int | None = Query(default=None),  # filter the listing to the papers assigned to this axis
     tag_id: int | None = Query(default=None),  # filter the listing to the papers carrying this tag
+    item_type: str | None = Query(default=None),  # filter to a single CSL item type (bound; see list_item_types)
     needs_review: bool = Query(default=False),  # the "Unsorted" view: scaffold / Crossref-unresolved / no source
+    signal: str | None = Query(
+        default=None
+    ),  # filter to a Methods-producer signal (allowlisted in repo), e.g. statcheck
     sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted in repo)
     conn: Connection = Depends(get_connection),
 ) -> list[PaperListItem]:
@@ -179,13 +185,28 @@ def papers_index(
         limit=limit,
         offset=offset,
         q=q,
+        search_field=search_field,
         only_deleted=deleted,
         axis_id=axis_id,
         tag_id=tag_id,
+        item_type=item_type,
         needs_review=needs_review,
+        signal=signal,
         sort=sort,
     )
     return [_paper_list_item(row) for row in rows]
+
+
+class ItemTypeCount(BaseModel):
+    item_type: str
+    count: int
+
+
+@router.get("/papers/item-types", response_model=list[ItemTypeCount])
+def papers_item_types(conn: Connection = Depends(get_connection)) -> list[ItemTypeCount]:
+    """Distinct CSL item types present in the live library + counts (inc 91) — drives the Type filter so it
+    only offers types that exist. Registered before /papers/{paper_id} so the literal segment wins."""
+    return [ItemTypeCount(item_type=row["item_type"], count=row["count"]) for row in list_item_types(conn)]
 
 
 @router.get("/papers/{paper_id}", response_model=PaperDetailResponse)
@@ -217,22 +238,6 @@ def paper_chunks(
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     return [_chunk_response(row) for row in get_chunks_for_paper(conn, paper_id, limit=limit, offset=offset)]
-
-
-@router.get("/papers/{paper_id}/pdf", response_model=None)
-def paper_pdf(paper_id: int, conn: Connection = Depends(get_connection)) -> FileResponse:
-    # Path is resolved ONLY from the attachment row keyed by the integer
-    # paper_id — never from anything the client supplies. A single DB lookup.
-    attachment_rows = get_attachments_for_paper(conn, paper_id)
-    path = _local_attachment_path(_select_primary_pdf_attachment(attachment_rows))
-    if path is None:
-        raise HTTPException(status_code=404, detail="PDF not available locally for this paper")
-    return FileResponse(
-        path,
-        media_type="application/pdf",
-        content_disposition_type="inline",
-        filename=path.name,
-    )
 
 
 @router.patch("/papers/{paper_id}", response_model=PaperDetailResponse)
@@ -476,52 +481,8 @@ def _paper_detail(
         attachment_count=attachment_count,
         chunk_count=chunk_count,
         attachments=[_attachment_response(item) for item in attachments],
-        tags=[PaperTagRef(id=int(t["id"]), name=t["name"]) for t in (tags or [])],
+        tags=[PaperTagRef(id=int(t["id"]), name=t["name"], source=t["import_source"]) for t in (tags or [])],
     )
-
-
-def _select_primary_pdf_attachment(rows: list[Any]) -> Any | None:
-    """Pick the paper's primary PDF attachment from its attachment rows.
-
-    Prefers PDF attachments, then those marked role='primary', falling back to
-    the first available attachment so single-attachment papers still resolve.
-    """
-    if not rows:
-        return None
-    pdfs = [row for row in rows if _is_pdf_attachment(row)]
-    candidates = pdfs or list(rows)
-    primary = [row for row in candidates if (row["role"] or "").strip().lower() == "primary"]
-    ordered = primary or candidates
-    return ordered[0] if ordered else None
-
-
-def _is_pdf_attachment(row: Any) -> bool:
-    content_type = (row["content_type"] or "").strip().lower()
-    attachment_type = (row["attachment_type"] or "").strip().lower()
-    return content_type == "application/pdf" or attachment_type == "pdf"
-
-
-def _local_attachment_path(row: Any) -> Path | None:
-    """Resolve a streamable local file path from a trusted attachment row.
-
-    The path comes only from the database row (resolved_path, then
-    original_path); no client-supplied path is ever followed. Returns None when
-    the attachment is URL-only, marked not-present, or missing on disk so the
-    endpoint can answer with an honest 404 instead of a 500.
-    """
-    if row is None:
-        return None
-    if row["storage_mode"] == "url":
-        return None
-    if row["availability"] != "available":
-        return None
-    raw_path = row["resolved_path"] or row["original_path"]
-    if not raw_path:
-        return None
-    path = Path(raw_path)
-    if not path.is_file():
-        return None
-    return path
 
 
 def _attachment_response(row: Any) -> AttachmentResponse:

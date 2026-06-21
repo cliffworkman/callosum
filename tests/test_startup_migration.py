@@ -6,11 +6,12 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from tests.api_helpers import alembic_head
 
 # Bind the startup module (where the auto-migration machinery lives) for direct calls/monkeypatch.
 app_module = importlib.import_module("app.backend.api.startup")
 
-HEAD = "0013_my_publication_dismissed_works"
+HEAD = alembic_head()  # the real Alembic head — not a hardcoded revision (see api_helpers.alembic_head)
 BEHIND = "0001_persistence_core"
 
 

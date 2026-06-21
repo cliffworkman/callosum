@@ -231,6 +231,7 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
 
     cached_works = get_cached(conn, OPENALEX_WORKS_PROVIDER, author.author_id)
     as_of = str(cached_works["fetched_at"]) if cached_works is not None and cached_works.get("fetched_at") else None
+    dismissed = {str(d).strip().lower() for d in (profile.get("dismissed_work_dois") or [])}
 
     return {
         "status": "ok",
@@ -249,9 +250,8 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
         "gap": max(0, author.works_count - in_library),
         "research_summary": profile.get("research_summary"),
         "domains": _dashboard_domains(conn, profile.get("research_domains"), works),
-        "missing_works": _dashboard_missing_works(
-            conn, works, {str(d).strip().lower() for d in (profile.get("dismissed_work_dois") or [])}
-        ),
+        "missing_works": _dashboard_missing_works(conn, works, dismissed),
+        "dismissed_works": _dashboard_dismissed_works(works, dismissed),
     }
 
 
@@ -420,6 +420,18 @@ def _dashboard_missing_works(conn: Connection, works: list, dismissed: set[str],
         if not work.doi or work.doi in matched or work.doi in dismissed:
             continue
         out.append({"doi": work.doi, "title": work.title, "year": work.year, "cited_by_count": work.cited_by_count})
+    out.sort(key=lambda w: -(w["cited_by_count"] or 0))
+    return out[:cap]
+
+
+def _dashboard_dismissed_works(works: list, dismissed: set[str], *, cap: int = 100) -> list[dict]:
+    """The author's cached works the user has dismissed from the missing-works queue (inc 91) — surfaced so a
+    mistaken dismissal can be undone (mirror of inc-67's un-dismiss). Sorted by citations; capped. Cache-only."""
+    out = [
+        {"doi": w.doi, "title": w.title, "year": w.year, "cited_by_count": w.cited_by_count}
+        for w in works
+        if w.doi and w.doi in dismissed
+    ]
     out.sort(key=lambda w: -(w["cited_by_count"] or 0))
     return out[:cap]
 

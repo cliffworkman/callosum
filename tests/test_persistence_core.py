@@ -8,20 +8,22 @@ from sqlalchemy.exc import IntegrityError
 
 from alembic import command
 from alembic.config import Config
+from app.backend.persistence.annotations_repo import (
+    create_annotation,
+    delete_annotation,
+    get_annotation,
+    list_annotations_for_paper,
+    update_annotation,
+)
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import (
-    create_annotation,
     create_attachment,
     create_chunk,
     create_paper,
-    delete_annotation,
     find_existing_paper_by_identity,
-    get_annotation,
     get_attachments_for_paper,
     get_chunks_for_paper,
     get_paper,
-    list_annotations_for_paper,
-    update_annotation,
 )
 from app.backend.persistence.schema import (
     annotations,
@@ -73,6 +75,7 @@ def test_alembic_migration_creates_persistence_schema(migrated_db_url: str) -> N
         "job_errors",
         "missing_literature_suggestions",
         "open_science_signals",
+        "watched_folders",
     }
 
     assert expected_tables.issubset(set(inspect(engine).get_table_names()))

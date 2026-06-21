@@ -24,13 +24,16 @@ _Italic notes are light implementation pointers, not designs._
   `subject` (inc 73) already import as tags. Remaining: **OpenAlex `concepts`** + **PubMed MeSH** (richer index
   keywords; arrive when those integrations land — OpenAlex client exists for OA-location only today; PubMed via
   the connected MCP). On a Feed/Search **save** (librarypaneltab track), attach the source's keywords as tags.
-- [ ] **Tag provenance / source.** `tags.import_source` already seeds this (`zotero`/`user`/`keyword:crossref`);
-  formalize a small vocabulary — `user`, `keyword:{crossref|openalex|pubmed}`, `system:{retraction|transparency|…}`
-  — so the UI can group/style by source ("author keywords" vs "your tags" vs "system facts"), protect
-  imported/system tags from silent clobber (mirror the inc-49 user-edit guard), and offer "show only author
-  keywords." NB a per-**link** provenance may be needed for per-paper facts (a global tag's `import_source` can't
-  say "THIS paper is retracted") — those likely belong to the findings subsystem, projected as read-only
-  system-tags.
+- [~] **Tag provenance / source.** `tags.import_source` seeds this (`zotero`/`user`/`keyword:crossref`).
+  **Style-by-source DONE (inc 100):** the `source` is now exposed on the tag responses
+  (`PaperTagRef`/`TagRef`/`TagSummary`) and imported keyword tags render in a **muted style + a source tooltip**
+  (vs the accent-colored tags you typed), in both Details and the sidebar Tags panel. **Source filter DONE
+  (inc 105):** an **All / Yours / Keywords** toggle in the sidebar Tags panel (the "show only author keywords" ask;
+  shown only when both kinds exist). **Still open:** formalize the full vocabulary
+  (`system:{retraction|transparency|…}`), **group** by source in the UI, and **protect** imported/system tags from
+  silent clobber (mirror the inc-49 user-edit guard). NB a
+  per-**link** provenance may be needed for per-paper facts (a global tag's `import_source` can't say "THIS paper is
+  retracted") — those likely belong to the findings subsystem, projected as read-only system-tags.
 - [ ] **Tags ↔ findings / system-facts (the retraction-surfacing connection).**
   `opus4.8_future-tracks_theorymethods.md`'s **findings subsystem** emits a retraction FACT (Crossref Retraction
   Watch) as a persistent **"retracted" mark** + descriptive transparency tags (open-data/code/prereg). These
@@ -50,7 +53,9 @@ _Italic notes are light implementation pointers, not designs._
   **shipped inc 85.** The dashboard gap is actionable: `build_dashboard.missing_works` (cached works ∉ library ∉
   dismissed) with **Import** (`import_missing_work` — guardrailed, metadata-only via Crossref, auto-joins My
   Pubs) / **Dismiss** (`profile.dismissed_work_dois`). The OA-PDF stays the separate per-paper "Acquire OA copy".
-  _(Deferred follow-on: un-dismiss for missing works, mirroring inc-67.)_
+- [x] **Un-dismiss for missing works** (the inc-85 deferred follow-on, mirroring inc-67) — **shipped inc 92**:
+  `build_dashboard.dismissed_works` + `POST /my-publications/works/undismiss` (`undismiss_work`) + a
+  "Previously dismissed" dashboard section with **Restore**.
 
 ---
 
@@ -81,20 +86,21 @@ _Italic notes are light implementation pointers, not designs._
 
 - [ ] **Permanent delete doesn't remove the on-disk PDF** (managed/linked) — deferred from inc 65 (deleting
   user files is riskier). See `INCREMENT-65-NOTES.md`.
-- [ ] **Import coverage — beyond Zotero.** Today only Zotero imports (`importers/zotero.py`).
-  Reference-manager-first parity = accept libraries originating elsewhere, mapped to the same `csl_json` record:
-  **Mendeley** (via Zotero's bridge or exported BibTeX/RIS/CSL-JSON — **not** direct encrypted-local-DB reads;
-  surfaces the `integrations/mendeley/` stub); **BibTeX / RIS / CSL-JSON import** (the complement to inc-70
-  export; reuse the CSL-JSON model). _Validate untrusted import files at the boundary (rule #4); audit-gate the
-  new ingestion path._
+- [x] **Import coverage — beyond Zotero.** **BibTeX / RIS / CSL-JSON import shipped inc 93** (`POST
+  /library/import` → `metadata/citation_import.py`, hand-rolled parsers, dedup + create + embed, entirely local;
+  the complement to inc-70 export). This **also covers Mendeley/EndNote** (they export to these formats — no
+  direct encrypted-local-DB reads needed; the `integrations/mendeley/` stub stays unused). **Deferred follow-ons:**
+  attaching PDFs referenced by an import; optional Crossref-enrich / My-Pubs auto-join on import (kept off to
+  stay egress-free); a hardened BibTeX parser (`@string` macros / `#`-concat / `(`-delimited entries).
 
 ---
 
 ## Theme 3 — Synthesis & Details (open)
 
 - [ ] **G deferred items** (`INCREMENT-49-NOTES.md`): per-attachment PDF serving (Files opens the *primary* PDF
-  today — true per-file routing lands with the duplicate-merge multi-PDF records); multiple URLs; Translator(s);
-  a "More" **add-arbitrary-field** menu (today it only surfaces what a DOI gave).
+  today — true per-file routing lands with the duplicate-merge multi-PDF records); multiple URLs; Translator(s).
+  _(The "More" **add-arbitrary-field** menu — **shipped inc 96**: an `AddFieldRow` in the Details "More" section
+  reusing the validated `csl` patch.)_
 - [ ] **Critical-review supplement (multi-paper).** A stronger, more opinionated generation mode (own
   endpoint/mode, egress gate, security audit) that critically reviews the selected paper(s). **Must meet the
   Auditability standard** (above) before it ships — it judges/critiques rather than grounds.
@@ -105,7 +111,9 @@ _Italic notes are light implementation pointers, not designs._
 
 ## Theme 4 — App-wide (open)
 
-- [ ] **More settings** — e.g. the axis cutoff default → Settings. (Hide-uncertain-by-default shipped inc 77.)
+- [~] **More settings** — the **axis cutoff default → Settings shipped inc 105** (a persisted slider in
+  Settings → Axes; a new/unscored axis's re-score flipper starts there). (Hide-uncertain-by-default shipped inc 77.)
+  Remaining: other prefs as they arise.
 - [ ] **`.btn-*` divergent-button migration** — see the DESIGN.md Pass-2 remainder above.
 - [ ] **Packaging & distribution (post-V1)** — a **Tauri desktop shell** (`app/desktop-shell/` placeholder); an
   **OS keychain** for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; **desktop
@@ -118,16 +126,24 @@ _Italic notes are light implementation pointers, not designs._
 **Library management & import**
 - [x] **Scan / refresh library folders** — **shipped inc 87** (manual scan/refresh: `POST /library/scan` →
   `pdf_processing/library_scan.py`; new/unchanged/removed, linked in-place, checksum-dedup, async enrich+embed;
-  a **Scan folder** button + modal). **Deferred follow-ons:** background **watch**/auto-refresh + a persisted
-  watched-folder list; true **changed-file re-ingest** (needs inc-65 vector cleanup); recursive subfolders.
-- [ ] **"UNSORTED" cluster** — a toggle gathering papers whose DOI/metadata resolution failed (the Mendeley
-  "Unsorted/Needs-review" analogue) so they are easy to find + fix.
-- [ ] **Filter library by type** (article / book / preprint …) — extends the inc-69 sort + inc-63/71 axis/tag
-  filters (same allowlist-param pattern).
+  a **Scan folder** button + modal). **Watched folders shipped inc 98** — scanning a folder persists it
+  (`watched_folders`), it's re-scanned automatically on launch (Settings toggle) + via "Re-scan all", and the
+  "+ Add → Watched folders…" modal lists/manages them (Zotero/Mendeley-style; content-dedup → no dupes; un-watch
+  keeps papers). **Deferred follow-ons:** a **live OS file-watcher** (continuous, not just on-launch — needs
+  `watchdog`/inotify); true **changed-file re-ingest** (needs inc-65 vector cleanup); recursive subfolders;
+  backfilling the already-scanned library folder into the watched list (re-scan/add it once to start watching).
+- [x] **"UNSORTED" cluster** — **shipped inc 80** (the `needs_review` filter + Unsorted header toggle; the
+  Mendeley "Needs-review" analogue).
+- [x] **Filter library by type** (article / book / preprint …) — **shipped inc 91** (an `item_type` query param
+  on `GET /papers` + a `GET /papers/item-types` facet endpoint + a Type dropdown; same allowlist/param family as
+  inc-69 sort / inc-63/71 axis-tag filters). Landed after splitting `repository.py`/`papers.py` under the
+  600-line cap (rule #1).
 
 **PDF viewer**
 - [ ] **Page-view options** — fit-to-width, two-up / side-by-side, etc.
-- [ ] **Reading mode** — a distraction-minimized layout that maximizes the active PDF and hides chrome.
+- [x] **Reading mode** — **shipped inc 101**: a **⛶ Read** toggle (right of the center tab bar) collapses both
+  side panels + their dividers to maximize the open PDF; **⤢ Exit** / **Esc** restores the prior layout. Transient
+  (resets on reload). Frontend-only, built on the inc-42 collapsible panels.
 
 **Settings & accounts**
 - [ ] **Gemini API key field in Settings** — set `GOOGLE_API_KEY` from the UI (the **BYO-key** model for
@@ -138,9 +154,10 @@ _Italic notes are light implementation pointers, not designs._
   audit. Likely post-V1 / tied to any hosted mode.
 
 **App-wide UX**
-- [ ] **Progress indication for long operations** — a standard: any time-taking op (summary/score/suggest/dedup/
-  acquire/wanted jobs, import, embedding) tells the user it's happening, with a progress bar.
-- [ ] **Re-score line-wrapping fix** — the re-score control line wraps badly in expanded axis cards (UI bug).
+- [~] **Progress indication for long operations** — **partly shipped inc 79** (an indeterminate `ProgressBar` on
+  the long async jobs). Remaining: a consistent standard across import/embedding and any other time-taking op.
+- [x] **Re-score line-wrapping fix** — **shipped inc 86** (`flex-wrap: nowrap` + a shrinkable Cutoff slider keep
+  the re-score row on one line).
 
 **Investigations (not features)**
 - [ ] Confirm where the in-app images (the `.webp`s) are actually stored/served.
@@ -174,11 +191,27 @@ track is a *signal/suggestion/retrieval that stays non-authoritative* and must p
 gate** before any build. Sequenced *toward*, not queued — the core UX above comes first. See
 `future-tracks/README.md` for the index; do not recapitulate the detail here.
 
-- [ ] **Open-science signals — statcheck** (`opus4.8_future-tracks.md` Track A): recompute APA NHST p-values
-  from extracted text; a separately-displayed, inspectable per-paper signal (never a hidden score). Local; runs
-  on existing PDF text.
-- [ ] **Word + LibreOffice citation plugin** (Track B): cite-while-you-write over the CSL-JSON + a CSL processor;
-  a backend CSL-format endpoint, then an Office.js add-in, then a LibreOffice UNO extension. **Never auto-inserts.**
+- [x] **Open-science signals — statcheck** (Track A) — **v1 shipped inc 95**: `GET /papers/{id}/statcheck`
+  (`methods/statcheck.py`) recomputes APA NHST p-values from the extracted text (t/F/r/χ²/z), with rounding +
+  one-tailed tolerance, classified consistent / inconsistent / decision-error; a Details-pane "Statistical
+  reporting" section (per-test rows + counts, **no composite score**, **non-accusatory**, route-to-page). Local,
+  deterministic, no LLM. **Library-wide lens shipped inc 97** — a batch "Check all papers" (Settings) persists a
+  per-paper summary to `open_science_signals` + a library **filter** "papers with reporting inconsistencies"
+  (`GET /papers?signal=statcheck-inconsistent`; a filter, never a rank). **Header entry shipped inc 100** — a
+  **⚠ N flagged** Library-header chip (when the batch run flagged any papers; `GET /methods/statcheck/summary`)
+  jumps straight to the filter. **Deferred follow-ons:** more test forms (test-stat `<`/`>`, tables);
+  per-paper-check persistence (the per-paper GET stays live/read-only); the sibling deterministic producers
+  **GRIM / p-curve** + a unified findings-subsystem facet across signal types (the `methods/` +
+  `open_science_signals` foundations leave room).
+- [~] **Word + LibreOffice citation plugin** (Track B): cite-while-you-write over the CSL-JSON + a CSL processor.
+  **The backend CSL engine + per-item format endpoint shipped inc 106** (`POST /citations/render`); **the
+  position-aware document-render contract shipped inc 107** (`POST /citations/render-document`); **the first
+  adapter — LibreOffice (UNO) — shipped inc 108** (`adapters/libreoffice/`: a drop-in Writer macro with the full
+  live-field loop insert → refresh/restyle/renumber → bibliography → flatten; headless-tested end-to-end).
+  **Next: an Office.js (Word) add-in** (needs the CORS/origin change; content-controls/ADDIN fields; Win+Mac
+  parity) over the same `render-document` engine, **then Google Docs** (named ranges; the fenced cloud opt-in;
+  last). LibreOffice follow-ups: `.oxt` packaging + toolbar, a library-search picker, grouped cites/locators,
+  note-style footnotes. **Never auto-inserts.**
 - [ ] **Highlight-to-suggest / highlight-to-evaluate** (Track C): for a draft sentence — suggest papers to cite
   (in-library = retrieval in reverse, local; beyond-library via OpenAlex/Semantic-Scholar with explainable
   reasons) + evaluate support/contrast/mention via the NLI spine. Never auto-insert/auto-judge. Highest-value
@@ -232,6 +265,53 @@ gate** before any build. Sequenced *toward*, not queued — the core UX above co
   pre-selected default; the weighting one forced choice among peers) is the near-term enhancement. **More
   controversial than most** — build only this principled shape; gate through Principles + A-A at graduation.
   **Do not build yet.**
+
+*Folded in from the future-tracks inbox (2026-06-21) — the seven specs below:*
+
+- [~] **Citation & bibliography engine** (`…_citationbibliographyengine.md`): the reference-manager **spine**.
+  **Phase 1 shipped inc 106** — **citeproc-js** rendered backend-side via a Node sidecar (`app/backend/citations/`)
+  over bundled CSL styles, surfaced **in-app** (Details "Cite as …" + a bulk formatted-bibliography download);
+  formatted styles (APA/MLA/Chicago/IEEE/Nature/Harvard); credit in `THIRD-PARTY-NOTICES.md`; no egress.
+  **Phase 2 shipped inc 107** — the **position-aware document-render** layer (`POST /citations/render-document`,
+  `render_document` / `rebuildProcessorState`): renders a document's **ordered citation clusters** with numeric
+  renumbering + author-date disambiguation; self-contained (renders from passed CSL-JSON, no library lookup); the
+  contract every adapter calls. **The first adapter — LibreOffice (UNO) — shipped inc 108** (`adapters/libreoffice/`):
+  the target-agnostic field abstraction (`{itemKeys, cslJsonPayload, renderedText, orderIndex}`) realized as
+  ReferenceMarks carrying CSL-JSON (Zotero `CSL_CITATION` pattern), full-document-order scan, and a flatten mode —
+  the full live-field loop, headless-tested in a real LibreOffice. **Next (the remaining adapters, same engine):**
+  **Word (Office.js)** — one Win+Mac+web add-in (needs the CORS/origin change; content-controls or ADDIN field
+  codes) — then **Google Docs** (named ranges; the fenced cloud opt-in; built last). Deferred: `.oxt` packaging +
+  toolbar, a library-search picker, grouped cites, note-style footnote management, locators/prefixes,
+  fetch-on-demand long-tail styles (consent-gated), Vancouver + more bundled styles, rich-clipboard (italics) copy,
+  a shared subprocess timeout.
+- [ ] **Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS): Tier-1 recompute default Bayes factors
+  for canonical designs (t/F/r + N) + Tier-2 completeness audit; signal-not-verdict, deliberately does **not**
+  teach "BF>3 = significance". Sibling of statcheck under the findings subsystem.
+- [ ] **LMM-reporting auditor** (`…_lmmreportingauditor.md`, METHODS, consumer-side): flags what a reader should
+  look for in a mixed-model paper (random-effects structure, df method, convergence, REML/ML, ICC, R²,
+  missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**.
+- [ ] **Citation-equity audit** (`…_citationequitytool.md`, METHODS): identity-**agnostic** structural/topical
+  reference-list audit (self-citation, concentration, Global-South under-citation, topical gaps) + add-only
+  "overlooked work" remediation; descriptive, never a verdict. Gender/identity module **deferred + separately
+  gated** (A-A no-accusation).
+- [ ] **CRediT contributions builder** (`…_creditcontributionsbuilder.md`): authors × 14-roles grid (NISO CRediT)
+  → a contributorship statement injected via the Word link; **builder, not verifier**; credits **tenzing** +
+  library-adds its paper (credit-the-lineage).
+- [ ] **Meta-analysis extraction workbench** (`…_metaanalysisextractionworkbench.md`, its **own** REVIEW/SYNTHESIS
+  workspace): protocol → embedding-screened queue → LLM-drafted **provenance-anchored, human-verified** extraction
+  → double-coding/IRR → deterministic effect-size conversion → export (metafor/JASP/RevMan) + audit trail.
+  **Extracts/structures, never pools/models/adjudicates**; LLM is never an independent coder.
+- [ ] **BYOK / multi-provider LLM** (`…_byokproviderkeys.md`, Settings; **load-bearing for any shared release** —
+  Callosum can't ship its own key once others run it): user-supplied keys + Gemini/OpenAI/Anthropic/
+  OpenAI-compatible/**local**; a **validation lock** (quality-not-correctness disclaimer); keys in OS keychain;
+  embeddings stay local; verification provider-agnostic. Extends the inc-58 egress-gate DI seam.
+
+**Credit the lineage** is now a **values-layer principle** ([`.claude/CREDIT-THE-LINEAGE.md`](../CREDIT-THE-LINEAGE.md),
+captured from the inbox 2026-06-21): apply it forward to every method-implementing tool (in-context credit +
+one-click library-add of the source), and run the retroactive **credit-help backfill**
+(`…_credithelpbackfill.md`) — Lane A scholarly-method lineage (statcheck → Nuijten & Epskamp / Nuijten et al.
+2016; etc.) + Lane B software-dependency NOTICE (AGPL-3.0) + help-doc sync. *A near-term maintenance pass, not a
+longer-horizon track.*
 
 **Shared infra these unlock (kept as README-only `integrations/` stubs on purpose):** **OpenAlex** (my-pubs →
 gap-finder → discovery → acquisition; the acquisition slice is built), **Unpaywall** (Track D — superseded by

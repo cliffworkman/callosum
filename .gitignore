@@ -22,6 +22,10 @@ __pycache__/
 .playwright-mcp/
 *.tmp.*
 
+# --- Frontend build toolchain (esbuild; inc 102) — installed via `npm ci` from the committed
+# package-lock.json; the binaries are not code we ship. ---
+node_modules/
+
 # --- Large local data (not code) ---
 library/
 

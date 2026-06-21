@@ -208,11 +208,28 @@ function DetailSection({ title, open, onToggle, children }) {
   );
 }
 
-// inc-70: copy this paper's citation (BibTeX / RIS / CSL-JSON) to the clipboard. Raw fetch (apiPost forces
-// .json()); clipboard works on the 127.0.0.1 secure context. Each link flips to "Copied ✓" for ~1.5s.
+// inc-70: export this paper's citation (BibTeX/RIS/CSL-JSON). inc-106: render a FORMATTED citation (APA/MLA/
+// Chicago/IEEE/Nature/Harvard) via the citeproc engine + show/copy it. `apiPost` is fine for /citations/render
+// (JSON); the export links use a raw fetch (apiPost forces .json()). Clipboard works on the 127.0.0.1 secure
+// context. reference_html is server-sanitized (allowlisted inline tags) — safe to render.
 function CiteRow({ paperId }) {
   const [copied, setCopied] = useState(null);
-  const copy = async (format) => {
+  const [styles, setStyles] = useState([]);
+  const [style, setStyle] = useState("apa");
+  const [rendered, setRendered] = useState(null);   // { in_text, reference_text, reference_html }
+  const [fmtCopied, setFmtCopied] = useState(false);
+
+  useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setStyles(r.data.styles || []); }); }, []);
+  useEffect(() => {
+    let alive = true;
+    setRendered(null);
+    apiPost("/citations/render", { paper_ids: [paperId], style }).then(r => {
+      if (alive) setRendered(r.ok && r.data.items && r.data.items[0] ? r.data.items[0] : null);
+    });
+    return () => { alive = false; };
+  }, [paperId, style]);
+
+  const copyExport = async (format) => {
     try {
       const res = await fetch(API_BASE + "/papers/export", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -224,14 +241,36 @@ function CiteRow({ paperId }) {
       setTimeout(() => setCopied(null), 1500);
     } catch (e) { console.warn("[callosum] copy citation error:", e); }
   };
+  const copyFormatted = async () => {
+    if (!rendered || !rendered.reference_text) return;
+    try {
+      await navigator.clipboard.writeText(rendered.reference_text);
+      setFmtCopied(true);
+      setTimeout(() => setFmtCopied(false), 1500);
+    } catch (e) { console.warn("[callosum] copy formatted citation error:", e); }
+  };
+
   return (
     <div className="detail-cite">
-      <span className="detail-cite-label">Cite</span>
-      {[["bibtex", "BibTeX"], ["ris", "RIS"], ["csl-json", "CSL-JSON"]].map(([f, lbl]) => (
-        <button key={f} className="btn-link" onClick={() => copy(f)} title={`Copy ${lbl} to clipboard`}>
-          {copied === f ? "Copied ✓" : lbl}
+      <div className="detail-cite-row">
+        <span className="detail-cite-label">Cite as</span>
+        <select className="detail-cite-style" value={style} onChange={e => setStyle(e.target.value)} title="Citation style">
+          {styles.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+        </select>
+        <button className="btn-link" onClick={copyFormatted} disabled={!rendered} title="Copy the formatted citation">
+          {fmtCopied ? "Copied ✓" : "Copy"}
         </button>
-      ))}
+      </div>
+      {rendered && rendered.reference_html &&
+        <div className="detail-cite-preview" dangerouslySetInnerHTML={{ __html: rendered.reference_html }} />}
+      <div className="detail-cite-row">
+        <span className="detail-cite-label">Export</span>
+        {[["bibtex", "BibTeX"], ["ris", "RIS"], ["csl-json", "CSL-JSON"]].map(([f, lbl]) => (
+          <button key={f} className="btn-link" onClick={() => copyExport(f)} title={`Copy ${lbl} to clipboard`}>
+            {copied === f ? "Copied ✓" : lbl}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -239,7 +278,7 @@ function CiteRow({ paperId }) {
 // inc-71: lightweight free-form tags. Local state seeded from the paper detail (the parent keys this by
 // paper id so it remounts on paper switch); add via POST, remove via DELETE, datalist suggests existing
 // tags. Clicking a chip's name filters the library to that tag.
-function TagsRow({ paperId, initialTags, onFilterToTag }) {
+function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
   const [tags, setTags] = useState(initialTags || []);
   const [all, setAll] = useState([]);
   const [input, setInput] = useState("");
@@ -261,11 +300,12 @@ function TagsRow({ paperId, initialTags, onFilterToTag }) {
       setTags(ts => ts.some(t => t.id === r.data.id) ? ts : sortByName([...ts, r.data]));
       setSuggestions(s => s.filter(x => x.toLowerCase() !== name.toLowerCase()));  // drop the accepted candidate
       refreshSuggestions();
+      if (onTagsChanged) onTagsChanged();  // refresh the sidebar Tags browser (inc 96)
     }
   };
   const remove = async (tagId) => {
     const r = await apiDelete(`/papers/${paperId}/tags/${tagId}`);
-    if (r.ok) { setTags(ts => ts.filter(t => t.id !== tagId)); refreshSuggestions(); }
+    if (r.ok) { setTags(ts => ts.filter(t => t.id !== tagId)); refreshSuggestions(); if (onTagsChanged) onTagsChanged(); }
   };
   const suggest = async () => {   // inc-72: local c-TF-IDF — propose distinctive terms, the user opts in
     const r = await api(`/papers/${paperId}/suggested-tags`);
@@ -277,8 +317,8 @@ function TagsRow({ paperId, initialTags, onFilterToTag }) {
       <span className="detail-cite-label">Tags</span>
       <div className="detail-tags-chips">
         {tags.map(t => (
-          <span key={t.id} className="tag-chip">
-            <button className="tag-chip-name" title="Filter the library to this tag"
+          <span key={t.id} className={"tag-chip" + (tagIsImported(t.source) ? " tag-chip-imported" : "")}>
+            <button className="tag-chip-name" title={tagSourceLabel(t.source) + " · click to filter the library"}
               onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>{t.name}</button>
             <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>
           </span>
@@ -341,7 +381,78 @@ function AcquireOaRow({ paperId, onAcquired }) {
   );
 }
 
-function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
+// statcheck (inc 95): recompute reported NHST p-values from this paper's extracted text — a local, deterministic
+// signal (no AI). Consistent = green; inconsistent / decision-error = amber (a status to LOOK at, never a verdict
+// or accusation). Each row routes to its page. Gated on the paper having extracted text (chunks).
+function StatcheckRow({ paperId, paperTitle, hasText, onOpenPaper }) {
+  const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
+  const run = async () => {
+    setState({ status: "running" });
+    const r = await api(`/papers/${paperId}/statcheck`);
+    setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+  };
+  const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: paperTitle }, { page, precision: "region" }); };
+  const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
+  const d = state.data;
+  return (
+    <div className="detail-statcheck">
+      <span className="detail-cite-label">Statistical reporting</span>
+      {!hasText
+        ? <span className="tag-suggest-empty">Process a PDF first — statcheck reads the paper's extracted text.</span>
+        : state.status === "idle"
+          ? <button className="btn-link" title="Recompute reported p-values from this paper's text — local, no AI" onClick={run}>Check statistics</button>
+          : null}
+      {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
+      {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
+      {state.status === "done" && d && (d.checked === 0
+        ? <div className="tag-suggest-empty">No APA-format statistics found in the extracted text.</div>
+        : <div className="statcheck-result">
+            <div className="statcheck-summary">{d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}</div>
+            <div className="statcheck-list">
+              {d.results.map((r, i) => (
+                <button key={i} className="statcheck-item" title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
+                  <span className="statcheck-raw">{r.raw}</span>
+                  <span className="statcheck-computed">computed p = {r.computed_p}</span>
+                  <span className={"cite-status " + (r.consistency === "consistent" ? "verified" : "flagged")}>{label(r.consistency)}</span>
+                </button>
+              ))}
+            </div>
+            <div className="statcheck-caveat">
+              statcheck reads only inline APA-style tests and recomputes each p — it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) — a prompt to look, not a verdict.
+            </div>
+          </div>)}
+    </div>
+  );
+}
+
+// inc-97: add an arbitrary CSL bibliographic field by hand (completes the inc-49 "More" deferral). Reuses the
+// validated generic `csl` patch — the backend allows letter-led [A-Za-z0-9_-] keys, rejecting reserved/core
+// ones (those have their own fields) with a 422 that surfaces as the pane's save note.
+function AddFieldRow({ onSave }) {
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+  const [busy, setBusy] = useState(false);
+  const add = async () => {
+    const key = name.trim();
+    if (!key || !value.trim() || busy) return;
+    setBusy(true);
+    const r = await onSave("csl", { [key]: value.trim() });
+    setBusy(false);
+    if (r && r.ok) { setName(""); setValue(""); }
+  };
+  return (
+    <div className="detail-addfield">
+      <input className="detail-addfield-key" placeholder="field name" value={name} spellCheck={false}
+        onChange={(e) => setName(e.target.value)} />
+      <input className="detail-addfield-val" placeholder="value" value={value} spellCheck={false}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter") add(); }} />
+      <button className="btn-link" disabled={busy || !name.trim() || !value.trim()} onClick={add}>+ add</button>
+    </div>
+  );
+}
+
+function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
@@ -447,7 +558,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
       <EditableText label="Abstract" value={p.abstract_text != null ? p.abstract_text : p.abstract} placeholder="Add abstract"
         onSave={(t) => saveField("abstract", t)} expandable />
 
-      <TagsRow key={p.id} paperId={p.id} initialTags={p.tags} onFilterToTag={onFilterToTag} />
+      <TagsRow key={p.id} paperId={p.id} initialTags={p.tags} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} />
 
       <DetailSection title="Identifiers" open={idOpen} onToggle={() => setIdOpen((o) => !o)}>
         <DoiRow paper={p} onSave={saveField} onResolve={reresolve} resolving={resolving} />
@@ -458,13 +569,13 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
         <EditableRow label="ISSN" value={cslGet(p, "ISSN")} mono onSave={(v) => saveField("issn", v)} />
       </DetailSection>
 
-      {extras.length > 0 &&
-        <DetailSection title="More" open={moreOpen} onToggle={() => setMoreOpen((o) => !o)}>
-          {extras.map((k) => (
-            <EditableRow key={k} label={CSL_LABELS[k] || humanizeKey(k)}
-              value={String(p.csl_json[k])} onSave={(v) => saveField("csl", { [k]: v })} />
-          ))}
-        </DetailSection>}
+      <DetailSection title="More" open={moreOpen} onToggle={() => setMoreOpen((o) => !o)}>
+        {extras.map((k) => (
+          <EditableRow key={k} label={CSL_LABELS[k] || humanizeKey(k)}
+            value={String(p.csl_json[k])} onSave={(v) => saveField("csl", { [k]: v })} />
+        ))}
+        <AddFieldRow onSave={saveField} />
+      </DetailSection>
 
       {!hasPdf && <AcquireOaRow paperId={p.id} onAcquired={onAcquired} />}
 
@@ -484,6 +595,8 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag }) {
             ))}
           </div>
         </div>}
+
+      <StatcheckRow paperId={p.id} paperTitle={p.title} hasText={(p.chunk_count || 0) > 0} onOpenPaper={onOpenPaper} />
 
       <CiteRow paperId={p.id} />
 

@@ -1,0 +1,12 @@
+{
+  "name": "callosum-frontend-build",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Build-time JS toolchain for callosum's frontend: esbuild transpiles the app/frontend JSX chunks to plain JS (tools/build_frontend.py / app/backend/api/frontend.py). Not shipped; not a runtime dependency.",
+  "devDependencies": {
+    "esbuild": "0.28.1"
+  },
+  "dependencies": {
+    "citeproc": "2.4.63"
+  }
+}

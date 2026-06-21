@@ -99,7 +99,7 @@ def test_frontend_mounts_without_console_errors(server: str):
         page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(server, wait_until="load")
-        # React mounts after Babel compiles the in-page JSX — wait for #root to populate.
+        # React mounts after the precompiled app script runs (inc 102) — wait for #root to populate.
         page.wait_for_function(
             "() => { const r = document.getElementById('root'); return !!r && r.children.length > 0; }",
             timeout=30000,
@@ -109,3 +109,25 @@ def test_frontend_mounts_without_console_errors(server: str):
 
     assert "Callosum" in body_text  # the brand wordmark rendered
     assert errors == [], f"unexpected console/page errors: {errors}"
+
+
+def test_reading_mode_keeps_center_visible_and_does_not_persist_panel_collapse(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page()
+        page.goto(server, wait_until="load")
+        page.locator(".frame-reading").click()
+
+        assert page.locator(".app").evaluate("el => el.classList.contains('reading')")
+        assert page.locator(".lib-frame").bounding_box()["width"] > 300
+        assert page.locator(".frame-reading").inner_text() == "⤢ Exit"
+        assert page.evaluate("localStorage.getItem('callosum.leftOpen')") != "0"
+        assert page.evaluate("localStorage.getItem('callosum.rightOpen')") != "0"
+
+        page.reload(wait_until="load")
+        assert not page.locator(".app").evaluate("el => el.classList.contains('reading')")
+        assert page.locator(".pane-sidebar").is_visible()
+        browser.close()

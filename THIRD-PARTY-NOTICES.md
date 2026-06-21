@@ -1,0 +1,55 @@
+# Third-party notices
+
+Callosum is licensed under the **GNU Affero General Public License v3.0** (see `LICENSE`). This file credits the
+third-party work Callosum stands on, per the project's **credit-the-lineage** principle
+(`.claude/CREDIT-THE-LINEAGE.md`). It currently documents the **citation & bibliography engine** (increment 106);
+a fuller software-dependency NOTICE for the rest of the stack is a tracked follow-up (the "credit-help backfill",
+`.claude/docs/future-tracks/opus4.8_future-tracks_credithelpbackfill.md`).
+
+---
+
+## Citation & bibliography engine (inc 106)
+
+### citeproc-js
+Formatted citations and bibliographies are rendered by **citeproc-js**, the reference CSL processor.
+- © Frank G. Bennett, Jr. and contributors.
+- Used under its **GNU AGPL-3.0** arm (citeproc-js is dual-licensed CPAL-1.0 OR AGPL-3.0; the AGPL arm combines
+  cleanly with Callosum's AGPL-3.0). Source: <https://github.com/Juris-M/citeproc-js>.
+- Obtained via the npm package [`citeproc`](https://www.npmjs.com/package/citeproc) (pinned; see `package.json` /
+  `package-lock.json`), invoked locally as a Node sidecar (`app/backend/citations/citeproc_runner.js`).
+
+### Citation Style Language (CSL) — the project
+The styles and locales implement the **Citation Style Language** open standard. See the CSL project:
+<https://citationstyles.org/>.
+
+### Bundled CSL styles + locales — CC-BY-SA
+The styles under `app/backend/citations/csl/styles/` and locales under `…/csl/locales/` are from the CSL
+community repositories (<https://github.com/citation-style-language/styles>,
+<https://github.com/citation-style-language/locales>) and are licensed
+**Creative Commons Attribution-ShareAlike (CC-BY-SA)** — mostly 3.0 Unported, some 4.0
+(<https://creativecommons.org/licenses/by-sa/3.0/>). They are **data the program operates on** (an aggregate), not
+a derivative of Callosum's code, and **remain under CC-BY-SA — they are NOT relicensed under the AGPL.**
+- Each style's embedded `<info>` block — its `<title>`, `<author>`/`<contributor>`, and `<rights>` metadata — is
+  preserved **verbatim** in the bundled `.csl` files.
+- **No modifications** have been made to the bundled styles or locales; they are committed as fetched from the CSL
+  repositories. (If any style is ever modified, the change will be noted here and the file will remain CC-BY-SA.)
+
+Bundled styles: APA (7th), MLA (9th), Chicago author-date (18th), Chicago notes-bibliography (18th), Harvard —
+Cite Them Right (12th), IEEE, Nature. Bundled locales: en-US, en-GB.
+
+---
+
+## Word-processor adapters — Zotero `CSL_CITATION` field convention (inc 108)
+
+The LibreOffice citation adapter (`adapters/libreoffice/`, the first of the three word-processor adapters) stores
+each in-text citation as a live field whose payload is the cited work's **CSL-JSON**, and re-renders the whole
+ordered set on demand. This **design follows the Zotero `ADDIN … CSL_CITATION` embedded-CSL-JSON field
+convention** — reused as a documented *pattern*, **not code**. Zotero is © Corporation for Digital Scholarship and
+contributors, free software under the AGPL-3.0 (<https://www.zotero.org/>). Crediting the prior tool's approach
+(rather than appropriating its name) is the credit-the-lineage principle applied to a tool, not a paper.
+
+---
+
+## Corresponding source (AGPL §13)
+Callosum is free software under the AGPL-3.0. The complete corresponding source is available at the project
+repository; you may obtain it under the terms of the AGPL-3.0 (see `LICENSE`).

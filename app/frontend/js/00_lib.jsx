@@ -14,6 +14,18 @@ const API_BASE = (() => {
   return override.replace(/\/+$/, "");
 })();
 const API_LABEL = API_BASE || "same-origin API";
+
+// inc-100: tag provenance. A tag carries an import_source; imported author/index keywords are styled distinctly
+// from tags you added (aesthetic only — no extra labels), with the specific source shown in the tooltip.
+function tagIsImported(source) { return !!source && source !== "user"; }
+function tagSourceLabel(source) {
+  if (!source || source === "user") return "Added by you";
+  if (source === "keyword:crossref") return "Imported keyword — from Crossref subjects";
+  if (source === "keyword:openalex") return "Imported keyword — from OpenAlex";
+  if (source === "keyword:pubmed") return "Imported keyword — from PubMed (MeSH)";
+  if (source === "zotero") return "Imported from Zotero";
+  return "Imported keyword (" + source + ")";
+}
 const PAGE_SIZE = 50;
 
 // thin fetch helper — returns {ok, data, error}

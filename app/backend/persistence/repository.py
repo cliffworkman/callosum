@@ -5,10 +5,23 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Connection, RowMapping, and_, delete, exists, func, insert, not_, or_, select, update
+from sqlalchemy import (
+    Connection,
+    RowMapping,
+    String,
+    and_,
+    cast,
+    delete,
+    exists,
+    func,
+    insert,
+    not_,
+    or_,
+    select,
+    update,
+)
 
 from app.backend.persistence.schema import (
-    annotations,
     attachments,
     axes,
     chunks,
@@ -16,6 +29,7 @@ from app.backend.persistence.schema import (
     cluster_node_papers,
     cluster_nodes,
     embeddings,
+    open_science_signals,
     paper_tags,
     papers,
     summaries,
@@ -26,15 +40,6 @@ if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at imp
     from app.backend.embeddings.vector_store import VectorStore
 
 
-# Native annotation sources stored in (and surfaced from) the shared annotations
-# table. Imported rows (e.g. Zotero) leave `source` NULL and are not listed here.
-NATIVE_ANNOTATION_SOURCES = ("user", "synthesis")
-
-# Coordinate basis recorded for native annotation bboxes — the increment-29 overlay
-# model (page-relative PDF points, top-left origin).
-ANNOTATION_COORDINATE_SYSTEM = "pdf-points-top-left"
-
-
 def _paper_sort_order(sort: str) -> list:
     """ORDER BY clause for a library `sort` key (inc 69). The key indexes an ALLOWLIST (rule #3 — never
     interpolate request data into SQL); unknown keys fall back to "added". NULL year/author sort last;
@@ -43,9 +48,14 @@ def _paper_sort_order(sort: str) -> list:
         "added": [papers.c.id.asc()],  # import order (default)
         "recent": [papers.c.id.desc()],  # most recently added first
         "title": [func.lower(papers.c.title).asc()],
+        "title_desc": [func.lower(papers.c.title).desc()],
         "year_desc": [papers.c.year.is_(None), papers.c.year.desc()],  # newest publication year first
         "year_asc": [papers.c.year.is_(None), papers.c.year.asc()],
         "author": [papers.c.first_author_family_name.is_(None), func.lower(papers.c.first_author_family_name).asc()],
+        "author_desc": [
+            papers.c.first_author_family_name.is_(None),
+            func.lower(papers.c.first_author_family_name).desc(),
+        ],
     }
     order = sorts.get(sort, sorts["added"])
     return order if sort in ("added", "recent") else [*order, papers.c.id.asc()]
@@ -109,6 +119,32 @@ def get_paper(conn: Connection, paper_id: int) -> RowMapping:
 # literal allowlist to avoid an enrichment→repository import cycle; rule #3 — never interpolated). (inc 79)
 NEEDS_REVIEW_SOURCES = ("pdf-scaffold", "crossref-unresolved")
 
+# Search scopes (inc 89). The key is an allowlist (never interpolated into SQL — rule #3); unknown → "all".
+SEARCH_FIELDS = ("all", "title", "author", "journal")
+
+# Library signal filters (inc 97). The `signal` param value indexes this allowlist (never interpolated — rule #3)
+# → a fixed (signal_type, status) subquery against open_science_signals. A *filter* (papers to review), NOT a
+# rank or score; unknown values are ignored.
+SIGNAL_FILTERS = {"statcheck-inconsistent": ("statcheck", "inconsistent")}
+
+
+def _search_clause(field: str, pattern: str):
+    """A WHERE clause for the q search, scoped by ``field``. The full bibliographic record lives in
+    ``csl_json`` (every author, year, DOI, publisher, ISSN, …), so searching its text surfaces non-first
+    authors + fields the scalar columns don't project — fixing the old title+first-author-only search. Cast to
+    text for LIKE; the pattern is bound (rule #3)."""
+    title = func.lower(papers.c.title).like(pattern)
+    venue = func.lower(papers.c.venue).like(pattern)
+    first_author = func.lower(papers.c.first_author_family_name).like(pattern)
+    csl = func.lower(cast(papers.c.csl_json, String)).like(pattern)  # the whole record (all authors incl.)
+    if field == "title":
+        return title
+    if field == "author":
+        return or_(first_author, csl)  # csl_json["author"] has every author; the scalar is the belt-and-suspenders
+    if field == "journal":
+        return venue
+    return or_(title, venue, first_author, func.lower(papers.c.abstract).like(pattern), csl)  # "all" — every field
+
 
 def list_papers(
     conn: Connection,
@@ -116,10 +152,13 @@ def list_papers(
     limit: int = 50,
     offset: int = 0,
     q: str | None = None,
+    search_field: str = "all",
     only_deleted: bool = False,
     axis_id: int | None = None,
     tag_id: int | None = None,
+    item_type: str | None = None,
     needs_review: bool = False,
+    signal: str | None = None,
     sort: str = "added",
 ) -> list[RowMapping]:
     attachment_count = (
@@ -137,12 +176,7 @@ def list_papers(
     )
     if q:
         pattern = f"%{q.lower()}%"
-        stmt = stmt.where(
-            or_(
-                func.lower(papers.c.title).like(pattern),
-                func.lower(papers.c.first_author_family_name).like(pattern),
-            )
-        )
+        stmt = stmt.where(_search_clause(search_field if search_field in SEARCH_FIELDS else "all", pattern))
     if axis_id is not None:
         # Filter to the papers assigned to this axis (across all its cluster nodes). Bound-param IN
         # subquery (rule #3); composes with the deleted/q filters above (trashed papers stay excluded).
@@ -159,6 +193,11 @@ def list_papers(
         # Filter to the papers carrying this tag. Bound-param IN subquery (rule #3); composes with the
         # deleted/q/axis clauses above (trashed papers stay excluded).
         stmt = stmt.where(papers.c.id.in_(select(paper_tags.c.paper_id).where(paper_tags.c.tag_id == tag_id)))
+    if item_type:
+        # Filter to a single CSL item type (article-journal / book / posted-content / …). The value is
+        # bound (rule #3 — never interpolated); the dropdown only offers types actually present (see
+        # list_item_types), and this composes with the deleted/q/axis/tag clauses above.
+        stmt = stmt.where(papers.c.item_type == item_type)
     if needs_review:
         # The "Unsorted" view: papers whose metadata still needs review — raw scaffolds, Crossref-unresolved,
         # or no source recorded (NULL). Bound-param IN over a local allowlist (rule #3); composes with the
@@ -167,6 +206,19 @@ def list_papers(
             or_(
                 papers.c.imported_source.in_(NEEDS_REVIEW_SOURCES),
                 papers.c.imported_source.is_(None),
+            )
+        )
+    if signal in SIGNAL_FILTERS:
+        # Filter to papers carrying a Methods-producer signal of a given status (inc 97) — e.g. statcheck
+        # reporting inconsistencies. A bound IN-subquery (rule #3) over a fixed allowlisted (type, status) pair;
+        # a *view of papers to review*, never a rank. Composes with the deleted/q/axis/tag clauses above.
+        sig_type, sig_status = SIGNAL_FILTERS[signal]
+        stmt = stmt.where(
+            papers.c.id.in_(
+                select(open_science_signals.c.paper_id).where(
+                    open_science_signals.c.signal_type == sig_type,
+                    open_science_signals.c.status == sig_status,
+                )
             )
         )
     return list(conn.execute(stmt.limit(limit).offset(offset)).mappings())
@@ -183,6 +235,23 @@ def get_papers_for_export(conn: Connection, paper_ids: Sequence[int]) -> list[Ro
         .order_by(papers.c.id)
     )
     return list(conn.execute(stmt).mappings())
+
+
+def list_item_types(conn: Connection) -> list[RowMapping]:
+    """Distinct CSL item types present among LIVE papers + a per-type count, most-common first (inc 91).
+    Drives the library Type-filter dropdown so it only offers types that actually exist (honest facets)."""
+    stmt = (
+        select(papers.c.item_type, func.count().label("count"))
+        .where(papers.c.deleted_at.is_(None), papers.c.item_type.is_not(None))
+        .group_by(papers.c.item_type)
+        .order_by(func.count().desc(), papers.c.item_type)
+    )
+    return list(conn.execute(stmt).mappings())
+
+
+def list_live_paper_ids(conn: Connection) -> list[int]:
+    """All live (non-trashed) paper ids — for batch Methods producers (inc 97). A light ids-only query."""
+    return [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_(None)))]
 
 
 def get_paper_counts(conn: Connection, paper_id: int) -> RowMapping:
@@ -507,83 +576,6 @@ def get_summary(conn: Connection, summary_id: int) -> RowMapping:
 
 def delete_summary(conn: Connection, summary_id: int) -> bool:
     result = conn.execute(delete(summaries).where(summaries.c.id == summary_id))
-    return bool(result.rowcount)
-
-
-def create_annotation(
-    conn: Connection,
-    *,
-    paper_id: int,
-    page: int,
-    color: str,
-    bboxes_json: Any,
-    anchor_text: str,
-    prefix: str | None = None,
-    suffix: str | None = None,
-    attachment_id: int | None = None,
-    source: str = "user",
-    note: str | None = None,
-) -> int:
-    result = conn.execute(
-        insert(annotations).values(
-            paper_id=paper_id,
-            attachment_id=attachment_id,
-            page=page,
-            color=color,
-            bboxes_json=bboxes_json,
-            anchor_text=anchor_text,
-            prefix=prefix,
-            suffix=suffix,
-            source=source,
-            note=note,
-            coordinate_system=ANNOTATION_COORDINATE_SYSTEM,
-        )
-    )
-    return int(result.inserted_primary_key[0])
-
-
-def get_annotation(conn: Connection, annotation_id: int) -> RowMapping | None:
-    return conn.execute(select(annotations).where(annotations.c.id == annotation_id)).mappings().one_or_none()
-
-
-def list_annotations_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
-    stmt = (
-        select(annotations)
-        .where(
-            annotations.c.paper_id == paper_id,
-            annotations.c.source.in_(NATIVE_ANNOTATION_SOURCES),
-        )
-        .order_by(annotations.c.page, annotations.c.id)
-    )
-    return list(conn.execute(stmt).mappings())
-
-
-def delete_annotation(conn: Connection, annotation_id: int) -> bool:
-    result = conn.execute(delete(annotations).where(annotations.c.id == annotation_id))
-    return bool(result.rowcount)
-
-
-# Sentinel distinguishing "field not supplied" from an explicit None (clear) in a
-# partial update — lets a PATCH set note=None (clear) without touching color, etc.
-_UNSET: Any = object()
-
-
-def update_annotation(
-    conn: Connection,
-    annotation_id: int,
-    *,
-    note: Any = _UNSET,
-    color: Any = _UNSET,
-) -> bool:
-    values: dict[str, Any] = {}
-    if note is not _UNSET:
-        values["note"] = note
-    if color is not _UNSET:
-        values["color"] = color
-    if not values:
-        return False
-    values["updated_at"] = func.current_timestamp()
-    result = conn.execute(update(annotations).where(annotations.c.id == annotation_id).values(**values))
     return bool(result.rowcount)
 
 

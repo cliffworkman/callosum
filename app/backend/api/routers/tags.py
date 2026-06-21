@@ -24,12 +24,14 @@ router = APIRouter()
 class TagRef(BaseModel):
     id: int
     name: str
+    source: str | None = None  # tag provenance — the UI distinguishes imported keywords from tags you added
 
 
 class TagSummary(BaseModel):
     id: int
     name: str
     paper_count: int
+    source: str | None = None
 
 
 class AddTagRequest(BaseModel):
@@ -42,7 +44,10 @@ class SuggestedTagsResponse(BaseModel):
 
 @router.get("/tags", response_model=list[TagSummary])
 def list_all_tags(conn: Connection = Depends(get_connection)) -> list[TagSummary]:
-    return [TagSummary(id=int(r["id"]), name=r["name"], paper_count=int(r["paper_count"])) for r in list_tags(conn)]
+    return [
+        TagSummary(id=int(r["id"]), name=r["name"], paper_count=int(r["paper_count"]), source=r["import_source"])
+        for r in list_tags(conn)
+    ]
 
 
 @router.get("/papers/{paper_id}/suggested-tags", response_model=SuggestedTagsResponse)
@@ -66,7 +71,7 @@ def add_paper_tag(paper_id: int, payload: AddTagRequest, conn: Connection = Depe
         raise HTTPException(status_code=422, detail="Tag name cannot be blank")
     row = add_tag_to_paper(conn, paper_id, payload.name)
     conn.commit()
-    return TagRef(id=int(row["id"]), name=row["name"])
+    return TagRef(id=int(row["id"]), name=row["name"], source=row["import_source"])
 
 
 @router.delete("/papers/{paper_id}/tags/{tag_id}", status_code=http_status.HTTP_204_NO_CONTENT)

@@ -49,7 +49,8 @@ function MyPubsDashboard({ axisId }) {
   const [selectedDomains, setSelectedDomains] = useState(() => new Set());  // indices of domains filtering the chart
   const [starredOnly, setStarredOnly] = useState(false);  // inc 84: scope the summary draft to starred pubs
   const [worksOpen, setWorksOpen] = useState(false);  // inc 85: the missing-works review section (collapsed)
-  const [workBusy, setWorkBusy] = useState(() => new Set());  // DOIs being imported/dismissed
+  const [dismissedOpen, setDismissedOpen] = useState(false);  // inc 91: the previously-dismissed section (collapsed)
+  const [workBusy, setWorkBusy] = useState(() => new Set());  // DOIs being imported/dismissed/un-dismissed
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -184,6 +185,27 @@ function MyPubsDashboard({ axisId }) {
                     onClick={() => actOnWork(w.doi, "/my-publications/works/import")}>Import</button>
                   <button className="axis-link" disabled={workBusy.has(w.doi)}
                     onClick={() => actOnWork(w.doi, "/my-publications/works/dismiss")}>Dismiss</button>
+                </div>
+              ))}
+            </div>}
+        </div>}
+
+      {(data.dismissed_works || []).length > 0 &&
+        <div className="mypubs-missing">
+          <button className="mypubs-missing-toggle" onClick={() => setDismissedOpen(o => !o)}>
+            {dismissedOpen ? "▾" : "▸"} Previously dismissed ({data.dismissed_works.length})
+          </button>
+          {dismissedOpen &&
+            <div className="missing-list">
+              <div className="mypubs-source">Works you dismissed from the review queue. Restore any to send it back to the list above.</div>
+              {data.dismissed_works.map(w => (
+                <div key={w.doi} className="missing-row">
+                  <div className="missing-info">
+                    <div className="missing-title" title={w.title || w.doi}>{w.title || w.doi}</div>
+                    <div className="missing-meta">{w.year ? w.year + " · " : ""}{w.cited_by_count} cites · {w.doi}</div>
+                  </div>
+                  <button className="axis-link" disabled={workBusy.has(w.doi)}
+                    onClick={() => actOnWork(w.doi, "/my-publications/works/undismiss")}>Restore</button>
                 </div>
               ))}
             </div>}
