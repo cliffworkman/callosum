@@ -288,6 +288,13 @@
   .axis-item { margin-bottom: 5px; }
   .axis-body { margin: 2px 0 8px 8px; padding: 4px 0 2px 8px; border-left: 2px solid var(--line-2); }
   .axis-progress { font-size: 11.5px; color: var(--ink-2); padding: 3px 2px; font-style: italic; }
+  /* Indeterminate progress bar (inc 79) — consistent across the long async jobs. */
+  .progress { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+  .progress-track { flex: 1; min-width: 60px; height: 4px; background: var(--line); border-radius: var(--radius-pill); overflow: hidden; }
+  .progress-fill { height: 100%; width: 40%; border-radius: var(--radius-pill); background: var(--accent); animation: progress-sweep 1.2s ease-in-out infinite; }
+  @keyframes progress-sweep { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+  .progress-label { font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+  @media (prefers-reduced-motion: reduce) { .progress-fill { animation: none; width: 60%; opacity: 0.6; } }
   .axis-err {
     font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line);
     border-radius: 6px; padding: 6px 9px; margin: 4px 0; cursor: pointer; line-height: 1.4;
@@ -1354,6 +1361,18 @@ function fmtDateTime(value) {
 
 // ─────────────────────────────────────────────────────────────
 
+// Indeterminate progress bar (inc 79) — a consistent "working…" affordance for the long async jobs
+// (summarize / axis score+suggest / dedup / acquire-oa / wanted re-check / my-pubs refresh). Honors
+// prefers-reduced-motion (a static half-filled bar instead of the sweep).
+function ProgressBar({ label }) {
+  return (
+    <div className="progress" role="progressbar" aria-busy="true" aria-label={label || "Working"}>
+      <div className="progress-track"><div className="progress-fill" /></div>
+      {label ? <span className="progress-label">{label}</span> : null}
+    </div>
+  );
+}
+
 function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
   return (
     <div className="pane pane-sidebar">
@@ -1766,7 +1785,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           {isMyPubs && uncertainCount > 0 &&
             <div className="axis-mypubs-hint">Name-only matches are candidates — <b>✓</b> confirm the ones that are yours, <b>✕</b> reject the rest. (Confirmed papers match by DOI/ORCID.)</div>}
 
-          {scoring && <div className="axis-progress">{job.message || "Scoring the library…"}</div>}
+          {scoring && <ProgressBar label={job.message || "Scoring the library…"} />}
           {job && job.status === "error" && <div className="axis-err">Scoring failed: {job.message}</div>}
 
           {detail && detail.status === "loading" && <div className="axis-hint">Loading…</div>}
@@ -2315,7 +2334,7 @@ function SuggestAxesModal({ onClose }) {
           rename, and create the ones you want.
         </div>
 
-        {state.status === "loading" && <div className="axis-hint">Analyzing your library…</div>}
+        {state.status === "loading" && <ProgressBar label="Analyzing your library…" />}
         {state.status === "error" && <div className="axis-err">Couldn't suggest axes: {state.error}</div>}
         {state.status === "ready" && state.suggestions.length === 0 &&
           <div className="axis-hint">No new themes found — your axes already cover the library, or there aren't enough papers yet.</div>}
@@ -2542,7 +2561,7 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged }) {
           to Trash (restorable). Nothing is merged or removed automatically.
         </div>
 
-        {state.status === "loading" && <div className="axis-hint">Scanning your library…</div>}
+        {state.status === "loading" && <ProgressBar label="Scanning your library…" />}
         {state.status === "error" && <div className="axis-err">Couldn't scan: {state.error}</div>}
         {state.status === "ready" && remaining === 0 && <div className="axis-hint">No likely duplicates found.</div>}
         {state.status === "ready" && state.groups.map((g, i) => (
@@ -2699,6 +2718,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
           {busy ? (state.message || "Generating and verifying") : "query scope · top 8 chunks"}
         </span>
       </div>
+      {busy && <ProgressBar />}
 
       {scopeNote &&
         <div className="synth-scope-note">Summary of <b>{scopeNote}</b> from the library selection.</div>}
@@ -3270,6 +3290,7 @@ function AcquireOaRow({ paperId, onAcquired }) {
         title="Fetch a free, rights-holder-authorized open-access copy via OpenAlex and import it locally">
         {status === "running" ? "Acquiring…" : "Acquire OA copy"}
       </button>
+      {status === "running" && <ProgressBar label="Searching open-access sources…" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
     </div>
   );
@@ -3534,6 +3555,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
             onKeyDown={e => { if (e.key === "Enter") addExternal(); }} />
           <button className="axis-link" disabled={busy || !addDoi.trim()} onClick={addExternal}>Add</button>
         </div>
+        {recheck.status === "running" && <ProgressBar label="Searching open-access sources…" />}
 
         {recheck.status === "error" && <div className="axis-err">Re-check failed: {recheck.error}</div>}
         {recheck.status === "done" && summary &&
@@ -4152,6 +4174,7 @@ function MyPubsSettings({ onRefreshed }) {
           {refresh.status === "running" ? "Gathering…" : "Refresh my papers"}
         </button>
       </div>
+      {refresh.status === "running" && <ProgressBar label="Resolving via OpenAlex…" />}
       {refresh.status === "error" && <div className="settings-note settings-note-err">Refresh failed: {refresh.error}</div>}
       {refresh.status === "done" && <div className="settings-note">{summaryText}</div>}
       <div className="settings-sub">Resolved via OpenAlex (public metadata — not the Gemini gate); never uses an LLM.</div>

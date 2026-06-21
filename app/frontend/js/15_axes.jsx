@@ -107,7 +107,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           {isMyPubs && uncertainCount > 0 &&
             <div className="axis-mypubs-hint">Name-only matches are candidates — <b>✓</b> confirm the ones that are yours, <b>✕</b> reject the rest. (Confirmed papers match by DOI/ORCID.)</div>}
 
-          {scoring && <div className="axis-progress">{job.message || "Scoring the library…"}</div>}
+          {scoring && <ProgressBar label={job.message || "Scoring the library…"} />}
           {job && job.status === "error" && <div className="axis-err">Scoring failed: {job.message}</div>}
 
           {detail && detail.status === "loading" && <div className="axis-hint">Loading…</div>}

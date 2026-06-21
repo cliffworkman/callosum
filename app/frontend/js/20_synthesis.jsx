@@ -118,6 +118,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
           {busy ? (state.message || "Generating and verifying") : "query scope · top 8 chunks"}
         </span>
       </div>
+      {busy && <ProgressBar />}
 
       {scopeNote &&
         <div className="synth-scope-note">Summary of <b>{scopeNote}</b> from the library selection.</div>}

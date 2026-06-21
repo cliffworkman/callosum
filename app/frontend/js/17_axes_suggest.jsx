@@ -83,7 +83,7 @@ function SuggestAxesModal({ onClose }) {
           rename, and create the ones you want.
         </div>
 
-        {state.status === "loading" && <div className="axis-hint">Analyzing your library…</div>}
+        {state.status === "loading" && <ProgressBar label="Analyzing your library…" />}
         {state.status === "error" && <div className="axis-err">Couldn't suggest axes: {state.error}</div>}
         {state.status === "ready" && state.suggestions.length === 0 &&
           <div className="axis-hint">No new themes found — your axes already cover the library, or there aren't enough papers yet.</div>}

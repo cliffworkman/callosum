@@ -73,6 +73,7 @@ function MyPubsSettings({ onRefreshed }) {
           {refresh.status === "running" ? "Gathering…" : "Refresh my papers"}
         </button>
       </div>
+      {refresh.status === "running" && <ProgressBar label="Resolving via OpenAlex…" />}
       {refresh.status === "error" && <div className="settings-note settings-note-err">Refresh failed: {refresh.error}</div>}
       {refresh.status === "done" && <div className="settings-note">{summaryText}</div>}
       <div className="settings-sub">Resolved via OpenAlex (public metadata — not the Gemini gate); never uses an LLM.</div>

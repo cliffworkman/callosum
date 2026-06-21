@@ -87,7 +87,7 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged }) {
           to Trash (restorable). Nothing is merged or removed automatically.
         </div>
 
-        {state.status === "loading" && <div className="axis-hint">Scanning your library…</div>}
+        {state.status === "loading" && <ProgressBar label="Scanning your library…" />}
         {state.status === "error" && <div className="axis-err">Couldn't scan: {state.error}</div>}
         {state.status === "ready" && remaining === 0 && <div className="axis-hint">No likely duplicates found.</div>}
         {state.status === "ready" && state.groups.map((g, i) => (

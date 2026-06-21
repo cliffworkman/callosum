@@ -98,6 +98,18 @@ function fmtDateTime(value) {
 
 // ─────────────────────────────────────────────────────────────
 
+// Indeterminate progress bar (inc 79) — a consistent "working…" affordance for the long async jobs
+// (summarize / axis score+suggest / dedup / acquire-oa / wanted re-check / my-pubs refresh). Honors
+// prefers-reduced-motion (a static half-filled bar instead of the sweep).
+function ProgressBar({ label }) {
+  return (
+    <div className="progress" role="progressbar" aria-busy="true" aria-label={label || "Working"}>
+      <div className="progress-track"><div className="progress-fill" /></div>
+      {label ? <span className="progress-label">{label}</span> : null}
+    </div>
+  );
+}
+
 function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
   return (
     <div className="pane pane-sidebar">

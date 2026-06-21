@@ -335,6 +335,7 @@ function AcquireOaRow({ paperId, onAcquired }) {
         title="Fetch a free, rights-holder-authorized open-access copy via OpenAlex and import it locally">
         {status === "running" ? "Acquiring…" : "Acquire OA copy"}
       </button>
+      {status === "running" && <ProgressBar label="Searching open-access sources…" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
     </div>
   );

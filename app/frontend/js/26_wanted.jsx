@@ -101,6 +101,7 @@ function WantedModal({ onClose, onOpenPaper, onChanged }) {
             onKeyDown={e => { if (e.key === "Enter") addExternal(); }} />
           <button className="axis-link" disabled={busy || !addDoi.trim()} onClick={addExternal}>Add</button>
         </div>
+        {recheck.status === "running" && <ProgressBar label="Searching open-access sources…" />}
 
         {recheck.status === "error" && <div className="axis-err">Re-check failed: {recheck.error}</div>}
         {recheck.status === "done" && summary &&
