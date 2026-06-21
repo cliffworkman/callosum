@@ -236,8 +236,9 @@ def refresh(doc, base: str = DEFAULT_BASE) -> dict:
     rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
     # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
     # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
-    plan = [(field["_mark"].Name, rendered[field["citationID"]])
-            for field in fields if rendered.get(field["citationID"])]
+    plan = [
+        (field["_mark"].Name, rendered[field["citationID"]]) for field in fields if rendered.get(field["citationID"])
+    ]
     for name, text_out in plan:
         mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
         _replace_mark_text(doc, mark, text_out)
@@ -374,7 +375,12 @@ def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
     dialog_model.insertByName("ok", ok)
     cancel = dialog_model.createInstance("com.sun.star.awt.UnoControlButtonModel")
     cancel.PositionX, cancel.PositionY, cancel.Width, cancel.Height, cancel.Label, cancel.PushButtonType = (
-        154, 50, 40, 14, "Cancel", 2,
+        154,
+        50,
+        40,
+        14,
+        "Cancel",
+        2,
     )
     dialog_model.insertByName("cancel", cancel)
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
@@ -395,7 +401,11 @@ def _msgbox(message: str, title: str = "callosum") -> None:
     smgr = _component_ctx().ServiceManager
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", _component_ctx())
     box = toolkit.createMessageBox(
-        None, 1, 1, title, message  # INFOBOX, BUTTONS_OK
+        None,
+        1,
+        1,
+        title,
+        message,  # INFOBOX, BUTTONS_OK
     )
     box.execute()
     box.dispose()

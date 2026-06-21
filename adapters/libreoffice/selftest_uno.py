@@ -126,8 +126,10 @@ def main():
         log("apa restyled; scanning")
         rb = rendered_by_paper(doc)
         log(f"apa rendered = {rb}")
-        check(rb.get(id1, "").startswith("(") and rb.get(id1, "").endswith(")"),
-              f"APA in-text was {rb.get(id1)!r}, expected an author-date '(...)'")
+        check(
+            rb.get(id1, "").startswith("(") and rb.get(id1, "").endswith(")"),
+            f"APA in-text was {rb.get(id1)!r}, expected an author-date '(...)'",
+        )
         check(rb.get(id1) != rb.get(id2), "the two APA citations rendered identically")
 
         # 3) flatten → marks gone, rendered text stays.

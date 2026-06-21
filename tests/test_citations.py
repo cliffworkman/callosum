@@ -46,7 +46,9 @@ def test_render_apa_author_date(temp_db_url: str) -> None:
     item = d["items"][0]
     assert item["in_text"] == "(Vaswani et al., 2017)"  # APA author-date in-text
     assert "Vaswani, A." in item["reference_text"] and "2017" in item["reference_text"]
-    assert "<i>" in item["reference_html"] and "<div" not in item["reference_html"]  # sanitized: italics kept, divs dropped
+    assert (
+        "<i>" in item["reference_html"] and "<div" not in item["reference_html"]
+    )  # sanitized: italics kept, divs dropped
     assert "Attention is all you need" in d["bibliography_text"]
 
 
@@ -70,7 +72,9 @@ def test_render_validation(temp_db_url: str) -> None:
     pid = _make_paper(temp_db_url)
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.post("/citations/render", json={"paper_ids": [pid], "style": "not-a-style"}).status_code == 422
-    assert client.post("/citations/render", json={"paper_ids": [999999], "style": "apa"}).status_code == 422  # no live papers
+    assert (
+        client.post("/citations/render", json={"paper_ids": [999999], "style": "apa"}).status_code == 422
+    )  # no live papers
 
 
 def test_engine_unavailable_returns_503(temp_db_url: str, monkeypatch) -> None:
@@ -84,15 +88,30 @@ def test_engine_unavailable_returns_503(temp_db_url: str, monkeypatch) -> None:
 # ── document render (inc 107): position-aware in-text — numbering + disambiguation ──────────────────────
 
 _DOC_ITEMS = {
-    "a": {"id": "a", "type": "article-journal", "title": "Attention",
-          "author": [{"family": "Vaswani", "given": "A"}], "issued": {"date-parts": [[2017]]},
-          "container-title": "NeurIPS"},
-    "b": {"id": "b", "type": "article-journal", "title": "BERT",
-          "author": [{"family": "Devlin", "given": "J"}], "issued": {"date-parts": [[2019]]},
-          "container-title": "NAACL"},
-    "c": {"id": "c", "type": "article-journal", "title": "GPT",
-          "author": [{"family": "Radford", "given": "A"}], "issued": {"date-parts": [[2018]]},
-          "container-title": "OpenAI"},
+    "a": {
+        "id": "a",
+        "type": "article-journal",
+        "title": "Attention",
+        "author": [{"family": "Vaswani", "given": "A"}],
+        "issued": {"date-parts": [[2017]]},
+        "container-title": "NeurIPS",
+    },
+    "b": {
+        "id": "b",
+        "type": "article-journal",
+        "title": "BERT",
+        "author": [{"family": "Devlin", "given": "J"}],
+        "issued": {"date-parts": [[2019]]},
+        "container-title": "NAACL",
+    },
+    "c": {
+        "id": "c",
+        "type": "article-journal",
+        "title": "GPT",
+        "author": [{"family": "Radford", "given": "A"}],
+        "issued": {"date-parts": [[2018]]},
+        "container-title": "OpenAI",
+    },
 }
 
 
@@ -125,16 +144,31 @@ def test_render_document_ieee_numbering_and_renumber(temp_db_url: str) -> None:
 
 def test_render_document_apa_disambiguation(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
-    s1 = {"id": "s1", "type": "article-journal", "title": "Alpha",
-          "author": [{"family": "Smith", "given": "J"}], "issued": {"date-parts": [[2020]]}, "container-title": "J1"}
-    s2 = {"id": "s2", "type": "article-journal", "title": "Beta",
-          "author": [{"family": "Smith", "given": "J"}], "issued": {"date-parts": [[2020]]}, "container-title": "J2"}
+    s1 = {
+        "id": "s1",
+        "type": "article-journal",
+        "title": "Alpha",
+        "author": [{"family": "Smith", "given": "J"}],
+        "issued": {"date-parts": [[2020]]},
+        "container-title": "J1",
+    }
+    s2 = {
+        "id": "s2",
+        "type": "article-journal",
+        "title": "Beta",
+        "author": [{"family": "Smith", "given": "J"}],
+        "issued": {"date-parts": [[2020]]},
+        "container-title": "J2",
+    }
     r = client.post(
         "/citations/render-document",
-        json={"style": "apa", "citations": [
-            {"citationID": "x", "items": [s1]},
-            {"citationID": "y", "items": [s2]},
-        ]},
+        json={
+            "style": "apa",
+            "citations": [
+                {"citationID": "x", "items": [s1]},
+                {"citationID": "y", "items": [s2]},
+            ],
+        },
     )
     assert r.status_code == 200, r.text
     by_id = {c["citationID"]: c["text"] for c in r.json()["citations"]}

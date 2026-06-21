@@ -169,9 +169,7 @@ def render_papers(papers: Sequence[Mapping[str, Any]], *, style: str, locale: st
     }
 
 
-def render_document(
-    citations: Sequence[Mapping[str, Any]], *, style: str, locale: str
-) -> dict[str, Any]:
+def render_document(citations: Sequence[Mapping[str, Any]], *, style: str, locale: str) -> dict[str, Any]:
     """Position-aware render of a document's ORDERED citation clusters — the word-processor adapter contract.
 
     Each cluster is ``{"citationID"?: str, "items": [<CSL-JSON dict, each with an `id`>]}``, passed in **document
