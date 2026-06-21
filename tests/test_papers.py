@@ -84,6 +84,31 @@ def test_papers_list_axis_filter(temp_db_url: str) -> None:
     assert client.get("/papers", params={"axis_id": axis_id}).json() == []
 
 
+def test_papers_list_needs_review_filter(temp_db_url: str) -> None:
+    # The "Unsorted" view: scaffold + Crossref-unresolved + NULL-source papers; resolved/user-edited excluded.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        scaffold = create_paper(
+            conn, title="Raw Scaffold", csl_json={"title": "Raw Scaffold"}, imported_source="pdf-scaffold"
+        )
+        unresolved = create_paper(
+            conn, title="Unresolved DOI", csl_json={"title": "Unresolved DOI"}, imported_source="crossref-unresolved"
+        )
+        no_source = create_paper(conn, title="No Source", csl_json={"title": "No Source"})  # imported_source NULL
+        resolved = create_paper(conn, title="Resolved", csl_json={"title": "Resolved"}, imported_source="crossref")
+        edited = create_paper(conn, title="Edited", csl_json={"title": "Edited"}, imported_source="user-edited")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    unsorted = client.get("/papers", params={"needs_review": "true"}).json()
+    assert {p["id"] for p in unsorted} == {scaffold, unresolved, no_source}  # resolved + user-edited excluded
+    # default (no filter) still lists every live paper
+    assert {p["id"] for p in client.get("/papers").json()} == {scaffold, unresolved, no_source, resolved, edited}
+
+    client.delete(f"/papers/{scaffold}")  # soft-delete → trashed papers stay excluded from the Unsorted view too
+    assert {p["id"] for p in client.get("/papers", params={"needs_review": "true"}).json()} == {unresolved, no_source}
+
+
 def test_library_sort_orders(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:  # titles/years/authors chosen so each sort key yields a distinct order

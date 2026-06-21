@@ -90,6 +90,7 @@ function App() {
   const [libraryAxisFilter, setLibraryAxisFilter] = useState(null);  // inc-63: {id, label} → library shows only this axis's papers
   const [libraryTagFilter, setLibraryTagFilter] = useState(null);    // inc-71: {id, name} → library shows only this tag's papers
   const [trashView, setTrashView] = useState(false);
+  const [libraryNeedsReview, setLibraryNeedsReview] = useState(false);  // inc-79: the "Unsorted" (needs-metadata) view
   const [librarySort, setLibrarySort] = useState("added");  // inc-69: library ordering (added/recent/title/year_*/author)
   const [libRefresh, setLibRefresh] = useState(0);
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
@@ -251,6 +252,7 @@ function App() {
     setSelectedLibraryIds(new Set());  // selection doesn't carry across the live/Trash views
     setLibraryAxisFilter(null);        // Trash is its own view — drop any axis/tag filter
     setLibraryTagFilter(null);
+    setLibraryNeedsReview(false);      // …and the Unsorted view
     setPage(0);
   }, []);
 
@@ -263,6 +265,7 @@ function App() {
     setPage(0);
     setSelectedLibraryIds(new Set());
     setTrashView(false);
+    setLibraryNeedsReview(false);
     cancelFocus();
   }, [cancelFocus]);
   const clearAxisFilter = useCallback(() => { setLibraryAxisFilter(null); setPage(0); }, []);
@@ -275,11 +278,25 @@ function App() {
     setPage(0);
     setSelectedLibraryIds(new Set());
     setTrashView(false);
+    setLibraryNeedsReview(false);
     cancelFocus();
   }, [cancelFocus]);
   const clearTagFilter = useCallback(() => { setLibraryTagFilter(null); setPage(0); }, []);
   const selectAllLibrary = useCallback((ids) => setSelectedLibraryIds(new Set(ids)), []);
   const changeSort = useCallback((s) => { setLibrarySort(s); setPage(0); }, []);  // inc-69: re-sort from page 1
+
+  // inc-79: the "Unsorted" view — papers whose metadata still needs review (raw scaffolds / Crossref-unresolved
+  // / no source). A view like Trash (exclusive with trash/axis/tag/focus) but keeps checkbox-select usable.
+  const toggleNeedsReview = useCallback(() => {
+    setLibraryNeedsReview(v => {
+      const next = !v;
+      if (next) { setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); cancelFocus(); }
+      return next;
+    });
+    setSelectedLibraryIds(new Set());
+    setPage(0);
+  }, [cancelFocus]);
+  const clearNeedsReview = useCallback(() => { setLibraryNeedsReview(false); setPage(0); }, []);
 
   // health check
   useEffect(() => {
@@ -304,6 +321,7 @@ function App() {
     if (trashView) qs.set("deleted", "true");
     if (libraryAxisFilter) qs.set("axis_id", libraryAxisFilter.id);
     if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
+    if (libraryNeedsReview) qs.set("needs_review", "true");
     if (librarySort !== "added") qs.set("sort", librarySort);
     api(`/papers?${qs.toString()}`).then(r => {
       if (!live) return;
@@ -311,7 +329,7 @@ function App() {
       else setListState({ status: "error", error: r.error, papers: [] });
     });
     return () => { live = false; };
-  }, [page, debounced, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, librarySort]);
+  }, [page, debounced, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySort]);
 
   const cols = `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
 
@@ -337,6 +355,7 @@ function App() {
           onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkExport: bulkExportPapers, onSelectAll: selectAllLibrary,
           libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
           libraryTagFilter, onClearTagFilter: clearTagFilter,
+          libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),

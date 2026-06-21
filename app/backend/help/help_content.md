@@ -67,8 +67,11 @@ Common Library actions:
 - Click a paper once to select it and show its Detail pane.
 - Double-click a paper to open the PDF.
 - Use the checkbox beside papers to select them for bulk delete.
+- Click **Unsorted** to see only the papers whose metadata still needs review.
 - Click **Duplicates** to scan for likely duplicates.
 - Click **Trash** to view deleted papers.
+
+Click **Unsorted** in the Library header to narrow the list to papers that still need bibliographic review — raw PDF imports that were never enriched, papers whose DOI could not be resolved against Crossref, and papers with no recorded source. A banner shows the count with a **clear** link, and the button changes to **← Library** while the view is active. It is a view like Trash (it clears any axis or tag filter), but you can still tick checkboxes to bulk-fix the unsorted papers — for example, select them and re-resolve, export, or delete. To resolve a paper out of the Unsorted view, open it and use 🔎 to re-fetch its metadata, or edit its fields by hand; once it has a real source it drops out of the view.
 
 Processing tiers are short status labels. A fully processed paper usually has chunks and a local file. A metadata-only paper can still be useful for bibliographic management, but it will not support PDF reading or source-grounded synthesis until it has usable text.
 
@@ -373,9 +376,9 @@ Useful controls:
 - Click a paper title under an axis to open its PDF.
 - Click `✓` on an uncertain paper to confirm it as manual.
 - Click `×` to remove a paper from the axis.
-- Click `👁` to hide uncertain papers and see only assigned/manual papers.
+- Click `👁` to hide uncertain papers and see only assigned/manual papers. (To start every axis card in this hidden view, turn on **Hide uncertain papers by default** in ⚙ Settings → Axes.)
 - Click `＋` on an axis to add or remove papers from the main Library list.
-- Click an axis's **count badge** (the number on the right of the axis) to **filter the Library to just that axis's papers**. A "Filtered to axis …" banner appears; click **clear** to return to the full library. From a filtered view you can **select all → summarize** to get a verified synthesis of the whole cluster in a few clicks.
+- Click an axis's **count badge** (the number on the right of the axis) to **filter the Library to just that axis's papers**. A "Filtered to axis …" banner appears; click **clear** to return to the full library. From a filtered view you can **select all → summarize** to get a verified synthesis of the whole cluster in a few clicks. When uncertain papers are hidden, the count badge shows the visible (assigned + manual) total, and its tooltip notes how many uncertain are hidden.
 
 When you click `＋`, Callosum enters a Library focus mode for that axis. Each Library row gets a button such as **+ add**, **✓ in axis**, **✓ staged**, or **- staged**. Changes are staged until you click **Save**. Use **Cancel** to leave focus mode without applying staged changes.
 

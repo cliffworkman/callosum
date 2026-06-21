@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 79** (see Increment workflow) with **361 pytest tests
+It is currently at **Increment 80** (see Increment workflow) with **362 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 79). Each increment of real work
+callosum is built in **numbered increments** (currently at 80). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -534,6 +534,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| "Unsorted" library view = a `needs_review` query param on `GET /papers`, filtering an `imported_source` allowlist (inc 80) | Surfaces papers whose metadata still needs review (raw `pdf-scaffold`, `crossref-unresolved`, or NULL source) instead of letting them disappear into the library — aligned with "silence is not a certificate." Same class of change as the inc-63 axis filter / inc-69 sort: `list_papers(needs_review=…)` filters `imported_source IN NEEDS_REVIEW_SOURCES OR IS NULL` (a **local literal allowlist** in `repository.py` — bound-param `IN`, rule #3; kept local to avoid an `enrichment → repository` import cycle, since the strings are stable DB values). Composes with the deleted/q/axis/tag/pagination clauses (trashed excluded). Frontend: a `libraryNeedsReview` view-state mirroring `trashView` (exclusive with trash/axis/tag/focus but keeps checkbox-select on → select-all → bulk re-resolve/export/delete) + an **Unsorted** header toggle (reuses `.trash-toggle`, label flips to "← Library", no new CSS) + a clearable `.focus-card` banner. **No migration, no new endpoint, no egress.** |
 | My Publications = an OpenAlex-resolved, LLM-free auto-axis with facts-vs-candidates + confirm-and-learn (inc 78) | The own-papers axis makes an **authorship claim**, so it follows the facts-vs-candidates principle: ORCID/DOI matches are **confirmed members** (`cluster_node_papers.confidence` 0.95 → "assigned"); name-only matches are **candidates** (0.25 → the existing "uncertain" tier), confirmed/rejected by the human and **persisted** in `my_publication_decisions` (a rejected paper is never re-proposed; a confirmed one becomes a manual `confidence IS NULL` member surviving every re-match). The resolver (`clustering/my_publications.py`) rewrites only the AUTO memberships each run (preserves manual). **LLM-free** (author disambiguation is structured-metadata work — zero tokens); OpenAlex author/works lookup is **metadata egress** (public name/ORCID/DOIs, like the Crossref DOI lookup), explicitly **NOT** the Gemini library-text gate. New `integrations/openalex/author.py` (`OpenAlexAuthorClient`, fail-closed + cached), `persistence/profile_repo.py` (single-row profile + decisions), migration **0009** (`axes.kind` + `profile` + `my_publication_decisions`). The import hook (`enrichment.py`) is a **cache-based, lazy-imported, try/except-guarded no-op when unused** → strictly additive (existing import/axis/summary paths untouched). The pinned card reuses `AxisItem` branched on `kind` (no fork). Part 2 (the impact dashboard tab) is deferred. |
 | Acquisition bright lines enforced structurally via the `OaLocation` seam (inc 74) | The legally-clear OA-acquisition lane must never become a generic/non-OA fetcher. Rather than enforce that by convention, the `Resolver` Protocol returns a **frozen `OaLocation`** whose `oa_color` is **required** (gold/green/bronze; **no "closed"/"none" member**) and the downloader `download_oa_pdf(location: OaLocation)` takes the dataclass — there is **no function that fetches a bare URL**. So OA-ness is decided by the database (OpenAlex), never by callosum, and an arbitrary/non-OA fetch is structurally inexpressible (same seam-enforcement idea as the inc-58 egress gate; pinned by structural tests). Fetched copies land in the **local library** (`managed` storage, named per the existing `Authors - Year - Venue.pdf` convention) — nothing server-side. Honors the `APPROACH-AVOIDANCE.md` no-paywall-circumvention veto + realizes the A8 access-equity value. New `app/backend/acquisition/` + `integrations/openalex/` + migration 0007. The legally-ambiguous lane is deferred (counsel-gated), **absent** from this build. New resolvers (inc B) register into `build_default_registry` without editing the cascade. |
 | OA resolver cascade fanned out to 7 sources, gold→green→preprint, first authorized copy wins (inc 75) | Increment B realizes the inc-74 seam's promise: `build_default_registry` registers OpenAlex (primary, best-of) then **DOAJ** (gold) → **Europe PMC** (OA full text) → **Crossref-OA** (publisher PDF + registered license) → **CORE** (green repo) → **arXiv** → **bioRxiv/medRxiv** → **OSF/PsyArXiv** (preprints). Each is the same shape as the OpenAlex adapter (injectable `fetcher` Protocol, `external_api_cache` under a distinct provider, `lookup_oa → OaLocation|None`, fail-closed) + a thin resolver; the `resolve()` loop is **untouched** (new sources only `register()`). OA-ness stays each database's assertion — a source with no honest https direct-PDF returns **None**, never a landing page or a guess (DOAJ requires a real PDF link; Europe PMC requires `isOpenAccess=Y`; Crossref-OA requires a registered license, CC→gold else bronze). Shared `integrations/api_cache.py` (the pre-existing openalex/crossref keep their private copies — not refactored). **CORE** needs `CALLOSUM_CORE_API_KEY` (Bearer header, never in a URL/cache/log; **absent → silent no-op**). **arXiv** reads the Atom id with a targeted regex, NOT a stdlib XML parser (XXE/entity surface on untrusted input, rule #4) → **no new dependency**. No new endpoint/migration/frontend (the Acquire button + OA chips already work); migration head stays 0007. Audit `.claude/security-audits/2026-06-20_oa-acquisition-b.md` PASS. Increment C (wanted-list + OA-only re-check) is next. |
@@ -631,7 +632,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 79 (count badge subtracts hidden uncertain papers): a follow-on to
+*Last updated: 2026-06-20 — increment 80 (the "Unsorted" library view — a needs-review filter): an **Unsorted**
+toggle in the Library header (+ a clearable banner) that narrows the list to papers whose metadata still needs
+review — raw PDF scaffolds, Crossref-unresolved imports, and papers with no recorded source — so they don't
+silently disappear into the library. Backend: a `needs_review` query param on `GET /papers` →
+`list_papers(needs_review=…)` filters `imported_source IN ("pdf-scaffold","crossref-unresolved") OR IS NULL`
+(a local literal allowlist; bound-param). A **view** like Trash (clears axis/tag filters) but keeps
+checkbox-select on, so you can select-all the unsorted papers and bulk re-resolve/export/delete. **No migration,
+no new endpoint, no egress**; pytest **362** (+1: the three unsorted states returned, resolved/user-edited
+excluded, trashed excluded); `ruff` clean; help corpus updated (the browsing section gained the Unsorted control;
+`HELP-DOCS-SYNCED` → inc 80, also folding in the inc-77 hide-uncertain default + the inc-79 count-badge note).
+**NEXT (task list):** My Publications Part 2 — the impact **dashboard tab** (the carrot; plan-mode first). A
+separate **discovery** direction the user floated (find papers beyond the library / external search / a
+gapfinder) stays a parked future-track, not part of My Pubs Part 2.
+
+Earlier — increment 79 (count badge subtracts hidden uncertain papers): a follow-on to
 inc-77's hide-uncertain-by-default — when an axis shows only assigned/manual papers (the inc-51 👁 toggle / the
 inc-77 Settings default), its count badge now shows the **visible** count (total − uncertain) with a tooltip
 noting how many are hidden, so the number matches the list. `axis_score_state(conn, id, *, cutoff=…)` returns a

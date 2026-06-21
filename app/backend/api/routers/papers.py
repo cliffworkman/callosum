@@ -170,11 +170,20 @@ def papers_index(
     deleted: bool = Query(default=False),  # true → the Trash listing (soft-deleted papers)
     axis_id: int | None = Query(default=None),  # filter the listing to the papers assigned to this axis
     tag_id: int | None = Query(default=None),  # filter the listing to the papers carrying this tag
+    needs_review: bool = Query(default=False),  # the "Unsorted" view: scaffold / Crossref-unresolved / no source
     sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted in repo)
     conn: Connection = Depends(get_connection),
 ) -> list[PaperListItem]:
     rows = list_papers(
-        conn, limit=limit, offset=offset, q=q, only_deleted=deleted, axis_id=axis_id, tag_id=tag_id, sort=sort
+        conn,
+        limit=limit,
+        offset=offset,
+        q=q,
+        only_deleted=deleted,
+        axis_id=axis_id,
+        tag_id=tag_id,
+        needs_review=needs_review,
+        sort=sort,
     )
     return [_paper_list_item(row) for row in rows]
 

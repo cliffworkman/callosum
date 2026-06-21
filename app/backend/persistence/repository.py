@@ -104,6 +104,12 @@ def get_paper(conn: Connection, paper_id: int) -> RowMapping:
     return _one_mapping(conn.execute(select(papers).where(papers.c.id == paper_id)))
 
 
+# Papers needing bibliographic review ("Unsorted"): raw PDF scaffolds + Crossref-unresolved + no source
+# recorded. Mirrors ingest.py's "pdf-scaffold" + enrichment.py's CROSSREF_UNRESOLVED_SOURCE (kept as a local
+# literal allowlist to avoid an enrichment→repository import cycle; rule #3 — never interpolated). (inc 79)
+NEEDS_REVIEW_SOURCES = ("pdf-scaffold", "crossref-unresolved")
+
+
 def list_papers(
     conn: Connection,
     *,
@@ -113,6 +119,7 @@ def list_papers(
     only_deleted: bool = False,
     axis_id: int | None = None,
     tag_id: int | None = None,
+    needs_review: bool = False,
     sort: str = "added",
 ) -> list[RowMapping]:
     attachment_count = (
@@ -152,6 +159,16 @@ def list_papers(
         # Filter to the papers carrying this tag. Bound-param IN subquery (rule #3); composes with the
         # deleted/q/axis clauses above (trashed papers stay excluded).
         stmt = stmt.where(papers.c.id.in_(select(paper_tags.c.paper_id).where(paper_tags.c.tag_id == tag_id)))
+    if needs_review:
+        # The "Unsorted" view: papers whose metadata still needs review — raw scaffolds, Crossref-unresolved,
+        # or no source recorded (NULL). Bound-param IN over a local allowlist (rule #3); composes with the
+        # clauses above (trashed papers stay excluded).
+        stmt = stmt.where(
+            or_(
+                papers.c.imported_source.in_(NEEDS_REVIEW_SOURCES),
+                papers.c.imported_source.is_(None),
+            )
+        )
     return list(conn.execute(stmt.limit(limit).offset(offset)).mappings())
 
 

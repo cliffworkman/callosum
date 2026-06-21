@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 80: the "Unsorted" library view (needs-review filter)
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 80 (2026-06-20) — added the "Unsorted" Library control to the browsing section + folded the inc-77 hide-uncertain default and the inc-79 count-badge behavior into the axis-review section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** `app/backend/persistence/repository.py`, `app/backend/api/routers/papers.py`,
+  `app/frontend/js/40_app.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `tests/test_papers.py`,
+  `app/backend/help/help_content.md`, `callosum-app.html` (rebuilt).
+- **What:** an **Unsorted** toggle in the Library header (+ a clearable banner) that filters to papers whose
+  metadata still needs review — raw PDF scaffolds, Crossref-unresolved imports, and papers with no recorded
+  source. Backend: a `needs_review` query param on `GET /papers` → `list_papers(needs_review=…)` filters
+  `imported_source IN ("pdf-scaffold","crossref-unresolved") OR IS NULL` (local allowlist, bound-param). A view
+  like Trash (clears axis/tag filters) but keeps checkbox-select on for bulk re-resolve/export/delete.
+- **Why:** surface unresolved/under-catalogued papers instead of letting them disappear into the library
+  ("silence is not a certificate"); the chosen "UNSORTED cluster" chore.
+- **Scope:** read-only query param — no migration, no new endpoint, no egress. pytest **362** (+1); `ruff` clean.
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop `needs_review` from `list_papers` + the router
+  and the `libraryNeedsReview` wiring from the two frontend chunks.
+
 ## 2026-06-20 — Increment 79: count badge subtracts hidden uncertain papers
 
 - **Files:** `app/backend/clustering/axis_assignments.py`, `app/backend/api/routers/axes.py`,
@@ -46,8 +64,6 @@ are the design diary; this is the chronological "what & why" record.
 - **Revert:** restore from a `.claude/backups/` snapshot.
 
 ## 2026-06-20 — Increment 78: My Publications — the auto-axis of your own papers (Part 1)
-
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 78 (2026-06-20) — added a "My Publications" section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 - **What:** a pinned, OpenAlex-resolved, **LLM-free** axis of the researcher's own papers. Set a **profile**
   (name / published-name variants / ORCID) in Settings → **Refresh** resolves via OpenAlex (ORCID-first) →

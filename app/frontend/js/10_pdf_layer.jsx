@@ -131,6 +131,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     trashView, selectedLibraryIds, librarySort, onSortChange, onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
                     onBulkSummarize, onBulkExport, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
+                    libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -143,6 +144,10 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           <span className="lib-head-actions">
+            {!trashView &&
+              <button className="trash-toggle" onClick={onToggleNeedsReview}
+                title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
+                {libraryNeedsReview ? "← Library" : "Unsorted"}</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
             {!trashView &&
@@ -180,6 +185,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
               <button className="axis-link" onClick={onClearTagFilter}>clear</button>
+            </div>
+          </div>}
+        {libraryNeedsReview &&
+          <div className="focus-card">
+            <div className="focus-card-head">Unsorted — papers whose metadata still needs review (raw imports, unresolved DOIs)</div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
+              <button className="axis-link" onClick={onClearNeedsReview}>clear</button>
             </div>
           </div>}
         <div className="searchbar">
