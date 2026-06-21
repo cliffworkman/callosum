@@ -515,7 +515,7 @@ before large design changes:
 | `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
 | `.claude/HELP.md` | Historical tip text (superseded by the served corpus above; kept as a dev note) |
-| `.claude/docs/INCREMENT-BACKLOG.md` | The running nearer-term to-do list (reference-manager-first) |
+| `.claude/docs/INCREMENT-BACKLOG.md` | The running nearer-term to-do list — **open items only** (reference-manager-first). Shipped/closed items live in `INCREMENT-BACKLOG-DONE.md` (split 2026-06-20). |
 | `.claude/docs/product-scope.md` | What's in/out of scope |
 | `.claude/docs/architecture.md` | Intended architecture |
 | `.claude/docs/data-contracts.md` | Schema + payload contracts |

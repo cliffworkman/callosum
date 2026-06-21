@@ -4,7 +4,8 @@
 
 ## Current Live Docs
 
-- `INCREMENT-BACKLOG.md`: near-term increment queue and current planning source.
+- `INCREMENT-BACKLOG.md`: near-term increment queue and current planning source — **open items only** (split 2026-06-20).
+- `INCREMENT-BACKLOG-DONE.md`: the shipped/closed half of the backlog (archive; what landed + which increment).
 - `future-tracks/`: longer-horizon design-toward prompts.
 - `future-tracks/README.md`: index for the future-track documents.
 - `future-tracks-import/`: watched inbox for future-track material before it is folded into the plan — **checked

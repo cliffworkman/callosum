@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Backlog split: open vs closed
+
+- **What:** split `INCREMENT-BACKLOG.md` so the open queue stays scannable — shipped/closed `[x]` items moved
+  to a new **`INCREMENT-BACKLOG-DONE.md`** archive (what landed + which increment); `INCREMENT-BACKLOG.md` now
+  holds **open `[ ]` items only** (+ the guiding-principle intro + a pointer to the archive). Also refreshed a
+  few stale lines (Crossref-subject tags shipped inc 73; Track-D acquisition largely shipped inc 74–76).
+- **Why:** a session no longer has to read past ~250 lines of finished work to see what remains (user's idea).
+- **Files:** `INCREMENT-BACKLOG.md` (rewritten open-only), `INCREMENT-BACKLOG-DONE.md` (new), `docs/README.md`
+  + `CLAUDE.md` reference table (both repointed).
+- **Verify:** docs-only; no code/test change.
+- **Revert:** restore from a `.claude/backups/` snapshot; the prior combined backlog is in Dropbox history.
+
 ## 2026-06-20 — Phase 8: future-tracks watched-inbox auto-rule (+ folded 2 pending specs)
 
 - **What:** the release-readiness arc's final phase. A **session-kickoff watch rule** (CLAUDE.md Session kickoff
