@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 84** (see Increment workflow) with **377 pytest tests
+It is currently at **Increment 85** (see Increment workflow) with **380 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -230,7 +230,7 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0012_my_publication_stars)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0013_my_publication_dismissed_works)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 84). Each increment of real work
+callosum is built in **numbered increments** (currently at 85). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -534,6 +534,8 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| My Publications missing-works review/import = guardrailed, metadata-only import of the author's own indexed works (inc 85) | The dashboard gap ("79 indexed · 40 in library") becomes a **review queue** (`build_dashboard.missing_works` = cached author works whose DOI ∉ live library ∉ `profile.dismissed_work_dois`, sorted by citations; cache-only). **Import** (`import_missing_work`) reuses the inc-74–76 lane but is **metadata-only** (`create_paper` + `enrich_paper_metadata_from_crossref(force=True)` — `openalex-import` isn't in the auto-update allowlist, so force, like re-resolve; the OA-**PDF** path stays the separate "Acquire OA copy"). **Guardrail:** the DOI must be one of the resolved author's cached works → no arbitrary-DOI minting (else 422). My-Pubs membership is added **directly** via `_add_confirmed_member` (cache-independent — not via `maybe_add_to_my_publications`, which re-derives from the cached works), so it works regardless of cache warmth / Crossref outcome; an imported work then matches a live paper and drops from the queue. **Reject** = `dismiss_work` (a normalized DOI in `profile.dismissed_work_dois` JSON, migration **0013**). Facts-vs-candidates (the human imports/dismisses — no auto-action); only egress is the Crossref DOI lookup (not the Gemini gate); the list + dismiss are local. `POST /my-publications/works/{import,dismiss}`. Audit `.claude/security-audits/2026-06-21_my-pubs-missing-works.md` PASS. |
+| Star key publications = an isolated `profile.starred_paper_ids` JSON list; the AI summary can scope to it (inc 84) | ⭐ star key papers in the My Pubs sidebar card (the star state surfaces on the `my_publications` axis clusters response — `ClusterPaperResponse.starred`, gated to that axis so the generic endpoint does no extra work for standard axes). `POST /my-publications/star`; the generate endpoint's `starred_only` body → `my_publication_documents(only_paper_ids=…)` (empty starred + starred_only → 422). Stored as `profile.starred_paper_ids` JSON (migration **0012**; like `research_domains`) — no new table, no coupling to the membership machinery. LLM-free plumbing (the summary path is the inc-81 gated seam). |
 | My Publications domain decomposition (Part 2, Layer 2) = local clustering stored as an isolated JSON artifact, NOT child cluster_nodes (inc 83) | Layer 2 clusters the user's CONFIRMED own-papers into research **domains** (impact-by-domain + a dashboard chart re-filter), reusing the inc-52 axis-suggestion machinery (`model.encode_texts` → `AgglomerativeAbstractClusterer` → c-TF-IDF labels). The spec suggested child cluster_nodes under the my_publications axis, but **`axis_score_state` counts members by `axis_id` across ALL of an axis's nodes** — so children would double-count the inc-78 card badge + skew the inc-79 `uncertain_count`. So the decomposition is persisted as **`profile.research_domains` JSON** (`[{label, terms, paper_ids}]`, like `name_variants`) — isolated, zero impact on the membership/count machinery (migration **0011**). **LLM-free** (clustering is local); the only egress is the OpenAlex works **refresh** (`fetch_author_works(refresh=True)` adds per-work `cited_by_count` for impact-by-domain) — metadata egress, already audited (inc 78), NOT the Gemini gate. Impact-by-domain is an honest citation **sum** (no composite score); domains show their member papers + the terms that named them (inspectable); the 0.25 name-only candidates are excluded. `decompose_domains` is async (`mypubs_domain_jobs`); the dashboard read stays cache-only/egress-free; the chart re-filter is client-side from each domain's `paper_years`. Layers 3–4 deferred. |
 | My Publications dashboard (Part 2, Layer 1) = a cache-only, egress-free read; metrics are OpenAlex's verbatim figures; the AI summary is the only (gated) egress (inc 81) | The impact dashboard reads ONLY already-cached OpenAlex data + the local library (`build_dashboard` via `cached_author`, which never fetches; gated on `profile.openalex_author_id` ⟹ the cache is warm from a prior Settings→Refresh), so opening the tab makes **zero network calls** ("explicit refresh, never on plain tab open"). Headline metrics (citations/h-index/i10/works) are OpenAlex's **authoritative figures over the whole indexed record** — shown verbatim + attributed ("source: OpenAlex · as of <date>"), never a callosum-invented composite "impact score" (computing them over the library subset is forbidden — it would disagree with Scholar + erode trust); the indexed-vs-library gap is a fact + import nudge. The author object inc-78 already cached carries `cited_by_count`/`summary_stats`/`counts_by_year`, so the stats need **no new API call** (re-parsed via an enriched `_author_from_obj`; a shared `_author_cache_key` keeps `resolve_author`/`cached_author` from drifting). The **editable AI research summary** is the sole egress — LLM narration over the user's OWN publication titles/abstracts (library text), gated at the inc-58 seam (`EgressGatedResearchSummaryGenerator`; egress-off → 503), marked an editable non-load-bearing draft. The tab reuses the LibraryFrame tab system (`type:"dashboard"`); charts are hand-rolled SVG (no chart library, per spec). Migration **0010** (`profile.research_summary`). Layers 2–4 deferred. |
 | "Unsorted" library view = a `needs_review` query param on `GET /papers`, filtering an `imported_source` allowlist (inc 80) | Surfaces papers whose metadata still needs review (raw `pdf-scaffold`, `crossref-unresolved`, or NULL source) instead of letting them disappear into the library — aligned with "silence is not a certificate." Same class of change as the inc-63 axis filter / inc-69 sort: `list_papers(needs_review=…)` filters `imported_source IN NEEDS_REVIEW_SOURCES OR IS NULL` (a **local literal allowlist** in `repository.py` — bound-param `IN`, rule #3; kept local to avoid an `enrichment → repository` import cycle, since the strings are stable DB values). Composes with the deleted/q/axis/tag/pagination clauses (trashed excluded). Frontend: a `libraryNeedsReview` view-state mirroring `trashView` (exclusive with trash/axis/tag/focus but keeps checkbox-select on → select-all → bulk re-resolve/export/delete) + an **Unsorted** header toggle (reuses `.trash-toggle`, label flips to "← Library", no new CSS) + a clearable `.focus-card` banner. **No migration, no new endpoint, no egress.** |
@@ -634,7 +636,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-21 — increment 84 (star key publications + scope the AI summary): a My-Publications
+*Last updated: 2026-06-21 — increment 85 (My Publications — missing-works review + import): the dashboard's
+indexed-vs-library gap ("79 indexed · 40 in library") becomes a **review queue** — the OpenAlex-attributed works
+**not** in your library, each with **Import** (accept) or **Dismiss** (reject). `build_dashboard.missing_works`
+= cached author works whose DOI ∉ live library ∉ `profile.dismissed_work_dois` (sorted by citations; cache-only).
+**Import** (`import_missing_work`) is **guardrailed** (the DOI must be one of the author's cached works — no
+arbitrary minting) + **metadata-only** (`create_paper` + Crossref enrich `force=True`; the OA-PDF path stays the
+separate "Acquire OA copy") + adds a confirmed My-Pubs member directly; idempotent. **Dismiss** persists a
+normalized DOI (migration **0013**). `POST /my-publications/works/{import,dismiss}`; only egress is the Crossref
+DOI lookup (not the Gemini gate). pytest **380** (+3); audit
+`.claude/security-audits/2026-06-21_my-pubs-missing-works.md` **PASS**; help corpus updated (`HELP-DOCS-SYNCED`
+→ 85). **This completes the user's three My-Pubs follow-ups** (inc 84 starring + inc 85 missing-works review +
+import). **NEXT:** Layer 3 (enriched per-paper cards) / Layer 4 (prospection) remain deferred; or a fresh
+chore/carrot cluster.
+
+Earlier — increment 84 (star key publications + scope the AI summary): a My-Publications
 curation chore — ⭐ **star** key papers in the My Pubs sidebar card, and a **"⭐ only"** toggle on the dashboard
 that scopes the inc-81 AI research-summary generation to the starred set. Storage is an isolated
 `profile.starred_paper_ids` JSON list (migration **0012**; like `research_domains`); the star state surfaces on

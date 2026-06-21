@@ -481,6 +481,7 @@ profile = Table(
     Column("research_summary", Text),  # inc 81: the dashboard's editable, AI-generated research summary
     Column("research_domains", JSON),  # inc 83: the dashboard's domain decomposition [{label, terms, paper_ids}]
     Column("starred_paper_ids", JSON),  # inc 84: starred key publications (paper ids) — scope the AI summary
+    Column("dismissed_work_dois", JSON),  # inc 85: OpenAlex works the user rejected from the missing-works queue
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )

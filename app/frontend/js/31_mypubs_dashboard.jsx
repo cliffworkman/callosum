@@ -48,6 +48,8 @@ function MyPubsDashboard({ axisId }) {
   const [domainJob, setDomainJob] = useState({ status: "idle" });  // idle | running | error | too-few
   const [selectedDomains, setSelectedDomains] = useState(() => new Set());  // indices of domains filtering the chart
   const [starredOnly, setStarredOnly] = useState(false);  // inc 84: scope the summary draft to starred pubs
+  const [worksOpen, setWorksOpen] = useState(false);  // inc 85: the missing-works review section (collapsed)
+  const [workBusy, setWorkBusy] = useState(() => new Set());  // DOIs being imported/dismissed
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -100,6 +102,13 @@ function MyPubsDashboard({ axisId }) {
     if (next.has(i)) next.delete(i); else next.add(i);
     return next;
   });
+
+  const actOnWork = async (doi, path) => {
+    setWorkBusy(b => new Set(b).add(doi));
+    const r = await apiPost(path, { doi });
+    if (r.ok) await refetch();  // the work leaves the list (imported → matched, or dismissed)
+    setWorkBusy(b => { const n = new Set(b); n.delete(doi); return n; });
+  };
 
   if (data.status === "loading") return <div className="mypubs-dashboard"><div className="axis-hint">Loading…</div></div>;
   if (data.status === "error") return <div className="mypubs-dashboard"><div className="axis-err">Couldn't load the dashboard: {data.error}</div></div>;
@@ -156,6 +165,29 @@ function MyPubsDashboard({ axisId }) {
         <b>{data.indexed_works}</b> works indexed by OpenAlex · <b>{data.in_library}</b> in your library
         {data.gap > 0 && <span className="mypubs-gap-nudge"> — {data.gap} not yet imported</span>}
       </div>
+
+      {(data.missing_works || []).length > 0 &&
+        <div className="mypubs-missing">
+          <button className="mypubs-missing-toggle" onClick={() => setWorksOpen(o => !o)}>
+            {worksOpen ? "▾" : "▸"} Review {data.missing_works.length} indexed work{data.missing_works.length === 1 ? "" : "s"} not in your library
+          </button>
+          {worksOpen &&
+            <div className="missing-list">
+              <div className="mypubs-source">OpenAlex attributes these to you, but they aren't in your library. Import the ones that are yours; dismiss the rest.</div>
+              {data.missing_works.map(w => (
+                <div key={w.doi} className="missing-row">
+                  <div className="missing-info">
+                    <div className="missing-title" title={w.title || w.doi}>{w.title || w.doi}</div>
+                    <div className="missing-meta">{w.year ? w.year + " · " : ""}{w.cited_by_count} cites · {w.doi}</div>
+                  </div>
+                  <button className="btn btn-ghost" disabled={workBusy.has(w.doi)}
+                    onClick={() => actOnWork(w.doi, "/my-publications/works/import")}>Import</button>
+                  <button className="axis-link" disabled={workBusy.has(w.doi)}
+                    onClick={() => actOnWork(w.doi, "/my-publications/works/dismiss")}>Dismiss</button>
+                </div>
+              ))}
+            </div>}
+        </div>}
 
       <div className="mypubs-charts">
         <div className="mypubs-chart">

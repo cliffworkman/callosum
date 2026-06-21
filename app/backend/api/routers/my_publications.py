@@ -23,12 +23,14 @@ from app.backend.clustering.my_publications import (
     _get_axis_id,
     build_dashboard,
     decompose_domains,
+    import_missing_work,
     my_publication_documents,
     resolve_my_publications,
 )
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchSummaryGenerator
 from app.backend.persistence.profile_repo import (
+    dismiss_work,
     get_profile,
     set_decision,
     set_my_publications_dismissed,
@@ -109,6 +111,13 @@ class Domain(BaseModel):
     paper_years: list[int] = []  # for the dashboard's client-side chart re-filter
 
 
+class MissingWork(BaseModel):
+    doi: str
+    title: str | None = None
+    year: int | None = None
+    cited_by_count: int = 0
+
+
 class DashboardResponse(BaseModel):
     status: str  # "ok" | "no-identity" | "not-resolved"
     name: str | None = None
@@ -121,6 +130,7 @@ class DashboardResponse(BaseModel):
     gap: int | None = None
     research_summary: str | None = None
     domains: list[Domain] = []  # inc 83: the domain decomposition, sorted by citations (impact)
+    missing_works: list[MissingWork] = []  # inc 85: indexed works not in the library (the gap), by citations
 
 
 class SummaryResponse(BaseModel):
@@ -138,6 +148,15 @@ class SummaryGenerateRequest(BaseModel):
 class StarRequest(BaseModel):
     paper_id: int
     starred: bool = True
+
+
+class WorkActionRequest(BaseModel):
+    doi: str
+
+
+class WorkImportResponse(BaseModel):
+    status: str  # imported | exists | not-author-work | not-resolved | invalid
+    paper_id: int | None = None
 
 
 class DomainJobResponse(BaseModel):
@@ -222,6 +241,34 @@ def decompose_my_publications_status(job_id: str, request: Request) -> DomainJob
     if job.status == "done" and job.result is not None:
         return job.result
     return DomainJobResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+@router.post("/my-publications/works/import", response_model=WorkImportResponse)
+def import_my_publications_work(
+    payload: WorkActionRequest, request: Request, conn: Connection = Depends(get_connection)
+) -> WorkImportResponse:
+    # Import an OpenAlex-attributed work missing from the library — metadata-only (Crossref DOI enrich; the
+    # import hook auto-adds it to My Pubs). Guardrail: only the author's OWN indexed works. NOT the Gemini gate.
+    result = import_missing_work(
+        conn,
+        doi=payload.doi,
+        author_client=_author_client(request.app),
+        crossref_client=request.app.state.crossref_client,
+    )
+    status = str(result.get("status"))
+    if status in ("invalid", "not-author-work"):
+        raise HTTPException(status_code=422, detail="That DOI is not among your OpenAlex-indexed works.")
+    if status == "not-resolved":
+        raise HTTPException(status_code=409, detail="Resolve your publications first (Settings → Refresh).")
+    conn.commit()
+    return WorkImportResponse(status=status, paper_id=result.get("paper_id"))
+
+
+@router.post("/my-publications/works/dismiss", status_code=http_status.HTTP_204_NO_CONTENT)
+def dismiss_my_publications_work(payload: WorkActionRequest, conn: Connection = Depends(get_connection)) -> Response:
+    dismiss_work(conn, payload.doi)
+    conn.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/my-publications/summary/generate", response_model=SummaryResponse)

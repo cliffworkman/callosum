@@ -9,9 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-## 2026-06-21 — Increment 84: star key publications + scope the AI summary to starred
+## 2026-06-21 — Increment 85: My Publications — missing-works review + import
 
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 84 (2026-06-21) — added starring + the "⭐ only" summary scope to the My Publications section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 85 (2026-06-21) — added the missing-works review/import queue to the My Publications section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** migration `0013_my_publication_dismissed_works.py` + `schema.py` (`profile.dismissed_work_dois`);
+  `profile_repo.py` (`dismiss_work`); `clustering/my_publications.py` (`build_dashboard.missing_works`,
+  `import_missing_work`, `_add_confirmed_member`); `routers/my_publications.py` (`POST /works/import` +
+  `/works/dismiss` + `DashboardResponse.missing_works`); `31_mypubs_dashboard.jsx` + `styles.css`;
+  `callosum-app.html`; help corpus; tests; the security audit.
+- **What:** the dashboard's indexed-vs-library gap becomes a review queue — OpenAlex works not in your library,
+  each with Import (metadata-only, guardrailed to your own indexed works → auto-joins My Pubs) or Dismiss
+  (persisted).
+- **Why:** the carrot from the user's My-Pubs follow-ups — the 79-indexed vs 40-in-library gap, made actionable.
+- **Scope:** migration 0013; 2 new POST endpoints; import reuses the inc-74–76 lane (Crossref DOI lookup, NOT
+  the Gemini gate; no PDF/file write). pytest **380** (+3); `ruff` clean; audit PASS.
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop `import_missing_work`/`_dashboard_missing_works`
+  + the 2 endpoints + the dashboard section + migration 0013.
+
+## 2026-06-21 — Increment 84: star key publications + scope the AI summary to starred
 
 - **Files:** migration `0012_my_publication_stars.py` + `schema.py` (`profile.starred_paper_ids`); `profile_repo.py`
   (`set_starred`); `routers/my_publications.py` (`POST /star` + `starred_only` on generate); `routers/axes.py`

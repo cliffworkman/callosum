@@ -34,7 +34,7 @@ from app.backend.persistence.profile_repo import (
     set_openalex_author_id,
     set_research_domains,
 )
-from app.backend.persistence.repository import get_paper
+from app.backend.persistence.repository import create_paper, get_paper
 from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
 from integrations.api_cache import get_cached
 from integrations.openalex.author import OPENALEX_WORKS_PROVIDER
@@ -249,6 +249,9 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
         "gap": max(0, author.works_count - in_library),
         "research_summary": profile.get("research_summary"),
         "domains": _dashboard_domains(conn, profile.get("research_domains"), works),
+        "missing_works": _dashboard_missing_works(
+            conn, works, {str(d).strip().lower() for d in (profile.get("dismissed_work_dois") or [])}
+        ),
     }
 
 
@@ -397,3 +400,85 @@ def _dashboard_domains(conn: Connection, domains_json: Any, works: list) -> list
         )
     out.sort(key=lambda d: -d["citation_count"])
     return out
+
+
+def _dashboard_missing_works(conn: Connection, works: list, dismissed: set[str], *, cap: int = 100) -> list[dict]:
+    """OpenAlex-indexed works (inc 85) whose normalized DOI is NOT a live library paper and NOT user-dismissed —
+    the review queue for the indexed-vs-library gap. Sorted by citations (impact); capped. Cache-only."""
+    work_dois = {w.doi for w in works if w.doi}
+    if not work_dois:
+        return []
+    matched = {
+        str(row[0]).strip().lower()
+        for row in conn.execute(
+            select(papers.c.doi).where(and_(papers.c.doi.in_(work_dois), papers.c.deleted_at.is_(None)))
+        )
+        if row[0]
+    }
+    out: list[dict] = []
+    for work in works:
+        if not work.doi or work.doi in matched or work.doi in dismissed:
+            continue
+        out.append({"doi": work.doi, "title": work.title, "year": work.year, "cited_by_count": work.cited_by_count})
+    out.sort(key=lambda w: -(w["cited_by_count"] or 0))
+    return out[:cap]
+
+
+def import_missing_work(conn: Connection, *, doi: str, author_client, crossref_client=None) -> dict[str, Any]:
+    """Import an OpenAlex-attributed work that's missing from the library (inc 85). **Guardrail:** the DOI must
+    be one of the author's cached works (you may only import works OpenAlex attributes to *you*). Creates a
+    metadata-only paper + Crossref-enriches it; the enrichment import hook then auto-adds it to My Publications.
+    Idempotent if it's already in the library. Crossref DOI lookup only — NOT the Gemini gate. Returns a status."""
+    normalized = (doi or "").strip().lower()
+    if not normalized:
+        return {"status": "invalid"}
+    profile = get_profile(conn)
+    if not profile or not profile.get("openalex_author_id"):
+        return {"status": "not-resolved"}
+    author = author_client.cached_author(conn, orcid=profile.get("orcid"), name=profile.get("display_name"))
+    if author is None:
+        return {"status": "not-resolved"}
+    work = next((w for w in author_client.fetch_author_works(conn, author.author_id) if w.doi == normalized), None)
+    if work is None:
+        return {"status": "not-author-work"}  # only your indexed works are importable
+    existing = _live_papers_by_doi(conn, {normalized})
+    if existing:
+        return {"status": "exists", "paper_id": sorted(existing)[0]}  # idempotent
+    from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref  # lazy: avoid import cycle
+
+    title = (work.title or normalized).strip() or normalized
+    paper_id = create_paper(
+        conn,
+        title=title,
+        csl_json={"id": normalized, "type": "document", "title": title, "DOI": normalized},
+        year=work.year,
+        doi=normalized,
+        imported_source="openalex-import",
+    )
+    # Crossref enrich (DOI-only, not the Gemini gate) — force=True because "openalex-import" isn't in the
+    # auto-update allowlist; this is an explicit user action (like re-resolve). Its hook adds the paper to My
+    # Pubs when the DOI resolves; the explicit call below covers the case where Crossref doesn't resolve.
+    enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=crossref_client, force=True)
+    _add_confirmed_member(conn, paper_id)  # authorship already established → confirmed member (cache-independent)
+    return {"status": "imported", "paper_id": paper_id}
+
+
+def _add_confirmed_member(conn: Connection, paper_id: int) -> None:
+    """Add a paper to the My Publications axis as a confirmed member (0.95) if not already present. Used by the
+    import path, which has already established authorship — so, unlike ``maybe_add_to_my_publications``, it does
+    not re-derive membership from the cached works (works in tests + when the cache is cold)."""
+    axis_id = _get_axis_id(conn)
+    if axis_id is None:
+        return
+    node_id = ensure_axis_node(conn, axis_id)
+    already = conn.execute(
+        select(cluster_node_papers.c.paper_id).where(
+            and_(cluster_node_papers.c.cluster_node_id == node_id, cluster_node_papers.c.paper_id == paper_id)
+        )
+    ).first()
+    if already is None:
+        conn.execute(
+            insert(cluster_node_papers).values(
+                cluster_node_id=node_id, paper_id=paper_id, confidence=CONFIRMED_CONFIDENCE
+            )
+        )

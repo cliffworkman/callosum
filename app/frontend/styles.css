@@ -1028,3 +1028,12 @@
   .axis-star:hover { color: var(--accent); }
   .axis-star.on { color: var(--accent); }
   .mypubs-starred-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 400; color: var(--ink-2); cursor: pointer; }
+  /* Missing-works review queue (inc 85) — the indexed-vs-library gap, made actionable. */
+  .mypubs-missing { margin-bottom: 18px; }
+  .mypubs-missing-toggle { border: none; background: none; cursor: pointer; font-family: var(--sans); font-size: 13px; color: var(--accent); padding: 4px 0; }
+  .mypubs-missing-toggle:hover { text-decoration: underline; }
+  .missing-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+  .missing-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); }
+  .missing-info { flex: 1; min-width: 0; }
+  .missing-title { font-size: 13px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .missing-meta { font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

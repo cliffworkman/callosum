@@ -10,11 +10,13 @@ from app.backend.api import create_app
 from app.backend.clustering.my_publications import (
     build_dashboard,
     decompose_domains,
+    import_missing_work,
     maybe_add_to_my_publications,
     resolve_my_publications,
 )
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.profile_repo import (
+    dismiss_work,
     get_decisions,
     get_profile,
     set_decision,
@@ -66,6 +68,19 @@ class _FakeAuthorClient:
 class _FakeSummaryGen:
     def generate(self, *, documents):
         return f"Ada's work spans {len(documents)} publications on analytical engines."
+
+
+class _UnresolvedResolution:
+    resolved = False
+    csl_json = None
+    error = None
+
+
+class _NoCrossref:
+    """A Crossref client stub that never resolves — so import tests don't hit the network."""
+
+    def resolve_doi(self, conn, doi):
+        return _UnresolvedResolution()
 
 
 class _ClusterModel:
@@ -596,3 +611,65 @@ def test_generate_summary_scoped_to_starred(temp_db_url):
     assert starred.status_code == 200 and "1 publications" in starred.json()["summary"]  # scoped to the 1 starred
     full = client.post("/my-publications/summary/generate", json={"starred_only": False})
     assert "2 publications" in full.json()["summary"]  # all members
+
+
+# --- missing-works review + import (inc 85) --------------------------------------------------------------
+
+
+def test_missing_works_excludes_matched_and_dismissed(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+        create_paper(conn, title="In Library", csl_json=_csl("In Library", "10.1/inlib"), doi="10.1/inlib")
+    works = [
+        AuthorWork(doi="10.1/inlib", title="In Library", year=2019, cited_by_count=1),
+        AuthorWork(doi="10.1/miss-a", title="Missing A", year=2020, cited_by_count=5),
+        AuthorWork(doi="10.1/miss-b", title="Missing B", year=2021, cited_by_count=80),
+    ]
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=works)
+    with engine.begin() as conn:
+        mw = build_dashboard(conn, author_client=fake)["missing_works"]
+    assert [w["doi"] for w in mw] == ["10.1/miss-b", "10.1/miss-a"]  # matched excluded; sorted by citations
+    with engine.begin() as conn:
+        dismiss_work(conn, "10.1/MISS-B")  # normalized (case-insensitive)
+        mw2 = build_dashboard(conn, author_client=fake)["missing_works"]
+    assert [w["doi"] for w in mw2] == ["10.1/miss-a"]  # the dismissed work is gone
+
+
+def test_import_missing_work_adds_to_library_and_mypubs(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        create_paper(conn, title="Have", csl_json=_csl("Have", "10.1/have"), doi="10.1/have")
+    works = [
+        AuthorWork(doi="10.1/have", title="Have", year=2019, cited_by_count=1),
+        AuthorWork(doi="10.1/want", title="Want", year=2020, cited_by_count=9),
+    ]
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=works)
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)  # have → member; want → missing
+        result = import_missing_work(conn, doi="10.1/want", author_client=fake, crossref_client=_NoCrossref())
+        members = _members(conn)
+        mw = build_dashboard(conn, author_client=fake)["missing_works"]
+    assert result["status"] == "imported"
+    assert members.get(result["paper_id"]) == 0.95  # the imported work joins My Pubs as a confirmed member
+    assert "10.1/want" not in {w["doi"] for w in mw}  # now in the library → no longer missing
+    with engine.begin() as conn:  # idempotent
+        again = import_missing_work(conn, doi="10.1/want", author_client=fake, crossref_client=_NoCrossref())
+    assert again["status"] == "exists" and again["paper_id"] == result["paper_id"]
+
+
+def test_import_rejects_non_author_doi_and_dismiss_endpoint(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+    fake = _FakeAuthorClient(
+        author=_ADA_STATS, works=[AuthorWork(doi="10.1/mine", title="Mine", year=2020, cited_by_count=1)]
+    )
+    client = TestClient(create_app(db_url=temp_db_url, openalex_author_client=fake, crossref_client=_NoCrossref()))
+    # a DOI not among the author's works is refused (no arbitrary minting)
+    assert client.post("/my-publications/works/import", json={"doi": "10.1/not-mine"}).status_code == 422
+    # the dismiss endpoint is local + always 204
+    assert client.post("/my-publications/works/dismiss", json={"doi": "10.1/mine"}).status_code == 204

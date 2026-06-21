@@ -43,22 +43,14 @@ _Italic notes are light implementation pointers, not designs._
 
 ## My Publications — follow-ups (user, 2026-06-20, post inc-81/83)
 
-- [ ] **Star key publications + scope the AI summary to starred.** Let the user "star" flagship papers in My
-  Publications; add a toggle that restricts the **AI research-description** generation (inc 81) to starred pubs
-  only (so the summary centers the user's most important work, not every paper). _Needs a per-paper star flag
-  (a `my_publication_decisions`-style store, or a `starred` set) + a generate-scope toggle threaded into
-  `my_publication_documents`._
-- [ ] **Review queue for OpenAlex works MISSING from My Publications.** The dashboard's indexed-vs-library gap
-  (inc 81: "79 indexed · 40 in library") should be actionable: list the OpenAlex-indexed works **not** matched
-  to a library paper, with **accept / reject** per work (persisted, like the inc-78 candidate decisions) so the
-  user curates the true own-papers set (79 over-counts; 40 under-counts). _Reuses the cached author works
-  (`fetch_author_works`) minus the DOI-matched set; a new decision store for external works (keyed by
-  DOI/OpenAlex-work-id, not paper_id, since they're not in the library yet)._
-- [ ] **Import missing own-papers into the library.** From that missing-works queue, offer to **import** a work
-  into the library via the **existing acquisition/import architecture** (inc 74–76 OA lane: `create_paper` +
-  `import_oa_pdf` + Crossref enrich; or wanted-list add) — turning "indexed but absent" into a real library
-  entry that then auto-joins My Publications (inc-78 import hook). _Pairs with the review queue above; the
-  OA-only bright line + the wanted-list flow already exist._
+- [x] **Star key publications + scope the AI summary to starred.** — **shipped inc 84.** ⭐ star in the My Pubs
+  sidebar card (`profile.starred_paper_ids`); a "⭐ only" dashboard toggle scopes the AI summary
+  (`my_publication_documents(only_paper_ids=…)`).
+- [x] **Review queue for OpenAlex works MISSING from My Publications** + **import missing own-papers.** —
+  **shipped inc 85.** The dashboard gap is actionable: `build_dashboard.missing_works` (cached works ∉ library ∉
+  dismissed) with **Import** (`import_missing_work` — guardrailed, metadata-only via Crossref, auto-joins My
+  Pubs) / **Dismiss** (`profile.dismissed_work_dois`). The OA-PDF stays the separate per-paper "Acquire OA copy".
+  _(Deferred follow-on: un-dismiss for missing works, mirroring inc-67.)_
 
 ---
 

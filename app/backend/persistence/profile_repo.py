@@ -108,6 +108,24 @@ def set_starred(conn: Connection, paper_id: int, starred: bool) -> None:
     )
 
 
+def dismiss_work(conn: Connection, doi: str) -> None:
+    """Dismiss an OpenAlex-indexed work from the missing-works review queue (inc 85), by normalized DOI. So it
+    is not re-proposed. No-op if the profile is unset or the DOI is blank."""
+    normalized = (doi or "").strip().lower()
+    if not normalized:
+        return
+    existing = get_profile(conn)
+    if existing is None:
+        return
+    dois = {str(d).strip().lower() for d in (existing.get("dismissed_work_dois") or []) if str(d).strip()}
+    dois.add(normalized)
+    conn.execute(
+        update(profile)
+        .where(profile.c.id == int(existing["id"]))
+        .values(dismissed_work_dois=sorted(dois), updated_at=func.current_timestamp())
+    )
+
+
 def get_decisions(conn: Connection) -> dict[str, set[int]]:
     """{'confirmed': {paper_id, …}, 'rejected': {…}} — applied by the resolver every run."""
     out: dict[str, set[int]] = {"confirmed": set(), "rejected": set()}
