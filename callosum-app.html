@@ -2010,11 +2010,6 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
       <div className="axis-group-head">
         <p className="eyebrow">Axes</p>
       </div>
-      {axes && (myPubsAxis
-        ? <AxisItem key="mypubs" axis={myPubsAxis} detail={details[myPubsAxis.id]} job={jobs[myPubsAxis.id]}
-            expanded={expanded === myPubsAxis.id} selected={false} selectedPaper={selectedPaper}
-            handlers={handlers} hideUncertainDefault={false} />
-        : <MyPubsPrompt />)}
       <div className="axis-controls">
         {axes && axes.length > 1 &&
           <input className="axis-filter" placeholder="Filter axes…" value={filter} onChange={e => setFilter(e.target.value)} />}
@@ -2052,6 +2047,12 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
       {axes && axes.length > 0 && visibleAxes && visibleAxes.length === 0 && filter.trim() &&
         <div className="axis-hint">No axes match “{filter.trim()}”.</div>}
 
+      {/* My Publications hangs at the top of the axis list (below the filter/sort controls), styled distinct. */}
+      {axes && (myPubsAxis
+        ? <AxisItem key="mypubs" axis={myPubsAxis} detail={details[myPubsAxis.id]} job={jobs[myPubsAxis.id]}
+            expanded={expanded === myPubsAxis.id} selected={false} selectedPaper={selectedPaper}
+            handlers={handlers} hideUncertainDefault={false} />
+        : <MyPubsPrompt />)}
       {standardVisible && standardVisible.map(axis => (
         <AxisItem
           key={axis.id + (hideUncertainDefault ? "-h" : "-s")}
