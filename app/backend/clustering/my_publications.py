@@ -252,9 +252,12 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
     }
 
 
-def my_publication_documents(conn: Connection, *, limit: int = 100) -> list[dict[str, str]]:
+def my_publication_documents(
+    conn: Connection, *, limit: int = 100, only_paper_ids: set[int] | None = None
+) -> list[dict[str, str]]:
     """The titles (+ JATS-stripped abstract) of the papers in the My Publications axis — the grounded input
-    for the research-summary generation. Live papers only; capped. Empty list if the axis has no members."""
+    for the research-summary generation. Live papers only; capped. ``only_paper_ids`` (inc 84) restricts to a
+    subset (the user's starred papers). Empty list if the axis has no members (or none of the subset match)."""
     axis_id = _get_axis_id(conn)
     if axis_id is None:
         return []
@@ -265,10 +268,15 @@ def my_publication_documents(conn: Connection, *, limit: int = 100) -> list[dict
     ).scalar_one_or_none()
     if node_id is None:
         return []
+    where = [cluster_node_papers.c.cluster_node_id == int(node_id), papers.c.deleted_at.is_(None)]
+    if only_paper_ids is not None:
+        if not only_paper_ids:
+            return []
+        where.append(papers.c.id.in_({int(p) for p in only_paper_ids}))
     rows = conn.execute(
         select(papers.c.title, papers.c.abstract)
         .select_from(cluster_node_papers.join(papers, papers.c.id == cluster_node_papers.c.paper_id))
-        .where(and_(cluster_node_papers.c.cluster_node_id == int(node_id), papers.c.deleted_at.is_(None)))
+        .where(and_(*where))
         .limit(limit)
     )
     documents: list[dict[str, str]] = []

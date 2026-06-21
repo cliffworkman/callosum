@@ -90,6 +90,24 @@ def set_research_domains(conn: Connection, domains: list[dict[str, Any]] | None)
     )
 
 
+def set_starred(conn: Connection, paper_id: int, starred: bool) -> None:
+    """Star/unstar a paper in My Publications (inc 84). Stored as a sorted id list on the profile. No-op if
+    the profile is unset."""
+    existing = get_profile(conn)
+    if existing is None:
+        return
+    ids = {int(x) for x in (existing.get("starred_paper_ids") or [])}
+    if starred:
+        ids.add(int(paper_id))
+    else:
+        ids.discard(int(paper_id))
+    conn.execute(
+        update(profile)
+        .where(profile.c.id == int(existing["id"]))
+        .values(starred_paper_ids=sorted(ids) or None, updated_at=func.current_timestamp())
+    )
+
+
 def get_decisions(conn: Connection) -> dict[str, set[int]]:
     """{'confirmed': {paper_id, …}, 'rejected': {…}} — applied by the resolver every run."""
     out: dict[str, set[int]] = {"confirmed": set(), "rejected": set()}

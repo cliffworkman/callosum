@@ -9,9 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-## 2026-06-20 — Increment 83: My Publications Part 2 — domain decomposition (Layer 2)
+## 2026-06-21 — Increment 84: star key publications + scope the AI summary to starred
 
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 83 (2026-06-20) — extended the My Publications dashboard section with research-domain decomposition (impact-by-domain + the chart re-filter). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 84 (2026-06-21) — added starring + the "⭐ only" summary scope to the My Publications section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** migration `0012_my_publication_stars.py` + `schema.py` (`profile.starred_paper_ids`); `profile_repo.py`
+  (`set_starred`); `routers/my_publications.py` (`POST /star` + `starred_only` on generate); `routers/axes.py`
+  (`ClusterPaperResponse.starred`, my-pubs only); `clustering/my_publications.py` (`my_publication_documents(only_paper_ids=)`);
+  `15_axes.jsx` (★ toggle) + `31_mypubs_dashboard.jsx` (⭐-only checkbox) + `styles.css`; `callosum-app.html`;
+  help corpus; tests.
+- **What:** ⭐ star key publications in the My Pubs sidebar card; a "⭐ only" toggle scopes the AI research
+  summary to the starred set.
+- **Why:** the chore from the user's My-Pubs follow-ups — focus the summary on flagship work.
+- **Scope:** migration 0012; one new endpoint (`POST /star`, local) + a `starred_only` body on generate.
+  pytest **377** (+2); `ruff` clean; no new egress (the summary path is the inc-81 gated seam).
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop `set_starred` + the `/star` endpoint +
+  `starred_only` + the `starred` cluster field + the frontend star UI + migration 0012.
+
+## 2026-06-20 — Increment 83: My Publications Part 2 — domain decomposition (Layer 2)
 
 - **Files:** migration `0011_my_publication_domains.py` + `schema.py` (`profile.research_domains`);
   `profile_repo.py`; `integrations/openalex/author.py` (`AuthorWork.cited_by_count` + `fetch_author_works(refresh=)`);

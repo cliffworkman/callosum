@@ -1023,3 +1023,8 @@
   .domain-row.on .domain-fill { background: var(--accent-line); }
   .domain-label { position: relative; z-index: 1; flex: 1; font-size: 13px; color: var(--ink); font-weight: 500; }
   .domain-meta { position: relative; z-index: 1; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+  /* Star key publications (inc 84) — ★ uses --accent (selection), not amber (--flag is status). */
+  .axis-star { border: none; background: none; cursor: pointer; font-size: 13px; line-height: 1; color: var(--ink-3); padding: 0 2px; }
+  .axis-star:hover { color: var(--accent); }
+  .axis-star.on { color: var(--accent); }
+  .mypubs-starred-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 400; color: var(--ink-2); cursor: pointer; }

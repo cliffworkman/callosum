@@ -49,6 +49,7 @@ from app.backend.clustering.axis_suggestion import apply_labels, suggest_axes
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.egress import EgressGatedAxisClusterLabeler, EgressGatedAxisTermSuggester
+from app.backend.persistence.profile_repo import get_profile
 from app.backend.persistence.repository import (
     get_axis,
     get_cluster_nodes_for_axis,
@@ -153,6 +154,7 @@ class ClusterPaperResponse(BaseModel):
     confidence: float | None = None  # cosine-similarity confidence; NULL for a manual override
     status: str = "uncertain"  # "assigned" / "uncertain" / "manual" (honest tier, not truth)
     manual: bool = False  # True when the human added this, not the scorer
+    starred: bool = False  # inc 84: My Publications only — a starred key publication
 
 
 class ClusterNodeResponse(BaseModel):
@@ -347,13 +349,16 @@ def axis_clusters(axis_id: int, conn: Connection = Depends(get_connection)) -> l
     if axis is None:
         raise HTTPException(status_code=404, detail="Axis not found")
     cutoff = _axis_cutoff(axis)
+    # inc 84: surface the starred flag on the My Publications axis's papers (a no-op set for every other axis).
+    is_my_pubs = (axis["kind"] if "kind" in axis else "standard") == "my_publications"
+    starred_ids = {int(x) for x in ((get_profile(conn) or {}).get("starred_paper_ids") or [])} if is_my_pubs else set()
     nodes = []
     for node in get_cluster_nodes_for_axis(conn, axis_id):
         rows = get_papers_for_cluster_node(conn, int(node["id"]))
         # Recompute the tier from the stored confidences against this axis's cutoff (absolute, inc 45):
         # assigned = scored similarity >= cutoff; uncertain = the rest. No persisted tier.
         assigned_ids = {int(row["id"]) for row in rows if row["confidence"] is not None and row["confidence"] >= cutoff}
-        papers = [_cluster_paper_response(paper, assigned_ids) for paper in rows]
+        papers = [_cluster_paper_response(paper, assigned_ids, starred_ids) for paper in rows]
         nodes.append(
             ClusterNodeResponse(
                 id=node["id"],
@@ -514,7 +519,7 @@ def _axis_response(conn: Connection, row) -> AxisResponse:
     )
 
 
-def _cluster_paper_response(paper, assigned_ids: set[int]) -> ClusterPaperResponse:
+def _cluster_paper_response(paper, assigned_ids: set[int], starred_ids: set[int] = frozenset()) -> ClusterPaperResponse:
     confidence = paper["confidence"]
     if confidence is None:
         status = "manual"  # confidence IS NULL → a human override, not a scored assignment
@@ -528,4 +533,5 @@ def _cluster_paper_response(paper, assigned_ids: set[int]) -> ClusterPaperRespon
         confidence=confidence,
         status=status,
         manual=confidence is None,
+        starred=int(paper["id"]) in starred_ids,
     )

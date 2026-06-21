@@ -1048,6 +1048,11 @@
   .domain-row.on .domain-fill { background: var(--accent-line); }
   .domain-label { position: relative; z-index: 1; flex: 1; font-size: 13px; color: var(--ink); font-weight: 500; }
   .domain-meta { position: relative; z-index: 1; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+  /* Star key publications (inc 84) — ★ uses --accent (selection), not amber (--flag is status). */
+  .axis-star { border: none; background: none; cursor: pointer; font-size: 13px; line-height: 1; color: var(--ink-3); padding: 0 2px; }
+  .axis-star:hover { color: var(--accent); }
+  .axis-star.on { color: var(--accent); }
+  .mypubs-starred-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 400; color: var(--ink-2); cursor: pointer; }
 </style>
 </head>
 <body>
@@ -1753,9 +1758,13 @@ function AxisTierBadge({ status }) {
   return <span className={"axis-tier axis-tier-" + label}>{label}</span>;
 }
 
-function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm }) {
+function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar }) {
   return (
     <div className={"axis-paper" + (selected ? " sel" : "")}>
+      {onStar &&
+        <button className={"axis-star" + (paper.starred ? " on" : "")}
+          title={paper.starred ? "Starred — click to unstar" : "Star this key publication (scopes the AI summary)"}
+          onClick={() => onStar(paper.id, !paper.starred)}>{paper.starred ? "★" : "☆"}</button>}
       <span className="axis-paper-title" onClick={() => onOpen(paper)} title={"Open " + paper.title}>{paper.title}</span>
       <AxisTierBadge status={paper.status} />
       <span className="axis-paper-conf" title={paper.manual ? "Manually added by you" : "Embedding-similarity confidence"}>
@@ -1866,7 +1875,8 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
                       <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id}
                         onOpen={handlers.openPaper}
                         onConfirm={(pid) => handlers.confirmPaper(axis.id, pid)}
-                        onRemove={(pid) => handlers.removePaper(axis.id, pid)} />
+                        onRemove={(pid) => handlers.removePaper(axis.id, pid)}
+                        onStar={isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : undefined} />
                     ))}
                   {hideUncertain && uncertainCount > 0 &&
                     <button className="axis-eye-hint" onClick={() => setHideUncertain(false)}>
@@ -2074,9 +2084,15 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     if (onOpenMyPubsDashboard) onOpenMyPubsDashboard(axis);
   }, [onOpenMyPubsDashboard]);
 
+  const starPaper = useCallback((axisId, paperId, starred) => {
+    apiPost("/my-publications/star", { paper_id: paperId, starred }).then(r => {
+      if (r.ok) loadDetail(axisId);  // reflect the ★/☆ flip in the card
+    });
+  }, [loadDetail]);
+
   const handlers = {
     toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis,
-    openMyPubsDashboard, toggleSelect, openEdit, openPaper,
+    openMyPubsDashboard, starPaper, toggleSelect, openEdit, openPaper,
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.
@@ -4220,6 +4236,7 @@ function MyPubsDashboard({ axisId }) {
   const [save, setSave] = useState("idle");             // idle | saving | saved
   const [domainJob, setDomainJob] = useState({ status: "idle" });  // idle | running | error | too-few
   const [selectedDomains, setSelectedDomains] = useState(() => new Set());  // indices of domains filtering the chart
+  const [starredOnly, setStarredOnly] = useState(false);  // inc 84: scope the summary draft to starred pubs
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -4237,7 +4254,7 @@ function MyPubsDashboard({ axisId }) {
 
   const generate = async () => {
     setGen({ status: "running" });
-    const r = await apiPost("/my-publications/summary/generate", {});
+    const r = await apiPost("/my-publications/summary/generate", { starred_only: starredOnly });
     if (r.ok) { setSummary(r.data.summary || ""); setDirty(true); setSave("idle"); setGen({ status: "idle" }); }
     else setGen({ status: "error", error: r.error });
   };
@@ -4374,6 +4391,9 @@ function MyPubsDashboard({ axisId }) {
         <div className="mypubs-summary-head">
           <span>Research summary <span className="mypubs-ai-tag">AI-generated draft — edit freely</span></span>
           <span className="mypubs-summary-actions">
+            <label className="mypubs-starred-toggle" title="Generate from only your ⭐ starred publications (star them in the My Publications sidebar card)">
+              <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ only
+            </label>
             <button className="btn btn-ghost" disabled={gen.status === "running"} onClick={generate}>
               {gen.status === "running" ? "Generating…" : (summary ? "Regenerate" : "Generate")}
             </button>

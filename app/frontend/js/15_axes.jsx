@@ -16,9 +16,13 @@ function AxisTierBadge({ status }) {
   return <span className={"axis-tier axis-tier-" + label}>{label}</span>;
 }
 
-function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm }) {
+function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar }) {
   return (
     <div className={"axis-paper" + (selected ? " sel" : "")}>
+      {onStar &&
+        <button className={"axis-star" + (paper.starred ? " on" : "")}
+          title={paper.starred ? "Starred — click to unstar" : "Star this key publication (scopes the AI summary)"}
+          onClick={() => onStar(paper.id, !paper.starred)}>{paper.starred ? "★" : "☆"}</button>}
       <span className="axis-paper-title" onClick={() => onOpen(paper)} title={"Open " + paper.title}>{paper.title}</span>
       <AxisTierBadge status={paper.status} />
       <span className="axis-paper-conf" title={paper.manual ? "Manually added by you" : "Embedding-similarity confidence"}>
@@ -129,7 +133,8 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
                       <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id}
                         onOpen={handlers.openPaper}
                         onConfirm={(pid) => handlers.confirmPaper(axis.id, pid)}
-                        onRemove={(pid) => handlers.removePaper(axis.id, pid)} />
+                        onRemove={(pid) => handlers.removePaper(axis.id, pid)}
+                        onStar={isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : undefined} />
                     ))}
                   {hideUncertain && uncertainCount > 0 &&
                     <button className="axis-eye-hint" onClick={() => setHideUncertain(false)}>
@@ -337,9 +342,15 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     if (onOpenMyPubsDashboard) onOpenMyPubsDashboard(axis);
   }, [onOpenMyPubsDashboard]);
 
+  const starPaper = useCallback((axisId, paperId, starred) => {
+    apiPost("/my-publications/star", { paper_id: paperId, starred }).then(r => {
+      if (r.ok) loadDetail(axisId);  // reflect the ★/☆ flip in the card
+    });
+  }, [loadDetail]);
+
   const handlers = {
     toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis,
-    openMyPubsDashboard, toggleSelect, openEdit, openPaper,
+    openMyPubsDashboard, starPaper, toggleSelect, openEdit, openPaper,
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.

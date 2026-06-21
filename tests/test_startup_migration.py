@@ -10,7 +10,7 @@ from alembic.config import Config
 # Bind the startup module (where the auto-migration machinery lives) for direct calls/monkeypatch.
 app_module = importlib.import_module("app.backend.api.startup")
 
-HEAD = "0011_my_publication_domains"
+HEAD = "0012_my_publication_stars"
 BEHIND = "0001_persistence_core"
 
 

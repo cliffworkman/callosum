@@ -547,3 +547,52 @@ def test_domains_endpoint(temp_db_url):
             break
     assert result["status"] == "done" and result["result_status"] == "ok" and result["domain_count"] == 2
     assert len(client.get("/my-publications/dashboard").json()["domains"]) == 2
+
+
+# --- starring + scoped summary (inc 84) ------------------------------------------------------------------
+
+
+def test_star_toggles_and_clusters_reflect_it(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        p1 = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+    fake = _FakeAuthorClient(
+        author=_ADA_STATS, works=[AuthorWork(doi="10.1/engine", title="Engine", year=1843, cited_by_count=3)]
+    )
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)
+    client = TestClient(create_app(db_url=temp_db_url, openalex_author_client=fake))
+    assert client.post("/my-publications/star", json={"paper_id": p1, "starred": True}).status_code == 204
+    axis = next(a for a in client.get("/axes").json() if a["kind"] == "my_publications")
+    papers = [p for node in client.get(f"/axes/{axis['id']}/clusters").json() for p in node["papers"]]
+    assert any(p["id"] == p1 and p["starred"] for p in papers)  # starred surfaces on the my-pubs clusters
+    assert client.post("/my-publications/star", json={"paper_id": p1, "starred": False}).status_code == 204
+    papers2 = [p for node in client.get(f"/axes/{axis['id']}/clusters").json() for p in node["papers"]]
+    assert all(not p["starred"] for p in papers2)
+
+
+def test_generate_summary_scoped_to_starred(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        p1 = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+        create_paper(conn, title="Other", csl_json=_csl("Other", "10.1/other"), doi="10.1/other")
+    works = [
+        AuthorWork(doi="10.1/engine", title="Engine", year=1843, cited_by_count=1),
+        AuthorWork(doi="10.1/other", title="Other", year=1844, cited_by_count=1),
+    ]
+    fake = _FakeAuthorClient(author=_ADA_STATS, works=works)
+    with engine.begin() as conn:
+        resolve_my_publications(conn, author_client=fake, force=True)  # 2 confirmed members
+    client = TestClient(
+        create_app(db_url=temp_db_url, openalex_author_client=fake, research_summary_generator=_FakeSummaryGen())
+    )
+    assert (
+        client.post("/my-publications/summary/generate", json={"starred_only": True}).status_code == 422
+    )  # none starred
+    client.post("/my-publications/star", json={"paper_id": p1, "starred": True})
+    starred = client.post("/my-publications/summary/generate", json={"starred_only": True})
+    assert starred.status_code == 200 and "1 publications" in starred.json()["summary"]  # scoped to the 1 starred
+    full = client.post("/my-publications/summary/generate", json={"starred_only": False})
+    assert "2 publications" in full.json()["summary"]  # all members

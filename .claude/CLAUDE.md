@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 83** (see Increment workflow) with **375 pytest tests
+It is currently at **Increment 84** (see Increment workflow) with **377 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -230,7 +230,7 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0011_my_publication_domains)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0012_my_publication_stars)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── callosum-app.html              ← GENERATED from app/frontend/ by tools/build_frontend.py; served at /
 ├── library/                       (77 scholarly PDFs; "Author et al. - YEAR - Journal.pdf"; gitignored)
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 83). Each increment of real work
+callosum is built in **numbered increments** (currently at 84). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -634,7 +634,17 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 83 (My Publications Part 2 — domain decomposition, Layer 2): the
+*Last updated: 2026-06-21 — increment 84 (star key publications + scope the AI summary): a My-Publications
+curation chore — ⭐ **star** key papers in the My Pubs sidebar card, and a **"⭐ only"** toggle on the dashboard
+that scopes the inc-81 AI research-summary generation to the starred set. Storage is an isolated
+`profile.starred_paper_ids` JSON list (migration **0012**; like `research_domains`); the star state surfaces on
+the **my_publications axis clusters** response (`ClusterPaperResponse.starred`, gated to that axis); `POST
+/my-publications/star`; the generate endpoint gained a `starred_only` body → `my_publication_documents(only_paper_ids=…)`
+(empty starred + starred_only → 422). LLM-free plumbing (the summary path is the already-gated inc-81 egress
+seam). pytest **377** (+2); help corpus updated (`HELP-DOCS-SYNCED` → 84); `ruff` clean. **NEXT:** inc 85 (the
+carrot) — the missing-works review/import queue.
+
+Earlier — increment 83 (My Publications Part 2 — domain decomposition, Layer 2): the
 dashboard's **Research domains** section — cluster your CONFIRMED own-papers into research domains
 (**impact-by-domain**: citation sums) and **click a domain to re-filter** the publications-by-year chart.
 **LLM-free** local clustering (reuses the inc-52 axis-suggestion machinery); the only egress is the OpenAlex

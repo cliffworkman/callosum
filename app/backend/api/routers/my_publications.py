@@ -33,6 +33,7 @@ from app.backend.persistence.profile_repo import (
     set_decision,
     set_my_publications_dismissed,
     set_research_summary,
+    set_starred,
     upsert_profile,
 )
 from app.backend.persistence.repository import get_paper
@@ -130,6 +131,15 @@ class SummaryUpdateRequest(BaseModel):
     summary: str | None = None
 
 
+class SummaryGenerateRequest(BaseModel):
+    starred_only: bool = False  # inc 84: scope the draft to the user's starred publications
+
+
+class StarRequest(BaseModel):
+    paper_id: int
+    starred: bool = True
+
+
 class DomainJobResponse(BaseModel):
     job_id: str
     status: Literal["pending", "running", "done", "error"]
@@ -215,10 +225,17 @@ def decompose_my_publications_status(job_id: str, request: Request) -> DomainJob
 
 
 @router.post("/my-publications/summary/generate", response_model=SummaryResponse)
-def generate_my_publications_summary(request: Request, conn: Connection = Depends(get_connection)) -> SummaryResponse:
+def generate_my_publications_summary(
+    payload: SummaryGenerateRequest, request: Request, conn: Connection = Depends(get_connection)
+) -> SummaryResponse:
     # Generate a DRAFT research summary from the user's OWN publication titles/abstracts. Library text →
     # egress-gated (off → 503, like suggest-terms). Does NOT persist; the user reviews/edits then PUTs.
-    documents = my_publication_documents(conn)
+    only_ids = None
+    if payload.starred_only:
+        only_ids = {int(x) for x in (get_profile(conn) or {}).get("starred_paper_ids") or []}
+        if not only_ids:
+            raise HTTPException(status_code=422, detail="Star some publications first, or turn off 'starred only'.")
+    documents = my_publication_documents(conn, only_paper_ids=only_ids)
     if not documents:
         raise HTTPException(
             status_code=422,
@@ -248,6 +265,14 @@ def put_my_publications_summary(
     set_research_summary(conn, text or None)
     conn.commit()
     return SummaryResponse(summary=(get_profile(conn) or {}).get("research_summary") or "")
+
+
+@router.post("/my-publications/star", status_code=http_status.HTTP_204_NO_CONTENT)
+def star_my_publication(payload: StarRequest, conn: Connection = Depends(get_connection)) -> Response:
+    # Star/unstar a paper (inc 84) — drives the "use starred only" summary scope. Local; idempotent.
+    set_starred(conn, payload.paper_id, payload.starred)
+    conn.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/my-publications", status_code=http_status.HTTP_204_NO_CONTENT)

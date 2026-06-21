@@ -45,7 +45,9 @@ class AuthorWork:
     doi: str | None  # normalized: "10.xxxx/yyyy" lower-case (no https://doi.org/ prefix)
     title: str | None
     year: int | None
-    cited_by_count: int = 0  # inc 83 — per-work OpenAlex citations, for impact-by-domain (default keeps old caches valid)
+    cited_by_count: int = (
+        0  # inc 83 — per-work OpenAlex citations, for impact-by-domain (default keeps old caches valid)
+    )
 
 
 class AuthorFetcher(Protocol):

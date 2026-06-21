@@ -47,6 +47,7 @@ function MyPubsDashboard({ axisId }) {
   const [save, setSave] = useState("idle");             // idle | saving | saved
   const [domainJob, setDomainJob] = useState({ status: "idle" });  // idle | running | error | too-few
   const [selectedDomains, setSelectedDomains] = useState(() => new Set());  // indices of domains filtering the chart
+  const [starredOnly, setStarredOnly] = useState(false);  // inc 84: scope the summary draft to starred pubs
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -64,7 +65,7 @@ function MyPubsDashboard({ axisId }) {
 
   const generate = async () => {
     setGen({ status: "running" });
-    const r = await apiPost("/my-publications/summary/generate", {});
+    const r = await apiPost("/my-publications/summary/generate", { starred_only: starredOnly });
     if (r.ok) { setSummary(r.data.summary || ""); setDirty(true); setSave("idle"); setGen({ status: "idle" }); }
     else setGen({ status: "error", error: r.error });
   };
@@ -201,6 +202,9 @@ function MyPubsDashboard({ axisId }) {
         <div className="mypubs-summary-head">
           <span>Research summary <span className="mypubs-ai-tag">AI-generated draft — edit freely</span></span>
           <span className="mypubs-summary-actions">
+            <label className="mypubs-starred-toggle" title="Generate from only your ⭐ starred publications (star them in the My Publications sidebar card)">
+              <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ only
+            </label>
             <button className="btn btn-ghost" disabled={gen.status === "running"} onClick={generate}>
               {gen.status === "running" ? "Generating…" : (summary ? "Regenerate" : "Generate")}
             </button>

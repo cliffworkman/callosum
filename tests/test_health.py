@@ -22,8 +22,8 @@ def test_health_reports_reachable_and_migrated(temp_db_url: str) -> None:
     assert body["verification_version"] == "local-verifier-v1"
     assert body["db_reachable"] is True
     assert body["db_migrated"] is True  # at head
-    assert body["db_revision"] == "0011_my_publication_domains"
-    assert body["db_head_revision"] == "0011_my_publication_domains"
+    assert body["db_revision"] == "0012_my_publication_stars"
+    assert body["db_head_revision"] == "0012_my_publication_stars"
 
 
 def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
@@ -39,7 +39,7 @@ def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
     assert body["db_reachable"] is True
     assert body["db_migrated"] is False
     assert body["db_revision"] == "0001_persistence_core"
-    assert body["db_head_revision"] == "0011_my_publication_domains"
+    assert body["db_head_revision"] == "0012_my_publication_stars"
 
 
 def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:
@@ -157,6 +157,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/my-publications/summary/generate", frozenset({"POST"})),
         ("/my-publications/summary", frozenset({"PUT"})),
         ("/my-publications/domains", frozenset({"POST"})),
+        ("/my-publications/star", frozenset({"POST"})),
         ("/my-publications", frozenset({"DELETE"})),
     }
     api_routes = [
