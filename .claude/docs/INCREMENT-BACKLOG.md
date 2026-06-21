@@ -116,8 +116,10 @@ _Italic notes are light implementation pointers, not designs._
 ## Captured from `callosum_TDL.txt` (near-term UX)
 
 **Library management & import**
-- [ ] **Scan / refresh / watch library folders** (user's top-priority marker) — detect new/changed/removed
-  files in a watched folder and reconcile the library. Pairs with *Import coverage*.
+- [x] **Scan / refresh library folders** — **shipped inc 87** (manual scan/refresh: `POST /library/scan` →
+  `pdf_processing/library_scan.py`; new/unchanged/removed, linked in-place, checksum-dedup, async enrich+embed;
+  a **Scan folder** button + modal). **Deferred follow-ons:** background **watch**/auto-refresh + a persisted
+  watched-folder list; true **changed-file re-ingest** (needs inc-65 vector cleanup); recursive subfolders.
 - [ ] **"UNSORTED" cluster** — a toggle gathering papers whose DOI/metadata resolution failed (the Mendeley
   "Unsorted/Needs-review" analogue) so they are easy to find + fix.
 - [ ] **Filter library by type** (article / book / preprint …) — extends the inc-69 sort + inc-63/71 axis/tag

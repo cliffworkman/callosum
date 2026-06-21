@@ -132,7 +132,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     onBulkSummarize, onBulkExport, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted }) {
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
@@ -144,6 +144,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           <span className="lib-head-actions">
+            {!trashView &&
+              <button className="trash-toggle" onClick={onOpenScan} title="Scan a folder for PDFs and add new ones to the library">Scan folder</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
                 title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>

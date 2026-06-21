@@ -54,6 +54,18 @@ Gotchas:
 - A paper with **metadata not yet resolved** or **needs DOI** usually came from a raw or sparse record. Add or fix the DOI in Detail, then use the `🔎` button to re-resolve it from Crossref.
 - Imported PDF text quality depends on the PDF. Scanned image-only pages may not produce useful selectable text or exact citation coordinates.
 
+<!-- section: scanning-a-folder -->
+## Scanning a folder for PDFs
+If your PDFs live in a folder (not Zotero), point Callosum at it: click **Scan folder** at the top of the Library, enter the folder's path on this computer, and click **Scan**.
+
+Callosum walks the folder for PDFs and reconciles them with your library:
+
+- **New** PDFs are added — text extracted, chunked, embedded, and metadata fetched from Crossref where a DOI is found. Any whose DOI doesn't resolve land under **Unsorted** so you can fix them.
+- **Unchanged** PDFs (already in the library, matched by content) are skipped — re-scanning is safe and idempotent.
+- **Removed** PDFs (a previously-scanned file that's now gone from the folder) are flagged as missing, not deleted.
+
+Your PDFs stay where they are — scanning links to them in place and never moves or copies anything. The folder path is remembered, so re-scanning to pick up new files is one click. Scanning reads only that folder on your own machine and never sends your PDFs anywhere (only the DOI lookup talks to Crossref, the same public metadata service used elsewhere).
+
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library
 The Library is for quickly finding papers and opening the ones you want to read. It shows each paper's title, authors, year, venue, processing tier, chunk count, and file count.

@@ -1,0 +1,100 @@
+"""Tests for the library-folder scan (inc 87) — hermetic (fitz-built fixture PDFs; injected fake model +
+no-op Crossref; no real network)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import fitz
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+
+from app.backend.api import create_app
+from app.backend.pdf_processing.library_scan import scan_library_folder
+from app.backend.persistence.database import make_engine
+from app.backend.persistence.schema import attachments
+
+
+def _make_pdf(path: Path, text: str) -> Path:
+    doc = fitz.open()
+    page = doc.new_page(width=400, height=300)
+    page.insert_text((40, 60), text, fontsize=12)
+    doc.save(path)
+    doc.close()
+    return path
+
+
+class _FakeModel:
+    name = "fake-scan"
+    version = "v1"
+    dimension = 4
+    normalization = "none"
+
+    def encode_texts(self, texts):
+        return [[1.0, 0.0, 0.0, 0.0] for _ in texts]
+
+
+class _UnresolvedResolution:
+    resolved = False
+    csl_json = None
+    error = None
+
+
+class _NoCrossref:
+    def resolve_doi(self, conn, doi):
+        return _UnresolvedResolution()
+
+
+def test_scan_adds_new_skips_unchanged_flags_removed(temp_db_url, tmp_path):
+    folder = tmp_path / "lib"
+    folder.mkdir()
+    _make_pdf(folder / "a.pdf", "Alpha analytical engine study one.")
+    _make_pdf(folder / "b.pdf", "Beta computation memoir two.")
+    engine = make_engine(temp_db_url)
+
+    with engine.begin() as conn:
+        first = scan_library_folder(conn, folder)
+    assert len(first["added"]) == 2 and not first["unchanged"] and not first["removed"]
+    # every added paper has a linked attachment with a checksum
+    with engine.begin() as conn:
+        rows = list(
+            conn.execute(select(attachments.c.storage_mode, attachments.c.checksum, attachments.c.import_source))
+        )
+    assert all(r[0] == "linked" and r[1] and r[2] == "library-scan" for r in rows)
+
+    with engine.begin() as conn:  # re-scan → all unchanged (content dedup by checksum)
+        again = scan_library_folder(conn, folder)
+    assert len(again["unchanged"]) == 2 and not again["added"]
+
+    (folder / "b.pdf").unlink()  # remove one on disk → flagged missing (non-destructive)
+    with engine.begin() as conn:
+        third = scan_library_folder(conn, folder)
+        missing = list(conn.execute(select(attachments.c.availability).where(attachments.c.availability == "missing")))
+    assert len(third["removed"]) == 1 and len(third["unchanged"]) == 1 and len(missing) == 1
+
+
+def test_scan_endpoint_processes_folder(temp_db_url, tmp_path):
+    folder = tmp_path / "lib"
+    folder.mkdir()
+    _make_pdf(folder / "one.pdf", "Alpha analytical engine study.")
+    _make_pdf(folder / "two.pdf", "Beta computation memoir.")
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+
+    started = client.post("/library/scan", json={"folder": str(folder)})
+    assert started.status_code == 202
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(30):
+        result = client.get(f"/library/scan/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+    assert result["status"] == "done", result
+    assert result["summary"]["added"] == 2
+    # the new papers are in the library; unresolved (no Crossref) → the inc-80 Unsorted view
+    assert len(client.get("/papers").json()) == 2
+    assert len(client.get("/papers", params={"needs_review": "true"}).json()) == 2
+
+
+def test_scan_nonexistent_folder_422(temp_db_url, tmp_path):
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.post("/library/scan", json={"folder": str(tmp_path / "nope")}).status_code == 422

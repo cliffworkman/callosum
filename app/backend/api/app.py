@@ -25,6 +25,7 @@ from app.backend.api.routers import (
     duplicates,
     health,
     help,
+    library,
     my_publications,
     papers,
     summaries,
@@ -93,6 +94,7 @@ def create_app(
     api.state.wanted_jobs = JobStore()
     api.state.mypubs_jobs = JobStore()
     api.state.mypubs_domain_jobs = JobStore()
+    api.state.library_scan_jobs = JobStore()
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
@@ -137,6 +139,7 @@ def create_app(
     api.include_router(papers.router)
     api.include_router(annotations.router)
     api.include_router(tags.router)
+    api.include_router(library.router)
     api.include_router(axes.router)
     api.include_router(summaries.router)
     api.include_router(help.router)

@@ -117,6 +117,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/my-publications/refresh/{job_id}",
         "/my-publications/dashboard",
         "/my-publications/domains/{job_id}",
+        "/library/scan/{job_id}",
     }
     allowed_mutation_routes = {
         ("/summarize", frozenset({"POST"})),
@@ -161,6 +162,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/my-publications/works/import", frozenset({"POST"})),
         ("/my-publications/works/dismiss", frozenset({"POST"})),
         ("/my-publications", frozenset({"DELETE"})),
+        ("/library/scan", frozenset({"POST"})),
     }
     api_routes = [
         route

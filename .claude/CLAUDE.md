@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 86** (see Increment workflow) with **380 pytest tests
+It is currently at **Increment 87** (see Increment workflow) with **383 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -194,13 +194,14 @@ callosum/
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,duplicates,
-│   │   │                          acquisition,wanted,my_publications,annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
+│   │   │                          acquisition,wanted,my_publications,library,annotations,tags,axes,summaries,help}.py [models + helpers + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
 │   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
-│   │   │                          [locate_quote → bbox rects], ingest.py, location.py, cli.py)
+│   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
+│   │   │                          location.py, cli.py)
 │   │   ├── embeddings/            (models.py, pipeline.py, vector_store.py [sqlite-vec], retrieval.py)
 │   │   ├── clustering/            (abstract_clustering.py, axis_scoring.py [scoring engine],
 │   │                          axis_assignments.py [manual-override + state API], axis_suggestion.py,
@@ -335,7 +336,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 86). Each increment of real work
+callosum is built in **numbered increments** (currently at 87). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -419,6 +420,9 @@ work is called done:
 **Before any public/internet-facing deployment** (not done today — track it):
 - There is **no authentication and no rate limiting.** Add both before exposing the app.
 - The localhost-only CORS + PDF/file-serving paths must be re-reviewed for a hosted context.
+- **`POST /library/scan` reads a user-supplied folder server-side** (inc 87) — fine on 127.0.0.1 (the server is
+  the user's machine), but a remote caller could enumerate/read server files. **Gate or remove it before any
+  hosted deployment.**
 - Re-audit the egress gate, secret storage, and per-IP resource caps.
 
 ---
@@ -534,6 +538,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Scan a library folder = an app-level orchestrator over the existing ingest primitives; linked in-place, checksum-dedup, async (inc 87) | The first app-level "ingest a folder of PDFs" (previously only the Zotero importer + the dev validation harness). New `pdf_processing/library_scan.py::scan_library_folder` reuses `attach_pdf_to_paper` (extract+chunk) + `file_sha256` + the indexed `attachments.checksum`: **new** = checksum not in the library → `create_paper("pdf-scaffold")` + `attach_pdf_to_paper(storage_mode="linked", import_source="library-scan")` in a per-file **savepoint** (a corrupt PDF is isolated, not fatal); **unchanged** = checksum present (re-scan idempotent); **removed** = a previously-scanned path gone → `availability="missing"` (non-destructive). PDFs stay in place (**linked** — nothing copied). The async job (`library_scan_jobs`, `routers/library.py`) then enriches new papers from Crossref (unresolved → the inc-80 Unsorted view) + embeds new chunks/papers. **No migration** (reuses `attachments`); only egress is the Crossref DOI lookup (NOT the Gemini gate); the folder is read **server-side** — fine on 127.0.0.1, but gate before any hosted deploy (Security baseline). v1 = new/unchanged/removed; **changed** in-place files add a new paper (true re-ingest deferred — needs inc-65 vector cleanup); **watch**/auto + a persisted watched-folder are deferred. Audit `.claude/security-audits/2026-06-21_library-scan.md` PASS. |
 | My Publications missing-works review/import = guardrailed, metadata-only import of the author's own indexed works (inc 85) | The dashboard gap ("79 indexed · 40 in library") becomes a **review queue** (`build_dashboard.missing_works` = cached author works whose DOI ∉ live library ∉ `profile.dismissed_work_dois`, sorted by citations; cache-only). **Import** (`import_missing_work`) reuses the inc-74–76 lane but is **metadata-only** (`create_paper` + `enrich_paper_metadata_from_crossref(force=True)` — `openalex-import` isn't in the auto-update allowlist, so force, like re-resolve; the OA-**PDF** path stays the separate "Acquire OA copy"). **Guardrail:** the DOI must be one of the resolved author's cached works → no arbitrary-DOI minting (else 422). My-Pubs membership is added **directly** via `_add_confirmed_member` (cache-independent — not via `maybe_add_to_my_publications`, which re-derives from the cached works), so it works regardless of cache warmth / Crossref outcome; an imported work then matches a live paper and drops from the queue. **Reject** = `dismiss_work` (a normalized DOI in `profile.dismissed_work_dois` JSON, migration **0013**). Facts-vs-candidates (the human imports/dismisses — no auto-action); only egress is the Crossref DOI lookup (not the Gemini gate); the list + dismiss are local. `POST /my-publications/works/{import,dismiss}`. Audit `.claude/security-audits/2026-06-21_my-pubs-missing-works.md` PASS. |
 | Star key publications = an isolated `profile.starred_paper_ids` JSON list; the AI summary can scope to it (inc 84) | ⭐ star key papers in the My Pubs sidebar card (the star state surfaces on the `my_publications` axis clusters response — `ClusterPaperResponse.starred`, gated to that axis so the generic endpoint does no extra work for standard axes). `POST /my-publications/star`; the generate endpoint's `starred_only` body → `my_publication_documents(only_paper_ids=…)` (empty starred + starred_only → 422). Stored as `profile.starred_paper_ids` JSON (migration **0012**; like `research_domains`) — no new table, no coupling to the membership machinery. LLM-free plumbing (the summary path is the inc-81 gated seam). |
 | My Publications domain decomposition (Part 2, Layer 2) = local clustering stored as an isolated JSON artifact, NOT child cluster_nodes (inc 83) | Layer 2 clusters the user's CONFIRMED own-papers into research **domains** (impact-by-domain + a dashboard chart re-filter), reusing the inc-52 axis-suggestion machinery (`model.encode_texts` → `AgglomerativeAbstractClusterer` → c-TF-IDF labels). The spec suggested child cluster_nodes under the my_publications axis, but **`axis_score_state` counts members by `axis_id` across ALL of an axis's nodes** — so children would double-count the inc-78 card badge + skew the inc-79 `uncertain_count`. So the decomposition is persisted as **`profile.research_domains` JSON** (`[{label, terms, paper_ids}]`, like `name_variants`) — isolated, zero impact on the membership/count machinery (migration **0011**). **LLM-free** (clustering is local); the only egress is the OpenAlex works **refresh** (`fetch_author_works(refresh=True)` adds per-work `cited_by_count` for impact-by-domain) — metadata egress, already audited (inc 78), NOT the Gemini gate. Impact-by-domain is an honest citation **sum** (no composite score); domains show their member papers + the terms that named them (inspectable); the 0.25 name-only candidates are excluded. `decompose_domains` is async (`mypubs_domain_jobs`); the dashboard read stays cache-only/egress-free; the chart re-filter is client-side from each domain's `paper_years`. Layers 3–4 deferred. |
@@ -636,7 +641,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-21 — increment 86 (axis re-score line-wrap fix + button-cleanup resolution): two
+*Last updated: 2026-06-21 — increment 87 (scan / refresh a library folder): the user's top-priority TDL item —
+point Callosum at a folder of PDFs and reconcile **new / unchanged / removed** files into the library (the
+Zotero-free way to keep it current). New `pdf_processing/library_scan.py::scan_library_folder` (reuses
+`attach_pdf_to_paper` + `file_sha256` + the indexed `attachments.checksum`; **linked** in-place, nothing copied;
+checksum-dedup; per-file savepoint isolates corrupt PDFs; removed → `availability="missing"`) + an async job
+(`routers/library.py`, `POST/GET /library/scan`) that enriches new papers from Crossref (unresolved → the inc-80
+Unsorted view) + embeds them. Frontend: a **Scan folder** button + `ScanModal` (`27_scan.jsx`). **No migration**
+(reuses `attachments`); only egress is the Crossref DOI lookup (NOT the Gemini gate); the folder is read
+server-side (fine on 127.0.0.1 — flagged in the deployment checklist to gate before any hosted deploy). pytest
+**383** (+3); audit `.claude/security-audits/2026-06-21_library-scan.md` **PASS**; help corpus gained a "Scanning
+a folder for PDFs" section (`HELP-DOCS-SYNCED` → 87). v1 = manual scan/refresh; **watch/auto** + a persisted
+watched-folder + changed-file re-ingest are deferred. **NEXT:** the user has tweaks coming (likely My Pubs); or
+a fresh chore/carrot cluster (deferred: BibTeX/RIS import, statcheck, the discovery/gapfinder track).
+
+Earlier — increment 86 (axis re-score line-wrap fix + button-cleanup resolution): two
 frontend-only UI-polish chores. (1) The axis **re-score row** no longer wraps badly — `flex-wrap: nowrap` + the
 Cutoff slider made the shrinkable flex item (`.axis-cutoff-range flex:1; min-width:36px`), so label · slider ·
 Re-score · 👁 stay on one line at any sidebar width. (2) **DESIGN §3 #5 resolved:** the remaining "divergent

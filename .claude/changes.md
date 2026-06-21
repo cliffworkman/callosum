@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-21 — Increment 87: scan / refresh a library folder
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 87 (2026-06-21) — added a "Scanning a folder for PDFs" section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** `app/backend/pdf_processing/library_scan.py` (NEW), `app/backend/api/routers/library.py` (NEW),
+  `app/backend/api/app.py` (router + JobStore); frontend `27_scan.jsx` (NEW) + `10_pdf_layer.jsx` +
+  `40_app.jsx` + `styles.css`; `callosum-app.html`; help corpus; tests; the security audit.
+- **What:** point Callosum at a folder of PDFs → ingest new ones (extract+chunk+embed, Crossref-enriched), skip
+  unchanged (checksum dedup), flag removed (`availability="missing"`). Linked in-place (nothing copied). Async
+  `POST/GET /library/scan` + a **Scan folder** button → modal in the library head.
+- **Why:** the user's top-priority `callosum_TDL.txt` item — the Zotero-free way to keep a library current.
+- **Scope:** no migration (reuses `attachments`); 2 new endpoints; only egress is the Crossref DOI lookup (NOT
+  the Gemini gate); the folder is read server-side (gate before any hosted deploy — noted). pytest **383** (+3);
+  `ruff` clean; audit PASS.
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop `library_scan.py` + `routers/library.py` +
+  the `27_scan.jsx` wiring + the JobStore.
+
 ## 2026-06-21 — Increment 86: axis re-score line-wrap fix + button-cleanup resolution
 
 - **Files:** `app/frontend/styles.css`, `.claude/DESIGN.md`, `callosum-app.html` (rebuilt).
@@ -21,8 +38,6 @@ are the design diary; this is the chronological "what & why" record.
 - **Revert:** restore `styles.css` from a `.claude/backups/` snapshot.
 
 ## 2026-06-21 — Increment 85: My Publications — missing-works review + import
-
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 85 (2026-06-21) — added the missing-works review/import queue to the My Publications section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 - **Files:** migration `0013_my_publication_dismissed_works.py` + `schema.py` (`profile.dismissed_work_dois`);
   `profile_repo.py` (`dismiss_work`); `clustering/my_publications.py` (`build_dashboard.missing_works`,
