@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 82: library-card tidy + double-click/text-select fix
+
+- **Files:** `app/frontend/js/10_pdf_layer.jsx`, `callosum-app.html` (rebuilt).
+- **What:** (1) dropped the "N chunks" chip from library cards (processing-internal, not bibliographic);
+  (2) a card's double-click opens the PDF only when it didn't select text (`getSelection().isCollapsed`), so
+  double-clicking a title word selects it instead of opening.
+- **Why:** two `callosum_TDL.txt` UX chores — cleaner cards + stop double-click-to-open hijacking text selection.
+- **Scope:** frontend-only — no migration/endpoint/egress/CSS. pytest **370** unchanged.
+- **Revert:** restore the chunks chip + the unconditional `onDoubleClick` in `10_pdf_layer.jsx`.
+
 ## 2026-06-20 — Increment 81: My Publications Part 2 — the impact dashboard (Layer 1)
 
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 81 (2026-06-20) — extended the My Publications section with the impact dashboard (📊), the metric tiles + gap, and the editable AI research summary. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->

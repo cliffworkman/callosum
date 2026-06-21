@@ -109,10 +109,6 @@ _Italic notes are light implementation pointers, not designs._
   "Unsorted/Needs-review" analogue) so they are easy to find + fix.
 - [ ] **Filter library by type** (article / book / preprint …) — extends the inc-69 sort + inc-63/71 axis/tag
   filters (same allowlist-param pattern).
-- [ ] **Drop chunked-row content from library article cards** — cards currently show chunk text; tidy to
-  bibliographic info only.
-- [ ] **Double-click-to-open vs. text-selection** — stop a card's double-click-to-open from hijacking text
-  selection inside the card (UX bug).
 
 **PDF viewer**
 - [ ] **Page-view options** — fit-to-width, two-up / side-by-side, etc.

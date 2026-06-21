@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 81** (see Increment workflow) with **370 pytest tests
+It is currently at **Increment 82** (see Increment workflow) with **370 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 81). Each increment of real work
+callosum is built in **numbered increments** (currently at 82). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -633,7 +633,16 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 81 (My Publications Part 2 — the impact dashboard, Layer 1): an Overview
+*Last updated: 2026-06-20 — increment 82 (library-card tidy + double-click/text-select fix): two small
+library-card UX chores (frontend-only, `10_pdf_layer.jsx`). (1) Dropped the "N chunks" chip from cards —
+chunk count is processing-internal, not bibliographic (cards keep title·authors·year·venue + tier/file/needs-DOI).
+(2) A card's double-click now opens the PDF **only when it didn't select text** (`getSelection().isCollapsed`):
+double-click a title word → it selects (copyable), no open; double-click empty card space → opens. pytest **370**
+unchanged (frontend-only); no migration/endpoint/egress/CSS. **NEXT:** the chosen carrot — My Publications
+**Part 2 Layer 2** (domain decomposition: cluster your own corpus into sub-axes + impact-by-domain, re-filter
+the dashboard) — plan-mode first.
+
+Earlier — increment 81 (My Publications Part 2 — the impact dashboard, Layer 1): an Overview
 **dashboard tab** for the pinned My Publications axis (opened by a **📊** button on the card), turning the
 user's own corpus into a first-class impact surface — headline OpenAlex metrics (citations / h-index / i10 /
 indexed works), a hand-rolled **publications-by-year SVG chart** (+ citations-by-year), the **indexed-vs-library
