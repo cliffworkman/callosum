@@ -9,19 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-## 2026-06-20 — CI fix: pin ruff + apply ruff format (green CI after the billing unlock)
+## 2026-06-20 — CI fix: pin ruff + the web stack + apply ruff format (CI now green)
 
-- **What:** the first real CI run (once the GitHub Actions **billing lock** was cleared — every prior run had
-  failed in ~4s, "account is locked due to a billing issue", before any step ran) failed `lint-and-test`: CI's
-  **unpinned** ruff resolved to **0.15.18** while local was **0.9.6** (its 0.x *minors* change isort/format
-  behavior), and the codebase had never been run through `ruff format`. Fix: **pin `ruff==0.9.6`** in
-  `requirements-dev.txt` (so CI matches the dev version — bump deliberately later) + `ruff format .` (12 files
-  reformatted — cosmetic line-wrapping, no logic change).
-- **Verify:** `ruff check` + `ruff format --check` clean (166 files); `pytest` **361 passed, 1 skipped**; the
-  `e2e-smoke` job was already green once billing unblocked it.
-- **Files:** `requirements-dev.txt` + 12 ruff-formatted source/test files (the inc-74/75/76/78 additions).
-- **Follow-up:** a full lockfile / exact pins of the rest of the dev toolchain is the deferred *harness
-  hardening* track; this pins only the tool that broke.
+- **Result:** both CI jobs **green** — `lint-and-test` ✓ + `e2e-smoke` ✓ (browser smoke, 0 console errors).
+- **Two unpinned-dep drifts**, both first exposed once the billing lock was cleared (CI had never run before):
+  (1) **ruff** resolved to 0.15.18 vs local 0.9.6 → I001 import-ordering + format diffs; (2) **fastapi/starlette**
+  resolved to 0.138/1.x vs local 0.115.8/0.45.3, and **starlette 1.0 restructured routing** → the route-surface
+  introspection test (`test_api_exposes_only_read_only_get_routes`) saw only `/` (endpoints worked; 360 passed).
+- **Fix:** pin `ruff==0.9.6` (`requirements-dev.txt`) + `ruff format .` (12 files, cosmetic); pin
+  `fastapi==0.115.8` + `starlette==0.45.3` (`requirements.txt`). CI now installs the tested versions.
+- **Non-blocking:** a Node-20 deprecation **warning** on `actions/checkout@v4` + `actions/setup-python@v5`
+  (GitHub runs them on Node 24) — bump to checkout@v5/setup-python@v6 whenever; not a failure.
+- **Follow-up:** a full lockfile (uv) / exact pins of the rest of the toolchain is the deferred *harness
+  hardening* track; this pinned only the two tools that broke.
 - **Revert:** restore from a `.claude/backups/` snapshot.
 
 ## 2026-06-20 — Increment 78: My Publications — the auto-axis of your own papers (Part 1)
