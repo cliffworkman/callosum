@@ -204,8 +204,6 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onChange={e => onQuery(e.target.value)}
             spellCheck={false}
           />
-        </div>
-        <div className="lib-sort-row">
           <span className="lib-sort-label">Sort</span>
           <select className="lib-sort" value={librarySort} onChange={e => onSortChange(e.target.value)} title="Sort the library">
             <option value="added">Date added</option>

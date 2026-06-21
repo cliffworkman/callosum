@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 87** (see Increment workflow) with **383 pytest tests
+It is currently at **Increment 88** (see Increment workflow) with **383 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -336,7 +336,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 87). Each increment of real work
+callosum is built in **numbered increments** (currently at 88). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -641,7 +641,12 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-21 — increment 87 (scan / refresh a library folder): the user's top-priority TDL item —
+*Last updated: 2026-06-21 — increment 88 (search + sort on one row): a small library-pane tweak (user request) —
+the **Sort** control moved inline to the right of the search box (into the `.searchbar` flex row; dropped the
+`.lib-sort-row` wrapper), reclaiming a vertical row. Frontend-only (`10_pdf_layer.jsx` + `styles.css`); pytest
+**383** unchanged.
+
+Earlier — increment 87 (scan / refresh a library folder): the user's top-priority TDL item —
 point Callosum at a folder of PDFs and reconcile **new / unchanged / removed** files into the library (the
 Zotero-free way to keep it current). New `pdf_processing/library_scan.py::scan_library_folder` (reuses
 `attach_pdf_to_paper` + `file_sha256` + the indexed `attachments.checksum`; **linked** in-place, nothing copied;
