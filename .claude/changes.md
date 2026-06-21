@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-21 — Increment 86: axis re-score line-wrap fix + button-cleanup resolution
+
+- **Files:** `app/frontend/styles.css`, `.claude/DESIGN.md`, `callosum-app.html` (rebuilt).
+- **What:** (1) the axis re-score control row no longer wraps badly — `flex-wrap: nowrap` + a shrinkable Cutoff
+  slider keep it on one line at any sidebar width. (2) DESIGN §3 #5 resolved — the remaining divergent buttons
+  are intentional distinct variants (folding declined as value-shifting); the safe unification applied was
+  tokenizing every `border-radius: 5px` → `var(--radius-sm)` (zero visual change; advances §3 #6).
+- **Why:** two UI-polish chores (re-score wrap bug + the .btn-* worklist item).
+- **Scope:** frontend-only — no migration/endpoint/egress. pytest **380** unchanged. Visual QA delegated.
+- **Revert:** restore `styles.css` from a `.claude/backups/` snapshot.
+
 ## 2026-06-21 — Increment 85: My Publications — missing-works review + import
 
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 85 (2026-06-21) — added the missing-works review/import queue to the My Publications section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->

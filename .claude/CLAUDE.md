@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 85** (see Increment workflow) with **380 pytest tests
+It is currently at **Increment 86** (see Increment workflow) with **380 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 85). Each increment of real work
+callosum is built in **numbered increments** (currently at 86). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -636,7 +636,19 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-21 — increment 85 (My Publications — missing-works review + import): the dashboard's
+*Last updated: 2026-06-21 — increment 86 (axis re-score line-wrap fix + button-cleanup resolution): two
+frontend-only UI-polish chores. (1) The axis **re-score row** no longer wraps badly — `flex-wrap: nowrap` + the
+Cutoff slider made the shrinkable flex item (`.axis-cutoff-range flex:1; min-width:36px`), so label · slider ·
+Re-score · 👁 stay on one line at any sidebar width. (2) **DESIGN §3 #5 resolved:** the remaining "divergent
+buttons" (axis-sort, pdf-zoom, axis-new, source-jump, history-delete, hl-editor, axis-x, frame-tab-close) were
+reviewed and found to be **intentional distinct compact/colored variants, not near-duplicates** — folding them
+into the full `.btn-*` recipe would value-shift them (contra "no behavior change"), so they're **kept as
+documented exceptions**; the only safe unification was tokenizing every `border-radius: 5px` → `var(--radius-sm)`
+(zero visual change; advances §3 #6). pytest **380** unchanged (frontend-only); `ruff` clean; help corpus
+unchanged. **NEXT (in progress):** the carrot — **scan/refresh a library folder** (plan-mode first; new
+ingestion path → audit gate).
+
+Earlier — increment 85 (My Publications — missing-works review + import): the dashboard's
 indexed-vs-library gap ("79 indexed · 40 in library") becomes a **review queue** — the OpenAlex-attributed works
 **not** in your library, each with **Import** (accept) or **Dismiss** (reject). `build_dashboard.missing_works`
 = cached author works whose DOI ∉ live library ∉ `profile.dismissed_work_dois` (sorted by citations; cache-only).

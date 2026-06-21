@@ -104,16 +104,17 @@ ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed
   (grouped: `.axis-btn`, `.synth-actions button` [keeps a larger-padding delta]. `.hl-editor-actions
   button.primary` is a *ghost base + accent fill* — a separate construction, not migrated.)
 - **`.btn-ghost` (outline/secondary):** `var(--bg)` bg, `1px var(--line-2)` border, `--ink-2` text,
-  `var(--radius)`; hover → `border-color/color: var(--accent)`. (grouped: `.pginate button`. **Still
-  divergent, not yet migrated:** `.axis-sort`, `.axis-new`, `.pdf-zoom button`, `.source-jump`,
-  `.history-delete`, `.hl-editor-actions button` — they differ in radius/bg/size/hover; normalizing them
-  is *value-shifting*, deferred per §3 #6.)
+  `var(--radius)`; hover → `border-color/color: var(--accent)`. (grouped: `.pginate button`. **Kept as
+  intentional compact variants (inc 86, §3 #5):** `.axis-sort`, `.axis-new`, `.pdf-zoom button`, `.source-jump`,
+  `.history-delete`, `.hl-editor-actions button` — distinct by design [size/color/hover], so NOT folded;
+  radii tokenized to `--radius-sm`.)
 - **`.btn-link`:** no border/bg, `--accent` text, hover underline; disabled → `--ink-3`. (grouped:
   `.axis-link`.) Canonical `.btn-link.danger` = red `--danger`; the legacy `.axis-link.axis-danger` is
   still amber `--flag` (pending migration — see §3 #1).
 - **`.btn-icon`:** `1px transparent` border, transparent bg, `--ink-3`, `--radius-sm`; hover → `--accent`
   + faint `--line-2` border + `--panel` bg. (grouped: `.axis-icon-btn` [keeps its amber danger-hover].
-  **Not migrated:** `.axis-x`, `.frame-tab-close` — borderless symbol-close buttons with a flag hover.)
+  **Kept as intentional variants (inc 86):** `.axis-x`, `.frame-tab-close` — borderless symbol-× closes with a
+  flag hover, distinct by design.)
 - **`.danger` modifier:** red `--danger` text (+ `--danger-line` border for icon hover). The canonical
   destructive color (DESIGN §4); use it on new destructive buttons.
 - **Disabled (all):** `opacity:.45` (ghost uses `.4`) + `--line-2` bg/border + `--ink-3` text; `cursor:default`.
@@ -182,14 +183,21 @@ Ranked; "legit" = a context difference worth keeping.
    no visual change** (every grouped property was byte-identical): primary (`.axis-btn` + `.synth-actions
    button`), ghost (`.pginate button`), link (`.axis-link`), icon (`.axis-icon-btn`). **Remaining:** the
    size-/color-divergent ghost & icon buttons (`.axis-sort`, `.axis-new`, `.pdf-zoom button`, `.source-jump`,
-   `.history-delete`, `.hl-editor-actions button`, `.axis-x`, `.frame-tab-close`) — folding them in would
-   *value-shift* their look (different radius/padding/bg/hover), so it's deferred like §3 #6; do it by
-   **migrating the JSX className to `.btn-*`** and adjusting each, not by forcing them into the group.
-6. **Radius is semi-tokenized.** **PARTIAL (inc 53):** the scale now exists — `--radius-sm:5px`,
-   `--radius:7px`, `--radius-lg:12px`, `--radius-pill:999px` — and the clean values are migrated (every
-   pill `999px`/`20px` → `--radius-pill`; the `12px` modal → `--radius-lg`; the `20px↔999px` pill
-   inconsistency standardized to fully-round). **Remaining:** the messy middle (`4/5/6/8/9px`) is still
-   hardcoded — consolidate opportunistically (value-shifting, so not bundled into a polish pass).
+   `.history-delete`, `.hl-editor-actions button`, `.axis-x`, `.frame-tab-close`). **RESOLVED (inc 86) —
+   folding declined, deliberately.** On review these are **not near-duplicates**: each is an *intentional
+   distinct variant* — a tiny inline `<select>` in a no-wrap controls row (`.axis-sort`), compact toolbar
+   controls (`.pdf-zoom`), a green "+" (`.axis-new`, color `--verified`), borderless symbol-× closes with a
+   flag hover (`.axis-x`, `.frame-tab-close`), small special-hover deletes/jumps (`.history-delete` flag,
+   `.source-jump` accent-bg). Forcing them into the full-size `.btn-ghost`/`.btn-icon` recipe would **enlarge
+   them + change their hovers** — a *value-shift*, contra the "consolidate, don't redesign" intent — and yields
+   ~no DRY (they share almost nothing with the canonical base). So they are **kept as documented intentional
+   exceptions**; the only safe unification applied was tokenizing their radii (see #6). New buttons still use
+   `.btn-*`; these compact variants stay bespoke by design.
+6. **Radius is semi-tokenized.** **PARTIAL (inc 53; inc 86):** the scale exists — `--radius-sm:5px`,
+   `--radius:7px`, `--radius-lg:12px`, `--radius-pill:999px`; the clean pill/modal values migrated (inc 53),
+   and **inc 86 tokenized every hardcoded `5px` → `var(--radius-sm)`** across `styles.css` (the dominant
+   messy-middle value; zero visual change since `--radius-sm` *is* 5px). **Remaining:** the rarer `4/6/8/9px`
+   radii are still hardcoded — consolidate opportunistically (each is a small value-shift, so not bundled).
 7. **One-off backgrounds (mostly legit):** toast `#43210f`/`#ffe9dc`, flagged-sentence `#fffaf6`,
    `.axis-preview #f1efe7`, `.pdf-scroll #eceae3`, skeleton gradient. Keep as documented one-offs, but pull
    any that recur into tokens.
