@@ -179,7 +179,8 @@ callosum/
 │   ├── docs/                      (planning suite: product-scope, data-contracts, architecture, risk-register,
 │   │   ├── increment-notes/       glossary, INCREMENT-BACKLOG, README; increment-notes/ = the per-increment diary;
 │   │   ├── future-tracks/         future-tracks/ = longer-horizon docs; future-tracks-import/ = the watched inbox
-│   │   └── future-tracks-import/  [Phase 8]. NB roadmap.md + backlog-future-tracks.md were archived → deprecated/)
+│   │   └── future-tracks-import/  (session-kickoff watch rule, Phase 8; gitignored — local-only dropzone).
+│   │                              NB roadmap.md + backlog-future-tracks.md were archived → deprecated/)
 │   ├── research/                  (deep-research planning + feedback docs)
 │   ├── deprecated/                (vestigial scaffolding archived here, not deleted)
 │   ├── backups/                   (timestamped zip snapshots: callosum_HHMMpm.zip;
@@ -615,7 +616,15 @@ When starting any non-trivial work:
    path; when at odds, **propose the aligned alternative**, don't just object. For **novel / value-level /
    future-track** work, also consult the deeper values layer `.claude/APPROACH-AVOIDANCE.md` (derive from the
    value; run its drift typology; honor its veto-level boundaries).
-9. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
+9. **Check the future-tracks watched inbox** (Phase 8). Glance at `.claude/docs/future-tracks-import/`. It
+   normally sits empty bar its `README.md` + the items the README's **Parked** list names — **anything else is
+   unprocessed input a prior session or the user dropped in.** For each new file, **surface it to the user**
+   (report it, never act silently) and handle it per the inbox `README.md`: a genuine **future-track** → run the
+   Principles + `APPROACH-AVOIDANCE.md` gate framing, fold it into `INCREMENT-BACKLOG.md` + the
+   `future-tracks/README.md` index, then **move** it to `future-tracks/`; a **meta / CLAUDE.md directive** →
+   action it, then remove it; a **counsel-gated / sensitive** drop → leave it **parked** (it stays in the
+   gitignored inbox, named in the README's Parked list — never auto-processed or published).
+10. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
    is cheaper than a wrong turn.
 
 ---
@@ -633,9 +642,11 @@ mint); per-item errors never abort a run; a logged per-run cap bounds bulk fetch
 **No new dependency, no new egress** (OA databases only, NOT the Gemini gate). pytest **347** (+13: repo +
 run_recheck library/external/skip/miss/error-isolation/registry-only + endpoints); audit
 `.claude/security-audits/2026-06-20_wanted-list.md` **PASS**; help corpus gained an acquisition/wanted section
-(`HELP-DOCS-SYNCED` → inc 76). **This completes Acquisition A/B/C.** NEXT: Phase 8 (the future-tracks watched
-inbox) + deferred follow-ons in `INCREMENT-BACKLOG.md`; the legally-ambiguous lane stays counsel-gated (its
-inbox spec is gitignored).
+(`HELP-DOCS-SYNCED` → inc 76). **This completes Acquisition A/B/C.** **Phase 8** (the future-tracks watched-inbox
+session-kickoff rule — Session kickoff #9) is now done too, **closing the release-readiness arc, Phases 1–8.**
+NEXT: deferred follow-ons in `INCREMENT-BACKLOG.md` (CI billing, collaborator/branch-protection, dev-infra
+hardening, and the future tracks themselves); the legally-ambiguous lane stays counsel-gated (parked in the
+gitignored inbox).
 
 Earlier — increment 75 (literature acquisition — fan out the resolver cascade, B): the
 inc-74 OA lane gains a **7-source cascade** (gold→green→preprint, first authorized copy wins) behind the

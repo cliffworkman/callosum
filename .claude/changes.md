@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Phase 8: future-tracks watched-inbox auto-rule (+ folded 2 pending specs)
+
+- **What:** the release-readiness arc's final phase. A **session-kickoff watch rule** (CLAUDE.md Session kickoff
+  #9) makes a fresh session check `.claude/docs/future-tracks-import/` on its own — anything beyond its README +
+  the README's **Parked** list is unprocessed input to surface to the user and handle per the inbox README
+  (genuine track → gate-frame → fold into the backlog + `future-tracks/` index → **move**; meta directive →
+  action + remove; counsel-gated → leave **parked**, never published).
+- **Why:** the inbox existed but relied on the user pointing the assistant at it; now a fresh session notices a
+  non-empty inbox without being told.
+- **Ran the rule once:** folded the two pending specs — **PUBLISHERS (where-to-submit METHODS tool)** + its
+  **first-use choice gate** — into `INCREMENT-BACKLOG.md` + the `future-tracks/README.md` index, and **moved**
+  them from the inbox to `future-tracks/`. Both are principles-aligned (facts-not-verdicts, no composite score,
+  **no "predatory" label** [A-A no-accusation], local-only / never-transmitted, equity first-class) and carried
+  explicit "capture into the backlog" dispositions. The counsel-gated **acquisitiondeferred** spec stays
+  **parked** in the gitignored inbox (named in the README's Parked list — never folded or published).
+- **Files:** `.claude/CLAUDE.md` (Session kickoff #9 + directory-layout note), `future-tracks-import/README.md`
+  (rule-landed + Parked list; local-only), `docs/README.md`, `future-tracks/README.md` (+2 index rows),
+  `INCREMENT-BACKLOG.md` (+1 entry); moved 2 specs; swept a stray `*.tmp.*` inbox orphan.
+- **Verify:** docs-only — no code/test/schema change (pytest unaffected at 347). The inbox now sits at its README
+  + the parked spec. **This closes the release-readiness arc (Phases 1–8).**
+- **Revert:** restore from a `.claude/backups/` snapshot; move the 2 specs back to the inbox to un-fold.
+
 ## 2026-06-20 — Increment 76: literature acquisition — the wanted list + OA re-check + coverage (C)
 
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 76 (2026-06-20) — added a "Wanted list & re-checking for copies" section (and the inc-75 acquisition cascade section). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->

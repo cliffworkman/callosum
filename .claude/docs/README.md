@@ -7,7 +7,8 @@
 - `INCREMENT-BACKLOG.md`: near-term increment queue and current planning source.
 - `future-tracks/`: longer-horizon design-toward prompts.
 - `future-tracks/README.md`: index for the future-track documents.
-- `future-tracks-import/`: watched inbox for future-track material before it is folded into the plan.
+- `future-tracks-import/`: watched inbox for future-track material before it is folded into the plan — **checked
+  automatically at session kickoff** (CLAUDE.md Session kickoff #9, Phase 8); **gitignored** (local-only dropzone).
 - `increment-notes/`: per-increment diary and implementation notes.
 - `architecture.md`: implemented architecture snapshot.
 - `data-contracts.md`: implemented schema and payload contracts.

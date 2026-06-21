@@ -404,6 +404,17 @@ core UX above comes first. See `future-tracks/README.md` for the index; do not r
   opt-in; compute-locally / transmit-summaries-only; pseudonymous-named-honestly; a **public field registry** as
   a data-minimization fitness function; commons reciprocity; valence rule = *less* time-in-app is the win).
   Graduation past the two zero-egress stages is the user's explicit call.
+- [ ] **PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
+  `…_publisherschoicegate.md`, folded in 2026-06-20 from the inbox): at submission time, surface **verifiable,
+  fully-sourced facts** about each candidate journal (OA color, APC + waiver, green route, license, RR/data
+  policy, TOP factor, open impact, multi-route legitimacy **incl. regional indexes**) under a **visible,
+  user-set open-science weighting** — the author weighs them; the tool **never computes a verdict**. Veto-level:
+  **no composite score, no "predatory" label/classifier** (the A-A **no-accusation** boundary), the abstract +
+  preferences matched/stored **locally and never transmitted** (no closed-publisher JournalFinder), **equity**
+  (regional-index parity; gate-the-boost-not-the-listing) first-class. The **first-use choice gate** (no
+  pre-selected default; the weighting as one forced choice among peers) is the near-term enhancement. **More
+  controversial than most tracks** — build only this principled shape; depends on the Word link + local
+  embeddings; gate through the Principles gate **and the A-A values layer** at graduation. **Do not build yet.**
 
 **Shared infra these unlock (kept as README-only `integrations/` stubs on purpose):** the **OpenAlex** adapter
 (my-publications → gap-finder → discovery → acquisition — build first as shared infra), **Unpaywall** (Track D),
