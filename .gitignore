@@ -38,3 +38,6 @@ library/
 # the future-tracks watched inbox is a LOCAL dropzone (Phase 8); it may hold counsel-gated /
 # unreviewed prompts (e.g. the deferred legally-ambiguous acquisition lane) — never publish it.
 .claude/docs/future-tracks-import/
+
+# transient task-scheduler runtime lock (Claude Code)
+.claude/scheduled_tasks.lock
