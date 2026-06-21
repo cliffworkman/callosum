@@ -92,8 +92,7 @@ _Italic notes are light implementation pointers, not designs._
 
 ## Theme 4 — App-wide (open)
 
-- [ ] **More settings** — e.g. the axis cutoff default → Settings; **hide uncertain axis papers by default** (a
-  Settings default for the inc-51 👁 toggle). _(picked up next.)_
+- [ ] **More settings** — e.g. the axis cutoff default → Settings. (Hide-uncertain-by-default shipped inc 77.)
 - [ ] **`.btn-*` divergent-button migration** — see the DESIGN.md Pass-2 remainder above.
 - [ ] **Packaging & distribution (post-V1)** — a **Tauri desktop shell** (`app/desktop-shell/` placeholder); an
   **OS keychain** for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; **desktop
@@ -126,8 +125,6 @@ _Italic notes are light implementation pointers, not designs._
 - [ ] **Account creation / login + publishing name** — a settings-level identity (the publishing name feeds
   **My Publications**). **Big + security-sensitive** — auth is absent by design today; needs its own design +
   audit. Likely post-V1 / tied to any hosted mode.
-- [ ] **Hide uncertain axis papers BY DEFAULT** — make the inc-51 per-axis 👁 toggle default to *hidden* (a
-  Settings default). _(picked up next.)_
 
 **App-wide UX**
 - [ ] **Progress indication for long operations** — a standard: any time-taking op (summary/score/suggest/dedup/

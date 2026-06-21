@@ -43,10 +43,11 @@ function AxisCutoffFlipper({ value, onChange, disabled }) {
   );
 }
 
-function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers }) {
+function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault }) {
   const scoring = job && job.status === "running";
   const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : 0.35);
-  const [hideUncertain, setHideUncertain] = useState(false);  // B′: eye toggle — show assigned/manual only
+  // B′: eye toggle — show assigned/manual only. Starts from the Settings default (re-keyed on change → remount).
+  const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
@@ -120,7 +121,7 @@ function _tierRank(p) {
   return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -351,7 +352,8 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
 
       {visibleAxes && visibleAxes.map(axis => (
         <AxisItem
-          key={axis.id}
+          key={axis.id + (hideUncertainDefault ? "-h" : "-s")}
+          hideUncertainDefault={hideUncertainDefault}
           axis={axis}
           detail={details[axis.id]}
           job={jobs[axis.id]}

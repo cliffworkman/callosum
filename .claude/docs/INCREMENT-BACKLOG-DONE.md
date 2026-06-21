@@ -25,6 +25,8 @@ new work goes in the open backlog.
   axis filter + green "+" on one no-wrap row (inc 48).
 - [x] **Suggest-optimal axes** (inc 52) — clusters the library with a coverage-with-diversity objective; local
   c-TF-IDF labels + optional egress-gated Gemini polish (falls back to local; never 503).
+- [x] **Hide uncertain axis papers by default** (inc 77) — a **Settings → Axes** toggle that makes the inc-51
+  per-axis 👁 hide-uncertain view the default (persisted; the per-axis 👁 still overrides).
 
 ## Theme 2 — Library management (inc 54–67)
 - [x] **D. Multi-select + bulk delete → soft-delete + Trash/Restore** (inc 54); **permanent delete /

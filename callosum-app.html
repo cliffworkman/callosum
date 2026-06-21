@@ -227,6 +227,7 @@
   .help-body a { color: var(--accent); }
   .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 2px 10px; }
   .settings-label { font-size: 13px; color: var(--ink); }
+  .settings-sub { display: block; font-size: 11px; color: var(--ink-3); margin-top: 3px; max-width: 300px; font-weight: 400; }
   .settings-switch {
     flex: none; width: 40px; height: 22px; border-radius: var(--radius-pill); border: 1px solid var(--line-2);
     background: var(--panel-2); cursor: pointer; padding: 0; position: relative; transition: background .15s, border-color .15s;
@@ -1319,7 +1320,7 @@ function fmtDateTime(value) {
 
 // ─────────────────────────────────────────────────────────────
 
-function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh }) {
+function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
@@ -1330,7 +1331,7 @@ function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettin
           <h1>Callosum</h1>
         </div>
       </div>
-      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} axisRefresh={axisRefresh} />
+      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
     </div>
   );
 }
@@ -1667,10 +1668,11 @@ function AxisCutoffFlipper({ value, onChange, disabled }) {
   );
 }
 
-function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers }) {
+function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault }) {
   const scoring = job && job.status === "running";
   const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : 0.35);
-  const [hideUncertain, setHideUncertain] = useState(false);  // B′: eye toggle — show assigned/manual only
+  // B′: eye toggle — show assigned/manual only. Starts from the Settings default (re-keyed on change → remount).
+  const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
@@ -1744,7 +1746,7 @@ function _tierRank(p) {
   return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -1975,7 +1977,8 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
 
       {visibleAxes && visibleAxes.map(axis => (
         <AxisItem
-          key={axis.id}
+          key={axis.id + (hideUncertainDefault ? "-h" : "-s")}
+          hideUncertainDefault={hideUncertainDefault}
           axis={axis}
           detail={details[axis.id]}
           job={jobs[axis.id]}
@@ -3996,10 +3999,10 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
   );
 }
 
-// Settings modal (inc 46) — the app-wide preferences surface. Sparse for now: a single Appearance →
-// Dark mode toggle. Controlled by App (theme + onTheme + onClose); the toggle flips data-theme on <html>
-// + persists to localStorage (App.setTheme). Reuses the .axis-modal overlay pattern.
-function SettingsModal({ theme, onTheme, onClose }) {
+// Settings modal (inc 46) — the app-wide preferences surface. Appearance → Dark mode (theme + onTheme); Axes →
+// hide-uncertain-by-default (hideUncertainDefault + onHideUncertainDefault). Controlled by App; toggles persist
+// to localStorage. Reuses the .axis-modal overlay pattern.
+function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, onClose }) {
   const dark = theme === "dark";
   return (
     <div className="axis-modal-overlay" onClick={onClose}>
@@ -4017,6 +4020,19 @@ function SettingsModal({ theme, onTheme, onClose }) {
             className={"settings-switch" + (dark ? " on" : "")}
             role="switch" aria-checked={dark} aria-label="Dark mode"
             onClick={() => onTheme(dark ? "light" : "dark")}
+          ><span className="settings-knob" /></button>
+        </div>
+
+        <p className="eyebrow">Axes</p>
+        <div className="settings-row">
+          <span className="settings-label">Hide uncertain papers by default
+            <span className="settings-sub">New axis cards start in the assigned/manual-only view (the 👁 toggle).</span>
+          </span>
+          <button
+            type="button"
+            className={"settings-switch" + (hideUncertainDefault ? " on" : "")}
+            role="switch" aria-checked={!!hideUncertainDefault} aria-label="Hide uncertain axis papers by default"
+            onClick={() => onHideUncertainDefault(!hideUncertainDefault)}
           ><span className="settings-knob" /></button>
         </div>
 
@@ -4072,6 +4088,12 @@ function App() {
   const setTheme = useCallback((next) => {
     setThemeState(next);
     try { document.documentElement.setAttribute("data-theme", next); localStorage.setItem("callosum.theme", next); } catch (e) { /* ignore */ }
+  }, []);
+  // Axis default: start each axis card with its uncertain papers hidden (the inc-51 👁, as a Settings default).
+  const [hideUncertainDefault, setHideUncertainDefaultState] = useState(() => _loadLayout("callosum.hideUncertainDefault", "0") === "1");
+  const setHideUncertainDefault = useCallback((on) => {
+    setHideUncertainDefaultState(on);
+    _saveLayout("callosum.hideUncertainDefault", on ? "1" : "0");
   }, []);
 
   // side-panel layout (persisted): widths + collapsed state.
@@ -4339,7 +4361,7 @@ function App() {
   return (
     <div className="app" style={{ gridTemplateColumns: cols }}>
       {leftOpen
-        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} axisRefresh={axisRefresh} />
+        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
         : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
@@ -4374,7 +4396,7 @@ function App() {
       {rightOpen
         ? <RightPane paperId={selected} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenPaper={openPdf} onFilterToTag={filterToTag} pendingSummarize={pendingSummarize} />
         : <div className="pane-collapsed" />}
-      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} onClose={() => setSettingsOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {duplicatesOpen &&
         <DuplicatesModal

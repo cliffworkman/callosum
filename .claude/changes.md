@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 77: hide uncertain axis papers by default (Settings)
+
+- **What:** the inc-51 per-axis 👁 hide-uncertain view can now be the **default** via a new **Settings → Axes**
+  toggle; axis cards start in the assigned/manual-only view and surface uncertain papers on demand. Persisted to
+  `localStorage["callosum.hideUncertainDefault"]` (mirrors the theme pattern).
+- **Why:** a backlog quick-win — declutter the axes panel by default for users who treat uncertain papers as noise.
+- **Files:** `35_settings.jsx` (the toggle row), `40_app.jsx` (state + persist; threaded to Sidebar + the
+  SettingsModal), `10_pdf_layer.jsx` (Sidebar pass-through), `15_axes.jsx` (AxisItem initial `hideUncertain` reads
+  the default; AxesPanel keys each card on it so a toggle remounts them live), `styles.css` (`.settings-sub`);
+  rebuilt `callosum-app.html`.
+- **Verify:** frontend-only; `pytest` **347** unchanged; **visual check delegated to the user** (no in-repo
+  browser this session) — Settings → Axes → toggle on; expanded cards hide uncertain; persists across reload.
+- **Revert:** restore from a `.claude/backups/` snapshot.
+
 ## 2026-06-20 — Backlog split: open vs closed
 
 - **What:** split `INCREMENT-BACKLOG.md` so the open queue stays scannable — shipped/closed `[x]` items moved

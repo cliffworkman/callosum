@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 76** (see Increment workflow) with **347 pytest tests
+It is currently at **Increment 77** (see Increment workflow) with **347 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -334,7 +334,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 76). Each increment of real work
+callosum is built in **numbered increments** (currently at 77). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -629,7 +629,17 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 76 (literature acquisition — the wanted list + OA re-check + coverage, C):
+*Last updated: 2026-06-20 — increment 77 (hide uncertain axis papers by default): a backlog quick-win — the
+inc-51 per-axis **👁 hide-uncertain** view can now be the **default** via a new **Settings → Axes** toggle
+(persisted to `localStorage["callosum.hideUncertainDefault"]`, mirroring the theme pattern). Threaded App →
+Sidebar → AxesPanel → AxisItem (initial `hideUncertain` reads the default; AxesPanel keys each card on it so a
+toggle remounts them live). Frontend-only (`35_settings.jsx`, `40_app.jsx`, `10_pdf_layer.jsx`, `15_axes.jsx`,
+`styles.css`; rebuilt `callosum-app.html`); pytest **347** unchanged; visual check delegated to the user. Also
+this session: the **backlog was split** into `INCREMENT-BACKLOG.md` (open) + `INCREMENT-BACKLOG-DONE.md` (closed
+archive). NEXT: the **My Publications** future-track (the chosen reward — plan-mode + Principles gate first), then
+more backlog quick-wins / the deferred follow-ons.
+
+Earlier — increment 76 (literature acquisition — the wanted list + OA re-check + coverage, C):
 completes the acquisition arc's **track** loop. A persistent **wanted list** (`wanted_items`, migration **0008**)
 that auto-includes PDF-less library papers (**Sync from library**) and accepts external adds (**Add by DOI**),
 a manual async **Re-check OA** job that runs the same resolver cascade over the list and **auto-acquires** hits

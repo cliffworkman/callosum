@@ -46,6 +46,12 @@ function App() {
     setThemeState(next);
     try { document.documentElement.setAttribute("data-theme", next); localStorage.setItem("callosum.theme", next); } catch (e) { /* ignore */ }
   }, []);
+  // Axis default: start each axis card with its uncertain papers hidden (the inc-51 👁, as a Settings default).
+  const [hideUncertainDefault, setHideUncertainDefaultState] = useState(() => _loadLayout("callosum.hideUncertainDefault", "0") === "1");
+  const setHideUncertainDefault = useCallback((on) => {
+    setHideUncertainDefaultState(on);
+    _saveLayout("callosum.hideUncertainDefault", on ? "1" : "0");
+  }, []);
 
   // side-panel layout (persisted): widths + collapsed state.
   const [leftW, setLeftW] = useState(() => Number(_loadLayout("callosum.leftW", 270)) || 270);
@@ -312,7 +318,7 @@ function App() {
   return (
     <div className="app" style={{ gridTemplateColumns: cols }}>
       {leftOpen
-        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} axisRefresh={axisRefresh} />
+        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
         : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
@@ -347,7 +353,7 @@ function App() {
       {rightOpen
         ? <RightPane paperId={selected} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenPaper={openPdf} onFilterToTag={filterToTag} pendingSummarize={pendingSummarize} />
         : <div className="pane-collapsed" />}
-      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} onClose={() => setSettingsOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {duplicatesOpen &&
         <DuplicatesModal

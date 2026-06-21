@@ -98,7 +98,7 @@ function fmtDateTime(value) {
 
 // ─────────────────────────────────────────────────────────────
 
-function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh }) {
+function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault }) {
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
@@ -109,7 +109,7 @@ function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettin
           <h1>Callosum</h1>
         </div>
       </div>
-      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} axisRefresh={axisRefresh} />
+      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} />
     </div>
   );
 }
