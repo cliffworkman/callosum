@@ -109,6 +109,7 @@ def enrich_paper_metadata_from_crossref(
         **_paper_values_from_csl(resolution.csl_json, imported_source=CROSSREF_SOURCE),
     )
     apply_crossref_subject_tags(conn, paper_id, resolution.csl_json)
+    _hook_my_publications(conn, paper_id)  # inc 78: incremental My Publications add (cache-based; additive no-op when unused)
     tier = refresh_processing_tier(conn, paper_id)
     return MetadataEnrichmentResult(
         paper_id=paper_id,
@@ -117,6 +118,17 @@ def enrich_paper_metadata_from_crossref(
         doi_source=doi_candidate.source,
         processing_tier=tier,
     )
+
+
+def _hook_my_publications(conn: Connection, paper_id: int) -> None:
+    """Add a newly enriched paper to the My Publications axis if it matches the resolved author (cache-based,
+    zero extra egress). Best-effort + lazy-imported: it must never alter or break import/enrichment behavior."""
+    try:
+        from app.backend.clustering.my_publications import maybe_add_to_my_publications
+
+        maybe_add_to_my_publications(conn, paper_id)
+    except Exception:
+        pass
 
 
 def apply_crossref_subject_tags(conn: Connection, paper_id: int, csl_json: dict[str, Any] | None) -> list[str]:

@@ -143,6 +143,7 @@ class AxisResponse(BaseModel):
     assignment_count: int = 0  # papers currently assigned (scored + manual)
     created_at: datetime | None = None  # for client-side sort-by-recency
     scoring_gain: float = DEFAULT_AXIS_CUTOFF  # effective assigned-cutoff (axes.scoring_gain or default)
+    kind: str = "standard"  # "standard" or "my_publications" (inc 78 — drives the pinned card + variant UI)
 
 
 class ClusterPaperResponse(BaseModel):
@@ -507,6 +508,7 @@ def _axis_response(conn: Connection, row) -> AxisResponse:
         assignment_count=int(state["assignment_count"]),
         created_at=row["created_at"],
         scoring_gain=_axis_cutoff(row),
+        kind=row["kind"] if "kind" in row else "standard",
     )
 
 

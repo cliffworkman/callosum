@@ -43,8 +43,18 @@ function AxisCutoffFlipper({ value, onChange, disabled }) {
   );
 }
 
+// Shown pinned at the top of the axes panel when My Publications hasn't been set up yet (inc 78).
+function MyPubsPrompt() {
+  return (
+    <div className="axis-mypubs-prompt" title="Set your name / ORCID in Settings to auto-gather your own papers">
+      📄 <b>My Publications</b> — set your name / ORCID in Settings (⚙) to auto-gather your own papers.
+    </div>
+  );
+}
+
 function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault }) {
   const scoring = job && job.status === "running";
+  const isMyPubs = axis.kind === "my_publications";  // inc 78: the pinned own-papers axis (variant UI, no scoring)
   const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : 0.35);
   // B′: eye toggle — show assigned/manual only. Starts from the Settings default (re-keyed on change → remount).
   const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
@@ -52,23 +62,28 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
   return (
-    <div className="axis-item">
+    <div className={"axis-item" + (isMyPubs ? " axis-mypubs" : "")}>
       <div className={"axis" + (expanded ? " active" : "")} onClick={() => handlers.toggle(axis.id)}>
         <div className="axis-row-head">
-          <input
-            type="checkbox" className="axis-select" checked={selected}
-            title="Select for bulk delete / merge"
-            onClick={e => e.stopPropagation()}
-            onChange={() => handlers.toggleSelect(axis.id)}
-          />
-          <span className="axis-label">{axis.label}</span>
+          {!isMyPubs &&
+            <input
+              type="checkbox" className="axis-select" checked={selected}
+              title="Select for bulk delete / merge"
+              onClick={e => e.stopPropagation()}
+              onChange={() => handlers.toggleSelect(axis.id)}
+            />}
+          <span className="axis-label">{isMyPubs ? "📄 " + axis.label : axis.label}</span>
           <span className="axis-card-actions">
-            <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>
-            <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>
-            <button className="axis-icon-btn axis-icon-danger" title="Delete axis" onClick={stop(() => handlers.remove(axis.id))}>🗑</button>
+            {!isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
+            {!isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
+            <button className="axis-icon-btn axis-icon-danger"
+              title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
+              onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>
             <button
-              className={"axis-count-badge" + (axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
-              title={`Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet")}
+              className={"axis-count-badge" + (isMyPubs ? " is-scored" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
+              title={isMyPubs
+                ? `Show your ${axis.assignment_count || 0} papers in the library`
+                : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet")}
               onClick={stop(() => handlers.filterToAxis(axis))}
             >{axis.assignment_count || 0}</button>
           </span>
@@ -77,17 +92,20 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
 
       {expanded &&
         <div className="axis-body">
-          <div className="axis-rescore-row">
-            <span className="axis-rescore-label">Re-score:</span>
-            <AxisCutoffFlipper value={cutoff} onChange={setCutoff} disabled={scoring} />
-            <button className="axis-btn axis-rescore-btn" disabled={scoring} onClick={() => handlers.score(axis.id, cutoff)}>
-              {scoring ? "Scoring…" : axis.scored ? "Re-score" : "Score"}
-            </button>
-            {uncertainCount > 0 &&
-              <button className={"axis-icon-btn axis-eye" + (hideUncertain ? " off" : "")}
-                title={hideUncertain ? `Show ${uncertainCount} uncertain paper${uncertainCount > 1 ? "s" : ""}` : "Hide uncertain papers (assigned-only view)"}
-                onClick={() => setHideUncertain(h => !h)}>👁</button>}
-          </div>
+          {!isMyPubs &&
+            <div className="axis-rescore-row">
+              <span className="axis-rescore-label">Re-score:</span>
+              <AxisCutoffFlipper value={cutoff} onChange={setCutoff} disabled={scoring} />
+              <button className="axis-btn axis-rescore-btn" disabled={scoring} onClick={() => handlers.score(axis.id, cutoff)}>
+                {scoring ? "Scoring…" : axis.scored ? "Re-score" : "Score"}
+              </button>
+              {uncertainCount > 0 &&
+                <button className={"axis-icon-btn axis-eye" + (hideUncertain ? " off" : "")}
+                  title={hideUncertain ? `Show ${uncertainCount} uncertain paper${uncertainCount > 1 ? "s" : ""}` : "Hide uncertain papers (assigned-only view)"}
+                  onClick={() => setHideUncertain(h => !h)}>👁</button>}
+            </div>}
+          {isMyPubs && uncertainCount > 0 &&
+            <div className="axis-mypubs-hint">Name-only matches are candidates — <b>✓</b> confirm the ones that are yours, <b>✕</b> reject the rest. (Confirmed papers match by DOI/ORCID.)</div>}
 
           {scoring && <div className="axis-progress">{job.message || "Scoring the library…"}</div>}
           {job && job.status === "error" && <div className="axis-err">Scoring failed: {job.message}</div>}
@@ -96,7 +114,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           {detail && detail.status === "error" && <div className="axis-err">Couldn't load assignments.</div>}
           {detail && detail.status === "ready" &&
             (detail.papers.length === 0
-              ? <div className="axis-hint">{axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually."}</div>
+              ? <div className="axis-hint">{isMyPubs ? "No publications matched yet — set your name/ORCID in Settings (⚙) and Refresh." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually."}</div>
               : <div className="axis-papers">
                   {[...detail.papers]
                     .filter(p => !hideUncertain || p.status !== "uncertain")
@@ -240,22 +258,39 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     });
   }, [loadAxes, flash]);
 
+  // ✕ on a paper: a standard axis removes the assignment; the My Publications axis persists a "rejected"
+  // decision (so it's never re-proposed) via /my-publications/decide.
   const removePaper = useCallback((axisId, paperId) => {
-    apiDelete(`/axes/${axisId}/papers/${paperId}`).then(r => {
+    const ax = (axes || []).find(a => a.id === axisId);
+    const req = ax && ax.kind === "my_publications"
+      ? apiPost("/my-publications/decide", { paper_id: paperId, decision: "rejected" })
+      : apiDelete(`/axes/${axisId}/papers/${paperId}`);
+    req.then(r => {
       if (!r.ok) { flash(r.error); return; }
       loadDetail(axisId);
       loadAxes();
     });
-  }, [loadDetail, loadAxes, flash]);
+  }, [axes, loadDetail, loadAxes, flash]);
 
-  // ✓-confirm an uncertain paper (or otherwise add one) — POST upserts the row to a manual override.
+  // ✓-confirm: a standard axis upserts a manual override; the My Publications axis persists a "confirmed"
+  // decision (survives every re-match) via /my-publications/decide.
   const confirmPaper = useCallback((axisId, paperId) => {
-    apiPost(`/axes/${axisId}/papers`, { paper_id: paperId }).then(r => {
+    const ax = (axes || []).find(a => a.id === axisId);
+    const req = ax && ax.kind === "my_publications"
+      ? apiPost("/my-publications/decide", { paper_id: paperId, decision: "confirmed" })
+      : apiPost(`/axes/${axisId}/papers`, { paper_id: paperId });
+    req.then(r => {
       if (!r.ok) { flash(r.error); return; }
       loadDetail(axisId);
       loadAxes();
     });
-  }, [loadDetail, loadAxes, flash]);
+  }, [axes, loadDetail, loadAxes, flash]);
+
+  // 🗑 on the My Publications card dismisses it (keeps the profile + decisions); Refresh rebuilds it.
+  const dismissMyPubs = useCallback(() => {
+    if (!window.confirm("Dismiss the My Publications card? Your profile and confirm/reject choices are kept — Refresh in Settings rebuilds it.")) return;
+    apiDelete("/my-publications").then(r => { if (r.ok) loadAxes(); });
+  }, [loadAxes]);
 
   const toggleSelect = useCallback((id) => {
     setSelectedIds(prev => {
@@ -293,7 +328,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   }, [onFilterToAxis]);
 
   const handlers = {
-    toggle, score, remove, removePaper, confirmPaper, enterFocus, filterToAxis, toggleSelect, openEdit, openPaper,
+    toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis, toggleSelect, openEdit, openPaper,
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.
@@ -307,12 +342,20 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   const visibleAxes = sortedAxes && filter.trim()
     ? sortedAxes.filter(a => ((a.label || "") + " " + (a.description || "")).toLowerCase().includes(filter.trim().toLowerCase()))
     : sortedAxes;
+  const myPubsAxis = (axes || []).find(a => a.kind === "my_publications") || null;
+  // The My Publications card is pinned (rendered first, orthogonal to sort/filter); keep it out of the list.
+  const standardVisible = visibleAxes ? visibleAxes.filter(a => a.kind !== "my_publications") : visibleAxes;
 
   return (
     <div className="axis-group">
       <div className="axis-group-head">
         <p className="eyebrow">Axes</p>
       </div>
+      {axes && (myPubsAxis
+        ? <AxisItem key="mypubs" axis={myPubsAxis} detail={details[myPubsAxis.id]} job={jobs[myPubsAxis.id]}
+            expanded={expanded === myPubsAxis.id} selected={false} selectedPaper={selectedPaper}
+            handlers={handlers} hideUncertainDefault={false} />
+        : <MyPubsPrompt />)}
       <div className="axis-controls">
         {axes && axes.length > 1 &&
           <input className="axis-filter" placeholder="Filter axes…" value={filter} onChange={e => setFilter(e.target.value)} />}
@@ -350,7 +393,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
       {axes && axes.length > 0 && visibleAxes && visibleAxes.length === 0 && filter.trim() &&
         <div className="axis-hint">No axes match “{filter.trim()}”.</div>}
 
-      {visibleAxes && visibleAxes.map(axis => (
+      {standardVisible && standardVisible.map(axis => (
         <AxisItem
           key={axis.id + (hideUncertainDefault ? "-h" : "-s")}
           hideUncertainDefault={hideUncertainDefault}

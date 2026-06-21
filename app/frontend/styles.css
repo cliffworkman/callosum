@@ -203,6 +203,21 @@
   .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 2px 10px; }
   .settings-label { font-size: 13px; color: var(--ink); }
   .settings-sub { display: block; font-size: 11px; color: var(--ink-3); margin-top: 3px; max-width: 300px; font-weight: 400; }
+
+  /* My Publications settings form (inc 78) */
+  .settings-field { margin: 8px 0; }
+  .settings-field-label { display: block; font-size: 11px; color: var(--ink-3); margin-bottom: 3px; }
+  .settings-input { width: 100%; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 9px; }
+  .settings-input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .settings-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
+  .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
+  .settings-note-err { color: var(--flag-ink); }
+
+  /* My Publications axis — the pinned own-papers card (inc 78). Indigo = provenance / your authoritative work. */
+  .axis-mypubs .axis { background: var(--accent-soft); border-left: 2px solid var(--accent); }
+  .axis-mypubs .axis-label { color: var(--accent); font-weight: 600; }
+  .axis-mypubs-hint { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
+  .axis-mypubs-prompt { font-size: 11.5px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 7px 10px; margin: 4px 0 8px; }
   .settings-switch {
     flex: none; width: 40px; height: 22px; border-radius: var(--radius-pill); border: 1px solid var(--line-2);
     background: var(--panel-2); cursor: pointer; padding: 0; position: relative; transition: background .15s, border-color .15s;

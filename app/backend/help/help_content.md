@@ -429,6 +429,21 @@ Gotchas:
 - Scored assignments are recalculated. Manual assignments are the durable human choices.
 - If the merged axis is too broad, raise the cutoff or split the idea back into more focused terms in a new axis.
 
+<!-- section: my-publications -->
+## My Publications
+Callosum can gather your own papers into a pinned **My Publications** axis at the top of the Axes panel.
+
+Set it up in Settings (⚙) → **My Publications**: enter your name, any other published-name variants (initials, maiden name), and — recommended — your **ORCID** (which gives an exact match). Then click **Refresh my papers**.
+
+Callosum resolves your identity against **OpenAlex** (a public scholarly database) and matches its record of your works against your library:
+
+- Papers matched by **DOI or ORCID** are **confirmed** — they appear as members of the axis.
+- Papers matched only by **name** (e.g. a scanned PDF with no DOI) appear as **candidates** to review — click **✓** to confirm one as yours, or **✕** to reject it. Your choices stick: a rejected paper is never proposed again, and a confirmed one stays a member.
+
+The card shows a publication count and doubles as a "show only my papers" filter (click the count badge). Newly imported papers that match are added automatically. The 🗑 button dismisses the card (your profile and confirm/reject choices are kept — Refresh rebuilds it). A no-match shows an honest "No OpenAlex author found for [name] — check the name/ORCID."
+
+This feature is **LLM-free** and never sends your library text anywhere — only your name/ORCID and public identifiers go to OpenAlex (the same kind of public lookup as resolving a DOI), which is separate from the Gemini summary egress gate.
+
 <!-- section: synthesis-overview -->
 ## Synthesis: asking questions over the library
 Synthesis is for asking a question across your library and getting a citation-grounded answer. It is best for questions where you want a compact reading guide, not a final conclusion.

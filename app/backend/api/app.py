@@ -25,6 +25,7 @@ from app.backend.api.routers import (
     duplicates,
     health,
     help,
+    my_publications,
     papers,
     summaries,
     tags,
@@ -39,7 +40,7 @@ from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.verification import SupportScorer, VerificationConfig
 from integrations.crossref import CrossrefClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester
-from integrations.openalex import OpenAlexClient
+from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
 FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
@@ -62,6 +63,7 @@ def create_app(
     axis_cluster_labeler: AxisClusterLabeler | None = None,
     crossref_client: CrossrefClient | None = None,
     openalex_client: OpenAlexClient | None = None,
+    openalex_author_client: OpenAlexAuthorClient | None = None,
     help_assistant: HelpAssistant | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
@@ -88,6 +90,7 @@ def create_app(
     api.state.dedup_jobs = JobStore()
     api.state.acquire_jobs = JobStore()
     api.state.wanted_jobs = JobStore()
+    api.state.mypubs_jobs = JobStore()
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
@@ -98,6 +101,7 @@ def create_app(
     api.state.axis_cluster_labeler = axis_cluster_labeler
     api.state.crossref_client = crossref_client
     api.state.openalex_client = openalex_client
+    api.state.openalex_author_client = openalex_author_client
     api.state.help_assistant = help_assistant
 
     api.add_middleware(
@@ -126,6 +130,7 @@ def create_app(
     api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
     api.include_router(acquisition.router)  # before papers so "/papers/acquire-oa*" wins over "/papers/{paper_id}"
     api.include_router(wanted.router)
+    api.include_router(my_publications.router)
     api.include_router(papers.router)
     api.include_router(annotations.router)
     api.include_router(tags.router)

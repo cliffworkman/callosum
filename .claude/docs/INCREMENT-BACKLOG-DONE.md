@@ -27,6 +27,11 @@ new work goes in the open backlog.
   c-TF-IDF labels + optional egress-gated Gemini polish (falls back to local; never 503).
 - [x] **Hide uncertain axis papers by default** (inc 77) — a **Settings → Axes** toggle that makes the inc-51
   per-axis 👁 hide-uncertain view the default (persisted; the per-axis 👁 still overrides).
+- [x] **My Publications — Part 1: the auto-axis** (inc 78) — a pinned, **OpenAlex-resolved, LLM-free** axis of
+  your own papers: a profile (name/variants/ORCID) → ORCID/DOI-confirmed members + name-only candidates you
+  confirm/reject (persisted) + an import hook. New `integrations/openalex/author.py`, `profile_repo`,
+  `clustering/my_publications.py`, `routers/my_publications.py`, migration 0009. *(Part 2 — the impact dashboard
+  tab — is still open.)*
 
 ## Theme 2 — Library management (inc 54–67)
 - [x] **D. Multi-select + bulk delete → soft-delete + Trash/Restore** (inc 54); **permanent delete /

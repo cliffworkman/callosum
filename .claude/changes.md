@@ -9,6 +9,32 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 78: My Publications — the auto-axis of your own papers (Part 1)
+
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 78 (2026-06-20) — added a "My Publications" section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **What:** a pinned, OpenAlex-resolved, **LLM-free** axis of the researcher's own papers. Set a **profile**
+  (name / published-name variants / ORCID) in Settings → **Refresh** resolves via OpenAlex (ORCID-first) →
+  DOI/ORCID matches become **confirmed members**, name-only matches become **candidates** you ✓ confirm / ✕
+  reject (**persisted** — a rejection never re-appears, a confirmation survives re-matching). An **import hook**
+  adds new matching papers incrementally; the pinned 📄 card reuses `AxisItem` branched on the new `axes.kind`.
+- **Why:** the satisfying personal feature — your own corpus as a first-class lens; the foundation for a future
+  impact dashboard (Part 2, deferred).
+- **Files:** migration **0009** (`axes.kind` + `profile` + `my_publication_decisions`) + `schema.py`;
+  `integrations/openalex/author.py` (`OpenAlexAuthorClient`, fail-closed + cached); `persistence/profile_repo.py`;
+  `clustering/my_publications.py` (resolver + cache-based import hook); `metadata/enrichment.py` (the guarded
+  hook); `routers/my_publications.py` + `app.py` wiring + `AxisResponse.kind`; frontend `35_settings.jsx`
+  (profile section), `15_axes.jsx` (pinned card + kind branch + ✓/× → `/decide`), `40_app.jsx`, `00_lib.jsx`
+  (`apiPut`), `styles.css`; rebuilt `callosum-app.html`.
+- **Principles / egress:** facts-vs-candidates + confirm-and-learn; **no model tokens**; OpenAlex author lookup
+  is **metadata egress (public identifiers), NOT the Gemini gate**; strictly additive (the import hook is a
+  guarded no-op when unused). Audit `.claude/security-audits/2026-06-20_my-publications.md` — **PASS**.
+- **Verify:** `ruff` clean; `pytest` **361 passed, 1 skipped** (+14); migration head **0009**; route surface
+  +`/my-publications/*`. Notes: `INCREMENT-78-NOTES.md`. Live OpenAlex resolution delegated to the user (needs
+  their name/ORCID).
+- **NEXT:** Part 2 — the impact dashboard tab (charts / citation graph / prospection), deferred.
+- **Revert:** restore from a `.claude/backups/` snapshot; no down-migration (0009 is additive).
+
 ## 2026-06-20 — Increment 77: hide uncertain axis papers by default (Settings)
 
 - **What:** the inc-51 per-axis 👁 hide-uncertain view can now be the **default** via a new **Settings → Axes**
@@ -58,8 +84,6 @@ are the design diary; this is the chronological "what & why" record.
 - **Revert:** restore from a `.claude/backups/` snapshot; move the 2 specs back to the inbox to un-fold.
 
 ## 2026-06-20 — Increment 76: literature acquisition — the wanted list + OA re-check + coverage (C)
-
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 76 (2026-06-20) — added a "Wanted list & re-checking for copies" section (and the inc-75 acquisition cascade section). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 - **What:** completes the acquisition arc's *track* loop — a persistent **wanted list** of papers you want an
   OA copy of (unified: auto-includes PDF-less library papers AND external papers you add by DOI), a manual

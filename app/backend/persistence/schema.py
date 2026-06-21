@@ -295,6 +295,9 @@ axes = Table(
     # The assignment cutoff this axis was last scored at (assigned = similarity >= gain). NULL means
     # "use the current default" (DEFAULT_AXIS_CUTOFF). User-adjustable per re-score (inc 45).
     Column("scoring_gain", Float),
+    # Axis kind (inc 78): "standard" (the default, user-defined scored axis) or "my_publications" (the special
+    # pinned, OpenAlex-resolved axis of the user's own papers — variant styling + dismissable lifecycle).
+    Column("kind", String(40), nullable=False, server_default="standard"),
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
 
@@ -461,6 +464,34 @@ wanted_items = Table(
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Index("ix_wanted_items_paper_id", "paper_id"),
     Index("ix_wanted_items_status", "status"),
+)
+
+# The researcher's identity for My Publications (inc 78). Single-row, single-user-local (NB: per-user/session
+# visibility is a later multi-user concern — not built now). ``openalex_author_id`` is cached after resolution;
+# ``my_publications_dismissed`` = the deleted-the-card-don't-auto-regenerate flag.
+profile = Table(
+    "profile",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("display_name", Text),
+    Column("name_variants", JSON),  # list of additional published-name strings
+    Column("orcid", String(64)),
+    Column("openalex_author_id", String(64)),
+    Column("my_publications_dismissed", Integer, nullable=False, server_default="0"),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+)
+
+# Confirm/reject decisions for My Publications candidates (inc 78). Survives re-matching: a "rejected" paper is
+# never re-proposed; a "confirmed" paper stays a member. One row per paper.
+my_publication_decisions = Table(
+    "my_publication_decisions",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("decision", String(20), nullable=False),  # "confirmed" | "rejected"
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("paper_id", name="uq_my_publication_decisions_paper_id"),
 )
 
 jobs = Table(

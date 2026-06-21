@@ -187,9 +187,11 @@ gate** before any build. Sequenced *toward*, not queued — the core UX above co
 - [ ] **Literature gap-finder** (`…_gapfinder.md`): surface relevant-but-absent papers via citation methods
   (backward/forward gap, followed authors) with transparent provenance, ranked by axis relevance, add-or-dismiss.
   Depends on the OpenAlex adapter.
-- [ ] **My Publications** (`…_mypublications.md`): an auto, pinned axis of the researcher's own papers; **LLM-free**
-  OpenAlex/ORCID author resolution with confirm-and-learn. Shared author-resolution infra for the gap-finder.
-  _(picked up next — the reward.)_
+- [ ] **My Publications — Part 2: impact dashboard tab** (`…_mypublications.md`): **Part 1 shipped inc 78**
+  (the auto-axis — OpenAlex/ORCID resolution, facts-vs-candidates, confirm-and-learn, import hook). Remaining:
+  the dashboard **tab** (Layers 1–4 — publications-by-year SVG, headline OpenAlex metrics + indexed-vs-library
+  gap, domain decomposition into sub-axes, enriched citation cards, grounded prospection). The author-resolution
+  infra (`integrations/openalex/author.py`) now also unlocks the **gap-finder**.
 - [ ] **User-authored modules** (`…_plugins.md`): **deferred record only** — capture the extension-point idea +
   open questions; do NOT build a plugin system until a dedicated design pass.
 - [ ] **Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived): inspectable,

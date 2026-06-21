@@ -80,6 +80,25 @@ async function apiPatch(path, body) {
   }
 }
 
+async function apiPut(path, body) {
+  try {
+    const res = await fetch(API_BASE + path, {
+      method: "PUT",
+      headers: { "Accept": "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      const detail = data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `HTTP ${res.status} on ${path}`;
+      console.warn("[callosum] request failed:", path, detail);
+      return { ok: false, error: detail };
+    }
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+  }
+}
+
 // ─────────────────────────────────────────────────────────────
 // PDF.js — loaded lazily from cdnjs, exactly once, the first time a
 // PDF tab is opened. UMD build (3.x) so it works with no build step.

@@ -22,8 +22,8 @@ def test_health_reports_reachable_and_migrated(temp_db_url: str) -> None:
     assert body["verification_version"] == "local-verifier-v1"
     assert body["db_reachable"] is True
     assert body["db_migrated"] is True  # at head
-    assert body["db_revision"] == "0008_wanted_items"
-    assert body["db_head_revision"] == "0008_wanted_items"
+    assert body["db_revision"] == "0009_my_publications"
+    assert body["db_head_revision"] == "0009_my_publications"
 
 
 def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
@@ -39,7 +39,7 @@ def test_health_reports_behind_db_as_not_at_head(tmp_path: Path) -> None:
     assert body["db_reachable"] is True
     assert body["db_migrated"] is False
     assert body["db_revision"] == "0001_persistence_core"
-    assert body["db_head_revision"] == "0008_wanted_items"
+    assert body["db_head_revision"] == "0009_my_publications"
 
 
 def test_frontend_root_serves_configured_html_file(temp_db_url: str, tmp_path: Path) -> None:
@@ -113,6 +113,8 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/wanted",
         "/wanted/coverage",
         "/wanted/recheck/{job_id}",
+        "/my-publications/profile",
+        "/my-publications/refresh/{job_id}",
     }
     allowed_mutation_routes = {
         ("/summarize", frozenset({"POST"})),
@@ -147,6 +149,10 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/wanted/{item_id}", frozenset({"DELETE"})),
         ("/wanted/sync-library", frozenset({"POST"})),
         ("/wanted/recheck", frozenset({"POST"})),
+        ("/my-publications/profile", frozenset({"PUT"})),
+        ("/my-publications/refresh", frozenset({"POST"})),
+        ("/my-publications/decide", frozenset({"POST"})),
+        ("/my-publications", frozenset({"DELETE"})),
     }
     api_routes = [
         route

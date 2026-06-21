@@ -219,6 +219,7 @@ def test_axes_and_clusters_return_sidebar_tree_data(temp_db_url: str) -> None:
     created_at = listed_axes[0].pop("created_at")
     assert isinstance(created_at, str) and created_at  # server-defaulted timestamp, for sort-by-recency
     assert listed_axes[0].pop("scoring_gain") == 0.35  # never-scored axis → the default cutoff
+    assert listed_axes[0].pop("kind") == "standard"  # inc 78: default axis kind
     assert listed_axes == [
         {
             "id": seeded["axis_id"],
