@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import sys
 
 from app.backend.api.startup import PROJECT_ROOT
 
@@ -51,20 +52,26 @@ def assemble_jsx() -> str:
 
 
 def _transpile_jsx(jsx: str) -> str:
-    """Precompile concatenated JSX → plain JS via esbuild (build-time). Raises a clear error if esbuild is absent."""
-    node = shutil.which("node")
-    if node is None or not _ESBUILD_CLI.is_file():
+    """Precompile concatenated JSX → plain JS via esbuild (build-time). Raises a clear error if esbuild is absent.
+
+    Cross-platform invocation gotcha: esbuild's installer leaves `node_modules/esbuild/bin/esbuild` as a tiny JS
+    shim on **Windows** (run it with `node`), but on **Linux/macOS** it replaces it with the NATIVE binary — which
+    must be executed **directly** (`node <native-binary>` raises `SyntaxError: Invalid or unexpected token`). So
+    the command branches on the OS. (Caught only once CI actually ran the inc-102 build path on a Linux runner.)
+    """
+    if not _ESBUILD_CLI.is_file():
         raise RuntimeError(
-            "Frontend build needs Node + esbuild. Run `npm install` at the project root "
+            "Frontend build needs esbuild. Run `npm install` at the project root "
             "(installs the pinned esbuild from package.json), then rebuild."
         )
-    result = subprocess.run(
-        [node, str(_ESBUILD_CLI), *_ESBUILD_ARGS],
-        input=jsx,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
+    if sys.platform == "win32":
+        node = shutil.which("node")
+        if node is None:
+            raise RuntimeError("Frontend build needs Node on PATH to run esbuild. Install Node, then rebuild.")
+        cmd = [node, str(_ESBUILD_CLI), *_ESBUILD_ARGS]
+    else:
+        cmd = [str(_ESBUILD_CLI), *_ESBUILD_ARGS]  # native binary (or shebang script) — exec directly, no `node`
+    result = subprocess.run(cmd, input=jsx, capture_output=True, text=True, encoding="utf-8")
     if result.returncode != 0:
         raise RuntimeError(f"esbuild failed to transpile the frontend JSX:\n{result.stderr.strip()}")
     return result.stdout
