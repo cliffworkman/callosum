@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-20 — Increment 79: count badge subtracts hidden uncertain papers
+
+- **Files:** `app/backend/clustering/axis_assignments.py`, `app/backend/api/routers/axes.py`,
+  `app/frontend/js/15_axes.jsx`, `tests/test_axes.py`, `callosum-app.html` (rebuilt).
+- **What:** when an axis is in the assigned/manual-only view (inc-51 👁 toggle / inc-77 Settings default), its
+  count badge now shows the **visible** count (total − uncertain) instead of the full assignment count, with a
+  tooltip noting how many uncertain are hidden. `axis_score_state(cutoff=…)` returns a new `uncertain_count`
+  (scored `confidence < cutoff`); `AxisResponse.uncertain_count` exposes it; the frontend subtracts it per the
+  per-axis view state.
+- **Why:** the badge number should match what the list actually shows once uncertain papers are hidden (user
+  nomination).
+- **Scope:** additive read-only field on the existing `/axes` response — no migration, no new endpoint, no egress.
+  pytest **361** (assertions added to two existing axis tests, count unchanged); `ruff` clean.
+- **Revert:** restore from a `.claude/backups/` snapshot, or drop `uncertain_count` from `AxisResponse` +
+  `axis_score_state` and revert the badge to `axis.assignment_count`.
+
+> Also committed earlier this session as small **unnumbered UI chores**: a consistent indeterminate
+> `ProgressBar` wired into the long async jobs (axis score / suggest / duplicates / synthesis / acquire-OA /
+> wanted re-check / my-pubs refresh); moving the My Publications card below the filter/sort controls; bumping
+> inter-axis-card spacing 2→5px; and the CI Node-24 action bumps (checkout@v5 / setup-python@v6).
+
 ## 2026-06-20 — CI fix: pin ruff + the web stack + apply ruff format (CI now green)
 
 - **Result:** both CI jobs **green** — `lint-and-test` ✓ + `e2e-smoke` ✓ (browser smoke, 0 console errors).

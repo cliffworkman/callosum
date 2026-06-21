@@ -220,6 +220,7 @@ def test_axes_and_clusters_return_sidebar_tree_data(temp_db_url: str) -> None:
     assert isinstance(created_at, str) and created_at  # server-defaulted timestamp, for sort-by-recency
     assert listed_axes[0].pop("scoring_gain") == 0.35  # never-scored axis → the default cutoff
     assert listed_axes[0].pop("kind") == "standard"  # inc 78: default axis kind
+    assert listed_axes[0].pop("uncertain_count") == 0  # inc 79: the seeded paper (0.91) is assigned, not uncertain
     assert listed_axes == [
         {
             "id": seeded["axis_id"],
@@ -280,6 +281,7 @@ def test_axis_score_produces_three_honest_tiers(temp_db_url: str) -> None:
     listed = {a["id"]: a for a in client.get("/axes").json()}
     assert listed[axis_id]["scored"] is True and listed[axis_id]["stale"] is False
     assert listed[axis_id]["assignment_count"] == 2
+    assert listed[axis_id]["uncertain_count"] == 1  # inc 79: the borderline (0.30 < 0.35) is the lone uncertain
 
 
 def test_axis_cutoff_is_adjustable_and_persists(temp_db_url: str) -> None:

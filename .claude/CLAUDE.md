@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 78** (see Increment workflow) with **361 pytest tests
+It is currently at **Increment 79** (see Increment workflow) with **361 pytest tests
 passing** (+1 opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
 
 **Stack:**
@@ -335,7 +335,7 @@ veto-level boundaries; it is conditional, not a second mandatory read.
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 78). Each increment of real work
+callosum is built in **numbered increments** (currently at 79). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -631,7 +631,20 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-20 — increment 78 (My Publications — the auto-axis of your own papers, Part 1):
+*Last updated: 2026-06-20 — increment 79 (count badge subtracts hidden uncertain papers): a follow-on to
+inc-77's hide-uncertain-by-default — when an axis shows only assigned/manual papers (the inc-51 👁 toggle / the
+inc-77 Settings default), its count badge now shows the **visible** count (total − uncertain) with a tooltip
+noting how many are hidden, so the number matches the list. `axis_score_state(conn, id, *, cutoff=…)` returns a
+new **`uncertain_count`** (scored `confidence < cutoff`, mirroring the read-time tiering); `AxisResponse.uncertain_count`
+exposes it; `15_axes.jsx` subtracts it per the per-axis view-state (My Pubs card passes `hideUncertainDefault={false}`
+→ full count). Additive read-only field on the existing `/axes` response — **no migration, no new endpoint, no
+egress**; pytest **361** (assertions added to two existing axis tests, count unchanged); `ruff` clean; frontend
+rebuilt. (Also this session, as small unnumbered chores: an indeterminate `ProgressBar` on the long async jobs;
+the My Publications card moved below the filter/sort controls; inter-axis-card spacing 2→5px; CI actions bumped
+to Node 24 — checkout@v5 / setup-python@v6.) **NEXT (task list):** the UNSORTED/needs-review library filter
+(chore), then My Publications Part 2 — the impact **dashboard tab** (carrot, plan-mode first).
+
+Earlier — increment 78 (My Publications — the auto-axis of your own papers, Part 1):
 a pinned, **OpenAlex-resolved, LLM-free** axis of the researcher's own papers. Set a **profile** (name /
 published-name variants / ORCID) in Settings → **Refresh** resolves the identity via OpenAlex (ORCID-first) →
 ORCID/DOI matches are **confirmed members**, name-only matches are **candidates** you ✓ confirm / ✕ reject

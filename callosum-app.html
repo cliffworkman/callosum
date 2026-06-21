@@ -1739,6 +1739,9 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
+  // inc 79: when uncertain papers are hidden, the count badge shows the visible (assigned + manual) count.
+  const total = axis.assignment_count || 0;
+  const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
   return (
     <div className={"axis-item" + (isMyPubs ? " axis-mypubs" : "")}>
       <div className={"axis" + (expanded ? " active" : "")} onClick={() => handlers.toggle(axis.id)}>
@@ -1761,9 +1764,11 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
               className={"axis-count-badge" + (isMyPubs ? " is-scored" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
               title={isMyPubs
                 ? `Show your ${axis.assignment_count || 0} papers in the library`
-                : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet")}
+                : (hideUncertain && (axis.uncertain_count || 0) > 0
+                    ? `${badgeCount} assigned · ${axis.uncertain_count} uncertain hidden — click to show this axis in the library`
+                    : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet"))}
               onClick={stop(() => handlers.filterToAxis(axis))}
-            >{axis.assignment_count || 0}</button>
+            >{badgeCount}</button>
           </span>
         </div>
       </div>

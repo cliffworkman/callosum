@@ -144,6 +144,7 @@ class AxisResponse(BaseModel):
     created_at: datetime | None = None  # for client-side sort-by-recency
     scoring_gain: float = DEFAULT_AXIS_CUTOFF  # effective assigned-cutoff (axes.scoring_gain or default)
     kind: str = "standard"  # "standard" or "my_publications" (inc 78 — drives the pinned card + variant UI)
+    uncertain_count: int = 0  # scored-but-below-cutoff papers (inc 79 — for the hide-uncertain count badge)
 
 
 class ClusterPaperResponse(BaseModel):
@@ -498,7 +499,7 @@ def _axis_cluster_labeler(app: FastAPI) -> AxisClusterLabeler:
 
 
 def _axis_response(conn: Connection, row) -> AxisResponse:
-    state = axis_score_state(conn, int(row["id"]))
+    state = axis_score_state(conn, int(row["id"]), cutoff=_axis_cutoff(row))
     return AxisResponse(
         id=row["id"],
         label=row["label"],
@@ -509,6 +510,7 @@ def _axis_response(conn: Connection, row) -> AxisResponse:
         created_at=row["created_at"],
         scoring_gain=_axis_cutoff(row),
         kind=row["kind"] if "kind" in row else "standard",
+        uncertain_count=int(state["uncertain_count"]),
     )
 
 

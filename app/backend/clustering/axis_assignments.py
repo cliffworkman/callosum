@@ -130,13 +130,14 @@ def restore_manual_assignments(conn: Connection, *, axis_id: int, paper_ids: set
             )
 
 
-def axis_score_state(conn: Connection, axis_id: int) -> dict[str, object]:
-    """Whether an axis has been scored and whether its assignments are stale relative to its
-    current text. Staleness compares the axis text-version recomputed with the normalization
-    recorded on the stored axis embedding against that embedding's source_text_version."""
+def axis_score_state(conn: Connection, axis_id: int, *, cutoff: float | None = None) -> dict[str, object]:
+    """Whether an axis has been scored, whether its assignments are stale, and — when ``cutoff`` is given —
+    how many assignments are *uncertain* (scored but below the cutoff), for the count-badge subtraction
+    (inc 79). Staleness compares the axis text-version recomputed with the stored embedding's normalization
+    against its source_text_version."""
     axis = conn.execute(select(axes).where(axes.c.id == axis_id)).mappings().first()
     if axis is None:
-        return {"scored": False, "stale": False, "assignment_count": 0}
+        return {"scored": False, "stale": False, "assignment_count": 0, "uncertain_count": 0}
     count = int(
         conn.execute(
             select(func.count())
@@ -146,6 +147,25 @@ def axis_score_state(conn: Connection, axis_id: int) -> dict[str, object]:
             .where(cluster_nodes.c.axis_id == axis_id)
         ).scalar_one()
     )
+    # Uncertain = scored (confidence NOT NULL) but below the display cutoff; manual (NULL) is never uncertain.
+    # Mirrors the read-time tiering in routers/axes.py (assigned = confidence >= cutoff).
+    uncertain = 0
+    if cutoff is not None:
+        uncertain = int(
+            conn.execute(
+                select(func.count())
+                .select_from(
+                    cluster_node_papers.join(cluster_nodes, cluster_nodes.c.id == cluster_node_papers.c.cluster_node_id)
+                )
+                .where(
+                    and_(
+                        cluster_nodes.c.axis_id == axis_id,
+                        cluster_node_papers.c.confidence.is_not(None),
+                        cluster_node_papers.c.confidence < cutoff,
+                    )
+                )
+            ).scalar_one()
+        )
     # Fresh if ANY stored embedding matches the current text — NOT just newest-by-id. An axis accrues a
     # row per scored text version (never pruned), so a merge/edit cycle revisiting a prior version can
     # leave a stale higher-id row above the matching one (else: perpetually stale). score_axis embeds current.
@@ -159,9 +179,9 @@ def axis_score_state(conn: Connection, axis_id: int) -> dict[str, object]:
         .all()
     )
     if not rows:
-        return {"scored": False, "stale": False, "assignment_count": count}
+        return {"scored": False, "stale": False, "assignment_count": count, "uncertain_count": uncertain}
     current_text = strip_punctuation(_axis_text(axis))
     fresh = any(
         _axis_text_version(current_text, normalization=r["normalization"]) == r["source_text_version"] for r in rows
     )
-    return {"scored": True, "stale": not fresh, "assignment_count": count}
+    return {"scored": True, "stale": not fresh, "assignment_count": count, "uncertain_count": uncertain}
