@@ -1,4 +1,4 @@
-"""Re-embed the brand assets (app/media/{logo,favicon}.png) into the modular frontend
+"""Re-embed the brand assets (.claude/media/{logo,favicon}.png) into the modular frontend
 as base64 data: URIs.
 
 The frontend has no asset-serving route, so the logo and favicon are inlined as
@@ -28,7 +28,7 @@ TARGETS = [
     # Two media-query favicon links (inc 53): the browser swaps the tab icon to the OS color scheme.
     (
         "favicon light",
-        ROOT / "app" / "media" / "favicon.png",
+        ROOT / ".claude" / "media" / "favicon.png",
         re.compile(
             r'(<link rel="icon" type="image/png" href=")data:image/png;base64,[A-Za-z0-9+/=]*(" media="\(prefers-color-scheme: light\)")'
         ),
@@ -36,7 +36,7 @@ TARGETS = [
     ),
     (
         "favicon dark",
-        ROOT / "app" / "media" / "favicon_dm.png",
+        ROOT / ".claude" / "media" / "favicon_dm.png",
         re.compile(
             r'(<link rel="icon" type="image/png" href=")data:image/png;base64,[A-Za-z0-9+/=]*(" media="\(prefers-color-scheme: dark\)")'
         ),
@@ -46,25 +46,25 @@ TARGETS = [
     # inline Babel script. Each keys on its unique --logo-* token name.
     (
         "logo light-off",
-        ROOT / "app" / "media" / "logo.png",
+        ROOT / ".claude" / "media" / "logo.png",
         re.compile(r'(--logo-light-off: url\(")data:image/png;base64,[A-Za-z0-9+/=]*("\))'),
         [FRONTEND / "styles.css"],
     ),
     (
         "logo light-on",
-        ROOT / "app" / "media" / "logo_on.png",
+        ROOT / ".claude" / "media" / "logo_on.png",
         re.compile(r'(--logo-light-on: url\(")data:image/png;base64,[A-Za-z0-9+/=]*("\))'),
         [FRONTEND / "styles.css"],
     ),
     (
         "logo dark-off",
-        ROOT / "app" / "media" / "logo_dm.png",
+        ROOT / ".claude" / "media" / "logo_dm.png",
         re.compile(r'(--logo-dark-off: url\(")data:image/png;base64,[A-Za-z0-9+/=]*("\))'),
         [FRONTEND / "styles.css"],
     ),
     (
         "logo dark-on",
-        ROOT / "app" / "media" / "logo_dm_on.png",
+        ROOT / ".claude" / "media" / "logo_dm_on.png",
         re.compile(r'(--logo-dark-on: url\(")data:image/png;base64,[A-Za-z0-9+/=]*("\))'),
         [FRONTEND / "styles.css"],
     ),
