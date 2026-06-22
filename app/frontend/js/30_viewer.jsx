@@ -8,7 +8,12 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [notice, setNotice] = useState(null);   // transient error/info toast
   const [dpr, setDpr] = useState(() => (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1));
+  const [pageView, setPageView] = useState(() => {
+    const v = _loadLayout("callosum.pageView", "page");   // "page" (manual zoom) | "width" (fit) | "two" (two-up)
+    return v === "width" || v === "two" ? v : "page";
+  });
   const docRef = useRef(null);
+  const baseWidthRef = useRef(0);   // page-1 unscaled width (pdf points) — the basis for fit-width / two-up scale
   const scrollRef = useRef(null);
   const pagesRef = useRef(null);
   const tokenRef = useRef(0);
@@ -66,6 +71,10 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
         const doc = await pdfjsLib.getDocument({ data: buf }).promise;
         if (cancelled || token !== tokenRef.current) return;
         docRef.current = doc;
+        try {
+          baseWidthRef.current = (await doc.getPage(1)).getViewport({ scale: 1 }).width;
+        } catch (e) { baseWidthRef.current = 0; }
+        if (cancelled || token !== tokenRef.current) return;
         setState({ status: "ready", numPages: doc.numPages });
       } catch (e) {
         if (!cancelled && token === tokenRef.current) setState({ status: "error", error: "This file could not be rendered as a PDF." });
@@ -213,9 +222,42 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
     setPage(p => (p === current ? p : current));
   }, []);
 
+  // Manual zoom drops out of any fit mode (fit-width / two-up auto-compute the scale).
   const zoom = useCallback((delta) => {
+    setPageView("page");
+    _saveLayout("callosum.pageView", "page");
     setScale(s => Math.min(3, Math.max(0.5, Math.round((s + delta) * 100) / 100)));
   }, []);
+
+  const changePageView = useCallback((next) => {
+    setPageView(next);
+    _saveLayout("callosum.pageView", next);
+  }, []);
+
+  // Fit-to-width / two-up: derive `scale` from the scroller's width so one (or two) pages fill it, re-fitting on
+  // resize. This feeds the SAME single-scale render pipeline below (the inc-34 alignment invariant is intact — it
+  // only chooses the scale value). Manual ("page") mode leaves `scale` to the zoom buttons. `floor` keeps two
+  // pages from overflowing the row by a rounding hair.
+  useEffect(() => {
+    if (state.status !== "ready" || pageView === "page") return;
+    const PAD = 16, GAP = 12;   // matches the .pdf-pages padding + gap
+    const cols = pageView === "two" ? 2 : 1;
+    const fit = () => {
+      const el = scrollRef.current, base = baseWidthRef.current;
+      if (!el || !base) return;
+      const avail = el.clientWidth - 2 * PAD - (cols - 1) * GAP;
+      if (avail <= 0) return;
+      const s = Math.min(3, Math.max(0.2, Math.floor((avail / (cols * base)) * 100) / 100));
+      setScale(prev => (prev === s ? prev : s));
+    };
+    fit();
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined" && scrollRef.current) {
+      ro = new ResizeObserver(fit);
+      ro.observe(scrollRef.current);
+    }
+    return () => { if (ro) ro.disconnect(); };
+  }, [pageView, state.status]);
 
   // On text selection, map the selection's per-line client rects into the
   // increment-29 coordinate basis (page-relative PDF points) and offer a color.
@@ -388,6 +430,12 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
               <span className="pdf-zoom-val">{Math.round(scale * 100)}%</span>
               <button onClick={() => zoom(0.2)} title="Zoom in">+</button>
             </span>
+            <button className={"pdf-annot-toggle" + (pageView === "width" ? " active" : "")}
+                    onClick={() => changePageView(pageView === "width" ? "page" : "width")}
+                    title="Fit the page width to the window">Fit width</button>
+            <button className={"pdf-annot-toggle" + (pageView === "two" ? " active" : "")}
+                    onClick={() => changePageView(pageView === "two" ? "page" : "two")}
+                    title="Two pages side by side">Two-up</button>
             <span className="pdf-pageind">Page {page} / {state.numPages}</span>
             <button className={"pdf-annot-toggle" + (panelOpen ? " active" : "")}
                     onClick={() => setPanelOpen(o => !o)} title="Show annotations for this paper">
@@ -408,7 +456,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
             <div className="errbox" style={{ margin: "18px" }}>
               <b>Couldn't open this PDF.</b><br />{state.error}
             </div>}
-          <div className="pdf-pages" ref={pagesRef} style={{ display: state.status === "ready" ? "flex" : "none" }}></div>
+          <div className={"pdf-pages" + (pageView === "two" ? " pdf-two-up" : "")} ref={pagesRef}
+               style={{ display: state.status === "ready" ? "flex" : "none" }}></div>
         </div>
         {panelOpen && state.status === "ready" &&
           <div className="pdf-annot-panel">

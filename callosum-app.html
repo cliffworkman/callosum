@@ -989,6 +989,8 @@
   .pdf-annot-actions button.danger { color: var(--danger); }
   .pdf-annot-toggle.active { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 600; }
   .pdf-pages { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; }
+  /* Two-up (side-by-side) page view (inc 110): pages wrap two per row; the JS fits each to ~half the width. */
+  .pdf-pages.pdf-two-up { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
   /* Pixel-exact page box: the canvas, text layer, and overlay layers are all sized to
      the SAME exact CSS dimensions (set inline from the un-floored viewport). No
      responsive shrink (which would scale the canvas but not the fixed-px text layer and
@@ -3553,7 +3555,12 @@
     const [panelOpen, setPanelOpen] = useState(false);
     const [notice, setNotice] = useState(null);
     const [dpr, setDpr] = useState(() => typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
+    const [pageView, setPageView] = useState(() => {
+      const v = _loadLayout("callosum.pageView", "page");
+      return v === "width" || v === "two" ? v : "page";
+    });
     const docRef = useRef(null);
+    const baseWidthRef = useRef(0);
     const scrollRef = useRef(null);
     const pagesRef = useRef(null);
     const tokenRef = useRef(0);
@@ -3614,6 +3621,12 @@
           const doc = await pdfjsLib2.getDocument({ data: buf }).promise;
           if (cancelled || token !== tokenRef.current) return;
           docRef.current = doc;
+          try {
+            baseWidthRef.current = (await doc.getPage(1)).getViewport({ scale: 1 }).width;
+          } catch (e) {
+            baseWidthRef.current = 0;
+          }
+          if (cancelled || token !== tokenRef.current) return;
           setState({ status: "ready", numPages: doc.numPages });
         } catch (e) {
           if (!cancelled && token === tokenRef.current) setState({ status: "error", error: "This file could not be rendered as a PDF." });
@@ -3754,8 +3767,36 @@
       setPage((p) => p === current ? p : current);
     }, []);
     const zoom = useCallback((delta) => {
+      setPageView("page");
+      _saveLayout("callosum.pageView", "page");
       setScale((s) => Math.min(3, Math.max(0.5, Math.round((s + delta) * 100) / 100)));
     }, []);
+    const changePageView = useCallback((next) => {
+      setPageView(next);
+      _saveLayout("callosum.pageView", next);
+    }, []);
+    useEffect(() => {
+      if (state.status !== "ready" || pageView === "page") return;
+      const PAD = 16, GAP = 12;
+      const cols = pageView === "two" ? 2 : 1;
+      const fit = () => {
+        const el = scrollRef.current, base = baseWidthRef.current;
+        if (!el || !base) return;
+        const avail = el.clientWidth - 2 * PAD - (cols - 1) * GAP;
+        if (avail <= 0) return;
+        const s = Math.min(3, Math.max(0.2, Math.floor(avail / (cols * base) * 100) / 100));
+        setScale((prev) => prev === s ? prev : s);
+      };
+      fit();
+      let ro = null;
+      if (typeof ResizeObserver !== "undefined" && scrollRef.current) {
+        ro = new ResizeObserver(fit);
+        ro.observe(scrollRef.current);
+      }
+      return () => {
+        if (ro) ro.disconnect();
+      };
+    }, [pageView, state.status]);
     const onPagesMouseUp = useCallback(() => {
       const host = pagesRef.current;
       if (!host) return;
@@ -3922,7 +3963,23 @@
         setTimeout(() => b.classList.remove("flash"), 1300);
       });
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement("span", { className: "pdf-pageind" }, "Page ", page, " / ", state.numPages), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "pdf-annot-toggle" + (pageView === "width" ? " active" : ""),
+        onClick: () => changePageView(pageView === "width" ? "page" : "width"),
+        title: "Fit the page width to the window"
+      },
+      "Fit width"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "pdf-annot-toggle" + (pageView === "two" ? " active" : ""),
+        onClick: () => changePageView(pageView === "two" ? "page" : "two"),
+        title: "Two pages side by side"
+      },
+      "Two-up"
+    ), /* @__PURE__ */ React.createElement("span", { className: "pdf-pageind" }, "Page ", page, " / ", state.numPages), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdf-annot-toggle" + (panelOpen ? " active" : ""),
@@ -3932,7 +3989,14 @@
       "Notes (",
       annotations.length,
       ")"
-    ))), /* @__PURE__ */ React.createElement("div", { className: "pdf-body" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-scroll", ref: scrollRef, onScroll, onMouseUp: onPagesMouseUp, onClick: onPagesClick }, state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Opening PDF\u2026"), "Streaming and rendering the document."), state.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "PDF not available locally"), "This paper has no local PDF file \u2014 it may be a URL-only or metadata-only entry."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "18px" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't open this PDF."), /* @__PURE__ */ React.createElement("br", null), state.error), /* @__PURE__ */ React.createElement("div", { className: "pdf-pages", ref: pagesRef, style: { display: state.status === "ready" ? "flex" : "none" } })), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-head" }, "Annotations ", /* @__PURE__ */ React.createElement("span", null, "\xB7 ", annotations.length)), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => jumpToAnnotation(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => openEditor(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => deleteAnnotation(a.id) }, "Delete")))))), picker && /* @__PURE__ */ React.createElement("div", { className: "hl-picker", style: { left: picker.left, top: picker.top }, onMouseDown: (e) => e.preventDefault() }, HIGHLIGHT_COLORS.map((c) => /* @__PURE__ */ React.createElement(
+    ))), /* @__PURE__ */ React.createElement("div", { className: "pdf-body" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-scroll", ref: scrollRef, onScroll, onMouseUp: onPagesMouseUp, onClick: onPagesClick }, state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Opening PDF\u2026"), "Streaming and rendering the document."), state.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "PDF not available locally"), "This paper has no local PDF file \u2014 it may be a URL-only or metadata-only entry."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "18px" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't open this PDF."), /* @__PURE__ */ React.createElement("br", null), state.error), /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "pdf-pages" + (pageView === "two" ? " pdf-two-up" : ""),
+        ref: pagesRef,
+        style: { display: state.status === "ready" ? "flex" : "none" }
+      }
+    )), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-head" }, "Annotations ", /* @__PURE__ */ React.createElement("span", null, "\xB7 ", annotations.length)), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => jumpToAnnotation(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => openEditor(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => deleteAnnotation(a.id) }, "Delete")))))), picker && /* @__PURE__ */ React.createElement("div", { className: "hl-picker", style: { left: picker.left, top: picker.top }, onMouseDown: (e) => e.preventDefault() }, HIGHLIGHT_COLORS.map((c) => /* @__PURE__ */ React.createElement(
       "span",
       {
         key: c,

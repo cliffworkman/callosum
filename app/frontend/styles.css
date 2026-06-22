@@ -965,6 +965,8 @@
   .pdf-annot-actions button.danger { color: var(--danger); }
   .pdf-annot-toggle.active { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 600; }
   .pdf-pages { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; }
+  /* Two-up (side-by-side) page view (inc 110): pages wrap two per row; the JS fits each to ~half the width. */
+  .pdf-pages.pdf-two-up { flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: center; }
   /* Pixel-exact page box: the canvas, text layer, and overlay layers are all sized to
      the SAME exact CSS dimensions (set inline from the un-floored viewport). No
      responsive shrink (which would scale the canvas but not the fixed-px text layer and
