@@ -291,7 +291,7 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
           {canOpen &&
             <button
-              className="source-jump"
+              className="btn btn-ghost"
               onClick={(event) => { event.preventDefault(); onOpenCitation(citation); }}
             >
               Open source {citation.coordinate_precision === "exact" ? "and highlight" : citation.coordinate_precision === "region" ? "region" : "page"}

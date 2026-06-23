@@ -354,9 +354,9 @@
   .axis-form-actions { display: flex; align-items: center; gap: 10px; }
   /* ── Canonical buttons (inc 68): one definition per variant. The historical ad-hoc button classes are
      grouped into these rules so the recipe isn't re-typed (DESIGN.md §3 #5). New buttons should use
-     .btn + a variant (.btn-primary / .btn-ghost / .btn-link / .btn-icon) + optional .danger. Size-divergent
-     legacy buttons (axis-sort, pdf-zoom, source-jump, history-delete, hl-editor, axis-new, axis-x,
-     frame-tab-close) keep their own blocks for now — incremental migration. ── */
+     .btn + a variant (.btn-primary / .btn-ghost / .btn-link / .btn-icon) + optional .danger. Remaining
+     divergent buttons are documented exceptions (inc 86/113): axis-sort, pdf-zoom, history-delete, axis-new
+     (green = add), axis-x, frame-tab-close. (hl-editor + source-jump folded into .btn-ghost, inc 113.) ── */
   .btn { cursor: pointer; font-family: var(--sans); }
 
   .btn-primary, .axis-btn, .synth-actions button {
@@ -1086,11 +1086,7 @@
     background: rgba(255, 246, 224, .96); color: var(--flag); border: 1px solid rgba(176, 105, 0, .35);
     border-radius: 6px; font-size: 11.5px; line-height: 1.35; box-shadow: 0 2px 8px rgba(0,0,0,.12);
   }
-  .source-jump {
-    border: 1px solid var(--line-2); background: var(--panel); color: var(--accent);
-    border-radius: var(--radius-sm); padding: 5px 8px; font-size: 11.5px; cursor: pointer;
-  }
-  .source-jump:hover { border-color: var(--accent); background: rgba(92, 85, 176, .08); }
+  /* .source-jump (the citation card's "Open source …" button) migrated to canonical .btn-ghost (inc 113). */
   /* Save-from-synthesis control: dashed to echo the saved highlight's provenance outline. */
   .source-save {
     border: 1px dashed var(--accent-overlay); background: var(--panel); color: var(--accent);
@@ -2760,7 +2756,7 @@
     return /* @__PURE__ */ React.createElement("details", { className: "citation" }, /* @__PURE__ */ React.createElement("summary", null, /* @__PURE__ */ React.createElement("span", null, citation.paper_title || `Paper ${citation.paper_id}`, " \xB7 ", pageLabel(citation)), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (verified ? "verified" : "flagged") }, citation.status)), /* @__PURE__ */ React.createElement("div", { className: "citation-card" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 12.5 } }, citation.paper_title || `Paper ${citation.paper_id}`), /* @__PURE__ */ React.createElement("div", { style: { fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 } }, "chunk ", citation.chunk_id, " \xB7 ", pageLabel(citation))), /* @__PURE__ */ React.createElement("span", { className: "coord " + (precision === "exact" ? "exact" : precision === "region" ? "region" : "none") }, precisionText(citation.coordinate_precision))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 } }, canOpen && /* @__PURE__ */ React.createElement(
       "button",
       {
-        className: "source-jump",
+        className: "btn btn-ghost",
         onClick: (event) => {
           event.preventDefault();
           onOpenCitation(citation);
