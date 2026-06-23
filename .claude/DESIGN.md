@@ -101,20 +101,24 @@ There are now **canonical button classes** in `styles.css` (one definition per v
 ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed. **New buttons use
 `.btn` + a variant** (`.btn-primary` / `.btn-ghost` / `.btn-link` / `.btn-icon`) + optional `.danger`.
 - **`.btn-primary` (filled):** `var(--accent)` bg + border, `--on-fill` text, `var(--radius)`, weight 600.
-  (grouped: `.axis-btn`, `.synth-actions button` [keeps a larger-padding delta]. `.hl-editor-actions
-  button.primary` is a *ghost base + accent fill* — a separate construction, not migrated.)
+  (grouped: `.axis-btn`, `.synth-actions button` [keeps a larger-padding delta]. **`.hl-editor-actions`
+  Delete/Cancel/Save migrated to `.btn-ghost`/`.btn-primary`/`.danger` — inc 113.**)
 - **`.btn-ghost` (outline/secondary):** `var(--bg)` bg, `1px var(--line-2)` border, `--ink-2` text,
-  `var(--radius)`; hover → `border-color/color: var(--accent)`. (grouped: `.pginate button`. **Kept as
-  intentional compact variants (inc 86, §3 #5):** `.axis-sort`, `.axis-new`, `.pdf-zoom button`, `.source-jump`,
-  `.history-delete`, `.hl-editor-actions button` — distinct by design [size/color/hover], so NOT folded;
-  radii tokenized to `--radius-sm`.)
+  `var(--radius)`; hover → `border-color/color: var(--accent)`. (grouped: `.pginate button`. `.btn-ghost.danger`
+  = a red destructive ghost. **Kept as intentional compact variants (inc 86, §3 #5):** `.axis-sort` (tiny inline
+  `<select>`), `.pdf-zoom button` (fixed 24×24 squares), `.source-jump` (indigo = provenance/citation jump),
+  `.history-delete` (compact; delete-hover now red) — distinct by design, so NOT folded; radii `--radius-sm`.)
 - **`.btn-link`:** no border/bg, `--accent` text, hover underline; disabled → `--ink-3`. (grouped:
-  `.axis-link`.) Canonical `.btn-link.danger` = red `--danger`; the legacy `.axis-link.axis-danger` is
-  still amber `--flag` (pending migration — see §3 #1).
+  `.axis-link`.) `.btn-link.danger` **and** `.axis-link.axis-danger` are both red `--danger` (inc 113 — DESIGN §4;
+  axis-delete was amber, now red).
 - **`.btn-icon`:** `1px transparent` border, transparent bg, `--ink-3`, `--radius-sm`; hover → `--accent`
-  + faint `--line-2` border + `--panel` bg. (grouped: `.axis-icon-btn` [keeps its amber danger-hover].
-  **Kept as intentional variants (inc 86):** `.axis-x`, `.frame-tab-close` — borderless symbol-× closes with a
-  flag hover, distinct by design.)
+  + faint `--line-2` border + `--panel` bg. (grouped: `.axis-icon-btn`; its `.axis-icon-danger` delete-hover is
+  now red `--danger`, inc 113. **Kept as intentional variants (inc 86):** `.axis-x`, `.frame-tab-close` —
+  borderless symbol-× *remove-from-view* closes; their **amber** hover is deliberate (remove ≠ destroy, inc 113).)
+- **Add/create buttons are GREEN (`--verified`)** — a deliberate affordance so an "add" action reads as distinct
+  from neutral/primary controls (e.g. `.axis-new` "+", ruled inc 113). Green therefore has **two** roles:
+  *verified/grounded* (status) and *add-action* (affordance). New add buttons use green. *(Open: the library
+  "+ Add ▾" menu is not yet green — see §3 worklist #1.)*
 - **`.danger` modifier:** red `--danger` text (+ `--danger-line` border for icon hover). The canonical
   destructive color (DESIGN §4); use it on new destructive buttons.
 - **Disabled (all):** `opacity:.45` (ghost uses `.4`) + `--line-2` bg/border + `--ink-3` text; `cursor:default`.
@@ -156,12 +160,13 @@ List rows + cards darken to a warm neutral on hover (`.axis:hover`, `.cluster:ho
 
 Ranked; "legit" = a context difference worth keeping.
 
-1. **Destructive color is split — fix first.** Deleting an **axis** uses `--flag` (#9a5b2e amber-brown:
-   `.axis-link.axis-danger`, `.axis-icon-danger`, `.axis-x:hover`), but deleting a **highlight/summary**
-   uses a true red `#b3261e` (+ `rgba(179,38,30,.4)`: `.hl-* .danger`, `.pdf-annot-actions .danger`).
-   `--flag` *also* means "unresolved/uncertain/region" — so amber-brown is overloaded onto "delete."
-   **Proposal:** add **`--danger: #b3261e`** (+ `--danger-line`) and use it for *all* destructive actions;
-   reserve `--flag` for status only. (The `.axis-count-badge` is **no longer a fixed color** — it now
+1. **Destructive color split — RESOLVED (inc 113; the `--danger` token has existed since inc 46).** Genuinely
+   **destructive** (data-deleting) actions now use red `--danger` (#b3261e) + `--danger-line`:
+   `.axis-link.axis-danger` (delete axis), `.axis-icon-danger` (axis delete-icon), `.history-delete` (delete a
+   saved synthesis), plus the highlight/summary deletes that were already red. **Deliberate distinction kept:**
+   *remove-from-view* ×-closes — `.axis-x` (pull a paper off an axis) and `.frame-tab-close` (close a tab) —
+   **stay amber `--flag`**: they dismiss, they don't destroy data. So `--flag` = status + remove-from-view, red
+   = data-delete. (The `.axis-count-badge` is **no longer a fixed color** — it now
    encodes scoring status (green `--verified` / amber `--flag` / neutral `--line-2`; see §2), which retired
    the earlier "is the badge red or amber?" question; it uses `--flag` only for the *stale* state.)
 2. **The indigo is three colors.** `--accent #2f2a6b` (chrome/provenance), an **overlay indigo

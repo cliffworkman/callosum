@@ -349,6 +349,7 @@
   }
   .btn-ghost:not(:disabled):hover, .pginate button:not(:disabled):hover { border-color: var(--accent); color: var(--accent); }
   .btn-ghost:disabled, .pginate button:disabled { opacity: .4; cursor: default; }
+  .btn-ghost.danger { color: var(--danger); border-color: var(--danger-line); }   /* destructive ghost button = red (DESIGN §4) */
 
   .btn-link, .axis-link {
     border: none; background: none; color: var(--accent); font-size: 11.5px; cursor: pointer;
@@ -357,7 +358,7 @@
   .btn-link:hover, .axis-link:hover { text-decoration: underline; }
   .btn-link:disabled, .axis-link:disabled { color: var(--ink-3); cursor: default; text-decoration: none; }
   .btn-link.danger { color: var(--danger); }                 /* canonical destructive = red (DESIGN §4) */
-  .axis-link.axis-danger { color: var(--flag); }             /* legacy amber axis-delete — pending migration */
+  .axis-link.axis-danger { color: var(--danger); }           /* destructive = red (inc 113; was amber --flag) */
 
   .btn-icon, .axis-icon-btn {
     border: 1px solid transparent; background: none; color: var(--ink-3); cursor: pointer;
@@ -419,7 +420,7 @@
   /* .axis-icon-btn base + :hover follow the canonical .btn-icon recipe (grouped above), but hover the OUTLINE to
      the accent (icon) color so it matches the svg; the danger variant hovers both icon + outline amber. */
   .axis-icon-btn:hover { border-color: var(--accent); }                                        /* edit/add/dashboard/eye: outline = accent icon */
-  .axis-icon-btn.axis-icon-danger:hover { color: var(--flag); border-color: var(--flag-line); }  /* delete: orangish, unchanged */
+  .axis-icon-btn.axis-icon-danger:hover { color: var(--danger); border-color: var(--danger-line); }  /* delete = red (inc 113; was amber) */
   /* count badge — its background color encodes scoring status (see DESIGN.md): default = not scored
      (muted), .is-scored = green (scored + fresh), .is-stale = amber (edited → re-score). */
   .axis-count-badge {
@@ -864,7 +865,7 @@
     border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-3);
     border-radius: var(--radius-sm); font-size: 11px; padding: 3px 6px; cursor: pointer; align-self: start;
   }
-  .history-delete:hover { border-color: var(--flag); color: var(--flag); }
+  .history-delete:hover { border-color: var(--danger); color: var(--danger); }   /* destructive = red (inc 113; was amber) */
 
   /* ---- tabbed library frame (middle column) ---- */
   .lib-frame {
@@ -1040,13 +1041,7 @@
   .hl-editor-swatches { display: flex; gap: 7px; }
   .hl-swatch.sel { box-shadow: 0 0 0 2px var(--accent); }
   .hl-editor-actions { display: flex; align-items: center; gap: 6px; }
-  .hl-editor-actions button {
-    border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
-    border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; cursor: pointer; font-family: var(--sans);
-  }
-  .hl-editor-actions button:hover { border-color: var(--accent); }
-  .hl-editor-actions button.primary { background: var(--accent); color: var(--on-fill); border-color: var(--accent); }
-  .hl-editor-actions button.danger { color: var(--danger); border-color: var(--danger-line); }
+  /* Delete/Cancel/Save migrated to the canonical .btn-ghost / .btn-primary / .danger recipe (inc 113, DESIGN §3 #5). */
   /* A small dot marks highlights that carry a note; flash animates a jump-to. */
   .pdf-user-highlight.has-note::after {
     content: ""; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px;

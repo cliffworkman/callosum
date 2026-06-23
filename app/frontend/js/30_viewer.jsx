@@ -497,10 +497,10 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
                     title={`Color ${c}`} onClick={() => setEditor(ed => ({ ...ed, color: c }))} />)}
           </div>
           <div className="hl-editor-actions">
-            <button className="danger" onClick={() => deleteAnnotation(editor.id)}>Delete</button>
+            <button className="btn btn-ghost danger" onClick={() => deleteAnnotation(editor.id)}>Delete</button>
             <span style={{ flex: 1 }}></span>
-            <button onClick={() => setEditor(null)}>Cancel</button>
-            <button className="primary" onClick={saveEdit}>Save</button>
+            <button className="btn btn-ghost" onClick={() => setEditor(null)}>Cancel</button>
+            <button className="btn btn-primary" onClick={saveEdit}>Save</button>
           </div>
         </div>}
       {notice &&
