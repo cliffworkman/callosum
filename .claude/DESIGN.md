@@ -113,8 +113,11 @@ ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed
   axis-delete was amber, now red).
 - **`.btn-icon`:** `1px transparent` border, transparent bg, `--ink-3`, `--radius-sm`; hover → `--accent`
   + faint `--line-2` border + `--panel` bg. (grouped: `.axis-icon-btn`; its `.axis-icon-danger` delete-hover is
-  now red `--danger`, inc 113. **Kept as intentional variants (inc 86):** `.axis-x`, `.frame-tab-close` —
-  borderless symbol-× *remove-from-view* closes; their **amber** hover is deliberate (remove ≠ destroy, inc 113).)
+  now red `--danger`, inc 113. **`.axis-icon-btn` carries an AMBIENT outline at rest** (`border-color: currentColor`
+  — the icon's own color, so the outline is always visible; hover then swaps the *color* to accent rather than
+  revealing the outline — inc 116, mirroring the inc-104 gear/help treatment). **Kept as intentional variants
+  (inc 86):** `.axis-x`, `.frame-tab-close` — borderless symbol-× *remove-from-view* closes; their **amber** hover
+  is deliberate (remove ≠ destroy, inc 113).)
 - **Add/create buttons are GREEN (`--verified`)** — a deliberate affordance so an "add" action reads as distinct
   from neutral/primary controls (e.g. `.axis-new` "+", ruled inc 113). Green therefore has **two** roles:
   *verified/grounded* (status) and *add-action* (affordance). New add buttons use green. *(Open: the library
@@ -148,6 +151,15 @@ is at a premium.
 ### Hover (rows/cards)
 List rows + cards darken to a warm neutral on hover (`.axis:hover`, `.cluster:hover`, `.frame-tab:hover`,
 `.history-row:hover` → `#ece9e0`; `.paper:hover` → `#faf8f3` — *two different hovers, see Pass-2*).
+
+### Feedback — long async ops get a progress bar (a standing rule)
+**Any user-triggered async operation that can take more than ~1s shows the indeterminate `ProgressBar`** while
+it is pending — never a frozen-looking idle control. The shared component is `<ProgressBar />` (an indeterminate
+sliding `.progress-bar`/`.progress-bar-fill`); render it gated on the pane's `busy`/`running` flag. Already on:
+summary generation (`.synth` busy), axis score / axis suggest / dedup scan / statcheck-all, library scan / import /
+wanted re-check (the async-job modals). When you add a new async job (a `JobStore[R]` subsystem or any
+poll-until-done call), wire its pending state to `ProgressBar` too. (Convention named inc 116 / TDL #45; the
+component itself predates it.)
 
 ---
 

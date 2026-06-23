@@ -441,6 +441,10 @@
 
   /* axis card icon buttons + count badge (inc 45) */
   .axis-card-actions { display: flex; align-items: center; gap: 3px; flex: none; }
+  /* inc 116: AXES icon buttons carry an ambient outline at rest (the icon's own color via currentColor),
+     mirroring the inc-104 gear/help treatment — hover then swaps the COLOR (icon + outline → accent),
+     instead of the outline only appearing on hover. */
+  .axis-icon-btn { border-color: currentColor; }
   /* .axis-icon-btn base + :hover follow the canonical .btn-icon recipe (grouped above), but hover the OUTLINE to
      the accent (icon) color so it matches the svg; the danger variant hovers both icon + outline amber. */
   .axis-icon-btn:hover { border-color: var(--accent); }                                        /* edit/add/dashboard/eye: outline = accent icon */
@@ -831,6 +835,7 @@
   }
   @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
   .summary-meta { margin: 13px 0 10px; font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
+  .summary-close { float: right; font-size: 11px; font-family: var(--sans); }  /* inc 116: exit a done/loaded synthesis → idle */
   .summary-section { margin-top: 12px; }
   .summary-section-head {
     display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
@@ -2715,7 +2720,18 @@
         onChange: (e) => setQuery(e.target.value),
         disabled: busy
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Summary could not be generated."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "done" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "summary-meta" }, "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences for this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Summary could not be generated."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "done" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "summary-meta" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-link summary-close",
+        title: "Close \u2014 clear this synthesis and start a new query",
+        onClick: () => {
+          setScopeNote(null);
+          setState({ status: "idle" });
+        }
+      },
+      "\u2715 Close"
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences for this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
       SummaryHistory,
       {
         state: history,

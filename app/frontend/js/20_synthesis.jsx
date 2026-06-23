@@ -146,6 +146,11 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
       {state.status === "done" &&
         <div>
           <div className="summary-meta">
+            <button
+              className="btn btn-link summary-close"
+              title="Close — clear this synthesis and start a new query"
+              onClick={() => { setScopeNote(null); setState({ status: "idle" }); }}
+            >✕ Close</button>
             summary #{state.result.summary_id} · {state.result.summary_status}
             {` · ${verifiedCount} verified · ${flaggedCount} flagged`}
           </div>
