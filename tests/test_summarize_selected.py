@@ -117,3 +117,29 @@ def test_multi_paper_summary_covers_all_selected_papers(temp_db_url: str) -> Non
     assert gen.captured is not None
     assert {c.paper_id for c in gen.captured} == {seed["pa"], seed["pb"]}  # round-robin spanned both papers
     assert len(gen.captured) == 2  # within the top_k=2 budget
+
+
+def test_focus_query_ranks_within_the_selection_only(temp_db_url: str) -> None:
+    # inc 111: a papers-scope summary with a focus query routes through query-RANKING (not round-robin) and must
+    # stay restricted to the SELECTED papers — a focus query never pulls in chunks from unselected papers.
+    seed = _seed_two_papers_two_chunks(temp_db_url)
+    gen = CapturingSummaryGenerator(
+        [
+            CandidateSummarySentence(
+                text="Cortex is discussed.",
+                citations=[CandidateCitation(chunk_id=seed["a1"], quote="Paper A chunk 1 discusses cortex.")],
+            )
+        ]
+    )
+    client = TestClient(_summarization_app(temp_db_url, generator=gen))
+
+    started = client.post(
+        "/summarize",
+        json={"scope_type": "papers", "paper_ids": [seed["pa"]], "query": "cortex", "top_k": 5},
+    )
+    result = client.get(f"/summarize/{started.json()['job_id']}").json()
+
+    assert started.status_code == 202
+    assert result["status"] == "done"
+    assert gen.captured  # the focus query returned chunks
+    assert {c.paper_id for c in gen.captured} == {seed["pa"]}  # ranked WITHIN paper A — no paper-B leakage

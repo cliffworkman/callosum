@@ -61,16 +61,24 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
   }, [query, launch]);
 
   // Summarize a library selection (the bulk-bar "summarize" → App → here). Each click bumps the nonce →
-  // re-runs. top_k scales with the selection so every chosen paper gets >=1 chunk (round-robin backend),
-  // bounded at 24 to keep the prompt/token cost in check.
+  // re-run, capturing the current focus query. top_k scales with the selection so every chosen paper gets
+  // >=1 chunk (round-robin backend), capped at MAX_CHUNKS (the backend's top_k max) to bound prompt/token
+  // cost. A non-empty focus query switches the backend to query-RANKED coverage of just the selection — the
+  // synthesis textarea doubles as the focus (inc 111).
   useEffect(() => {
     if (!pendingSummarize) return;
+    const MAX_CHUNKS = 50;   // SummarizeRequest caps top_k at 50
     const n = pendingSummarize.count;
-    setScopeNote(`${n} selected paper${n === 1 ? "" : "s"}`);
-    launch(
-      { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: Math.min(Math.max(8, n), 24) },
-      `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`,
+    const focus = query.trim();
+    const focusShort = focus.length > 60 ? focus.slice(0, 60) + "…" : focus;
+    setScopeNote(
+      `${n} selected paper${n === 1 ? "" : "s"}`
+      + (focus ? ` · focused on “${focusShort}”` : "")
+      + (n > MAX_CHUNKS ? ` · capped at ${MAX_CHUNKS} chunks` : ""),
     );
+    const body = { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: Math.min(Math.max(8, n), MAX_CHUNKS) };
+    if (focus) body.query = focus;   // focus query → query-ranked coverage of the selection
+    launch(body, `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`);
   }, [pendingSummarize ? pendingSummarize.nonce : null]);
 
   const loadSummary = useCallback((summaryId) => {

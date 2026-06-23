@@ -2676,12 +2676,16 @@
     }, [query, launch]);
     useEffect(() => {
       if (!pendingSummarize) return;
+      const MAX_CHUNKS = 50;
       const n = pendingSummarize.count;
-      setScopeNote(`${n} selected paper${n === 1 ? "" : "s"}`);
-      launch(
-        { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: Math.min(Math.max(8, n), 24) },
-        `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`
+      const focus = query.trim();
+      const focusShort = focus.length > 60 ? focus.slice(0, 60) + "\u2026" : focus;
+      setScopeNote(
+        `${n} selected paper${n === 1 ? "" : "s"}` + (focus ? ` \xB7 focused on \u201C${focusShort}\u201D` : "") + (n > MAX_CHUNKS ? ` \xB7 capped at ${MAX_CHUNKS} chunks` : "")
       );
+      const body = { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: Math.min(Math.max(8, n), MAX_CHUNKS) };
+      if (focus) body.query = focus;
+      launch(body, `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`);
     }, [pendingSummarize ? pendingSummarize.nonce : null]);
     const loadSummary = useCallback((summaryId) => {
       if (pollRef.current) clearTimeout(pollRef.current);
