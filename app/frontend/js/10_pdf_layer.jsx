@@ -25,7 +25,7 @@ function AddMenu({ onScan, onImport }) {
   const pick = (fn) => { setOpen(false); fn(); };
   return (
     <span className="add-menu" ref={ref}>
-      <button className="trash-toggle" onClick={() => setOpen(o => !o)} title="Add papers to the library">+ Add ▾</button>
+      <button className="trash-toggle add" onClick={() => setOpen(o => !o)} title="Add papers to the library">+ Add ▾</button>
       {open &&
         <div className="add-menu-pop">
           <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
