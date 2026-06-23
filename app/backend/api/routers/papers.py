@@ -125,6 +125,7 @@ class PaperUpdateRequest(BaseModel):
     title: str | None = Field(default=None, max_length=2000)
     abstract: str | None = Field(default=None, max_length=100_000)
     authors: list[str] | None = Field(default=None, max_length=500)
+    translators: list[str] | None = Field(default=None, max_length=500)
     year: int | None = Field(default=None, ge=0, le=3000)
     month: int | None = Field(default=None, ge=1, le=12)
     day: int | None = Field(default=None, ge=1, le=31)
@@ -381,8 +382,8 @@ def _edits_from_request(request: PaperUpdateRequest) -> dict[str, Any]:
             edits["title"] = title
         elif name in ("year", "month", "day"):
             edits[name] = value
-        elif name == "authors":
-            edits["authors"] = _clean_authors(value)
+        elif name in ("authors", "translators"):
+            edits[name] = _clean_authors(value)
         elif name == "csl":
             edits["csl"] = _validate_csl_patch(value)
         else:

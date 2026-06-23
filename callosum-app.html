@@ -2842,12 +2842,18 @@
     "ISSN",
     "ISBN",
     "author",
+    "translator",
     "issued",
     "id"
   ]);
   function cslGet(p, key) {
     const v = p.csl_json && p.csl_json[key];
     return v == null ? "" : String(v);
+  }
+  function cslContributors(p, key) {
+    const arr = p.csl_json && p.csl_json[key];
+    if (!Array.isArray(arr)) return [];
+    return arr.map((c) => c.literal || [c.given, c.family].filter(Boolean).join(" ")).filter(Boolean);
   }
   function cslDateParts(p) {
     const issued = p.csl_json && p.csl_json.issued;
@@ -3278,6 +3284,10 @@
       const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
       return saveField("authors", list);
     }, [saveField]);
+    const saveTranslators = useCallback((text) => {
+      const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
+      return saveField("translators", list);
+    }, [saveField]);
     if (state.status === "idle")
       return /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Select a paper"), "Its metadata and provenance appear here \u2014 and are editable.");
     if (state.status === "loading")
@@ -3297,6 +3307,15 @@
         value: (p.authors || []).join("\n"),
         placeholder: "Add authors (one per line)",
         onSave: saveAuthors,
+        rows: 2
+      }
+    ), /* @__PURE__ */ React.createElement(
+      EditableText,
+      {
+        label: "Translators",
+        value: cslContributors(p, "translator").join("\n"),
+        placeholder: "Add translators (one per line)",
+        onSave: saveTranslators,
         rows: 2
       }
     ), /* @__PURE__ */ React.createElement(EditableRow, { label: "Year", value: dp[0], numeric: true, onSave: (v) => saveField("year", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Month", value: dp[1], numeric: true, onSave: (v) => saveField("month", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Day", value: dp[2], numeric: true, onSave: (v) => saveField("day", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Volume", value: cslGet(p, "volume"), onSave: (v) => saveField("volume", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Issue", value: cslGet(p, "issue"), onSave: (v) => saveField("issue", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Pages", value: cslGet(p, "page"), onSave: (v) => saveField("page", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Journal", value: p.venue, onSave: (v) => saveField("venue", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Language", value: p.language, onSave: (v) => saveField("language", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "URL", value: cslGet(p, "URL"), mono: true, onSave: (v) => saveField("url", v) }), /* @__PURE__ */ React.createElement(

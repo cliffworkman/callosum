@@ -50,12 +50,18 @@ const CSL_LABELS = {
 // csl keys already shown by a curated field — excluded from the "More" passthrough.
 const CORE_CSL_KEYS = new Set([
   "title", "abstract", "DOI", "container-title", "language", "type", "volume", "issue",
-  "page", "URL", "PMID", "arxiv", "ISSN", "ISBN", "author", "issued", "id",
+  "page", "URL", "PMID", "arxiv", "ISSN", "ISBN", "author", "translator", "issued", "id",
 ]);
 
 function cslGet(p, key) {
   const v = p.csl_json && p.csl_json[key];
   return v == null ? "" : String(v);
+}
+// Display names from a CSL contributor array (author/translator/…): literal, else "given family".
+function cslContributors(p, key) {
+  const arr = p.csl_json && p.csl_json[key];
+  if (!Array.isArray(arr)) return [];
+  return arr.map((c) => c.literal || [c.given, c.family].filter(Boolean).join(" ")).filter(Boolean);
 }
 function cslDateParts(p) {
   const issued = p.csl_json && p.csl_json.issued;
@@ -510,6 +516,11 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
     return saveField("authors", list);
   }, [saveField]);
 
+  const saveTranslators = useCallback((text) => {
+    const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
+    return saveField("translators", list);
+  }, [saveField]);
+
   if (state.status === "idle")
     return <div className="state"><div className="big">Select a paper</div>Its metadata and provenance appear here — and are editable.</div>;
   if (state.status === "loading")
@@ -546,6 +557,8 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
 
       <EditableText label="Authors" value={(p.authors || []).join("\n")}
         placeholder="Add authors (one per line)" onSave={saveAuthors} rows={2} />
+      <EditableText label="Translators" value={cslContributors(p, "translator").join("\n")}
+        placeholder="Add translators (one per line)" onSave={saveTranslators} rows={2} />
       <EditableRow label="Year" value={dp[0]} numeric onSave={(v) => saveField("year", v)} />
       <EditableRow label="Month" value={dp[1]} numeric onSave={(v) => saveField("month", v)} />
       <EditableRow label="Day" value={dp[2]} numeric onSave={(v) => saveField("day", v)} />

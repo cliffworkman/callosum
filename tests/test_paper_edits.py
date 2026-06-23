@@ -70,6 +70,23 @@ def test_empty_authors_clears() -> None:
     assert out["first_author_family_name"] is None
 
 
+def test_translators_stored_as_literal_csl_array_no_column() -> None:
+    out = build_paper_update(_row({"title": "T"}), {"translators": ["Tr One", "Tr Two"]})
+    assert out["csl_json"]["translator"] == [{"literal": "Tr One"}, {"literal": "Tr Two"}]
+    assert "first_author_family_name" not in out  # translators have no mirror column
+
+
+def test_empty_translators_clears() -> None:
+    out = build_paper_update(_row({"translator": [{"literal": "X"}]}), {"translators": []})
+    assert "translator" not in out["csl_json"]
+
+
+def test_generic_passthrough_cannot_corrupt_translator() -> None:
+    # "translator" is reserved → the structured array survives a generic "More" patch attempt.
+    out = build_paper_update(_row({"translator": [{"literal": "Real"}]}), {"csl": {"translator": "HACK"}})
+    assert out["csl_json"]["translator"] == [{"literal": "Real"}]
+
+
 def test_generic_passthrough_sets_extras_and_ignores_reserved_keys() -> None:
     out = build_paper_update(_row({"title": "T"}), {"csl": {"publisher": "Springer", "title": "HACK"}})
     assert out["csl_json"]["publisher"] == "Springer"

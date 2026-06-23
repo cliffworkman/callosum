@@ -39,6 +39,7 @@ RESERVED_CSL_KEYS = frozenset(
         "ISSN",
         "ISBN",
         "author",
+        "translator",
         "issued",
         "id",
     }
@@ -103,6 +104,10 @@ def build_paper_update(existing_row: Any, edits: dict[str, Any]) -> dict[str, An
     if "authors" in edits:
         _apply_authors(csl, cols, edits["authors"])
 
+    # translators: same literal-list model as authors; CSL `translator` array, no mirror column (inc 111)
+    if "translators" in edits:
+        _apply_translators(csl, edits["translators"])
+
     # generic "More" passthrough: arbitrary scalar csl fields a DOI populated (reserved keys skipped)
     generic = edits.get("csl")
     if isinstance(generic, dict):
@@ -166,6 +171,14 @@ def _apply_authors(csl: dict[str, Any], cols: dict[str, Any], authors: list[str]
     else:
         csl.pop("author", None)
         cols["first_author_family_name"] = None
+
+
+def _apply_translators(csl: dict[str, Any], translators: list[str] | None) -> None:
+    cleaned = [t for t in (translators or []) if t and t.strip()]
+    if cleaned:
+        csl["translator"] = [{"literal": t.strip()} for t in cleaned]
+    else:
+        csl.pop("translator", None)
 
 
 def _normalize_doi(doi: str | None) -> str | None:
