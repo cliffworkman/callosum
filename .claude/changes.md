@@ -9,8 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-24 — Increment 119: My Publications overhaul, SP3 — citing articles & citation counts
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 119 (2026-06-24) — the My Publications help gained the citation counts + citing-articles section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** `integrations/openalex/author.py`, `app/backend/clustering/my_publications.py`,
+  `app/backend/api/routers/my_publications.py`, `app/frontend/js/{10_pdf_layer,31_mypubs_dashboard,33_mypubs_pubs,34_mypubs_citing [new]}.jsx`,
+  `app/frontend/styles.css`, `app/backend/help/help_content.md`, `callosum-app.html`,
+  `tests/{test_my_publications,test_health}.py`,
+  `.claude/docs/specs/2026-06-24-mypubs-sp3-{citing-design,plan}.md`,
+  `.claude/security-audits/2026-06-24_mypubs-citing.md`, `INCREMENT-119-NOTES.md`.
+- **What:** Final My-Pubs sub-project (#14). Each own-pub card shows its **OpenAlex cited-by count** (verbatim +
+  attributed); a **"Most cited"** sort; clicking the count opens a **citing-articles modal** (the papers OpenAlex
+  records as citing it — discovery candidates, coverage stated) with per-row **Import** + a confirm-gated **Import
+  all** (metadata-only, deduped, into the general library; the PDF stays the OA-acquire lane). Backend: capture the
+  OpenAlex work id, `paper_citations` on the dashboard, `GET /my-publications/citing/{work_id}` (cached, capped 100,
+  fail-closed) + `POST /my-publications/citing/import`; **Refresh now re-fetches works** so counts/ids stay fresh.
+- **Why:** TDL #14 — surface who cites your work and let you pull those papers in.
+- **Gate:** Principles gate run (spec §2 — aligned: verbatim+attributed count, candidates not verdicts, human-selected
+  metadata-only import, OA-only PDFs); security audit PASS (new OpenAlex `cites:` fetch + 2 endpoints). No migration;
+  public-metadata egress only (NOT the Gemini gate).
+- **Revert:** `git revert` the six SP3 commits (`e695dd4`, `2cbbfc8`, `be41163`, `26c3ffa`, `d90dc2c`, + this docs commit).
+- **NB:** **completes the My Publications overhaul (SP1 inc 117 + SP2 inc 118 + SP3 inc 119 = TDL #1 + #3–18).**
+
 ## 2026-06-24 — Increment 118: My Publications overhaul, SP2 — domain organization
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 118 (2026-06-24) — the My Publications "Research domains" help was updated for group-by-domain (dashboard + sidebar card), rename-domains (axis-suggested, persistent), starred-first, and the chart-lock-on-domain-select. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+<!-- (help sync marker moved to inc 119 above) -->
 
 - **Files:** `app/backend/api/routers/{my_publications,axes}.py`, `app/backend/clustering/my_publications.py`,
   `app/backend/persistence/profile_repo.py`, `app/frontend/js/{15_axes,31_mypubs_dashboard,33_mypubs_pubs}.jsx`,
