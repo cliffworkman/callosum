@@ -31,7 +31,7 @@ function MyPubsBarChart({ bars, ariaLabel }) {
               <title>{b.label}: {b.value}</title>
             </rect>
             <text className="pubs-bar-count" x={x + barW / 2} y={y - 3} textAnchor="middle">{b.value}</text>
-            <text className="pubs-bar-year" x={x + barW / 2} y={h - 5} textAnchor="middle">{String(b.label).slice(2)}</text>
+            <text className="pubs-bar-year" x={x + barW / 2} y={h - 5} textAnchor="middle">{"'" + String(b.label).slice(2)}</text>
           </g>
         );
       })}
@@ -51,6 +51,10 @@ function MyPubsDashboard({ axisId }) {
   const [worksOpen, setWorksOpen] = useState(false);  // inc 85: the missing-works review section (collapsed)
   const [dismissedOpen, setDismissedOpen] = useState(false);  // inc 91: the previously-dismissed section (collapsed)
   const [workBusy, setWorkBusy] = useState(() => new Set());  // DOIs being imported/dismissed/un-dismissed
+  // inc 117 (SP1): Overview is collapsible (persisted) and shows ONE chart with a Publications⇄Citations flip.
+  const [overviewOpen, setOverviewOpen] = useState(() => localStorage.getItem("callosum.mypubsOverviewCollapsed") !== "1");
+  useEffect(() => { localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1"); }, [overviewOpen]);
+  const [chartMode, setChartMode] = useState("pubs");  // "pubs" | "cites"
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -152,14 +156,61 @@ function MyPubsDashboard({ axisId }) {
     <div className="mypubs-dashboard">
       <div className="mypubs-head">
         <h2>{data.name || "My Publications"}</h2>
-        <span className="mypubs-source">source: OpenAlex{asOf ? " · as of " + asOf : ""} · refresh in ⚙ Settings</span>
       </div>
 
-      <div className="metric-tiles">
-        <MyPubsTile label="Citations" value={m.cited_by_count} />
-        <MyPubsTile label="h-index" value={m.h_index} />
-        <MyPubsTile label="i10-index" value={m.i10_index} />
-        <MyPubsTile label="Indexed works" value={m.works_count} />
+      {/* Overview (#3/#4/#5) — collapsible: metrics 2×2 (left) + one flip-chart (right), last 10 years, 'NN labels */}
+      <section className="mypubs-overview">
+        <button className="mypubs-collapse" onClick={() => setOverviewOpen(o => !o)} title="Show/hide your metrics and chart">
+          {overviewOpen ? "▾" : "▸"} Overview
+        </button>
+        {overviewOpen &&
+          <div className="mypubs-overview-cols">
+            <div className="metric-tiles metric-grid-2x2">
+              <MyPubsTile label="Citations" value={m.cited_by_count} />
+              <MyPubsTile label="h-index" value={m.h_index} />
+              <MyPubsTile label="i10-index" value={m.i10_index} />
+              <MyPubsTile label="Indexed works" value={m.works_count} />
+            </div>
+            <div className="mypubs-chart">
+              <div className="mypubs-chart-flip">
+                <button className={"chart-pill" + (chartMode === "pubs" ? " on" : "")} onClick={() => setChartMode("pubs")}>Publications</button>
+                <button className={"chart-pill" + (chartMode === "cites" ? " on" : "")} onClick={() => setChartMode("cites")}>Citations</button>
+              </div>
+              <MyPubsBarChart
+                bars={(chartMode === "cites" ? citeBars : chartBars).slice(-10)}
+                ariaLabel={chartMode === "cites" ? "Citations by year" : "Publications by year"}
+              />
+              {chartMode === "pubs" && domainSummary &&
+                <div className="mypubs-domain-summary">{domainSummary} · <button className="axis-link" onClick={() => setSelectedDomains(new Set())}>clear</button></div>}
+            </div>
+          </div>}
+      </section>
+
+      {/* Research summary (r2) — #8: hide the "⭐ only" toggle when there are no starred pubs */}
+      <div className="mypubs-summary">
+        <div className="mypubs-summary-head">
+          <span>Research summary <span className="mypubs-ai-tag">AI-generated draft — edit freely</span></span>
+          <span className="mypubs-summary-actions">
+            {(data.starred_count || 0) > 0 &&
+              <label className="mypubs-starred-toggle" title="Generate from only your ⭐ starred publications (star them in the My Publications sidebar card)">
+                <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ only
+              </label>}
+            <button className="btn btn-ghost" disabled={gen.status === "running"} onClick={generate}>
+              {gen.status === "running" ? "Generating…" : (summary ? "Regenerate" : "Generate")}
+            </button>
+            <button className="btn btn-primary" disabled={save === "saving" || !dirty} onClick={saveSummary}>
+              {save === "saving" ? "Saving…" : (save === "saved" && !dirty ? "Saved" : "Save")}
+            </button>
+          </span>
+        </div>
+        {gen.status === "running" && <ProgressBar label="Writing a draft from your publications…" />}
+        {gen.status === "error" && <div className="axis-err">{gen.error}</div>}
+        <textarea
+          className="mypubs-summary-text" rows={5}
+          placeholder="Generate a draft from your publications, or write your own."
+          value={summary}
+          onChange={e => { setSummary(e.target.value); setDirty(true); setSave("idle"); }}
+        />
       </div>
 
       <div className="mypubs-gap">
@@ -211,20 +262,6 @@ function MyPubsDashboard({ axisId }) {
             </div>}
         </div>}
 
-      <div className="mypubs-charts">
-        <div className="mypubs-chart">
-          <div className="mypubs-chart-title">Publications by year{activeDomains.length ? " · filtered to selected domain(s)" : ""}</div>
-          <MyPubsBarChart bars={chartBars} ariaLabel="Publications by year" />
-          {domainSummary &&
-            <div className="mypubs-domain-summary">{domainSummary} · <button className="axis-link" onClick={() => setSelectedDomains(new Set())}>clear</button></div>}
-        </div>
-        {!activeDomains.length && citeBars.some(b => b.value > 0) &&
-          <div className="mypubs-chart">
-            <div className="mypubs-chart-title">Citations by year</div>
-            <MyPubsBarChart bars={citeBars} ariaLabel="Citations by year" />
-          </div>}
-      </div>
-
       <div className="mypubs-domains">
         <div className="mypubs-summary-head">
           <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · grouped by similarity — click to filter the chart</span>}</span>
@@ -250,31 +287,6 @@ function MyPubsDashboard({ axisId }) {
               </button>
             ))}
           </div>}
-      </div>
-
-      <div className="mypubs-summary">
-        <div className="mypubs-summary-head">
-          <span>Research summary <span className="mypubs-ai-tag">AI-generated draft — edit freely</span></span>
-          <span className="mypubs-summary-actions">
-            <label className="mypubs-starred-toggle" title="Generate from only your ⭐ starred publications (star them in the My Publications sidebar card)">
-              <input type="checkbox" checked={starredOnly} onChange={e => setStarredOnly(e.target.checked)} /> ⭐ only
-            </label>
-            <button className="btn btn-ghost" disabled={gen.status === "running"} onClick={generate}>
-              {gen.status === "running" ? "Generating…" : (summary ? "Regenerate" : "Generate")}
-            </button>
-            <button className="btn btn-primary" disabled={save === "saving" || !dirty} onClick={saveSummary}>
-              {save === "saving" ? "Saving…" : (save === "saved" && !dirty ? "Saved" : "Save")}
-            </button>
-          </span>
-        </div>
-        {gen.status === "running" && <ProgressBar label="Writing a draft from your publications…" />}
-        {gen.status === "error" && <div className="axis-err">{gen.error}</div>}
-        <textarea
-          className="mypubs-summary-text" rows={5}
-          placeholder="Generate a draft from your publications, or write your own."
-          value={summary}
-          onChange={e => { setSummary(e.target.value); setDirty(true); setSave("idle"); }}
-        />
       </div>
     </div>
   );

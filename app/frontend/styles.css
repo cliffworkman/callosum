@@ -1105,6 +1105,22 @@
   .pubs-bar { fill: var(--accent); }
   .pubs-bar-count { fill: var(--ink-2); font-size: 9px; }
   .pubs-bar-year { fill: var(--ink-3); font-size: 9px; }
+  /* inc 117 (SP1): collapsible Overview — metrics 2×2 (left) + one flip-chart (right). */
+  .mypubs-overview { margin-bottom: 18px; }
+  .mypubs-collapse {
+    display: inline-flex; align-items: center; gap: 6px; background: none; border: none; cursor: pointer;
+    font-family: var(--sans); font-size: 13px; font-weight: 600; color: var(--ink-2); padding: 0 0 8px;
+  }
+  .mypubs-collapse:hover { color: var(--accent); }
+  .mypubs-overview-cols { display: grid; grid-template-columns: minmax(200px, 260px) 1fr; gap: 24px; align-items: start; }
+  .metric-grid-2x2 { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 0; }
+  .mypubs-chart-flip { display: flex; gap: 6px; margin-bottom: 6px; }
+  .chart-pill {
+    font-family: var(--sans); font-size: 12px; cursor: pointer; padding: 2px 10px;
+    color: var(--ink-2); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  }
+  .chart-pill:hover { border-color: var(--line-2); color: var(--ink); }
+  .chart-pill.on { color: var(--on-fill); background: var(--accent); border-color: var(--accent); }
   .mypubs-summary { border-top: 1px solid var(--line); padding-top: 16px; }
   .mypubs-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .mypubs-ai-tag { font-size: 11px; font-weight: 500; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 1px 8px; margin-left: 6px; }
