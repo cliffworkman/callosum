@@ -3,7 +3,7 @@
 // multi-select + a bulk bar (summarize / export / bibliography / delete), copy-BibTeX, open-on-double-click.
 // Reuses GET /papers?axis_id=<my-pubs> + the shared PaperCard, so it inherits the library aesthetic and the
 // tested list/bulk endpoints. The Decompose button is passed in (decomposeSlot) so it hangs with the controls (#10).
-function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot }) {
+function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds }) {
   const [state, setState] = useState({ status: "loading", papers: [] });
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -11,6 +11,9 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
   const [sel, setSel] = useState(() => new Set());
   const [refresh, setRefresh] = useState(0);
   const [citeStyles, setCiteStyles] = useState([]);
+  // inc 118 (SP2 #9): group the cards by research domain (persisted). Only offered once domains are decomposed.
+  const [groupByDomain, setGroupByDomain] = useState(() => localStorage.getItem("callosum.mypubsGroupByDomain") === "1");
+  useEffect(() => { localStorage.setItem("callosum.mypubsGroupByDomain", groupByDomain ? "1" : "0"); }, [groupByDomain]);
 
   useEffect(() => { const t = setTimeout(() => setDebounced(q), 250); return () => clearTimeout(t); }, [q]);
   useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setCiteStyles(r.data.styles || []); }); }, []);
@@ -79,6 +82,31 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
   const doSummarize = () => { const list = [...sel]; if (!list.length) return; if (onSummarize) onSummarize(list); clearSel(); };
 
   const papers = state.papers || [];
+  // inc 118 (SP2 #17): starred-first — stable-partition so each sub-list keeps the chosen backend sort order.
+  const starredSet = new Set(starredIds || []);
+  const starFirst = (list) => [...list.filter(p => starredSet.has(p.id)), ...list.filter(p => !starredSet.has(p.id))];
+  const renderCard = (p) => (
+    <PaperCard
+      key={p.id} paper={p} selecting={true} isSelected={false}
+      onSelect={onSelect} onOpen={onOpenPdf}
+      checked={sel.has(p.id)} onToggleCheck={toggleSel}
+    />
+  );
+  // inc 118 (SP2 #9): group-by-domain — buckets in citation-impact order (the domains order), "Other" last.
+  const hasDomains = Array.isArray(domains) && domains.length > 0;
+  let groups = null;
+  if (groupByDomain && hasDomains) {
+    groups = [];
+    const taken = new Set();
+    for (const d of domains) {
+      const ids = new Set(d.paper_ids || []);
+      const inDom = papers.filter(p => ids.has(p.id) && !taken.has(p.id));
+      inDom.forEach(p => taken.add(p.id));
+      if (inDom.length) groups.push({ label: d.label, papers: starFirst(inDom) });
+    }
+    const other = papers.filter(p => !taken.has(p.id));
+    if (other.length) groups.push({ label: "Other", papers: starFirst(other) });
+  }
   return (
     <div className="mypubs-pubs">
       <div className="mypubs-pubs-head">
@@ -95,6 +123,10 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
             <option value="title_desc">Title (Z–A)</option>
             <option value="added">Date added</option>
           </select>
+          {hasDomains &&
+            <label className="mypubs-group-toggle" title="Group your publications by research domain">
+              <input type="checkbox" checked={groupByDomain} onChange={e => setGroupByDomain(e.target.checked)} /> Group by domain
+            </label>}
           {decomposeSlot}
         </span>
       </div>
@@ -127,12 +159,14 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
       {state.status === "ready" && papers.length === 200 &&
         <div className="axis-hint">Showing the first 200 — narrow with search to see the rest.</div>}
 
-      {state.status === "ready" && papers.map(p =>
-        <PaperCard
-          key={p.id} paper={p} selecting={true} isSelected={false}
-          onSelect={onSelect} onOpen={onOpenPdf}
-          checked={sel.has(p.id)} onToggleCheck={toggleSel}
-        />)}
+      {state.status === "ready" && (groups
+        ? groups.map(g => (
+            <div key={g.label} className="mypubs-domain-group">
+              <div className="mypubs-domain-group-head">{g.label} <span className="mypubs-group-count">{g.papers.length}</span></div>
+              <div className="mypubs-domain-group-body">{g.papers.map(renderCard)}</div>
+            </div>
+          ))
+        : starFirst(papers).map(renderCard))}
     </div>
   );
 }

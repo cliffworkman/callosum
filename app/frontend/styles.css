@@ -1131,6 +1131,12 @@
     border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 10px; min-width: 180px;
   }
   .mypubs-pubs-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* inc 118 (SP2): group-by-domain toggle + grouped sections (header + cards behind a left rule). */
+  .mypubs-group-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+  .mypubs-domain-group { margin-bottom: 14px; }
+  .mypubs-domain-group-head { font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+  .mypubs-group-count { color: var(--ink-3); font-weight: 500; }
+  .mypubs-domain-group-body { border-left: 2px solid var(--line); padding-left: 12px; }
   /* inc 117 (SP1): the OpenAlex footer card — provenance + gap + richer stats + refresh + missing-works trigger. */
   .openalex-card { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 12px; }
   .openalex-gap { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }

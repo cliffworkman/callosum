@@ -1155,6 +1155,12 @@
     border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 10px; min-width: 180px;
   }
   .mypubs-pubs-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* inc 118 (SP2): group-by-domain toggle + grouped sections (header + cards behind a left rule). */
+  .mypubs-group-toggle { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+  .mypubs-domain-group { margin-bottom: 14px; }
+  .mypubs-domain-group-head { font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+  .mypubs-group-count { color: var(--ink-3); font-weight: 500; }
+  .mypubs-domain-group-body { border-left: 2px solid var(--line); padding-left: 12px; }
   /* inc 117 (SP1): the OpenAlex footer card — provenance + gap + richer stats + refresh + missing-works trigger. */
   .openalex-card { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 12px; }
   .openalex-gap { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -4322,7 +4328,9 @@
         onSummarize,
         onSelect: onSelectPaper,
         onOpenPdf,
-        decomposeSlot: decomposeButton
+        decomposeSlot: decomposeButton,
+        domains,
+        starredIds: data.starred_ids
       }
     ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement(
       "button",
@@ -4397,7 +4405,7 @@
       "Restore"
     ))))));
   }
-  function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot }) {
+  function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds }) {
     const [state, setState] = useState({ status: "loading", papers: [] });
     const [q, setQ] = useState("");
     const [debounced, setDebounced] = useState("");
@@ -4405,6 +4413,10 @@
     const [sel, setSel] = useState(() => /* @__PURE__ */ new Set());
     const [refresh, setRefresh] = useState(0);
     const [citeStyles, setCiteStyles] = useState([]);
+    const [groupByDomain, setGroupByDomain] = useState(() => localStorage.getItem("callosum.mypubsGroupByDomain") === "1");
+    useEffect(() => {
+      localStorage.setItem("callosum.mypubsGroupByDomain", groupByDomain ? "1" : "0");
+    }, [groupByDomain]);
     useEffect(() => {
       const t = setTimeout(() => setDebounced(q), 250);
       return () => clearTimeout(t);
@@ -4507,6 +4519,35 @@
       clearSel();
     };
     const papers = state.papers || [];
+    const starredSet = new Set(starredIds || []);
+    const starFirst = (list) => [...list.filter((p) => starredSet.has(p.id)), ...list.filter((p) => !starredSet.has(p.id))];
+    const renderCard = (p) => /* @__PURE__ */ React.createElement(
+      PaperCard,
+      {
+        key: p.id,
+        paper: p,
+        selecting: true,
+        isSelected: false,
+        onSelect,
+        onOpen: onOpenPdf,
+        checked: sel.has(p.id),
+        onToggleCheck: toggleSel
+      }
+    );
+    const hasDomains = Array.isArray(domains) && domains.length > 0;
+    let groups = null;
+    if (groupByDomain && hasDomains) {
+      groups = [];
+      const taken = /* @__PURE__ */ new Set();
+      for (const d of domains) {
+        const ids = new Set(d.paper_ids || []);
+        const inDom = papers.filter((p) => ids.has(p.id) && !taken.has(p.id));
+        inDom.forEach((p) => taken.add(p.id));
+        if (inDom.length) groups.push({ label: d.label, papers: starFirst(inDom) });
+      }
+      const other = papers.filter((p) => !taken.has(p.id));
+      if (other.length) groups.push({ label: "Other", papers: starFirst(other) });
+    }
     return /* @__PURE__ */ React.createElement("div", { className: "mypubs-pubs" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-pubs-head" }, /* @__PURE__ */ React.createElement("span", { className: "mypubs-pubs-title" }, "Publications", state.status === "ready" ? ` (${papers.length})` : ""), /* @__PURE__ */ React.createElement("span", { className: "mypubs-pubs-controls" }, /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -4516,7 +4557,7 @@
         onChange: (e) => setQ(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: sort, onChange: (e) => setSort(e.target.value), title: "Sort your publications" }, /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added")), decomposeSlot)), sel.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, sel.size, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: doSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: sort, onChange: (e) => setSort(e.target.value), title: "Sort your publications" }, /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added")), hasDomains && /* @__PURE__ */ React.createElement("label", { className: "mypubs-group-toggle", title: "Group your publications by research domain" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: groupByDomain, onChange: (e) => setGroupByDomain(e.target.checked) }), " Group by domain"), decomposeSlot)), sel.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, sel.size, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: doSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -4548,19 +4589,7 @@
       },
       /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "bibliography\u2026"),
       citeStyles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: doDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: clearSel }, "clear")), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading your publications\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load your publications: ", state.error), state.status === "ready" && papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, debounced.trim() ? "No publications match that search." : "No publications in your library yet."), state.status === "ready" && papers.length === 200 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Showing the first 200 \u2014 narrow with search to see the rest."), state.status === "ready" && papers.map((p) => /* @__PURE__ */ React.createElement(
-      PaperCard,
-      {
-        key: p.id,
-        paper: p,
-        selecting: true,
-        isSelected: false,
-        onSelect,
-        onOpen: onOpenPdf,
-        checked: sel.has(p.id),
-        onToggleCheck: toggleSel
-      }
-    )));
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: doDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: clearSel }, "clear")), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading your publications\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load your publications: ", state.error), state.status === "ready" && papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, debounced.trim() ? "No publications match that search." : "No publications in your library yet."), state.status === "ready" && papers.length === 200 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Showing the first 200 \u2014 narrow with search to see the rest."), state.status === "ready" && (groups ? groups.map((g) => /* @__PURE__ */ React.createElement("div", { key: g.label, className: "mypubs-domain-group" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-domain-group-head" }, g.label, " ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-group-count" }, g.papers.length)), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domain-group-body" }, g.papers.map(renderCard)))) : starFirst(papers).map(renderCard)));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");

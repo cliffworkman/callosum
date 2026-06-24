@@ -232,7 +232,7 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
       {/* Publications (r3) — axis-scoped library cards with full parity (#7/#10/#13); Decompose hangs in its controls row */}
       <MyPubsPublications
         axisId={axisId} onSummarize={onSummarize} onSelect={onSelectPaper} onOpenPdf={onOpenPdf}
-        decomposeSlot={decomposeButton}
+        decomposeSlot={decomposeButton} domains={domains} starredIds={data.starred_ids}
       />
 
       <div className="mypubs-domains">
