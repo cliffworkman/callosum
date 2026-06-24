@@ -254,7 +254,9 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
             "openalex_author_id": author.author_id,
         },
         "starred_count": len(profile.get("starred_paper_ids") or []),  # #8: hide the "⭐ only" toggle when 0
-        "starred_ids": [int(p) for p in (profile.get("starred_paper_ids") or [])],  # inc 118 (SP2 #17): starred-first sort
+        "starred_ids": [
+            int(p) for p in (profile.get("starred_paper_ids") or [])
+        ],  # inc 118 (SP2 #17): starred-first sort
         "research_summary": profile.get("research_summary"),
         "domains": _dashboard_domains(conn, profile.get("research_domains"), works),
         "missing_works": _dashboard_missing_works(conn, works, dismissed),
@@ -327,7 +329,9 @@ def decompose_domains(conn: Connection, *, model, author_client) -> dict[str, An
         {"label": _label_from_terms(terms), "terms": terms, "paper_ids": [int(rows[i]["id"]) for i in members]}
         for members, terms in zip(groups, term_lists, strict=False)
     ]
-    _reapply_custom_labels(domains, profile.get("research_domains"))  # SP2 #15: keep user-renamed labels across re-decompose
+    _reapply_custom_labels(
+        domains, profile.get("research_domains")
+    )  # SP2 #15: keep user-renamed labels across re-decompose
 
     try:  # freshen per-work citations (an old cache lacks cited_by_count); failure leaves clustering intact
         author_client.fetch_author_works(conn, str(profile["openalex_author_id"]), refresh=True)

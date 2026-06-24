@@ -9,8 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-24 — Increment 118: My Publications overhaul, SP2 — domain organization
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 118 (2026-06-24) — the My Publications "Research domains" help was updated for group-by-domain (dashboard + sidebar card), rename-domains (axis-suggested, persistent), starred-first, and the chart-lock-on-domain-select. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** `app/backend/api/routers/{my_publications,axes}.py`, `app/backend/clustering/my_publications.py`,
+  `app/backend/persistence/profile_repo.py`, `app/frontend/js/{15_axes,31_mypubs_dashboard,33_mypubs_pubs}.jsx`,
+  `app/frontend/styles.css`, `app/backend/help/help_content.md`, `callosum-app.html`,
+  `tests/{test_my_publications,test_axes,test_health}.py`,
+  `.claude/docs/specs/2026-06-24-mypubs-sp2-{domains-design,plan}.md`,
+  `.claude/security-audits/2026-06-24_mypubs-domain-rename.md`, `INCREMENT-118-NOTES.md`.
+- **What:** Organize the My Publications corpus by research domain. A **Group by domain** toggle (dashboard list +
+  sidebar axis card) regroups the publications under per-domain headers/subheadings with an **Other** group;
+  **starred-first** sorting; **rename domains** inline (pre-suggesting the closest axis name) with names that
+  **persist across Re-decompose** by paper-overlap; and **#18** — selecting a domain locks the Overview chart to
+  Publications (filtered) and disables the Citations flip. Backend additive: `Domain.paper_ids`, `starred_ids`,
+  per-paper `domain` on the my-pubs clusters response, and `POST /my-publications/domains/rename` (local profile-JSON
+  edit). No migration, no egress.
+- **Why:** TDL #9/#15/#16/#17/#18 — make the own-corpus navigable by research area, in both the dashboard and the
+  pinned sidebar card.
+- **Revert:** `git revert` the six SP2 commits (`8eb3e52`, `f028939`, `df0ef22`, `1078d42`, `922c063`, + this docs commit).
+- **NB:** this docs commit also applies a `ruff format` pass the T1/T2 commits had missed (whitespace-only).
+
 ## 2026-06-24 — Increment 117: My Publications overhaul, SP1 — dashboard restructure & publication cards
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 117 (2026-06-24) — the My Publications section was updated for the restructured dashboard (collapsible Overview + Publications/Citations flip-chart, the new publications-list cards, the OpenAlex footer card, the missing-works modal). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 - **Files:** `integrations/openalex/author.py`, `app/backend/clustering/my_publications.py`,
   `app/backend/api/routers/my_publications.py`, `app/frontend/js/{10_pdf_layer,30_viewer,31_mypubs_dashboard,

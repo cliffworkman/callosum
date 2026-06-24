@@ -442,7 +442,10 @@ def test_rename_domain_endpoint(temp_db_url):  # SP2 T2 (#15)
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.post("/my-publications/domains/rename", json={"paper_ids": [pid], "label": "  "}).status_code == 422
     assert client.post("/my-publications/domains/rename", json={"paper_ids": [99999], "label": "X"}).status_code == 422
-    assert client.post("/my-publications/domains/rename", json={"paper_ids": [pid], "label": "My Domain"}).status_code == 204
+    assert (
+        client.post("/my-publications/domains/rename", json={"paper_ids": [pid], "label": "My Domain"}).status_code
+        == 204
+    )
     with engine.begin() as conn:
         d = get_profile(conn)["research_domains"][0]
     assert d["label"] == "My Domain" and d["custom"] is True

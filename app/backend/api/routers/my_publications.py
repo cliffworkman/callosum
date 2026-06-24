@@ -305,7 +305,9 @@ def rename_my_publications_domain(payload: RenameDomainRequest, conn: Connection
     if not payload.label.strip():
         raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Label cannot be empty.")
     if not rename_domain(conn, payload.paper_ids, payload.label):
-        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No domain matches those papers.")
+        raise HTTPException(
+            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No domain matches those papers."
+        )
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
