@@ -5,6 +5,8 @@ __pycache__/
 *.sqlite
 *.db
 *.pdf
+# …except the committed QA/test fixture PDF (a tiny real 2-page doc the seed renders; inc 120)
+!tests/fixtures/seed.pdf
 
 # --- Secrets (NEVER commit) ---
 .env

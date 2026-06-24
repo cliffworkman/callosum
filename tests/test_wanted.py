@@ -114,7 +114,8 @@ def test_coverage_stats(temp_db_url):
         ).scalar()
         set_attachment_oa_labels(conn, int(att_id), oa_color="gold", oa_version="vor", oa_source="openalex")
         cov = wanted_repo.coverage_stats(conn)
-    assert cov["library_total"] == 2 and cov["with_pdf"] == 1 and cov["without_pdf"] == 1
+    # inc 120: the seed now has 3 papers — facial + renderable have PDF attachments, signal has none.
+    assert cov["library_total"] == 3 and cov["with_pdf"] == 2 and cov["without_pdf"] == 1
     assert cov["acquired_oa"]["gold"] == 1
 
 
@@ -226,6 +227,7 @@ def test_wanted_post_empty_is_422(temp_db_url):
 def test_wanted_sync_and_coverage_endpoints(temp_db_url):
     _seed_library(temp_db_url)
     client = TestClient(create_app(db_url=temp_db_url))
-    assert client.post("/wanted/sync-library").json()["added"] == 1
+    assert client.post("/wanted/sync-library").json()["added"] == 1  # only the PDF-less signal paper
     cov = client.get("/wanted/coverage").json()
-    assert cov["library_total"] == 2 and cov["without_pdf"] == 1 and cov["with_pdf"] == 1
+    # inc 120: 3 seeded papers — facial + renderable have PDFs, signal doesn't.
+    assert cov["library_total"] == 3 and cov["without_pdf"] == 1 and cov["with_pdf"] == 2

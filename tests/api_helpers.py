@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from sqlalchemy import insert
 
@@ -14,7 +15,17 @@ from app.backend.persistence.schema import (
     cluster_node_papers,
     cluster_nodes,
 )
+from app.backend.persistence.tags_repo import add_tag_to_paper
 from app.backend.summarization.generators import FakeSummaryGenerator
+
+# A tiny real 2-page PDF committed at tests/fixtures/seed.pdf, whose text sits at the bboxes below (generated with
+# PyMuPDF, top-left points). The seed's "renderable" paper links to it so QA can actually exercise the PDF viewer +
+# the coordinate-honesty invariant (a real page renders; a chunk's bbox truthfully locates its quote).
+SEED_PDF_PATH = str(Path(__file__).resolve().parent / "fixtures" / "seed.pdf")
+SEED_PDF_BBOX_P1 = {"page": 1, "x0": 72.0, "y0": 187.1, "x1": 378.1, "y1": 203.6}
+SEED_PDF_BBOX_P2 = {"page": 2, "x0": 72.0, "y0": 147.1, "x1": 409.5, "y1": 163.6}
+SEED_PDF_TEXT_P1 = "Facial anomalies influence social judgments in observers."
+SEED_PDF_TEXT_P2 = "A second passage about signal detection appears on page two."
 
 
 def alembic_head() -> str:
@@ -183,6 +194,72 @@ def _seed_library(db_url: str) -> dict[str, int]:
             source_attachment_checksum="checksum-facial",
             bbox_json=[{"page": 2, "x0": 12, "y0": 24, "x1": 130, "y1": 42}],
         )
+        # inc 120 (QA seed enrichment): a paper backed by a REAL on-disk PDF + truthful chunk bboxes, so QA routes
+        # can exercise the PDF viewer render path and the coordinate-honesty invariant (the facial paper above keeps
+        # testing the path-edge-cases + the honest "PDF not available locally" 404, so it is left untouched).
+        renderable_paper_id = create_paper(
+            conn,
+            title="Renderable Seed Paper",
+            abstract="A real PDF for the viewer + coordinate-honesty QA path.",
+            year=2025,
+            doi="10.123/renderable",
+            venue="Journal of Fixtures",
+            first_author_family_name="Curie",
+            citation_key="curie2025",
+            processing_tier="fully-chunked",
+            csl_json={
+                "id": "curie2025",
+                "type": "article-journal",
+                "title": "Renderable Seed Paper",
+                "author": [{"given": "Marie", "family": "Curie"}],
+            },
+        )
+        renderable_attachment_id = create_attachment(
+            conn,
+            paper_id=renderable_paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=SEED_PDF_PATH,
+            resolved_path=SEED_PDF_PATH,
+            checksum="checksum-renderable",
+            file_size=1475,
+            content_type="application/pdf",
+            import_source="test",
+            attachment_type="pdf",
+            role="primary",
+        )
+        create_chunk(
+            conn,
+            paper_id=renderable_paper_id,
+            attachment_id=renderable_attachment_id,
+            text=SEED_PDF_TEXT_P1,
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="chunk-v1",
+            source_attachment_checksum="checksum-renderable",
+            bbox_json=[SEED_PDF_BBOX_P1],
+        )
+        create_chunk(
+            conn,
+            paper_id=renderable_paper_id,
+            attachment_id=renderable_attachment_id,
+            text=SEED_PDF_TEXT_P2,
+            page_start=2,
+            page_end=2,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="chunk-v2",
+            source_attachment_checksum="checksum-renderable",
+            bbox_json=[SEED_PDF_BBOX_P2],
+        )
+        # a tag, so the sidebar Tags panel + tag-filter surfaces are non-empty for QA
+        tag_id = int(add_tag_to_paper(conn, renderable_paper_id, "social-perception")["id"])
         axis_id = int(
             conn.execute(
                 insert(axes).values(label="Facial Anomalies", description="User-defined axis")
@@ -210,6 +287,8 @@ def _seed_library(db_url: str) -> dict[str, int]:
     return {
         "facial_paper_id": facial_paper_id,
         "signal_paper_id": signal_paper_id,
+        "renderable_paper_id": renderable_paper_id,  # inc 120: backed by tests/fixtures/seed.pdf (real, 2 pages)
+        "tag_id": tag_id,
         "axis_id": axis_id,
         "cluster_node_id": cluster_node_id,
     }

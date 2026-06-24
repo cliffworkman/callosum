@@ -32,6 +32,23 @@ manager for scholarly PDFs. Stand up a clean instance and drive it in a real bro
    - `page.on("pageerror", …)` — collect every uncaught error.
    - `page.on("request", …)` — collect every outbound URL (for the egress assertion).
 
+## Seed contract (what `_seed_library` actually contains — do not assume more)
+
+Match your expectations to the seed; over-assuming its contents produces false-positive findings.
+
+- **3 papers**: **Facial Anomaly Perception** (DOI `10.123/facial`, 4 PDF attachment rows + 2 chunks — but the
+  files are **NOT on disk**, so its `/pdf` honestly **404s** and the viewer shows **"PDF not available locally"**;
+  this is the **correct** coordinate-honesty `null` case, *not* a bug, and its one browser 404 console line is
+  expected); **Signal Detection Theory** (metadata-only, no attachment); and **Renderable Seed Paper** (DOI
+  `10.123/renderable`) — the **one paper backed by a real on-disk 2-page PDF** (`tests/fixtures/seed.pdf`) with 2
+  chunks whose bboxes truthfully locate their text. **Use the Renderable Seed Paper for any PDF-render /
+  page-view / coordinate-honesty check.**
+- **1 axis** "Facial Anomalies" with one cluster (the facial paper assigned, confidence 0.91).
+- **1 tag** `social-perception` (on the renderable paper) — so the Tags panel/filter is non-empty.
+- **No** summaries, duplicates-dismissals, wanted items, watched folders, My-Publications profile, or statcheck
+  signals unless this route creates them. The "+ Add ▾" menu has **Watched folders…** + **Import file…** (no
+  top-level "Scan folder").
+
 ## Reporting format (every issue)
 
 1. **Severity:** Critical / High / Medium / Low / Visual (see `.claude/QA-POLICY.md` rubric)

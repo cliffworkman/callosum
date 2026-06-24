@@ -72,7 +72,11 @@ def test_frontend_static_route_does_not_shadow_json_endpoints(temp_db_url: str, 
     assert health.json()["db_migrated"] is True
     assert papers.status_code == 200
     assert papers.headers["content-type"].startswith("application/json")
-    assert [paper["title"] for paper in papers.json()] == ["Facial Anomaly Perception", "Signal Detection Theory"]
+    assert [paper["title"] for paper in papers.json()] == [
+        "Facial Anomaly Perception",
+        "Signal Detection Theory",
+        "Renderable Seed Paper",  # inc 120: the real-PDF QA fixture paper
+    ]
 
 
 def test_missing_frontend_file_is_graceful_and_api_still_works(temp_db_url: str, tmp_path: Path) -> None:

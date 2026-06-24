@@ -351,6 +351,24 @@ def test_paper_pdf_streams_inline_pdf_for_present_local_attachment(temp_db_url: 
     assert response.content == pdf_bytes
 
 
+def test_seed_renderable_paper_serves_real_pdf_with_truthful_bbox(temp_db_url: str) -> None:
+    # inc 120 — pins the QA fixture (QA-POLICY "pin the seed"): the seeded "renderable" paper must serve a real
+    # on-disk PDF and carry a chunk whose bbox truthfully locates its quote, so QA can exercise the PDF viewer +
+    # the coordinate-honesty invariant. If a future seed edit breaks this, pytest catches it here, not just QA.
+    seeded = _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    pdf = client.get(f"/papers/{seeded['renderable_paper_id']}/pdf")
+    assert pdf.status_code == 200
+    assert pdf.headers["content-type"] == "application/pdf"
+    assert pdf.content[:5] == b"%PDF-"
+
+    chunks = client.get(f"/papers/{seeded['renderable_paper_id']}/chunks").json()
+    assert chunks[0]["text"] == "Facial anomalies influence social judgments in observers."
+    assert chunks[0]["bbox_json"] == [{"page": 1, "x0": 72.0, "y0": 187.1, "x1": 378.1, "y1": 203.6}]
+    assert chunks[0]["bbox_coordinate_system"] == "pdf-points-top-left"
+
+
 def test_paper_pdf_falls_back_to_original_path_when_resolved_missing(temp_db_url: str, tmp_path: Path) -> None:
     pdf_path = tmp_path / "original-only.pdf"
     pdf_bytes = b"%PDF-1.7\noriginal-path fallback\n%%EOF\n"

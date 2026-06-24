@@ -24,12 +24,17 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 
 1. Load `/`. Wait for `#root` to populate. Baseline screenshot. Assert the brand wordmark "Callosum" rendered.
 2. **Library shell** (`10_pdf_layer.jsx`): the seeded papers list; the search box; the search-scope dropdown;
-   the Sort dropdown; the Type filter dropdown; the "+ Add ▾" menu (open it — Scan folder / Import / Watched
-   folders entries present, then close); the Unsorted toggle; the Duplicates / Wanted buttons; pagination if
-   present; the per-card copy-BibTeX button + checkbox. Click each control that has a read-only or
-   menu-opening effect; do **not** mutate. Confirm each responds (no dead clicks).
-3. **PDF viewer** (`30_viewer.jsx`): open a seeded paper. Confirm the page renders, the text layer aligns
-   (no gross drift), zoom in/out re-renders, and the citation/annotation overlay layers mount. Screenshot.
+   the Sort dropdown; the Type filter dropdown; the "+ Add ▾" menu (open it — the entries are **Watched
+   folders…** and **Import file…** [scanning is reached *via* Watched folders, not a top-level entry], then
+   close); the Unsorted toggle; the Duplicates / Wanted buttons; pagination if present; the per-card
+   copy-BibTeX button + checkbox. Click each control that has a read-only or menu-opening effect; do **not**
+   mutate. Confirm each responds (no dead clicks).
+3. **PDF viewer** (`30_viewer.jsx`): open the seeded **Renderable Seed Paper** (the one paper backed by a real
+   on-disk PDF — see `_TEMPLATE.md` → Seed contract). Confirm the 2 pages render, the text layer aligns (no
+   gross drift), zoom in/out re-renders, and the citation/annotation overlay layers mount. Screenshot. Then open
+   **Facial Anomaly Perception** and confirm it shows the honest **"PDF not available locally"** null-state
+   (its attachment rows point at files that aren't on disk — this is the coordinate-honesty `null` case and the
+   *correct* behavior, NOT a bug; the resulting `/papers/{id}/pdf` 404 + its browser console line are expected).
 4. **Right pane**: Synthesis pane renders (empty state ok); selecting a paper shows the Details pane below
    the draggable divider.
 5. **Axes sidebar** (`15_axes.jsx` is exercised in its own route — here just confirm the panel renders and
@@ -46,10 +51,12 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 
 ## Pass criteria
 
-- App mounts; "Callosum" present; 0 console errors; 0 page errors.
+- App mounts; "Callosum" present; 0 page errors. Console errors = 0 **except** the single browser-emitted
+  "Failed to load resource: 404" from deliberately opening the no-local-PDF paper in step 3 (that 404 is the
+  expected null-state, handled by the UI as "PDF not available locally") — any *other* console error is ≥ Medium.
 - Every control above is present and responds (no dead clicks, no uncompletable control).
 - 0 requests to any genai/Gemini host.
-- No unexpected 4xx/5xx in the network log (a `404` for a not-yet-known PDF page is fine if handled).
+- No unexpected 4xx/5xx in the network log (the `/papers/{id}/pdf` 404 for the no-local-PDF paper is expected).
 - No horizontal overflow at `375x812`.
 
 ## Deposit
