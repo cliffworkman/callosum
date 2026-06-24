@@ -242,6 +242,7 @@ def test_axes_and_clusters_return_sidebar_tree_data(temp_db_url: str) -> None:
             "status": "assigned",  # 0.91 ≥ 0.7
             "manual": False,
             "starred": False,  # inc 84: standard axis → never starred
+            "domain": None,  # inc 118: standard axis → no research-domain label
         }
     ]
     assert missing.status_code == 404

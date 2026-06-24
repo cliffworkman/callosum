@@ -110,6 +110,7 @@ class Domain(BaseModel):
     paper_count: int = 0
     citation_count: int = 0
     paper_years: list[int] = []  # for the dashboard's client-side chart re-filter
+    paper_ids: list[int] = []  # inc 118 (SP2): member paper ids, for client-side group-by-domain
 
 
 class MissingWork(BaseModel):
@@ -141,6 +142,7 @@ class DashboardResponse(BaseModel):
     dismissed_works: list[MissingWork] = []  # inc 91: works dismissed from the queue (so a dismissal can be undone)
     openalex_extra: OpenAlexExtra | None = None  # inc 117: 2-yr mean citedness + affiliation for the OpenAlex card
     starred_count: int = 0  # inc 117 (#8): hide the "⭐ only" toggle when there are no starred pubs
+    starred_ids: list[int] = []  # inc 118 (SP2 #17): starred paper ids, for starred-first sorting
 
 
 class SummaryResponse(BaseModel):

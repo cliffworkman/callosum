@@ -254,6 +254,7 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
             "openalex_author_id": author.author_id,
         },
         "starred_count": len(profile.get("starred_paper_ids") or []),  # #8: hide the "⭐ only" toggle when 0
+        "starred_ids": [int(p) for p in (profile.get("starred_paper_ids") or [])],  # inc 118 (SP2 #17): starred-first sort
         "research_summary": profile.get("research_summary"),
         "domains": _dashboard_domains(conn, profile.get("research_domains"), works),
         "missing_works": _dashboard_missing_works(conn, works, dismissed),
@@ -402,6 +403,7 @@ def _dashboard_domains(conn: Connection, domains_json: Any, works: list) -> list
                 "paper_count": len(pids),
                 "citation_count": citations,
                 "paper_years": sorted(years),
+                "paper_ids": pids,  # inc 118 (SP2): for client-side group-by-domain
             }
         )
     out.sort(key=lambda d: -d["citation_count"])

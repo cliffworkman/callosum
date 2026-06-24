@@ -155,6 +155,7 @@ class ClusterPaperResponse(BaseModel):
     status: str = "uncertain"  # "assigned" / "uncertain" / "manual" (honest tier, not truth)
     manual: bool = False  # True when the human added this, not the scorer
     starred: bool = False  # inc 84: My Publications only — a starred key publication
+    domain: str | None = None  # inc 118 (SP2 #16): My Publications only — the paper's research-domain label
 
 
 class ClusterNodeResponse(BaseModel):
@@ -351,14 +352,22 @@ def axis_clusters(axis_id: int, conn: Connection = Depends(get_connection)) -> l
     cutoff = _axis_cutoff(axis)
     # inc 84: surface the starred flag on the My Publications axis's papers (a no-op set for every other axis).
     is_my_pubs = (axis["kind"] if "kind" in axis else "standard") == "my_publications"
-    starred_ids = {int(x) for x in ((get_profile(conn) or {}).get("starred_paper_ids") or [])} if is_my_pubs else set()
+    profile = get_profile(conn) if is_my_pubs else None
+    starred_ids = {int(x) for x in ((profile or {}).get("starred_paper_ids") or [])} if is_my_pubs else set()
+    # inc 118 (SP2 #16): paper_id → research-domain label, so the My Publications card can group its rows by domain.
+    domain_by_id: dict[int, str] = {}
+    if is_my_pubs:
+        for d in (profile or {}).get("research_domains") or []:
+            label = d.get("label") or "Domain"
+            for pid in d.get("paper_ids") or []:
+                domain_by_id[int(pid)] = label
     nodes = []
     for node in get_cluster_nodes_for_axis(conn, axis_id):
         rows = get_papers_for_cluster_node(conn, int(node["id"]))
         # Recompute the tier from the stored confidences against this axis's cutoff (absolute, inc 45):
         # assigned = scored similarity >= cutoff; uncertain = the rest. No persisted tier.
         assigned_ids = {int(row["id"]) for row in rows if row["confidence"] is not None and row["confidence"] >= cutoff}
-        papers = [_cluster_paper_response(paper, assigned_ids, starred_ids) for paper in rows]
+        papers = [_cluster_paper_response(paper, assigned_ids, starred_ids, domain_by_id) for paper in rows]
         nodes.append(
             ClusterNodeResponse(
                 id=node["id"],
@@ -519,7 +528,9 @@ def _axis_response(conn: Connection, row) -> AxisResponse:
     )
 
 
-def _cluster_paper_response(paper, assigned_ids: set[int], starred_ids: set[int] = frozenset()) -> ClusterPaperResponse:
+def _cluster_paper_response(
+    paper, assigned_ids: set[int], starred_ids: set[int] = frozenset(), domain_by_id: dict[int, str] | None = None
+) -> ClusterPaperResponse:
     confidence = paper["confidence"]
     if confidence is None:
         status = "manual"  # confidence IS NULL → a human override, not a scored assignment
@@ -534,4 +545,5 @@ def _cluster_paper_response(paper, assigned_ids: set[int], starred_ids: set[int]
         status=status,
         manual=confidence is None,
         starred=int(paper["id"]) in starred_ids,
+        domain=(domain_by_id or {}).get(int(paper["id"])),
     )

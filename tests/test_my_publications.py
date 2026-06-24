@@ -22,11 +22,13 @@ from app.backend.persistence.profile_repo import (
     set_decision,
     set_my_publications_dismissed,
     set_openalex_author_id,
+    set_research_domains,
+    set_starred,
     undismiss_work,
     upsert_profile,
 )
 from app.backend.persistence.repository import create_paper
-from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes
+from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
 from integrations.api_cache import put_cached
 from integrations.openalex.author import OPENALEX_WORKS_PROVIDER, AuthorWork, OpenAlexAuthorClient, ResolvedAuthor
 
@@ -401,6 +403,34 @@ def test_dashboard_ok_returns_metrics_and_pubs_by_year(temp_db_url):
         "openalex_author_id": "A1",
     }
     assert dash["starred_count"] == 0
+
+
+def test_dashboard_exposes_domain_paper_ids_and_starred(temp_db_url):  # SP2 T1
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada Lovelace", name_variants=[], orcid="0000-0002-1825-0097")
+        set_openalex_author_id(conn, "A1")
+        pid = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+        set_research_domains(conn, [{"label": "Engines", "terms": ["engine"], "paper_ids": [int(pid)]}])
+        set_starred(conn, int(pid), True)
+    works = [AuthorWork(doi="10.1/engine", title="Engine", year=1843, cited_by_count=5)]
+    with engine.begin() as conn:
+        dash = build_dashboard(conn, author_client=_FakeAuthorClient(author=_ADA_STATS, works=works))
+    assert dash["domains"][0]["paper_ids"] == [int(pid)]
+    assert dash["starred_ids"] == [int(pid)]
+
+
+def test_clusters_response_carries_domain_for_my_pubs(temp_db_url):  # SP2 T1 (#16)
+    app = _resolved_member_app(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = int(conn.execute(select(papers.c.id).where(papers.c.doi == "10.1/engine")).scalar())
+        set_research_domains(conn, [{"label": "Engines", "terms": ["engine"], "paper_ids": [pid]}])
+        axis_id = int(conn.execute(select(axes.c.id).where(axes.c.kind == "my_publications")).scalar())
+    r = TestClient(app).get(f"/axes/{axis_id}/clusters")
+    assert r.status_code == 200
+    paps = [p for node in r.json() for p in node["papers"]]
+    assert any(p.get("domain") == "Engines" for p in paps)
 
 
 def test_dashboard_not_resolved_and_no_identity(temp_db_url):
