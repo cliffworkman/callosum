@@ -320,6 +320,11 @@
   .axis-eye.off { opacity: .45; }                  /* dimmed when uncertain papers are hidden */
   .axis-eye-hint { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 11px; color: var(--ink-3); padding: 5px 4px 2px; font-family: var(--sans); }
   .axis-eye-hint:hover { color: var(--accent); }
+  /* inc 118 (SP2 #16): My Publications card — collapsible research-domain subheadings. */
+  .axis-domain-group { margin-bottom: 4px; }
+  .axis-domain-subhead { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 4px 4px 2px; }
+  .axis-domain-subhead:hover { color: var(--accent); }
+  .axis-domain-count { color: var(--ink-3); font-weight: 500; }
   .axis-form { display: flex; flex-direction: column; gap: 6px; padding: 6px 2px 10px; }
   .axis-input {
     width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--line-2);

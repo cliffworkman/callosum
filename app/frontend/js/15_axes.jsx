@@ -63,12 +63,51 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
   // B′: eye toggle — show assigned/manual only. Starts from the Settings default (re-keyed on change → remount).
   const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
+  // inc 118 (SP2 #16): My Publications card — collapsible research-domain subheadings.
+  const [collapsedDomains, setCollapsedDomains] = useState(() => new Set());
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
   // inc 79: when uncertain papers are hidden, the count badge shows the visible (assigned + manual) count.
   const total = axis.assignment_count || 0;
   const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
+
+  const renderRow = (p) => (
+    <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id}
+      onOpen={handlers.openPaper}
+      onConfirm={(pid) => handlers.confirmPaper(axis.id, pid)}
+      onRemove={(pid) => handlers.removePaper(axis.id, pid)}
+      onStar={isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : undefined} />
+  );
+  const toggleCollapse = (label) =>
+    setCollapsedDomains(s => { const n = new Set(s); if (n.has(label)) n.delete(label); else n.add(label); return n; });
+  // inc 118 (SP2 #16/#17): filter + sort (starred-first for My-Pubs), then group My-Pubs rows by domain ("Other" last).
+  const renderPapers = (allPapers) => {
+    const sorted = [...allPapers]
+      .filter(p => !hideUncertain || p.status !== "uncertain")
+      .sort((a, b) =>
+        (isMyPubs ? (b.starred ? 1 : 0) - (a.starred ? 1 : 0) : 0)
+        || _tierRank(a) - _tierRank(b)
+        || (b.confidence || 0) - (a.confidence || 0));
+    if (!(isMyPubs && sorted.some(p => p.domain))) return sorted.map(renderRow);
+    const groupsMap = new Map();
+    for (const p of sorted) {
+      const k = p.domain || "Other";
+      if (!groupsMap.has(k)) groupsMap.set(k, []);
+      groupsMap.get(k).push(p);
+    }
+    const ordered = [...groupsMap.entries()].sort(
+      (a, b) => (a[0] === "Other") - (b[0] === "Other") || b[1].length - a[1].length
+    );
+    return ordered.map(([label, rows]) => (
+      <div key={label} className="axis-domain-group">
+        <button className="axis-domain-subhead" onClick={() => toggleCollapse(label)}>
+          {collapsedDomains.has(label) ? "▸" : "▾"} {label} <span className="axis-domain-count">{rows.length}</span>
+        </button>
+        {!collapsedDomains.has(label) && rows.map(renderRow)}
+      </div>
+    ));
+  };
   return (
     <div className={"axis-item" + (isMyPubs ? " axis-mypubs" : "")}>
       <div className={"axis" + (expanded ? " active" : "")} onClick={() => handlers.toggle(axis.id)}>
@@ -127,16 +166,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
             (detail.papers.length === 0
               ? <div className="axis-hint">{isMyPubs ? "No publications matched yet — set your name/ORCID in Settings (⚙) and Refresh." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually."}</div>
               : <div className="axis-papers">
-                  {[...detail.papers]
-                    .filter(p => !hideUncertain || p.status !== "uncertain")
-                    .sort((a, b) => _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0))
-                    .map(p => (
-                      <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id}
-                        onOpen={handlers.openPaper}
-                        onConfirm={(pid) => handlers.confirmPaper(axis.id, pid)}
-                        onRemove={(pid) => handlers.removePaper(axis.id, pid)}
-                        onStar={isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : undefined} />
-                    ))}
+                  {renderPapers(detail.papers)}
                   {hideUncertain && uncertainCount > 0 &&
                     <button className="axis-eye-hint" onClick={() => setHideUncertain(false)}>
                       {uncertainCount} uncertain hidden — show

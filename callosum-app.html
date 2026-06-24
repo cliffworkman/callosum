@@ -344,6 +344,11 @@
   .axis-eye.off { opacity: .45; }                  /* dimmed when uncertain papers are hidden */
   .axis-eye-hint { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-size: 11px; color: var(--ink-3); padding: 5px 4px 2px; font-family: var(--sans); }
   .axis-eye-hint:hover { color: var(--accent); }
+  /* inc 118 (SP2 #16): My Publications card — collapsible research-domain subheadings. */
+  .axis-domain-group { margin-bottom: 4px; }
+  .axis-domain-subhead { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 4px 4px 2px; }
+  .axis-domain-subhead:hover { color: var(--accent); }
+  .axis-domain-count { color: var(--ink-3); font-weight: 500; }
   .axis-form { display: flex; flex-direction: column; gap: 6px; padding: 6px 2px 10px; }
   .axis-input {
     width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--line-2);
@@ -1995,6 +2000,7 @@
     const isMyPubs = axis.kind === "my_publications";
     const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
     const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
+    const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
     const stop = (fn) => (e) => {
       e.stopPropagation();
       fn();
@@ -2003,6 +2009,38 @@
     const uncertainCount = readyPapers.filter((p) => p.status === "uncertain").length;
     const total = axis.assignment_count || 0;
     const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
+    const renderRow = (p) => /* @__PURE__ */ React.createElement(
+      AxisPaperRow,
+      {
+        key: p.id,
+        paper: p,
+        selected: selectedPaper === p.id,
+        onOpen: handlers.openPaper,
+        onConfirm: (pid) => handlers.confirmPaper(axis.id, pid),
+        onRemove: (pid) => handlers.removePaper(axis.id, pid),
+        onStar: isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : void 0
+      }
+    );
+    const toggleCollapse = (label) => setCollapsedDomains((s) => {
+      const n = new Set(s);
+      if (n.has(label)) n.delete(label);
+      else n.add(label);
+      return n;
+    });
+    const renderPapers = (allPapers) => {
+      const sorted = [...allPapers].filter((p) => !hideUncertain || p.status !== "uncertain").sort((a, b) => (isMyPubs ? (b.starred ? 1 : 0) - (a.starred ? 1 : 0) : 0) || _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0));
+      if (!(isMyPubs && sorted.some((p) => p.domain))) return sorted.map(renderRow);
+      const groupsMap = /* @__PURE__ */ new Map();
+      for (const p of sorted) {
+        const k = p.domain || "Other";
+        if (!groupsMap.has(k)) groupsMap.set(k, []);
+        groupsMap.get(k).push(p);
+      }
+      const ordered = [...groupsMap.entries()].sort(
+        (a, b) => (a[0] === "Other") - (b[0] === "Other") || b[1].length - a[1].length
+      );
+      return ordered.map(([label, rows]) => /* @__PURE__ */ React.createElement("div", { key: label, className: "axis-domain-group" }, /* @__PURE__ */ React.createElement("button", { className: "axis-domain-subhead", onClick: () => toggleCollapse(label) }, collapsedDomains.has(label) ? "\u25B8" : "\u25BE", " ", label, " ", /* @__PURE__ */ React.createElement("span", { className: "axis-domain-count" }, rows.length)), !collapsedDomains.has(label) && rows.map(renderRow)));
+    };
     return /* @__PURE__ */ React.createElement("div", { className: "axis-item" + (isMyPubs ? " axis-mypubs" : "") }, /* @__PURE__ */ React.createElement("div", { className: "axis" + (expanded ? " active" : ""), onClick: () => handlers.toggle(axis.id) }, /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !isMyPubs && /* @__PURE__ */ React.createElement(
       "input",
       {
@@ -2037,18 +2075,7 @@
         onClick: () => setHideUncertain((h) => !h)
       },
       "\u{1F441}"
-    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, [...detail.papers].filter((p) => !hideUncertain || p.status !== "uncertain").sort((a, b) => _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0)).map((p) => /* @__PURE__ */ React.createElement(
-      AxisPaperRow,
-      {
-        key: p.id,
-        paper: p,
-        selected: selectedPaper === p.id,
-        onOpen: handlers.openPaper,
-        onConfirm: (pid) => handlers.confirmPaper(axis.id, pid),
-        onRemove: (pid) => handlers.removePaper(axis.id, pid),
-        onStar: isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : void 0
-      }
-    )), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
+    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
   }
   function _tierRank(p) {
     return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
