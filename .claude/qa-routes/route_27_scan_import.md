@@ -1,0 +1,50 @@
+<!-- qa-coverage
+api: /library/scan*, /library/watched*, /library/import*
+fe: 27_scan.jsx, 28_import.jsx
+-->
+
+# ROUTE 27 - Scan, watched folders, and import
+
+**Tier:** 1 local-stateful
+**Goal:** Exhaust local folder scan, watched-folder rescan/delete, and explicit file import jobs.
+
+## Environment
+
+Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Register listeners before navigation. Use only the throwaway QA fixture folders prepared by the route runner.
+
+## Standing assertions
+
+- **Console-error budget = 0.** Any console `error` >= Medium; any `pageerror` >= High.
+- **No uncompletable control.** Any visible control that cannot be completed through the UI is a bug.
+- **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
+- **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
+- **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
+
+## Adversarial checklist
+
+- paste ~50KB into every editable field; submit empty / whitespace-only
+- double-click submit; rapid-click; navigate away mid-async-job
+- malformed input where an identifier is expected; garbage file on import/scan
+- deep-link / direct state for a non-existent id
+- resize to `375x812`, hard refresh - no horizontal overflow
+
+## Steps
+
+1. Open Add -> Scan folder (`27_scan.jsx`). Submit a valid disposable fixture folder (`POST /library/scan`) and poll (`GET /library/scan/{job_id}`).
+2. Navigate away mid-scan and return. Confirm progress/result state recovers and imported papers appear only once.
+3. Submit an empty path, whitespace path, and forbidden/outside path. Confirm clean validation and no server traceback.
+4. Open watched folders. Confirm list loads (`GET /library/watched`), run rescan (`POST /library/watched/rescan`, `GET /library/watched/rescan/{job_id}`), and delete a disposable watched folder (`DELETE /library/watched/{folder_id}`).
+5. Open Add -> Import (`28_import.jsx`). Import a valid fixture PDF (`POST /library/import`) and poll (`GET /library/import/{job_id}`).
+6. Import a garbage/non-PDF fixture and a duplicate file. Confirm explicit failure/duplicate messaging, not a crash.
+
+## Pass criteria
+
+- Scan, watched rescan/delete, and import jobs complete through UI polling.
+- 0 console/page errors and 0 genai-host requests.
+- Invalid paths/files fail closed with user-visible messages.
+- Mobile viewport has no horizontal overflow.
+
+## Deposit
+
+Write `.claude/qa-inbox/<RUN_ID>/route_27_scan_import.md` + `screenshots/` (see `_TEMPLATE.md`).
+

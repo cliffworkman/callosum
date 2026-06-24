@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-24 — Increment 120: QA mechanism — surface-coverage gate + Codex-exec supervisor
+
+- **Files:** NEW `tools/qa/{build_surface_map.py, supervisor.py, _qa_serve.py, route_runner_prompt.md, __init__.py}`;
+  `.claude/QA-POLICY.md`; `.claude/qa-routes/{_TEMPLATE.md + 15 route_NN_*.md}`; `.claude/CLAUDE.md` (rule #10 +
+  kickoff #10 + layout/reference rows); `.gitignore`; `.github/workflows/ci.yml`; `INCREMENT-120-NOTES.md`.
+- **What:** Installed the QA mechanism from `qa_routes.zip` (authored out-of-band): a **computed surface-coverage
+  gate** (`build_surface_map.py` — static AST of the routers + JSX scan; `check` diffs vs. the `qa-routes/`
+  `qa-coverage` blocks; API hard-gate, FE checklist), a **Codex-`exec` supervisor** that drives each route in a
+  seeded throwaway browser and deposits severity-ranked reports to the watched `.claude/qa-inbox/`, and the
+  **fixture/policy** that pins it to a disposable seeded DB + asserts the honesty invariants (egress gate,
+  coordinate honesty, signal-not-verdict). New **rule #10** + kickoff #10 (triage the inbox). Had **Codex author
+  the 13 missing routes** until the gate went green (**88/88 API + 460/460 FE covered**).
+- **Why:** turn "no stone unturned" QA into a computed coverage guarantee + drop dev monitoring (Codex executes,
+  a Claude session triages the inbox).
+- **Verification:** `check` exits 0; `_qa_serve.py` serves a seeded throwaway DB (egress unset) + tears down;
+  `supervisor --dry-run` emits a valid codex command; pytest 436 (additive, unchanged); ruff clean (incl. tools/qa).
+- **NOT done (user's to run — spends Codex credits):** Phase 3, `supervisor.py --tier 0` (the real QA pass).
+- **Revert:** `git revert` `c95b791` + this commit; remove `tools/qa/` + `.claude/{QA-POLICY.md,qa-routes/}`.
+
 ## 2026-06-24 — Increment 119: My Publications overhaul, SP3 — citing articles & citation counts
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 119 (2026-06-24) — the My Publications help gained the citation counts + citing-articles section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 

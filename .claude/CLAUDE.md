@@ -21,8 +21,9 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 119** (see Increment workflow) with **436 pytest tests
-passing** (+ opt-in browser smoke). It is a working MVP backed by a thorough planning suite in `.claude/docs/`.
+It is currently at **Increment 120** (see Increment workflow) with **436 pytest tests
+passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
+thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
 rather than this file's footer; the footer's detailed narrative resumes at increment 117.)
 
@@ -735,7 +736,31 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-24 — increment 119 (My Publications overhaul, SP3 — citing articles & citation counts):
+*Last updated: 2026-06-24 — increment 120 (QA mechanism — surface-coverage gate + Codex-exec supervisor +
+watched inbox): installed the QA bundle delivered as `qa_routes.zip` (authored out-of-band) per its
+`QA-BUILD-GUIDE.md`, and had **Codex author the full route suite** until the gate went green. New **rule #10**
+(`.claude/QA-POLICY.md`) — read before changing any **end-user surface** — joins DESIGN.md (#8) + PRINCIPLES.md
+(#9). Three parts: **`tools/qa/build_surface_map.py`** (pure-stdlib static extractor — AST of `@router.<m>("path")`
++ JSX element/handler scan — and a `check` that diffs the surfaces declared in `.claude/qa-routes/*.md` against the
+real ones; **API hard-gate, FE checklist**), **`tools/qa/supervisor.py`** (dispatches each route to a headless
+`codex exec`, waits for its deposit in `.claude/qa-inbox/<run-id>/`, writes a Critical/High-first `run-summary.md`;
+Tier-0 gates the rest), and **`tools/qa/_qa_serve.py`** (the fixture contract — a freshly migrated + **seeded
+throwaway** SQLite via `tests.api_helpers._seed_library` on a free port, **egress unset by default**, never the
+real library). Routes assert the **honesty invariants** (egress gate, coordinate honesty, signal-not-verdict), not
+just clicks. Coverage is a **computed property** (re-extracted each run): current tree **88 API / 460 FE**, and
+after Codex authored the 13 missing routes (the 2 seeds + 13 = **15 routes**, tiered 00 / 15–40 T1 / 55–58 T2
+hermetic) → **88/88 API + 460/460 FE → `check` exits 0**. CLAUDE.md gained rule #10 + kickoff step #10 (triage the
+inbox); `.gitignore` covers `qa-inbox/` + `surface-map.json` + the zip; CI has a report-only `check` step. Repo-fit:
+added `tools/qa/__init__.py`, ran `ruff --fix`/`format` on the bundle scripts. **Two Codex roles:** the *author*
+(this increment — writes the spec files, never opens the app) vs. the *route-runner* the supervisor dispatches
+(Phase 3 — an **adversarial end user** driving the seeded app in Playwright, instrumented to also verify the
+invariants). pytest **436** (additive — no app/test code touched); ruff clean. **NOT run (the user's to trigger —
+spends Codex credits):** **Phase 3**, `python tools/qa/supervisor.py --tier 0` (the real browser-driven QA pass),
+then deeper tiers; the first deposit is triaged at the next kickoff. **NEXT:** kick off a Tier-0 QA run to validate
+the pipeline end-to-end; otherwise the open backlog (discovery/gapfinder, GRIM/p-curve, file-watcher, SVG buttons,
+toasts, auth) is the user's pick.
+
+Earlier — increment 119 (My Publications overhaul, SP3 — citing articles & citation counts):
 the **final** sub-project (TDL #14); **completes the overhaul = SP1 (inc 117) + SP2 (inc 118) + SP3 (inc 119) = TDL #1 +
 #3–18**. Each own-pub card shows its **OpenAlex cited-by count** (shown verbatim + attributed, never a Callosum
 composite or ranking verdict) + a **"Most cited"** sort; clicking the count opens a **citing-articles modal** — the
