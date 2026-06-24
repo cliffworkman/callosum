@@ -1613,6 +1613,33 @@
       copied ? /* @__PURE__ */ React.createElement(CheckIcon, null) : /* @__PURE__ */ React.createElement(ClipboardIcon, null)
     );
   }
+  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra }) {
+    const unresolved = needsMetadata(p);
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "paper" + (isSelected ? " sel" : ""),
+        onClick: () => onSelect && onSelect(p.id),
+        onDoubleClick: () => onOpen && onOpen(p),
+        title: "Double-click to open the PDF"
+      },
+      selecting && /* @__PURE__ */ React.createElement(PaperCopyButton, { paperId: p.id }),
+      selecting && /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "checkbox",
+          className: "paper-select",
+          checked: !!checked,
+          title: "Select",
+          onClick: (e) => e.stopPropagation(),
+          onChange: () => onToggleCheck && onToggleCheck(p.id)
+        }
+      ),
+      /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, p.title || /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "Untitled")),
+      /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, unresolved ? /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "metadata not yet resolved") : /* @__PURE__ */ React.createElement(React.Fragment, null, p.authors && p.authors.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, fmtAuthors(p.authors)), p.year && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", p.year), p.venue && /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, "\xB7 ", p.venue))),
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), footExtra)
+    );
+  }
   function PaperList({
     state,
     query,
@@ -1743,66 +1770,55 @@
       /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "bibliography\u2026"),
       citeStyles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))
     ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBulkDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearLibrarySelect }, "clear")), state.status === "loading" && Array.from({ length: 8 }).map((_, i) => /* @__PURE__ */ React.createElement("div", { className: "skel", key: i }, /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "70%", marginBottom: 8 } }), /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "45%" } }))), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load the library."), /* @__PURE__ */ React.createElement("br", null), state.error, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), "Start the backend, then reload:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("code", null, "uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080")), state.status === "ready" && state.papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, trashView ? "Trash is empty." : `No papers${query ? " match that search" : " in this library"}.`), trashView ? "Deleted papers appear here and can be restored." : query ? "Try a different term." : "Ingest PDFs or import a Zotero library to begin."), state.status === "ready" && state.papers.map((p) => {
-      const unresolved = needsMetadata(p);
       const fStaged = focusAxis ? (focusPending || {})[p.id] : void 0;
       const fIn = fStaged ? fStaged === "add" : !!(focusAxis && focusMembers && focusMembers.has(p.id));
+      const footExtra = /* @__PURE__ */ React.createElement(React.Fragment, null, focusAxis && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "paper-axis-add" + (fIn ? " in" : "") + (fStaged ? " staged" : ""),
+          title: fIn ? "On this axis \u2014 click to remove" : "Add to this axis",
+          onClick: (e) => {
+            e.stopPropagation();
+            onToggleFocusPaper(p.id);
+          }
+        },
+        fStaged === "add" ? "\u2713 staged" : fStaged === "remove" ? "\u2212 staged" : fIn ? "\u2713 in axis" : "+ add"
+      ), trashView && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "paper-restore",
+          title: "Restore from Trash",
+          onClick: (e) => {
+            e.stopPropagation();
+            onRestore(p.id);
+          }
+        },
+        "Restore"
+      ), trashView && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "paper-restore danger",
+          title: "Permanently delete \u2014 cannot be undone",
+          onClick: (e) => {
+            e.stopPropagation();
+            onPurge(p.id);
+          }
+        },
+        "Delete forever"
+      ));
       return /* @__PURE__ */ React.createElement(
-        "div",
+        PaperCard,
         {
           key: p.id,
-          className: "paper" + (selected === p.id ? " sel" : ""),
-          onClick: () => onSelect(p.id),
-          onDoubleClick: () => onOpenPdf && onOpenPdf(p),
-          title: "Double-click to open the PDF"
-        },
-        selecting && /* @__PURE__ */ React.createElement(PaperCopyButton, { paperId: p.id }),
-        selecting && /* @__PURE__ */ React.createElement(
-          "input",
-          {
-            type: "checkbox",
-            className: "paper-select",
-            checked: selectedLibraryIds.has(p.id),
-            title: "Select for delete",
-            onClick: (e) => e.stopPropagation(),
-            onChange: () => onToggleLibrarySelect(p.id)
-          }
-        ),
-        /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, p.title || /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "Untitled")),
-        /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, unresolved ? /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "metadata not yet resolved") : /* @__PURE__ */ React.createElement(React.Fragment, null, p.authors && p.authors.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, fmtAuthors(p.authors)), p.year && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", p.year), p.venue && /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, "\xB7 ", p.venue))),
-        /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), focusAxis && /* @__PURE__ */ React.createElement(
-          "button",
-          {
-            className: "paper-axis-add" + (fIn ? " in" : "") + (fStaged ? " staged" : ""),
-            title: fIn ? "On this axis \u2014 click to remove" : "Add to this axis",
-            onClick: (e) => {
-              e.stopPropagation();
-              onToggleFocusPaper(p.id);
-            }
-          },
-          fStaged === "add" ? "\u2713 staged" : fStaged === "remove" ? "\u2212 staged" : fIn ? "\u2713 in axis" : "+ add"
-        ), trashView && /* @__PURE__ */ React.createElement(
-          "button",
-          {
-            className: "paper-restore",
-            title: "Restore from Trash",
-            onClick: (e) => {
-              e.stopPropagation();
-              onRestore(p.id);
-            }
-          },
-          "Restore"
-        ), trashView && /* @__PURE__ */ React.createElement(
-          "button",
-          {
-            className: "paper-restore danger",
-            title: "Permanently delete \u2014 cannot be undone",
-            onClick: (e) => {
-              e.stopPropagation();
-              onPurge(p.id);
-            }
-          },
-          "Delete forever"
-        ))
+          paper: p,
+          selecting,
+          isSelected: selected === p.id,
+          onSelect,
+          onOpen: onOpenPdf,
+          checked: selectedLibraryIds && selectedLibraryIds.has(p.id),
+          onToggleCheck: onToggleLibrarySelect,
+          footExtra
+        }
       );
     }), state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: state.papers.length < PAGE_SIZE, onClick: () => onPage(page + 1) }, "Next \u2192")));
   }

@@ -259,6 +259,46 @@ function PaperCopyButton({ paperId }) {
   );
 }
 
+// inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
+// render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
+// caller append context buttons (the library passes its focus/trash buttons here).
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra }) {
+  const unresolved = needsMetadata(p);
+  return (
+    <div
+      className={"paper" + (isSelected ? " sel" : "")}
+      onClick={() => onSelect && onSelect(p.id)}
+      onDoubleClick={() => onOpen && onOpen(p)}  // inc-98: always open; .paper has user-select:none (copy from Details)
+      title="Double-click to open the PDF"
+    >
+      {selecting && <PaperCopyButton paperId={p.id} />}
+      {selecting &&
+        <input
+          type="checkbox" className="paper-select" checked={!!checked}
+          title="Select"
+          onClick={e => e.stopPropagation()}
+          onChange={() => onToggleCheck && onToggleCheck(p.id)}
+        />}
+      <p className="paper-title">{p.title || <span className="placeholder">Untitled</span>}</p>
+      <div className="paper-meta">
+        {unresolved
+          ? <span className="placeholder">metadata not yet resolved</span>
+          : <>
+              {p.authors && p.authors.length > 0 && <span className="paper-authors">{fmtAuthors(p.authors)}</span>}
+              {p.year && <span>· {p.year}</span>}
+              {p.venue && <span className="paper-venue">· {p.venue}</span>}
+            </>}
+      </div>
+      <div className="paper-foot">
+        <span className={"tier " + tierClass(p.processing_tier)}>{tierLabel(p.processing_tier)}</span>
+        {p.attachment_count > 0 && <span className="chip">{p.attachment_count} file{p.attachment_count > 1 ? "s" : ""}</span>}
+        {unresolved && <span className="needs-doi">needs DOI</span>}
+        {footExtra}
+      </div>
+    </div>
+  );
+}
+
 function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, total, onOpenPdf,
                     focusAxis, focusMembers, focusPending, onToggleFocusPaper, onSaveFocus, onCancelFocus,
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
@@ -428,56 +468,31 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         </div>}
 
       {state.status === "ready" && state.papers.map(p => {
-        const unresolved = needsMetadata(p);
         const fStaged = focusAxis ? (focusPending || {})[p.id] : undefined;
         const fIn = fStaged ? fStaged === "add" : !!(focusAxis && focusMembers && focusMembers.has(p.id));
+        const footExtra = <>
+          {focusAxis &&
+            <button
+              className={"paper-axis-add" + (fIn ? " in" : "") + (fStaged ? " staged" : "")}
+              title={fIn ? "On this axis — click to remove" : "Add to this axis"}
+              onClick={e => { e.stopPropagation(); onToggleFocusPaper(p.id); }}
+            >
+              {fStaged === "add" ? "✓ staged" : fStaged === "remove" ? "− staged" : fIn ? "✓ in axis" : "+ add"}
+            </button>}
+          {trashView &&
+            <button className="paper-restore" title="Restore from Trash"
+              onClick={e => { e.stopPropagation(); onRestore(p.id); }}>Restore</button>}
+          {trashView &&
+            <button className="paper-restore danger" title="Permanently delete — cannot be undone"
+              onClick={e => { e.stopPropagation(); onPurge(p.id); }}>Delete forever</button>}
+        </>;
         return (
-          <div
-            key={p.id}
-            className={"paper" + (selected === p.id ? " sel" : "")}
-            onClick={() => onSelect(p.id)}
-            onDoubleClick={() => onOpenPdf && onOpenPdf(p)}  // inc-98: always open; .paper has user-select:none so the title isn't word-selected (copy from Details)
-            title="Double-click to open the PDF"
-          >
-            {selecting && <PaperCopyButton paperId={p.id} />}
-            {selecting &&
-              <input
-                type="checkbox" className="paper-select" checked={selectedLibraryIds.has(p.id)}
-                title="Select for delete"
-                onClick={e => e.stopPropagation()}
-                onChange={() => onToggleLibrarySelect(p.id)}
-              />}
-            <p className="paper-title">{p.title || <span className="placeholder">Untitled</span>}</p>
-            <div className="paper-meta">
-              {unresolved
-                ? <span className="placeholder">metadata not yet resolved</span>
-                : <>
-                    {p.authors && p.authors.length > 0 &&
-                      <span className="paper-authors">{fmtAuthors(p.authors)}</span>}
-                    {p.year && <span>· {p.year}</span>}
-                    {p.venue && <span className="paper-venue">· {p.venue}</span>}
-                  </>}
-            </div>
-            <div className="paper-foot">
-              <span className={"tier " + tierClass(p.processing_tier)}>{tierLabel(p.processing_tier)}</span>
-              {p.attachment_count > 0 && <span className="chip">{p.attachment_count} file{p.attachment_count > 1 ? "s" : ""}</span>}
-              {unresolved && <span className="needs-doi">needs DOI</span>}
-              {focusAxis &&
-                <button
-                  className={"paper-axis-add" + (fIn ? " in" : "") + (fStaged ? " staged" : "")}
-                  title={fIn ? "On this axis — click to remove" : "Add to this axis"}
-                  onClick={e => { e.stopPropagation(); onToggleFocusPaper(p.id); }}
-                >
-                  {fStaged === "add" ? "✓ staged" : fStaged === "remove" ? "− staged" : fIn ? "✓ in axis" : "+ add"}
-                </button>}
-              {trashView &&
-                <button className="paper-restore" title="Restore from Trash"
-                  onClick={e => { e.stopPropagation(); onRestore(p.id); }}>Restore</button>}
-              {trashView &&
-                <button className="paper-restore danger" title="Permanently delete — cannot be undone"
-                  onClick={e => { e.stopPropagation(); onPurge(p.id); }}>Delete forever</button>}
-            </div>
-          </div>
+          <PaperCard
+            key={p.id} paper={p} selecting={selecting} isSelected={selected === p.id}
+            onSelect={onSelect} onOpen={onOpenPdf}
+            checked={selectedLibraryIds && selectedLibraryIds.has(p.id)} onToggleCheck={onToggleLibrarySelect}
+            footExtra={footExtra}
+          />
         );
       })}
 
