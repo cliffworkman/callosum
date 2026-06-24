@@ -669,6 +669,14 @@
     font-size: 10px; font-weight: 600; color: var(--flag);
     background: var(--flag-soft); padding: 2px 7px; border-radius: var(--radius-pill);
   }
+  /* inc 119 (SP3 #14): OpenAlex cited-by chip on the My Publications cards. */
+  .paper-cite {
+    font-family: var(--mono); font-size: 11px; color: var(--ink-3); cursor: pointer;
+    background: none; border: none; padding: 0;
+  }
+  .paper-cite:hover { color: var(--accent); }
+  .paper-cite-static { cursor: default; }
+  .paper-cite-static:hover { color: var(--ink-3); }
 
   /* ---- right: detail (inline-editable Mendeley-style pane, inc 49) ---- */
   .detail-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; align-items: center; }
@@ -1666,7 +1674,7 @@
       copied ? /* @__PURE__ */ React.createElement(CheckIcon, null) : /* @__PURE__ */ React.createElement(ClipboardIcon, null)
     );
   }
-  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra }) {
+  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra, citeInfo }) {
     const unresolved = needsMetadata(p);
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -1690,7 +1698,19 @@
       ),
       /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, p.title || /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "Untitled")),
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, unresolved ? /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "metadata not yet resolved") : /* @__PURE__ */ React.createElement(React.Fragment, null, p.authors && p.authors.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, fmtAuthors(p.authors)), p.year && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", p.year), p.venue && /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, "\xB7 ", p.venue))),
-      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), footExtra)
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), citeInfo && (citeInfo.workId ? /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "paper-cite",
+          title: "Papers that cite this, per OpenAlex \u2014 click to view",
+          onClick: (e) => {
+            e.stopPropagation();
+            citeInfo.onOpenCiting(citeInfo.workId, p);
+          }
+        },
+        citeInfo.count,
+        " cited-by"
+      ) : /* @__PURE__ */ React.createElement("span", { className: "paper-cite paper-cite-static", title: "Cited-by count, per OpenAlex" }, citeInfo.count, " cited-by")), footExtra)
     );
   }
   function PaperList({
@@ -4226,6 +4246,7 @@
         if (r.ok) setAxisNames((r.data || []).map((a) => a.label));
       });
     }, []);
+    const [citing, setCiting] = useState(null);
     const refetch = () => api("/my-publications/dashboard").then((r) => {
       if (r.ok) {
         setData(r.data);
@@ -4413,7 +4434,9 @@
         onOpenPdf,
         decomposeSlot: decomposeButton,
         domains,
-        starredIds: data.starred_ids
+        starredIds: data.starred_ids,
+        paperCitations: data.paper_citations,
+        onOpenCiting: (workId, paper) => setCiting({ workId, title: paper.title })
       }
     ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "domain-row-wrap" }, editingDomain === i ? /* @__PURE__ */ React.createElement("div", { className: "domain-rename" }, /* @__PURE__ */ React.createElement(
       "input",
@@ -4500,7 +4523,7 @@
       "Restore"
     ))))));
   }
-  function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds }) {
+  function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds, paperCitations, onOpenCiting }) {
     const [state, setState] = useState({ status: "loading", papers: [] });
     const [q, setQ] = useState("");
     const [debounced, setDebounced] = useState("");
@@ -4530,7 +4553,7 @@
       setState((s) => ({ ...s, status: "loading" }));
       const qs = new URLSearchParams({ axis_id: axisId, limit: 200 });
       if (debounced.trim()) qs.set("q", debounced.trim());
-      if (sort !== "added") qs.set("sort", sort);
+      if (sort !== "added" && sort !== "most_cited") qs.set("sort", sort);
       api(`/papers?${qs.toString()}`).then((r) => {
         if (!live) return;
         if (r.ok) setState({ status: "ready", papers: r.data });
@@ -4613,7 +4636,13 @@
       if (onSummarize) onSummarize(list);
       clearSel();
     };
-    const papers = state.papers || [];
+    const rawPapers = state.papers || [];
+    const citeCount = (p) => (paperCitations && paperCitations[String(p.id)] || {}).cited_by_count || 0;
+    const citeInfoFor = (p) => {
+      const c = paperCitations && paperCitations[String(p.id)];
+      return c ? { count: c.cited_by_count, workId: c.openalex_work_id, onOpenCiting } : void 0;
+    };
+    const papers = sort === "most_cited" ? [...rawPapers].sort((a, b) => citeCount(b) - citeCount(a)) : rawPapers;
     const starredSet = new Set(starredIds || []);
     const starFirst = (list) => [...list.filter((p) => starredSet.has(p.id)), ...list.filter((p) => !starredSet.has(p.id))];
     const renderCard = (p) => /* @__PURE__ */ React.createElement(
@@ -4626,7 +4655,8 @@
         onSelect,
         onOpen: onOpenPdf,
         checked: sel.has(p.id),
-        onToggleCheck: toggleSel
+        onToggleCheck: toggleSel,
+        citeInfo: citeInfoFor(p)
       }
     );
     const hasDomains = Array.isArray(domains) && domains.length > 0;
@@ -4652,7 +4682,7 @@
         onChange: (e) => setQ(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: sort, onChange: (e) => setSort(e.target.value), title: "Sort your publications" }, /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added")), hasDomains && /* @__PURE__ */ React.createElement("label", { className: "mypubs-group-toggle", title: "Group your publications by research domain" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: groupByDomain, onChange: (e) => setGroupByDomain(e.target.checked) }), " Group by domain"), decomposeSlot)), sel.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, sel.size, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: doSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: sort, onChange: (e) => setSort(e.target.value), title: "Sort your publications" }, /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), paperCitations && /* @__PURE__ */ React.createElement("option", { value: "most_cited" }, "Most cited")), hasDomains && /* @__PURE__ */ React.createElement("label", { className: "mypubs-group-toggle", title: "Group your publications by research domain" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: groupByDomain, onChange: (e) => setGroupByDomain(e.target.checked) }), " Group by domain"), decomposeSlot)), sel.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, sel.size, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: doSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",

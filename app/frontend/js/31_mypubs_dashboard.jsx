@@ -59,6 +59,7 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
   const [editLabel, setEditLabel] = useState("");
   const [axisNames, setAxisNames] = useState([]);
   useEffect(() => { api("/axes").then(r => { if (r.ok) setAxisNames((r.data || []).map(a => a.label)); }); }, []);
+  const [citing, setCiting] = useState(null);  // inc 119 (SP3 #14): {workId, title} → the citing-articles modal
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -264,6 +265,7 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
       <MyPubsPublications
         axisId={axisId} onSummarize={onSummarize} onSelect={onSelectPaper} onOpenPdf={onOpenPdf}
         decomposeSlot={decomposeButton} domains={domains} starredIds={data.starred_ids}
+        paperCitations={data.paper_citations} onOpenCiting={(workId, paper) => setCiting({ workId, title: paper.title })}
       />
 
       <div className="mypubs-domains">

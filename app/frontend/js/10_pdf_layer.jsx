@@ -262,7 +262,7 @@ function PaperCopyButton({ paperId }) {
 // inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
 // render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
 // caller append context buttons (the library passes its focus/trash buttons here).
-function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra }) {
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra, citeInfo }) {
   const unresolved = needsMetadata(p);
   return (
     <div
@@ -293,6 +293,13 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
         <span className={"tier " + tierClass(p.processing_tier)}>{tierLabel(p.processing_tier)}</span>
         {p.attachment_count > 0 && <span className="chip">{p.attachment_count} file{p.attachment_count > 1 ? "s" : ""}</span>}
         {unresolved && <span className="needs-doi">needs DOI</span>}
+        {/* inc 119 (SP3 #14): OpenAlex cited-by count; clickable (→ citing list) once the work id is known. */}
+        {citeInfo && (citeInfo.workId
+          ? <button className="paper-cite" title="Papers that cite this, per OpenAlex — click to view"
+              onClick={e => { e.stopPropagation(); citeInfo.onOpenCiting(citeInfo.workId, p); }}>
+              {citeInfo.count} cited-by
+            </button>
+          : <span className="paper-cite paper-cite-static" title="Cited-by count, per OpenAlex">{citeInfo.count} cited-by</span>)}
         {footExtra}
       </div>
     </div>

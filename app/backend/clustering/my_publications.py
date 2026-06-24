@@ -58,7 +58,9 @@ def resolve_my_publications(conn: Connection, *, author_client, force: bool = Fa
         return {"status": "no-match", "name": (profile.get("display_name") or "").strip() or None}
     set_openalex_author_id(conn, author.author_id)
 
-    works = author_client.fetch_author_works(conn, author.author_id)
+    # inc 119 (SP3): refresh works on an explicit re-resolve so the cache carries fresh citation counts + the
+    # OpenAlex work ids the citing-articles feature needs (an explicit "Refresh" should actually re-fetch).
+    works = author_client.fetch_author_works(conn, author.author_id, refresh=True)
     work_dois = {w.doi for w in works if w.doi}
 
     doi_matched = _live_papers_by_doi(conn, work_dois) if work_dois else set()

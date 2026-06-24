@@ -3,7 +3,7 @@
 // multi-select + a bulk bar (summarize / export / bibliography / delete), copy-BibTeX, open-on-double-click.
 // Reuses GET /papers?axis_id=<my-pubs> + the shared PaperCard, so it inherits the library aesthetic and the
 // tested list/bulk endpoints. The Decompose button is passed in (decomposeSlot) so it hangs with the controls (#10).
-function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds }) {
+function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot, domains, starredIds, paperCitations, onOpenCiting }) {
   const [state, setState] = useState({ status: "loading", papers: [] });
   const [q, setQ] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -24,7 +24,7 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
     setState(s => ({ ...s, status: "loading" }));
     const qs = new URLSearchParams({ axis_id: axisId, limit: 200 });  // /papers caps limit at 200
     if (debounced.trim()) qs.set("q", debounced.trim());
-    if (sort !== "added") qs.set("sort", sort);
+    if (sort !== "added" && sort !== "most_cited") qs.set("sort", sort);  // "most_cited" is a client-side sort (OpenAlex counts)
     api(`/papers?${qs.toString()}`).then(r => {
       if (!live) return;
       if (r.ok) setState({ status: "ready", papers: r.data });
@@ -81,15 +81,22 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
 
   const doSummarize = () => { const list = [...sel]; if (!list.length) return; if (onSummarize) onSummarize(list); clearSel(); };
 
-  const papers = state.papers || [];
-  // inc 118 (SP2 #17): starred-first — stable-partition so each sub-list keeps the chosen backend sort order.
+  const rawPapers = state.papers || [];
+  // inc 119 (SP3 #14): per-card OpenAlex cited-by info; "Most cited" is a client-side sort (counts aren't a /papers column).
+  const citeCount = (p) => ((paperCitations && paperCitations[String(p.id)]) || {}).cited_by_count || 0;
+  const citeInfoFor = (p) => {
+    const c = paperCitations && paperCitations[String(p.id)];
+    return c ? { count: c.cited_by_count, workId: c.openalex_work_id, onOpenCiting } : undefined;
+  };
+  const papers = sort === "most_cited" ? [...rawPapers].sort((a, b) => citeCount(b) - citeCount(a)) : rawPapers;
+  // inc 118 (SP2 #17): starred-first — stable-partition so each sub-list keeps the chosen sort order.
   const starredSet = new Set(starredIds || []);
   const starFirst = (list) => [...list.filter(p => starredSet.has(p.id)), ...list.filter(p => !starredSet.has(p.id))];
   const renderCard = (p) => (
     <PaperCard
       key={p.id} paper={p} selecting={true} isSelected={false}
       onSelect={onSelect} onOpen={onOpenPdf}
-      checked={sel.has(p.id)} onToggleCheck={toggleSel}
+      checked={sel.has(p.id)} onToggleCheck={toggleSel} citeInfo={citeInfoFor(p)}
     />
   );
   // inc 118 (SP2 #9): group-by-domain — buckets in citation-impact order (the domains order), "Other" last.
@@ -122,6 +129,7 @@ function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decompos
             <option value="title">Title (A–Z)</option>
             <option value="title_desc">Title (Z–A)</option>
             <option value="added">Date added</option>
+            {paperCitations && <option value="most_cited">Most cited</option>}
           </select>
           {hasDomains &&
             <label className="mypubs-group-toggle" title="Group your publications by research domain">
