@@ -1121,6 +1121,16 @@
   }
   .chart-pill:hover { border-color: var(--line-2); color: var(--ink); }
   .chart-pill.on { color: var(--on-fill); background: var(--accent); border-color: var(--accent); }
+  .chart-pill:disabled { opacity: 0.45; cursor: not-allowed; }
+  /* inc 118 (SP2 #15): domain rename row (✎ beside each domain bar; inline input with axis-name suggestions). */
+  .domain-row-wrap { display: flex; align-items: center; gap: 6px; }
+  .domain-row-wrap .domain-row { flex: 1; }
+  .domain-rename { display: flex; align-items: center; gap: 6px; flex: 1; padding: 4px 0; }
+  .domain-rename-input {
+    flex: 1; font-family: var(--sans); font-size: 12px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 3px 8px;
+  }
+  .domain-rename-input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   /* inc 117 (SP1): the publications list (axis-scoped library cards + controls). */
   .mypubs-pubs { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 18px; }
   .mypubs-pubs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }

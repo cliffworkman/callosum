@@ -54,6 +54,11 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
   const [overviewOpen, setOverviewOpen] = useState(() => localStorage.getItem("callosum.mypubsOverviewCollapsed") !== "1");
   useEffect(() => { localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1"); }, [overviewOpen]);
   const [chartMode, setChartMode] = useState("pubs");  // "pubs" | "cites"
+  // inc 118 (SP2 #15): rename a domain — pre-suggest the closest existing axis name.
+  const [editingDomain, setEditingDomain] = useState(null);  // index being renamed, or null
+  const [editLabel, setEditLabel] = useState("");
+  const [axisNames, setAxisNames] = useState([]);
+  useEffect(() => { api("/axes").then(r => { if (r.ok) setAxisNames((r.data || []).map(a => a.label)); }); }, []);
 
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
@@ -168,6 +173,30 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
       {domainJob.status === "running" ? "Working…" : (domains.length ? "Re-decompose domains" : "Break down by domain")}
     </button>
   );
+
+  // inc 118 (SP2 #18): when domain(s) are selected, lock the chart to Publications (domain-filtered) + disable Citations.
+  const chartLocked = activeDomains.length > 0;
+  const effectiveMode = chartLocked ? "pubs" : chartMode;
+
+  // inc 118 (SP2 #15): rename helpers — suggest the closest axis name by domain-term overlap.
+  const suggestAxis = (d) => {
+    const terms = new Set((d.terms || []).map(t => String(t).toLowerCase()));
+    let best = null;
+    let bestScore = 0;
+    for (const name of axisNames) {
+      const score = String(name).toLowerCase().split(/\W+/).filter(Boolean).filter(w => terms.has(w)).length;
+      if (score > bestScore) { bestScore = score; best = name; }
+    }
+    return bestScore > 0 ? best : null;
+  };
+  const startRename = (i, d) => { setEditLabel(suggestAxis(d) || d.label || ""); setEditingDomain(i); };
+  const saveRename = (d) => {
+    const label = editLabel.trim();
+    if (!label) return;
+    apiPost("/my-publications/domains/rename", { paper_ids: d.paper_ids || [], label }).then(r => {
+      if (r.ok) { setEditingDomain(null); refetch(); }
+    });
+  };
   return (
     <div className="mypubs-dashboard">
       <div className="mypubs-head">
@@ -189,14 +218,16 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
             </div>
             <div className="mypubs-chart">
               <div className="mypubs-chart-flip">
-                <button className={"chart-pill" + (chartMode === "pubs" ? " on" : "")} onClick={() => setChartMode("pubs")}>Publications</button>
-                <button className={"chart-pill" + (chartMode === "cites" ? " on" : "")} onClick={() => setChartMode("cites")}>Citations</button>
+                <button className={"chart-pill" + (effectiveMode === "pubs" ? " on" : "")} onClick={() => setChartMode("pubs")}>Publications</button>
+                <button className={"chart-pill" + (effectiveMode === "cites" ? " on" : "")} disabled={chartLocked}
+                  title={chartLocked ? "Clear the domain filter to see citations" : ""}
+                  onClick={() => setChartMode("cites")}>Citations</button>
               </div>
               <MyPubsBarChart
-                bars={(chartMode === "cites" ? citeBars : chartBars).slice(-10)}
-                ariaLabel={chartMode === "cites" ? "Citations by year" : "Publications by year"}
+                bars={(effectiveMode === "cites" ? citeBars : chartBars).slice(-10)}
+                ariaLabel={effectiveMode === "cites" ? "Citations by year" : "Publications by year"}
               />
-              {chartMode === "pubs" && domainSummary &&
+              {effectiveMode === "pubs" && domainSummary &&
                 <div className="mypubs-domain-summary">{domainSummary} · <button className="axis-link" onClick={() => setSelectedDomains(new Set())}>clear</button></div>}
             </div>
           </div>}
@@ -247,13 +278,27 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
         {domains.length > 0 &&
           <div className="domain-list">
             {domains.map((d, i) => (
-              <button key={i} type="button" className={"domain-row" + (selectedDomains.has(i) ? " on" : "")}
-                title={(d.terms || []).join(", ")} onClick={() => toggleDomain(i)}>
-                <span className="domain-fill" style={{ width: `${Math.round((d.citation_count / maxDomainCites) * 100)}%` }} />
-                <span className="domain-label">{d.label}</span>
-                <span className="domain-meta">{d.paper_count}p · {d.citation_count} cites</span>
-              </button>
+              <div key={i} className="domain-row-wrap">
+                {editingDomain === i
+                  ? <div className="domain-rename">
+                      <input className="domain-rename-input" list="mypubs-axis-names" autoFocus value={editLabel}
+                        onChange={e => setEditLabel(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") saveRename(d); if (e.key === "Escape") setEditingDomain(null); }} />
+                      <button className="axis-link" onClick={() => saveRename(d)}>save</button>
+                      <button className="axis-link" onClick={() => setEditingDomain(null)}>cancel</button>
+                    </div>
+                  : <>
+                      <button type="button" className={"domain-row" + (selectedDomains.has(i) ? " on" : "")}
+                        title={(d.terms || []).join(", ")} onClick={() => toggleDomain(i)}>
+                        <span className="domain-fill" style={{ width: `${Math.round((d.citation_count / maxDomainCites) * 100)}%` }} />
+                        <span className="domain-label">{d.label}</span>
+                        <span className="domain-meta">{d.paper_count}p · {d.citation_count} cites</span>
+                      </button>
+                      <button className="axis-icon-btn domain-edit" title="Rename this domain" onClick={() => startRename(i, d)}>✎</button>
+                    </>}
+              </div>
             ))}
+            <datalist id="mypubs-axis-names">{axisNames.map(n => <option key={n} value={n} />)}</datalist>
           </div>}
       </div>
 

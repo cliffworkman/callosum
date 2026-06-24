@@ -1145,6 +1145,16 @@
   }
   .chart-pill:hover { border-color: var(--line-2); color: var(--ink); }
   .chart-pill.on { color: var(--on-fill); background: var(--accent); border-color: var(--accent); }
+  .chart-pill:disabled { opacity: 0.45; cursor: not-allowed; }
+  /* inc 118 (SP2 #15): domain rename row (✎ beside each domain bar; inline input with axis-name suggestions). */
+  .domain-row-wrap { display: flex; align-items: center; gap: 6px; }
+  .domain-row-wrap .domain-row { flex: 1; }
+  .domain-rename { display: flex; align-items: center; gap: 6px; flex: 1; padding: 4px 0; }
+  .domain-rename-input {
+    flex: 1; font-family: var(--sans); font-size: 12px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 3px 8px;
+  }
+  .domain-rename-input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   /* inc 117 (SP1): the publications list (axis-scoped library cards + controls). */
   .mypubs-pubs { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 18px; }
   .mypubs-pubs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
@@ -4181,6 +4191,14 @@
       localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1");
     }, [overviewOpen]);
     const [chartMode, setChartMode] = useState("pubs");
+    const [editingDomain, setEditingDomain] = useState(null);
+    const [editLabel, setEditLabel] = useState("");
+    const [axisNames, setAxisNames] = useState([]);
+    useEffect(() => {
+      api("/axes").then((r) => {
+        if (r.ok) setAxisNames((r.data || []).map((a) => a.label));
+      });
+    }, []);
     const refetch = () => api("/my-publications/dashboard").then((r) => {
       if (r.ok) {
         setData(r.data);
@@ -4302,13 +4320,51 @@
       domainSummary = `${papers} paper${papers === 1 ? "" : "s"} \xB7 ${citations} citation${citations === 1 ? "" : "s"} in ${activeDomains.length} selected domain${activeDomains.length === 1 ? "" : "s"}`;
     }
     const decomposeButton = /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: domainJob.status === "running", onClick: decompose }, domainJob.status === "running" ? "Working\u2026" : domains.length ? "Re-decompose domains" : "Break down by domain");
-    return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-head" }, /* @__PURE__ */ React.createElement("h2", null, data.name || "My Publications")), /* @__PURE__ */ React.createElement("section", { className: "mypubs-overview" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-collapse", onClick: () => setOverviewOpen((o) => !o), title: "Show/hide your metrics and chart" }, overviewOpen ? "\u25BE" : "\u25B8", " Overview"), overviewOpen && /* @__PURE__ */ React.createElement("div", { className: "mypubs-overview-cols" }, /* @__PURE__ */ React.createElement("div", { className: "metric-tiles metric-grid-2x2" }, /* @__PURE__ */ React.createElement(MyPubsTile, { label: "Citations", value: m.cited_by_count }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "h-index", value: m.h_index }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "i10-index", value: m.i10_index }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "Indexed works", value: m.works_count })), /* @__PURE__ */ React.createElement("div", { className: "mypubs-chart" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-chart-flip" }, /* @__PURE__ */ React.createElement("button", { className: "chart-pill" + (chartMode === "pubs" ? " on" : ""), onClick: () => setChartMode("pubs") }, "Publications"), /* @__PURE__ */ React.createElement("button", { className: "chart-pill" + (chartMode === "cites" ? " on" : ""), onClick: () => setChartMode("cites") }, "Citations")), /* @__PURE__ */ React.createElement(
+    const chartLocked = activeDomains.length > 0;
+    const effectiveMode = chartLocked ? "pubs" : chartMode;
+    const suggestAxis = (d) => {
+      const terms = new Set((d.terms || []).map((t) => String(t).toLowerCase()));
+      let best = null;
+      let bestScore = 0;
+      for (const name of axisNames) {
+        const score = String(name).toLowerCase().split(/\W+/).filter(Boolean).filter((w) => terms.has(w)).length;
+        if (score > bestScore) {
+          bestScore = score;
+          best = name;
+        }
+      }
+      return bestScore > 0 ? best : null;
+    };
+    const startRename = (i, d) => {
+      setEditLabel(suggestAxis(d) || d.label || "");
+      setEditingDomain(i);
+    };
+    const saveRename = (d) => {
+      const label = editLabel.trim();
+      if (!label) return;
+      apiPost("/my-publications/domains/rename", { paper_ids: d.paper_ids || [], label }).then((r) => {
+        if (r.ok) {
+          setEditingDomain(null);
+          refetch();
+        }
+      });
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-head" }, /* @__PURE__ */ React.createElement("h2", null, data.name || "My Publications")), /* @__PURE__ */ React.createElement("section", { className: "mypubs-overview" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-collapse", onClick: () => setOverviewOpen((o) => !o), title: "Show/hide your metrics and chart" }, overviewOpen ? "\u25BE" : "\u25B8", " Overview"), overviewOpen && /* @__PURE__ */ React.createElement("div", { className: "mypubs-overview-cols" }, /* @__PURE__ */ React.createElement("div", { className: "metric-tiles metric-grid-2x2" }, /* @__PURE__ */ React.createElement(MyPubsTile, { label: "Citations", value: m.cited_by_count }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "h-index", value: m.h_index }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "i10-index", value: m.i10_index }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "Indexed works", value: m.works_count })), /* @__PURE__ */ React.createElement("div", { className: "mypubs-chart" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-chart-flip" }, /* @__PURE__ */ React.createElement("button", { className: "chart-pill" + (effectiveMode === "pubs" ? " on" : ""), onClick: () => setChartMode("pubs") }, "Publications"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "chart-pill" + (effectiveMode === "cites" ? " on" : ""),
+        disabled: chartLocked,
+        title: chartLocked ? "Clear the domain filter to see citations" : "",
+        onClick: () => setChartMode("cites")
+      },
+      "Citations"
+    )), /* @__PURE__ */ React.createElement(
       MyPubsBarChart,
       {
-        bars: (chartMode === "cites" ? citeBars : chartBars).slice(-10),
-        ariaLabel: chartMode === "cites" ? "Citations by year" : "Publications by year"
+        bars: (effectiveMode === "cites" ? citeBars : chartBars).slice(-10),
+        ariaLabel: effectiveMode === "cites" ? "Citations by year" : "Publications by year"
       }
-    ), chartMode === "pubs" && domainSummary && /* @__PURE__ */ React.createElement("div", { className: "mypubs-domain-summary" }, domainSummary, " \xB7 ", /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setSelectedDomains(/* @__PURE__ */ new Set()) }, "clear"))))), /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research summary ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-ai-tag" }, "AI-generated draft \u2014 edit freely")), /* @__PURE__ */ React.createElement("span", { className: "mypubs-summary-actions" }, (data.starred_count || 0) > 0 && /* @__PURE__ */ React.createElement("label", { className: "mypubs-starred-toggle", title: "Generate from only your \u2B50 starred publications (star them in the My Publications sidebar card)" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: starredOnly, onChange: (e) => setStarredOnly(e.target.checked) }), " \u2B50 only"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: gen.status === "running", onClick: generate }, gen.status === "running" ? "Generating\u2026" : summary ? "Regenerate" : "Generate"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: save === "saving" || !dirty, onClick: saveSummary }, save === "saving" ? "Saving\u2026" : save === "saved" && !dirty ? "Saved" : "Save"))), gen.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Writing a draft from your publications\u2026" }), gen.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, gen.error), /* @__PURE__ */ React.createElement(
+    ), effectiveMode === "pubs" && domainSummary && /* @__PURE__ */ React.createElement("div", { className: "mypubs-domain-summary" }, domainSummary, " \xB7 ", /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setSelectedDomains(/* @__PURE__ */ new Set()) }, "clear"))))), /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research summary ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-ai-tag" }, "AI-generated draft \u2014 edit freely")), /* @__PURE__ */ React.createElement("span", { className: "mypubs-summary-actions" }, (data.starred_count || 0) > 0 && /* @__PURE__ */ React.createElement("label", { className: "mypubs-starred-toggle", title: "Generate from only your \u2B50 starred publications (star them in the My Publications sidebar card)" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: starredOnly, onChange: (e) => setStarredOnly(e.target.checked) }), " \u2B50 only"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: gen.status === "running", onClick: generate }, gen.status === "running" ? "Generating\u2026" : summary ? "Regenerate" : "Generate"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: save === "saving" || !dirty, onClick: saveSummary }, save === "saving" ? "Saving\u2026" : save === "saved" && !dirty ? "Saved" : "Save"))), gen.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Writing a draft from your publications\u2026" }), gen.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, gen.error), /* @__PURE__ */ React.createElement(
       "textarea",
       {
         className: "mypubs-summary-text",
@@ -4332,10 +4388,22 @@
         domains,
         starredIds: data.starred_ids
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "domain-row-wrap" }, editingDomain === i ? /* @__PURE__ */ React.createElement("div", { className: "domain-rename" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "domain-rename-input",
+        list: "mypubs-axis-names",
+        autoFocus: true,
+        value: editLabel,
+        onChange: (e) => setEditLabel(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") saveRename(d);
+          if (e.key === "Escape") setEditingDomain(null);
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => saveRename(d) }, "save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => setEditingDomain(null) }, "cancel")) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "button",
       {
-        key: i,
         type: "button",
         className: "domain-row" + (selectedDomains.has(i) ? " on" : ""),
         title: (d.terms || []).join(", "),
@@ -4344,7 +4412,7 @@
       /* @__PURE__ */ React.createElement("span", { className: "domain-fill", style: { width: `${Math.round(d.citation_count / maxDomainCites * 100)}%` } }),
       /* @__PURE__ */ React.createElement("span", { className: "domain-label" }, d.label),
       /* @__PURE__ */ React.createElement("span", { className: "domain-meta" }, d.paper_count, "p \xB7 ", d.citation_count, " cites")
-    )))), /* @__PURE__ */ React.createElement("section", { className: "openalex-card" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "OpenAlex"), /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, asOf ? "as of " + asOf : "not yet refreshed")), /* @__PURE__ */ React.createElement("div", { className: "openalex-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " indexed \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in library", data.gap > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, data.gap, " not imported")), ((data.missing_works || []).length > 0 || (data.dismissed_works || []).length > 0) && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost openalex-review", onClick: () => setMissingOpen(true) }, (data.missing_works || []).length > 0 ? `Review ${data.missing_works.length} \u2192` : `Dismissed (${data.dismissed_works.length}) \u2192`)), data.openalex_extra && /* @__PURE__ */ React.createElement("div", { className: "mypubs-source openalex-stats" }, "2-yr mean citedness ", data.openalex_extra.two_year_mean_citedness, data.openalex_extra.affiliation ? ` \xB7 ${data.openalex_extra.affiliation}` : "", data.openalex_extra.openalex_author_id && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn domain-edit", title: "Rename this domain", onClick: () => startRename(i, d) }, "\u270E")))), /* @__PURE__ */ React.createElement("datalist", { id: "mypubs-axis-names" }, axisNames.map((n) => /* @__PURE__ */ React.createElement("option", { key: n, value: n }))))), /* @__PURE__ */ React.createElement("section", { className: "openalex-card" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "OpenAlex"), /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, asOf ? "as of " + asOf : "not yet refreshed")), /* @__PURE__ */ React.createElement("div", { className: "openalex-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " indexed \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in library", data.gap > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, data.gap, " not imported")), ((data.missing_works || []).length > 0 || (data.dismissed_works || []).length > 0) && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost openalex-review", onClick: () => setMissingOpen(true) }, (data.missing_works || []).length > 0 ? `Review ${data.missing_works.length} \u2192` : `Dismissed (${data.dismissed_works.length}) \u2192`)), data.openalex_extra && /* @__PURE__ */ React.createElement("div", { className: "mypubs-source openalex-stats" }, "2-yr mean citedness ", data.openalex_extra.two_year_mean_citedness, data.openalex_extra.affiliation ? ` \xB7 ${data.openalex_extra.affiliation}` : "", data.openalex_extra.openalex_author_id && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement(
       "a",
       {
         className: "btn-link",
