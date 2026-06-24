@@ -196,6 +196,11 @@ callosum/
 │   ├── APPROACH-AVOIDANCE.md      (the value substrate beneath PRINCIPLES — the gate's deeper conditional layer)
 │   ├── CREDIT-THE-LINEAGE.md      (values-layer cross-cutting principle — credit + library-add the scholarly work a tool stands on; inbox-captured 2026-06-21)
 │   ├── DESIGN.md                  (the design dictionary — rule #8)
+│   ├── QA-POLICY.md               (the QA contract — rule #10 / the surface-coverage gate)
+│   ├── qa-routes/                 (QA route scripts the Codex-exec supervisor traverses; route_NN_*.md, NN
+│   │                              encodes complexity order; _TEMPLATE.md is the contract shape — inc 120)
+│   ├── qa-inbox/                  (gitignored, local-only: <run-id>/ deposits — md reports + screenshots +
+│   │                              run-summary.md; _processed/ = triaged runs; the watched dropzone — inc 120)
 │   ├── docs/                      (planning suite: product-scope, data-contracts, architecture, risk-register,
 │   │   ├── increment-notes/       glossary, INCREMENT-BACKLOG, README; increment-notes/ = the per-increment diary;
 │   │   ├── future-tracks/         future-tracks/ = longer-horizon docs; future-tracks-import/ = the watched inbox
@@ -261,7 +266,9 @@ callosum/
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
-│                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py)
+│                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py; qa/ [inc 120:
+│                                  build_surface_map.py = surface-coverage gate, supervisor.py = Codex-exec
+│                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
 ├── alembic/                       (env.py + versions/0001_persistence_core … 0014_watched_folders)
@@ -367,6 +374,20 @@ that can't honor the principles is a finding about the feature. For **novel / va
 changes (where no principle directly fits), the gate also consults the deeper **values layer**
 (`.claude/APPROACH-AVOIDANCE.md`) — derive the check from the value, run its drift typology, and honor its
 veto-level boundaries; it is conditional, not a second mandatory read.
+
+### 10. QA coverage: read `.claude/QA-POLICY.md` before changing an end-user surface
+
+**Before adding or altering any end-user surface — a new API endpoint, a changed request/response contract, a
+new interactive control, a new view-state, or a new async job — read [`.claude/QA-POLICY.md`](QA-POLICY.md) and
+add or extend a QA route in the same increment.** QA coverage is a **computed property**:
+`python tools/qa/build_surface_map.py check` diffs the surfaces declared by the routes in `.claude/qa-routes/`
+against the surfaces that actually exist (88 API + ~460 frontend at inc 119). An uncovered **API** surface fails
+the check (hard gate); uncovered **frontend** elements are reported as a checklist. Shipping a surface without a
+route is the QA analogue of CLAUDE.md drift. Every route also asserts the project's honesty invariants (egress
+gate, coordinate honesty, signal-not-verdict), so QA tests the soul of the app, not just that buttons click.
+Security-class findings open a `.claude/security-audits/` stub via the existing audit gate — QA feeds it, never
+duplicates it. The Codex-`exec` supervisor (`tools/qa/supervisor.py`) runs the routes and deposits reports to the
+watched `.claude/qa-inbox/`; you are the triage-and-fix half (Session-kickoff step #11).
 
 ---
 
@@ -561,6 +582,7 @@ before large design changes:
 | `.claude/APPROACH-AVOIDANCE.md` | **The value substrate *beneath* the charter — the deeper, *conditional* layer of the gate (consulted for novel / value-level / future-track changes only, not every gated edit): 8 approach values + standalone veto-level avoidance boundaries (no paywall circumvention / no reaching into other tools' stores / no accusation of individuals) + the confirmed/extended/emergent/divergent drift typology. Derive the check from the value when no principle directly applies.** |
 | `.claude/CREDIT-THE-LINEAGE.md` | **Values-layer cross-cutting principle (inbox-captured 2026-06-21): any tool that implements/operationalizes/is-built-on identifiable scholarly work must credit it *in-context* + offer the source paper(s) to the library (one-click), and credit a prior *tool* by citation + library-add, never by appropriating its name. Apply to every method-implementing feature; the retroactive credit-help backfill is in the backlog. Not yet wired as a hard rule-#9 gate trigger.** |
 | `.claude/DESIGN.md` | **Design dictionary — read before ANY CSS/inline-style change (rule #8): tokens, element recipes, fixed color/type semantics, consolidation worklist** |
+| `.claude/QA-POLICY.md` | **The QA contract — read before changing any end-user surface (rule #10): the fixture contract, the computed coverage gate (`tools/qa/build_surface_map.py`), the honesty-invariant assertions, the severity rubric, and the Codex-exec supervisor + watched-inbox loop. Add/extend a QA route in the same increment as a surface change.** |
 | `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
 | `.claude/HELP.md` | Historical tip text (superseded by the served corpus above; kept as a dev note) |
@@ -702,7 +724,13 @@ When starting any non-trivial work:
    `future-tracks/README.md` index, then **move** it to `future-tracks/`; a **meta / CLAUDE.md directive** →
    action it, then remove it; a **counsel-gated / sensitive** drop → leave it **parked** (it stays in the
    gitignored inbox, named in the README's Parked list — never auto-processed or published).
-10. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
+10. **Check the QA inbox.** Glance at `.claude/qa-inbox/` (gitignored, local-only — like the future-tracks
+   inbox). It is normally empty bar `_processed/`. For each unprocessed `<run-id>/`, read its `run-summary.md`
+   (Critical/High first): **fix Critical/High in-session**, file Medium/Low to `INCREMENT-BACKLOG.md`, open a
+   `security-audits/` stub for any security-class finding, then move the run to `.claude/qa-inbox/_processed/`.
+   Do not act on a run silently — surface what you found and what you're fixing. The supervisor
+   (`tools/qa/supervisor.py`) deposits these via headless Codex `exec` runs (the QA-POLICY loop, rule #10).
+11. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
    is cheaper than a wrong turn.
 
 ---

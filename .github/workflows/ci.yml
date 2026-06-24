@@ -29,6 +29,8 @@ jobs:
         run: ruff format --check .
       - name: Pytest (offline suite; the browser e2e is opt-in and runs in the job below)
         run: pytest -q
+      - name: QA surface-coverage check (report-only until the route suite is green; inc 120)
+        run: python tools/qa/build_surface_map.py check || true
 
   e2e-smoke:
     runs-on: ubuntu-latest
