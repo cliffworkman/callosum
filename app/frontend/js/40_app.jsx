@@ -253,6 +253,13 @@ function App() {
     setSelectedLibraryIds(new Set());
   }, [selectedLibraryIds]);
 
+  // inc 117 (SP1): summarize an explicit id set (from the My Publications tab) → drive the right-pane synthesis.
+  const summarizePaperIds = useCallback((ids) => {
+    if (!ids || !ids.length) return;
+    setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
+    setRightOpen(true);
+  }, []);
+
   // inc-70: export the selected papers' citations as a downloaded file. Raw fetch (apiPost forces .json());
   // selection is kept so you can export another format. Non-destructive.
   const bulkExportPapers = useCallback((format) => {
@@ -501,6 +508,7 @@ function App() {
         }}
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
+        onSummarizePapers={summarizePaperIds} onSelectPaper={setSelected}
         annoRefresh={annoRefresh}
         readingMode={readingMode} onToggleReading={toggleReading}
       />

@@ -39,7 +39,7 @@ function MyPubsBarChart({ bars, ariaLabel }) {
   );
 }
 
-function MyPubsDashboard({ axisId }) {
+function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
   const [data, setData] = useState({ status: "loading" });
   const [summary, setSummary] = useState("");
   const [dirty, setDirty] = useState(false);
@@ -152,6 +152,14 @@ function MyPubsDashboard({ axisId }) {
     chartBars = Object.keys(yearCounts).map(Number).sort((a, b) => a - b).map(y => ({ label: y, value: yearCounts[y] }));
     domainSummary = `${papers} paper${papers === 1 ? "" : "s"} · ${citations} citation${citations === 1 ? "" : "s"} in ${activeDomains.length} selected domain${activeDomains.length === 1 ? "" : "s"}`;
   }
+
+  // inc 117 (#10): the Decompose button is rendered inside the Publications controls row (passed as decomposeSlot),
+  // not in the domains section header.
+  const decomposeButton = (
+    <button className="btn btn-ghost" disabled={domainJob.status === "running"} onClick={decompose}>
+      {domainJob.status === "running" ? "Working…" : (domains.length ? "Re-decompose domains" : "Break down by domain")}
+    </button>
+  );
   return (
     <div className="mypubs-dashboard">
       <div className="mypubs-head">
@@ -213,6 +221,12 @@ function MyPubsDashboard({ axisId }) {
         />
       </div>
 
+      {/* Publications (r3) — axis-scoped library cards with full parity (#7/#10/#13); Decompose hangs in its controls row */}
+      <MyPubsPublications
+        axisId={axisId} onSummarize={onSummarize} onSelect={onSelectPaper} onOpenPdf={onOpenPdf}
+        decomposeSlot={decomposeButton}
+      />
+
       <div className="mypubs-gap">
         <b>{data.indexed_works}</b> works indexed by OpenAlex · <b>{data.in_library}</b> in your library
         {data.gap > 0 && <span className="mypubs-gap-nudge"> — {data.gap} not yet imported</span>}
@@ -265,11 +279,6 @@ function MyPubsDashboard({ axisId }) {
       <div className="mypubs-domains">
         <div className="mypubs-summary-head">
           <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · grouped by similarity — click to filter the chart</span>}</span>
-          <span className="mypubs-summary-actions">
-            <button className="btn btn-ghost" disabled={domainJob.status === "running"} onClick={decompose}>
-              {domainJob.status === "running" ? "Working…" : (domains.length ? "Re-decompose" : "Break down by domain")}
-            </button>
-          </span>
         </div>
         {domainJob.status === "running" && <ProgressBar label="Clustering your publications…" />}
         {domainJob.status === "error" && <div className="axis-err">{domainJob.error}</div>}

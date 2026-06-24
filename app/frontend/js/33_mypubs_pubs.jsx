@@ -1,0 +1,138 @@
+// My Publications — the publications list (inc 117, SP1). Renders the user's confirmed own-papers (the
+// My Publications axis members) as library-style PaperCards with full parity: search + sort, checkbox
+// multi-select + a bulk bar (summarize / export / bibliography / delete), copy-BibTeX, open-on-double-click.
+// Reuses GET /papers?axis_id=<my-pubs> + the shared PaperCard, so it inherits the library aesthetic and the
+// tested list/bulk endpoints. The Decompose button is passed in (decomposeSlot) so it hangs with the controls (#10).
+function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot }) {
+  const [state, setState] = useState({ status: "loading", papers: [] });
+  const [q, setQ] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [sort, setSort] = useState("year_desc");
+  const [sel, setSel] = useState(() => new Set());
+  const [refresh, setRefresh] = useState(0);
+  const [citeStyles, setCiteStyles] = useState([]);
+
+  useEffect(() => { const t = setTimeout(() => setDebounced(q), 250); return () => clearTimeout(t); }, [q]);
+  useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setCiteStyles(r.data.styles || []); }); }, []);
+
+  useEffect(() => {
+    if (axisId == null) { setState({ status: "ready", papers: [] }); return; }
+    let live = true;
+    setState(s => ({ ...s, status: "loading" }));
+    const qs = new URLSearchParams({ axis_id: axisId, limit: 200 });  // /papers caps limit at 200
+    if (debounced.trim()) qs.set("q", debounced.trim());
+    if (sort !== "added") qs.set("sort", sort);
+    api(`/papers?${qs.toString()}`).then(r => {
+      if (!live) return;
+      if (r.ok) setState({ status: "ready", papers: r.data });
+      else setState({ status: "error", error: r.error, papers: [] });
+    });
+    return () => { live = false; };
+  }, [axisId, debounced, sort, refresh]);
+
+  const toggleSel = (id) => setSel(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const clearSel = () => setSel(new Set());
+
+  const doExport = (format) => {
+    const list = [...sel]; if (!list.length) return;
+    const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
+    (async () => {
+      try {
+        const res = await fetch(API_BASE + "/papers/export", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paper_ids: list, format }),
+        });
+        if (!res.ok) { console.warn("[callosum] export failed:", res.status); return; }
+        const url = URL.createObjectURL(await res.blob());
+        const a = document.createElement("a");
+        a.href = url; a.download = `callosum-my-publications.${ext}`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) { console.warn("[callosum] export error:", e); }
+    })();
+  };
+
+  const doBibliography = (style) => {
+    const list = [...sel]; if (!list.length) return;
+    (async () => {
+      const r = await apiPost("/citations/render", { paper_ids: list, style });
+      if (!r.ok) { console.warn("[callosum] bibliography failed:", r.error); return; }
+      const entries = (r.data && r.data.bibliography_html) || [];
+      if (!entries.length) return;
+      const body = entries.map(e => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
+      const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title>` +
+        `<body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
+      const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+      const a = document.createElement("a");
+      a.href = url; a.download = `callosum-bibliography-${style}.html`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    })();
+  };
+
+  const doDelete = () => {
+    const list = [...sel]; if (!list.length) return;
+    if (!window.confirm(`Move ${list.length} ${list.length === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
+    Promise.all(list.map(id => apiDelete(`/papers/${id}`))).then(() => { clearSel(); setRefresh(n => n + 1); });
+  };
+
+  const doSummarize = () => { const list = [...sel]; if (!list.length) return; if (onSummarize) onSummarize(list); clearSel(); };
+
+  const papers = state.papers || [];
+  return (
+    <div className="mypubs-pubs">
+      <div className="mypubs-pubs-head">
+        <span className="mypubs-pubs-title">Publications{state.status === "ready" ? ` (${papers.length})` : ""}</span>
+        <span className="mypubs-pubs-controls">
+          <input
+            className="mypubs-pubs-search" placeholder="Search your publications…" value={q}
+            onChange={e => setQ(e.target.value)} spellCheck={false}
+          />
+          <select className="lib-sort" value={sort} onChange={e => setSort(e.target.value)} title="Sort your publications">
+            <option value="year_desc">Year (newest)</option>
+            <option value="year_asc">Year (oldest)</option>
+            <option value="title">Title (A–Z)</option>
+            <option value="title_desc">Title (Z–A)</option>
+            <option value="added">Date added</option>
+          </select>
+          {decomposeSlot}
+        </span>
+      </div>
+
+      {sel.size > 0 &&
+        <div className="axis-bulk-bar">
+          <span className="axis-bulk-count">{sel.size} selected</span>
+          <button className="axis-link" onClick={doSummarize} title="Generate a verified synthesis of the selected papers">summarize</button>
+          <select className="bulk-export" value="" title="Export citations for the selected papers"
+            onChange={e => { if (e.target.value) { doExport(e.target.value); e.target.value = ""; } }}>
+            <option value="" disabled>export…</option>
+            <option value="bibtex">BibTeX (.bib)</option>
+            <option value="ris">RIS (.ris)</option>
+            <option value="csl-json">CSL-JSON</option>
+          </select>
+          {citeStyles.length > 0 &&
+            <select className="bulk-export" value="" title="Download a formatted bibliography for the selected papers"
+              onChange={e => { if (e.target.value) { doBibliography(e.target.value); e.target.value = ""; } }}>
+              <option value="" disabled>bibliography…</option>
+              {citeStyles.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
+            </select>}
+          <button className="axis-link axis-danger" onClick={doDelete}>delete</button>
+          <button className="axis-link" onClick={clearSel}>clear</button>
+        </div>}
+
+      {state.status === "loading" && <div className="axis-hint">Loading your publications…</div>}
+      {state.status === "error" && <div className="axis-err">Couldn't load your publications: {state.error}</div>}
+      {state.status === "ready" && papers.length === 0 &&
+        <div className="axis-hint">{debounced.trim() ? "No publications match that search." : "No publications in your library yet."}</div>}
+      {state.status === "ready" && papers.length === 200 &&
+        <div className="axis-hint">Showing the first 200 — narrow with search to see the rest.</div>}
+
+      {state.status === "ready" && papers.map(p =>
+        <PaperCard
+          key={p.id} paper={p} selecting={true} isSelected={false}
+          onSelect={onSelect} onOpen={onOpenPdf}
+          checked={sel.has(p.id)} onToggleCheck={toggleSel}
+        />)}
+    </div>
+  );
+}

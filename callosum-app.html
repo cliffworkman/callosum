@@ -1145,6 +1145,16 @@
   }
   .chart-pill:hover { border-color: var(--line-2); color: var(--ink); }
   .chart-pill.on { color: var(--on-fill); background: var(--accent); border-color: var(--accent); }
+  /* inc 117 (SP1): the publications list (axis-scoped library cards + controls). */
+  .mypubs-pubs { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 18px; }
+  .mypubs-pubs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .mypubs-pubs-title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .mypubs-pubs-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mypubs-pubs-search {
+    font-family: var(--sans); font-size: 13px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 10px; min-width: 180px;
+  }
+  .mypubs-pubs-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   .mypubs-summary { border-top: 1px solid var(--line); padding-top: 16px; }
   .mypubs-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .mypubs-ai-tag { font-size: 11px; font-weight: 500; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 1px 8px; margin-left: 6px; }
@@ -4089,7 +4099,7 @@
       }
     ))), /* @__PURE__ */ React.createElement("div", { className: "hl-editor-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost danger", onClick: () => deleteAnnotation(editor.id) }, "Delete"), /* @__PURE__ */ React.createElement("span", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setEditor(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveEdit }, "Save"))), notice && /* @__PURE__ */ React.createElement("div", { className: "pdf-toast", role: "alert", onClick: () => setNotice(null) }, notice));
   }
-  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading }) {
+  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, annoRefresh, readingMode, onToggleReading }) {
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -4125,7 +4135,7 @@
         onClick: onToggleReading
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
-    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh }))));
+    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh }))));
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));
@@ -4143,7 +4153,7 @@
       return /* @__PURE__ */ React.createElement("g", { key: b.label }, /* @__PURE__ */ React.createElement("rect", { className: "pubs-bar", x, y, width: barW, height: barH, rx: "2" }, /* @__PURE__ */ React.createElement("title", null, b.label, ": ", b.value)), /* @__PURE__ */ React.createElement("text", { className: "pubs-bar-count", x: x + barW / 2, y: y - 3, textAnchor: "middle" }, b.value), /* @__PURE__ */ React.createElement("text", { className: "pubs-bar-year", x: x + barW / 2, y: h - 5, textAnchor: "middle" }, "'" + String(b.label).slice(2)));
     }));
   }
-  function MyPubsDashboard({ axisId }) {
+  function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
     const [data, setData] = useState({ status: "loading" });
     const [summary, setSummary] = useState("");
     const [dirty, setDirty] = useState(false);
@@ -4267,6 +4277,7 @@
       chartBars = Object.keys(yearCounts).map(Number).sort((a, b) => a - b).map((y) => ({ label: y, value: yearCounts[y] }));
       domainSummary = `${papers} paper${papers === 1 ? "" : "s"} \xB7 ${citations} citation${citations === 1 ? "" : "s"} in ${activeDomains.length} selected domain${activeDomains.length === 1 ? "" : "s"}`;
     }
+    const decomposeButton = /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: domainJob.status === "running", onClick: decompose }, domainJob.status === "running" ? "Working\u2026" : domains.length ? "Re-decompose domains" : "Break down by domain");
     return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-head" }, /* @__PURE__ */ React.createElement("h2", null, data.name || "My Publications")), /* @__PURE__ */ React.createElement("section", { className: "mypubs-overview" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-collapse", onClick: () => setOverviewOpen((o) => !o), title: "Show/hide your metrics and chart" }, overviewOpen ? "\u25BE" : "\u25B8", " Overview"), overviewOpen && /* @__PURE__ */ React.createElement("div", { className: "mypubs-overview-cols" }, /* @__PURE__ */ React.createElement("div", { className: "metric-tiles metric-grid-2x2" }, /* @__PURE__ */ React.createElement(MyPubsTile, { label: "Citations", value: m.cited_by_count }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "h-index", value: m.h_index }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "i10-index", value: m.i10_index }), /* @__PURE__ */ React.createElement(MyPubsTile, { label: "Indexed works", value: m.works_count })), /* @__PURE__ */ React.createElement("div", { className: "mypubs-chart" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-chart-flip" }, /* @__PURE__ */ React.createElement("button", { className: "chart-pill" + (chartMode === "pubs" ? " on" : ""), onClick: () => setChartMode("pubs") }, "Publications"), /* @__PURE__ */ React.createElement("button", { className: "chart-pill" + (chartMode === "cites" ? " on" : ""), onClick: () => setChartMode("cites") }, "Citations")), /* @__PURE__ */ React.createElement(
       MyPubsBarChart,
       {
@@ -4286,7 +4297,16 @@
           setSave("idle");
         }
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " works indexed by OpenAlex \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in your library", data.gap > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, " \u2014 ", data.gap, " not yet imported")), (data.missing_works || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mypubs-missing" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-missing-toggle", onClick: () => setWorksOpen((o) => !o) }, worksOpen ? "\u25BE" : "\u25B8", " Review ", data.missing_works.length, " indexed work", data.missing_works.length === 1 ? "" : "s", " not in your library"), worksOpen && /* @__PURE__ */ React.createElement("div", { className: "missing-list" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-source" }, "OpenAlex attributes these to you, but they aren't in your library. Import the ones that are yours; dismiss the rest."), data.missing_works.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.doi, className: "missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, w.year ? w.year + " \xB7 " : "", w.cited_by_count, " cites \xB7 ", w.doi)), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement(
+      MyPubsPublications,
+      {
+        axisId,
+        onSummarize,
+        onSelect: onSelectPaper,
+        onOpenPdf,
+        decomposeSlot: decomposeButton
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " works indexed by OpenAlex \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in your library", data.gap > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, " \u2014 ", data.gap, " not yet imported")), (data.missing_works || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mypubs-missing" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-missing-toggle", onClick: () => setWorksOpen((o) => !o) }, worksOpen ? "\u25BE" : "\u25B8", " Review ", data.missing_works.length, " indexed work", data.missing_works.length === 1 ? "" : "s", " not in your library"), worksOpen && /* @__PURE__ */ React.createElement("div", { className: "missing-list" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-source" }, "OpenAlex attributes these to you, but they aren't in your library. Import the ones that are yours; dismiss the rest."), data.missing_works.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.doi, className: "missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, w.year ? w.year + " \xB7 " : "", w.cited_by_count, " cites \xB7 ", w.doi)), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-ghost",
@@ -4310,7 +4330,7 @@
         onClick: () => actOnWork(w.doi, "/my-publications/works/undismiss")
       },
       "Restore"
-    ))))), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart")), /* @__PURE__ */ React.createElement("span", { className: "mypubs-summary-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: domainJob.status === "running", onClick: decompose }, domainJob.status === "running" ? "Working\u2026" : domains.length ? "Re-decompose" : "Break down by domain"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement(
+    ))))), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: i,
@@ -4323,6 +4343,171 @@
       /* @__PURE__ */ React.createElement("span", { className: "domain-label" }, d.label),
       /* @__PURE__ */ React.createElement("span", { className: "domain-meta" }, d.paper_count, "p \xB7 ", d.citation_count, " cites")
     )))));
+  }
+  function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot }) {
+    const [state, setState] = useState({ status: "loading", papers: [] });
+    const [q, setQ] = useState("");
+    const [debounced, setDebounced] = useState("");
+    const [sort, setSort] = useState("year_desc");
+    const [sel, setSel] = useState(() => /* @__PURE__ */ new Set());
+    const [refresh, setRefresh] = useState(0);
+    const [citeStyles, setCiteStyles] = useState([]);
+    useEffect(() => {
+      const t = setTimeout(() => setDebounced(q), 250);
+      return () => clearTimeout(t);
+    }, [q]);
+    useEffect(() => {
+      api("/citations/styles").then((r) => {
+        if (r.ok) setCiteStyles(r.data.styles || []);
+      });
+    }, []);
+    useEffect(() => {
+      if (axisId == null) {
+        setState({ status: "ready", papers: [] });
+        return;
+      }
+      let live = true;
+      setState((s) => ({ ...s, status: "loading" }));
+      const qs = new URLSearchParams({ axis_id: axisId, limit: 200 });
+      if (debounced.trim()) qs.set("q", debounced.trim());
+      if (sort !== "added") qs.set("sort", sort);
+      api(`/papers?${qs.toString()}`).then((r) => {
+        if (!live) return;
+        if (r.ok) setState({ status: "ready", papers: r.data });
+        else setState({ status: "error", error: r.error, papers: [] });
+      });
+      return () => {
+        live = false;
+      };
+    }, [axisId, debounced, sort, refresh]);
+    const toggleSel = (id) => setSel((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+    const clearSel = () => setSel(/* @__PURE__ */ new Set());
+    const doExport = (format) => {
+      const list = [...sel];
+      if (!list.length) return;
+      const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
+      (async () => {
+        try {
+          const res = await fetch(API_BASE + "/papers/export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ paper_ids: list, format })
+          });
+          if (!res.ok) {
+            console.warn("[callosum] export failed:", res.status);
+            return;
+          }
+          const url = URL.createObjectURL(await res.blob());
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `callosum-my-publications.${ext}`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          console.warn("[callosum] export error:", e);
+        }
+      })();
+    };
+    const doBibliography = (style) => {
+      const list = [...sel];
+      if (!list.length) return;
+      (async () => {
+        const r = await apiPost("/citations/render", { paper_ids: list, style });
+        if (!r.ok) {
+          console.warn("[callosum] bibliography failed:", r.error);
+          return;
+        }
+        const entries = r.data && r.data.bibliography_html || [];
+        if (!entries.length) return;
+        const body = entries.map((e) => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
+        const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title><body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
+        const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `callosum-bibliography-${style}.html`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      })();
+    };
+    const doDelete = () => {
+      const list = [...sel];
+      if (!list.length) return;
+      if (!window.confirm(`Move ${list.length} ${list.length === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
+      Promise.all(list.map((id) => apiDelete(`/papers/${id}`))).then(() => {
+        clearSel();
+        setRefresh((n) => n + 1);
+      });
+    };
+    const doSummarize = () => {
+      const list = [...sel];
+      if (!list.length) return;
+      if (onSummarize) onSummarize(list);
+      clearSel();
+    };
+    const papers = state.papers || [];
+    return /* @__PURE__ */ React.createElement("div", { className: "mypubs-pubs" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-pubs-head" }, /* @__PURE__ */ React.createElement("span", { className: "mypubs-pubs-title" }, "Publications", state.status === "ready" ? ` (${papers.length})` : ""), /* @__PURE__ */ React.createElement("span", { className: "mypubs-pubs-controls" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "mypubs-pubs-search",
+        placeholder: "Search your publications\u2026",
+        value: q,
+        onChange: (e) => setQ(e.target.value),
+        spellCheck: false
+      }
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: sort, onChange: (e) => setSort(e.target.value), title: "Sort your publications" }, /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added")), decomposeSlot)), sel.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, sel.size, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: doSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "bulk-export",
+        value: "",
+        title: "Export citations for the selected papers",
+        onChange: (e) => {
+          if (e.target.value) {
+            doExport(e.target.value);
+            e.target.value = "";
+          }
+        }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "export\u2026"),
+      /* @__PURE__ */ React.createElement("option", { value: "bibtex" }, "BibTeX (.bib)"),
+      /* @__PURE__ */ React.createElement("option", { value: "ris" }, "RIS (.ris)"),
+      /* @__PURE__ */ React.createElement("option", { value: "csl-json" }, "CSL-JSON")
+    ), citeStyles.length > 0 && /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "bulk-export",
+        value: "",
+        title: "Download a formatted bibliography for the selected papers",
+        onChange: (e) => {
+          if (e.target.value) {
+            doBibliography(e.target.value);
+            e.target.value = "";
+          }
+        }
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "bibliography\u2026"),
+      citeStyles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: doDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: clearSel }, "clear")), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading your publications\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load your publications: ", state.error), state.status === "ready" && papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, debounced.trim() ? "No publications match that search." : "No publications in your library yet."), state.status === "ready" && papers.length === 200 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Showing the first 200 \u2014 narrow with search to see the rest."), state.status === "ready" && papers.map((p) => /* @__PURE__ */ React.createElement(
+      PaperCard,
+      {
+        key: p.id,
+        paper: p,
+        selecting: true,
+        isSelected: false,
+        onSelect,
+        onOpen: onOpenPdf,
+        checked: sel.has(p.id),
+        onToggleCheck: toggleSel
+      }
+    )));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -4687,6 +4872,11 @@
       setRightOpen(true);
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
     }, [selectedLibraryIds]);
+    const summarizePaperIds = useCallback((ids) => {
+      if (!ids || !ids.length) return;
+      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
+      setRightOpen(true);
+    }, []);
     const bulkExportPapers = useCallback((format) => {
       const ids = [...selectedLibraryIds];
       if (!ids.length) return;
@@ -4996,6 +5186,8 @@
         onActivate: setActiveTab,
         onClose: closeTab,
         onOpenPdf: openPdf,
+        onSummarizePapers: summarizePaperIds,
+        onSelectPaper: setSelected,
         annoRefresh,
         readingMode,
         onToggleReading: toggleReading

@@ -511,7 +511,7 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
 
 // The middle column: a persistent Library tab plus one tab per open PDF.
 // PDF tabs stay mounted (hidden) so switching back doesn't re-stream them.
-function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading }) {
+function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, annoRefresh, readingMode, onToggleReading }) {
   return (
     <div className="lib-frame">
       <div className="frame-tabs">
@@ -546,7 +546,7 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           {t.type === "dashboard"
-            ? <MyPubsDashboard axisId={t.axisId} />
+            ? <MyPubsDashboard axisId={t.axisId} onSummarize={onSummarizePapers} onSelectPaper={onSelectPaper} onOpenPdf={onOpenPdf} />
             : <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} />}
         </div>
       ))}

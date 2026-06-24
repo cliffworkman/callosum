@@ -1121,6 +1121,16 @@
   }
   .chart-pill:hover { border-color: var(--line-2); color: var(--ink); }
   .chart-pill.on { color: var(--on-fill); background: var(--accent); border-color: var(--accent); }
+  /* inc 117 (SP1): the publications list (axis-scoped library cards + controls). */
+  .mypubs-pubs { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 18px; }
+  .mypubs-pubs-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  .mypubs-pubs-title { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+  .mypubs-pubs-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .mypubs-pubs-search {
+    font-family: var(--sans); font-size: 13px; color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 10px; min-width: 180px;
+  }
+  .mypubs-pubs-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   .mypubs-summary { border-top: 1px solid var(--line); padding-top: 16px; }
   .mypubs-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .mypubs-ai-tag { font-size: 11px; font-weight: 500; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 1px 8px; margin-left: 6px; }
