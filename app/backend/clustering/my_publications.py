@@ -34,7 +34,7 @@ from app.backend.persistence.profile_repo import (
     set_openalex_author_id,
     set_research_domains,
 )
-from app.backend.persistence.repository import create_paper, get_paper
+from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity, get_paper
 from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
 from integrations.api_cache import get_cached
 from integrations.openalex.author import OPENALEX_WORKS_PROVIDER
@@ -531,6 +531,36 @@ def import_missing_work(conn: Connection, *, doi: str, author_client, crossref_c
     # Pubs when the DOI resolves; the explicit call below covers the case where Crossref doesn't resolve.
     enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=crossref_client, force=True)
     _add_confirmed_member(conn, paper_id)  # authorship already established → confirmed member (cache-independent)
+    return {"status": "imported", "paper_id": paper_id}
+
+
+def import_citing_work(
+    conn: Connection, *, doi: str, openalex_work_id: str | None = None, title: str | None = None, crossref_client=None
+) -> dict[str, Any]:
+    """inc 119 (SP3 #14): import a paper that CITES one of the user's works — an arbitrary DOI (NOT the user's own
+    work, so there is no author guardrail and it is NOT added to My Publications). Metadata-only: dedup → create_paper
+    → Crossref enrich. The PDF stays the separate OA-acquire step (no paywall circumvention). Crossref DOI lookup
+    only — NOT the Gemini gate. Idempotent. Returns ``{status: imported|exists|invalid, paper_id}``."""
+    normalized = (doi or "").strip().lower()
+    if not normalized:
+        return {"status": "invalid"}
+    existing = find_existing_paper_by_identity(conn, doi=normalized)
+    if existing is not None:
+        return {"status": "exists", "paper_id": int(existing[1]["id"])}
+    from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref  # lazy: avoid import cycle
+
+    label = (title or normalized).strip() or normalized
+    paper_id = create_paper(
+        conn,
+        title=label,
+        csl_json={"id": normalized, "type": "document", "title": label, "DOI": normalized},
+        doi=normalized,
+        openalex_work_id=openalex_work_id,
+        imported_source="citing-import",
+    )
+    # Crossref enrich fills the real metadata (DOI-only, not the Gemini gate). Its My-Pubs hook is a no-op here:
+    # a citing paper's DOI is not among the author's works, so it is never auto-added to My Publications.
+    enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=crossref_client, force=True)
     return {"status": "imported", "paper_id": paper_id}
 
 

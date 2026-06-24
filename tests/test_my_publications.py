@@ -502,6 +502,24 @@ def test_fetch_citing_works_caches_and_endpoint(temp_db_url):  # SP3 T2 (#14)
     assert inlib["10.2/inlib"] is True and inlib["10.3/new"] is False
 
 
+def test_import_citing_work(temp_db_url):  # SP3 T3 (#14)
+    from app.backend.clustering.my_publications import import_citing_work
+    from app.backend.persistence.repository import get_paper
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        r1 = import_citing_work(conn, doi="10.3/new", title="A Citer", crossref_client=_NoCrossref())
+        assert r1["status"] == "imported"
+        pid = r1["paper_id"]
+        assert pid not in _members(conn)  # a citing paper is NOT added to My Publications
+        assert get_paper(conn, pid)["doi"] == "10.3/new"  # created (enrich may relabel imported_source on no-resolve)
+        assert import_citing_work(conn, doi="10.3/new", crossref_client=_NoCrossref())["status"] == "exists"  # dedup
+        assert import_citing_work(conn, doi="  ", crossref_client=_NoCrossref())["status"] == "invalid"
+    client = TestClient(create_app(db_url=temp_db_url, crossref_client=_NoCrossref()))
+    r = client.post("/my-publications/citing/import", json={"doi": "10.4/another", "title": "Another"})
+    assert r.status_code == 200 and r.json()["status"] == "imported"
+
+
 def test_clusters_response_carries_domain_for_my_pubs(temp_db_url):  # SP2 T1 (#16)
     app = _resolved_member_app(temp_db_url)
     engine = make_engine(temp_db_url)

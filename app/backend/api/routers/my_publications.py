@@ -23,6 +23,7 @@ from app.backend.clustering.my_publications import (
     _get_axis_id,
     build_dashboard,
     decompose_domains,
+    import_citing_work,
     import_missing_work,
     my_publication_documents,
     resolve_my_publications,
@@ -191,6 +192,12 @@ class CitingResponse(BaseModel):
     works: list[CitingWorkResponse] = []
     total: int = 0
     capped: bool = False  # True when OpenAlex returned more than the cap (coverage stated, not implied)
+
+
+class CitingImportRequest(BaseModel):
+    doi: str
+    title: str | None = None
+    openalex_work_id: str | None = None
 
 
 class DomainJobResponse(BaseModel):
@@ -401,6 +408,25 @@ def get_citing_works(work_id: str, request: Request, conn: Connection = Depends(
         for w in works
     ]
     return CitingResponse(works=out, total=len(out), capped=capped)
+
+
+@router.post("/my-publications/citing/import", response_model=WorkImportResponse)
+def import_citing_work_endpoint(
+    payload: CitingImportRequest, request: Request, conn: Connection = Depends(get_connection)
+) -> WorkImportResponse:
+    # inc 119 (SP3 #14): import a citing paper (metadata-only, deduped) into the general library — NOT My Pubs.
+    # Crossref DOI enrich only (not the Gemini gate); the PDF stays the separate OA-acquire step.
+    result = import_citing_work(
+        conn,
+        doi=payload.doi,
+        openalex_work_id=payload.openalex_work_id,
+        title=payload.title,
+        crossref_client=request.app.state.crossref_client,
+    )
+    if str(result.get("status")) == "invalid":
+        raise HTTPException(status_code=422, detail="A DOI is required.")
+    conn.commit()
+    return WorkImportResponse(status=str(result.get("status")), paper_id=result.get("paper_id"))
 
 
 @router.delete("/my-publications", status_code=http_status.HTTP_204_NO_CONTENT)
