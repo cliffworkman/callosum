@@ -1155,6 +1155,12 @@
     border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 4px 10px; min-width: 180px;
   }
   .mypubs-pubs-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  /* inc 117 (SP1): the OpenAlex footer card — provenance + gap + richer stats + refresh + missing-works trigger. */
+  .openalex-card { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 12px; }
+  .openalex-gap { font-size: 13px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+  .openalex-gap b { color: var(--ink); }
+  .openalex-stats { margin-bottom: 8px; }
+  .openalex-actions { display: flex; gap: 8px; }
   .mypubs-summary { border-top: 1px solid var(--line); padding-top: 16px; }
   .mypubs-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
   .mypubs-ai-tag { font-size: 11px; font-weight: 500; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 1px 8px; margin-left: 6px; }
@@ -4162,9 +4168,8 @@
     const [domainJob, setDomainJob] = useState({ status: "idle" });
     const [selectedDomains, setSelectedDomains] = useState(() => /* @__PURE__ */ new Set());
     const [starredOnly, setStarredOnly] = useState(false);
-    const [worksOpen, setWorksOpen] = useState(false);
-    const [dismissedOpen, setDismissedOpen] = useState(false);
-    const [workBusy, setWorkBusy] = useState(() => /* @__PURE__ */ new Set());
+    const [missingOpen, setMissingOpen] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [overviewOpen, setOverviewOpen] = useState(() => localStorage.getItem("callosum.mypubsOverviewCollapsed") !== "1");
     useEffect(() => {
       localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1");
@@ -4240,14 +4245,27 @@
       else next.add(i);
       return next;
     });
-    const actOnWork = async (doi, path) => {
-      setWorkBusy((b) => new Set(b).add(doi));
-      const r = await apiPost(path, { doi });
-      if (r.ok) await refetch();
-      setWorkBusy((b) => {
-        const n = new Set(b);
-        n.delete(doi);
-        return n;
+    const refreshMyPubs = () => {
+      setRefreshing(true);
+      const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then((r) => {
+        if (!r.ok) {
+          setRefreshing(false);
+          return;
+        }
+        const d = r.data;
+        if (d.status === "done") {
+          setRefreshing(false);
+          refetch();
+        } else if (d.status === "error") {
+          setRefreshing(false);
+        } else setTimeout(() => poll(jobId), 1500);
+      });
+      apiPost("/my-publications/refresh", {}).then((r) => {
+        if (!r.ok) {
+          setRefreshing(false);
+          return;
+        }
+        poll(r.data.job_id);
       });
     };
     if (data.status === "loading") return /* @__PURE__ */ React.createElement("div", { className: "mypubs-dashboard" }, /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"));
@@ -4306,31 +4324,7 @@
         onOpenPdf,
         decomposeSlot: decomposeButton
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " works indexed by OpenAlex \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in your library", data.gap > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, " \u2014 ", data.gap, " not yet imported")), (data.missing_works || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mypubs-missing" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-missing-toggle", onClick: () => setWorksOpen((o) => !o) }, worksOpen ? "\u25BE" : "\u25B8", " Review ", data.missing_works.length, " indexed work", data.missing_works.length === 1 ? "" : "s", " not in your library"), worksOpen && /* @__PURE__ */ React.createElement("div", { className: "missing-list" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-source" }, "OpenAlex attributes these to you, but they aren't in your library. Import the ones that are yours; dismiss the rest."), data.missing_works.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.doi, className: "missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, w.year ? w.year + " \xB7 " : "", w.cited_by_count, " cites \xB7 ", w.doi)), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "btn btn-ghost",
-        disabled: workBusy.has(w.doi),
-        onClick: () => actOnWork(w.doi, "/my-publications/works/import")
-      },
-      "Import"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-link",
-        disabled: workBusy.has(w.doi),
-        onClick: () => actOnWork(w.doi, "/my-publications/works/dismiss")
-      },
-      "Dismiss"
-    ))))), (data.dismissed_works || []).length > 0 && /* @__PURE__ */ React.createElement("div", { className: "mypubs-missing" }, /* @__PURE__ */ React.createElement("button", { className: "mypubs-missing-toggle", onClick: () => setDismissedOpen((o) => !o) }, dismissedOpen ? "\u25BE" : "\u25B8", " Previously dismissed (", data.dismissed_works.length, ")"), dismissedOpen && /* @__PURE__ */ React.createElement("div", { className: "missing-list" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-source" }, "Works you dismissed from the review queue. Restore any to send it back to the list above."), data.dismissed_works.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.doi, className: "missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, w.year ? w.year + " \xB7 " : "", w.cited_by_count, " cites \xB7 ", w.doi)), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-link",
-        disabled: workBusy.has(w.doi),
-        onClick: () => actOnWork(w.doi, "/my-publications/works/undismiss")
-      },
-      "Restore"
-    ))))), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domains" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "Research domains", domains.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, " \xB7 grouped by similarity \u2014 click to filter the chart"))), domainJob.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Clustering your publications\u2026" }), domainJob.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, domainJob.error), domainJob.status === "too-few" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Need at least a few confirmed publications to break down by domain."), domains.length === 0 && domainJob.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Group your publications into research domains to see impact by area."), domains.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "domain-list" }, domains.map((d, i) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: i,
@@ -4342,7 +4336,66 @@
       /* @__PURE__ */ React.createElement("span", { className: "domain-fill", style: { width: `${Math.round(d.citation_count / maxDomainCites * 100)}%` } }),
       /* @__PURE__ */ React.createElement("span", { className: "domain-label" }, d.label),
       /* @__PURE__ */ React.createElement("span", { className: "domain-meta" }, d.paper_count, "p \xB7 ", d.citation_count, " cites")
-    )))));
+    )))), /* @__PURE__ */ React.createElement("section", { className: "openalex-card" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "OpenAlex"), /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, asOf ? "as of " + asOf : "not yet refreshed")), /* @__PURE__ */ React.createElement("div", { className: "openalex-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " indexed \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in library", data.gap > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, data.gap, " not imported")), ((data.missing_works || []).length > 0 || (data.dismissed_works || []).length > 0) && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost openalex-review", onClick: () => setMissingOpen(true) }, (data.missing_works || []).length > 0 ? `Review ${data.missing_works.length} \u2192` : `Dismissed (${data.dismissed_works.length}) \u2192`)), data.openalex_extra && /* @__PURE__ */ React.createElement("div", { className: "mypubs-source openalex-stats" }, "2-yr mean citedness ", data.openalex_extra.two_year_mean_citedness, data.openalex_extra.affiliation ? ` \xB7 ${data.openalex_extra.affiliation}` : "", data.openalex_extra.openalex_author_id && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement(
+      "a",
+      {
+        className: "btn-link",
+        href: `https://openalex.org/${data.openalex_extra.openalex_author_id}`,
+        target: "_blank",
+        rel: "noopener noreferrer"
+      },
+      "OpenAlex profile \u2197"
+    ))), /* @__PURE__ */ React.createElement("div", { className: "openalex-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: refreshing, onClick: refreshMyPubs }, refreshing ? "Refreshing\u2026" : "\u21BB Refresh from OpenAlex")), refreshing && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" })), /* @__PURE__ */ React.createElement(
+      MissingWorksModal,
+      {
+        open: missingOpen,
+        onClose: () => setMissingOpen(false),
+        missing: data.missing_works,
+        dismissed: data.dismissed_works,
+        onChanged: refetch
+      }
+    ));
+  }
+  function MissingWorksModal({ open, onClose, missing, dismissed, onChanged }) {
+    const [busy, setBusy] = useState(() => /* @__PURE__ */ new Set());
+    if (!open) return null;
+    const missingList = missing || [];
+    const dismissedList = dismissed || [];
+    const act = async (doi, path) => {
+      setBusy((b) => new Set(b).add(doi));
+      const r = await apiPost(path, { doi });
+      if (r.ok && onChanged) await onChanged();
+      setBusy((b) => {
+        const n = new Set(b);
+        n.delete(doi);
+        return n;
+      });
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Indexed works not in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, `OpenAlex attributes these to you, but they aren't in your library. Import the ones that are yours (metadata only \u2014 the PDF is a separate "Acquire OA copy" step); dismiss the rest. Dismissals can be restored.`), missingList.length === 0 && dismissedList.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing to review \u2014 every indexed work is in your library."), missingList.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "missing-list" }, missingList.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.doi, className: "missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, w.year ? w.year + " \xB7 " : "", w.cited_by_count, " cites \xB7 ", w.doi)), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        disabled: busy.has(w.doi),
+        onClick: () => act(w.doi, "/my-publications/works/import")
+      },
+      "Import"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-link",
+        disabled: busy.has(w.doi),
+        onClick: () => act(w.doi, "/my-publications/works/dismiss")
+      },
+      "Dismiss"
+    )))), dismissedList.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "missing-list" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-source" }, "Previously dismissed (", dismissedList.length, ") \u2014 restore any to send it back to the list above."), dismissedList.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.doi, className: "missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, w.year ? w.year + " \xB7 " : "", w.cited_by_count, " cites \xB7 ", w.doi)), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-link",
+        disabled: busy.has(w.doi),
+        onClick: () => act(w.doi, "/my-publications/works/undismiss")
+      },
+      "Restore"
+    ))))));
   }
   function MyPubsPublications({ axisId, onSummarize, onSelect, onOpenPdf, decomposeSlot }) {
     const [state, setState] = useState({ status: "loading", papers: [] });

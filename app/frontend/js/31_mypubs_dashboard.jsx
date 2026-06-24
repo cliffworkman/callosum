@@ -48,9 +48,8 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
   const [domainJob, setDomainJob] = useState({ status: "idle" });  // idle | running | error | too-few
   const [selectedDomains, setSelectedDomains] = useState(() => new Set());  // indices of domains filtering the chart
   const [starredOnly, setStarredOnly] = useState(false);  // inc 84: scope the summary draft to starred pubs
-  const [worksOpen, setWorksOpen] = useState(false);  // inc 85: the missing-works review section (collapsed)
-  const [dismissedOpen, setDismissedOpen] = useState(false);  // inc 91: the previously-dismissed section (collapsed)
-  const [workBusy, setWorkBusy] = useState(() => new Set());  // DOIs being imported/dismissed/un-dismissed
+  const [missingOpen, setMissingOpen] = useState(false);  // inc 117 (#12): the missing-works review modal
+  const [refreshing, setRefreshing] = useState(false);    // inc 117 (#11): the OpenAlex-card Refresh button
   // inc 117 (SP1): Overview is collapsible (persisted) and shows ONE chart with a Publications⇄Citations flip.
   const [overviewOpen, setOverviewOpen] = useState(() => localStorage.getItem("callosum.mypubsOverviewCollapsed") !== "1");
   useEffect(() => { localStorage.setItem("callosum.mypubsOverviewCollapsed", overviewOpen ? "0" : "1"); }, [overviewOpen]);
@@ -108,11 +107,20 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
     return next;
   });
 
-  const actOnWork = async (doi, path) => {
-    setWorkBusy(b => new Set(b).add(doi));
-    const r = await apiPost(path, { doi });
-    if (r.ok) await refetch();  // the work leaves the list (imported → matched, or dismissed)
-    setWorkBusy(b => { const n = new Set(b); n.delete(doi); return n; });
+  // inc 117 (#11): the OpenAlex-card refresh — re-resolve via OpenAlex (same job as Settings), then re-read the dashboard.
+  const refreshMyPubs = () => {
+    setRefreshing(true);
+    const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then(r => {
+      if (!r.ok) { setRefreshing(false); return; }
+      const d = r.data;
+      if (d.status === "done") { setRefreshing(false); refetch(); }
+      else if (d.status === "error") { setRefreshing(false); }
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    apiPost("/my-publications/refresh", {}).then(r => {
+      if (!r.ok) { setRefreshing(false); return; }
+      poll(r.data.job_id);
+    });
   };
 
   if (data.status === "loading") return <div className="mypubs-dashboard"><div className="axis-hint">Loading…</div></div>;
@@ -227,55 +235,6 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
         decomposeSlot={decomposeButton}
       />
 
-      <div className="mypubs-gap">
-        <b>{data.indexed_works}</b> works indexed by OpenAlex · <b>{data.in_library}</b> in your library
-        {data.gap > 0 && <span className="mypubs-gap-nudge"> — {data.gap} not yet imported</span>}
-      </div>
-
-      {(data.missing_works || []).length > 0 &&
-        <div className="mypubs-missing">
-          <button className="mypubs-missing-toggle" onClick={() => setWorksOpen(o => !o)}>
-            {worksOpen ? "▾" : "▸"} Review {data.missing_works.length} indexed work{data.missing_works.length === 1 ? "" : "s"} not in your library
-          </button>
-          {worksOpen &&
-            <div className="missing-list">
-              <div className="mypubs-source">OpenAlex attributes these to you, but they aren't in your library. Import the ones that are yours; dismiss the rest.</div>
-              {data.missing_works.map(w => (
-                <div key={w.doi} className="missing-row">
-                  <div className="missing-info">
-                    <div className="missing-title" title={w.title || w.doi}>{w.title || w.doi}</div>
-                    <div className="missing-meta">{w.year ? w.year + " · " : ""}{w.cited_by_count} cites · {w.doi}</div>
-                  </div>
-                  <button className="btn btn-ghost" disabled={workBusy.has(w.doi)}
-                    onClick={() => actOnWork(w.doi, "/my-publications/works/import")}>Import</button>
-                  <button className="axis-link" disabled={workBusy.has(w.doi)}
-                    onClick={() => actOnWork(w.doi, "/my-publications/works/dismiss")}>Dismiss</button>
-                </div>
-              ))}
-            </div>}
-        </div>}
-
-      {(data.dismissed_works || []).length > 0 &&
-        <div className="mypubs-missing">
-          <button className="mypubs-missing-toggle" onClick={() => setDismissedOpen(o => !o)}>
-            {dismissedOpen ? "▾" : "▸"} Previously dismissed ({data.dismissed_works.length})
-          </button>
-          {dismissedOpen &&
-            <div className="missing-list">
-              <div className="mypubs-source">Works you dismissed from the review queue. Restore any to send it back to the list above.</div>
-              {data.dismissed_works.map(w => (
-                <div key={w.doi} className="missing-row">
-                  <div className="missing-info">
-                    <div className="missing-title" title={w.title || w.doi}>{w.title || w.doi}</div>
-                    <div className="missing-meta">{w.year ? w.year + " · " : ""}{w.cited_by_count} cites · {w.doi}</div>
-                  </div>
-                  <button className="axis-link" disabled={workBusy.has(w.doi)}
-                    onClick={() => actOnWork(w.doi, "/my-publications/works/undismiss")}>Restore</button>
-                </div>
-              ))}
-            </div>}
-        </div>}
-
       <div className="mypubs-domains">
         <div className="mypubs-summary-head">
           <span>Research domains{domains.length > 0 && <span className="mypubs-source"> · grouped by similarity — click to filter the chart</span>}</span>
@@ -297,6 +256,43 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
             ))}
           </div>}
       </div>
+
+      {/* OpenAlex card (r4, footer) — provenance + gap + richer stats + refresh + the missing-works modal trigger (#1/#6/#11/#12) */}
+      <section className="openalex-card">
+        <div className="mypubs-summary-head">
+          <span>OpenAlex</span>
+          <span className="mypubs-source">{asOf ? "as of " + asOf : "not yet refreshed"}</span>
+        </div>
+        <div className="openalex-gap">
+          <b>{data.indexed_works}</b> indexed · <b>{data.in_library}</b> in library
+          {data.gap > 0 && <> · <span className="mypubs-gap-nudge">{data.gap} not imported</span></>}
+          {((data.missing_works || []).length > 0 || (data.dismissed_works || []).length > 0) &&
+            <button className="btn btn-ghost openalex-review" onClick={() => setMissingOpen(true)}>
+              {(data.missing_works || []).length > 0
+                ? `Review ${data.missing_works.length} →`
+                : `Dismissed (${data.dismissed_works.length}) →`}
+            </button>}
+        </div>
+        {data.openalex_extra &&
+          <div className="mypubs-source openalex-stats">
+            2-yr mean citedness {data.openalex_extra.two_year_mean_citedness}
+            {data.openalex_extra.affiliation ? ` · ${data.openalex_extra.affiliation}` : ""}
+            {data.openalex_extra.openalex_author_id &&
+              <> · <a className="btn-link" href={`https://openalex.org/${data.openalex_extra.openalex_author_id}`}
+                target="_blank" rel="noopener noreferrer">OpenAlex profile ↗</a></>}
+          </div>}
+        <div className="openalex-actions">
+          <button className="btn btn-ghost" disabled={refreshing} onClick={refreshMyPubs}>
+            {refreshing ? "Refreshing…" : "↻ Refresh from OpenAlex"}
+          </button>
+        </div>
+        {refreshing && <ProgressBar label="Resolving via OpenAlex…" />}
+      </section>
+
+      <MissingWorksModal
+        open={missingOpen} onClose={() => setMissingOpen(false)}
+        missing={data.missing_works} dismissed={data.dismissed_works} onChanged={refetch}
+      />
     </div>
   );
 }
