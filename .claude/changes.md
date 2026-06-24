@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-24 — Increment 117: My Publications overhaul, SP1 — dashboard restructure & publication cards
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 117 (2026-06-24) — the My Publications section was updated for the restructured dashboard (collapsible Overview + Publications/Citations flip-chart, the new publications-list cards, the OpenAlex footer card, the missing-works modal). Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
+
+- **Files:** `integrations/openalex/author.py`, `app/backend/clustering/my_publications.py`,
+  `app/backend/api/routers/my_publications.py`, `app/frontend/js/{10_pdf_layer,30_viewer,31_mypubs_dashboard,
+  32_mypubs_missing [new],33_mypubs_pubs [new],40_app}.jsx`, `app/frontend/styles.css`,
+  `app/backend/help/help_content.md`, `callosum-app.html`, `tests/test_my_publications.py`,
+  `.claude/docs/specs/2026-06-24-mypubs-sp1-{restructure-design,plan}.md`, `INCREMENT-117-NOTES.md`.
+- **What:** First sub-project of the My Publications overhaul. Restructured the dashboard into author-priority order
+  — **Overview** (collapsible 2×2 metrics + one **Publications⇄Citations** flip-chart, last 10 yrs `'NN`) →
+  **Research summary** (⭐-only toggle hidden when 0 starred) → **Publications** (axis-scoped library cards via
+  `/papers?axis_id`, search/sort + checkbox bulk bar [summarize/export/bibliography/delete] + copy + open, relocated
+  Decompose button) → Research domains → **OpenAlex footer card** (as-of provenance, gap, 2-yr mean citedness +
+  affiliation + profile link, Refresh, the missing-works **modal** trigger). Extracted a shared `PaperCard` from
+  `PaperList`. Backend additive only: `openalex_extra` + `starred_count` on the dashboard response (parsed from the
+  already-cached OpenAlex author object — no new endpoint, migration, or egress).
+- **Why:** TDL line 1 + #1/#3/#4/#5/#6/#7/#8/#10/#11/#12/#13 — make the author's own corpus a first-class,
+  browsable publications library; metrics & pubs first, OpenAlex provenance last.
+- **Revert:** `git revert` the six SP1 commits (`870a96b`, `0fcd198`, `abea7a1`, `df3c10d`, `c189f83`, + this docs commit).
+- **NB:** increments **109–116** (frontend/UX TDL items incl. the inc-110 PDF page-view) are journaled in
+  `RECOVERY-LOG.md`, not folded into this log or the CLAUDE.md footer.
+
 ## 2026-06-21 — Increment 108: LibreOffice (UNO) citation adapter — word-processor track, first adapter
 
 - **Files:** NEW `adapters/` tree — `adapters/libreoffice/{callosum_cite.py [the macro], README.md,
@@ -49,7 +71,6 @@ are the design diary; this is the chronological "what & why" record.
 
 ## 2026-06-21 — Increment 106: citation & bibliography engine (citeproc-js) — word-processor track, Phase 1
 
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 106 (2026-06-21) — Exporting-citations section notes formatted styles (Cite as …) + the bulk formatted bibliography. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
 
 - **Files:** NEW `app/backend/citations/` (`render.py`, `citeproc_runner.js`, `csl/{styles,locales}` bundled CSL
   data) + `app/backend/api/routers/citations.py`; `app/backend/api/app.py` (router include); `package.json` +
