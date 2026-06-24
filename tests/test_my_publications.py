@@ -114,6 +114,8 @@ _ADA_STATS = ResolvedAuthor(
     cited_by_count=120,
     h_index=5,
     i10_index=3,
+    two_year_mean_citedness=2.5,
+    affiliation="Analytical Engine Lab",
     counts_by_year=(
         {"year": 2019, "works_count": 1, "cited_by_count": 40},
         {"year": 2020, "works_count": 2, "cited_by_count": 80},
@@ -343,7 +345,8 @@ def test_author_client_parses_stats_and_counts_by_year(temp_db_url):
         "orcid": "https://orcid.org/0000-x",
         "works_count": 3,
         "cited_by_count": 99,
-        "summary_stats": {"h_index": 7, "i10_index": 4},
+        "summary_stats": {"h_index": 7, "i10_index": 4, "2yr_mean_citedness": 3.5},
+        "last_known_institutions": [{"display_name": "Analytical Engine Lab"}],
         "counts_by_year": [{"year": 2021, "works_count": 1, "cited_by_count": 10}],
     }
     client = OpenAlexAuthorClient(fetcher=_AuthorFetcher({"/authors/orcid:": (200, body)}))
@@ -351,6 +354,7 @@ def test_author_client_parses_stats_and_counts_by_year(temp_db_url):
         author = client.resolve_author(conn, orcid="0000-x")
     assert author.cited_by_count == 99 and author.h_index == 7 and author.i10_index == 4
     assert author.counts_by_year == ({"year": 2021, "works_count": 1, "cited_by_count": 10},)
+    assert author.two_year_mean_citedness == 3.5 and author.affiliation == "Analytical Engine Lab"
 
 
 def test_cached_author_reads_cache_without_fetching(temp_db_url):
@@ -391,6 +395,12 @@ def test_dashboard_ok_returns_metrics_and_pubs_by_year(temp_db_url):
     assert dash["metrics"] == {"works_count": 4, "cited_by_count": 120, "h_index": 5, "i10_index": 3}
     assert dash["pubs_by_year"] == [{"year": 2019, "count": 1}, {"year": 2020, "count": 2}]
     assert dash["indexed_works"] == 4 and dash["in_library"] == 1 and dash["gap"] == 3
+    assert dash["openalex_extra"] == {
+        "two_year_mean_citedness": 2.5,
+        "affiliation": "Analytical Engine Lab",
+        "openalex_author_id": "A1",
+    }
+    assert dash["starred_count"] == 0
 
 
 def test_dashboard_not_resolved_and_no_identity(temp_db_url):

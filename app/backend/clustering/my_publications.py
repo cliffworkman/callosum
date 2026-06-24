@@ -248,6 +248,12 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
         "indexed_works": author.works_count,
         "in_library": in_library,
         "gap": max(0, author.works_count - in_library),
+        "openalex_extra": {  # inc 117 — extra OpenAlex facts for the dashboard's OpenAlex card (verbatim + attributed)
+            "two_year_mean_citedness": round(author.two_year_mean_citedness, 3),
+            "affiliation": author.affiliation,
+            "openalex_author_id": author.author_id,
+        },
+        "starred_count": len(profile.get("starred_paper_ids") or []),  # #8: hide the "⭐ only" toggle when 0
         "research_summary": profile.get("research_summary"),
         "domains": _dashboard_domains(conn, profile.get("research_domains"), works),
         "missing_works": _dashboard_missing_works(conn, works, dismissed),

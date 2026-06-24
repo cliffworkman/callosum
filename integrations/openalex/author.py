@@ -38,6 +38,9 @@ class ResolvedAuthor:
     h_index: int = 0
     i10_index: int = 0
     counts_by_year: tuple[dict[str, int], ...] = ()  # [{"year", "works_count", "cited_by_count"}, …]
+    # inc 117 (My-Pubs SP1) — extra OpenAlex facts for the dashboard's OpenAlex card, shown verbatim + attributed.
+    two_year_mean_citedness: float = 0.0  # summary_stats["2yr_mean_citedness"]
+    affiliation: str | None = None  # last-known institution display name
 
 
 @dataclass(frozen=True)
@@ -237,6 +240,12 @@ def _author_from_obj(obj: dict[str, Any] | None, *, matched_by: str) -> Resolved
         h_index=int(stats.get("h_index") or 0),
         i10_index=int(stats.get("i10_index") or 0),
         counts_by_year=tuple(sorted(counts, key=lambda c: c["year"])),
+        two_year_mean_citedness=float(stats.get("2yr_mean_citedness") or 0.0),
+        affiliation=(
+            (obj.get("last_known_institutions") or [{}])[0].get("display_name")
+            if obj.get("last_known_institutions")
+            else None
+        ),
     )
 
 

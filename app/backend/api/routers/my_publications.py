@@ -119,6 +119,12 @@ class MissingWork(BaseModel):
     cited_by_count: int = 0
 
 
+class OpenAlexExtra(BaseModel):  # inc 117 — extra OpenAlex facts for the dashboard's OpenAlex card
+    two_year_mean_citedness: float = 0.0
+    affiliation: str | None = None
+    openalex_author_id: str | None = None
+
+
 class DashboardResponse(BaseModel):
     status: str  # "ok" | "no-identity" | "not-resolved"
     name: str | None = None
@@ -133,6 +139,8 @@ class DashboardResponse(BaseModel):
     domains: list[Domain] = []  # inc 83: the domain decomposition, sorted by citations (impact)
     missing_works: list[MissingWork] = []  # inc 85: indexed works not in the library (the gap), by citations
     dismissed_works: list[MissingWork] = []  # inc 91: works dismissed from the queue (so a dismissal can be undone)
+    openalex_extra: OpenAlexExtra | None = None  # inc 117: 2-yr mean citedness + affiliation for the OpenAlex card
+    starred_count: int = 0  # inc 117 (#8): hide the "⭐ only" toggle when there are no starred pubs
 
 
 class SummaryResponse(BaseModel):
