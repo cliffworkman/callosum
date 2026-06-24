@@ -169,6 +169,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/my-publications/summary/generate", frozenset({"POST"})),
         ("/my-publications/summary", frozenset({"PUT"})),
         ("/my-publications/domains", frozenset({"POST"})),
+        ("/my-publications/domains/rename", frozenset({"POST"})),
         ("/my-publications/star", frozenset({"POST"})),
         ("/my-publications/works/import", frozenset({"POST"})),
         ("/my-publications/works/dismiss", frozenset({"POST"})),

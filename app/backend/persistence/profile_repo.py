@@ -90,6 +90,21 @@ def set_research_domains(conn: Connection, domains: list[dict[str, Any]] | None)
     )
 
 
+def rename_domain(conn: Connection, paper_ids: list[int], label: str) -> bool:
+    """SP2 (inc 118, #15): rename the research domain identified by its exact paper_ids set, marking it ``custom``
+    so a Re-decompose preserves the name (by paper-overlap). Returns False if no domain matches."""
+    existing = get_profile(conn)
+    domains = (existing or {}).get("research_domains") or []
+    target = {int(p) for p in paper_ids}
+    for d in domains:
+        if {int(p) for p in (d.get("paper_ids") or [])} == target:
+            d["label"] = label.strip()[:80]
+            d["custom"] = True
+            set_research_domains(conn, domains)
+            return True
+    return False
+
+
 def set_starred(conn: Connection, paper_id: int, starred: bool) -> None:
     """Star/unstar a paper in My Publications (inc 84). Stored as a sorted id list on the profile. No-op if
     the profile is unset."""

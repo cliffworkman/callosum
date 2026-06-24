@@ -433,6 +433,37 @@ def test_clusters_response_carries_domain_for_my_pubs(temp_db_url):  # SP2 T1 (#
     assert any(p.get("domain") == "Engines" for p in paps)
 
 
+def test_rename_domain_endpoint(temp_db_url):  # SP2 T2 (#15)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada", name_variants=[], orcid="0000-x")
+        pid = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/e"), doi="10.1/e")
+        set_research_domains(conn, [{"label": "Auto", "terms": ["x"], "paper_ids": [int(pid)]}])
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.post("/my-publications/domains/rename", json={"paper_ids": [pid], "label": "  "}).status_code == 422
+    assert client.post("/my-publications/domains/rename", json={"paper_ids": [99999], "label": "X"}).status_code == 422
+    assert client.post("/my-publications/domains/rename", json={"paper_ids": [pid], "label": "My Domain"}).status_code == 204
+    with engine.begin() as conn:
+        d = get_profile(conn)["research_domains"][0]
+    assert d["label"] == "My Domain" and d["custom"] is True
+
+
+def test_reapply_custom_labels_by_overlap():  # SP2 T2 (#15 — re-decompose preserves custom names)
+    from app.backend.clustering.my_publications import _reapply_custom_labels
+
+    domains = [
+        {"label": "Auto A", "terms": [], "paper_ids": [1, 2, 3]},
+        {"label": "Auto B", "terms": [], "paper_ids": [4, 5]},
+    ]
+    old = [
+        {"label": "My Custom", "paper_ids": [1, 2, 3, 9], "custom": True},  # 3/4 Jaccard vs [1,2,3] ≥ 0.5
+        {"label": "Not Custom", "paper_ids": [4, 5], "custom": False},  # not custom → not carried
+    ]
+    _reapply_custom_labels(domains, old)
+    assert domains[0]["label"] == "My Custom" and domains[0]["custom"] is True
+    assert domains[1]["label"] == "Auto B" and "custom" not in domains[1]
+
+
 def test_dashboard_not_resolved_and_no_identity(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:  # blank profile → no-identity

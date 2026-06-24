@@ -32,6 +32,7 @@ from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchS
 from app.backend.persistence.profile_repo import (
     dismiss_work,
     get_profile,
+    rename_domain,
     set_decision,
     set_my_publications_dismissed,
     set_research_summary,
@@ -288,6 +289,23 @@ def undismiss_my_publications_work(payload: WorkActionRequest, conn: Connection 
     # Un-dismiss a previously-dismissed missing work (inc 91) → it returns to the review queue. Mirror of the
     # inc-67 un-dismiss-duplicates control. Local, idempotent, non-destructive.
     undismiss_work(conn, payload.doi)
+    conn.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+class RenameDomainRequest(BaseModel):
+    paper_ids: list[int]
+    label: str
+
+
+@router.post("/my-publications/domains/rename", status_code=http_status.HTTP_204_NO_CONTENT)
+def rename_my_publications_domain(payload: RenameDomainRequest, conn: Connection = Depends(get_connection)) -> Response:
+    # SP2 (inc 118, #15): rename a research domain (identified by its paper_ids set); marks it custom so a
+    # Re-decompose preserves the name by paper-overlap. Local profile-JSON write; no egress.
+    if not payload.label.strip():
+        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Label cannot be empty.")
+    if not rename_domain(conn, payload.paper_ids, payload.label):
+        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No domain matches those papers.")
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 

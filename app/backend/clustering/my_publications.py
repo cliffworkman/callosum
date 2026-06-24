@@ -327,6 +327,7 @@ def decompose_domains(conn: Connection, *, model, author_client) -> dict[str, An
         {"label": _label_from_terms(terms), "terms": terms, "paper_ids": [int(rows[i]["id"]) for i in members]}
         for members, terms in zip(groups, term_lists, strict=False)
     ]
+    _reapply_custom_labels(domains, profile.get("research_domains"))  # SP2 #15: keep user-renamed labels across re-decompose
 
     try:  # freshen per-work citations (an old cache lacks cited_by_count); failure leaves clustering intact
         author_client.fetch_author_works(conn, str(profile["openalex_author_id"]), refresh=True)
@@ -334,6 +335,35 @@ def decompose_domains(conn: Connection, *, model, author_client) -> dict[str, An
         pass
     set_research_domains(conn, domains)
     return {"status": "ok", "domain_count": len(domains)}
+
+
+def _reapply_custom_labels(domains: list[dict[str, Any]], old_domains: Any) -> None:
+    """SP2 (#15): carry user-renamed (``custom``) domain labels from the previous decomposition onto the freshly
+    clustered domains by best paper-overlap (Jaccard ≥ 0.5), so Re-decompose doesn't wipe custom names. Mutates
+    ``domains`` in place; each old custom label is reused at most once (highest-overlap new domain wins)."""
+    snapshots = [
+        (d.get("label"), {int(p) for p in (d.get("paper_ids") or [])})
+        for d in (old_domains or [])
+        if d.get("custom") and d.get("label")
+    ]
+    if not snapshots:
+        return
+    used: set[int] = set()
+    for dom in domains:
+        ids = {int(p) for p in (dom.get("paper_ids") or [])}
+        if not ids:
+            continue
+        best_i, best_j = -1, 0.0
+        for i, (_label, old_ids) in enumerate(snapshots):
+            if i in used or not old_ids:
+                continue
+            jaccard = len(ids & old_ids) / len(ids | old_ids)
+            if jaccard > best_j:
+                best_i, best_j = i, jaccard
+        if best_i >= 0 and best_j >= 0.5:
+            dom["label"] = snapshots[best_i][0]
+            dom["custom"] = True
+            used.add(best_i)
 
 
 def _confirmed_member_rows(conn: Connection) -> list:
