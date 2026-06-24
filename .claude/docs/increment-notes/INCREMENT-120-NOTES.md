@@ -64,8 +64,32 @@ clean (incl. `tools/qa/`).
 `c95b791` (mechanism install + policy + CLAUDE.md patch + gitignore + CI) · this commit (the 13 Codex-authored
 routes + docs).
 
+## Follow-on (same session): first Tier-0 run + 3 supervisor fixes + seed enrichment + route calibration
+
+Ran the first real Tier-0 pass (`supervisor.py --tier 0`) and closed the loop:
+
+- **3 Windows-portability bugs in the bundled `supervisor.py`** — all caught BEFORE any Codex credits were spent
+  (each crashed pre-dispatch): (1) cp1252 stdout can't encode the progress glyphs → force UTF-8; (2) bare `codex`
+  isn't found by `subprocess` (npm `codex.CMD` shim) → `shutil.which`; (3) a large multi-line prompt as a `.CMD`
+  arg is mangled by cmd.exe → pipe it via **stdin** (`codex exec … -`). Commit `5adc5e6`.
+- **The Tier-0 run itself: clean.** Codex stood up the seeded throwaway server (egress unset), drove every
+  read-only surface in Chromium, captured 10 screenshots, deposited a report. **The honesty invariants held under a
+  real browser run: 0 Gemini/genai requests with egress off, 0 page errors** (73 browser requests). No real app
+  bugs — all 4 findings were the route over-assuming the seed/menu. Triaged + moved to `qa-inbox/_processed/`.
+- **Seed enrichment (B) — commit `ce934ed`.** The canonical seed had no on-disk PDF, so the PDF viewer + the
+  **coordinate-honesty invariant** (Core #2) couldn't be QA-exercised. Added a **`Renderable Seed Paper`** backed by
+  a committed `tests/fixtures/seed.pdf` (a real 2-page PDF, generated with PyMuPDF) with **truthful chunk bboxes**,
+  plus a `social-perception` **tag**. The facial paper is untouched (it keeps testing the path edge-cases + the
+  honest "PDF not available locally" 404). A `.gitignore` exception (`!tests/fixtures/seed.pdf`) commits the
+  fixture; 3 dependent count-assertions updated; a pinning test (`test_seed_renderable_paper_serves_real_pdf_with_truthful_bbox`)
+  locks the fixture. pytest **437**. **Verified headed (free, via `qa_server` + Playwright):** the renderable PDF
+  renders ("Seed Fixture Document", Page 1/2) and the Tags panel shows the seeded tag.
+- **Route calibration (A) — same commit.** `route_00` + a new **"Seed contract"** block in `_TEMPLATE.md` document
+  the renderable-vs-facial paper distinction + the real Add-menu items, so all 13 routes (and future Codex authoring)
+  target the right paper and stop the first run's false positives recurring.
+
 ## Next
 
-Phase 3 is the user's call: run `supervisor.py --tier 0` (cheap smoke) to validate the full pipeline end-to-end,
-then deeper tiers occasionally. Steady state: rule #10 keeps the gate green as new surfaces land; kickoff step #10
-triages each deposit.
+Phase 3 deeper tiers are the user's call (`supervisor.py` without `--tier 0`). The Tier-0 pipeline is now proven
+end-to-end and the seed/routes are calibrated, so a re-run should be clean signal. Steady state: rule #10 keeps the
+gate green as new surfaces land; kickoff step #10 triages each deposit.

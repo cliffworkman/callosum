@@ -25,8 +25,13 @@ are the design diary; this is the chronological "what & why" record.
   a Claude session triages the inbox).
 - **Verification:** `check` exits 0; `_qa_serve.py` serves a seeded throwaway DB (egress unset) + tears down;
   `supervisor --dry-run` emits a valid codex command; pytest 436 (additive, unchanged); ruff clean (incl. tools/qa).
-- **NOT done (user's to run — spends Codex credits):** Phase 3, `supervisor.py --tier 0` (the real QA pass).
 - **Revert:** `git revert` `c95b791` + this commit; remove `tools/qa/` + `.claude/{QA-POLICY.md,qa-routes/}`.
+- **Follow-on (same session):** ran the first **Tier-0** QA pass — clean (honesty invariants held: 0 egress with
+  egress off, 0 page errors; no real app bugs). Fixed 3 Windows-portability bugs in the bundled supervisor
+  (UTF-8 console, `shutil.which` for the codex shim, prompt-via-stdin — all caught before any credits spent; commit
+  `5adc5e6`). Enriched `_seed_library` with a **real-PDF "Renderable Seed Paper"** (`tests/fixtures/seed.pdf`,
+  truthful bboxes) + a tag so QA can exercise the viewer + coordinate-honesty + Tags panel, and calibrated
+  `route_00` + the `_TEMPLATE` "Seed contract" (commit `ce934ed`; pytest 437; verified headed via `qa_server`).
 
 ## 2026-06-24 — Increment 119: My Publications overhaul, SP3 — citing articles & citation counts
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 119 (2026-06-24) — the My Publications help gained the citation counts + citing-articles section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
