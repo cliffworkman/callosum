@@ -31,10 +31,19 @@ import argparse
 import datetime as dt
 import os
 import re
+import shutil
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+# Windows consoles default to cp1252, which can't encode the unicode glyphs this script prints
+# (→ ✓ —) — force UTF-8 so progress output works in any shell or redirected/background pipe.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 THIS = Path(__file__).resolve()
 REPO_ROOT = THIS.parents[2]
@@ -96,11 +105,19 @@ def build_prompt(route: Route, run_id: str) -> str:
     return template.replace("{ROUTE_FILE}", rel).replace("{RUN_ID}", run_id).replace("{ROUTE_STEM}", route.stem)
 
 
-def codex_command(prompt_arg_marker: str, sandbox: str, model: str | None, last_msg_file: Path) -> list[str]:
-    cmd = ["codex", "exec"]
+def _codex_bin() -> str:
+    """Resolve the codex executable to a full path. On Windows ``codex`` is an npm shim (``codex.CMD``) that
+    bare ``subprocess`` (no shell) can't find on PATH; ``shutil.which`` resolves it (and the POSIX path too)."""
+    return shutil.which("codex") or "codex"
+
+
+def codex_command(sandbox: str, model: str | None, last_msg_file: Path) -> list[str]:
+    # The prompt is piped via stdin (the trailing ``-``), NOT passed as an argument — a large multi-line prompt
+    # as a Windows .CMD argument is mangled by cmd.exe arg parsing (% & < > …). stdin sidesteps all of that.
+    cmd = [_codex_bin(), "exec"]
     if model:
         cmd += ["--model", model]
-    cmd += ["--sandbox", sandbox, "-o", str(last_msg_file), prompt_arg_marker]
+    cmd += ["--sandbox", sandbox, "-o", str(last_msg_file), "-"]
     return cmd
 
 
@@ -110,7 +127,7 @@ def dispatch(route: Route, state: RunState, *, sandbox: str, model: str | None, 
     deposit = QA_INBOX / state.run_id / f"{route.stem}.md"
     route.deposit = deposit
     last_msg = log_dir / f"{route.stem}.final.txt"
-    cmd = codex_command(prompt, sandbox, model, last_msg)
+    cmd = codex_command(sandbox, model, last_msg)
 
     print(f"\n[supervisor] → {route.stem} (attempt {route.attempts})")
     print(f"[supervisor]   deposit expected at: {deposit.relative_to(REPO_ROOT)}")
@@ -121,6 +138,9 @@ def dispatch(route: Route, state: RunState, *, sandbox: str, model: str | None, 
             proc = subprocess.run(
                 cmd,
                 cwd=str(REPO_ROOT),
+                input=prompt,  # the route prompt is piped to codex via stdin (see codex_command)
+                text=True,
+                encoding="utf-8",  # don't let Windows default the stdin pipe to cp1252
                 stdout=fh,
                 stderr=subprocess.STDOUT,
                 timeout=timeout_s,
@@ -247,10 +267,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  - {r.stem}")
 
     if args.dry_run:
-        print("\n[supervisor] DRY RUN — exact commands (prompt elided):")
+        print("\n[supervisor] DRY RUN — exact commands (route prompt piped via stdin):")
         for r in routes:
-            cmd = codex_command("<prompt>", args.sandbox, args.model, log_dir / f"{r.stem}.final.txt")
-            print("  (cwd=%s) %s" % (REPO_ROOT, " ".join(cmd)))
+            cmd = codex_command(args.sandbox, args.model, log_dir / f"{r.stem}.final.txt")
+            print("  (cwd=%s) %s   < <route prompt on stdin>" % (REPO_ROOT, " ".join(cmd)))
         print(
             "\n[supervisor] regenerate the surface map first on a real run: python tools/qa/build_surface_map.py extract"
         )
