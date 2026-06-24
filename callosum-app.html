@@ -677,6 +677,10 @@
   .paper-cite:hover { color: var(--accent); }
   .paper-cite-static { cursor: default; }
   .paper-cite-static:hover { color: var(--ink-3); }
+  /* inc 119 (SP3 #14): citing-articles modal (reuses .axis-modal* + .missing-row recipes). */
+  .citing-allbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .citing-row { align-items: center; }
+  .citing-inlib { font-size: 12px; color: var(--verified); white-space: nowrap; }
 
   /* ---- right: detail (inline-editable Mendeley-style pane, inc 49) ---- */
   .detail-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; align-items: center; }
@@ -4480,7 +4484,7 @@
         dismissed: data.dismissed_works,
         onChanged: refetch
       }
-    ));
+    ), citing && /* @__PURE__ */ React.createElement(CitingModal, { workId: citing.workId, paperTitle: citing.title, onClose: () => setCiting(null) }));
   }
   function MissingWorksModal({ open, onClose, missing, dismissed, onChanged }) {
     const [busy, setBusy] = useState(() => /* @__PURE__ */ new Set());
@@ -4715,6 +4719,40 @@
       /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "bibliography\u2026"),
       citeStyles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))
     ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: doDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: clearSel }, "clear")), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading your publications\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load your publications: ", state.error), state.status === "ready" && papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, debounced.trim() ? "No publications match that search." : "No publications in your library yet."), state.status === "ready" && papers.length === 200 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Showing the first 200 \u2014 narrow with search to see the rest."), state.status === "ready" && (groups ? groups.map((g) => /* @__PURE__ */ React.createElement("div", { key: g.label, className: "mypubs-domain-group" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-domain-group-head" }, g.label, " ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-group-count" }, g.papers.length)), /* @__PURE__ */ React.createElement("div", { className: "mypubs-domain-group-body" }, g.papers.map(renderCard)))) : starFirst(papers).map(renderCard)));
+  }
+  function CitingModal({ workId, paperTitle, onClose }) {
+    const [state, setState] = useState({ status: "loading" });
+    const [busy, setBusy] = useState(() => /* @__PURE__ */ new Set());
+    const load = () => {
+      setState({ status: "loading" });
+      api(`/my-publications/citing/${workId}`).then((r) => {
+        if (r.ok) setState({ status: "ready", works: r.data.works || [], capped: !!r.data.capped });
+        else setState({ status: "error", error: r.error });
+      });
+    };
+    useEffect(load, [workId]);
+    const importOne = async (w) => {
+      setBusy((b) => new Set(b).add(w.doi));
+      const r = await apiPost("/my-publications/citing/import", { doi: w.doi, title: w.title });
+      if (r.ok) load();
+      setBusy((b) => {
+        const n = new Set(b);
+        n.delete(w.doi);
+        return n;
+      });
+    };
+    const importAll = async () => {
+      const todo = (state.works || []).filter((w) => w.doi && !w.in_library);
+      if (!todo.length) return;
+      if (!window.confirm(`Import ${todo.length} citing paper${todo.length === 1 ? "" : "s"} (metadata only) into your library?`)) return;
+      for (const w of todo) {
+        await apiPost("/my-publications/citing/import", { doi: w.doi, title: w.title });
+      }
+      load();
+    };
+    const works = state.works || [];
+    const importable = works.filter((w) => w.doi && !w.in_library).length;
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Cited by", paperTitle ? ` \u2014 ${paperTitle}` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link citing-close", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Papers OpenAlex records as citing this work (as of your last refresh \u2014 OpenAlex's coverage, not exhaustive). Import the ones you want (metadata only; use a paper's \u201CAcquire OA copy\u201D afterward for the PDF).", state.capped ? " Showing the first 100." : ""), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading citing papers\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load citing papers: ", state.error), state.status === "ready" && works.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "OpenAlex records no citing papers for this work (yet)."), state.status === "ready" && importable > 0 && /* @__PURE__ */ React.createElement("div", { className: "citing-allbar" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: importAll }, "Import all (", importable, ")")), works.map((w, i) => /* @__PURE__ */ React.createElement("div", { key: (w.doi || "") + i, className: "citing-row missing-row" }, /* @__PURE__ */ React.createElement("div", { className: "missing-info" }, /* @__PURE__ */ React.createElement("div", { className: "missing-title", title: w.title || w.doi }, w.title || w.doi || "(untitled)"), /* @__PURE__ */ React.createElement("div", { className: "missing-meta" }, (w.authors || []).slice(0, 3).join(", "), w.year ? ` \xB7 ${w.year}` : "", " \xB7 ", w.cited_by_count, " cited-by", w.doi ? ` \xB7 ${w.doi}` : "")), w.in_library ? /* @__PURE__ */ React.createElement("span", { className: "citing-inlib" }, "\u2713 in library") : w.doi ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost citing-import", disabled: busy.has(w.doi), onClick: () => importOne(w) }, "Import") : /* @__PURE__ */ React.createElement("span", { className: "axis-hint" }, "no DOI")))));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");

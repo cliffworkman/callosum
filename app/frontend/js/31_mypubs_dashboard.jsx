@@ -340,6 +340,8 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
         open={missingOpen} onClose={() => setMissingOpen(false)}
         missing={data.missing_works} dismissed={data.dismissed_works} onChanged={refetch}
       />
+
+      {citing && <CitingModal workId={citing.workId} paperTitle={citing.title} onClose={() => setCiting(null)} />}
     </div>
   );
 }

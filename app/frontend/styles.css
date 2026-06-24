@@ -653,6 +653,10 @@
   .paper-cite:hover { color: var(--accent); }
   .paper-cite-static { cursor: default; }
   .paper-cite-static:hover { color: var(--ink-3); }
+  /* inc 119 (SP3 #14): citing-articles modal (reuses .axis-modal* + .missing-row recipes). */
+  .citing-allbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  .citing-row { align-items: center; }
+  .citing-inlib { font-size: 12px; color: var(--verified); white-space: nowrap; }
 
   /* ---- right: detail (inline-editable Mendeley-style pane, inc 49) ---- */
   .detail-row { display: grid; grid-template-columns: 92px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--line); font-size: 13px; align-items: center; }
