@@ -125,6 +125,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/my-publications/refresh/{job_id}",
         "/my-publications/dashboard",
         "/my-publications/domains/{job_id}",
+        "/my-publications/citing/{work_id}",
         "/library/scan/{job_id}",
         "/library/import/{job_id}",
         "/library/watched",

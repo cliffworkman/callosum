@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from dataclasses import asdict, dataclass
 from typing import Any, Protocol
 
@@ -23,6 +24,7 @@ OPENALEX_AUTHOR_PROVIDER = "openalex_author"
 OPENALEX_WORKS_PROVIDER = "openalex_works"
 _WORKS_PER_PAGE = 200
 _MAX_WORKS_PAGES = 5  # cap a prolific author at ~1000 works
+_MAX_CITING = 100  # inc 119 (SP3): cap the citing-works list (a highly-cited paper can have thousands of citers)
 
 
 @dataclass(frozen=True)
@@ -52,6 +54,17 @@ class AuthorWork:
         0  # inc 83 — per-work OpenAlex citations, for impact-by-domain (default keeps old caches valid)
     )
     openalex_work_id: str | None = None  # inc 119 (SP3): the bare OpenAlex work id (e.g. "W9"), for the cited-by fetch
+
+
+@dataclass(frozen=True)
+class CitingWork:
+    """inc 119 (SP3): a work that CITES one of the user's papers (a discovery candidate, per OpenAlex)."""
+
+    doi: str | None
+    title: str | None
+    year: int | None
+    cited_by_count: int = 0
+    authors: tuple[str, ...] = ()
 
 
 class AuthorFetcher(Protocol):
@@ -110,6 +123,7 @@ class OpenAlexAuthorClient:
                             title=w.get("title"),
                             year=w.get("year"),
                             cited_by_count=int(w.get("cited_by_count") or 0),
+                            openalex_work_id=w.get("openalex_work_id"),  # inc 119: carry the id from a refreshed cache
                         )
                         for w in works
                     ]
@@ -173,6 +187,65 @@ class OpenAlexAuthorClient:
             if not cursor:
                 break
         return works, any_ok
+
+    def fetch_citing_works(self, conn: Connection, work_id: str) -> tuple[list[CitingWork], bool]:
+        """inc 119 (SP3): works that CITE the given OpenAlex work, cached under ``citing:<work_id>`` and capped at
+        ``_MAX_CITING``. Returns (works, capped). Fail-closed; validates the work id; on-demand (caller-gated)."""
+        if not re.fullmatch(r"W\d+", work_id or ""):
+            return [], False
+        cache_key = f"citing:{work_id}"
+        cached = get_cached(conn, OPENALEX_WORKS_PROVIDER, cache_key)
+        if cached is not None and isinstance(cached["response_json"], dict):
+            raw = cached["response_json"].get("works")
+            if isinstance(raw, list):
+                return [_citing_from_dict(w) for w in raw], bool(cached["response_json"].get("capped"))
+        works, capped, ok = self._fetch_citing(work_id)
+        if ok:  # only cache a real result
+            put_cached(
+                conn,
+                OPENALEX_WORKS_PROVIDER,
+                cache_key,
+                request_json={"cites": work_id},
+                response_json={"works": [asdict(w) for w in works], "capped": capped},
+                status_code=200,
+            )
+        return works, capped
+
+    def _fetch_citing(self, work_id: str) -> tuple[list[CitingWork], bool, bool]:
+        works: list[CitingWork] = []
+        any_ok = False
+        capped = False
+        cursor: str | None = "*"
+        for _ in range(_MAX_WORKS_PAGES):
+            params = {
+                "filter": f"cites:{work_id}",
+                "per-page": str(_WORKS_PER_PAGE),
+                "cursor": cursor or "*",
+                "select": "id,doi,title,publication_year,cited_by_count,authorships",
+            }
+            try:
+                status, body = self.fetcher(
+                    f"{OPENALEX_ROOT}/works",
+                    params={**params, **self._polite()},
+                    headers=self._headers(),
+                    timeout=self.timeout,
+                )
+            except Exception:
+                break
+            if status != 200 or not isinstance(body, dict):
+                break
+            any_ok = True
+            for work in body.get("results") or []:
+                works.append(_citing_from_obj(work))
+                if len(works) >= _MAX_CITING:
+                    capped = True
+                    break
+            if capped:
+                break
+            cursor = (body.get("meta") or {}).get("next_cursor")
+            if not cursor:
+                break
+        return works[:_MAX_CITING], capped, any_ok
 
     def _polite(self) -> dict[str, str]:
         return {"mailto": self.mailto} if self.mailto else {}
@@ -263,6 +336,35 @@ def _work_from_obj(work: dict[str, Any]) -> AuthorWork | None:
         year=int(year) if isinstance(year, int) else None,
         cited_by_count=int(work.get("cited_by_count") or 0),
         openalex_work_id=(raw_id.rsplit("/", 1)[-1] if raw_id else None),
+    )
+
+
+def _citing_from_obj(work: dict[str, Any]) -> CitingWork:
+    """inc 119 (SP3): parse an OpenAlex /works result into a CitingWork (≤8 author names from authorships)."""
+    authors = tuple(
+        str((a.get("author") or {}).get("display_name") or "").strip()
+        for a in (work.get("authorships") or [])
+        if isinstance(a, dict) and (a.get("author") or {}).get("display_name")
+    )[:8]
+    year = work.get("publication_year")
+    title = work.get("title") or work.get("display_name")
+    return CitingWork(
+        doi=_normalize_doi(work.get("doi") or (work.get("ids") or {}).get("doi")),
+        title=str(title) if title else None,
+        year=int(year) if isinstance(year, int) else None,
+        cited_by_count=int(work.get("cited_by_count") or 0),
+        authors=authors,
+    )
+
+
+def _citing_from_dict(w: dict[str, Any]) -> CitingWork:
+    """Reconstruct a CitingWork from its cached ``asdict`` form."""
+    return CitingWork(
+        doi=w.get("doi"),
+        title=w.get("title"),
+        year=w.get("year"),
+        cited_by_count=int(w.get("cited_by_count") or 0),
+        authors=tuple(w.get("authors") or ()),
     )
 
 

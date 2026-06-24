@@ -447,6 +447,61 @@ def test_dashboard_paper_citations(temp_db_url):  # SP3 T1 (#14)
     assert dash["paper_citations"][str(pid)] == {"cited_by_count": 42, "openalex_work_id": "W9"}
 
 
+def test_fetch_citing_works_caches_and_endpoint(temp_db_url):  # SP3 T2 (#14)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_paper(conn, title="Citer In Lib", csl_json=_csl("Citer In Lib", "10.2/inlib"), doi="10.2/inlib")
+    captured = {"filter": None, "calls": 0}
+
+    def fetcher(url, params=None, headers=None, timeout=None):
+        captured["filter"] = (params or {}).get("filter")
+        captured["calls"] += 1
+        return (
+            200,
+            {
+                "results": [
+                    {
+                        "id": "https://openalex.org/W100",
+                        "doi": "https://doi.org/10.2/inlib",
+                        "title": "Citer In Lib",
+                        "publication_year": 2022,
+                        "cited_by_count": 1,
+                        "authorships": [{"author": {"display_name": "Jo Citer"}}],
+                    },
+                    {
+                        "id": "https://openalex.org/W101",
+                        "doi": "https://doi.org/10.3/new",
+                        "title": "New Citer",
+                        "publication_year": 2023,
+                        "cited_by_count": 0,
+                        "authorships": [],
+                    },
+                ],
+                "meta": {"next_cursor": None},
+            },
+        )
+
+    client = OpenAlexAuthorClient(fetcher=fetcher)
+    with engine.begin() as conn:
+        works, capped = client.fetch_citing_works(conn, "W9")
+    assert (
+        captured["filter"] == "cites:W9" and len(works) == 2 and works[0].authors == ("Jo Citer",) and capped is False
+    )
+    before = captured["calls"]
+    with engine.begin() as conn:
+        client.fetch_citing_works(conn, "W9")  # served from cache
+    assert captured["calls"] == before
+    # bad work id → no fetch, empty
+    with engine.begin() as conn:
+        assert client.fetch_citing_works(conn, "not-a-work") == ([], False)
+
+    app = create_app(db_url=temp_db_url, openalex_author_client=client)
+    body = TestClient(app).get("/my-publications/citing/W9").json()
+    assert body["total"] == 2 and body["capped"] is False
+    inlib = {w["doi"]: w["in_library"] for w in body["works"]}
+    assert inlib["10.2/inlib"] is True and inlib["10.3/new"] is False
+
+
 def test_clusters_response_carries_domain_for_my_pubs(temp_db_url):  # SP2 T1 (#16)
     app = _resolved_member_app(temp_db_url)
     engine = make_engine(temp_db_url)

@@ -40,7 +40,7 @@ from app.backend.persistence.profile_repo import (
     undismiss_work,
     upsert_profile,
 )
-from app.backend.persistence.repository import get_paper
+from app.backend.persistence.repository import find_existing_paper_by_identity, get_paper
 from app.backend.persistence.schema import axes
 from integrations.gemini import GeminiConfig, GeminiResearchSummaryGenerator, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient
@@ -176,6 +176,21 @@ class WorkActionRequest(BaseModel):
 class WorkImportResponse(BaseModel):
     status: str  # imported | exists | not-author-work | not-resolved | invalid
     paper_id: int | None = None
+
+
+class CitingWorkResponse(BaseModel):  # inc 119 (SP3 #14): a paper that cites one of the user's works (a candidate)
+    doi: str | None = None
+    title: str | None = None
+    year: int | None = None
+    cited_by_count: int = 0
+    authors: list[str] = []
+    in_library: bool = False
+
+
+class CitingResponse(BaseModel):
+    works: list[CitingWorkResponse] = []
+    total: int = 0
+    capped: bool = False  # True when OpenAlex returned more than the cap (coverage stated, not implied)
 
 
 class DomainJobResponse(BaseModel):
@@ -367,6 +382,25 @@ def star_my_publication(payload: StarRequest, conn: Connection = Depends(get_con
     set_starred(conn, payload.paper_id, payload.starred)
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/my-publications/citing/{work_id}", response_model=CitingResponse)
+def get_citing_works(work_id: str, request: Request, conn: Connection = Depends(get_connection)) -> CitingResponse:
+    # inc 119 (SP3 #14): the papers OpenAlex records as citing one of the user's works — discovery candidates,
+    # not authoritative/complete. On-demand + cached; metadata egress only (NOT the Gemini gate). Fail-closed.
+    works, capped = _author_client(request.app).fetch_citing_works(conn, work_id)
+    out = [
+        CitingWorkResponse(
+            doi=w.doi,
+            title=w.title,
+            year=w.year,
+            cited_by_count=w.cited_by_count,
+            authors=list(w.authors),
+            in_library=(w.doi is not None and find_existing_paper_by_identity(conn, doi=w.doi) is not None),
+        )
+        for w in works
+    ]
+    return CitingResponse(works=out, total=len(out), capped=capped)
 
 
 @router.delete("/my-publications", status_code=http_status.HTTP_204_NO_CONTENT)
