@@ -233,6 +233,22 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
     as_of = str(cached_works["fetched_at"]) if cached_works is not None and cached_works.get("fetched_at") else None
     dismissed = {str(d).strip().lower() for d in (profile.get("dismissed_work_dois") or [])}
 
+    # inc 119 (SP3 #14): per-paper OpenAlex citation info (count + work id), keyed by library paper id, for the cards.
+    work_by_doi = {w.doi: w for w in works if w.doi}
+    paper_citations: dict[str, dict[str, Any]] = {}
+    if work_by_doi:
+        for row in conn.execute(
+            select(papers.c.id, papers.c.doi).where(
+                and_(papers.c.deleted_at.is_(None), papers.c.doi.in_(set(work_by_doi)))
+            )
+        ):
+            w = work_by_doi.get(str(row[1]).strip().lower() if row[1] else None)
+            if w is not None:
+                paper_citations[str(int(row[0]))] = {
+                    "cited_by_count": w.cited_by_count,
+                    "openalex_work_id": w.openalex_work_id,
+                }
+
     return {
         "status": "ok",
         "name": author.display_name or (profile.get("display_name") or "").strip() or None,
@@ -257,6 +273,7 @@ def build_dashboard(conn: Connection, *, author_client) -> dict[str, Any]:
         "starred_ids": [
             int(p) for p in (profile.get("starred_paper_ids") or [])
         ],  # inc 118 (SP2 #17): starred-first sort
+        "paper_citations": paper_citations,  # inc 119 (SP3 #14): {paper_id: {cited_by_count, openalex_work_id}}
         "research_summary": profile.get("research_summary"),
         "domains": _dashboard_domains(conn, profile.get("research_domains"), works),
         "missing_works": _dashboard_missing_works(conn, works, dismissed),

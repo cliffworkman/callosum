@@ -420,6 +420,33 @@ def test_dashboard_exposes_domain_paper_ids_and_starred(temp_db_url):  # SP2 T1
     assert dash["starred_ids"] == [int(pid)]
 
 
+def test_work_from_obj_captures_openalex_work_id():  # SP3 T1
+    from integrations.openalex.author import _work_from_obj
+
+    w = _work_from_obj(
+        {
+            "id": "https://openalex.org/W9",
+            "doi": "https://doi.org/10.1/x",
+            "title": "X",
+            "publication_year": 2020,
+            "cited_by_count": 3,
+        }
+    )
+    assert w.openalex_work_id == "W9" and w.cited_by_count == 3
+
+
+def test_dashboard_paper_citations(temp_db_url):  # SP3 T1 (#14)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        upsert_profile(conn, display_name="Ada", name_variants=[], orcid="0000-x")
+        set_openalex_author_id(conn, "A1")
+        pid = create_paper(conn, title="Engine", csl_json=_csl("Engine", "10.1/engine"), doi="10.1/engine")
+    works = [AuthorWork(doi="10.1/engine", title="Engine", year=1843, cited_by_count=42, openalex_work_id="W9")]
+    with engine.begin() as conn:
+        dash = build_dashboard(conn, author_client=_FakeAuthorClient(author=_ADA_STATS, works=works))
+    assert dash["paper_citations"][str(pid)] == {"cited_by_count": 42, "openalex_work_id": "W9"}
+
+
 def test_clusters_response_carries_domain_for_my_pubs(temp_db_url):  # SP2 T1 (#16)
     app = _resolved_member_app(temp_db_url)
     engine = make_engine(temp_db_url)

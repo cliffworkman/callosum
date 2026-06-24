@@ -51,6 +51,7 @@ class AuthorWork:
     cited_by_count: int = (
         0  # inc 83 — per-work OpenAlex citations, for impact-by-domain (default keeps old caches valid)
     )
+    openalex_work_id: str | None = None  # inc 119 (SP3): the bare OpenAlex work id (e.g. "W9"), for the cited-by fetch
 
 
 class AuthorFetcher(Protocol):
@@ -255,11 +256,13 @@ def _work_from_obj(work: dict[str, Any]) -> AuthorWork | None:
     doi = _normalize_doi(work.get("doi") or (work.get("ids") or {}).get("doi"))
     title = work.get("title") or work.get("display_name")
     year = work.get("publication_year")
+    raw_id = str(work.get("id") or "")
     return AuthorWork(
         doi=doi,
         title=str(title) if title else None,
         year=int(year) if isinstance(year, int) else None,
         cited_by_count=int(work.get("cited_by_count") or 0),
+        openalex_work_id=(raw_id.rsplit("/", 1)[-1] if raw_id else None),
     )
 
 

@@ -127,6 +127,11 @@ class OpenAlexExtra(BaseModel):  # inc 117 — extra OpenAlex facts for the dash
     openalex_author_id: str | None = None
 
 
+class PaperCitation(BaseModel):  # inc 119 (SP3): OpenAlex cited-by count + work id for one of the user's papers
+    cited_by_count: int = 0
+    openalex_work_id: str | None = None
+
+
 class DashboardResponse(BaseModel):
     status: str  # "ok" | "no-identity" | "not-resolved"
     name: str | None = None
@@ -144,6 +149,7 @@ class DashboardResponse(BaseModel):
     openalex_extra: OpenAlexExtra | None = None  # inc 117: 2-yr mean citedness + affiliation for the OpenAlex card
     starred_count: int = 0  # inc 117 (#8): hide the "⭐ only" toggle when there are no starred pubs
     starred_ids: list[int] = []  # inc 118 (SP2 #17): starred paper ids, for starred-first sorting
+    paper_citations: dict[str, PaperCitation] = {}  # inc 119 (SP3 #14): {paper_id: {cited_by_count, openalex_work_id}}
 
 
 class SummaryResponse(BaseModel):
