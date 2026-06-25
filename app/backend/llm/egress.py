@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from sqlalchemy import Connection
 
     from app.backend.help.assistant import HelpAnswer, HelpAssistant, HelpTurn
+    from app.backend.summarization.overview import OverviewGenerator, OverviewSentence
     from integrations.gemini.axis_cluster_labeler import AxisClusterLabeler
     from integrations.gemini.axis_terms import AxisTermSuggester
     from integrations.gemini.research_summary import ResearchSummaryGenerator
@@ -107,6 +108,24 @@ class EgressGatedResearchSummaryGenerator:
         if not self.data_egress_enabled:
             raise DataEgressDisabledError("Gemini research-summary generation requires explicit data-egress consent.")
         return self.inner.generate(documents=documents)
+
+
+@dataclass(frozen=True)
+class EgressGatedOverviewGenerator:
+    """Egress gate around an ``OverviewGenerator`` (inc 124). It narrativizes the verified claims (library-derived
+    text), so it rides the library egress gate."""
+
+    inner: "OverviewGenerator"
+    data_egress_enabled: bool
+
+    @property
+    def name(self) -> str:
+        return self.inner.name
+
+    def generate(self, *, verified_claims: list[str], scope_ref: dict[str, object]) -> list["OverviewSentence"]:
+        if not self.data_egress_enabled:
+            raise DataEgressDisabledError("Gemini overview generation requires explicit data-egress consent.")
+        return self.inner.generate(verified_claims=verified_claims, scope_ref=scope_ref)
 
 
 @dataclass(frozen=True)
