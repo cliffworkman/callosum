@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 124** (see Increment workflow) with **449 pytest tests
+It is currently at **Increment 125** (see Increment workflow) with **449 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,34 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 124 (synthesis evidence-traceable Overview — Part B of the synthesis-overview
+*Last updated: 2026-06-25 — increment 125 (strengthen the front-matter classifier — **live-validated** with real
+Gemini): the user authorized spending tokens to eyeball the real synthesis output, and a **live** no-query
+papers-scope run (`.local/visual/drive_inc124_live.py`, egress on) over the same papers that produced the broken
+summary #7 showed inc-123's `is_front_matter_chunk` was **still too conservative** — paper **titles**, **author/
+affiliation lines**, **journal running-headers**, and **funding lines** were leaking into the verified claims.
+Strengthened `is_front_matter_chunk` (`app/backend/summarization/chunk_filtering.py`) to catch: name-attached
+author superscripts (`Alves1`/`Uğurlar2`, `[A-Za-z][1-9](?![0-9])`, ≥2) + digit-prefix affiliations
+(`1Department`, `(?:^|\s)\d[A-Z][a-z]`, ≥2); funding/acknowledgment lines (`grant`/`funding` + a grant-id
+`[A-Z]{1,3}\s?\d{4,}`); and the **strong prose-safe title/header signal** — *no terminal sentence punctuation AND
+≥60% of words capitalized* (body prose is mostly lowercase function words, so its caps-fraction is low even when
+truncated → safe for content; titles/journal-headers are caught). The real leaked strings are now regression
+tests (`tests/test_chunk_filtering.py`); the real body text that correctly stayed is asserted as CONTENT (guards
+over-flagging). **Still fallback-only** (the inc-123 two-phase `_select_no_query` is unchanged — front matter is
+deprioritized, never dropped), so a more-aggressive classifier is safe. **Re-ran live** → the verified claims are
+now **all body text** (no front matter) and the **inc-124 Overview populated** with 3 real synthesis sentences,
+each tracing to the verified claims it restates (e.g. *"For survival, continuously evaluating environmental risks
+is crucial…"* → claims [2, 6]). The earlier **empty Overview** was confirmed **transient** — the 2nd (overview)
+Gemini call hit repeated **503**s (model overloaded); the **fail-closed** path correctly omitted it and it
+populated on retry over the cached summary. **Op note:** Gemini **key 1's prepay credits are depleted (429)** —
+the live run fell back to `GOOGLE_API_KEY_2` (keys 1-4 live in `.env`). Backend-only — no `/summarize` contract
+change, no migration, no egress, no new dependency; **Principles gate non-triggering** (retrieval quality, like
+inc-66/123). pytest **449** (the FRONT_MATTER/CONTENT regression lists were extended; no new test functions);
+`ruff` clean. Notes: `INCREMENT-125-NOTES.md`. **This live-validates the full synthesis-overview fix (inc 123 +
+124 + 125): the original "synthesis gives no real summary, just sections" report is resolved end-to-end.**
+**NEXT (user's pick):** the findings subsystem (FACT vs CANDIDATE) + adopting the THEORY/METHODS vocabulary; or
+open backlog (discovery/gapfinder, GRIM/p-curve, file-watcher, emoji→SVG buttons, toasts, auth).
+
+Earlier — increment 124 (synthesis evidence-traceable Overview — Part B of the synthesis-overview
 fix; **completes** the "synthesis should provide a summary, too" request): after a synthesis is generated +
 verified, a **second LLM pass narrativizes ONLY the verified claims** into a short **Overview** shown **above**
 them, where **each Overview sentence links back to the verified claim(s) it restates** (per-sentence trace — click

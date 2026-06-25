@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-25 — Increment 125: strengthen the front-matter classifier (live-validated)
+- **Files:** `app/backend/summarization/chunk_filtering.py`, `tests/test_chunk_filtering.py`,
+  `INCREMENT-125-NOTES.md`.
+- **What:** A live real-Gemini synthesis (user-authorized token spend) showed inc-123's classifier still let
+  paper titles, author/affiliation lines, journal running-headers, and funding lines into the verified claims.
+  Strengthened `is_front_matter_chunk` to catch those (name-attached + digit-prefix author superscripts;
+  funding/grant-id lines; Title-Case-without-terminal-punctuation titles/headers — safe for prose). Real leaked
+  examples are now regression tests.
+- **Why:** inc 123 (front-matter fix) was too conservative on real data; the verified claims (and the inc-124
+  Overview built on them) must be body text. Confirmed live: clean claims + a real 3-sentence Overview with
+  per-sentence claim traces.
+- **Revert:** restore the inc-123 `is_front_matter_chunk` body (commit `e446b46`).
+
 ## 2026-06-25 — Increment 124: synthesis evidence-traceable Overview (Part B)
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 124 (2026-06-25) — the synthesis-verification section gained an "Overview" paragraph (a narration OF the verified claims, per-sentence trace links, egress-gated). Entries ABOVE this line are newer than the last help sync. -->
 - **Files:** NEW `app/backend/summarization/overview.py`, `integrations/gemini/overview.py`,
