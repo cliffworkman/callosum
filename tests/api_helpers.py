@@ -294,12 +294,13 @@ def _seed_library(db_url: str) -> dict[str, int]:
     }
 
 
-def _summarization_app(temp_db_url: str, *, generator: FakeSummaryGenerator | None = None):
+def _summarization_app(temp_db_url: str, *, generator: FakeSummaryGenerator | None = None, overview_generator=None):
     if generator is None:
         generator = FakeSummaryGenerator(sentences=[])
     return create_app(
         db_url=temp_db_url,
         summary_generator=generator,
+        overview_generator=overview_generator,
         embedding_model=ApiFakeEmbeddingModel(),
         vector_store=InMemoryVectorStore(),
         support_scorer=ConstantSupportScorer(),

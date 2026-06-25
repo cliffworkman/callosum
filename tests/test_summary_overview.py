@@ -115,3 +115,33 @@ def test_overview_drops_out_of_range_claim_indices(temp_db_url: str) -> None:
 
 def test_no_overview_generator_leaves_overview_null(temp_db_url: str) -> None:
     assert _overview_for(temp_db_url, overview_gen=None) is None
+
+
+from fastapi.testclient import TestClient
+
+from tests.api_helpers import _summarization_app
+
+
+def test_summary_response_includes_traceable_overview(temp_db_url: str) -> None:
+    seed = _seed_two_papers_two_chunks(temp_db_url)
+    sgen = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Cortex is discussed.",
+                citations=[CandidateCitation(chunk_id=seed["a1"], quote="Paper A chunk 1 discusses cortex.")],
+            )
+        ]
+    )
+    ogen = FakeOverviewGenerator(sentences=[OverviewSentence(text="In sum, cortex.", claim_indices=[0])])
+    client = TestClient(_summarization_app(temp_db_url, generator=sgen, overview_generator=ogen))
+
+    started = client.post(
+        "/summarize", json={"scope_type": "papers", "paper_ids": [seed["pa"], seed["pb"]], "top_k": 4}
+    )
+    result = client.get(f"/summarize/{started.json()['job_id']}").json()
+
+    assert started.status_code == 202
+    assert result["status"] == "done"
+    assert result["overview"] == [{"text": "In sum, cortex.", "claim_ordinals": [0]}]
+    # the trace target exists: a verified sentence at ordinal 0
+    assert any(s["ordinal"] == 0 and not s["flagged"] for s in result["sentences"])

@@ -84,6 +84,11 @@ class SummarySentenceResponse(BaseModel):
     citations: list[SummaryCitationResponse]
 
 
+class OverviewItemResponse(BaseModel):
+    text: str
+    claim_ordinals: list[int]  # ordinals of the verified sentences this Overview sentence restates
+
+
 class SummarizeJobResponse(BaseModel):
     job_id: str
     status: Literal["pending", "running", "done", "error"]
@@ -91,6 +96,7 @@ class SummarizeJobResponse(BaseModel):
     summary_id: int | None = None
     summary_status: str | None = None
     sentences: list[SummarySentenceResponse] | None = None
+    overview: list[OverviewItemResponse] | None = None
 
 
 class SummaryListItem(BaseModel):
@@ -197,6 +203,7 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
                 top_k=request.top_k,
                 verifier_config=config,
                 support_scorer=support_scorer,
+                overview_generator=_overview_generator(api),
             )
             response = _persisted_summary_response(conn, summary_id=result.summary_id, job_id=job_id)
         jobs.mark_done(job_id, response)
@@ -218,6 +225,21 @@ def _summary_generator(api: FastAPI) -> SummaryGenerator:
     return EgressGatedSummaryGenerator(
         inner=CachedSummaryGenerator(inner=inner),
         data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled,
+    )
+
+
+def _overview_generator(api: FastAPI):
+    from app.backend.llm.egress import EgressGatedOverviewGenerator
+    from integrations.gemini.overview import GeminiOverviewGenerator
+
+    inner = api.state.overview_generator
+    if inner is None:
+        config = GeminiConfig.from_environment()
+        if not (config.data_egress_enabled and config.resolved_api_key()):
+            return None  # no overview without egress + a key; the verified claims stand alone
+        inner = GeminiOverviewGenerator(config=config)
+    return EgressGatedOverviewGenerator(
+        inner=inner, data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled
     )
 
 
@@ -244,12 +266,23 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
             .order_by(summary_sentences.c.ordinal, summary_sentences.c.id)
         ).mappings()
     )
+    overview_raw = summary["overview_json"] if "overview_json" in summary else None
+    overview = (
+        [
+            OverviewItemResponse(text=str(i["text"]), claim_ordinals=[int(o) for o in i["claim_ordinals"]])
+            for i in overview_raw
+            if isinstance(i, dict) and i.get("text") and isinstance(i.get("claim_ordinals"), list)
+        ]
+        if isinstance(overview_raw, list)
+        else None
+    )
     return SummarizeJobResponse(
         job_id=job_id,
         status="done",
         summary_id=summary_id,
         summary_status=summary["status"],
         sentences=[_summary_sentence_response(conn, sentence) for sentence in sentence_rows],
+        overview=overview,
     )
 
 

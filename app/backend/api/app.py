@@ -41,6 +41,7 @@ from app.backend.embeddings.vector_store import VectorStore
 from app.backend.help.assistant import HelpAssistant
 from app.backend.persistence.database import make_engine
 from app.backend.summarization.generators import SummaryGenerator
+from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import SupportScorer, VerificationConfig
 from integrations.crossref import CrossrefClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
@@ -69,6 +70,7 @@ def create_app(
     openalex_client: OpenAlexClient | None = None,
     openalex_author_client: OpenAlexAuthorClient | None = None,
     research_summary_generator: ResearchSummaryGenerator | None = None,
+    overview_generator: OverviewGenerator | None = None,
     help_assistant: HelpAssistant | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
@@ -112,6 +114,7 @@ def create_app(
     api.state.openalex_client = openalex_client
     api.state.openalex_author_client = openalex_author_client
     api.state.research_summary_generator = research_summary_generator
+    api.state.overview_generator = overview_generator
     api.state.help_assistant = help_assistant
 
     api.add_middleware(
