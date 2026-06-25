@@ -394,6 +394,12 @@ function App() {
   }, [cancelFocus]);
   const clearSignalFilter = useCallback(() => { setLibrarySignalFilter(null); setPage(0); }, []);
 
+  // inc-122: refresh the header "N flagged" chip from the persisted statcheck summary (cache-only count). Called
+  // on mount and by the METHODS "Statistics check" section after a batch run (ctx.onStatcheckRan).
+  const refreshStatcheckChip = useCallback(() => {
+    api("/methods/statcheck/summary").then(r => { if (r.ok) setStatcheckFlagged(r.data.flagged || 0); });
+  }, []);
+
   // health check
   useEffect(() => {
     api("/health").then(r => {
@@ -454,12 +460,9 @@ function App() {
     api("/papers/item-types").then(r => { if (r.ok) setItemTypes(r.data); });
   }, [libRefresh]);
 
-  // inc-100: the statcheck "N flagged" header chip count. Refetched on mount and whenever Settings closes (where
-  // the batch "Check all" runs) so the chip reflects the latest run without extra wiring.
-  useEffect(() => {
-    if (settingsOpen) return;
-    api("/methods/statcheck/summary").then(r => { if (r.ok) setStatcheckFlagged(r.data.flagged || 0); });
-  }, [settingsOpen]);
+  // inc-100/122: the statcheck "N flagged" header chip — fetched on mount; refreshed after a batch run via the
+  // METHODS "Statistics check" section's ctx.onStatcheckRan (the batch no longer lives in Settings).
+  useEffect(() => { refreshStatcheckChip(); }, [refreshStatcheckChip]);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
   const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen;
@@ -483,6 +486,7 @@ function App() {
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
     onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault,
+    onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
   };
 
   return (
