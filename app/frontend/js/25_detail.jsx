@@ -387,50 +387,6 @@ function AcquireOaRow({ paperId, onAcquired }) {
   );
 }
 
-// statcheck (inc 95): recompute reported NHST p-values from this paper's extracted text — a local, deterministic
-// signal (no AI). Consistent = green; inconsistent / decision-error = amber (a status to LOOK at, never a verdict
-// or accusation). Each row routes to its page. Gated on the paper having extracted text (chunks).
-function StatcheckRow({ paperId, paperTitle, hasText, onOpenPaper }) {
-  const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
-  const run = async () => {
-    setState({ status: "running" });
-    const r = await api(`/papers/${paperId}/statcheck`);
-    setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
-  };
-  const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: paperTitle }, { page, precision: "region" }); };
-  const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
-  const d = state.data;
-  return (
-    <div className="detail-statcheck">
-      <span className="detail-cite-label">Statistical reporting</span>
-      {!hasText
-        ? <span className="tag-suggest-empty">Process a PDF first — statcheck reads the paper's extracted text.</span>
-        : state.status === "idle"
-          ? <button className="btn-link" title="Recompute reported p-values from this paper's text — local, no AI" onClick={run}>Check statistics</button>
-          : null}
-      {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
-      {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
-      {state.status === "done" && d && (d.checked === 0
-        ? <div className="tag-suggest-empty">No APA-format statistics found in the extracted text.</div>
-        : <div className="statcheck-result">
-            <div className="statcheck-summary">{d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}</div>
-            <div className="statcheck-list">
-              {d.results.map((r, i) => (
-                <button key={i} className="statcheck-item" title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
-                  <span className="statcheck-raw">{r.raw}</span>
-                  <span className="statcheck-computed">computed p = {r.computed_p}</span>
-                  <span className={"cite-status " + (r.consistency === "consistent" ? "verified" : "flagged")}>{label(r.consistency)}</span>
-                </button>
-              ))}
-            </div>
-            <div className="statcheck-caveat">
-              statcheck reads only inline APA-style tests and recomputes each p — it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) — a prompt to look, not a verdict.
-            </div>
-          </div>)}
-    </div>
-  );
-}
-
 // inc-97: add an arbitrary CSL bibliographic field by hand (completes the inc-49 "More" deferral). Reuses the
 // validated generic `csl` patch — the backend allows letter-led [A-Za-z0-9_-] keys, rejecting reserved/core
 // ones (those have their own fields) with a 422 that surfaces as the pane's save note.
@@ -608,8 +564,6 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
             ))}
           </div>
         </div>}
-
-      <StatcheckRow paperId={p.id} paperTitle={p.title} hasText={(p.chunk_count || 0) > 0} onOpenPaper={onOpenPaper} />
 
       <CiteRow paperId={p.id} />
 

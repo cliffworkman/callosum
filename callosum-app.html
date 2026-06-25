@@ -3449,20 +3449,6 @@
       status === "running" ? "Acquiring\u2026" : "Acquire OA copy"
     ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg));
   }
-  function StatcheckRow({ paperId, paperTitle, hasText, onOpenPaper }) {
-    const [state, setState] = useState({ status: "idle" });
-    const run = async () => {
-      setState({ status: "running" });
-      const r = await api(`/papers/${paperId}/statcheck`);
-      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
-    };
-    const open = (page) => {
-      if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: paperTitle }, { page, precision: "region" });
-    };
-    const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
-    const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Statistical reporting"), !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 statcheck reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from this paper's text \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No APA-format statistics found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list" }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item", title: r.page != null ? "Open page " + r.page : "", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "computed p = ", r.computed_p), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "consistent" ? "verified" : "flagged") }, label(r.consistency))))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "statcheck reads only inline APA-style tests and recomputes each p \u2014 it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) \u2014 a prompt to look, not a verdict."))));
-  }
   function AddFieldRow({ onSave }) {
     const [name, setName] = useState("");
     const [value, setValue] = useState("");
@@ -3628,7 +3614,7 @@
         a.oa_color
       ) : null,
       a.oa_version ? /* @__PURE__ */ React.createElement("span", { className: "oa-meta" }, a.oa_version, a.oa_source ? " \xB7 " + a.oa_source : "") : null
-    )))), /* @__PURE__ */ React.createElement(StatcheckRow, { paperId: p.id, paperTitle: p.title, hasText: (p.chunk_count || 0) > 0, onOpenPaper }), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier))));
+    )))), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier))));
   }
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";
