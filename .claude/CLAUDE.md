@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 122** (see Increment workflow) with **437 pytest tests
+It is currently at **Increment 123** (see Increment workflow) with **440 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 122 (statcheck relocated to a METHODS "Statistics check" section — the
+*Last updated: 2026-06-25 — increment 123 (synthesis no-query scope prefers content over front matter — Part A of
+the synthesis-overview fix): fixes **root cause #1** of the user's report that "synthesis doesn't provide a real
+summary, just relevant sections." The no-query **papers** scope (the inc-62 select-papers→summarize path) was
+ordering chunks by `chunks.c.id` (= import order → the *first* chunk of each paper is its **title page /
+masthead**) and `_round_robin_by_paper(rows)[:top_k]` took the first chunk of each paper — so the LLM was fed
+front matter and the "verified claims" came back as mastheads ("Original Manuscript", "© The Author(s) 2021 …
+DOI:", journal volume lines, author lists — validation summary #7). Fix: a new conservative classifier
+`app/backend/summarization/chunk_filtering.py::is_front_matter_chunk` (flags DOI/publisher/©-boilerplate; ≥2
+author-affiliation superscripts; short + journal-volume run; short + no-terminal-punctuation + <10% function
+words — **titles deliberately NOT caught**, errs toward "content") + a two-phase `_select_no_query` in
+`pipeline.py` that round-robins **content** chunks across papers first, then front-matter chunks **as fallback**
+(never dropped — a paper with only front matter still contributes), then slices `top_k`. **Query/cluster scopes
+untouched** (query ranking already passes front matter). **Backend-only — no `/summarize` contract change, no new
+endpoint, no migration, no egress, no new dependency** → no rule-#10 route change (surface check 0 uncovered, 88
+API / 460 FE) and no audit-gate trigger; **Principles gate non-triggering** (a retrieval-quality change like
+inc-66 trashed-paper exclusion; inspectability / provenance / egress posture all unchanged — every verified claim
+still carries its quote/page/confidence). pytest **440** (+3: 2 classifier unit + the content-over-front-matter
+selection assertion); `ruff` clean. Design (both parts): `.claude/docs/specs/2026-06-25-synthesis-overview-design.md`;
+plan: `…-synthesis-frontmatter-fix-plan.md`; notes: `INCREMENT-123-NOTES.md`. **NEXT (user-queued):** **inc 124,
+Part B — the evidence-traceable Overview**: a second LLM pass that narrativizes ONLY the verified claims into a
+short prose Overview shown above them, where **each Overview sentence links back to the verified claim(s) it
+restates** (per-sentence trace; citations inherited from verified claims, never LLM-invented; framed
+"synthesized from the verified claims below", not "unverified"). Trips the audit + Principles gates; adds a
+`summaries.overview_json` migration + the `EgressGatedOverviewGenerator` seam + `20_synthesis.jsx` rendering.
+
+Earlier — increment 122 (statcheck relocated to a METHODS "Statistics check" section — the
 first real METHODS module on the inc-121 pane registry): moved **both** statcheck surfaces — the **library-wide
 batch** (was `StatcheckSettings` in ⚙ Settings) and the **per-paper check** (was `StatcheckRow` in the Details
 pane) — into a new **METHODS accordion section** "Statistics check" (`app/frontend/js/06_methods_statcheck.jsx`,

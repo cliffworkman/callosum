@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-25 — Increment 123: synthesis no-query scope prefers content over front matter (Part A)
+- **Files:** NEW `app/backend/summarization/chunk_filtering.py`; `app/backend/summarization/pipeline.py`,
+  `tests/{test_chunk_filtering,test_summarize_selected}.py`, `INCREMENT-123-NOTES.md`.
+- **What:** A conservative `is_front_matter_chunk` classifier + a two-phase `_select_no_query` so the no-query
+  papers (and single-paper) synthesis scope feeds real body content, not title-page mastheads/DOIs/author lines.
+- **Why:** Root cause #1 of "synthesis gives no real summary, just front matter" (validation summary #7) — the
+  old `_round_robin_by_paper(rows)[:top_k]` fed the first chunk of each paper (its masthead). Part A of the
+  inc-123/124 synthesis-overview design; Part B (the evidence-traceable Overview) is inc 124.
+- **Revert:** restore the `_round_robin_by_paper(rows)[:top_k]` return in `_source_chunks_for_scope`.
+
 ## 2026-06-25 — Increment 122: statcheck relocated to a METHODS "Statistics check" section
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 122 (2026-06-25) — the "Checking statistics (statcheck)" section's per-paper + library-wide passages were repointed from "Details pane" / "Settings → Statistics check" to "METHODS pane → Statistics check section". Entries ABOVE this line are newer than the last help sync. -->
 

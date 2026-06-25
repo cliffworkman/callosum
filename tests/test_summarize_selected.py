@@ -126,8 +126,7 @@ def _seed_two_papers_frontmatter_then_content(db_url: str) -> dict[str, int]:
     engine = make_engine(db_url)
     fm = {
         "a": "Original Manuscript",
-        "b": "Social Psychological and Personality Science 1-10 © The Author(s) 2021 "
-        "DOI: 10.1177/19485506211031722",
+        "b": "Social Psychological and Personality Science 1-10 © The Author(s) 2021 DOI: 10.1177/19485506211031722",
     }
     body = {
         "a": "Anomalous faces were rated more negatively in warmth and competence than typical faces.",
