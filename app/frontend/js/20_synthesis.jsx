@@ -1,3 +1,34 @@
+// inc 124: scroll to + briefly flash the verified claim(s) an Overview sentence traces to (by ordinal).
+function flashClaims(ordinals) {
+  (ordinals || []).forEach((ord, idx) => {
+    const el = document.getElementById("summary-claim-" + ord);
+    if (!el) return;
+    if (idx === 0) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("claim-flash");
+    setTimeout(() => el.classList.remove("claim-flash"), 1400);
+  });
+}
+
+// inc 124: an evidence-traceable Overview — a short narration OF the verified claims (not authoritative prose).
+// Each line restates one or more verified claims and links back to them: click → the claim(s) flash below.
+function OverviewBlock({ overview }) {
+  if (!overview || overview.length === 0) return null;
+  return (
+    <section className="synth-overview">
+      <p className="eyebrow">Overview — synthesized from the verified claims below</p>
+      {overview.map((item, i) => (
+        <button key={i} className="overview-line" title="Show the verified claim(s) this restates"
+          onClick={() => flashClaims(item.claim_ordinals)}>
+          {item.text}
+          <span className="overview-trace">
+            {(item.claim_ordinals || []).map(o => "[" + (o + 1) + "]").join(" ")}
+          </span>
+        </button>
+      ))}
+    </section>
+  );
+}
+
 function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState({ status: "idle" });
@@ -159,6 +190,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
               <div className="big">No groundable summary produced.</div>
               The generator returned no sentences for this scope.
             </div>}
+          {sentences.length > 0 && <OverviewBlock overview={state.result.overview} />}
           {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} />}
         </div>}
 
@@ -243,7 +275,7 @@ function GroupedSummarySentences({ sentences, onOpenCitation, onSaveHighlight })
 function SummarySentence({ sentence, onOpenCitation, onSaveHighlight }) {
   const flagged = !!sentence.flagged;
   return (
-    <div className={"summary-sentence " + (flagged ? "flagged" : "verified")}>
+    <div id={"summary-claim-" + sentence.ordinal} className={"summary-sentence " + (flagged ? "flagged" : "verified")}>
       <div className="sent-head">
         <p className="sent-text">{sentence.text}</p>
         <span className={"sent-badge " + (flagged ? "flagged" : "verified")}>{flagged ? "flagged" : "verified"}</span>

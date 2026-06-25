@@ -867,6 +867,12 @@
   @keyframes pulse { 0%, 100% { opacity: .35; } 50% { opacity: 1; } }
   .summary-meta { margin: 13px 0 10px; font-size: 11px; color: var(--ink-3); font-family: var(--mono); }
   .summary-close { float: right; font-size: 11px; font-family: var(--sans); }  /* inc 116: exit a done/loaded synthesis → idle */
+  /* inc 124: the evidence-traceable Overview — a narration OF the verified claims, shown above them. */
+  .synth-overview { margin: 10px 0 14px; padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); }
+  .overview-line { display: block; width: 100%; text-align: left; background: none; border: none; padding: 4px 0; color: var(--ink); font-size: 13px; line-height: 1.5; cursor: pointer; }
+  .overview-line:hover { color: var(--accent); }
+  .overview-trace { margin-left: 6px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .summary-sentence.claim-flash { box-shadow: 0 0 0 2px var(--accent); border-radius: var(--radius-sm); transition: box-shadow .2s; }
   .summary-section { margin-top: 12px; }
   .summary-section-head {
     display: flex; justify-content: space-between; align-items: baseline; gap: 10px;
@@ -2875,6 +2881,29 @@
       "un-dismiss"
     )))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
   }
+  function flashClaims(ordinals) {
+    (ordinals || []).forEach((ord, idx) => {
+      const el = document.getElementById("summary-claim-" + ord);
+      if (!el) return;
+      if (idx === 0) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("claim-flash");
+      setTimeout(() => el.classList.remove("claim-flash"), 1400);
+    });
+  }
+  function OverviewBlock({ overview }) {
+    if (!overview || overview.length === 0) return null;
+    return /* @__PURE__ */ React.createElement("section", { className: "synth-overview" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overview \u2014 synthesized from the verified claims below"), overview.map((item, i) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: i,
+        className: "overview-line",
+        title: "Show the verified claim(s) this restates",
+        onClick: () => flashClaims(item.claim_ordinals)
+      },
+      item.text,
+      /* @__PURE__ */ React.createElement("span", { className: "overview-trace" }, (item.claim_ordinals || []).map((o) => "[" + (o + 1) + "]").join(" "))
+    )));
+  }
   function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
     const [query, setQuery] = useState("");
     const [state, setState] = useState({ status: "idle" });
@@ -2990,7 +3019,7 @@
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences for this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences for this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
       SummaryHistory,
       {
         state: history,
@@ -3014,7 +3043,7 @@
   }
   function SummarySentence({ sentence, onOpenCitation, onSaveHighlight }) {
     const flagged = !!sentence.flagged;
-    return /* @__PURE__ */ React.createElement("div", { className: "summary-sentence " + (flagged ? "flagged" : "verified") }, /* @__PURE__ */ React.createElement("div", { className: "sent-head" }, /* @__PURE__ */ React.createElement("p", { className: "sent-text" }, sentence.text), /* @__PURE__ */ React.createElement("span", { className: "sent-badge " + (flagged ? "flagged" : "verified") }, flagged ? "flagged" : "verified")), sentence.citations && sentence.citations.length > 0 ? sentence.citations.map((citation) => /* @__PURE__ */ React.createElement(CitationCard, { key: citation.mapping_id, citation, onOpenCitation, onSaveHighlight })) : /* @__PURE__ */ React.createElement("div", { className: "citation" }, /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "No citations returned for this sentence.")));
+    return /* @__PURE__ */ React.createElement("div", { id: "summary-claim-" + sentence.ordinal, className: "summary-sentence " + (flagged ? "flagged" : "verified") }, /* @__PURE__ */ React.createElement("div", { className: "sent-head" }, /* @__PURE__ */ React.createElement("p", { className: "sent-text" }, sentence.text), /* @__PURE__ */ React.createElement("span", { className: "sent-badge " + (flagged ? "flagged" : "verified") }, flagged ? "flagged" : "verified")), sentence.citations && sentence.citations.length > 0 ? sentence.citations.map((citation) => /* @__PURE__ */ React.createElement(CitationCard, { key: citation.mapping_id, citation, onOpenCitation, onSaveHighlight })) : /* @__PURE__ */ React.createElement("div", { className: "citation" }, /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "No citations returned for this sentence.")));
   }
   function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
     const verified = citation.status === "verified";
