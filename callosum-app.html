@@ -430,6 +430,33 @@
   }
   .axis-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 8px; }
   .axis-modal-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; margin: 8px 0 6px; }
+  /* inc 126: p-curve modal (collection-level evidential-value check). Tokens only. */
+  .pcurve-modal { width: min(560px, 94vw); }
+  .pcurve-framing { font-size: 12px; color: var(--ink-2); line-height: 1.5; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 8px 10px; margin: 4px 0 10px; }
+  .pcurve-note { font-size: 12px; color: var(--ink-2); line-height: 1.45; margin: 8px 0; }
+  .pcurve-warn { font-size: 11.5px; color: var(--flag); background: var(--flag-soft); border: 1px solid var(--flag); border-radius: var(--radius-sm); padding: 5px 9px; margin: 6px 0; }
+  .pcurve-svg { width: 100%; height: auto; display: block; margin: 6px 0 10px; }
+  .pcurve-bar { fill: var(--accent); }
+  .pcurve-null { stroke: var(--ink-3); stroke-width: 1; }
+  .pcurve-null-label { fill: var(--ink-3); font-size: 9px; font-family: var(--mono); }
+  .pcurve-axis { fill: var(--ink-2); font-size: 10px; font-family: var(--mono); }
+  .pcurve-pct { fill: var(--ink-3); font-size: 9px; font-family: var(--mono); }
+  .pcurve-axis-title { fill: var(--ink-3); font-size: 9px; }
+  .pcurve-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 10px; }
+  .pcurve-stat { flex: 1; min-width: 180px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px; }
+  .pcurve-stat.pos { border-color: var(--verified); }
+  .pcurve-stat .k { display: block; font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .pcurve-stat .v { display: block; font-family: var(--mono); font-size: 12.5px; color: var(--ink); margin-top: 2px; }
+  .pcurve-stat .d { display: block; font-size: 11px; color: var(--ink-2); margin-top: 3px; }
+  .pcurve-included { margin: 4px 0 8px; font-size: 12px; }
+  .pcurve-included summary { cursor: pointer; color: var(--accent); }
+  .pcurve-test { display: flex; justify-content: space-between; gap: 8px; width: 100%; text-align: left; background: none; border: none; border-bottom: 1px solid var(--line); padding: 5px 0; cursor: pointer; color: var(--ink); }
+  .pcurve-test:hover { color: var(--accent); }
+  .pcurve-test-raw { font-family: var(--mono); font-size: 11px; }
+  .pcurve-test-p { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
+  .pcurve-coverage { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 8px 0; }
+  .pcurve-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
+  .pcurve-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
   .axis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
   .term-chip {
     border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);
@@ -1876,6 +1903,7 @@
     onClearLibrarySelect,
     onBulkDelete,
     onBulkSummarize,
+    onBulkPcurve,
     onBulkExport,
     onBulkBibliography,
     onSelectAll,
@@ -1944,7 +1972,7 @@
         onChange: (e) => onQuery(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -3853,6 +3881,88 @@
     const s = imp.summary;
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import citations"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "BibTeX"), " (.bib), ", /* @__PURE__ */ React.createElement("b", null, "RIS"), " (.ris), or ", /* @__PURE__ */ React.createElement("b", null, "CSL-JSON"), " (.json) file exported from Zotero, Mendeley, EndNote, or callosum. Each entry becomes a metadata-only library paper (no PDF attached); entries already in your library are skipped. Everything stays on your machine \u2014 nothing is sent anywhere."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".bib,.ris,.json,.txt", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing + embedding\u2026" }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.imported), " imported \xB7 ", s.duplicate, " already in library", s.failed ? ` \xB7 ${s.failed} skipped` : "", s.format == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't recognise the file \u2014 is it BibTeX, RIS, or CSL-JSON?") : s.imported > 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library, filterable by type.") : null), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
   }
+  const SNS2014_CSL = {
+    type: "article-journal",
+    title: "P-curve: A key to the file-drawer",
+    author: [
+      { family: "Simonsohn", given: "Uri" },
+      { family: "Nelson", given: "Leif D." },
+      { family: "Simmons", given: "Joseph P." }
+    ],
+    "container-title": "Journal of Experimental Psychology: General",
+    volume: "143",
+    issue: "2",
+    page: "534-547",
+    issued: { "date-parts": [[2014]] },
+    DOI: "10.1037/a0033242"
+  };
+  function fmtPval(p) {
+    if (p == null) return "\u2014";
+    if (p < 1e-4) return "< .0001";
+    return p.toFixed(4).replace(/^0/, "");
+  }
+  function PcurvePlot({ bins }) {
+    const W = 330, H = 150, padL = 30, padB = 28, padT = 12;
+    const plotW = W - padL - 10, plotH = H - padB - padT;
+    const ymax = Math.max(60, Math.ceil(Math.max(...bins, 20) / 10) * 10);
+    const labels = [".01", ".02", ".03", ".04", ".05"];
+    const bw = plotW / 5;
+    const y = (pct) => padT + plotH * (1 - pct / ymax);
+    return /* @__PURE__ */ React.createElement("svg", { className: "pcurve-svg", viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "p-curve of significant p-values" }, /* @__PURE__ */ React.createElement("line", { x1: padL, y1: y(20), x2: W - 10, y2: y(20), className: "pcurve-null", strokeDasharray: "4 3" }), /* @__PURE__ */ React.createElement("text", { x: W - 12, y: y(20) - 3, className: "pcurve-null-label", textAnchor: "end" }, "null (20%)"), bins.map((pct, i) => {
+      const bx = padL + i * bw + bw * 0.18;
+      return /* @__PURE__ */ React.createElement("g", { key: i }, /* @__PURE__ */ React.createElement("rect", { className: "pcurve-bar", x: bx, y: y(pct), width: bw * 0.64, height: Math.max(0, padT + plotH - y(pct)) }), /* @__PURE__ */ React.createElement("text", { className: "pcurve-axis", x: padL + i * bw + bw / 2, y: H - 14, textAnchor: "middle" }, labels[i]), /* @__PURE__ */ React.createElement("text", { className: "pcurve-pct", x: padL + i * bw + bw / 2, y: y(pct) - 3, textAnchor: "middle" }, Math.round(pct), "%"));
+    }), /* @__PURE__ */ React.createElement("text", { className: "pcurve-axis-title", x: padL, y: H - 2 }, "reported p-value (significant only)"));
+  }
+  function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
+    const [state, setState] = useState({ status: "running" });
+    const [added, setAdded] = useState("idle");
+    const pollRef = useRef(null);
+    useEffect(() => {
+      let live = true;
+      const poll = (jobId) => api(`/methods/pcurve/run/${jobId}`).then((r2) => {
+        if (!live) return;
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", result: d.result });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "p-curve failed." });
+        else pollRef.current = setTimeout(() => poll(jobId), 1200);
+      });
+      apiPost("/methods/pcurve/run", { paper_ids: paperIds }).then((r2) => {
+        if (!live) return;
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        poll(r2.data.job_id);
+      });
+      return () => {
+        live = false;
+        if (pollRef.current) clearTimeout(pollRef.current);
+      };
+    }, [paperIds]);
+    const addCredit = async () => {
+      setAdded("adding");
+      const r2 = await apiPost("/library/import", { content: JSON.stringify([SNS2014_CSL]), format: "csl-json" });
+      setAdded(r2 && r2.ok ? "added" : "idle");
+      if (r2 && r2.ok && onChanged) onChanged();
+    };
+    const r = state.result;
+    const sig = !!(r && r.right_skew_p != null && r.right_skew_p < 0.05);
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal pcurve-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "p-curve \xB7 evidential value"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "pcurve-framing" }, "A ", /* @__PURE__ */ React.createElement("b", null, "collection-level"), " check over your selected papers: is the distribution of significant p-values right-skewed (consistent with evidential value) or flat? ", /* @__PURE__ */ React.createElement("b", null, "The curve is yours to interpret \u2014 it is not a verdict, and it never describes any single paper or author.")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Extracting and analysing p-values\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "p-curve could not run."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "done" && r && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "pcurve-note" }, r.note), r.k_significant > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, r.low_power && /* @__PURE__ */ React.createElement("div", { className: "pcurve-warn" }, "\u26A0 Only ", r.k_significant, " significant result", r.k_significant === 1 ? "" : "s", " \u2014 too few to interpret a p-curve reliably (\u2265 5 recommended)."), /* @__PURE__ */ React.createElement(PcurvePlot, { bins: r.bins }), /* @__PURE__ */ React.createElement("div", { className: "pcurve-stats" }, /* @__PURE__ */ React.createElement("div", { className: "pcurve-stat" + (sig ? " pos" : "") }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Right-skew test"), /* @__PURE__ */ React.createElement("span", { className: "v" }, "Z = ", r.right_skew_z.toFixed(2), " \xB7 p = ", fmtPval(r.right_skew_p)), /* @__PURE__ */ React.createElement("span", { className: "d" }, sig ? "significantly right-skewed \u2014 consistent with evidential value" : "not significantly right-skewed")), /* @__PURE__ */ React.createElement("div", { className: "pcurve-stat" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Binomial (share p < .025)"), /* @__PURE__ */ React.createElement("span", { className: "v" }, "p = ", fmtPval(r.binomial_p)))), /* @__PURE__ */ React.createElement("details", { className: "pcurve-included" }, /* @__PURE__ */ React.createElement("summary", null, r.included_tests.length, " included tests \xB7 ", r.n_papers, " papers"), r.included_tests.map((t, i) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: i,
+        className: "pcurve-test",
+        title: t.page != null ? "Open page " + t.page : "",
+        onClick: () => t.page != null && onOpenPaper && onOpenPaper({ id: t.paper_id, title: "" }, { page: t.page, precision: "region" })
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-raw" }, t.raw),
+      /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "p = ", t.p)
+    )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: p-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal test, and conservatively drops results so significant their p rounds to \u22480. Run it on a small, curated set for the most meaningful curve.")), /* @__PURE__ */ React.createElement("div", { className: "pcurve-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " p-curve \u2014 Simonsohn, Nelson & Simmons (2014), ", /* @__PURE__ */ React.createElement("i", null, "J. Exp. Psychol. Gen."), " 143(2):534\u2013547.", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "pcurve-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " (Lukas Jung). Surfaced via D. Lakens' automated-review catalog."))));
+  }
   function PdfViewer({ paperId, title, target, annoRefresh }) {
     const [state, setState] = useState({ status: "loading" });
     const [scale, setScale] = useState(1.15);
@@ -5264,6 +5374,14 @@
       setTheoryOpen("synthesis");
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
     }, [selectedLibraryIds]);
+    const [pcurvePapers, setPcurvePapers] = useState(null);
+    const bulkPcurvePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length) {
+        setPcurvePapers(ids);
+        setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      }
+    }, [selectedLibraryIds]);
     const summarizePaperIds = useCallback((ids) => {
       if (!ids || !ids.length) return;
       setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
@@ -5488,7 +5606,7 @@
     useEffect(() => {
       refreshStatcheckChip();
     }, [refreshStatcheckChip]);
-    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen;
+    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -5583,6 +5701,7 @@
           onClearLibrarySelect: clearLibrarySelect,
           onBulkDelete: bulkDeletePapers,
           onBulkSummarize: bulkSummarizePapers,
+          onBulkPcurve: bulkPcurvePapers,
           onBulkExport: bulkExportPapers,
           onBulkBibliography: bulkBibliography,
           onSelectAll: selectAllLibrary,
@@ -5646,6 +5765,14 @@
       WantedModal,
       {
         onClose: () => setWantedOpen(false),
+        onOpenPaper: openPdf,
+        onChanged: () => setLibRefresh((n) => n + 1)
+      }
+    ), pcurvePapers && /* @__PURE__ */ React.createElement(
+      PcurveModal,
+      {
+        paperIds: pcurvePapers,
+        onClose: () => setPcurvePapers(null),
         onOpenPaper: openPdf,
         onChanged: () => setLibRefresh((n) => n + 1)
       }

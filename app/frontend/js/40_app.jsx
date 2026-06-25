@@ -260,6 +260,13 @@ function App() {
     setSelectedLibraryIds(new Set());
   }, [selectedLibraryIds]);
 
+  // inc-126: run a collection-level p-curve over the selection (the modal owns the job + render). null = closed.
+  const [pcurvePapers, setPcurvePapers] = useState(null);
+  const bulkPcurvePapers = useCallback(() => {
+    const ids = [...selectedLibraryIds];
+    if (ids.length) { setPcurvePapers(ids); setSelectedLibraryIds(new Set()); }
+  }, [selectedLibraryIds]);
+
   // inc 117 (SP1): summarize an explicit id set (from the My Publications tab) → drive the synthesis section.
   const summarizePaperIds = useCallback((ids) => {
     if (!ids || !ids.length) return;
@@ -465,7 +472,7 @@ function App() {
   useEffect(() => { refreshStatcheckChip(); }, [refreshStatcheckChip]);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen;
+  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -515,7 +522,7 @@ function App() {
           librarySearchField, onSearchFieldChange: (f) => { setLibrarySearchField(f); setPage(0); },
           libraryItemType, itemTypes, onItemTypeChange: (t) => { setLibraryItemType(t); setPage(0); },
           onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-          onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkExport: bulkExportPapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
+          onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkExport: bulkExportPapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
           libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
           libraryTagFilter, onClearTagFilter: clearTagFilter,
           libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,
@@ -556,6 +563,13 @@ function App() {
       {wantedOpen &&
         <WantedModal
           onClose={() => setWantedOpen(false)}
+          onOpenPaper={openPdf}
+          onChanged={() => setLibRefresh(n => n + 1)}
+        />}
+      {pcurvePapers &&
+        <PcurveModal
+          paperIds={pcurvePapers}
+          onClose={() => setPcurvePapers(null)}
           onOpenPaper={openPdf}
           onChanged={() => setLibRefresh(n => n + 1)}
         />}
