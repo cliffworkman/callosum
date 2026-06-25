@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal
 
-from sqlalchemy import Connection, insert, select
+from sqlalchemy import Connection, insert, select, update
 
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks
@@ -21,6 +21,7 @@ from app.backend.persistence.schema import (
 )
 from app.backend.summarization.chunk_filtering import is_front_matter_chunk
 from app.backend.summarization.generators import SourceChunk, SummaryGenerator
+from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
     SupportScorer,
@@ -86,6 +87,7 @@ def summarize_scope(
     top_k: int = 8,
     verifier_config: VerificationConfig | None = None,
     support_scorer: SupportScorer | None = None,
+    overview_generator: OverviewGenerator | None = None,
 ) -> SummaryPersistenceResult:
     source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=vector_store, top_k=top_k)
     # Pass conn so the cache wrapper can read/write llm_cache on this same transaction (a second SQLite
@@ -133,7 +135,45 @@ def summarize_scope(
                 citations=citation_results,
             )
         )
+    _maybe_store_overview(
+        conn,
+        summary_id=summary_id,
+        sentence_results=sentence_results,
+        scope=scope,
+        overview_generator=overview_generator,
+    )
     return SummaryPersistenceResult(summary_id=summary_id, status=summary_status, sentences=sentence_results)
+
+
+def _maybe_store_overview(
+    conn: Connection,
+    *,
+    summary_id: int,
+    sentence_results: list[SummarySentencePersistenceResult],
+    scope: SummaryScope,
+    overview_generator: OverviewGenerator | None,
+) -> None:
+    """Second pass: narrativize ONLY the verified claims into a per-sentence traceable Overview. Each Overview
+    sentence's claim_indices (into the ordered verified claims) are validated and mapped to those claims'
+    ordinals, then stored on summaries.overview_json. 0 verified claims → no overview; any error (egress-off
+    included) → no overview (never fails the synthesis; the verified claims stand alone)."""
+    if overview_generator is None:
+        return
+    verified = [sentence for sentence in sentence_results if not sentence.flagged]
+    if not verified:
+        return
+    claims = [sentence.text for sentence in verified]
+    try:
+        produced = overview_generator.generate(verified_claims=claims, scope_ref=scope.to_ref())
+    except Exception:
+        return
+    items: list[dict[str, object]] = []
+    for sentence in produced:
+        ordinals = sorted({verified[i].ordinal for i in sentence.claim_indices if 0 <= i < len(verified)})
+        if sentence.text.strip() and ordinals:
+            items.append({"text": sentence.text.strip(), "claim_ordinals": ordinals})
+    if items:
+        conn.execute(update(summaries).where(summaries.c.id == summary_id).values(overview_json=items))
 
 
 def _source_chunks_for_scope(

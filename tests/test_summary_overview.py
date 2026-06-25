@@ -49,3 +49,69 @@ def test_parse_overview_response_drops_malformed_items() -> None:
     # non-list claim_indices.
     assert [s.text for s in out] == ["A.", "C."]
     assert out[1].claim_indices == [1, 2]
+
+
+from sqlalchemy import select as _select
+
+from app.backend.persistence.database import make_engine as _make_engine
+from app.backend.persistence.schema import summaries as _summaries
+from app.backend.summarization.generators import (
+    CandidateCitation,
+    CandidateSummarySentence,
+    FakeSummaryGenerator,
+)
+from app.backend.summarization.pipeline import SummaryScope, summarize_scope
+from tests.api_helpers import ApiFakeEmbeddingModel, ConstantSupportScorer, InMemoryVectorStore
+from tests.test_summarize_selected import _seed_two_papers_two_chunks  # reuse the multi-paper fixture
+
+
+def _overview_for(db_url: str, *, overview_gen):
+    seed = _seed_two_papers_two_chunks(db_url)
+    sgen = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Cortex is discussed.",
+                citations=[CandidateCitation(chunk_id=seed["a1"], quote="Paper A chunk 1 discusses cortex.")],
+            )
+        ]
+    )
+    engine = _make_engine(db_url)
+    with engine.begin() as conn:
+        result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[seed["pa"], seed["pb"]]),
+            generator=sgen,
+            model=ApiFakeEmbeddingModel(),
+            vector_store=InMemoryVectorStore(),
+            support_scorer=ConstantSupportScorer(),
+            top_k=4,
+            overview_generator=overview_gen,
+        )
+        row = conn.execute(
+            _select(_summaries.c.overview_json).where(_summaries.c.id == result.summary_id)
+        ).scalar_one()
+    engine.dispose()
+    return row
+
+
+def test_overview_stored_with_mapped_ordinals(temp_db_url: str) -> None:
+    gen = FakeOverviewGenerator(sentences=[OverviewSentence(text="In sum, cortex matters.", claim_indices=[0])])
+    overview = _overview_for(temp_db_url, overview_gen=gen)
+    assert overview == [{"text": "In sum, cortex matters.", "claim_ordinals": [0]}]
+
+
+def test_overview_drops_out_of_range_claim_indices(temp_db_url: str) -> None:
+    # index 5 doesn't exist (only 1 verified claim, ordinal 0) → dropped; a sentence left with no valid refs is
+    # dropped entirely.
+    gen = FakeOverviewGenerator(
+        sentences=[
+            OverviewSentence(text="Valid.", claim_indices=[0, 5]),
+            OverviewSentence(text="All bad refs.", claim_indices=[9]),
+        ]
+    )
+    overview = _overview_for(temp_db_url, overview_gen=gen)
+    assert overview == [{"text": "Valid.", "claim_ordinals": [0]}]
+
+
+def test_no_overview_generator_leaves_overview_null(temp_db_url: str) -> None:
+    assert _overview_for(temp_db_url, overview_gen=None) is None
