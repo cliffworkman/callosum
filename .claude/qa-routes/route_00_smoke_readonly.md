@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /health, GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, GET /tags, GET /axes, GET /help/corpus, GET /citations/styles, GET /summaries
-fe: 10_pdf_layer.jsx, 30_viewer.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
+fe: 05_panes.jsx, 10_pdf_layer.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
 -->
 
 # ROUTE 00 — Read-only smoke (every surface renders, nothing errors)
@@ -35,10 +35,17 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
    **Facial Anomaly Perception** and confirm it shows the honest **"PDF not available locally"** null-state
    (its attachment rows point at files that aren't on disk — this is the coordinate-honesty `null` case and the
    *correct* behavior, NOT a bug; the resulting `/papers/{id}/pdf` 404 + its browser console line are expected).
-4. **Right pane**: Synthesis pane renders (empty state ok); selecting a paper shows the Details pane below
-   the draggable divider.
-5. **Axes sidebar** (`15_axes.jsx` is exercised in its own route — here just confirm the panel renders and
-   lists seeded axes, and the Tags panel renders).
+4. **THEORY accordion — left pane** (`05_panes.jsx` + `15_axes.jsx`/`20_synthesis.jsx`/`10_pdf_layer.jsx`):
+   the left pane is an **accordion** with section headers **AXES · SYNTHESIS · TAGS**, one body open at a time
+   (AXES open by default). Click **SYNTHESIS** → AXES collapses and the synthesis query box renders (empty state
+   ok). Click **TAGS** → the tag list renders, or the **"No tags yet — add tags from a paper's Details pane"**
+   empty-state hint when the library has none (it always shows now — discoverability). Reload and confirm the
+   open section **persists** (`callosum.theoryOpen`).
+5. **METHODS accordion — right pane** (`25_detail.jsx`): the right pane is the **DETAILS** accordion section. With
+   nothing selected it shows the **"Select a paper to see its details"** hint; selecting a paper renders the
+   editable Details. (AXES scoring/merge/suggest is exercised in its own route — here just confirm AXES lists the
+   seeded axis.) Bonus check: start nothing, switch THEORY to SYNTHESIS, select a paper (METHODS shows details),
+   switch THEORY back to AXES — the synthesis section's state is preserved (mount-but-hide).
 6. **Settings** (`35_settings.jsx`): open the gear. Confirm theme toggle, default-axis-cutoff slider,
    hide-uncertain toggle, watched-folder auto-rescan toggle, help-assistant section all render. Toggle dark
    mode on/off and confirm the chrome re-themes while the (future) PDF page stays light. Close.
