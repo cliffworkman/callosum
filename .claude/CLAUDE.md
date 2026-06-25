@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 123** (see Increment workflow) with **440 pytest tests
+It is currently at **Increment 124** (see Increment workflow) with **449 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,39 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 123 (synthesis no-query scope prefers content over front matter — Part A of
+*Last updated: 2026-06-25 — increment 124 (synthesis evidence-traceable Overview — Part B of the synthesis-overview
+fix; **completes** the "synthesis should provide a summary, too" request): after a synthesis is generated +
+verified, a **second LLM pass narrativizes ONLY the verified claims** into a short **Overview** shown **above**
+them, where **each Overview sentence links back to the verified claim(s) it restates** (per-sentence trace — click
+a line → the claim(s) scroll into view + flash). Framed *"Overview — synthesized from the verified claims below"*
+(traceable, NOT a free-floating "unverified" blob — the user's refinement): it restates only verified claims, its
+trace refs are **inherited from verified claims, never LLM-invented** (`claim_indices` validated ⊆ the verified set
+→ mapped to the verified sentences' **ordinals**; out-of-range dropped), and a line left with no valid refs is
+dropped. New `app/backend/summarization/overview.py` (`OverviewGenerator` Protocol + `FakeOverviewGenerator` +
+`OverviewSentence{text,claim_indices}`) + `integrations/gemini/overview.py` (`GeminiOverviewGenerator`, mirrors
+`research_summary.py`; defensive `_parse_overview_response`; `OVERVIEW_PROMPT_VERSION`) + `EgressGatedOverviewGenerator`
+(the inc-58 seam — library-derived text → **library egress gate**; egress-off → summary gen already raised, so the
+pass is never reached → **no overview**, verified claims stand alone; any generator error caught → no overview,
+never fails the synthesis). `summarize_scope(..., overview_generator=None)` + `_maybe_store_overview`; new
+`summaries.overview_json` column (**migration 0015**, guarded/additive; head derived by tests, inc 99); `overview`
+on the summary response (`OverviewItemResponse{text, claim_ordinals}`); `_overview_generator(api)` factory +
+`create_app(overview_generator=…)` + `_summarization_app(..., overview_generator=…)` seams. Frontend
+`20_synthesis.jsx`: `OverviewBlock` above the claims + `flashClaims` scrolling/flashing `#summary-claim-<ordinal>`;
+tokens-only CSS (rule #8). **Principles gate #9 aligned** (traceable-to-evidence, restates only verified, secondary/
+above the evidence, egress-gated, omitted when 0 verified — declined the authoritative-prose-eclipsing-evidence
+path); **audit `.claude/security-audits/2026-06-25_synthesis-overview.md` PASS**; **rule #10** `route_55` extended;
+**surface check 88 API / 462 FE, 0 uncovered**. pytest **449** (+9 `test_summary_overview.py`: column, Fake/egress/
+parse, pipeline storage+map+out-of-range-drop+0-verified→none, e2e response); `ruff` clean; help corpus synthesis
+section gained an Overview paragraph (`HELP-DOCS-SYNCED` → 124). Verified **headed, no egress**
+(`.local/visual/drive_inc124_overview.py` — Overview above claims, label, trace-flash, 0 console/page/genai). The
+**real Gemini prose-quality eyeball is deferred to the user** (needs egress + a key). Design (both parts):
+`.claude/docs/specs/2026-06-25-synthesis-overview-design.md`; plan: `…-synthesis-overview-partB-plan.md`; notes:
+`INCREMENT-124-NOTES.md`. **This completes the synthesis-overview fix (Part A inc 123 + Part B inc 124).**
+**NEXT (user's pick):** the real-Gemini Overview eyeball (egress on); then the findings subsystem (FACT vs
+CANDIDATE) + adopting the THEORY/METHODS vocabulary, or open backlog (discovery/gapfinder, GRIM/p-curve,
+file-watcher, SVG buttons, toasts, auth).
+
+Earlier — increment 123 (synthesis no-query scope prefers content over front matter — Part A of
 the synthesis-overview fix): fixes **root cause #1** of the user's report that "synthesis doesn't provide a real
 summary, just relevant sections." The no-query **papers** scope (the inc-62 select-papers→summarize path) was
 ordering chunks by `chunks.c.id` (= import order → the *first* chunk of each paper is its **title page /

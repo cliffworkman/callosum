@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-25 — Increment 124: synthesis evidence-traceable Overview (Part B)
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 124 (2026-06-25) — the synthesis-verification section gained an "Overview" paragraph (a narration OF the verified claims, per-sentence trace links, egress-gated). Entries ABOVE this line are newer than the last help sync. -->
+- **Files:** NEW `app/backend/summarization/overview.py`, `integrations/gemini/overview.py`,
+  `alembic/versions/0015_summary_overview.py`, `.claude/security-audits/2026-06-25_synthesis-overview.md`,
+  `INCREMENT-124-NOTES.md`; `app/backend/{llm/egress.py, summarization/pipeline.py, persistence/schema.py,
+  api/app.py, api/routers/summaries.py, help/help_content.md}`, `app/frontend/js/20_synthesis.jsx`, `styles.css`,
+  `callosum-app.html`, `.claude/qa-routes/route_55_synthesis_verification.md`, `tests/{test_summary_overview.py,
+  api_helpers.py}`.
+- **What:** After a synthesis is generated + verified, a second LLM pass narrativizes ONLY the verified claims
+  into a short **Overview** shown above them, where **each Overview sentence links back to the verified claim(s)
+  it restates** (per-sentence trace; click → the claim flashes). Stored in a new `summaries.overview_json`
+  column; egress-gated (`EgressGatedOverviewGenerator`); claim refs validated ⊆ the verified set + mapped to
+  ordinals (citations inherited, never LLM-invented); 0 verified or egress-off → no overview.
+- **Why:** Root cause #2 of "synthesis gives no real summary" — there was no synthesis-prose surface. Part B of
+  the inc-123/124 design; framed "synthesized from the verified claims below" (traceable, not "unverified"), per
+  the user's refinement.
+- **Gates:** Principles #9 aligned; audit `2026-06-25_synthesis-overview.md` PASS; rule #10 route_55 extended;
+  surface check 88 API / 462 FE, 0 uncovered. Migration head → 0015.
+- **Revert:** `git revert` the inc-124 range, or drop the overview pass in `summarize_scope` + the
+  `overview` response field + the `OverviewBlock` render.
+
 ## 2026-06-25 — Increment 123: synthesis no-query scope prefers content over front matter (Part A)
 - **Files:** NEW `app/backend/summarization/chunk_filtering.py`; `app/backend/summarization/pipeline.py`,
   `tests/{test_chunk_filtering,test_summarize_selected}.py`, `INCREMENT-123-NOTES.md`.

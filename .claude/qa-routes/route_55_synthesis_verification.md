@@ -6,7 +6,8 @@ fe: 20_synthesis.jsx
 # ROUTE 55 - Synthesis and verification
 
 **Tier:** 2 egress/external
-**Goal:** Exhaust summary generation, polling, persisted summary browsing/deletion, and verification/citation honesty.
+**Goal:** Exhaust summary generation, polling, persisted summary browsing/deletion, verification/citation honesty,
+and the inc-124 evidence-traceable Overview (a narration OF the verified claims, with per-sentence trace links).
 
 ## Environment
 
@@ -35,8 +36,17 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 3. Generate cluster and query summaries, including an empty/whitespace query. Confirm validation and no orphaned spinners.
 4. Open persisted summary detail (`GET /summaries/{summary_id}`). Confirm every sentence shows visible verification status and every citation shows confidence, quote, page, and coordinate precision.
 5. Click citations. Assert exact/region/null coordinate honesty in the PDF viewer.
-6. Delete a disposable summary (`DELETE /summaries/{summary_id}`) and confirm it disappears from the list.
-7. In a separate egress-unset negative pass without fake generator, trigger summarize and confirm a graceful egress-disabled/provider-required message and zero genai network requests.
+6. **Overview (inc 124):** with a fake overview generator injected (and a verified sentence), confirm a summary's
+   `overview` renders **above** the verified claims, labeled **"Overview — synthesized from the verified claims
+   below"** (NOT "authoritative"); each Overview line shows its trace refs `[n]` and clicking it
+   scrolls-to/flashes the verified claim(s) it restates. Assert every Overview line traces to >=1 verified claim
+   and presents no claim the verified set doesn't support (signal-not-verdict; the Overview is secondary to the
+   evidence, never on its own authority).
+7. **Overview egress + degenerate:** with `CALLOSUM_ALLOW_DATA_EGRESS` unset (no overview generator), confirm a
+   summary has **no** overview and the verified claims stand alone — and zero genai-host requests. A summary with
+   0 verified claims shows no overview.
+8. Delete a disposable summary (`DELETE /summaries/{summary_id}`) and confirm it disappears from the list.
+9. In a separate egress-unset negative pass without fake generator, trigger summarize and confirm a graceful egress-disabled/provider-required message and zero genai network requests.
 
 ## Pass criteria
 

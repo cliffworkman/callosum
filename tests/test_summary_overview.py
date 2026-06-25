@@ -1,8 +1,27 @@
 from __future__ import annotations
 
 import sqlalchemy as sa
+from fastapi.testclient import TestClient
+from sqlalchemy import select
 
+from app.backend.llm.egress import DataEgressDisabledError, EgressGatedOverviewGenerator
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.schema import summaries
+from app.backend.summarization.generators import (
+    CandidateCitation,
+    CandidateSummarySentence,
+    FakeSummaryGenerator,
+)
+from app.backend.summarization.overview import FakeOverviewGenerator, OverviewSentence
+from app.backend.summarization.pipeline import SummaryScope, summarize_scope
+from integrations.gemini.overview import _parse_overview_response
+from tests.api_helpers import (
+    ApiFakeEmbeddingModel,
+    ConstantSupportScorer,
+    InMemoryVectorStore,
+    _summarization_app,
+)
+from tests.test_summarize_selected import _seed_two_papers_two_chunks  # reuse the multi-paper fixture
 
 
 def test_summaries_has_overview_json_column(temp_db_url: str) -> None:
@@ -10,11 +29,6 @@ def test_summaries_has_overview_json_column(temp_db_url: str) -> None:
     cols = {c["name"] for c in sa.inspect(engine).get_columns("summaries")}
     engine.dispose()
     assert "overview_json" in cols
-
-
-from app.backend.llm.egress import DataEgressDisabledError, EgressGatedOverviewGenerator
-from app.backend.summarization.overview import FakeOverviewGenerator, OverviewSentence
-from integrations.gemini.overview import _parse_overview_response
 
 
 def test_fake_overview_generator_returns_sentences() -> None:
@@ -51,20 +65,6 @@ def test_parse_overview_response_drops_malformed_items() -> None:
     assert out[1].claim_indices == [1, 2]
 
 
-from sqlalchemy import select as _select
-
-from app.backend.persistence.database import make_engine as _make_engine
-from app.backend.persistence.schema import summaries as _summaries
-from app.backend.summarization.generators import (
-    CandidateCitation,
-    CandidateSummarySentence,
-    FakeSummaryGenerator,
-)
-from app.backend.summarization.pipeline import SummaryScope, summarize_scope
-from tests.api_helpers import ApiFakeEmbeddingModel, ConstantSupportScorer, InMemoryVectorStore
-from tests.test_summarize_selected import _seed_two_papers_two_chunks  # reuse the multi-paper fixture
-
-
 def _overview_for(db_url: str, *, overview_gen):
     seed = _seed_two_papers_two_chunks(db_url)
     sgen = FakeSummaryGenerator(
@@ -75,7 +75,7 @@ def _overview_for(db_url: str, *, overview_gen):
             )
         ]
     )
-    engine = _make_engine(db_url)
+    engine = make_engine(db_url)
     with engine.begin() as conn:
         result = summarize_scope(
             conn,
@@ -87,9 +87,7 @@ def _overview_for(db_url: str, *, overview_gen):
             top_k=4,
             overview_generator=overview_gen,
         )
-        row = conn.execute(
-            _select(_summaries.c.overview_json).where(_summaries.c.id == result.summary_id)
-        ).scalar_one()
+        row = conn.execute(select(summaries.c.overview_json).where(summaries.c.id == result.summary_id)).scalar_one()
     engine.dispose()
     return row
 
@@ -115,11 +113,6 @@ def test_overview_drops_out_of_range_claim_indices(temp_db_url: str) -> None:
 
 def test_no_overview_generator_leaves_overview_null(temp_db_url: str) -> None:
     assert _overview_for(temp_db_url, overview_gen=None) is None
-
-
-from fastapi.testclient import TestClient
-
-from tests.api_helpers import _summarization_app
 
 
 def test_summary_response_includes_traceable_overview(temp_db_url: str) -> None:
