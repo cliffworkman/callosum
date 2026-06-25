@@ -1,14 +1,15 @@
 <!-- qa-coverage
-api: GET /papers/{paper_id}, PATCH /papers/{paper_id}, POST /papers/{paper_id}/re-resolve, GET /papers/{paper_id}/suggested-tags, POST /papers/{paper_id}/tags, DELETE /papers/{paper_id}/tags/{tag_id}, GET /papers/{paper_id}/statcheck, POST /papers/export, POST /citations/render
+api: GET /papers/{paper_id}, PATCH /papers/{paper_id}, POST /papers/{paper_id}/re-resolve, GET /papers/{paper_id}/suggested-tags, POST /papers/{paper_id}/tags, DELETE /papers/{paper_id}/tags/{tag_id}, POST /papers/export, POST /citations/render
 fe: 25_detail.jsx
 -->
 
-# ROUTE 30 — Editable Detail pane (bibliographic edit, tags, DOI re-resolve, cite, statcheck)
+# ROUTE 30 — Editable Detail pane (bibliographic edit, tags, DOI re-resolve, cite)
 
 **Tier:** 1 local-stateful (mutating against the throwaway DB — fine to mutate freely)
 **Goal:** Exhaust every editable field and action in the Details pane (`25_detail.jsx`) — the Mendeley-style
 inline editor — and assert edits persist correctly, the user-edited guard holds, and the honesty invariants
-are honored on the cite/statcheck surfaces.
+are honored on the cite surface. (Statcheck moved to the METHODS "Statistics check" section in inc 122 — see
+route_33.)
 
 ## Environment
 
@@ -18,11 +19,8 @@ which is metadata egress, NOT the Gemini gate — but assert no genai host is co
 ## Standing assertions
 
 All of `_TEMPLATE.md` → Standing assertions. Specifically here:
-- **Egress gate:** editing/saving/cite/statcheck must contact **no** genai host. (Re-resolve may contact a
+- **Egress gate:** editing/saving/cite must contact **no** genai host. (Re-resolve may contact a
   Crossref host; that is allowed. A Gemini host is **Critical**.)
-- **Coordinate honesty / signal-not-verdict:** the statcheck section shows per-test rows with **counts**, an
-  amber (not red) non-accusatory caveat, and **no composite "reproducibility score"**. A composite score or a
-  red "bad paper" verdict is a **High** finding.
 
 ## Steps
 
@@ -42,9 +40,6 @@ All of `_TEMPLATE.md` → Standing assertions. Specifically here:
 7. **Cite** (`POST /citations/render`): open "Cite as…", switch styles, confirm a live formatted preview +
    copy. Trigger the bulk "bibliography…" `.html` export and the per-paper BibTeX copy
    (`POST /papers/export`). Confirm the downloaded/copied output is well-formed for the chosen style.
-8. **Statcheck** (`GET /papers/{id}/statcheck`): run "Check statistics". Confirm per-test rows (verbatim
-   match + recomputed p + green/amber pill), transparent counts, the non-accusatory caveat, and that each
-   row routes to its page (page-open, not a fake exact highlight). Assert NO composite score is shown.
 
 ## Adversarial
 
@@ -56,8 +51,8 @@ All of `_TEMPLATE.md` → Standing assertions. Specifically here:
 ## Pass criteria
 
 - Every edit persists and projects to the library card; the user-edited guard holds.
-- Re-resolve, tags, cite, statcheck all complete through the UI; 0 console/page errors.
-- 0 genai-host requests; statcheck shows counts (no composite score); citations render per style.
+- Re-resolve, tags, cite all complete through the UI; 0 console/page errors.
+- 0 genai-host requests; citations render per style.
 - Adversarial inputs fail closed (clean rejection), never crash.
 
 ## Deposit

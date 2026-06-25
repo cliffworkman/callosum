@@ -36,7 +36,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 4. Edit note and color (`PATCH /annotations/{annotation_id}`). Confirm persistence after reload and no duplicate overlay.
 5. Delete the annotation (`DELETE /annotations/{annotation_id}`). Confirm it disappears after reload.
 6. Try an oversized note, invalid color, negative/non-finite bbox, and missing anchor text through the UI or API-backed form state. Confirm 422-class handling, not a crash.
-7. Exercise citation jumps from any visible synthesis/detail/statcheck citation: `exact` draws a bbox, `region` scrolls and shows approximate note, `null` opens page without a rect.
+7. Exercise citation jumps from any visible page-routing source (synthesis citation, detail-pane Files, statcheck rows in the METHODS "Statistics check" section): `exact` draws a bbox, `region` scrolls and shows approximate note, `null` opens page without a rect.
 
 ## Pass criteria
 
