@@ -19,6 +19,7 @@ from app.backend.persistence.schema import (
     summaries,
     summary_sentences,
 )
+from app.backend.summarization.chunk_filtering import is_front_matter_chunk
 from app.backend.summarization.generators import SourceChunk, SummaryGenerator
 from app.backend.summarization.verification import (
     LocalCitationVerifier,
@@ -171,10 +172,20 @@ def _source_chunks_for_scope(
             vector_store=vector_store,
             top_k=top_k,
         )
-    # No query → spread the top_k budget across the selected papers so a multi-paper summary covers them all
-    # (rows are chunk-id-ordered = import order, so a plain rows[:top_k] would fill from the lowest-id paper
-    # and ignore the rest). Single paper → identity.
-    return _round_robin_by_paper(rows)[:top_k]
+    # No query → prefer real body content over title-page/masthead chunks, then spread the budget across the
+    # selected papers so a multi-paper summary covers them all (rows are chunk-id-ordered = import order, so the
+    # first chunk of each paper is its front matter). Single paper → still drops its own masthead first.
+    return _select_no_query(rows, top_k)
+
+
+def _select_no_query(rows: list[SourceChunk], top_k: int) -> list[SourceChunk]:
+    """Round-robin content chunks across papers first, then front-matter chunks as fallback, then slice top_k.
+    Front matter (titles/mastheads/DOIs/author lines) is never dropped outright — a paper with only front matter
+    still contributes once content is exhausted."""
+    content = [chunk for chunk in rows if not is_front_matter_chunk(chunk.text)]
+    front = [chunk for chunk in rows if is_front_matter_chunk(chunk.text)]
+    ordered = list(_round_robin_by_paper(content)) + list(_round_robin_by_paper(front))
+    return ordered[:top_k]
 
 
 def _round_robin_by_paper(rows: list[SourceChunk]) -> list[SourceChunk]:

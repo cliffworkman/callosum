@@ -119,6 +119,88 @@ def test_multi_paper_summary_covers_all_selected_papers(temp_db_url: str) -> Non
     assert len(gen.captured) == 2  # within the top_k=2 budget
 
 
+def _seed_two_papers_frontmatter_then_content(db_url: str) -> dict[str, int]:
+    """Each paper's FIRST chunk (lowest id) is front matter, its SECOND is body content. A naive selection that
+    takes the first chunk of each paper (the old _round_robin_by_paper[:top_k]) would feed the LLM mastheads;
+    the fix must prefer the content chunks."""
+    engine = make_engine(db_url)
+    fm = {
+        "a": "Original Manuscript",
+        "b": "Social Psychological and Personality Science 1-10 © The Author(s) 2021 "
+        "DOI: 10.1177/19485506211031722",
+    }
+    body = {
+        "a": "Anomalous faces were rated more negatively in warmth and competence than typical faces.",
+        "b": "Participants allocated more money to partners whose faces appeared more typical.",
+    }
+    out: dict[str, int] = {}
+    with engine.begin() as conn:
+        for key in ("a", "b"):
+            paper_id = create_paper(
+                conn,
+                title=f"Paper {key.upper()}",
+                processing_tier="fully-chunked",
+                csl_json={"type": "article-journal", "title": f"Paper {key.upper()}"},
+            )
+            attachment_id = create_attachment(
+                conn,
+                paper_id=paper_id,
+                storage_mode="linked",
+                availability="available",
+                content_type="application/pdf",
+                checksum=f"chk-{key}",
+                import_source="test",
+                attachment_type="pdf",
+                role="primary",
+            )
+            out[f"p{key}"] = paper_id
+            for n, text in ((1, fm[key]), (2, body[key])):
+                chunk_id = create_chunk(
+                    conn,
+                    paper_id=paper_id,
+                    attachment_id=attachment_id,
+                    text=text,
+                    page_start=n,
+                    page_end=n,
+                    bbox_coordinate_system="pdf-points-top-left",
+                    extraction_tool="fixture",
+                    extraction_version="1",
+                    chunking_strategy="paragraph",
+                    chunk_version=f"{key}{n}",
+                    source_attachment_checksum=f"chk-{key}",
+                    bbox_json=[{"page": n, "x0": 1, "y0": 2, "x1": 3, "y1": 4}],
+                )
+                out[f"{key}{n}"] = chunk_id
+    engine.dispose()
+    return out
+
+
+def test_no_query_papers_scope_prefers_content_over_front_matter(temp_db_url: str) -> None:
+    seed = _seed_two_papers_frontmatter_then_content(temp_db_url)
+    gen = CapturingSummaryGenerator(
+        [
+            CandidateSummarySentence(
+                text="Typicality shapes social judgments.",
+                citations=[CandidateCitation(chunk_id=seed["a2"], quote="")],
+            )
+        ]
+    )
+    client = TestClient(_summarization_app(temp_db_url, generator=gen))
+
+    started = client.post(
+        "/summarize", json={"scope_type": "papers", "paper_ids": [seed["pa"], seed["pb"]], "top_k": 2}
+    )
+    result = client.get(f"/summarize/{started.json()['job_id']}").json()
+
+    assert started.status_code == 202
+    assert result["status"] == "done"
+    assert gen.captured is not None
+    captured_ids = {c.chunk_id for c in gen.captured}
+    assert captured_ids == {seed["a2"], seed["b2"]}  # the two CONTENT chunks, not the front-matter first-chunks
+    assert seed["a1"] not in captured_ids and seed["b1"] not in captured_ids
+    assert {c.paper_id for c in gen.captured} == {seed["pa"], seed["pb"]}  # still spans both papers
+
+
 def test_focus_query_ranks_within_the_selection_only(temp_db_url: str) -> None:
     # inc 111: a papers-scope summary with a focus query routes through query-RANKING (not round-robin) and must
     # stay restricted to the SELECTED papers — a focus query never pulls in chunks from unselected papers.
