@@ -235,3 +235,38 @@ Ranked; "legit" = a context difference worth keeping.
 5. **Type roles are fixed:** serif for paper/summary/quote text; sans for chrome; mono for
    numbers/IDs/status.
 6. When a change reveals a new inconsistency, **add it to §3** so the dictionary stays the source of truth.
+
+---
+
+## 5. Pane architecture — THEORY / METHODS (inc 121)
+
+The two side panes are **accordions** on a **module registry** (`app/frontend/js/05_panes.jsx`:
+`registerPaneSection({id, label, paneId, order, render})` + `<PaneAccordion paneId ctx openId onOpen/>`). The
+center `LibraryFrame` (library/PDF/dashboard tabs) is separate and untouched.
+
+**Placement rubric — place a tool by the user's COGNITIVE TASK, not its implementation.** "AI-powered" is
+orthogonal to the distinction.
+- **THEORY (left pane)** — *knowing the literature*: **AXES** (your conceptual lenses), **SYNTHESIS** (what the
+  corpus says), **TAGS** (your labels). `paneId: "theory"`.
+- **METHODS (right pane)** — *evaluating how a paper was studied*: **DETAILS** now; statcheck / findings / other
+  checks later. `paneId: "methods"`.
+- **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS / TAGS // DETAILS),
+  **no "THEORY"/"METHODS" umbrella header** — the vocabulary is adopted once the METHODS modules earn it. The
+  `paneId` is the internal architecture + the eventual rename.
+
+**The registry pattern.** Sections are **data**, not hard-coded markup: a new section is one `registerPaneSection`
+call in its own chunk (chunk load order 05<10<15<20<25 ⇒ the registry exists before the calls run), `order`
+controls display position, **zero edits to `PaneAccordion`**. Design for addable (and someday user-supplied)
+modules. **Mount-but-hide:** every section body stays mounted, inactive ones `display:none` (`.acc-section:not(.open)`),
+so in-progress work (a running synthesis) survives a section switch. One section open per pane; the open section
+persists (`callosum.theoryOpen` / `callosum.methodsOpen`). **Note the esbuild gotcha:** a registered-but-unreferenced
+component is dead-code-eliminated from the build until something uses it — wire the consumer in the same change.
+
+**AI-usage principle.** The AI's job is to make verification cheap, **never to substitute for it.** For any AI
+feature ask *"where did the judgment go?"* — it must land on a checkable computation or on the human, never hide in
+an opaque selection/score. (Forward note: METHODS findings will follow a **FACT vs CANDIDATE** output contract — a
+FACT is a persistent mark, a CANDIDATE is reviewable; badges describe the user's WORK STATE ("N to review"), never
+paper quality. That machinery is the later findings track, not built yet.)
+
+**Accessibility.** Differentiate sections/states by **icon + label, not color alone**; prefer a highlight/glow over
+a blink; gate motion behind `prefers-reduced-motion`. Accordion headers carry `aria-expanded`.
