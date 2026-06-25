@@ -9,8 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-25 — Increment 122: statcheck relocated to a METHODS "Statistics check" section
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 122 (2026-06-25) — the "Checking statistics (statcheck)" section's per-paper + library-wide passages were repointed from "Details pane" / "Settings → Statistics check" to "METHODS pane → Statistics check section". Entries ABOVE this line are newer than the last help sync. -->
+
+- **Files:** NEW `app/frontend/js/06_methods_statcheck.jsx`; `app/frontend/js/{40_app,35_settings,25_detail}.jsx`,
+  `callosum-app.html`, `.claude/DESIGN.md`, `.claude/qa-routes/{route_33_methods_statcheck,route_30_detail_pane,route_32_viewer_annotations}.md`,
+  `app/backend/help/help_content.md`, `INCREMENT-122-NOTES.md`, `RECOVERY-LOG.md`, `.claude/CLAUDE.md`.
+- **What:** Moved both statcheck surfaces — the library-wide batch (from `StatcheckSettings` in Settings) and the
+  per-paper check (from `StatcheckRow` in the Details pane) — into a dedicated **METHODS accordion section**
+  ("Statistics check", `06_methods_statcheck.jsx`, `order: 20`, after DETAILS). Added `onShowStatcheckFlagged` +
+  `onStatcheckRan` to `paneCtx`; rewired the header **"⚠ N flagged" chip** refresh from "on Settings close" to
+  "on mount + after a batch run". Removed statcheck from Settings and Details; kept the library chip + filter.
+  Also swept stray `app/frontend/js/*.jsx.tmp.*` atomic-write orphans (rule #5).
+- **Why:** The first real **METHODS** module on the inc-121 pane registry; co-locates the per-paper and
+  library-wide statcheck; relieves the `25_detail.jsx` >600-line rule-#1 violation (625 → 579).
+- **Honesty posture preserved verbatim** (Principles non-triggering): counts never a composite score; "a prompt
+  to look, not a verdict"; non-accusatory; per-test rows open the page at region precision (no fake exact rect).
+  Frontend-only — no backend/endpoint/migration/egress change. pytest 437. Surface check 0 uncovered (88/460).
+- **Revert:** restore the `StatcheckSettings`/`StatcheckRow` blocks + the Settings-close-keyed chip effect (see
+  commits `7bebfbc`/`44c6d76`/`5182419`), or `git revert` the inc-122 range.
+
 ## 2026-06-25 — Increment 121: THEORY/METHODS accordion side-panes on a module registry
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 121 (2026-06-25) — the "getting around" layout + Detail-location + Tags-location passages were rewritten for the accordion panes (left = Axes/Synthesis/Tags accordion; right = Details section; Tags always-shown with an empty-state). Entries ABOVE this line are newer than the last help sync. -->
 
 - **Files:** NEW `app/frontend/js/05_panes.jsx`; `app/frontend/js/{40_app,10_pdf_layer,15_axes,20_synthesis,25_detail}.jsx`,
   `app/frontend/styles.css`, `callosum-app.html`, `.claude/DESIGN.md`, `.claude/qa-routes/route_00_smoke_readonly.md`,

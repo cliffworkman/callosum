@@ -248,10 +248,12 @@ center `LibraryFrame` (library/PDF/dashboard tabs) is separate and untouched.
 orthogonal to the distinction.
 - **THEORY (left pane)** — *knowing the literature*: **AXES** (your conceptual lenses), **SYNTHESIS** (what the
   corpus says), **TAGS** (your labels). `paneId: "theory"`.
-- **METHODS (right pane)** — *evaluating how a paper was studied*: **DETAILS** now; statcheck / findings / other
-  checks later. `paneId: "methods"`.
-- **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS / TAGS // DETAILS),
-  **no "THEORY"/"METHODS" umbrella header** — the vocabulary is adopted once the METHODS modules earn it. The
+- **METHODS (right pane)** — *evaluating how a paper was studied*: **DETAILS** + **STATISTICS CHECK** (inc 122 —
+  the first real METHODS module: statcheck's per-paper check *and* library-wide batch, moved out of Settings +
+  the Details pane into `06_methods_statcheck.jsx`, section `order: 20`, reusing the `.settings-*` / `.detail-statcheck`
+  / `.statcheck-*` recipes — no new tokens); findings / other checks later. `paneId: "methods"`.
+- **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS / TAGS //
+  DETAILS / STATISTICS CHECK), **no "THEORY"/"METHODS" umbrella header** — the vocabulary is adopted once the METHODS modules earn it. The
   `paneId` is the internal architecture + the eventual rename.
 
 **The registry pattern.** Sections are **data**, not hard-coded markup: a new section is one `registerPaneSection`

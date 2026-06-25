@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 121** (see Increment workflow) with **437 pytest tests
+It is currently at **Increment 122** (see Increment workflow) with **437 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 121 (THEORY/METHODS accordion side-panes on a module registry — the
+*Last updated: 2026-06-25 — increment 122 (statcheck relocated to a METHODS "Statistics check" section — the
+first real METHODS module on the inc-121 pane registry): moved **both** statcheck surfaces — the **library-wide
+batch** (was `StatcheckSettings` in ⚙ Settings) and the **per-paper check** (was `StatcheckRow` in the Details
+pane) — into a new **METHODS accordion section** "Statistics check" (`app/frontend/js/06_methods_statcheck.jsx`,
+self-registers `order: 20`, after DETAILS). The section has two parts under "Whole library" / "This paper"
+eyebrows: `StatcheckLibrary` (the batch, verbatim) + `StatcheckPaper` (the per-paper check — since `paneCtx`
+carries only `selectedPaper` (the id), it **self-fetches** `GET /papers/{id}` for title + chunk_count, then runs
+`GET /papers/{id}/statcheck`). App wiring: `paneCtx` gains `onShowStatcheckFlagged` + `onStatcheckRan`, and the
+inc-100 "⚠ N flagged" header-chip refresh moved from **settings-close-keyed** to **mount + `onStatcheckRan`**
+(after a batch). statcheck was **removed from both Settings and Details**; the library chip + the
+`?signal=statcheck-inconsistent` filter/banner are unchanged. This **relieves the pre-existing rule-#1 violation**
+on `25_detail.jsx` (**625 → 579**). **Honesty posture preserved verbatim** → **Principles gate non-triggering**
+(a relocation, not a new claim/signal): counts never a composite score (#7); "a prompt to look, not a verdict" +
+non-accusatory (#2 + the A-A no-accusation boundary); inline-APA caveat (#6); per-test rows open the page at
+`precision:"region"` (no fake exact rect). **Frontend-only — no backend/endpoint/migration/egress change**
+(every statcheck endpoint already existed). **Rule #10:** `route_33` repointed `fe:` → `06_methods_statcheck.jsx`
++ steps via the METHODS accordion; `route_30` dropped the per-paper statcheck step + its coverage (now route_33's
+alone); `route_32` clarified; **surface check 0 uncovered (88 API / 460 FE)**. Also swept stray
+`app/frontend/js/*.jsx.tmp.*` atomic-write orphans (rule #5). pytest **437**; `ruff` clean; help corpus statcheck
+section repointed (`HELP-DOCS-SYNCED` → 122). Spec/plan:
+`.claude/docs/specs/2026-06-25-statcheck-methods-section-{design,plan}.md`; notes: `INCREMENT-122-NOTES.md`.
+**NEXT (user-queued):** investigate **synthesis showing no text summary** (the papers-scope front-matter bug —
+diagnosed + spec'd at `.claude/docs/specs/2026-06-25-synthesis-papers-scope-bug.md`); then the findings subsystem
+(FACT vs CANDIDATE) + adopting the THEORY/METHODS vocabulary once more METHODS modules exist.
+
+Earlier — increment 121 (THEORY/METHODS accordion side-panes on a module registry — the
 "next major upgrade", UI-shell half): replaced the two fixed side-pane wrappers (left `Sidebar` = Axes+Tags;
 right `RightPane` = the inc-57 Synthesis/Details drag-split) with **accordions** on an extensible **module
 registry** — new chunk `05_panes.jsx` (`PANE_SECTIONS` + `registerPaneSection({id,label,paneId,order,render})` +
