@@ -105,6 +105,20 @@
   .pane-detail { background: var(--panel-2); }
   .pane-collapsed { overflow: hidden; }
 
+  /* inc 121: accordion side panes (THEORY/METHODS shell). One section body visible per pane; headers stacked. */
+  .pane-accordion { display: flex; flex-direction: column; min-height: 0; }
+  .acc-section { display: flex; flex-direction: column; border-top: 1px solid var(--line); min-height: 0; }
+  .acc-section:first-child { border-top: none; }
+  .acc-header {
+    display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; cursor: pointer;
+    background: none; border: none; font-family: var(--sans); font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); padding: 9px 14px;
+  }
+  .acc-header:hover { color: var(--accent); }
+  .acc-chevron { color: var(--ink-3); }
+  .acc-body { display: none; min-height: 0; }
+  .acc-section.open .acc-body { display: block; }
+
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
   .divider { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; }
   .divider-grip { position: absolute; inset: 0; cursor: col-resize; }
