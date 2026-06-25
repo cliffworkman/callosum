@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 120** (see Increment workflow) with **436 pytest tests
+It is currently at **Increment 121** (see Increment workflow) with **437 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -605,6 +605,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| THEORY/METHODS side panes = accordion on a module registry (inc 121, the "next major upgrade" UI-shell half) | Replaced the fixed left `Sidebar` (Axes+Tags) + right `RightPane` (inc-57 Synthesis/Details drag-split) with two **accordions** driven by an extensible **registry** (`05_panes.jsx`: `registerPaneSection({id,label,paneId,order,render})` + `<PaneAccordion>`). **Left = THEORY** (Axes/Synthesis/Tags, AXES default); **right = METHODS** (Details). Sections **self-register from their own chunks** (load order 05<10<15<20<25 ⇒ registry-first; `order` = display position; adding a section is one call, **zero `PaneAccordion` edits** — proven with a throwaway chunk). **Mount-but-hide** keeps an in-progress synthesis alive across a switch; open section persists (`callosum.theoryOpen`/`methodsOpen`). **Soft labels** (section headers only; `paneId` is the internal architecture + future rename). Behavior-preserving except **Tags now always shows** (empty-state hint) for discoverability. **esbuild DCEs unreferenced top-level functions** (a registered-but-unused component is stripped until used → wire the consumer in the same change; raw-assembly inclusion is the gate, not bundle-grep). `25_detail.jsx` was already 625 (>600) → the Details registration lives in `05_panes.jsx` to not worsen it; a split is queued (the statcheck→METHODS move relieves it). Frontend-only; Principles gate non-triggering. DESIGN.md §5 = the placement rubric + registry pattern + AI-usage principle. Verified headed (`:8097`, 0 console errors). **NEXT (user-queued):** statcheck Settings→a METHODS section (the first real METHODS module); investigate synthesis showing no text summary. |
 | My Publications citing articles & citation counts (SP3 of the My-Pubs overhaul, inc 119 — overhaul complete) | TDL #14. Each own-pub card shows its **OpenAlex cited-by count** (verbatim + attributed — never a Callosum composite/verdict; declined #7/#2) + a **"Most cited"** sort; clicking opens a **citing-articles modal** (papers OpenAlex records as citing it — **candidates**, coverage stated, #3/#6) with per-row **Import** + a confirm-gated **Import all** → **metadata-only**, deduped, into the **general** library (not My Pubs; PDF stays the OA-only lane → no paywall circumvention, A-A veto held). Backend: `AuthorWork.openalex_work_id` (was discarded), `paper_citations` on the dashboard, `OpenAlexAuthorClient.fetch_citing_works` (`cites:<id>`, cached, capped 100, fail-closed) + `GET /my-publications/citing/{work_id}` + `import_citing_work` + `POST /my-publications/citing/import`; **`resolve` now `fetch_author_works(refresh=True)`** so a Refresh repopulates counts + work ids. Egress = **public metadata, bounded/cached/on-demand** (#10), NOT the Gemini gate. Principles gate run (spec §2, aligned); audit `2026-06-24_mypubs-citing.md` PASS; no migration. New chunk `34_mypubs_citing.jsx`. Verified headed (Playwright, `:8097` — real `cites:` fetch). **Watch:** `clustering/my_publications.py` at 587/600 — split before the next backend addition there. **This completes the My Publications overhaul (SP1 inc 117 + SP2 inc 118 + SP3 inc 119 = TDL #1 + #3–18).** |
 | My Publications organized by research domain (SP2 of the My-Pubs overhaul, inc 118) | TDL #9/#15/#16/#17/#18. A **Group by domain** toggle regroups the publications under per-domain headers (dashboard list) / collapsible subheadings (sidebar axis card), **"Other"** group last, **starred-first** within each. **Rename domains** inline (the box pre-suggests the closest **axis** name by term overlap); custom names **persist across Re-decompose** by paper-overlap (Jaccard ≥ 0.5) — a `custom` flag in the existing `research_domains` JSON + `_reapply_custom_labels`, so **no migration**. **#18:** selecting a domain locks the Overview flip-chart to Publications (filtered) + disables the Citations pill. Backend additive: `Domain.paper_ids` + `DashboardResponse.starred_ids` on the dashboard, a per-paper **`ClusterPaperResponse.domain`** gated to the my-pubs `/axes/{id}/clusters` (mirrors inc-84 `starred` — so the sidebar groups with no new route/fetch), and one new endpoint `POST /my-publications/domains/rename` (local profile-JSON write; audit PASS). No egress, no Principles trigger (organizational, not a new claim/signal). Verified headed (Playwright, `:8097`). **SP3** = citing articles + citation counts (#14, a new OpenAlex cited-by fetch → trips both gates). |
 | My Publications dashboard restructured into a browsable publications library (SP1 of the My-Pubs overhaul, inc 117) | TDL line 1 + #1/#3–8/#10–13. New order **Overview → summary → Publications → domains → OpenAlex card** (provenance/sync demoted to a footer; metrics & pubs lead — user's call). **Overview** is collapsible (2×2 metrics + **one** Publications⇄Citations flip-chart, last 10 yrs `'NN` — replaced the two side-by-side charts). **Publications** reuses the library's own machinery: a shared **`PaperCard`** extracted from the 40-prop `PaperList` monolith + **`GET /papers?axis_id=<my-pubs>`** (so search/sort/cards/bulk parity come for free; `MyPubsPublications` in `33_mypubs_pubs.jsx` is a thin wrapper, `limit=200` = the endpoint cap). The **OpenAlex card** holds as-of/gap/2-yr-mean-citedness/affiliation/profile-link/Refresh + the missing-works **modal** trigger (`32_mypubs_missing.jsx`). Backend additive only: `openalex_extra` + `starred_count` on the dashboard response, parsed from the **already-cached** OpenAlex author object — **no new endpoint, migration, or egress → no audit/Principles gate** (OpenAlex figures stay verbatim + attributed, inc-81 posture). Two bugs caught: `/papers` 422 on `limit>200`; the "Review →" button was unreachable when all missing works were dismissed (now shows "Dismissed (N) →"). The domains section sits below the list transitionally; **SP2** reworks it (group-by-domain, AXES subheadings, rename-vs-axes, chart-filter). **SP3** = citing articles + citation counts (#14, a new OpenAlex cited-by fetch → will trip both gates). Verified headed (Playwright, `:8099` live data). |
@@ -736,7 +737,37 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-24 — increment 120 (QA mechanism — surface-coverage gate + Codex-exec supervisor +
+*Last updated: 2026-06-25 — increment 121 (THEORY/METHODS accordion side-panes on a module registry — the
+"next major upgrade", UI-shell half): replaced the two fixed side-pane wrappers (left `Sidebar` = Axes+Tags;
+right `RightPane` = the inc-57 Synthesis/Details drag-split) with **accordions** on an extensible **module
+registry** — new chunk `05_panes.jsx` (`PANE_SECTIONS` + `registerPaneSection({id,label,paneId,order,render})` +
+`<PaneAccordion paneId ctx openId onOpen/>`). **Left pane = THEORY accordion** (AXES · SYNTHESIS · TAGS, one open
+at a time, AXES default); **right pane = METHODS accordion** (DETAILS, with a "select a paper" hint). Sections
+**self-register from their own chunks** (15/20/10/—; load order 05<10<15<20<25 ⇒ the registry exists before the
+register calls; `order` controls display position; adding a section is one call with **zero `PaneAccordion` edits**,
+proven via a throwaway chunk). **Mount-but-hide** (inactive bodies `display:none`, never unmounted) keeps an
+in-progress synthesis alive across a switch; the open section persists (`callosum.theoryOpen`/`methodsOpen`);
+summarize-from-library opens the SYNTHESIS section. The inc-57 `RightPane`+`detailH`+`.divider-h` are **retired**;
+the outer panel resize/collapse + reading mode + center tabs are untouched. **Soft labels** — section headers only,
+no "THEORY"/"METHODS" umbrella text yet (the `paneId` is the internal architecture + the eventual rename, adopted
+once the METHODS modules earn it). One intentional behavior change: **Tags always shows** (empty-state hint) instead
+of vanishing when empty (the user reported never discovering Tags). **DESIGN.md §5** = the THEORY/METHODS placement
+rubric (place by cognitive task) + the accordion/registry pattern + the AI-usage principle + a FACT-vs-CANDIDATE
+forward-note. **esbuild DCE gotcha (documented):** the IIFE build dead-code-eliminates unreferenced top-level
+functions, so a registered-but-unused component is stripped until used — the gate is raw-assembly inclusion +
+a successful build (`test_frontend_assembly.py` checks the raw assembly), not a bundle grep; `node --check` doesn't
+take `.html`. **Rule #1:** `25_detail.jsx` was already **625 (>600) pre-inc-121** → the DETAILS registration lives
+in `05_panes.jsx` to avoid worsening it (back to exactly 625); a split is queued (the statcheck→METHODS move pulls
+statcheck out of it). pytest **437** (frontend-only — unchanged); `ruff` clean; help corpus layout passages updated
+(`HELP-DOCS-SYNCED` → 121); `route_00` recalibrated + surface map green (88/88). Frontend-only, no backend/migration;
+Principles gate non-triggering. Verified headed on `:8097` (switch/persist/synthesis-survives/details-on-select,
+0 console errors). Spec/plan: `.claude/docs/specs/2026-06-25-theory-methods-accordion-{design,plan}.md`; notes:
+`INCREMENT-121-NOTES.md`. **NEXT (user-queued):** (1) **statcheck Settings → a METHODS accordion section** (the
+first real METHODS module — relieves the 25_detail.jsx size debt); (2) **investigate synthesis showing no text
+summary** (only retrieved sections — leading hypothesis: egress off → no generation; could be a render bug); then
+the findings subsystem (FACT vs CANDIDATE) + adopting the THEORY/METHODS vocabulary once METHODS modules exist.
+
+Earlier — increment 120 (QA mechanism — surface-coverage gate + Codex-exec supervisor +
 watched inbox): installed the QA bundle delivered as `qa_routes.zip` (authored out-of-band) per its
 `QA-BUILD-GUIDE.md`, and had **Codex author the full route suite** until the gate went green. New **rule #10**
 (`.claude/QA-POLICY.md`) — read before changing any **end-user surface** — joins DESIGN.md (#8) + PRINCIPLES.md

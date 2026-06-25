@@ -12,6 +12,17 @@ function paneSections(paneId) {
   return PANE_SECTIONS.filter(s => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
+// The DETAILS (methods) section is registered here rather than in 25_detail.jsx because that file is at the
+// 600-line cap (rule #1); DetailContent is a hoisted global so the render closure resolves it fine. AXES/
+// SYNTHESIS/TAGS self-register in their own chunks (15/20/10). A later split of 25_detail.jsx can move this back.
+registerPaneSection({
+  id: "details", label: "Details", paneId: "methods", order: 10,
+  render: (ctx) => ctx.selectedPaper != null
+    ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper}
+        onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} />
+    : <div className="axis-hint">Select a paper to see its details.</div>,
+});
+
 function PaneAccordion({ paneId, ctx, openId, onOpen }) {
   const sections = paneSections(paneId);
   if (sections.length === 0) return null;

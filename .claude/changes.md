@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-25 — Increment 121: THEORY/METHODS accordion side-panes on a module registry
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 121 (2026-06-25) — the "getting around" layout + Detail-location + Tags-location passages were rewritten for the accordion panes (left = Axes/Synthesis/Tags accordion; right = Details section; Tags always-shown with an empty-state). Entries ABOVE this line are newer than the last help sync. -->
+
+- **Files:** NEW `app/frontend/js/05_panes.jsx`; `app/frontend/js/{40_app,10_pdf_layer,15_axes,20_synthesis,25_detail}.jsx`,
+  `app/frontend/styles.css`, `callosum-app.html`, `.claude/DESIGN.md`, `.claude/qa-routes/route_00_smoke_readonly.md`,
+  `app/backend/help/help_content.md`, `tests/qa surface-map (regen)`, `INCREMENT-121-NOTES.md`.
+- **What:** Replaced the two fixed side-pane wrappers with **accordions** on an extensible **module registry**
+  (`registerPaneSection({id,label,paneId,order,render})` + `<PaneAccordion>`). **Left** = THEORY accordion
+  (Axes/Synthesis/Tags, one open at a time, AXES default); **right** = METHODS accordion (Details, with a
+  select-a-paper hint). Sections self-register from their chunks; **mount-but-hide** keeps an in-progress synthesis
+  alive across a switch; open section persists (`callosum.theoryOpen`/`methodsOpen`). Retired the inc-57 RightPane
+  drag-split. **Soft labels** (section headers only; `paneId` is the internal THEORY/METHODS architecture).
+  One intentional behavior change: **Tags always shows** (empty-state hint) instead of vanishing — discoverability.
+- **Why:** the designated "next major upgrade" (the THEORY/METHODS future-track, UI-shell half) — place tools by
+  the user's cognitive task; make the pane sections an additive registry for future METHODS modules.
+- **Gate:** frontend-only; no backend/migration/egress; Principles gate non-triggering (behavior-preserving
+  arrangement). DESIGN.md §5 added. Verified headed on `:8097` (switch/persist/synthesis-survives/details-on-select,
+  0 console errors) + an additivity proof (a dummy chunk's section appeared with zero PaneAccordion edits).
+- **Revert:** `git revert` the six inc-121 commits (`8b234d0`/`9022849`/`39508cb`/`0058ac0`/`ce35fb1` + this docs commit).
+- **NB:** `25_detail.jsx` was already 625 (>600 pre-inc-121); the Details registration lives in `05_panes.jsx` to
+  avoid worsening it — a split is queued (the statcheck→METHODS move will relieve it). **Next (user-queued):**
+  (1) statcheck Settings→METHODS accordion section; (2) investigate synthesis showing no text summary.
+
 ## 2026-06-24 — Increment 120: QA mechanism — surface-coverage gate + Codex-exec supervisor
 
 - **Files:** NEW `tools/qa/{build_surface_map.py, supervisor.py, _qa_serve.py, route_runner_prompt.md, __init__.py}`;
@@ -34,8 +57,6 @@ are the design diary; this is the chronological "what & why" record.
   `route_00` + the `_TEMPLATE` "Seed contract" (commit `ce934ed`; pytest 437; verified headed via `qa_server`).
 
 ## 2026-06-24 — Increment 119: My Publications overhaul, SP3 — citing articles & citation counts
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 119 (2026-06-24) — the My Publications help gained the citation counts + citing-articles section. Entries ABOVE this line are newer than the last help sync — review them for user-facing changes that warrant a help update. -->
-
 - **Files:** `integrations/openalex/author.py`, `app/backend/clustering/my_publications.py`,
   `app/backend/api/routers/my_publications.py`, `app/frontend/js/{10_pdf_layer,31_mypubs_dashboard,33_mypubs_pubs,34_mypubs_citing [new]}.jsx`,
   `app/frontend/styles.css`, `app/backend/help/help_content.md`, `callosum-app.html`,

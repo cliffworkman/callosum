@@ -1504,6 +1504,21 @@
   function paneSections(paneId) {
     return PANE_SECTIONS.filter((s) => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
   }
+  registerPaneSection({
+    id: "details",
+    label: "Details",
+    paneId: "methods",
+    order: 10,
+    render: (ctx) => ctx.selectedPaper != null ? /* @__PURE__ */ React.createElement(
+      DetailContent,
+      {
+        paperId: ctx.selectedPaper,
+        onOpenPaper: ctx.onOpenPaper,
+        onFilterToTag: ctx.onFilterToTag,
+        onTagsChanged: ctx.onTagsChanged
+      }
+    ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
+  });
   function PaneAccordion({ paneId, ctx, openId, onOpen }) {
     const sections = paneSections(paneId);
     if (sections.length === 0) return null;
@@ -3549,21 +3564,6 @@
       a.oa_version ? /* @__PURE__ */ React.createElement("span", { className: "oa-meta" }, a.oa_version, a.oa_source ? " \xB7 " + a.oa_source : "") : null
     )))), /* @__PURE__ */ React.createElement(StatcheckRow, { paperId: p.id, paperTitle: p.title, hasText: (p.chunk_count || 0) > 0, onOpenPaper }), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier))));
   }
-  registerPaneSection({
-    id: "details",
-    label: "Details",
-    paneId: "methods",
-    order: 10,
-    render: (ctx) => ctx.selectedPaper != null ? /* @__PURE__ */ React.createElement(
-      DetailContent,
-      {
-        paperId: ctx.selectedPaper,
-        onOpenPaper: ctx.onOpenPaper,
-        onFilterToTag: ctx.onFilterToTag,
-        onTagsChanged: ctx.onTagsChanged
-      }
-    ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
-  });
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";
   }

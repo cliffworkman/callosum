@@ -18,11 +18,11 @@ Start by:
 ## Finding your way around
 Callosum uses three main areas:
 
-- **Left sidebar:** Callosum identity, Help, Settings, and your Axes panel.
+- **Left pane:** Callosum identity, Help, Settings, and an **accordion** with **Axes**, **Synthesis**, and **Tags** — click a section header to open it (one open at a time).
 - **Center pane:** the Library tab and any open PDF tabs.
-- **Right pane:** Synthesis on top, and editable Detail information below when a paper is selected.
+- **Right pane:** a **Details** accordion section — the editable bibliographic information for the paper you have selected (it shows a hint until you select one).
 
-The left and right side panels can be resized with the vertical grips. You can collapse either side panel with the chevron next to it. The right pane also has a horizontal divider so you can give more room to Synthesis or Details.
+The left and right side panels can be resized with the vertical grips, and either can be collapsed with the chevron next to it. Within a side pane, click a section header (e.g. **Synthesis**) to switch to it; the open section is remembered between sessions, and an in-progress synthesis keeps running while you look at another section.
 
 The center pane always has a **Library** tab. When you open PDFs, each PDF gets its own tab. Switching tabs keeps open PDFs mounted, so you do not have to re-open the same document every time you move between the Library and a paper.
 
@@ -166,7 +166,7 @@ Gotchas:
 
 <!-- section: paper-details-and-metadata -->
 ## Editing paper Details
-The Detail pane is for fixing and completing bibliographic metadata. Select a paper in the Library, an axis list, or a PDF tab, and its Detail view appears in the lower right pane.
+The Detail pane is for fixing and completing bibliographic metadata. Select a paper in the Library, an axis list, or a PDF tab, and its Detail view appears in the **Details** section of the right pane.
 
 Most fields are always editable:
 
@@ -245,7 +245,7 @@ Tags you added and tags that were **imported** (Zotero tags, Crossref subject ke
 
 To browse and remove:
 
-- The left **sidebar** has a **Tags** panel (below Axes) listing every tag with its paper count. Click a tag there to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the panel to narrow the list by source.
+- The left pane's **Tags** accordion section lists every tag with its paper count (it's always available — when you have no tags yet it shows a hint pointing you to add them from a paper's Details). Click a tag to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the section to narrow the list by source.
 - Click a tag's name in a paper's **Tags** row to **filter the library** to every paper carrying that tag (a "Filtered to tag …" banner appears; click **clear** to return). The tag filter and the axis filter are mutually exclusive.
 - Click the **×** on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically (and disappears from the sidebar panel).
 
