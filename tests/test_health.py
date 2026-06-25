@@ -120,6 +120,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/papers/{paper_id}/statcheck",
         "/methods/statcheck/summary",
         "/methods/statcheck/run/{job_id}",
+        "/methods/pcurve/run/{job_id}",
         "/citations/styles",
         "/papers/acquire-oa/{job_id}",
         "/wanted",
@@ -186,6 +187,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/library/watched/{folder_id}", frozenset({"DELETE"})),
         ("/library/watched/rescan", frozenset({"POST"})),
         ("/methods/statcheck/run", frozenset({"POST"})),
+        ("/methods/pcurve/run", frozenset({"POST"})),
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
     }

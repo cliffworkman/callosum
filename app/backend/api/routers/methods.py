@@ -24,9 +24,12 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_statcheck_flagged, store_statcheck
+
+MAX_PCURVE_PAPERS = 1000  # bound the selection a p-curve runs over (rule #4)
 
 router = APIRouter()
 _log = logging.getLogger("callosum.methods")
@@ -117,6 +120,95 @@ def statcheck_run_status(job_id: str, request: Request) -> StatcheckRunResponse:
     if job.status == "done" and job.result is not None:
         return job.result
     return StatcheckRunResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+# ── p-curve (inc 126): collection-level evidential-value check over a USER-SELECTED set of papers ──
+# Ephemeral (no persistence): runs over an ad-hoc selection and returns the result. Reuses the statcheck
+# extractor for the exact p-values. Collection-level only — never per-paper, never "p-hacked" (the no-accusation
+# boundary). The interpretation (evidential value vs concern) is the user's.
+
+
+class PcurveIncludedTest(BaseModel):
+    paper_id: int
+    page: int | None = None
+    p: float
+    raw: str
+
+
+class PcurveResultModel(BaseModel):
+    n_papers: int
+    k_total_extracted: int
+    k_significant: int
+    right_skew_z: float | None = None
+    right_skew_p: float | None = None
+    binomial_p: float | None = None
+    bins: list[float] = []
+    included_tests: list[PcurveIncludedTest] = []
+    low_power: bool = False
+    note: str = ""
+
+
+class PcurveRunRequest(BaseModel):
+    paper_ids: list[int]
+
+
+class PcurveRunResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    detail: str | None = None
+    result: PcurveResultModel | None = None
+
+
+@router.post("/methods/pcurve/run", response_model=PcurveRunResponse, status_code=http_status.HTTP_202_ACCEPTED)
+def pcurve_run(payload: PcurveRunRequest, background_tasks: BackgroundTasks, request: Request) -> PcurveRunResponse:
+    ids = list(dict.fromkeys(payload.paper_ids))[:MAX_PCURVE_PAPERS]  # de-dup, preserve order, cap (rule #4)
+    if not ids:
+        raise HTTPException(status_code=422, detail="p-curve requires at least one paper_id")
+    job_id = request.app.state.pcurve_jobs.create()
+    background_tasks.add_task(_run_pcurve_job, request.app, job_id, ids)
+    return PcurveRunResponse(job_id=job_id, status="pending")
+
+
+@router.get("/methods/pcurve/run/{job_id}", response_model=PcurveRunResponse)
+def pcurve_run_status(job_id: str, request: Request) -> PcurveRunResponse:
+    job = request.app.state.pcurve_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="p-curve job not found")
+    if job.status == "done" and job.result is not None:
+        return job.result
+    return PcurveRunResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+def _pcurve_to_model(result: PcurveResult) -> PcurveResultModel:
+    return PcurveResultModel(
+        n_papers=result.n_papers,
+        k_total_extracted=result.k_total_extracted,
+        k_significant=result.k_significant,
+        right_skew_z=result.right_skew_z,
+        right_skew_p=result.right_skew_p,
+        binomial_p=result.binomial_p,
+        bins=result.bins,
+        included_tests=[
+            PcurveIncludedTest(paper_id=t.paper_id, page=t.page, p=t.p, raw=t.raw) for t in result.included_tests
+        ],
+        low_power=result.low_power,
+        note=result.note,
+    )
+
+
+def _run_pcurve_job(app: FastAPI, job_id: str, paper_ids: list[int]) -> None:
+    jobs: JobStore[PcurveRunResponse] = app.state.pcurve_jobs
+    jobs.mark_running(job_id)
+    try:
+        with app.state.engine.begin() as conn:
+            live = set(list_live_paper_ids(conn))  # exclude trashed papers from the analysis
+            per_paper = [
+                (pid, run_statcheck(get_chunks_for_paper(conn, pid)).results) for pid in paper_ids if pid in live
+            ]
+            result = run_pcurve(per_paper)
+        jobs.mark_done(job_id, PcurveRunResponse(job_id=job_id, status="done", result=_pcurve_to_model(result)))
+    except Exception as exc:
+        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
 
 
 def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:

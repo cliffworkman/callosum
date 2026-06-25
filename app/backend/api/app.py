@@ -102,6 +102,7 @@ def create_app(
     api.state.library_scan_jobs = JobStore()
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
+    api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model

@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
+from app.backend.api import create_app
 from app.backend.methods.pcurve import ALPHA, MIN_RELIABLE, compute_pcurve, run_pcurve
 from app.backend.methods.statcheck import StatResult
+from app.backend.persistence.database import make_engine
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 
 
 def _sr(p: float, page: int | None = 1) -> StatResult:
@@ -85,3 +90,56 @@ def test_run_pcurve_empty_selection_is_honest() -> None:
     assert result.k_significant == 0
     assert result.bins == []
     assert "No significant" in result.note
+
+
+def _seed_stats_paper(conn, title: str, checksum: str, text: str) -> int:
+    pid = create_paper(conn, title=title, csl_json={"title": title})
+    att = create_attachment(
+        conn,
+        paper_id=pid,
+        storage_mode="managed",
+        availability="available",
+        checksum=checksum,
+        content_type="application/pdf",
+    )
+    create_chunk(
+        conn,
+        paper_id=pid,
+        attachment_id=att,
+        text=text,
+        page_start=2,
+        page_end=2,
+        bbox_coordinate_system="pdf-points-top-left",
+        extraction_tool="x",
+        extraction_version="1",
+        chunking_strategy="s",
+        chunk_version="v1",
+        source_attachment_checksum=checksum,
+    )
+    return pid
+
+
+def test_pcurve_endpoint_over_a_selection(temp_db_url) -> None:
+    # Strongly- (but not extremely-) significant t/F results: their recomputed p is small but stays > 0 after
+    # statcheck's 4-decimal rounding (p < ~.00005 would round to 0.0 and be conservatively excluded), and the
+    # small p-values are strongly right-skewed → evidential value.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _seed_stats_paper(conn, "A", "cka", "Results: t(30) = 3.8, p < .001 and t(40) = 3.6, p < .001.")
+        b = _seed_stats_paper(conn, "B", "ckb", "We found t(50) = 3.4, p = .001, t(25) = 3.5, p < .01, and F(1, 60) = 14.0, p < .001.")
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    started = client.post("/methods/pcurve/run", json={"paper_ids": [a, b]})
+    assert started.status_code == 202
+    result = client.get(f"/methods/pcurve/run/{started.json()['job_id']}").json()
+
+    assert result["status"] == "done"
+    r = result["result"]
+    assert r["n_papers"] == 2
+    assert r["k_significant"] >= 3  # the strongly-significant tests
+    assert r["right_skew_p"] < ALPHA  # strong right skew → evidential value
+    assert {t["paper_id"] for t in r["included_tests"]} == {a, b}
+    assert len(r["bins"]) == 5
+
+    assert client.post("/methods/pcurve/run", json={"paper_ids": []}).status_code == 422
+    assert client.get("/methods/pcurve/run/nope").status_code == 404
