@@ -81,45 +81,7 @@ function MyPubsSettings({ onRefreshed }) {
   );
 }
 
-// Statistics check (inc 97) — run statcheck across the whole library and persist a per-paper summary, so the
-// library can be filtered to reporting inconsistencies. Local, no AI. A list to review, never a rank or verdict.
-function StatcheckSettings({ onShowFlagged }) {
-  const [run, setRun] = useState({ status: "idle" });  // idle | running | done | error
-  const start = async () => {
-    setRun({ status: "running" });
-    const poll = (jobId) => api(`/methods/statcheck/run/${jobId}`).then(r => {
-      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
-      const d = r.data;
-      if (d.status === "done") setRun({ status: "done", summary: d.summary });
-      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Check failed." });
-      else setTimeout(() => poll(jobId), 1500);
-    });
-    const r = await apiPost("/methods/statcheck/run", {});
-    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
-    poll(r.data.job_id);
-  };
-  const s = run.summary;
-  return (
-    <>
-      <p className="eyebrow">Statistics check</p>
-      <div className="settings-sub">Recompute reported APA-style p-values across your whole library (statcheck) — local, no AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) — a list to review, not a verdict.</div>
-      <div className="settings-actions">
-        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
-          {run.status === "running" ? "Checking…" : "Check all papers"}
-        </button>
-      </div>
-      {run.status === "running" && <ProgressBar label="Recomputing statistics…" />}
-      {run.status === "error" && <div className="settings-note settings-note-err">Check failed: {run.error}</div>}
-      {run.status === "done" && s &&
-        <div className="settings-note">
-          {s.checked} paper{s.checked === 1 ? "" : "s"} with statistics checked · <b>{s.flagged}</b> with inconsistencies.
-          {s.flagged > 0 && onShowFlagged && <> <button className="btn-link" onClick={onShowFlagged}>Show flagged papers</button></>}
-        </div>}
-    </>
-  );
-}
-
-function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onShowStatcheckFlagged, autoScanWatched, onAutoScanWatched, onClose }) {
+function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
     <div className="axis-modal-overlay" onClick={onClose}>
@@ -177,8 +139,6 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         </div>
 
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
-
-        <StatcheckSettings onShowFlagged={onShowStatcheckFlagged} />
 
         <div className="axis-modal-note">More settings will live here — this is just the start.</div>
       </div>

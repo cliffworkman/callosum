@@ -4951,31 +4951,7 @@
     const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID.` : "Done.";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your name"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "e.g. Ada Lovelace", value: name, onChange: (e) => setName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Other published names (one per line)"), /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 2, placeholder: "A. Lovelace\nAugusta Ada King", value: variants, onChange: (e) => setVariants(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (recommended \u2014 gives an exact match)"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : "Refresh my papers")), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Resolved via OpenAlex (public metadata \u2014 not the Gemini gate); never uses an LLM."));
   }
-  function StatcheckSettings({ onShowFlagged }) {
-    const [run, setRun] = useState({ status: "idle" });
-    const start = async () => {
-      setRun({ status: "running" });
-      const poll = (jobId) => api(`/methods/statcheck/run/${jobId}`).then((r2) => {
-        if (!r2.ok) {
-          setRun({ status: "error", error: r2.error });
-          return;
-        }
-        const d = r2.data;
-        if (d.status === "done") setRun({ status: "done", summary: d.summary });
-        else if (d.status === "error") setRun({ status: "error", error: d.detail || "Check failed." });
-        else setTimeout(() => poll(jobId), 1500);
-      });
-      const r = await apiPost("/methods/statcheck/run", {});
-      if (!r.ok) {
-        setRun({ status: "error", error: r.error });
-        return;
-      }
-      poll(r.data.job_id);
-    };
-    const s = run.summary;
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Statistics check"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute reported APA-style p-values across your whole library (statcheck) \u2014 local, no AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) \u2014 a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Checking\u2026" : "Check all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Recomputing statistics\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Check failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.checked, " paper", s.checked === 1 ? "" : "s", " with statistics checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.flagged), " with inconsistencies.", s.flagged > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, "Show flagged papers"))));
-  }
-  function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onShowStatcheckFlagged, autoScanWatched, onAutoScanWatched, onClose }) {
+  function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal settings-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Settings"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
       "button",
@@ -5021,7 +4997,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement(StatcheckSettings, { onShowFlagged: onShowStatcheckFlagged }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function _loadLayout(key, fallback) {
     try {
@@ -5644,7 +5620,7 @@
           });
         }
       }
-    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen })) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), onShowStatcheckFlagged: showStatcheckFlagged, autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => setSettingsOpen(false) }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
+    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen })) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => setSettingsOpen(false) }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
       DuplicatesModal,
       {
         onClose: () => setDuplicatesOpen(false),
