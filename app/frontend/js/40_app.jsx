@@ -81,6 +81,12 @@ function App() {
   useEffect(() => { _saveLayout("callosum.leftOpen", leftOpen ? "1" : "0"); }, [leftOpen]);
   useEffect(() => { _saveLayout("callosum.rightOpen", rightOpen ? "1" : "0"); }, [rightOpen]);
 
+  // inc 121: the open accordion section per pane (THEORY left = axes|synthesis|tags; METHODS right = details).
+  const [theoryOpen, setTheoryOpen] = useState(() => _loadLayout("callosum.theoryOpen", "axes"));
+  const [methodsOpen, setMethodsOpen] = useState(() => _loadLayout("callosum.methodsOpen", "details"));
+  useEffect(() => { _saveLayout("callosum.theoryOpen", theoryOpen); }, [theoryOpen]);
+  useEffect(() => { _saveLayout("callosum.methodsOpen", methodsOpen); }, [methodsOpen]);
+
   // inc-101: Reading mode is a transient visual override. It must not mutate leftOpen/rightOpen: those values
   // are persisted, so doing so would leave both panels collapsed after a reload from Reading mode.
   const [readingMode, setReadingMode] = useState(false);
@@ -244,20 +250,21 @@ function App() {
   }, [selectedLibraryIds]);
 
   // inc-62: "summarize N" → drive the (always-visible) Synthesis pane to summarize the selected subset.
-  // A nonce makes each click a fresh trigger; the right pane is forced open so the result is visible.
+  // A nonce makes each click a fresh trigger; inc 121: synthesis lives in the THEORY (left) accordion now, so
+  // open the left pane + switch it to the SYNTHESIS section so the result is visible.
   const bulkSummarizePapers = useCallback(() => {
     const ids = [...selectedLibraryIds];
     if (!ids.length) return;
     setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
-    setRightOpen(true);
+    setLeftOpen(true); setTheoryOpen("synthesis");
     setSelectedLibraryIds(new Set());
   }, [selectedLibraryIds]);
 
-  // inc 117 (SP1): summarize an explicit id set (from the My Publications tab) → drive the right-pane synthesis.
+  // inc 117 (SP1): summarize an explicit id set (from the My Publications tab) → drive the synthesis section.
   const summarizePaperIds = useCallback((ids) => {
     if (!ids || !ids.length) return;
     setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
-    setRightOpen(true);
+    setLeftOpen(true); setTheoryOpen("synthesis");
   }, []);
 
   // inc-70: export the selected papers' citations as a downloaded file. Raw fetch (apiPost forces .json());
@@ -468,10 +475,21 @@ function App() {
     ? "0px 0px minmax(340px, 1fr) 0px 0px"
     : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
 
+  // inc 121: one prop-bundle the accordion hands to each section's render(ctx) — centralizes the threading the
+  // old Sidebar/RightPane wrappers did. Each section picks the props it needs (see registerPaneSection calls).
+  const paneCtx = {
+    conn, selectedPaper: selected, onSelectPaper: setSelected, onOpenPaper: openPdf,
+    onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
+    onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
+    onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1),
+    pendingSummarize, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault,
+  };
+
   return (
     <div className={"app" + (readingMode ? " reading" : "")} style={{ gridTemplateColumns: cols }}>
       {leftOpen && !readingMode
-        ? <Sidebar conn={conn} onSelectPaper={setSelected} selectedPaper={selected} onOpenPaper={openPdf} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)} onEnterFocus={enterFocus} onFilterToAxis={filterToAxis} onFilterToTag={filterToTag} onOpenMyPubsDashboard={openMyPubsDashboard} axisRefresh={axisRefresh} tagRefresh={tagRefresh} hideUncertainDefault={hideUncertainDefault} axisCutoffDefault={axisCutoffDefault} />
+        ? <Sidebar conn={conn} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)}
+            ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
         : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
@@ -521,7 +539,7 @@ function App() {
         }); }}
       />
       {rightOpen && !readingMode
-        ? <RightPane paperId={selected} onOpenCitation={openCitation} onSaveHighlight={saveCitationHighlight} onOpenPaper={openPdf} onFilterToTag={filterToTag} onTagsChanged={() => setTagRefresh(n => n + 1)} pendingSummarize={pendingSummarize} />
+        ? <div className="pane pane-detail"><PaneAccordion paneId="methods" ctx={paneCtx} openId={methodsOpen} onOpen={setMethodsOpen} /></div>
         : <div className="pane-collapsed" />}
       {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} onShowStatcheckFlagged={showStatcheckFlagged} autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} onClose={() => setSettingsOpen(false)} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}

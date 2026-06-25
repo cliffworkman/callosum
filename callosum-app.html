@@ -1501,6 +1501,25 @@
   function registerPaneSection(section) {
     if (!PANE_SECTIONS.some((s) => s.id === section.id)) PANE_SECTIONS.push(section);
   }
+  function paneSections(paneId) {
+    return PANE_SECTIONS.filter((s) => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+  function PaneAccordion({ paneId, ctx, openId, onOpen }) {
+    const sections = paneSections(paneId);
+    if (sections.length === 0) return null;
+    const active = sections.some((s) => s.id === openId) ? openId : sections[0].id;
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-accordion" }, sections.map((s) => /* @__PURE__ */ React.createElement("section", { key: s.id, className: "acc-section" + (s.id === active ? " open" : "") }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "acc-header",
+        "aria-expanded": s.id === active,
+        onClick: () => onOpen(s.id),
+        title: s.label
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "acc-chevron" }, s.id === active ? "\u25BE" : "\u25B8"),
+      /* @__PURE__ */ React.createElement("span", { className: "acc-label" }, s.label)
+    ), /* @__PURE__ */ React.createElement("div", { className: "acc-body" }, s.render(ctx)))));
+  }
   const _CSL_TYPE_LABELS = {
     "article-journal": "Journal article",
     "article": "Article",
@@ -1658,10 +1677,11 @@
     id: "tags",
     label: "Tags",
     paneId: "theory",
+    order: 30,
     render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
   });
-  function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onFilterToTag, onOpenMyPubsDashboard, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("button", { className: "icon-help", title: "Help & tips", onClick: onOpenHelp }, "?"), /* @__PURE__ */ React.createElement("button", { className: "icon-gear", title: "Settings", onClick: onOpenSettings }, "\u2699"), /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(AxesPanel, { onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault }), /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag, tagRefresh }));
+  function Sidebar({ conn, onOpenSettings, onOpenHelp, ctx, theoryOpen, onTheoryOpen }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("button", { className: "icon-help", title: "Help & tips", onClick: onOpenHelp }, "?"), /* @__PURE__ */ React.createElement("button", { className: "icon-gear", title: "Settings", onClick: onOpenSettings }, "\u2699"), /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "theory", ctx, openId: theoryOpen, onOpen: onTheoryOpen }));
   }
   function ClipboardIcon() {
     return /* @__PURE__ */ React.createElement("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: "2", strokeLinecap: "round", strokeLinejoin: "round", "aria-hidden": "true" }, /* @__PURE__ */ React.createElement("rect", { x: "9", y: "9", width: "13", height: "13", rx: "2", ry: "2" }), /* @__PURE__ */ React.createElement("path", { d: "M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" }));
@@ -2425,6 +2445,7 @@
     id: "axes",
     label: "Axes",
     paneId: "theory",
+    order: 10,
     render: (ctx) => /* @__PURE__ */ React.createElement(
       AxesPanel,
       {
@@ -2949,21 +2970,11 @@
       saveState === "saving" ? "Saving\u2026" : saveState === "error" ? "Couldn't save \u2014 retry" : "Save as highlight"
     ))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u201C", citation.quote, "\u201D"), citation.coordinate_precision === "region" && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--flag)", marginTop: 4 } }, "Region-level source area only. Do not treat this as an exact quote highlight."), !citation.coordinate_precision && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11.5, color: "var(--ink-3)", marginTop: 4 } }, "No coordinate claim is available for this citation."), /* @__PURE__ */ React.createElement("div", { className: "conf-grid" }, /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Retrieval"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.retrieval_confidence))), /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Quote"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.quote_confidence))), /* @__PURE__ */ React.createElement("div", { className: "conf" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, "Support"), /* @__PURE__ */ React.createElement("span", { className: "v" }, fmtScore(citation.support_confidence))))));
   }
-  function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFilterToTag, onTagsChanged, pendingSummarize }) {
-    const [detailH, setDetailH] = useState(() => Number(_loadLayout("callosum.detailH", 300)) || 300);
-    useEffect(() => {
-      _saveLayout("callosum.detailH", detailH);
-    }, [detailH]);
-    const onDragStart = (e) => {
-      const sy = e.clientY, sh = detailH;
-      _beginDrag(e, (_x, y) => setDetailH(_clampW(sh - (y - sy), 180, 760)));
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail pane-split" }, /* @__PURE__ */ React.createElement("div", { className: "rp-synth" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Synthesis")), /* @__PURE__ */ React.createElement(SynthesisPane, { onOpenCitation, onSaveHighlight, pendingSummarize })), paperId != null && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "divider-h", title: "Drag to resize" }, /* @__PURE__ */ React.createElement("div", { className: "divider-grip-h", onMouseDown: onDragStart })), /* @__PURE__ */ React.createElement("div", { className: "rp-detail", style: { height: detailH } }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow rp-detail-head" }, "Detail"), /* @__PURE__ */ React.createElement(DetailContent, { paperId, onOpenPaper, onFilterToTag, onTagsChanged }))));
-  }
   registerPaneSection({
     id: "synthesis",
     label: "Synthesis",
     paneId: "theory",
+    order: 20,
     render: (ctx) => /* @__PURE__ */ React.createElement(
       SynthesisPane,
       {
@@ -3542,6 +3553,7 @@
     id: "details",
     label: "Details",
     paneId: "methods",
+    order: 10,
     render: (ctx) => ctx.selectedPaper != null ? /* @__PURE__ */ React.createElement(
       DetailContent,
       {
@@ -5037,6 +5049,14 @@
     useEffect(() => {
       _saveLayout("callosum.rightOpen", rightOpen ? "1" : "0");
     }, [rightOpen]);
+    const [theoryOpen, setTheoryOpen] = useState(() => _loadLayout("callosum.theoryOpen", "axes"));
+    const [methodsOpen, setMethodsOpen] = useState(() => _loadLayout("callosum.methodsOpen", "details"));
+    useEffect(() => {
+      _saveLayout("callosum.theoryOpen", theoryOpen);
+    }, [theoryOpen]);
+    useEffect(() => {
+      _saveLayout("callosum.methodsOpen", methodsOpen);
+    }, [methodsOpen]);
     const [readingMode, setReadingMode] = useState(false);
     const toggleReading = useCallback(() => setReadingMode((on) => !on), []);
     const [listState, setListState] = useState({ status: "loading", papers: [] });
@@ -5183,13 +5203,15 @@
       const ids = [...selectedLibraryIds];
       if (!ids.length) return;
       setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
-      setRightOpen(true);
+      setLeftOpen(true);
+      setTheoryOpen("synthesis");
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
     }, [selectedLibraryIds]);
     const summarizePaperIds = useCallback((ids) => {
       if (!ids || !ids.length) return;
       setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
-      setRightOpen(true);
+      setLeftOpen(true);
+      setTheoryOpen("synthesis");
     }, []);
     const bulkExportPapers = useCallback((format) => {
       const ids = [...selectedLibraryIds];
@@ -5417,7 +5439,35 @@
       return () => window.removeEventListener("keydown", onKey);
     }, [readingMode, anyModalOpen, toggleReading]);
     const cols = readingMode ? "0px 0px minmax(340px, 1fr) 0px 0px" : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
-    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? /* @__PURE__ */ React.createElement(Sidebar, { conn, onSelectPaper: setSelected, selectedPaper: selected, onOpenPaper: openPdf, onOpenSettings: () => setSettingsOpen(true), onOpenHelp: () => setHelpOpen(true), onEnterFocus: enterFocus, onFilterToAxis: filterToAxis, onFilterToTag: filterToTag, onOpenMyPubsDashboard: openMyPubsDashboard, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault }) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
+    const paneCtx = {
+      conn,
+      selectedPaper: selected,
+      onSelectPaper: setSelected,
+      onOpenPaper: openPdf,
+      onOpenCitation: openCitation,
+      onSaveHighlight: saveCitationHighlight,
+      onFilterToTag: filterToTag,
+      onFilterToAxis: filterToAxis,
+      onEnterFocus: enterFocus,
+      onOpenMyPubsDashboard: openMyPubsDashboard,
+      onTagsChanged: () => setTagRefresh((n) => n + 1),
+      pendingSummarize,
+      axisRefresh,
+      tagRefresh,
+      hideUncertainDefault,
+      axisCutoffDefault
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? /* @__PURE__ */ React.createElement(
+      Sidebar,
+      {
+        conn,
+        onOpenSettings: () => setSettingsOpen(true),
+        onOpenHelp: () => setHelpOpen(true),
+        ctx: paneCtx,
+        theoryOpen,
+        onTheoryOpen: setTheoryOpen
+      }
+    ) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
       Divider,
       {
         side: "left",
@@ -5524,7 +5574,7 @@
           });
         }
       }
-    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement(RightPane, { paperId: selected, onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight, onOpenPaper: openPdf, onFilterToTag: filterToTag, onTagsChanged: () => setTagRefresh((n) => n + 1), pendingSummarize }) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), onShowStatcheckFlagged: showStatcheckFlagged, autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => setSettingsOpen(false) }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
+    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen })) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), onShowStatcheckFlagged: showStatcheckFlagged, autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => setSettingsOpen(false) }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
       DuplicatesModal,
       {
         onClose: () => setDuplicatesOpen(false),

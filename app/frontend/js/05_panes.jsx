@@ -8,7 +8,8 @@ function registerPaneSection(section) {
   if (!PANE_SECTIONS.some(s => s.id === section.id)) PANE_SECTIONS.push(section);  // idempotent by id
 }
 function paneSections(paneId) {
-  return PANE_SECTIONS.filter(s => s.paneId === paneId);
+  // ordered by the section's `order` (ascending) so display order is data-driven, not chunk-load order.
+  return PANE_SECTIONS.filter(s => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 function PaneAccordion({ paneId, ctx, openId, onOpen }) {

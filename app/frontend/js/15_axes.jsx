@@ -492,7 +492,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
 
 // inc 121: register AXES as a THEORY-pane accordion section (see 05_panes.jsx).
 registerPaneSection({
-  id: "axes", label: "Axes", paneId: "theory",
+  id: "axes", label: "Axes", paneId: "theory", order: 10,
   render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
     onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
     onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh}

@@ -333,34 +333,8 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
   );
 }
 
-// Right pane = a vertical split (inc 57, backlog F): Synthesis always on top; when a paper is selected
-// its editable Details (25_detail.jsx) appear in a lower section sized by a draggable divider. No tabs.
-// The divider reuses the inc-42 drag helpers (_beginDrag/_clampW/_loadLayout/_saveLayout — hoisted globals).
-function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFilterToTag, onTagsChanged, pendingSummarize }) {
-  const [detailH, setDetailH] = useState(() => Number(_loadLayout("callosum.detailH", 300)) || 300);
-  useEffect(() => { _saveLayout("callosum.detailH", detailH); }, [detailH]);
-  const onDragStart = (e) => {
-    const sy = e.clientY, sh = detailH;
-    _beginDrag(e, (_x, y) => setDetailH(_clampW(sh - (y - sy), 180, 760)));  // drag up → Details grows
-  };
-  return (
-    <div className="pane pane-detail pane-split">
-      <div className="rp-synth">
-        <div className="pane-head"><p className="eyebrow">Synthesis</p></div>
-        <SynthesisPane onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} pendingSummarize={pendingSummarize} />
-      </div>
-      {paperId != null &&
-        <>
-          <div className="divider-h" title="Drag to resize"><div className="divider-grip-h" onMouseDown={onDragStart} /></div>
-          <div className="rp-detail" style={{ height: detailH }}>
-            <p className="eyebrow rp-detail-head">Detail</p>
-            {/* DetailContent lives in 25_detail.jsx (the Mendeley-style editable pane). */}
-            <DetailContent paperId={paperId} onOpenPaper={onOpenPaper} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} />
-          </div>
-        </>}
-    </div>
-  );
-}
+// inc 121: the old RightPane (inc-57 vertical Synthesis/Details split with a draggable .divider-h) is retired —
+// SYNTHESIS now lives in the THEORY (left) accordion and DETAILS in the METHODS (right) accordion (05_panes.jsx).
 
 // ─────────────────────────────────────────────────────────────
 // PDF tab — streams /papers/{id}/pdf and renders it with PDF.js.
@@ -369,7 +343,7 @@ function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFi
 
 // inc 121: register SYNTHESIS as a THEORY-pane accordion section (see 05_panes.jsx). RightPane is removed in T3.
 registerPaneSection({
-  id: "synthesis", label: "Synthesis", paneId: "theory",
+  id: "synthesis", label: "Synthesis", paneId: "theory", order: 20,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
     pendingSummarize={ctx.pendingSummarize} />,
 });

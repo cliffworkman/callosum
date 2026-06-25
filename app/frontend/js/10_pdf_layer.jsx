@@ -195,11 +195,13 @@ function TagsPanel({ onFilterToTag, tagRefresh }) {
 
 // inc 121: register TAGS as a THEORY-pane accordion section (see 05_panes.jsx).
 registerPaneSection({
-  id: "tags", label: "Tags", paneId: "theory",
+  id: "tags", label: "Tags", paneId: "theory", order: 30,
   render: (ctx) => <TagsPanel onFilterToTag={ctx.onFilterToTag} tagRefresh={ctx.tagRefresh} />,
 });
 
-function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onFilterToTag, onOpenMyPubsDashboard, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault }) {
+// inc 121: the left pane = the brand/⚙/❓ header + the THEORY accordion (AXES / SYNTHESIS / TAGS), one open at a
+// time. Sections self-register (05_panes.jsx); App owns the open-section state + the shared ctx.
+function Sidebar({ conn, onOpenSettings, onOpenHelp, ctx, theoryOpen, onTheoryOpen }) {
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
@@ -210,8 +212,7 @@ function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettin
           <h1>Callosum</h1>
         </div>
       </div>
-      <AxesPanel onSelectPaper={onSelectPaper} selectedPaper={selectedPaper} onOpenPaper={onOpenPaper} onEnterFocus={onEnterFocus} onFilterToAxis={onFilterToAxis} onOpenMyPubsDashboard={onOpenMyPubsDashboard} axisRefresh={axisRefresh} hideUncertainDefault={hideUncertainDefault} axisCutoffDefault={axisCutoffDefault} />
-      <TagsPanel onFilterToTag={onFilterToTag} tagRefresh={tagRefresh} />
+      <PaneAccordion paneId="theory" ctx={ctx} openId={theoryOpen} onOpen={onTheoryOpen} />
     </div>
   );
 }
