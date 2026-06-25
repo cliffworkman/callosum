@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 125** (see Increment workflow) with **449 pytest tests
+It is currently at **Increment 126** (see Increment workflow) with **459 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,39 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 125 (strengthen the front-matter classifier — **live-validated** with real
+*Last updated: 2026-06-25 — increment 126 (p-curve — collection-level evidential-value check; the first GRIM/p-curve
+"data-detective" METHODS feature): the user asked for GRIM/p-curve (surfaced via Daniël Lakens'
+[automated-review catalog](https://lakens.github.io/automated_review_daily_build/)); we built **p-curve first**
+(lower risk — it **reuses the proven statcheck p-value extractor**; GRIM's hard, low-coverage mean+N+granularity
+extraction is the deliberate follow-up). Given a SET of significant focal NHST results across **user-selected**
+papers, p-curve (Simonsohn, Nelson & Simmons, 2014) tests whether the p-value distribution is **right-skewed**
+(→ evidential value) vs flat. **Collection-level only, never per-paper, never "p-hacked"** (the A-A no-accusation
+veto); the interpretation is the user's. **New `app/backend/methods/pcurve.py`** (pure, no-DB/LLM/egress):
+`compute_pcurve` (right-skew **Stouffer** `Z=ΣΦ⁻¹(p/.05)/√k` + a **binomial** check on share-of-p<.025 + the 5
+observed bins) + `run_pcurve` (over per-paper `StatResult`s). **Async `POST/GET /methods/pcurve/run`**
+(`routers/methods.py`, new `api.state.pcurve_jobs`) reuses `run_statcheck`+`get_chunks_for_paper` per **live**
+selected paper; **ephemeral — no persistence, no migration**; selection de-duped+capped, empty→422. **Frontend:**
+a **p-curve** library bulk-bar action (`10_pdf_layer.jsx`) + minimal `40_app.jsx` wiring → a new
+**`29_pcurve.jsx`** modal: the collection-level/not-a-verdict framing, the coverage note, a hand-rolled **SVG
+curve** (bars .01–.05 + a dashed 20% null), the right-skew + binomial statistics (descriptive), the
+**included-tests** list (each opens its page at region precision), the coverage caveat, and a **credit** block
+(Simonsohn et al. 2014 + a one-click **add to library** via the inc-93 `/library/import` with bundled CSL-JSON);
+tokens-only CSS (rule #8). **Reuses statcheck's exact p-values** (`StatResult.computed_p`); since those are
+rounded 4dp, results so significant p rounds to ≈0 are **conservatively dropped** (biases *against* over-claiming
+— the safe direction; stated in the coverage note). **Principles gate #9 aligned** (declined a per-paper
+"evidential value / p-hacking" badge/rank); **audit `.claude/security-audits/2026-06-25_pcurve.md` PASS**;
+**rule #10** `route_36_methods_pcurve.md` + surface **90 API / 472 FE, 0 uncovered**; **credit-the-lineage** —
+`THIRD-PARTY-NOTICES.md` gained a methods-lineage section (p-curve + `scrutiny` [Lukas Jung] + the Lakens catalog;
+statcheck's credit backfilled). pytest **459** (+10 `test_pcurve.py`: math + endpoint; route-surface updated);
+`ruff` clean. **Verified headed, no egress** (`.local/visual/drive_inc126_pcurve.py` — 12 papers → 76 significant
+tests, **Z=−10.98, p<.0001** right-skewed; SVG curve + stats + included-tests + add-to-library; 0 console/page/genai).
+**WATCH (rule #1): `40_app.jsx` is now 590/600 — a split is overdue; keep further wiring out of it.** Swept stray
+`tests/*.tmp.*` + `app/frontend/js/*.tmp.*` atomic-write orphans (rule #5). Design/plan:
+`.claude/plans/would-you-mind-reading-wise-peacock.md`; notes: `INCREMENT-126-NOTES.md`. **NEXT (user-queued):**
+**GRIM** — the per-paper data-detective analogue (its own increment; harder extraction of mean+N+response
+granularity → conservative v1 with heavy coverage caveats).
+
+Earlier — increment 125 (strengthen the front-matter classifier — **live-validated** with real
 Gemini): the user authorized spending tokens to eyeball the real synthesis output, and a **live** no-query
 papers-scope run (`.local/visual/drive_inc124_live.py`, egress on) over the same papers that produced the broken
 summary #7 showed inc-123's `is_front_matter_chunk` was **still too conservative** — paper **titles**, **author/

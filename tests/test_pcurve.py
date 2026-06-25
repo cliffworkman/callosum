@@ -126,7 +126,9 @@ def test_pcurve_endpoint_over_a_selection(temp_db_url) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         a = _seed_stats_paper(conn, "A", "cka", "Results: t(30) = 3.8, p < .001 and t(40) = 3.6, p < .001.")
-        b = _seed_stats_paper(conn, "B", "ckb", "We found t(50) = 3.4, p = .001, t(25) = 3.5, p < .01, and F(1, 60) = 14.0, p < .001.")
+        b = _seed_stats_paper(
+            conn, "B", "ckb", "We found t(50) = 3.4, p = .001, t(25) = 3.5, p < .01, and F(1, 60) = 14.0, p < .001."
+        )
     client = TestClient(create_app(db_url=temp_db_url))
 
     started = client.post("/methods/pcurve/run", json={"paper_ids": [a, b]})

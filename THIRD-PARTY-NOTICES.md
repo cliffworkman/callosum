@@ -50,6 +50,31 @@ contributors, free software under the AGPL-3.0 (<https://www.zotero.org/>). Cred
 
 ---
 
+## Methods — statistical-integrity checks (scholarly-method lineage)
+
+These METHODS features **re-implement published algorithms in Python** (algorithms from papers are not
+copyrightable); we credit the **method papers** in-context (each offers a one-click "add to library") and the
+reference tools by citation — never by appropriating their names.
+
+### p-curve (inc 126)
+The collection-level evidential-value check is the **p-curve** method:
+- Simonsohn, U., Nelson, L. D., & Simmons, J. P. (2014). *P-curve: A key to the file-drawer.* Journal of
+  Experimental Psychology: General, 143(2), 534–547. <https://doi.org/10.1037/a0033242>.
+- Re-implemented from the paper (right-skew Stouffer test + binomial test); the reference R implementation is
+  **`scrutiny`** (Lukas Jung, <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
+- Surfaced via Daniël Lakens' **automated-review catalog** of meta-research tools
+  (<https://lakens.github.io/automated_review_daily_build/>) and the review by Crone & Green (2025), *Tools of the
+  data detective* (Personality & Social Psychology Review).
+
+### statcheck (inc 95)
+The per-paper NHST p-value recomputation is the **statcheck** method:
+- Nuijten, M. B., Hartgerink, C. H. J., van Assen, M. A. L. M., Epskamp, S., & Wicherts, J. M. (2016). *The
+  prevalence of statistical reporting errors in psychology (1985–2013).* Behavior Research Methods, 48, 1205–1226.
+  <https://doi.org/10.3758/s13428-015-0664-2>.
+- Re-implemented from the paper (the `statcheck` R package is by Nuijten & Epskamp) — credited, not reused.
+
+---
+
 ## Corresponding source (AGPL §13)
 Callosum is free software under the AGPL-3.0. The complete corresponding source is available at the project
 repository; you may obtain it under the terms of the AGPL-3.0 (see `LICENSE`).

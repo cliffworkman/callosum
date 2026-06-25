@@ -22,8 +22,26 @@ are the design diary; this is the chronological "what & why" record.
   per-sentence claim traces.
 - **Revert:** restore the inc-123 `is_front_matter_chunk` body (commit `e446b46`).
 
+## 2026-06-25 — Increment 126: p-curve (collection-level evidential-value check)
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 126 (2026-06-25) — added a "p-curve: evidential value" section. Entries ABOVE this line are newer than the last help sync. -->
+- **Files:** NEW `app/backend/methods/pcurve.py`, `app/frontend/js/29_pcurve.jsx`,
+  `.claude/security-audits/2026-06-25_pcurve.md`, `.claude/qa-routes/route_36_methods_pcurve.md`,
+  `INCREMENT-126-NOTES.md`; `app/backend/api/{routers/methods.py, app.py}`, `app/frontend/js/{10_pdf_layer,40_app}.jsx`,
+  `styles.css`, `callosum-app.html`, `app/backend/help/help_content.md`, `THIRD-PARTY-NOTICES.md`,
+  `tests/{test_pcurve.py, test_health.py}`.
+- **What:** The first GRIM/p-curve "data-detective" METHODS feature (p-curve first). Select papers → a **p-curve**
+  bulk action → an async job (reusing the statcheck extractor) → a modal with the right-skew/binomial statistics +
+  a hand-rolled SVG curve + the included tests + coverage + a credit block (add-to-library). Collection-level
+  only; never per-paper; never "p-hacked"; the interpretation is the user's.
+- **Why:** The user asked for GRIM/p-curve (via the Lakens automated-review catalog); p-curve reuses the proven
+  statcheck p-value extraction (low risk). GRIM is the deliberate follow-up.
+- **Gates:** Principles #9 aligned; audit `2026-06-25_pcurve.md` PASS; rule #10 route_36 + surface 90 API / 472 FE,
+  0 uncovered; credit-the-lineage (THIRD-PARTY-NOTICES + in-context credit + library-add). No persistence/migration,
+  no egress. **Note:** `40_app.jsx` now 590/600 — split overdue.
+- **Revert:** `git revert` the inc-126 range, or drop `methods/pcurve.py` + the endpoint + the bulk action/modal.
+
 ## 2026-06-25 — Increment 124: synthesis evidence-traceable Overview (Part B)
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 124 (2026-06-25) — the synthesis-verification section gained an "Overview" paragraph (a narration OF the verified claims, per-sentence trace links, egress-gated). Entries ABOVE this line are newer than the last help sync. -->
+<!-- (prior help-sync marker for inc 124; superseded by the inc-126 marker above) the synthesis-verification section gained an "Overview" paragraph. -->
 - **Files:** NEW `app/backend/summarization/overview.py`, `integrations/gemini/overview.py`,
   `alembic/versions/0015_summary_overview.py`, `.claude/security-audits/2026-06-25_synthesis-overview.md`,
   `INCREMENT-124-NOTES.md`; `app/backend/{llm/egress.py, summarization/pipeline.py, persistence/schema.py,
