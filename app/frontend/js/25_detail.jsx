@@ -623,3 +623,13 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
     </div>
   );
 }
+
+// inc 121: register DETAILS as the METHODS-pane accordion section (see 05_panes.jsx). The always-mounted
+// section shows a hint when nothing is selected (preserving today's "select a paper → see details").
+registerPaneSection({
+  id: "details", label: "Details", paneId: "methods",
+  render: (ctx) => ctx.selectedPaper != null
+    ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper}
+        onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} />
+    : <div className="axis-hint">Select a paper to see its details.</div>,
+});

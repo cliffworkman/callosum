@@ -366,3 +366,10 @@ function RightPane({ paperId, onOpenCitation, onSaveHighlight, onOpenPaper, onFi
 // PDF tab — streams /papers/{id}/pdf and renders it with PDF.js.
 // Honest about the not-available-locally case; never a blank canvas.
 // ─────────────────────────────────────────────────────────────
+
+// inc 121: register SYNTHESIS as a THEORY-pane accordion section (see 05_panes.jsx). RightPane is removed in T3.
+registerPaneSection({
+  id: "synthesis", label: "Synthesis", paneId: "theory",
+  render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
+    pendingSummarize={ctx.pendingSummarize} />,
+});

@@ -1497,6 +1497,10 @@
     const n = parseInt(m[1], 16);
     return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${alpha})`;
   }
+  const PANE_SECTIONS = [];
+  function registerPaneSection(section) {
+    if (!PANE_SECTIONS.some((s) => s.id === section.id)) PANE_SECTIONS.push(section);
+  }
   const _CSL_TYPE_LABELS = {
     "article-journal": "Journal article",
     "article": "Article",
@@ -1617,20 +1621,19 @@
   }
   function TagsPanel({ onFilterToTag, tagRefresh }) {
     const [tags, setTags] = useState(null);
-    const [open, setOpen] = useState(true);
     const [filter, setFilter] = useState("");
     const [src, setSrc] = useState("all");
     useEffect(() => {
       api("/tags").then((r) => setTags(r.ok ? r.data : []));
     }, [tagRefresh]);
-    if (tags == null || tags.length === 0) return null;
+    if (tags == null) return null;
     const q = filter.trim().toLowerCase();
     const hasImported = tags.some((t) => tagIsImported(t.source));
     const hasMine = tags.some((t) => !tagIsImported(t.source));
     const shown = tags.filter(
       (t) => (!q || t.name.toLowerCase().includes(q)) && (src === "all" || src === "imported" === tagIsImported(t.source))
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-group tags-panel" }, /* @__PURE__ */ React.createElement("div", { className: "axis-group-head" }, /* @__PURE__ */ React.createElement("button", { className: "tags-panel-toggle", onClick: () => setOpen((o) => !o), title: open ? "Collapse tags" : "Expand tags" }, /* @__PURE__ */ React.createElement("span", { className: "tags-panel-chevron" }, open ? "\u25BE" : "\u25B8"), /* @__PURE__ */ React.createElement("span", { className: "eyebrow" }, "Tags"))), open && /* @__PURE__ */ React.createElement(React.Fragment, null, tags.length > 8 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter tags\u2026", value: filter, onChange: (e) => setFilter(e.target.value), spellCheck: false }), hasImported && hasMine && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, [["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "tags-panel" }, tags.length > 8 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter tags\u2026", value: filter, onChange: (e) => setFilter(e.target.value), spellCheck: false }), tags.length > 0 && hasImported && hasMine && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, [["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: k,
@@ -1639,7 +1642,7 @@
         onClick: () => setSrc(k)
       },
       lbl
-    ))), /* @__PURE__ */ React.createElement("div", { className: "tags-panel-list" }, shown.map((t) => /* @__PURE__ */ React.createElement(
+    ))), /* @__PURE__ */ React.createElement("div", { className: "tags-panel-list" }, tags.length === 0 ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "No tags yet \u2014 add tags from a paper's Details pane.") : shown.map((t) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: t.id,
@@ -1649,8 +1652,14 @@
       },
       /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.name),
       /* @__PURE__ */ React.createElement("span", { className: "tags-panel-count" }, t.paper_count)
-    )), shown.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no matching tags"))));
+    )), tags.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no matching tags")));
   }
+  registerPaneSection({
+    id: "tags",
+    label: "Tags",
+    paneId: "theory",
+    render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
+  });
   function Sidebar({ conn, onSelectPaper, selectedPaper, onOpenPaper, onOpenSettings, onOpenHelp, onEnterFocus, onFilterToAxis, onFilterToTag, onOpenMyPubsDashboard, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault }) {
     return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("button", { className: "icon-help", title: "Help & tips", onClick: onOpenHelp }, "?"), /* @__PURE__ */ React.createElement("button", { className: "icon-gear", title: "Settings", onClick: onOpenSettings }, "\u2699"), /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(AxesPanel, { onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault }), /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag, tagRefresh }));
   }
@@ -2329,7 +2338,7 @@
     const visibleAxes = sortedAxes && filter.trim() ? sortedAxes.filter((a) => ((a.label || "") + " " + (a.description || "")).toLowerCase().includes(filter.trim().toLowerCase())) : sortedAxes;
     const myPubsAxis = (axes || []).find((a) => a.kind === "my_publications") || null;
     const standardVisible = visibleAxes ? visibleAxes.filter((a) => a.kind !== "my_publications") : visibleAxes;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-group-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Axes")), /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "most papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "newest")), /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New axis", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "most papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "newest")), /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New axis", onClick: () => {
       setQuickName((q) => q == null ? "" : null);
       setNotice(null);
     } }, quickName != null ? "\xD7" : "+")), quickName != null && /* @__PURE__ */ React.createElement("div", { className: "axis-quickname" }, /* @__PURE__ */ React.createElement(
@@ -2412,6 +2421,25 @@
       loadAxes();
     } }));
   }
+  registerPaneSection({
+    id: "axes",
+    label: "Axes",
+    paneId: "theory",
+    render: (ctx) => /* @__PURE__ */ React.createElement(
+      AxesPanel,
+      {
+        onSelectPaper: ctx.onSelectPaper,
+        selectedPaper: ctx.selectedPaper,
+        onOpenPaper: ctx.onOpenPaper,
+        onEnterFocus: ctx.onEnterFocus,
+        onFilterToAxis: ctx.onFilterToAxis,
+        onOpenMyPubsDashboard: ctx.onOpenMyPubsDashboard,
+        axisRefresh: ctx.axisRefresh,
+        hideUncertainDefault: ctx.hideUncertainDefault,
+        axisCutoffDefault: ctx.axisCutoffDefault
+      }
+    )
+  });
   function _axisBase(description) {
     return (description || "").split(/\n*Related:\s*/i)[0].trim();
   }
@@ -2932,6 +2960,19 @@
     };
     return /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail pane-split" }, /* @__PURE__ */ React.createElement("div", { className: "rp-synth" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Synthesis")), /* @__PURE__ */ React.createElement(SynthesisPane, { onOpenCitation, onSaveHighlight, pendingSummarize })), paperId != null && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "divider-h", title: "Drag to resize" }, /* @__PURE__ */ React.createElement("div", { className: "divider-grip-h", onMouseDown: onDragStart })), /* @__PURE__ */ React.createElement("div", { className: "rp-detail", style: { height: detailH } }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow rp-detail-head" }, "Detail"), /* @__PURE__ */ React.createElement(DetailContent, { paperId, onOpenPaper, onFilterToTag, onTagsChanged }))));
   }
+  registerPaneSection({
+    id: "synthesis",
+    label: "Synthesis",
+    paneId: "theory",
+    render: (ctx) => /* @__PURE__ */ React.createElement(
+      SynthesisPane,
+      {
+        onOpenCitation: ctx.onOpenCitation,
+        onSaveHighlight: ctx.onSaveHighlight,
+        pendingSummarize: ctx.pendingSummarize
+      }
+    )
+  });
   const LIT_TYPES = [
     ["bill", "Bill"],
     ["book", "Book"],
@@ -3497,6 +3538,20 @@
       a.oa_version ? /* @__PURE__ */ React.createElement("span", { className: "oa-meta" }, a.oa_version, a.oa_source ? " \xB7 " + a.oa_source : "") : null
     )))), /* @__PURE__ */ React.createElement(StatcheckRow, { paperId: p.id, paperTitle: p.title, hasText: (p.chunk_count || 0) > 0, onOpenPaper }), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier))));
   }
+  registerPaneSection({
+    id: "details",
+    label: "Details",
+    paneId: "methods",
+    render: (ctx) => ctx.selectedPaper != null ? /* @__PURE__ */ React.createElement(
+      DetailContent,
+      {
+        paperId: ctx.selectedPaper,
+        onOpenPaper: ctx.onOpenPaper,
+        onFilterToTag: ctx.onFilterToTag,
+        onTagsChanged: ctx.onTagsChanged
+      }
+    ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
+  });
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";
   }

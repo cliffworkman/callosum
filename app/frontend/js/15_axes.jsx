@@ -401,9 +401,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
 
   return (
     <div className="axis-group">
-      <div className="axis-group-head">
-        <p className="eyebrow">Axes</p>
-      </div>
+      {/* inc 121: the "Axes" label is now the accordion section header (see 05_panes.jsx) — no inner eyebrow. */}
       <div className="axis-controls">
         {axes && axes.length > 1 &&
           <input className="axis-filter" placeholder="Filter axes…" value={filter} onChange={e => setFilter(e.target.value)} />}
@@ -491,3 +489,12 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     </div>
   );
 }
+
+// inc 121: register AXES as a THEORY-pane accordion section (see 05_panes.jsx).
+registerPaneSection({
+  id: "axes", label: "Axes", paneId: "theory",
+  render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
+    onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
+    onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh}
+    hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault} />,
+});
