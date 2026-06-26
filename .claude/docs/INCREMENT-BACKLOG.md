@@ -52,6 +52,11 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
+> **★ PRIORITIZED (Cliff, 2026-06-26):** after the current **build-and-test slate** (the experience-pass exercise —
+> inc 142 Migrator/progress ✓; inc 143 Librarian/protect-tags; inc 144 Close-reader/reading; inc 145
+> Synthesizer/focus-query), **push BYOK to the top of the pile** — the Gemini API key field in Settings (**#10**) →
+> full bring-your-own-key (**#39**). It's the gating feature for GitHub users to actually use the AI surfaces.
+
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →
 per-test rows with reported-vs-recomputed *p* + page) exists and is good, but the path to it was hidden.
@@ -82,10 +87,12 @@ keyword tags and system tags aren't silently overwritten on edit. Bounded; follo
 *(Extracted from the Tag-provenance item — see **#9** for the full provenance context and its remaining
 design-level sub-tasks.)*
 
-**4. Progress indication for long operations** — partly shipped inc 79 (an indeterminate `ProgressBar` on the long
-async jobs). Remaining: extend it to the **import** and **embedding** flows for a consistent standard. Don't chase
-every op — if any are ambiguous whether an indicator fits, list them for me rather than deciding. UI-only, low
-blast radius.
+**4. Progress indication for long operations** — partly shipped inc 79 (indeterminate `ProgressBar`) → **inc 142
+(Migrator experience pass) shipped DETERMINATE "X / N" progress** for the scan + import jobs (`JobStore.mark_progress`
++ `on_progress` through `embed_*`/`scan_library_folder`; the modals render a real fill + "Embedding papers — X / N")
+**+ a "Review unsorted →" door** in the scan done-summary. **Remaining (migrator pass findings):** a "which entries
+were skipped/failed, and why" list in the done-summary (not just a count); the per-item **filename** in the progress
+label + a rough **ETA**; a **cancel** button for a run you think hung.
 
 **5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** per-attachment PDF serving (Files opens the
 *primary* PDF today — true per-file routing lands with the duplicate-merge multi-PDF records); multiple URLs;

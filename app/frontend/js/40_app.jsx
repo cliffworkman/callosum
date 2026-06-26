@@ -315,6 +315,12 @@ function App() {
     setPage(0);
   }, [cancelFocus]);
   const clearNeedsReview = useCallback(() => { setLibraryNeedsReview(false); setPage(0); }, []);
+  // inc-142: jump straight to the Unsorted view (e.g. from the scan done-summary's "Review unsorted →" door).
+  const showNeedsReview = useCallback(() => {
+    setLibraryNeedsReview(true);
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); cancelFocus();
+    setSelectedLibraryIds(new Set()); setPage(0);
+  }, [cancelFocus]);
 
   // inc-97: the statcheck library lens — set from Settings after a batch run. A view like the others (clears
   // trash/axis/tag/needs-review/focus); filters to papers with a persisted reporting inconsistency.
@@ -586,6 +592,7 @@ function App() {
         <ScanModal
           onClose={() => setScanOpen(false)}
           onScanned={() => setLibRefresh(n => n + 1)}
+          onShowUnsorted={showNeedsReview}
         />}
       {importOpen &&
         <ImportModal

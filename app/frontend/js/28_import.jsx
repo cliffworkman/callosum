@@ -27,7 +27,7 @@ function ImportModal({ onClose, onImported }) {
       const d = r.data;
       if (d.status === "done") { setImp({ status: "done", summary: d.summary }); if (onImported) onImported(); }
       else if (d.status === "error") setImp({ status: "error", error: d.detail || "Import failed." });
-      else setTimeout(() => poll(jobId), 1500);
+      else { setImp({ status: "running", progress: d.progress }); setTimeout(() => poll(jobId), 1500); }
     });
     apiPost("/library/import", { content: file.content, format: file.format }).then(r => {
       if (!r.ok) { setImp({ status: "error", error: r.error }); return; }
@@ -55,7 +55,7 @@ function ImportModal({ onClose, onImported }) {
           </button>
         </div>
         {file && imp.status === "idle" && <div className="axis-hint">{file.name} — ready to import.</div>}
-        {imp.status === "running" && <ProgressBar label="Parsing + embedding…" />}
+        {imp.status === "running" && <ProgressBar label="Parsing + embedding…" progress={imp.progress} />}
         {imp.status === "error" && <div className="axis-err">Import failed: {imp.error}</div>}
         {imp.status === "done" && s &&
           <div className="scan-summary">

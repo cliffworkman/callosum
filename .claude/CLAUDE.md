@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 141** (see Increment workflow) with **519 pytest tests
+It is currently at **Increment 142** (see Increment workflow) with **522 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -764,7 +764,27 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 141 (statcheck flagged→detail path — the experience-pass fix): the first fix
+*Last updated: 2026-06-26 — increment 142 (determinate import/scan progress — Migrator experience pass + backlog #4):
+the 2nd build in the "build + persona-test 4 features" exercise (after inc 141). A dispatched **Migrator** persona
+agent drove the import/scan onboarding flow and found the bar was an **indeterminate pulse** ("looks identical at item
+3 and item 380") — for a few-hundred-item import the migrator's #1 anxiety ("stuck? how far?") went unanswered (the
+backlog's "add a progress bar" was already partly met by the indeterminate bar — the pass found the *real* gap). Built
+**determinate "X / N" progress**: `JobStore` gained `JobProgress{current,total,label}` + `mark_progress`;
+`embed_papers`/`embed_chunks` (the slow phase) + `scan_library_folder` (per file) take an opt-in `on_progress(current,
+total)` callback the scan/import jobs wire through ("Reading PDFs" → "Fetching metadata" → "Embedding papers"); the
+`Scan`/`ImportJobResponse` expose `progress`; the modals render a real fill + "Embedding papers — X / N" (the
+`.progress-fill-det` modifier kills the sweep) instead of the pulse. Plus a **"Review unsorted →"** door in the scan
+done-summary (`added>0`) → the inc-80 Unsorted view. **Opt-in + additive** (other jobs stay indeterminate → zero
+blast radius). pytest **522** (+3: `test_job_store` ×2, `embed_papers` per-paper progress); `ruff` clean; build +
+assembly green; surface **106/106 API + 532/532 FE, 0 uncovered**; no new endpoint/migration/egress. **Verified
+headed, no egress** (`.local/visual/drive_inc142_progress.py` — a slowed-fake-model server imports an 8-record .bib →
+the bar shows "Embedding papers — 4 / 8" mid-run + finishes "8 imported"; 0 console/page/genai). Remaining migrator
+findings filed to backlog #4 (a skipped/failed-detail list; per-item filename + ETA; a cancel button). Notes:
+`INCREMENT-142-NOTES.md`. **NEXT (the slate):** inc 143 **Librarian ↔ protect imported/system tags from clobber (#3)**;
+then inc 144 **Close reader ↔ dogfood the reading flow**; inc 145 **Skeptical synthesizer ↔ multi-paper focus query**.
+**Then BYOK** (Gemini API key in Settings) — **user-prioritized to the top of the pile after the slate.**
+
+Earlier — increment 141 (statcheck flagged→detail path — the experience-pass fix): the first fix
 **produced by** the inc-140 end-user experience pass. The dogfood (deadline-citer persona vs statcheck) found that
 "this paper is flagged" and "here is the specific result that doesn't recompute" were two good halves that **didn't
 link** — the METHODS pane defaults to **Details**, and the "⚠ N flagged" chip→filter left you on Details with the

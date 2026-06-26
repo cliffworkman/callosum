@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-26 — Increment 142: determinate import/scan progress (Migrator experience pass + backlog #4)
+- **Files:** `app/backend/api/job_store.py`, `app/backend/embeddings/pipeline.py`,
+  `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/library.py`,
+  `app/frontend/js/10_pdf_layer.jsx` (ProgressBar) + `27_scan.jsx` + `28_import.jsx` + `40_app.jsx` + `styles.css`
+  + `callosum-app.html`, `tests/test_job_store.py` (new) + `test_embeddings.py`, `INCREMENT-142-NOTES.md`.
+- **What:** Ran the **Migrator** persona pass on the import/scan onboarding flow → found the bar was an opaque
+  indeterminate pulse ("looks identical at item 3 and item 380"). Built **determinate "X / N" progress**
+  (`JobStore.mark_progress` + `on_progress` callbacks through `embed_papers`/`embed_chunks`/`scan_library_folder`
+  → the modals render a real fill + "Embedding papers — X / N") + a **"Review unsorted →"** door in the scan
+  done-summary → the inc-80 Unsorted view.
+- **Why:** A few-hundred-item import felt like a black box; the migrator's #1 anxiety is "is it stuck / how far".
+  Opt-in + additive (other jobs stay indeterminate).
+- **Revert:** restore the listed files from git + rebuild.
+
 ## 2026-06-26 — Increment 141: statcheck flagged→detail path (the experience-pass fix)
 - **Files:** `app/frontend/js/40_app.jsx` + `06_methods_statcheck.jsx` + `callosum-app.html`,
   `.claude/qa-routes/route_33_methods_statcheck.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-141-NOTES.md`.

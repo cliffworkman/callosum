@@ -18,6 +18,7 @@ appear without re-adding — Zotero/Mendeley-style watching, minus a live OS fil
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
@@ -44,6 +45,19 @@ router = APIRouter()
 _log = logging.getLogger("callosum.library")
 
 
+class JobProgressOut(BaseModel):
+    """Determinate progress for a running scan/import (inc 142) — the UI shows "label  current / total" + a fill."""
+
+    current: int
+    total: int
+    label: str
+
+
+def _progress_out(job) -> JobProgressOut | None:
+    p = getattr(job, "progress", None)
+    return JobProgressOut(current=p.current, total=p.total, label=p.label) if p else None
+
+
 class ScanRequest(BaseModel):
     folder: str
 
@@ -60,6 +74,7 @@ class ScanJobResponse(BaseModel):
     status: Literal["pending", "running", "done", "error"]
     detail: str | None = None
     summary: ScanSummary | None = None
+    progress: JobProgressOut | None = None
 
 
 @router.post("/library/scan", response_model=ScanJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
@@ -79,24 +94,35 @@ def scan_status(job_id: str, request: Request) -> ScanJobResponse:
         raise HTTPException(status_code=404, detail="Scan job not found")
     if job.status == "done" and job.result is not None:
         return job.result
-    return ScanJobResponse(job_id=job_id, status=job.status, detail=job.detail)
+    return ScanJobResponse(job_id=job_id, status=job.status, detail=job.detail, progress=_progress_out(job))
 
 
-def _process_scan_result(conn, scanned, *, model, store, crossref, retraction_checkers=None) -> None:
+def _process_scan_result(
+    conn, scanned, *, model, store, crossref, retraction_checkers=None, on_progress: Callable[[str, int, int], None] | None = None
+) -> None:
     """Enrich new papers from Crossref + embed new chunks/papers for one scan result (shared by scan + rescan).
     Crossref is resilient (unresolved → the inc-80 Unsorted view) and is NOT the Gemini gate. Inc 134: a
-    best-effort retraction auto-check runs on the new papers (so a freshly scanned retracted paper flags now)."""
+    best-effort retraction auto-check runs on the new papers (so a freshly scanned retracted paper flags now).
+    Inc 142: ``on_progress(label, current, total)`` reports the enrich + embed phases for determinate UI progress."""
     added_papers = [int(a["paper_id"]) for a in scanned["added"]]
     added_chunks = [int(cid) for a in scanned["added"] for cid in (a.get("chunk_ids") or [])]
-    for paper_id in added_papers:
+    for index, paper_id in enumerate(added_papers, start=1):
+        if on_progress:
+            on_progress("Fetching metadata", index, len(added_papers))
         try:
             enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=crossref)
         except Exception as exc:
             _log.warning("library scan: enrich failed for paper %s: %s", paper_id, exc)
     if added_chunks:
-        embed_chunks(conn, model=model, vector_store=store, chunk_ids=added_chunks)
+        embed_chunks(
+            conn, model=model, vector_store=store, chunk_ids=added_chunks,
+            on_progress=(lambda i, n: on_progress("Embedding text", i, n)) if on_progress else None,
+        )
     if added_papers:
-        embed_papers(conn, model=model, vector_store=store, paper_ids=added_papers)
+        embed_papers(
+            conn, model=model, vector_store=store, paper_ids=added_papers,
+            on_progress=(lambda i, n: on_progress("Embedding papers", i, n)) if on_progress else None,
+        )
         if retraction_checkers:
             auto_check_retractions(conn, added_papers, checkers=retraction_checkers)
 
@@ -118,7 +144,9 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         store = _vector_store(app)
         crossref = app.state.crossref_client
         with app.state.engine.begin() as conn:
-            scanned = scan_library_folder(conn, folder)
+            scanned = scan_library_folder(
+                conn, folder, on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Reading PDFs")
+            )
             _process_scan_result(
                 conn,
                 scanned,
@@ -126,6 +154,7 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
                 store=store,
                 crossref=crossref,
                 retraction_checkers=app.state.retraction_checkers,
+                on_progress=lambda label, i, n: jobs.mark_progress(job_id, i, n, label),
             )
             add_watched_folder(conn, folder)  # inc 98: scanning a folder starts watching it
             touch_last_scanned(conn, folder)
@@ -176,7 +205,7 @@ def watched_rescan_status(job_id: str, request: Request) -> ScanJobResponse:
         raise HTTPException(status_code=404, detail="Rescan job not found")
     if job.status == "done" and job.result is not None:
         return job.result
-    return ScanJobResponse(job_id=job_id, status=job.status, detail=job.detail)
+    return ScanJobResponse(job_id=job_id, status=job.status, detail=job.detail, progress=_progress_out(job))
 
 
 def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
@@ -193,7 +222,9 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                 if not Path(folder).is_dir():  # a watched folder that's gone → noted, never fatal
                     agg["errors"] += 1
                     continue
-                scanned = scan_library_folder(conn, folder)
+                scanned = scan_library_folder(
+                    conn, folder, on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Reading PDFs")
+                )
                 _process_scan_result(
                     conn,
                     scanned,
@@ -201,6 +232,7 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                     store=store,
                     crossref=crossref,
                     retraction_checkers=app.state.retraction_checkers,
+                    on_progress=lambda label, i, n: jobs.mark_progress(job_id, i, n, label),
                 )
                 touch_last_scanned(conn, folder)
                 for key in agg:
@@ -227,6 +259,7 @@ class ImportJobResponse(BaseModel):
     status: Literal["pending", "running", "done", "error"]
     detail: str | None = None
     summary: ImportSummary | None = None
+    progress: JobProgressOut | None = None
 
 
 @router.post("/library/import", response_model=ImportJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
@@ -248,7 +281,7 @@ def import_status(job_id: str, request: Request) -> ImportJobResponse:
         raise HTTPException(status_code=404, detail="Import job not found")
     if job.status == "done" and job.result is not None:
         return job.result
-    return ImportJobResponse(job_id=job_id, status=job.status, detail=job.detail)
+    return ImportJobResponse(job_id=job_id, status=job.status, detail=job.detail, progress=_progress_out(job))
 
 
 def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) -> None:
@@ -261,7 +294,10 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
             result = import_citations(conn, content, fmt)  # parse → dedup → create; no egress
             created = [int(pid) for pid in result["created"]]
             if created:  # embed the new papers' metadata so they're searchable / axis-scorable
-                embed_papers(conn, model=model, vector_store=store, paper_ids=created)
+                embed_papers(
+                    conn, model=model, vector_store=store, paper_ids=created,
+                    on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Embedding papers"),
+                )
                 # inc 134: best-effort retraction auto-check on the imported papers (a known-retracted DOI flags now)
                 auto_check_retractions(conn, created, checkers=app.state.retraction_checkers)
         jobs.mark_done(

@@ -3,7 +3,7 @@
 // **watches** it — watched folders are re-scanned automatically on launch (Settings toggle) + via "Re-scan all",
 // so new PDFs appear without re-adding. Clones the poll lifecycle of the other async-job modals.
 
-function ScanModal({ onClose, onScanned }) {
+function ScanModal({ onClose, onScanned, onShowUnsorted }) {
   const [folder, setFolder] = useState(() => {
     try { return localStorage.getItem("callosum.scanFolder") || ""; } catch (e) { return ""; }
   });
@@ -18,7 +18,7 @@ function ScanModal({ onClose, onScanned }) {
       const d = r.data;
       if (d.status === "done") { setScan({ status: "done", summary: d.summary }); loadWatched(); if (onScanned) onScanned(); }
       else if (d.status === "error") setScan({ status: "error", error: d.detail || failMsg });
-      else setTimeout(() => tick(jobId), 1500);
+      else { setScan({ status: "running", progress: d.progress }); setTimeout(() => tick(jobId), 1500); }
     });
     return tick;
   };
@@ -81,14 +81,16 @@ function ScanModal({ onClose, onScanned }) {
             {scan.status === "running" ? "Scanning…" : "Add + scan"}
           </button>
         </div>
-        {scan.status === "running" && <ProgressBar label="Scanning + processing PDFs…" />}
+        {scan.status === "running" && <ProgressBar label="Scanning + processing PDFs…" progress={scan.progress} />}
         {scan.status === "error" && <div className="axis-err">Scan failed: {scan.error}</div>}
         {scan.status === "done" && s &&
           <div className="scan-summary">
             <b>{s.added}</b> added · {s.unchanged} unchanged · {s.removed} missing
             {s.errors ? ` · ${s.errors} error${s.errors === 1 ? "" : "s"}` : ""}
             {s.added > 0 &&
-              <div className="axis-hint">New papers are in your library — any whose DOI didn't resolve are under <b>Unsorted</b>.</div>}
+              <div className="axis-hint">New papers are in your library — any whose DOI didn't resolve need a look.
+                {onShowUnsorted && <> <button className="btn-link" onClick={() => { onShowUnsorted(); onClose(); }}>Review unsorted →</button></>}
+              </div>}
           </div>}
         <div className="axis-form-actions">
           <button className="axis-link" onClick={onClose}>Close</button>

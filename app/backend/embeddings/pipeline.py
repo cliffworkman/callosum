@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Literal
 
@@ -29,10 +30,14 @@ def embed_chunks(
     model: EmbeddingModel,
     vector_store: VectorStore,
     chunk_ids: list[int] | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> list[int]:
     rows = _chunk_rows(conn, chunk_ids)
     created: list[int] = []
-    for row in rows:
+    total = len(rows)
+    for index, row in enumerate(rows, start=1):
+        if on_progress:
+            on_progress(index, total)  # inc 142: determinate progress for the long embed phase
         existing = _current_embedding(
             conn,
             target_type="chunk",
@@ -68,10 +73,14 @@ def embed_papers(
     model: EmbeddingModel,
     vector_store: VectorStore,
     paper_ids: list[int] | None = None,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> list[int]:
     rows = _paper_rows(conn, paper_ids)
     created: list[int] = []
-    for row in rows:
+    total = len(rows)
+    for index, row in enumerate(rows, start=1):
+        if on_progress:
+            on_progress(index, total)  # inc 142: determinate progress for the long embed phase
         text = paper_embedding_text(row)
         if not normalize_text(text, model.normalization):
             continue

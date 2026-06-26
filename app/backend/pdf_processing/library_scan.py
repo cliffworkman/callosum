@@ -13,6 +13,7 @@ cleanup to avoid orphaned chunk embeddings.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -29,11 +30,16 @@ _log = logging.getLogger("callosum.library_scan")
 
 
 def scan_library_folder(
-    conn: Connection, folder: str | Path, *, import_source: str = LIBRARY_SCAN_SOURCE
+    conn: Connection,
+    folder: str | Path,
+    *,
+    import_source: str = LIBRARY_SCAN_SOURCE,
+    on_progress: Callable[[int, int], None] | None = None,
 ) -> dict[str, Any]:
     """Reconcile ``folder``'s ``*.pdf`` files with the library. Returns
     ``{added:[{paper_id, chunk_ids}], unchanged:[…], removed:[…], errors:[…]}``. Per-file failures are isolated
-    (a savepoint per new file; the bad file is recorded and the scan continues)."""
+    (a savepoint per new file; the bad file is recorded and the scan continues). ``on_progress(current, total)``
+    (inc 142) is called once per file so the UI can show determinate "reading PDF X / N" progress."""
     folder = Path(folder)
     result: dict[str, Any] = {"added": [], "unchanged": [], "removed": [], "errors": []}
     current = {str(p.resolve()): p for p in sorted(folder.glob("*.pdf")) if p.is_file()}
@@ -52,7 +58,10 @@ def scan_library_folder(
         if row["resolved_path"]:
             tracked[str(row["resolved_path"])] = (int(row["id"]), int(row["paper_id"]))
 
-    for resolved, path in current.items():
+    total = len(current)
+    for index, (resolved, path) in enumerate(current.items(), start=1):
+        if on_progress:
+            on_progress(index, total)  # inc 142: determinate per-file progress (extraction is the slow per-file step)
         try:
             if path.stat().st_size > MAX_SCAN_PDF_BYTES:
                 result["errors"].append({"path": resolved, "error": "exceeds the per-file size cap"})

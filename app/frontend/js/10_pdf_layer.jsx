@@ -138,11 +138,19 @@ function fmtDateTime(value) {
 // Indeterminate progress bar (inc 79) — a consistent "working…" affordance for the long async jobs
 // (summarize / axis score+suggest / dedup / acquire-oa / wanted re-check / my-pubs refresh). Honors
 // prefers-reduced-motion (a static half-filled bar instead of the sweep).
-function ProgressBar({ label }) {
+// inc-142: a determinate `progress` prop ({current,total,label}) renders a real fill + "label  X / N" so a long
+// import/scan answers "how far / is it stuck", not just "alive"; without it the bar stays the indeterminate pulse.
+function ProgressBar({ label, progress }) {
+  const det = progress && progress.total > 0;
+  const pct = det ? Math.min(100, Math.round((progress.current / progress.total) * 100)) : null;
+  const text = det ? `${progress.label} — ${progress.current} / ${progress.total}` : label;
   return (
-    <div className="progress" role="progressbar" aria-busy="true" aria-label={label || "Working"}>
-      <div className="progress-track"><div className="progress-fill" /></div>
-      {label ? <span className="progress-label">{label}</span> : null}
+    <div className="progress" role="progressbar" aria-busy="true" aria-label={text || "Working"}
+      aria-valuenow={det ? progress.current : undefined} aria-valuemax={det ? progress.total : undefined}>
+      <div className="progress-track">
+        <div className={"progress-fill" + (det ? " progress-fill-det" : "")} style={det ? { width: pct + "%" } : undefined} />
+      </div>
+      {text ? <span className="progress-label">{text}</span> : null}
     </div>
   );
 }

@@ -21,10 +21,21 @@ R = TypeVar("R")
 
 
 @dataclass(frozen=True)
+class JobProgress:
+    """Determinate progress for a long-running job (inc 142) — so the UI shows "Embedding 184 / 412" + a fill bar
+    instead of an opaque pulse. Optional: a job that doesn't report progress just stays indeterminate."""
+
+    current: int
+    total: int
+    label: str
+
+
+@dataclass(frozen=True)
 class Job(Generic[R]):
     status: JobStatus
     result: R | None = None
     detail: str | None = None
+    progress: JobProgress | None = None
 
 
 class JobStore(Generic[R]):
@@ -43,6 +54,11 @@ class JobStore(Generic[R]):
     def mark_running(self, job_id: str) -> None:
         with self._lock:
             self._jobs[job_id] = Job(status="running")
+
+    def mark_progress(self, job_id: str, current: int, total: int, label: str) -> None:
+        """Update a running job's determinate progress (inc 142). Cheap + frequent (per item); the UI polls it."""
+        with self._lock:
+            self._jobs[job_id] = Job(status="running", progress=JobProgress(current=current, total=total, label=label))
 
     def mark_done(self, job_id: str, result: R) -> None:
         with self._lock:

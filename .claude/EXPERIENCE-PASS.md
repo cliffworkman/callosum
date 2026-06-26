@@ -92,8 +92,34 @@ together as feature areas land; a good persona is concrete enough that an agent 
 - **Stranded by:** authoritative-sounding prose without traceable evidence; an exact-looking highlight that isn't
   actually exact (the coordinate-honesty contract is the defense here).
 
-*(Add personas as features land — e.g. a "returning reader" resuming mid-project, a "collaborator" handing a
-library to a co-author. Each gets: who/when · goal-in-the-moment · reaches-for · stranded-by.)*
+### Migrator *(switcher)*
+- **Who / when:** a day-one user bringing their whole library over from Zotero/Mendeley (or a folder of PDFs),
+  deciding whether Callosum can replace their current manager.
+- **Goal in the moment:** get everything *in*, intact, and **trust that it worked** — without babysitting a black box.
+- **Reaches for:** import / scan-folder, the progress of a long operation, a first look at whether the metadata
+  came through clean.
+- **Stranded by:** a long opaque operation with no sign it's alive ("stuck? crashed? how long?"); silent partial
+  failures; bad metadata with no way to tell what needs review.
+
+### Librarian *(curator)*
+- **Who / when:** tending an established library — fixing a bad record, organizing tags, weeding duplicates. Not
+  reading or writing right now; just keeping the collection clean and trustworthy.
+- **Goal in the moment:** correct or organize *one* thing without breaking or losing *another* (their own labels,
+  an indexer's keywords, an attachment).
+- **Reaches for:** the Details editor, tags (add/remove/filter), dedup, trash/restore.
+- **Stranded by:** an edit that silently clobbers imported keyword tags or untouched fields; not being able to
+  tell their tags from an indexer's; destructive actions with no undo.
+
+### Close reader *(annotator)*
+- **Who / when:** reading one paper deeply — following an argument, marking passages, jotting notes — and
+  returning to it across sessions.
+- **Goal in the moment:** read comfortably, capture what matters *where* it matters, and find it again later.
+- **Reaches for:** the PDF viewer (zoom/fit/layout), highlights + notes, jump-to-annotation, reading mode.
+- **Stranded by:** a cramped or misaligned page that fights close reading; highlights that don't persist or don't
+  return them to the spot; notes that are hard to retrieve.
+
+*(Add personas as features land — e.g. a "collaborator" handing a library to a co-author. Each gets: who/when ·
+goal-in-the-moment · reaches-for · stranded-by.)*
 
 ---
 

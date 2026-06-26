@@ -74,6 +74,27 @@ def test_sentence_transformer_dimension_falls_back_to_legacy_api() -> None:
     assert model.dimension == 768
 
 
+def test_embed_papers_reports_progress_per_paper(tmp_path: Path) -> None:
+    # inc 142: the migrator's determinate "X of N" — embed_papers calls on_progress(current, total) once per paper.
+    engine = _migrated_engine(tmp_path)
+    model = FakeEmbeddingModel()
+    vector_store: VectorStore = SQLiteVecVectorStore()
+    calls: list[tuple[int, int]] = []
+    with engine.begin() as conn:
+        for i in range(3):
+            create_paper(
+                conn,
+                title=f"Paper {i}",
+                abstract=f"Abstract {i} about banana orchards.",
+                year=2024,
+                csl_json={"id": f"p{i}", "type": "article-journal", "title": f"Paper {i}"},
+                processing_tier="abstract-embedded",
+            )
+        embed_papers(conn, model=model, vector_store=vector_store, on_progress=lambda c, t: calls.append((c, t)))
+    engine.dispose()
+    assert calls == [(1, 3), (2, 3), (3, 3)]  # one determinate tick per paper
+
+
 def test_embedding_chunks_and_papers_store_metadata_and_sqlite_vec_vectors(tmp_path: Path) -> None:
     engine = _migrated_engine(tmp_path)
     model = FakeEmbeddingModel()
