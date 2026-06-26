@@ -98,7 +98,14 @@ def scan_status(job_id: str, request: Request) -> ScanJobResponse:
 
 
 def _process_scan_result(
-    conn, scanned, *, model, store, crossref, retraction_checkers=None, on_progress: Callable[[str, int, int], None] | None = None
+    conn,
+    scanned,
+    *,
+    model,
+    store,
+    crossref,
+    retraction_checkers=None,
+    on_progress: Callable[[str, int, int], None] | None = None,
 ) -> None:
     """Enrich new papers from Crossref + embed new chunks/papers for one scan result (shared by scan + rescan).
     Crossref is resilient (unresolved → the inc-80 Unsorted view) and is NOT the Gemini gate. Inc 134: a
@@ -115,12 +122,18 @@ def _process_scan_result(
             _log.warning("library scan: enrich failed for paper %s: %s", paper_id, exc)
     if added_chunks:
         embed_chunks(
-            conn, model=model, vector_store=store, chunk_ids=added_chunks,
+            conn,
+            model=model,
+            vector_store=store,
+            chunk_ids=added_chunks,
             on_progress=(lambda i, n: on_progress("Embedding text", i, n)) if on_progress else None,
         )
     if added_papers:
         embed_papers(
-            conn, model=model, vector_store=store, paper_ids=added_papers,
+            conn,
+            model=model,
+            vector_store=store,
+            paper_ids=added_papers,
             on_progress=(lambda i, n: on_progress("Embedding papers", i, n)) if on_progress else None,
         )
         if retraction_checkers:
@@ -295,7 +308,10 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
             created = [int(pid) for pid in result["created"]]
             if created:  # embed the new papers' metadata so they're searchable / axis-scorable
                 embed_papers(
-                    conn, model=model, vector_store=store, paper_ids=created,
+                    conn,
+                    model=model,
+                    vector_store=store,
+                    paper_ids=created,
                     on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Embedding papers"),
                 )
                 # inc 134: best-effort retraction auto-check on the imported papers (a known-retracted DOI flags now)
