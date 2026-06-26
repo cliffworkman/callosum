@@ -319,7 +319,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan, onOpenImport }) {
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
@@ -349,6 +349,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                 {libraryNeedsReview ? "← Library" : "Unsorted"}</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
+            {!trashView &&
+              <button className="trash-toggle" onClick={onOpenGaps} title="Works cited by several of your papers that you don't have yet">Gaps</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {trashView && state.status === "ready" && state.papers.length > 0 &&

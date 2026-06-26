@@ -875,6 +875,16 @@
   .wanted-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
   .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
+  /* inc 135: literature gap-finder modal */
+  .gaps-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .gaps-coverage { font-size: 11.5px; color: var(--ink-3); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .gap-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .gap-row-info { flex: 1; min-width: 0; }
+  .gap-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gap-row-meta { font-size: 11px; color: var(--ink-3); }
+  .gap-count { color: var(--accent); font-weight: 600; }
+  .gap-row-actions { display: flex; gap: 8px; white-space: nowrap; }
+  .gap-added { font-size: 11.5px; color: var(--verified); }
   .wanted-status.fulfilled { background: var(--verified-soft); color: var(--verified); border-color: var(--verified-soft); }
 
   .prov {
@@ -2269,6 +2279,7 @@
     onEmptyTrash,
     onFindDuplicates,
     onOpenWanted,
+    onOpenGaps,
     onOpenScan,
     onOpenImport
   }) {
@@ -2321,7 +2332,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works cited by several of your papers that you don't have yet" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -5490,6 +5501,49 @@
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
     )), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
+  function GapsModal({ onClose, onChanged }) {
+    const [run, setRun] = useState({ status: "idle" });
+    const [rows, setRows] = useState([]);
+    const [coverage, setCoverage] = useState(null);
+    const find = async () => {
+      setRun({ status: "running" });
+      setRows([]);
+      setCoverage(null);
+      const poll = (jobId) => api(`/gaps/find/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRun({ status: "done" });
+          setRows((d.result.candidates || []).map((c) => ({ ...c, _state: null })));
+          setCoverage({ checked: d.result.checked, total: d.result.total, note: d.result.note });
+        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Gap-finder failed." });
+        else setTimeout(() => poll(jobId), 2e3);
+      });
+      const r = await apiPost("/gaps/find", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const mark = (id, state) => setRows((rs) => rs.map((x) => x.openalex_work_id === id ? { ...x, _state: state } : x));
+    const add = async (row) => {
+      const r = await apiPost("/gaps/add", { doi: row.doi, openalex_work_id: row.openalex_work_id, title: row.title });
+      if (r.ok) {
+        mark(row.openalex_work_id, "added");
+        if (onChanged) onChanged();
+      }
+    };
+    const dismiss = async (row) => {
+      const r = await apiPost("/gaps/dismiss", { openalex_work_id: row.openalex_work_id, doi: row.doi });
+      if (r.ok) mark(row.openalex_work_id, "dismissed");
+    };
+    const visible = rows.filter((r) => r._state !== "dismissed");
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Gaps in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Works that ", /* @__PURE__ */ React.createElement("b", null, "several of your papers cite"), " but that aren't in your library yet \u2014 likely references worth adding. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers cite each one, not a measure of importance. ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good."), /* @__PURE__ */ React.createElement("div", { className: "gaps-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: find }, run.status === "running" ? "Finding\u2026" : "Find gaps")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning your library's references (OpenAlex)\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, run.error), coverage && /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, "Scanned ", coverage.checked, " of ", coverage.total, " papers (the rest have no DOI). ", coverage.note), run.status === "done" && visible.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No gaps found \u2014 every work cited by several of your papers is already in your library."), visible.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "cited by ", row.cited_by_in_library, " of your papers"), row.authors && row.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", row.authors.slice(0, 3).join(", "), row.authors.length > 3 ? " et al." : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, row._state === "added" ? /* @__PURE__ */ React.createElement("span", { className: "gap-added" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss")))))));
+  }
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -5553,6 +5607,7 @@
     const [tagRefresh, setTagRefresh] = useState(0);
     const [duplicatesOpen, setDuplicatesOpen] = useState(false);
     const [wantedOpen, setWantedOpen] = useState(false);
+    const [gapsOpen, setGapsOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const openPdf = useCallback((paper, target) => {
@@ -5945,7 +6000,7 @@
     useEffect(() => {
       refreshRetractionChip();
     }, [refreshRetractionChip]);
-    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen || !!pcurvePapers;
+    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -6069,6 +6124,7 @@
           onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
           onOpenWanted: () => setWantedOpen(true),
+          onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true)
         },
@@ -6113,6 +6169,12 @@
       {
         onClose: () => setWantedOpen(false),
         onOpenPaper: openPdf,
+        onChanged: () => setLibRefresh((n) => n + 1)
+      }
+    ), gapsOpen && /* @__PURE__ */ React.createElement(
+      GapsModal,
+      {
+        onClose: () => setGapsOpen(false),
         onChanged: () => setLibRefresh((n) => n + 1)
       }
     ), pcurvePapers && /* @__PURE__ */ React.createElement(

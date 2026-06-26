@@ -57,6 +57,7 @@ function App() {
   const [tagRefresh, setTagRefresh] = useState(0);  // inc-96: bump to refetch the sidebar Tags browser (tag add/remove)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
+  const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
 
@@ -436,7 +437,7 @@ function App() {
   useEffect(() => { refreshRetractionChip(); }, [refreshRetractionChip]);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen || !!pcurvePapers;
+  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -501,6 +502,7 @@ function App() {
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
           onOpenWanted: () => setWantedOpen(true),
+          onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
         }}
@@ -533,6 +535,11 @@ function App() {
         <WantedModal
           onClose={() => setWantedOpen(false)}
           onOpenPaper={openPdf}
+          onChanged={() => setLibRefresh(n => n + 1)}
+        />}
+      {gapsOpen &&
+        <GapsModal
+          onClose={() => setGapsOpen(false)}
           onChanged={() => setLibRefresh(n => n + 1)}
         />}
       {pcurvePapers &&

@@ -851,6 +851,16 @@
   .wanted-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
   .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
+  /* inc 135: literature gap-finder modal */
+  .gaps-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .gaps-coverage { font-size: 11.5px; color: var(--ink-3); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
+  .gap-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .gap-row-info { flex: 1; min-width: 0; }
+  .gap-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gap-row-meta { font-size: 11px; color: var(--ink-3); }
+  .gap-count { color: var(--accent); font-weight: 600; }
+  .gap-row-actions { display: flex; gap: 8px; white-space: nowrap; }
+  .gap-added { font-size: 11.5px; color: var(--verified); }
   .wanted-status.fulfilled { background: var(--verified-soft); color: var(--verified); border-color: var(--verified-soft); }
 
   .prov {
