@@ -1,348 +1,355 @@
-# Increment backlog — OPEN (nearer-term core-UX increments)
+# Increment backlog — OPEN (complexity-ordered for autonomous operation, 2026-06-21)
 
-Durable, ordered to-do list — **open items only.** Shipped/closed items were split out to
-[`INCREMENT-BACKLOG-DONE.md`](INCREMENT-BACKLOG-DONE.md) on 2026-06-20 so this queue stays scannable. Each item
-gets its **own plan-mode design** when picked up — several are deliberately underspecified here; this is the
-queue, not the design.
+> **The cut point is currently after item 4.** Slide it wherever you like (see below).
 
-> **Guiding principle (the user's framing):** *reference manager first.* The verified-synthesis crown jewel
-> only matters if Callosum is a credible day-one replacement for Mendeley/Zotero — otherwise it's a costly
-> single-use tool opened *alongside* them, not *instead of* them. "The crown jewel only sells tickets if it's in
-> a beautiful museum." So this whole backlog is **high priority** — it's the museum.
+> **How this file is organized now.** Every open item is in **one list, ordered by how ready it is for
+> Claude Code to execute *unattended*** — simplest/safest at the top, most complex / most-needs-me at the
+> bottom. That ordering mostly tracks raw build effort, but it also reflects whether an item needs a
+> **decision** from me, touches something **destructive** or **security-sensitive**, is **gated** on an open
+> question, or is **blocked** on a prerequisite that doesn't exist yet — because those are what actually
+> decide whether CC can safely touch it.
+>
+> **The cut point** is the line **`⛔ NEEDS CLIFF — requires my judgment; do NOT build autonomously`**.
+> Everything above it, CC builds top-down; everything below it is mine. I placed it where I'd draw the line —
+> **slide it up or down** (items are numbered, so "move it after #7" is unambiguous). The kickoff prompt keys
+> off this exact line, so moving the line resizes CC's scope automatically. The first several items below the
+> cut (#5–#9) are the natural "slide-down-to-include" candidates: medium build, not dangerous.
+>
+> **Labels.** Every below-cut item is tagged with *why* it needs me: **[decision]**, **[security]**,
+> **[destructive]**, **[gated]**, **[blocked]**, **[outward-facing]**, **[infra]**, **[future track]**,
+> **[non-code]**.
+>
+> **Nothing lost.** All open-item detail is preserved. Shipped items are kept as one-line breadcrumbs at the
+> very bottom — their full detail remains in `INCREMENT-BACKLOG-DONE.md`.
 
-> Scope note: the bigger **longer-horizon tracks** live as detailed build-prompt docs under
-> **[`future-tracks/`](future-tracks/)** (see its `README.md` index). **`future-tracks/` is the canonical
-> source — reference it, don't recapitulate.** The items below are the near-term core UX.
+> **Guiding principle (mine):** *reference manager first.* The verified-synthesis crown jewel only matters if
+> Callosum is a credible day-one replacement for Mendeley/Zotero — otherwise it's a costly single-use tool
+> opened *alongside* them, not *instead of* them. "The crown jewel only sells tickets if it's in a beautiful
+> museum." So this whole backlog is **high priority** — it's the museum.
+
+> **Scope note:** the bigger **longer-horizon tracks** live as detailed build-prompt docs under
+> **`future-tracks/`** (its `README.md` is the index). `future-tracks/` is the canonical source — the entries
+> below are the queue summary, not the design.
 
 _Italic notes are light implementation pointers, not designs._
 
----
-
-## Tags & keywords (added 2026-06-20, post inc-71/73)
-
-- [ ] **Author/expert keywords as FIRST-ORDER tags — remaining sources.** Zotero tags (inc 71) + Crossref
-  `subject` (inc 73) already import as tags. Remaining: **OpenAlex `concepts`** + **PubMed MeSH** (richer index
-  keywords; arrive when those integrations land — OpenAlex client exists for OA-location only today; PubMed via
-  the connected MCP). On a Feed/Search **save** (librarypaneltab track), attach the source's keywords as tags.
-- [~] **Tag provenance / source.** `tags.import_source` seeds this (`zotero`/`user`/`keyword:crossref`).
-  **Style-by-source DONE (inc 100):** the `source` is now exposed on the tag responses
-  (`PaperTagRef`/`TagRef`/`TagSummary`) and imported keyword tags render in a **muted style + a source tooltip**
-  (vs the accent-colored tags you typed), in both Details and the sidebar Tags panel. **Source filter DONE
-  (inc 105):** an **All / Yours / Keywords** toggle in the sidebar Tags panel (the "show only author keywords" ask;
-  shown only when both kinds exist). **Still open:** formalize the full vocabulary
-  (`system:{retraction|transparency|…}`), **group** by source in the UI, and **protect** imported/system tags from
-  silent clobber (mirror the inc-49 user-edit guard). NB a
-  per-**link** provenance may be needed for per-paper facts (a global tag's `import_source` can't say "THIS paper is
-  retracted") — those likely belong to the findings subsystem, projected as read-only system-tags.
-- [ ] **Tags ↔ findings / system-facts (the retraction-surfacing connection).**
-  `opus4.8_future-tracks_theorymethods.md`'s **findings subsystem** emits a retraction FACT (Crossref Retraction
-  Watch) as a persistent **"retracted" mark** + descriptive transparency tags (open-data/code/prereg). These
-  should be **filterable the way tags are** — "locate every RETRACTED paper" — reusing the inc-71 tag-filter
-  (`?tag_id=`/banner) OR a unified facet filter. **Build directive when those tracks land:** do NOT reinvent a
-  separate filter/chip surface — extend tags/tag-filter; keep system-facts visually distinct + non-editable.
-  **→ Worth a short design chat before the findings track starts.**
+> ## ⭐ NEXT MAJOR UPGRADE (designated by Cliff, 2026-06-24)
+> **THEORY / METHODS panes → accordion on a module registry.** Reorganize the side panels around the
+> THEORY (knowing the thing) vs METHODS (evaluating how it was studied) distinction: **THEORY (left)** holds
+> AXES + SYNTHESIS; **METHODS (right)** holds DETAILS — and the inner draggable top/bottom sub-split is replaced
+> by an **accordion** built on an **extensible, self-registering module registry** (`{id, label, paneId, render}`),
+> so future sections are additive. Behavior-preserving (axes/synthesis/details functionality unchanged — only
+> arrangement + selection change); the outer panel resize/collapse + the center LibraryFrame tabs are preserved;
+> saved layout state survives. **Full build prompt:** [`future-tracks/opus4.8_future-tracks_theorymethods.md`](future-tracks/opus4.8_future-tracks_theorymethods.md)
+> (its STEPs 1–3 are the UI shell; **NOTE the staleness** — that doc's STEP 4 "create DESIGN.md at repo root" is
+> already done, `.claude/DESIGN.md` exists as rule #8, so STEP 4 becomes "fold its pane-semantics / AI-usage /
+> output-contract principles into the existing DESIGN.md"). Scope is **UI shell + DESIGN.md only** — the
+> findings/flag/review subsystem + statcheck/OpenAlex/OSF METHODS checks are *separate* tracks
+> (`_theorymethodsextension.md`), explicitly NOT part of this. **This is design-led → starts with a brainstorm +
+> the Principles alignment gate + a plan before any code** (the SP-style spec→plan→build flow we've been using).
 
 ---
 
-## My Publications — follow-ups (user, 2026-06-20, post inc-81/83)
+## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
-- [x] **Star key publications + scope the AI summary to starred.** — **shipped inc 84.** ⭐ star in the My Pubs
-  sidebar card (`profile.starred_paper_ids`); a "⭐ only" dashboard toggle scopes the AI summary
-  (`my_publication_documents(only_paper_ids=…)`).
-- [x] **Review queue for OpenAlex works MISSING from My Publications** + **import missing own-papers.** —
-  **shipped inc 85.** The dashboard gap is actionable: `build_dashboard.missing_works` (cached works ∉ library ∉
-  dismissed) with **Import** (`import_missing_work` — guardrailed, metadata-only via Crossref, auto-joins My
-  Pubs) / **Dismiss** (`profile.dismissed_work_dois`). The OA-PDF stays the separate per-paper "Acquire OA copy".
-- [x] **Un-dismiss for missing works** (the inc-85 deferred follow-on, mirroring inc-67) — **shipped inc 92**:
-  `build_dashboard.dismissed_works` + `POST /my-publications/works/undismiss` (`undismiss_work`) + a
-  "Previously dismissed" dashboard section with **Restore**.
+**1. Confirm where the in-app images (the `.webp`s) are stored/served** — investigation, read-only.
+*(Answered in the sandbox run: there are **no** `.webp` assets — the brand images are PNGs inlined as base64;
+the `.webp` hits were grep-noise. The run also surfaced a real bug worth fixing: `tools/inline_brand_assets.py`
+reads its source PNGs from a non-existent `app/media/` and therefore silently no-ops (SKIPs all six assets every
+run). **Actionable remainder:** verify that path bug is present, repoint the tool to `.claude/media/`, and confirm
+the re-run reports all six assets **unchanged** — zero frontend change, dev-tool repair only.)*
 
----
+**2. PDF viewer — page-view options** — fit-to-width, two-up / side-by-side, etc. Frontend-only, on the existing
+viewer; persist like the other view prefs; reuse the `.pdf-annot-toggle` CSS recipe (no new tokens); leave the
+inc-34 scale/text-layer alignment invariant untouched. *(Built clean in the sandbox as inc 109 — the live visual
+click-through is the one check a headless session can't run; record the reproduction steps in the increment
+notes.)*
 
-## Cross-cutting — `DESIGN.md` Pass-2 consolidation (open remainder)
+**3. Protect imported/system tags from silent clobber** — mirror the **inc-49 user-edit guard** so imported
+keyword tags and system tags aren't silently overwritten on edit. Bounded; follow the existing inc-49 pattern.
+*(Extracted from the Tag-provenance item — see **#9** for the full provenance context and its remaining
+design-level sub-tasks.)*
 
-- [ ] **Apply the Pass-2 consolidation worklist** (DESIGN.md §3) — opportunistically or on request: migrate the
-  **divergent ghost/icon buttons** to the canonical `.btn-*` classes (value-shifting → a per-button JSX className
-  change), reconcile `.axis-link.axis-danger` amber→red, and finish the **radius scale**'s messy middle
-  (4/5/6/8/9px — the tokens + clean pill/modal migration landed inc 53). Best folded into the next CSS-heavy
-  increment. (New CSS already follows the canonical rules.)
+**4. Progress indication for long operations** — partly shipped inc 79 (an indeterminate `ProgressBar` on the long
+async jobs). Remaining: extend it to the **import** and **embedding** flows for a consistent standard. Don't chase
+every op — if any are ambiguous whether an indicator fits, list them for me rather than deciding. UI-only, low
+blast radius.
 
----
+**5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** per-attachment PDF serving (Files opens the
+*primary* PDF today — true per-file routing lands with the duplicate-merge multi-PDF records); multiple URLs;
+Translator(s). The multiple-URLs / translator parts are self-contained; per-file serving is coupled to the merge
+work (**#17**) and wants a design pass. *(The "More" add-arbitrary-field menu shipped inc 96 — an `AddFieldRow` in
+the Details "More" section reusing the validated `csl` patch.)*
 
-## Cross-cutting — Auditability standard (gating constraint for AI-assist features) — open question
+⛔ NEEDS CLIFF — requires my judgment; do NOT build autonomously
 
-- [ ] **Resolve "how auditable is auditable enough?" — explicitly, before any AI-assist authoring/evaluation
-  feature ships.** The features that propose citations, judge a user's claim, or critically review papers
-  (future-tracks **Track B/C** + the **multi-paper critical-review supplement** below) are stronger, more
-  opinionated AI actions than a grounded summary; the inspectability bar must be **defined deliberately, not
-  assumed**. **Reference model:** the existing local citation-verification layer (embedding + NLI stance +
-  verbatim quote, shown with confidence — invariant #1/#4). New AI-assist surfaces meet it or state explicitly
-  where/why they fall short — and the verification step must be **low-friction** (users skip verification under
-  time pressure). _A gating note on the items below, not a feature itself._
+*(The cut point. Slide it. Items below run from "almost promotable" to "biggest / most gated." #5–#9 are the
+natural slide-down candidates.)*
 
----
+**6. `.btn-*` divergent-button migration / DESIGN.md §3 Pass-2 worklist** — **[decision]** migrate the divergent
+ghost/icon buttons to the canonical `.btn-*` classes (value-shifting → a per-button JSX className change),
+reconcile `.axis-link.axis-danger` amber→red, and finish the **radius scale**'s messy middle (4/5/6/8/9px — the
+tokens + clean pill/modal migration landed inc 53). Best folded into the next CSS-heavy increment; new CSS already
+follows the canonical rules. **⚠ Lowest build effort below the line — but it conflicts with inc-86's "keep as
+documented exceptions" ruling, which CC caught and escalated in the sandbox instead of executing. Rule on that
+(stale item, or are you reversing inc-86?) and it's a trivial promote above the cut.**
 
-## Theme 2 — Library management (open)
+**7. Multi-paper summary follow-ups** — **[watch]** a focus **query** (query-ranked coverage); coverage beyond the
+24-paper cap. Medium build, no decision needed — I put it just below the line only because it touches the synthesis
+core + the LLM and I'd want eyes on the first run. Reasonable to slide the cut down over this.
 
-- [ ] **Permanent delete doesn't remove the on-disk PDF** (managed/linked) — deferred from inc 65 (deleting
-  user files is riskier). See `INCREMENT-65-NOTES.md`.
-- [x] **Import coverage — beyond Zotero.** **BibTeX / RIS / CSL-JSON import shipped inc 93** (`POST
-  /library/import` → `metadata/citation_import.py`, hand-rolled parsers, dedup + create + embed, entirely local;
-  the complement to inc-70 export). This **also covers Mendeley/EndNote** (they export to these formats — no
-  direct encrypted-local-DB reads needed; the `integrations/mendeley/` stub stays unused). **Deferred follow-ons:**
-  attaching PDFs referenced by an import; optional Crossref-enrich / My-Pubs auto-join on import (kept off to
-  stay egress-free); a hardened BibTeX parser (`@string` macros / `#`-concat / `(`-delimited entries).
+**8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **[your call: attributions]** the retroactive
+credit-help backfill: Lane A scholarly-method lineage (statcheck → Nuijten & Epskamp / Nuijten et al. 2016; etc.)
++ Lane B software-dependency NOTICE (AGPL-3.0) + help-doc sync. A near-term **maintenance pass**, not a
+longer-horizon track — but it spans the codebase and the attributions are a judgment call. *(Credit-the-lineage is
+now a values-layer principle — `.claude/CREDIT-THE-LINEAGE.md`, captured 2026-06-21 — applied forward to every
+method-implementing tool: in-context credit + one-click library-add of the source.)*
 
----
+**9. Tag provenance / source — remaining design-level sub-tasks** — **[design]** `tags.import_source` seeds this
+(`zotero`/`user`/`keyword:crossref`). **Shipped:** style-by-source (inc 100 — `source` exposed on
+`PaperTagRef`/`TagRef`/`TagSummary`; imported keyword tags render muted + a source tooltip vs the accent-colored
+tags you typed, in Details and the sidebar Tags panel) and the source filter (inc 105 — an **All / Yours /
+Keywords** toggle in the sidebar Tags panel, shown only when both kinds exist). **Still open (the design-level
+parts):** formalize the full vocabulary (`system:{retraction|transparency|…}`) and **group** tags by source in the
+UI. *(The clobber-guard sub-task is promoted above the cut as #3.)* NB a per-**link** provenance may be needed for
+per-paper facts (a global tag's `import_source` can't say "THIS paper is retracted") — those likely belong to the
+findings subsystem, projected as read-only system-tags.
 
-## Theme 3 — Synthesis & Details (open)
+**10. Gemini API key field in Settings** — **[security]** set `GOOGLE_API_KEY` from the UI (the **BYO-key** model
+for GitHub users). _Security:_ OS keychain (see Packaging, **#21**) or at minimum never log/commit it; composes with
+the egress gate. Review the key-handling approach before this is built. Precursor to BYOK (**#39**).
 
-- [ ] **G deferred items** (`INCREMENT-49-NOTES.md`): per-attachment PDF serving (Files opens the *primary* PDF
-  today — true per-file routing lands with the duplicate-merge multi-PDF records); multiple URLs; Translator(s).
-  _(The "More" **add-arbitrary-field** menu — **shipped inc 96**: an `AddFieldRow` in the Details "More" section
-  reusing the validated `csl` patch.)_
-- [ ] **Critical-review supplement (multi-paper).** A stronger, more opinionated generation mode (own
-  endpoint/mode, egress gate, security audit) that critically reviews the selected paper(s). **Must meet the
-  Auditability standard** (above) before it ships — it judges/critiques rather than grounds.
-- [ ] **Multi-paper summary follow-ups:** a focus **query** (query-ranked coverage); coverage beyond the
-  24-paper cap.
+**11. README front-door expansion** (`future-tracks/opus4.8_future-tracks_readmescopeaudit.md`) — **[outward-facing
+— your voice]** expand the README into a contributor front door: known-limitations, a **safety note** (127.0.0.1,
+no auth/rate-limiting), **cross-platform** setup + venv/uv, dev-vs-user setup + the frontend build step, first-run
+model-download note, `.env.example` + **both** egress gates, pointers to CONTRIBUTING/SECURITY/CITATION, the
+auto-migrate note, an honest "built with AI assistance" note, a UI screenshot. (Status + license badges added
+2026-06-20.) CC can **draft** this for your review on request, but it speaks in your voice — never auto-shipped.
 
----
+**12. Critical-review supplement (multi-paper)** — **[gated]** a stronger, more opinionated generation mode (own
+endpoint/mode, egress gate, security audit) that critically reviews the selected paper(s). **Must meet the
+Auditability standard (#13)** before it ships — it judges/critiques rather than grounds.
 
-## Theme 4 — App-wide (open)
+**13. Resolve "how auditable is auditable enough?"** — **[decision — gates #12 + future Tracks B/C]** explicitly,
+before any AI-assist authoring/evaluation feature ships. The features that propose citations, judge a user's claim,
+or critically review papers are stronger, more opinionated AI actions than a grounded summary; the inspectability
+bar must be **defined deliberately, not assumed**. **Reference model:** the existing local citation-verification
+layer (embedding + NLI stance + verbatim quote, shown with confidence — invariant #1/#4). New AI-assist surfaces
+meet it or state explicitly where/why they fall short — and the verification step must be **low-friction** (users
+skip verification under time pressure). *Not a build — a decision from you that unblocks the items it gates.*
 
-- [~] **More settings** — the **axis cutoff default → Settings shipped inc 105** (a persisted slider in
-  Settings → Axes; a new/unscored axis's re-score flipper starts there). (Hide-uncertain-by-default shipped inc 77.)
-  Remaining: other prefs as they arise.
-- [ ] **`.btn-*` divergent-button migration** — see the DESIGN.md Pass-2 remainder above.
-- [ ] **Packaging & distribution (post-V1)** — a **Tauri desktop shell** (`app/desktop-shell/` placeholder); an
-  **OS keychain** for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; **desktop
-  distribution + GROBID service ops** (when Track C lands; `ops/` notes). Exploratory.
+**14. Permanent delete doesn't remove the on-disk PDF** (managed/linked) — **[destructive]** deferred from inc 65
+(deleting user files is riskier). See `INCREMENT-65-NOTES.md`.
 
----
+**15. Account creation / login + publishing name** — **[security]** a settings-level identity (the publishing name
+feeds **My Publications**). **Big + security-sensitive** — auth is absent by design today; needs its own design +
+audit. Likely post-V1 / tied to any hosted mode.
 
-## Captured from `callosum_TDL.txt` (near-term UX)
+**16. Undo / soft-delete buffer (beyond Trash)** — **[proposal — pairs with #17]** merge (below) is destructive in
+an app with no git (only zip snapshots); a stronger undo buffer is worth a slot before/with merge. (Basic Trash +
+Restore shipped inc 54/65.)
 
-**Library management & import**
-- [x] **Scan / refresh library folders** — **shipped inc 87** (manual scan/refresh: `POST /library/scan` →
-  `pdf_processing/library_scan.py`; new/unchanged/removed, linked in-place, checksum-dedup, async enrich+embed;
-  a **Scan folder** button + modal). **Watched folders shipped inc 98** — scanning a folder persists it
-  (`watched_folders`), it's re-scanned automatically on launch (Settings toggle) + via "Re-scan all", and the
-  "+ Add → Watched folders…" modal lists/manages them (Zotero/Mendeley-style; content-dedup → no dupes; un-watch
-  keeps papers). **Deferred follow-ons:** a **live OS file-watcher** (continuous, not just on-launch — needs
-  `watchdog`/inotify); true **changed-file re-ingest** (needs inc-65 vector cleanup); recursive subfolders;
-  backfilling the already-scanned library folder into the watched list (re-scan/add it once to start watching).
-- [x] **"UNSORTED" cluster** — **shipped inc 80** (the `needs_review` filter + Unsorted header toggle; the
-  Mendeley "Needs-review" analogue).
-- [x] **Filter library by type** (article / book / preprint …) — **shipped inc 91** (an `item_type` query param
-  on `GET /papers` + a `GET /papers/item-types` facet endpoint + a Type dropdown; same allowlist/param family as
-  inc-69 sort / inc-63/71 axis-tag filters). Landed after splitting `repository.py`/`papers.py` under the
-  600-line cap (rule #1).
+**17. Library merge (manual; free-form, deliberately NOT gated behind dedup)** — **[destructive — parked]** manually
+merge two/several library entries into one (combine metadata, pick a canonical record, re-point
+PDF/chunks/embeddings/**annotations**/synthesis-citations/axis-assignments). Destructive + far-reaching → its own
+carefully-audited increment. **Why free-form, not gated behind dedup:** Zotero/Mendeley both offer manual merge, and
+*automatic* duplicate detection routinely fails to surface true duplicates (e.g. a published article + its preprint
+where the preprint is a scanned PDF with garbage OCR). Gating merge behind detection traps the user into keeping an
+unwanted duplicate or deleting something they want. Manual merge must always be available. *(You want more time on
+the exact UX — parked at the end. Pairs with the undo/soft-delete net, #16.)*
 
-**PDF viewer**
-- [ ] **Page-view options** — fit-to-width, two-up / side-by-side, etc.
-- [x] **Reading mode** — **shipped inc 101**: a **⛶ Read** toggle (right of the center tab bar) collapses both
-  side panels + their dividers to maximize the open PDF; **⤢ Exit** / **Esc** restores the prior layout. Transient
-  (resets on reload). Frontend-only, built on the inc-42 collapsible panels.
+**18. Author/expert keywords as FIRST-ORDER tags — remaining sources** — **[blocked]** Zotero tags (inc 71) +
+Crossref `subject` (inc 73) already import as tags. Remaining: **OpenAlex `concepts`** + **PubMed MeSH** (richer
+index keywords) — they arrive only when those integrations land (OpenAlex client exists for OA-location only today;
+PubMed via the connected MCP). On a Feed/Search **save** (librarypaneltab track), attach the source's keywords as
+tags. Blocked on those integrations + the Feed/Search track (**#28**).
 
-**Settings & accounts**
-- [ ] **Gemini API key field in Settings** — set `GOOGLE_API_KEY` from the UI (the **BYO-key** model for
-  GitHub users). _Security:_ OS keychain (see Packaging) or at minimum never log/commit it; composes with the
-  egress gate.
-- [ ] **Account creation / login + publishing name** — a settings-level identity (the publishing name feeds
-  **My Publications**). **Big + security-sensitive** — auth is absent by design today; needs its own design +
-  audit. Likely post-V1 / tied to any hosted mode.
+**19. Tags ↔ findings / system-facts (the retraction-surfacing connection)** — **[blocked + design]**
+`opus4.8_future-tracks_theorymethods.md`'s **findings subsystem** emits a retraction FACT (Crossref Retraction
+Watch) as a persistent **"retracted" mark** + descriptive transparency tags (open-data/code/prereg). These should be
+**filterable the way tags are** — "locate every RETRACTED paper" — reusing the inc-71 tag-filter (`?tag_id=`/banner)
+OR a unified facet filter. **Build directive when those tracks land:** do NOT reinvent a separate filter/chip
+surface — extend tags/tag-filter; keep system-facts visually distinct + non-editable. **→ Worth a short design chat
+before the findings track (#31) starts.**
 
-**App-wide UX**
-- [~] **Progress indication for long operations** — **partly shipped inc 79** (an indeterminate `ProgressBar` on
-  the long async jobs). Remaining: a consistent standard across import/embedding and any other time-taking op.
-- [x] **Re-score line-wrapping fix** — **shipped inc 86** (`flex-wrap: nowrap` + a shrinkable Cutoff slider keep
-  the re-score row on one line).
+**20. Harness hardening** (`future-tracks/opus4.8_future-tracks_harnesshardening.md`) — **[infra]** adopt **uv**
+(`uv.lock`); **pre-commit** (ruff, whitespace, a 600-line size-budget script); CI gates **one at a time**
+(`alembic check` + a temp-DB migration test, **pip-audit** + **Dependabot**); **stage** expensive/judgment checks as
+dormant drafts in a new **`.claude/staged-harnesses/`** + `REGISTRY.md` with activation triggers (Pyright strict,
+tach, coverage, Hypothesis, embedding/vector-drift, bandit); **branch protection** after CI is green; repo
+furniture: **SECURITY.md, `.env.example`, CITATION.cff, CHANGELOG, SPDX `AGPL-3.0-or-later`**. Standing rule:
+**ratchet — one new blocking gate at a time**; subtraction is the tie-breaker. Changes the dev workflow CC itself
+runs under — your sign-off, one gate at a time.
 
-**Investigations (not features)**
-- [ ] Confirm where the in-app images (the `.webp`s) are actually stored/served.
-
----
-
-## Deferred — needs more thought (do last)
-
-### Library **merge** (free-form; deliberately **NOT** gated behind dedup)
-- [ ] Manually merge two/several library entries into one (combine metadata, pick a canonical record, re-point
-  PDF/chunks/embeddings/**annotations**/synthesis-citations/axis-assignments). Destructive + far-reaching → its
-  own carefully-audited increment.
-- **Why free-form, not gated behind dedup (E):** Zotero/Mendeley both offer manual merge, and *automatic*
-  duplicate detection routinely fails to surface true duplicates (e.g. a published article + its preprint where
-  the preprint is a scanned PDF with garbage OCR). Gating merge behind detection traps the user into keeping an
-  unwanted duplicate or deleting something they want. Manual merge must always be available. _(User wants more
-  time on the exact UX — parked at the end. Pairs with an **undo/soft-delete** safety net.)_
-
----
-
-## Open proposals (raised, not yet adopted — decide later)
-- **Undo / soft-delete buffer (beyond Trash).** Merge (above) is destructive in an app with no git (only zip
-  snapshots); a stronger undo buffer is worth a slot before/with merge. (Basic Trash + Restore shipped inc 54/65.)
+**21. Packaging & distribution (post-V1)** — **[exploratory]** a **Tauri desktop shell** (`app/desktop-shell/`
+placeholder); an **OS keychain** for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; **desktop
+distribution + GROBID service ops** (when Track C lands; `ops/` notes). Exploratory.
 
 ---
 
-## Longer-horizon future tracks (detailed prompts in [`future-tracks/`](future-tracks/))
+### Longer-horizon future tracks (detailed prompts in `future-tracks/`)
 
 The grand plan: Callosum as a complete, **inspectable** ecosystem for engaging the literature responsibly. Each
 track is a *signal/suggestion/retrieval that stays non-authoritative* and must pass the **Principles alignment
-gate** before any build. Sequenced *toward*, not queued — the core UX above comes first. See
-`future-tracks/README.md` for the index; do not recapitulate the detail here.
+gate** before any build. Sequenced *toward*, not queued — the core UX above comes first. See `future-tracks/
+README.md` for the index. *(Roughly ordered below from most self-contained to most foundational/most gated — all
+well below the cut; each needs its own design + my graduation call.)*
 
-- [x] **Open-science signals — statcheck** (Track A) — **v1 shipped inc 95**: `GET /papers/{id}/statcheck`
-  (`methods/statcheck.py`) recomputes APA NHST p-values from the extracted text (t/F/r/χ²/z), with rounding +
-  one-tailed tolerance, classified consistent / inconsistent / decision-error; a Details-pane "Statistical
-  reporting" section (per-test rows + counts, **no composite score**, **non-accusatory**, route-to-page). Local,
-  deterministic, no LLM. **Library-wide lens shipped inc 97** — a batch "Check all papers" (Settings) persists a
-  per-paper summary to `open_science_signals` + a library **filter** "papers with reporting inconsistencies"
-  (`GET /papers?signal=statcheck-inconsistent`; a filter, never a rank). **Header entry shipped inc 100** — a
-  **⚠ N flagged** Library-header chip (when the batch run flagged any papers; `GET /methods/statcheck/summary`)
-  jumps straight to the filter. **Deferred follow-ons:** more test forms (test-stat `<`/`>`, tables);
-  per-paper-check persistence (the per-paper GET stays live/read-only); the sibling deterministic producers
-  **GRIM / p-curve** + a unified findings-subsystem facet across signal types (the `methods/` +
-  `open_science_signals` foundations leave room).
-- [~] **Word + LibreOffice citation plugin** (Track B): cite-while-you-write over the CSL-JSON + a CSL processor.
-  **The backend CSL engine + per-item format endpoint shipped inc 106** (`POST /citations/render`); **the
-  position-aware document-render contract shipped inc 107** (`POST /citations/render-document`); **the first
-  adapter — LibreOffice (UNO) — shipped inc 108** (`adapters/libreoffice/`: a drop-in Writer macro with the full
-  live-field loop insert → refresh/restyle/renumber → bibliography → flatten; headless-tested end-to-end).
-  **Next: an Office.js (Word) add-in** (needs the CORS/origin change; content-controls/ADDIN fields; Win+Mac
-  parity) over the same `render-document` engine, **then Google Docs** (named ranges; the fenced cloud opt-in;
-  last). LibreOffice follow-ups: `.oxt` packaging + toolbar, a library-search picker, grouped cites/locators,
-  note-style footnotes. **Never auto-inserts.**
-- [ ] **Highlight-to-suggest / highlight-to-evaluate** (Track C): for a draft sentence — suggest papers to cite
-  (in-library = retrieval in reverse, local; beyond-library via OpenAlex/Semantic-Scholar with explainable
-  reasons) + evaluate support/contrast/mention via the NLI spine. Never auto-insert/auto-judge. Highest-value
-  novel capability.
-- [ ] **Free-legal full-text acquisition** (Track D): **largely shipped as inc 74–76** (the OA lane + cascade +
-  wanted list). Remaining track-D ideas: institutional / author-contact resolvers, the honest "not found" UX
-  polish. **Explicitly excludes paywall circumvention.**
-- [ ] **THEORY/METHODS panes + findings subsystem** (`…_theorymethods.md`): a module-registry accordion + a
-  **FACT-vs-candidate** findings model (retraction via Crossref Retraction Watch, statcheck, transparency
-  producers), distinct visual/epistemic treatment. **Cross-cut:** system FACTs (`RETRACTED`) filterable via the
-  inc-71 tag mechanism (see Tags & keywords).
-- [ ] **THEORY/METHODS module pool** (`…_theorymethodsextension.md`): additional principle-aligned panel-module
-  candidates; depends on the findings subsystem + module registry.
-- [ ] **Literature discovery — Feed/Search tabs** (`…_librarypaneltabadditions.md`): FEED + SEARCH center tabs
-  over a `SourceProvider` layer (PubMed/Crossref/bioRxiv), Fraser-method triage, axis-relevance **highlight
-  (augment, never filter)**; save→auto-axis (attach source keywords as tags).
-- [ ] **Literature gap-finder** (`…_gapfinder.md`): surface relevant-but-absent papers via citation methods
-  (backward/forward gap, followed authors) with transparent provenance, ranked by axis relevance, add-or-dismiss.
-  Depends on the OpenAlex adapter.
-- [ ] **My Publications — Part 2: impact dashboard tab** (`…_mypublications.md`): **Part 1 shipped inc 78**
-  (the auto-axis); **Layer 1 shipped inc 81** (the 📊 dashboard tab — headline OpenAlex metrics + the
-  indexed-vs-library gap + a publications-by-year SVG chart + an editable AI research summary; cache-only read,
-  the summary egress-gated); **Layer 2 shipped inc 83** (the **Research domains** section — local clustering of
-  confirmed own-papers into domains + impact-by-domain citation sums + a click-to-re-filter chart; stored as
-  `profile.research_domains` JSON, not child cluster_nodes). Remaining: **Layer 3**
-  enriched paper cards (per-paper OpenAlex citation count + citing-works modal, field/year percentile,
-  citations-by-year sparkline, self-vs-external split); **Layer 4** grounded prospection (citation gaps,
-  emerging citing-topics, candidate collaborators — LLM narration over graph data only). The author-resolution
-  infra (`integrations/openalex/author.py`) now also unlocks the **gap-finder** / discovery track (a separate
-  parked future-track the user floated: find papers beyond the library / external search).
-- [ ] **User-authored modules** (`…_plugins.md`): **deferred record only** — capture the extension-point idea +
-  open questions; do NOT build a plugin system until a dedicated design pass.
-- [ ] **Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived): inspectable,
-  **non-accusatory** prestige/credit/attention lenses (overlooked-work / inverse Matthew, citation
-  credit-concentration, positive self-correction) + 2 principle-fraught forensic candidates recorded with the
-  **no-index / no-accusation** reframing. Citation-graph-shaped → OpenAlex adapter + findings subsystem; project
-  as **system-facts tags**. Gated by the Principles gate **and** the A-A **no-accusation** veto — the track that
-  most needs the values layer.
-- [ ] **Research-impact analytics** (`…_researchimpactanalytics.md`): opt-in, local-first, **commons**-structured
-  measurement of whether Callosum changes how people research, at **human-subjects-research** consent discipline.
-  **A.** local usage analytics (zero-egress; instrumentation seam + personal dashboard are the only near-term,
-  buildable-now parts) vs **B.** cross-user impact signal (far-future, gated). Must pass the Principles gate **and**
-  the A-A values layer (default-deny; compute-locally / transmit-summaries-only; public field registry; commons
-  reciprocity; valence rule = *less* time-in-app is the win). Graduation is the user's explicit call.
-- [ ] **PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
-  `…_publisherschoicegate.md`): at submission time, surface **verifiable, fully-sourced facts** per candidate
-  journal (OA color, APC + waiver, green route, license, RR/data policy, TOP factor, open impact, multi-route
-  legitimacy **incl. regional indexes**) under a **user-set open-science weighting** — the author weighs them;
-  **never a verdict**. Veto: **no composite score, no "predatory" label** (A-A no-accusation), abstract +
-  preferences **local, never transmitted**, **equity** first-class. The **first-use choice gate** (no
-  pre-selected default; the weighting one forced choice among peers) is the near-term enhancement. **More
-  controversial than most** — build only this principled shape; gate through Principles + A-A at graduation.
-  **Do not build yet.**
+**22. Free-legal full-text acquisition** (Track D) — **[future track]** **largely shipped as inc 74–76** (the OA
+lane + cascade + wanted list). Remaining track-D ideas: institutional / author-contact resolvers, the honest "not
+found" UX polish. **Explicitly excludes paywall circumvention.**
 
-*Folded in from the future-tracks inbox (2026-06-21) — the seven specs below:*
+**23. LMM-reporting auditor** (`…_lmmreportingauditor.md`, METHODS, consumer-side) — **[future track]** flags what a
+reader should look for in a mixed-model paper (random-effects structure, df method, convergence, REML/ML, ICC, R²,
+missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**. A self-contained
+sibling of statcheck under the findings subsystem.
 
-- [~] **Citation & bibliography engine** (`…_citationbibliographyengine.md`): the reference-manager **spine**.
-  **Phase 1 shipped inc 106** — **citeproc-js** rendered backend-side via a Node sidecar (`app/backend/citations/`)
-  over bundled CSL styles, surfaced **in-app** (Details "Cite as …" + a bulk formatted-bibliography download);
-  formatted styles (APA/MLA/Chicago/IEEE/Nature/Harvard); credit in `THIRD-PARTY-NOTICES.md`; no egress.
-  **Phase 2 shipped inc 107** — the **position-aware document-render** layer (`POST /citations/render-document`,
-  `render_document` / `rebuildProcessorState`): renders a document's **ordered citation clusters** with numeric
-  renumbering + author-date disambiguation; self-contained (renders from passed CSL-JSON, no library lookup); the
-  contract every adapter calls. **The first adapter — LibreOffice (UNO) — shipped inc 108** (`adapters/libreoffice/`):
-  the target-agnostic field abstraction (`{itemKeys, cslJsonPayload, renderedText, orderIndex}`) realized as
-  ReferenceMarks carrying CSL-JSON (Zotero `CSL_CITATION` pattern), full-document-order scan, and a flatten mode —
-  the full live-field loop, headless-tested in a real LibreOffice. **Next (the remaining adapters, same engine):**
-  **Word (Office.js)** — one Win+Mac+web add-in (needs the CORS/origin change; content-controls or ADDIN field
-  codes) — then **Google Docs** (named ranges; the fenced cloud opt-in; built last). Deferred: `.oxt` packaging +
-  toolbar, a library-search picker, grouped cites, note-style footnote management, locators/prefixes,
-  fetch-on-demand long-tail styles (consent-gated), Vancouver + more bundled styles, rich-clipboard (italics) copy,
-  a shared subprocess timeout.
-- [ ] **Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS): Tier-1 recompute default Bayes factors
-  for canonical designs (t/F/r + N) + Tier-2 completeness audit; signal-not-verdict, deliberately does **not**
-  teach "BF>3 = significance". Sibling of statcheck under the findings subsystem.
-- [ ] **LMM-reporting auditor** (`…_lmmreportingauditor.md`, METHODS, consumer-side): flags what a reader should
-  look for in a mixed-model paper (random-effects structure, df method, convergence, REML/ML, ICC, R²,
-  missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**.
-- [ ] **Citation-equity audit** (`…_citationequitytool.md`, METHODS): identity-**agnostic** structural/topical
-  reference-list audit (self-citation, concentration, Global-South under-citation, topical gaps) + add-only
-  "overlooked work" remediation; descriptive, never a verdict. Gender/identity module **deferred + separately
-  gated** (A-A no-accusation).
-- [ ] **CRediT contributions builder** (`…_creditcontributionsbuilder.md`): authors × 14-roles grid (NISO CRediT)
-  → a contributorship statement injected via the Word link; **builder, not verifier**; credits **tenzing** +
-  library-adds its paper (credit-the-lineage).
-- [ ] **Meta-analysis extraction workbench** (`…_metaanalysisextractionworkbench.md`, its **own** REVIEW/SYNTHESIS
-  workspace): protocol → embedding-screened queue → LLM-drafted **provenance-anchored, human-verified** extraction
-  → double-coding/IRR → deterministic effect-size conversion → export (metafor/JASP/RevMan) + audit trail.
-  **Extracts/structures, never pools/models/adjudicates**; LLM is never an independent coder.
-- [ ] **BYOK / multi-provider LLM** (`…_byokproviderkeys.md`, Settings; **load-bearing for any shared release** —
-  Callosum can't ship its own key once others run it): user-supplied keys + Gemini/OpenAI/Anthropic/
-  OpenAI-compatible/**local**; a **validation lock** (quality-not-correctness disclaimer); keys in OS keychain;
-  embeddings stay local; verification provider-agnostic. Extends the inc-58 egress-gate DI seam.
+**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[future track]** Tier-1 recompute default
+Bayes factors for canonical designs (t/F/r + N) + Tier-2 completeness audit; signal-not-verdict, deliberately does
+**not** teach "BF>3 = significance". Sibling of statcheck under the findings subsystem.
 
-**Credit the lineage** is now a **values-layer principle** ([`.claude/CREDIT-THE-LINEAGE.md`](../CREDIT-THE-LINEAGE.md),
-captured from the inbox 2026-06-21): apply it forward to every method-implementing tool (in-context credit +
-one-click library-add of the source), and run the retroactive **credit-help backfill**
-(`…_credithelpbackfill.md`) — Lane A scholarly-method lineage (statcheck → Nuijten & Epskamp / Nuijten et al.
-2016; etc.) + Lane B software-dependency NOTICE (AGPL-3.0) + help-doc sync. *A near-term maintenance pass, not a
-longer-horizon track.*
+**25. Citation-equity audit** (`…_citationequitytool.md`, METHODS) — **[future track]** identity-**agnostic**
+structural/topical reference-list audit (self-citation, concentration, Global-South under-citation, topical gaps) +
+add-only "overlooked work" remediation; descriptive, never a verdict. Gender/identity module **deferred + separately
+gated** (A-A no-accusation).
 
-**Shared infra these unlock (kept as README-only `integrations/` stubs on purpose):** **OpenAlex** (my-pubs →
-gap-finder → discovery → acquisition; the acquisition slice is built), **Unpaywall** (Track D — superseded by
-OpenAlex in inc 74), **Semantic Scholar** (Track C, discovery), **GROBID** (Track C section-scoping).
-(**mendeley** is NOT track infra — it's *Import coverage*, above.)
+**26. CRediT contributions builder** (`…_creditcontributionsbuilder.md`) — **[future track]** authors × 14-roles
+grid (NISO CRediT) → a contributorship statement injected via the Word link (depends on #33/#34); **builder, not
+verifier**; credits **tenzing** + library-adds its paper (credit-the-lineage).
 
----
+**27. Open-science signals — statcheck follow-ons** — **[future track]** the sibling deterministic producers
+**GRIM / p-curve** (self-contained, like statcheck) + a **unified findings-subsystem facet** across signal types
+(depends on #31), plus more test forms (test-stat `<`/`>`, tables). *(statcheck v1 + the library-wide lens + the
+header chip shipped inc 95/97/100; the `methods/` + `open_science_signals` foundations leave room.)*
 
-## Dev-infra & repo hardening (post-git) — added 2026-06-20
+**28. Literature discovery — Feed/Search tabs** (`…_librarypaneltabadditions.md`) — **[future track]** FEED + SEARCH
+center tabs over a `SourceProvider` layer (PubMed/Crossref/bioRxiv), Fraser-method triage, axis-relevance
+**highlight (augment, never filter)**; save→auto-axis (attach source keywords as tags). Foundational for discovery
+(unblocks #18's keyword sourcing).
 
-Two roadmap docs under `future-tracks/` (detail there — reference, don't recapitulate). Near-term now the repo
-is live.
+**29. Literature gap-finder** (`…_gapfinder.md`) — **[future track]** surface relevant-but-absent papers via
+citation methods (backward/forward gap, followed authors) with transparent provenance, ranked by axis relevance,
+add-or-dismiss. Depends on the OpenAlex adapter.
 
-- [ ] **Harness hardening** (`future-tracks/opus4.8_future-tracks_harnesshardening.md`) — adopt **uv**
-  (`uv.lock`); **pre-commit** (ruff, whitespace, a 600-line size-budget script); CI gates **one at a time**
-  (`alembic check` + a temp-DB migration test, **pip-audit** + **Dependabot**); **stage** expensive/judgment
-  checks as dormant drafts in a new **`.claude/staged-harnesses/`** + `REGISTRY.md` with activation triggers
-  (Pyright strict, tach, coverage, Hypothesis, embedding/vector-drift, bandit); **branch protection** after CI is
-  green; repo furniture: **SECURITY.md, `.env.example`, CITATION.cff, CHANGELOG, SPDX `AGPL-3.0-or-later`**.
-  Standing rule: **ratchet — one new blocking gate at a time**; subtraction is the tie-breaker.
-- [ ] **README front-door expansion** (`future-tracks/opus4.8_future-tracks_readmescopeaudit.md`) — expand the
-  README into a contributor front door: known-limitations, a **safety note** (127.0.0.1, no auth/rate-limiting),
-  **cross-platform** setup + venv/uv, dev-vs-user setup + the frontend build step, first-run model-download note,
-  `.env.example` + **both** egress gates, pointers to CONTRIBUTING/SECURITY/CITATION, the auto-migrate note, an
-  honest "built with AI assistance" note, a UI screenshot. (Status + license badges added 2026-06-20.)
+**30. Highlight-to-suggest / highlight-to-evaluate** (Track C) — **[future track]** for a draft sentence — suggest
+papers to cite (in-library = retrieval in reverse, local; beyond-library via OpenAlex/Semantic-Scholar with
+explainable reasons) + evaluate support/contrast/mention via the NLI spine. Never auto-insert/auto-judge.
+**Highest-value novel capability.**
+
+**31. THEORY/METHODS panes + findings subsystem** (`…_theorymethods.md`) — **[foundational — UI shell + findings
+contract SHIPPED; first producer next]** the module-registry accordion shipped **inc 121** (THEORY/METHODS panes);
+the **FACT-vs-candidate findings model** shipped **inc 130** (`paper_findings` store + `findings_repo.upsert_findings`
+producer contract + the METHODS "Review" section + the library "N to review" work-state badge — **contract + UI only,
+no producer wired**). **REMAINING — the first real producer = retraction** (Crossref / Retraction Watch → a **FACT**
+with a TTL; its own increment, trips the audit gate [new external fetch] + the Principles gate); then statcheck /
+transparency producers can emit candidates into the same store. **Cross-cut:** system FACTs (`RETRACTED`) filterable
+via the inc-71 tag mechanism (see #19); a library-wide "needs review" facet can read `findings_overview`.
+
+**32. THEORY/METHODS module pool** (`…_theorymethodsextension.md`) — **[future track]** additional principle-aligned
+panel-module candidates; depends on the findings subsystem + module registry (#31).
+
+**33. Citation & bibliography engine** (`…_citationbibliographyengine.md`) — **[future track]** the reference-manager
+**spine**. **Phase 1 shipped inc 106** — **citeproc-js** rendered backend-side via a Node sidecar
+(`app/backend/citations/`) over bundled CSL styles, surfaced **in-app** (Details "Cite as …" + a bulk
+formatted-bibliography download); formatted styles (APA/MLA/Chicago/IEEE/Nature/Harvard); credit in
+`THIRD-PARTY-NOTICES.md`; no egress. **Phase 2 shipped inc 107** — the **position-aware document-render** layer
+(`POST /citations/render-document`, `render_document` / `rebuildProcessorState`): renders a document's **ordered
+citation clusters** with numeric renumbering + author-date disambiguation; self-contained (renders from passed
+CSL-JSON, no library lookup); the contract every adapter calls. **The first adapter — LibreOffice (UNO) — shipped
+inc 108** (`adapters/libreoffice/`): the target-agnostic field abstraction
+(`{itemKeys, cslJsonPayload, renderedText, orderIndex}`) realized as ReferenceMarks carrying CSL-JSON (Zotero
+`CSL_CITATION` pattern), full-document-order scan, and a flatten mode — the full live-field loop, headless-tested in
+a real LibreOffice. **Next (the remaining adapters, same engine):** **Word (Office.js)** — one Win+Mac+web add-in
+(needs the CORS/origin change; content-controls or ADDIN field codes) — then **Google Docs** (named ranges; the
+fenced cloud opt-in; built last). Deferred: `.oxt` packaging + toolbar, a library-search picker, grouped cites,
+note-style footnote management, locators/prefixes, fetch-on-demand long-tail styles (consent-gated), Vancouver +
+more bundled styles, rich-clipboard (italics) copy, a shared subprocess timeout.
+
+**34. Word + LibreOffice citation plugin** (Track B) — **[future track]** cite-while-you-write over the CSL-JSON + a
+CSL processor — the track-level framing of the engine in #33. **The backend CSL engine + per-item format endpoint
+shipped inc 106** (`POST /citations/render`); **the position-aware document-render contract shipped inc 107** (`POST
+/citations/render-document`); **the first adapter — LibreOffice (UNO) — shipped inc 108** (`adapters/libreoffice/`:
+a drop-in Writer macro with the full live-field loop insert → refresh/restyle/renumber → bibliography → flatten;
+headless-tested end-to-end). **Next: an Office.js (Word) add-in** (needs the CORS/origin change;
+content-controls/ADDIN fields; Win+Mac parity) over the same `render-document` engine, **then Google Docs** (named
+ranges; the fenced cloud opt-in; last). LibreOffice follow-ups: `.oxt` packaging + toolbar, a library-search picker,
+grouped cites/locators, note-style footnotes. **Never auto-inserts.**
+
+**35. My Publications — Part 2: impact dashboard tab** (`…_mypublications.md`) — **[future track]** **Part 1 shipped
+inc 78** (the auto-axis); **Layer 1 shipped inc 81** (the 📊 dashboard tab — headline OpenAlex metrics + the
+indexed-vs-library gap + a publications-by-year SVG chart + an editable AI research summary; cache-only read, the
+summary egress-gated); **Layer 2 shipped inc 83** (the **Research domains** section — local clustering of confirmed
+own-papers into domains + impact-by-domain citation sums + a click-to-re-filter chart; stored as
+`profile.research_domains` JSON, not child cluster_nodes). Remaining: **Layer 3** enriched paper cards (per-paper
+OpenAlex citation count + citing-works modal, field/year percentile, citations-by-year sparkline, self-vs-external
+split); **Layer 4** grounded prospection (citation gaps, emerging citing-topics, candidate collaborators — LLM
+narration over graph data only). The author-resolution infra (`integrations/openalex/author.py`) now also unlocks
+the **gap-finder** / discovery track (a separate parked future-track you floated: find papers beyond the library /
+external search).
+
+**36. Meta-analysis extraction workbench** (`…_metaanalysisextractionworkbench.md`, its **own** REVIEW/SYNTHESIS
+workspace) — **[future track]** protocol → embedding-screened queue → LLM-drafted **provenance-anchored,
+human-verified** extraction → double-coding/IRR → deterministic effect-size conversion → export
+(metafor/JASP/RevMan) + audit trail. **Extracts/structures, never pools/models/adjudicates**; LLM is never an
+independent coder.
+
+**37. Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived) — **[future track — most
+needs the values layer]** inspectable, **non-accusatory** prestige/credit/attention lenses (overlooked-work /
+inverse Matthew, citation credit-concentration, positive self-correction) + 2 principle-fraught forensic candidates
+recorded with the **no-index / no-accusation** reframing. Citation-graph-shaped → OpenAlex adapter + findings
+subsystem; project as **system-facts tags**. Gated by the Principles gate **and** the A-A **no-accusation** veto —
+the track that most needs the values layer.
+
+**38. Research-impact analytics** (`…_researchimpactanalytics.md`) — **[future track — gated]** opt-in, local-first,
+**commons**-structured measurement of whether Callosum changes how people research, at **human-subjects-research**
+consent discipline. **A.** local usage analytics (zero-egress; instrumentation seam + personal dashboard are the
+only near-term, buildable-now parts) vs **B.** cross-user impact signal (far-future, gated). Must pass the
+Principles gate **and** the A-A values layer (default-deny; compute-locally / transmit-summaries-only; public field
+registry; commons reciprocity; valence rule = *less* time-in-app is the win). Graduation is my explicit call.
+
+**39. BYOK / multi-provider LLM** (`…_byokproviderkeys.md`, Settings) — **[security + future track — load-bearing for
+any shared release]** Callosum can't ship its own key once others run it: user-supplied keys +
+Gemini/OpenAI/Anthropic/OpenAI-compatible/**local**; a **validation lock** (quality-not-correctness disclaimer);
+keys in OS keychain; embeddings stay local; verification provider-agnostic. Extends the inc-58 egress-gate DI seam.
+The Gemini-key field (#10) is its precursor.
+
+**40. PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
+`…_publisherschoicegate.md`) — **[future track — DO NOT BUILD YET]** at submission time, surface **verifiable,
+fully-sourced facts** per candidate journal (OA color, APC + waiver, green route, license, RR/data policy, TOP
+factor, open impact, multi-route legitimacy **incl. regional indexes**) under a **user-set open-science weighting** —
+the author weighs them; **never a verdict**. Veto: **no composite score, no "predatory" label** (A-A no-accusation),
+abstract + preferences **local, never transmitted**, **equity** first-class. The **first-use choice gate** (no
+pre-selected default; the weighting one forced choice among peers) is the near-term enhancement. **More controversial
+than most** — build only this principled shape; gate through Principles + A-A at graduation. **Do not build yet.**
+
+**41. User-authored modules** (`…_plugins.md`) — **[future track — record only]** **deferred record only** — capture
+the extension-point idea + open questions; do NOT build a plugin system until a dedicated design pass.
+
+> **Shared infra these unlock (kept as README-only `integrations/` stubs on purpose):** **OpenAlex** (my-pubs →
+> gap-finder → discovery → acquisition; the acquisition slice is built), **Unpaywall** (Track D — superseded by
+> OpenAlex in inc 74), **Semantic Scholar** (Track C, discovery), **GROBID** (Track C section-scoping).
+> (**mendeley** is NOT track infra — it's *Import coverage*, shipped inc 93.)
 
 ---
 
-## Security follow-up (do whenever; NOT blocking) — added 2026-06-20
+**42. Rotate the Gemini API keys** (and the CORE key pasted in chat during inc 75) — **[non-code — my manual
+action]** they live in **Dropbox version history** / chat history; `.gitignore` keeps all key material out of GitHub
+(proven via `git check-ignore`), so this is **not blocking** — but rotation (revoke + reissue, then update `.env`)
+is the only way to neutralize copies that exist *outside* git. Deferred by me.
 
-- [ ] **Rotate the Gemini API keys** (and the CORE key pasted in chat during inc 75). They live in **Dropbox
-  version history** / chat history; `.gitignore` keeps all key material out of GitHub (proven via
-  `git check-ignore`), so this is **not blocking** — but rotation (revoke + reissue, then update `.env`) is the
-  only way to neutralize copies that exist *outside* git. Deferred by the user.
+---
+
+## Shipped — breadcrumbs only (full detail in `INCREMENT-BACKLOG-DONE.md`)
+
+- ⭐ Star key publications + scope the AI summary to starred — inc 84
+- Review queue for OpenAlex works missing from My Pubs + import missing own-papers — inc 85
+- Un-dismiss for missing works — inc 92
+- Import coverage beyond Zotero (BibTeX / RIS / CSL-JSON; also covers Mendeley/EndNote) — inc 93
+- Scan / refresh library folders — inc 87; Watched folders — inc 98
+- "UNSORTED" cluster (`needs_review`) — inc 80
+- Filter library by type — inc 91
+- PDF Reading mode (⛶ Read / ⤢ Exit / Esc) — inc 101
+- Re-score line-wrapping fix — inc 86
+- More settings → axis cutoff default in Settings — inc 105 *(ongoing: other prefs as they arise)*
+- Open-science signals — statcheck v1 + library-wide lens + header chip — inc 95/97/100 *(GRIM/p-curve + findings facet remain — see #27)*
+- Citation engine Phase 1/2 + LibreOffice adapter — inc 106/107/108 *(Word + Google Docs adapters remain — see #33/#34)*

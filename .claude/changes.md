@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 130) — help corpus current as of the findings "Review" section -->
+## 2026-06-26 — Increment 130: findings subsystem (FACT-vs-CANDIDATE backbone), foundation only
+- **Files:** `app/backend/persistence/schema.py` + `findings_repo.py` (new), `alembic/versions/0016_paper_findings.py`
+  (new), `app/backend/api/routers/findings.py` (new) + `app.py`, `app/frontend/js/08_methods_findings.jsx` (new) +
+  `10_pdf_layer.jsx` + `40_app.jsx` + `styles.css`, `tests/test_findings.py` (new) + `test_health.py`,
+  `.claude/qa-routes/route_38_findings.md` (new) + `route_00_smoke_readonly.md`, `.claude/DESIGN.md`,
+  `app/backend/help/help_content.md`, `.claude/security-audits/2026-06-26_findings.md` (new), `INCREMENT-130-NOTES.md`.
+- **What:** A persistent, typed, per-paper **findings** store (`paper_findings`, migration 0016) + a review surface.
+  Producers call `upsert_findings` (idempotent by `content_key` — supersede + preserve unchanged reviews); the
+  METHODS "Review" section renders **facts** as neutral marks and **candidates** as reviewable cards (Confirmed /
+  Accepted[reason] / Noted); the library card shows a `◆ fact` mark + an `N to review` work-state badge from
+  `GET /findings/overview`. Endpoints: `GET /papers/{id}/findings`, `GET /findings/overview`,
+  `POST /findings/{id}/review`. **Contract + UI only — no producer wired yet** (retraction is next).
+- **Why:** The FACT-vs-CANDIDATE backbone the data-detective features (statcheck/p-curve/GRIM/retraction) plug into;
+  encodes the honesty distinction structurally (signal-not-verdict, no score, no accusation, human-is-the-filter).
+- **Revert:** restore the listed files from git (commits `8aa278d` schema+repo, `1006513` endpoints, `7c3a87c` UI, +
+  the docs/gates commit); migration 0016 is additive (drop `paper_findings` to fully revert the schema).
+
 ## 2026-06-25 — Increment 125: strengthen the front-matter classifier (live-validated)
 - **Files:** `app/backend/summarization/chunk_filtering.py`, `tests/test_chunk_filtering.py`,
   `INCREMENT-125-NOTES.md`.

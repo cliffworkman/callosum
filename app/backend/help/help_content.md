@@ -608,6 +608,17 @@ Read it as a prompt, not a judgment:
 - Because *you* enter a specific value, it never scans, ranks, or labels papers or people.
 - The section credits the methods (Brown & Heathers; Anaya / Allard) and offers a one-click **add to library**.
 
+<!-- section: reviewing-findings -->
+## Reviewing findings
+A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:
+
+- A **fact** is something established about the paper (for example, that it has been retracted). It shows as a small neutral **mark** — a statement, not something for you to act on.
+- A **candidate** is a *prompt to look*, not a verdict. It shows as a card you can resolve: **Confirmed** (you checked and agree), **Accepted** (you're recording it as relevant — a short reason is required), or **Noted** (acknowledged). A candidate that points at a page has a **show in paper** link that opens that page.
+
+In the library, a card shows a small **◆ fact** mark when a paper has a fact, and an **"N to review"** badge counting its unreviewed candidates. The badge tracks **your review work**, not paper quality — it's never a score or a ranking, and it disappears once you've reviewed everything. Nothing is ever decided for you, and nothing labels a paper or its authors; you stay the filter.
+
+(In this version findings are the foundation for upcoming checks — the surface is here before the first automatic producer is wired in.)
+
 <!-- section: duplicates -->
 ## Finding possible duplicates
 The **Duplicates** scan helps you find likely duplicate records without automatically deleting or merging anything.

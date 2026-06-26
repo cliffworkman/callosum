@@ -251,7 +251,8 @@ orthogonal to the distinction.
 - **METHODS (right pane)** — *evaluating how a paper was studied*: **DETAILS** + **STATISTICS CHECK** (inc 122 —
   the first real METHODS module: statcheck's per-paper check *and* library-wide batch, moved out of Settings +
   the Details pane into `06_methods_statcheck.jsx`, section `order: 20`, reusing the `.settings-*` / `.detail-statcheck`
-  / `.statcheck-*` recipes — no new tokens); findings / other checks later. `paneId: "methods"`.
+  / `.statcheck-*` recipes — no new tokens), **DATA CONSISTENCY (GRIM)** (inc 127), and **REVIEW** (inc 130 — the
+  findings subsystem, `08_methods_findings.jsx`, section `order: 40`); other checks later. `paneId: "methods"`.
 - **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS / TAGS //
   DETAILS / STATISTICS CHECK), **no "THEORY"/"METHODS" umbrella header** — the vocabulary is adopted once the METHODS modules earn it. The
   `paneId` is the internal architecture + the eventual rename.
@@ -266,9 +267,12 @@ component is dead-code-eliminated from the build until something uses it — wir
 
 **AI-usage principle.** The AI's job is to make verification cheap, **never to substitute for it.** For any AI
 feature ask *"where did the judgment go?"* — it must land on a checkable computation or on the human, never hide in
-an opaque selection/score. (Forward note: METHODS findings will follow a **FACT vs CANDIDATE** output contract — a
-FACT is a persistent mark, a CANDIDATE is reviewable; badges describe the user's WORK STATE ("N to review"), never
-paper quality. That machinery is the later findings track, not built yet.)
+an opaque selection/score. **The findings output contract (inc 130, METHODS "Review"):** a **FACT** renders as a
+neutral persistent **mark** (`.fact-mark`, e.g. "◆ retracted"), a **CANDIDATE** as a reviewable **card**
+(`.finding-card` → Confirmed / Accepted[needs reason] / Noted); the library badge (`.finding-badge`, "N to review")
+describes the user's **WORK STATE**, never paper quality, and shows nothing at zero. Speculative candidates get a
+`.speculative` dashed card; every candidate routes to its page at **region** precision (no fabricated exact rect).
+This is the FACT-vs-CANDIDATE backbone the later producers (retraction, etc.) plug into.
 
 **Accessibility.** Differentiate sections/states by **icon + label, not color alone**; prefer a highlight/glow over
 a blink; gate motion behind `prefers-reduced-motion`. Accordion headers carry `aria-expanded`.

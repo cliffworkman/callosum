@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 129** (see Increment workflow) with **472 pytest tests
+It is currently at **Increment 130** (see Increment workflow) with **478 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -222,14 +222,15 @@ callosum/
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,paper_files [PDF
 │   │   │                          file-serving, inc 91],methods [statcheck, inc 95],citations [formatted-citation
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
-│   │   │                          annotations,tags,axes,summaries,help}.py [models + handlers])
+│   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
 │   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78],
 │   │   │                          annotations_repo.py [native-annotation data access, inc 91],
 │   │   │                          signals_repo.py [open_science_signals: statcheck summaries, inc 97],
-│   │   │                          watched_repo.py [watched_folders, inc 98])
+│   │   │                          watched_repo.py [watched_folders, inc 98],
+   │   │                          findings_repo.py [paper_findings: FACT/CANDIDATE contract, inc 130])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
 │   │   │                          location.py, cli.py)
@@ -272,7 +273,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0014_watched_folders)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0016_paper_findings)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -737,7 +738,33 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 129 (multi-item GRIMMER): completes the inc-127 GRIMMER — `grimmer_test`
+*Last updated: 2026-06-26 — increment 130 (findings subsystem — the FACT-vs-CANDIDATE backbone, foundation only):
+the architectural spine the METHODS "data-detective" features (statcheck, p-curve, GRIM, and the coming retraction
+producer) plug into — a persistent, typed, per-paper **findings** store + a review surface. **v1 ships the contract +
+UI only — no producer is wired yet** (retraction is the explicit next increment; user-chosen scope "foundation only").
+New **`paper_findings`** table (migration **0016**, additive/guarded): `kind` (**fact** | **candidate**), nullable
+`tier`, JSON `payload`, deterministic `content_key`, nullable `review_state`. New `persistence/findings_repo.py` — the
+**producer contract** `upsert_findings(conn, paper_id, source, findings)` diffs by `content_key` (**supersede stale +
+preserve the review_state of unchanged candidates** → idempotent re-runs), plus `get_paper_findings` /
+`findings_overview` / `set_review_state` (allowlisted `confirmed`/`accepted`[needs reason]/`noted`; candidates only).
+Endpoints (`routers/findings.py`): `GET /papers/{id}/findings`, `GET /findings/overview`, `POST /findings/{id}/review`
+(404/422 on bad input). Frontend `08_methods_findings.jsx` self-registers the METHODS **"Review"** section (order 40):
+**FACTs render as neutral marks**, **CANDIDATEs as reviewable cards** (region-precision page anchors — coordinate
+honesty intact, no fabricated exact rect); the library card gets a `◆ fact` mark + an **"N to review"** work-state
+badge from `/findings/overview` (refetched after a review). **Honesty encoded structurally** — `kind` IS the
+FACT/CANDIDATE distinction; the badge counts the user's review work, never paper quality, and vanishes at zero;
+nothing auto-acts or labels a paper/author (A-A no-accusation veto). **Principles gate run** (aligned with #2/#3/#5/#7/#8
++ the veto); **audit `.claude/security-audits/2026-06-26_findings.md` PASS** (local, bound-param SQL, validated/escaped,
+no egress, no new dependency); **rule #10** new `route_38_findings.md` (+ `04_layout.jsx` folded into `route_00`, a
+pre-existing inc-128 gap) → surface **94/94 API + 496/496 FE, 0 uncovered**; help corpus gained a "Reviewing findings"
+section (`HELP-DOCS-SYNCED` → 130). pytest **478** (+6 `test_findings.py`; route-surface extended); `ruff` clean; build
++ assembly green. **Verified headed, no egress** (`.local/visual/drive_inc130_findings.py` — badge + FactMark render,
+Confirmed reviews + drops the badge, persists across reload; 0 console/page errors, 0 genai hits). Notes:
+`INCREMENT-130-NOTES.md`. **NEXT (queued):** the first real **producer** = **retraction** (Crossref / Retraction Watch
+→ a **FACT** with a TTL) — its own increment, trips the audit gate (new external fetch) + the Principles gate; then
+statcheck/p-curve/GRIM can optionally emit candidates into this store + a library-wide "needs review" facet.
+
+Earlier — increment 129 (multi-item GRIMMER): completes the inc-127 GRIMMER — `grimmer_test`
 now supports **multi-item scales** (`items > 1`), not just single-item. The multi-item math is the same analytic
 check with an **`items²` factor** on the variance term and the total taken over all `N*items` item responses,
 **with the same parity refinement** (`Σc_i² ≡ Σc_i = T (mod 2)`); `items=1` is the special case (the single-item

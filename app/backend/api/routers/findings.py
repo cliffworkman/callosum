@@ -66,9 +66,7 @@ def findings_overview_get(conn: Connection = Depends(get_connection)) -> list[Fi
 
 
 @router.post("/findings/{finding_id}/review", response_model=FindingModel)
-def finding_review(
-    finding_id: int, payload: ReviewRequest, conn: Connection = Depends(get_connection)
-) -> FindingModel:
+def finding_review(finding_id: int, payload: ReviewRequest, conn: Connection = Depends(get_connection)) -> FindingModel:
     result = set_review_state(conn, finding_id, payload.state, payload.reason)
     errors = {
         "not-found": (404, "Finding not found"),
