@@ -468,6 +468,9 @@
   .fact-mark.retraction .btn-link { font-size: 11px; }
   .retraction-status { font-size: 11.5px; color: var(--ink-3); margin: 4px 0; }
   .retraction-batch { margin-bottom: 10px; }
+  /* inc 132: the Retraction Watch DB as-of line + refresh */
+  .retraction-db { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .retraction-db-line { font-size: 11.5px; color: var(--ink-3); }
   .axis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
   .term-chip {
     border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);

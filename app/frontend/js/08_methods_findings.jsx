@@ -62,6 +62,42 @@ function RetractionBatch({ ctx }) {
           {s.checked} paper{s.checked === 1 ? "" : "s"} checked · <b>{s.flagged}</b> retracted.
           {s.flagged > 0 && ctx.onShowRetractionFlagged && <> <button className="btn-link" onClick={ctx.onShowRetractionFlagged}>Show retracted papers</button></>}
         </div>}
+      <RetractionDatabasePanel ctx={ctx} />
+    </div>
+  );
+}
+
+// inc 132: the Retraction Watch DB mirror — an as-of line + a Refresh button (downloads the Crossref-hosted RW
+// database, CC0, into the local mirror so the batch above gains the richest source: reason / date / notice).
+function RetractionDatabasePanel({ ctx }) {
+  const [db, setDb] = useState(null);  // { count, retrieved_at }
+  const [run, setRun] = useState({ status: "idle" });
+  const load = () => api("/methods/retraction/database").then(r => { if (r.ok) setDb(r.data); });
+  useEffect(load, []);
+  const refresh = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/retraction/database/refresh/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setRun({ status: "done", count: d.count }); load(); if (ctx.onRetractionRan) ctx.onRetractionRan(); }
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Download failed." });
+      else setTimeout(() => poll(jobId), 2000);
+    });
+    const r = await apiPost("/methods/retraction/database/refresh", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  return (
+    <div className="retraction-db">
+      <span className="retraction-db-line">
+        {db && db.count > 0
+          ? `Retraction Watch database: ${db.count.toLocaleString()} records${db.retrieved_at ? " · as of " + db.retrieved_at.slice(0, 10) : ""}`
+          : "Retraction Watch database: not downloaded — refresh to enable the richest source"}
+      </span>
+      <button className="btn-link" disabled={run.status === "running"} onClick={refresh}>
+        {run.status === "running" ? "Downloading…" : "Refresh database"}
+      </button>
+      {run.status === "error" && <div className="settings-note settings-note-err">{run.error}</div>}
     </div>
   );
 }
