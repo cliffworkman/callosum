@@ -433,6 +433,18 @@
   .pcurve-coverage { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 8px 0; }
   .pcurve-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
   .pcurve-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  /* inc 127: GRIM calculator (METHODS). Tokens only. */
+  .grim-section { font-size: 12px; }
+  .grim-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
+  .grim-form label { display: flex; flex-direction: column; font-size: 10px; color: var(--ink-3); gap: 2px; }
+  .grim-in { width: 64px; font-family: var(--mono); font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .grim-result { margin: 8px 0; }
+  .grim-line { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
+  .grim-near { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
+  .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
+  .grim-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+  .grim-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
   .axis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
   .term-chip {
     border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);
