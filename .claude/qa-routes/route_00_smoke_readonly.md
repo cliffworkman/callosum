@@ -36,11 +36,13 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
    (its attachment rows point at files that aren't on disk — this is the coordinate-honesty `null` case and the
    *correct* behavior, NOT a bug; the resulting `/papers/{id}/pdf` 404 + its browser console line are expected).
 4. **THEORY accordion — left pane** (`05_panes.jsx` + `15_axes.jsx`/`20_synthesis.jsx`/`10_pdf_layer.jsx`):
-   the left pane is an **accordion** with section headers **AXES · SYNTHESIS · TAGS**, one body open at a time
-   (AXES open by default). Click **SYNTHESIS** → AXES collapses and the synthesis query box renders (empty state
-   ok). Click **TAGS** → the tag list renders, or the **"No tags yet — add tags from a paper's Details pane"**
-   empty-state hint when the library has none (it always shows now — discoverability). Reload and confirm the
-   open section **persists** (`callosum.theoryOpen`).
+   the left pane is an **accordion** with section headers **AXES · SYNTHESIS**, one body open at a time (AXES open
+   by default). The **AXES** section has two **tabs** (`.pane-tabs` segmented chips), **Axes** (default) and
+   **Tags** (inc 139 — Tags is no longer its own section). Click the **Tags** tab → the tag list renders, or the
+   **"No tags yet — add tags from a paper's Details pane"** hint when the library has none; click **Axes** back →
+   the axis view returns (mount-but-hide — the axis state is preserved). Click the **SYNTHESIS** header → AXES
+   collapses and the synthesis query box renders (empty state ok). Reload and confirm the open section **persists**
+   (`callosum.theoryOpen`) and the active AXES tab persists (`callosum.panetab.axes`).
 5. **METHODS accordion — right pane** (`25_detail.jsx`): the right pane is the **DETAILS** accordion section. On
    load the **top library paper is auto-selected** (inc 138), so DETAILS shows its editable Details right away (not
    the empty hint); selecting a different paper updates it. The **"Select a paper to see its details"** hint shows

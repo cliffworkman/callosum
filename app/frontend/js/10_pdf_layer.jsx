@@ -193,11 +193,13 @@ function TagsPanel({ onFilterToTag, tagRefresh }) {
   );
 }
 
-// inc 121: register TAGS as a THEORY-pane accordion section (see 05_panes.jsx).
-registerPaneSection({
-  id: "tags", label: "Tags", paneId: "theory", order: 30,
-  render: (ctx) => <TagsPanel onFilterToTag={ctx.onFilterToTag} tagRefresh={ctx.tagRefresh} />,
-});
+// inc 121 / inc 139: TAGS is the second tab of the AXES section (like-with-like — your labels alongside your
+// conceptual lenses), not its own accordion section. See 05_panes.jsx + DESIGN.md §5.
+registerPaneTab(
+  { id: "axes", label: "Axes", paneId: "theory", order: 10 },
+  { id: "tags-tab", label: "Tags", order: 20,
+    render: (ctx) => <TagsPanel onFilterToTag={ctx.onFilterToTag} tagRefresh={ctx.tagRefresh} /> },
+);
 
 // inc 121: the left pane = the brand/⚙/❓ header + the THEORY accordion (AXES / SYNTHESIS / TAGS), one open at a
 // time. Sections self-register (05_panes.jsx); App owns the open-section state + the shared ctx.

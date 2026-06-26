@@ -30,9 +30,10 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 ## Steps
 
-1. Load the library and tag panel. Confirm `/tags` counts match visible seeded filters.
+1. Load the library and open the **Tags tab** — the second tab of the **AXES** section in the left (THEORY) pane
+   (inc 139: Tags is a tab, not its own section). Confirm `/tags` counts match visible seeded filters.
 2. Filter by a tag. Confirm the paper list updates, empty states are explicit, and counts do not imply ranking or quality.
-3. Open a paper detail pane. Add a new tag (`POST /papers/{paper_id}/tags`); confirm the chip appears in detail and the global tag panel without switching papers.
+3. Open a paper detail pane. Add a new tag (`POST /papers/{paper_id}/tags`); confirm the chip appears in detail and the global tag panel (the AXES → Tags tab) without switching papers.
 4. Add the same tag again by rapid double-submit. Confirm idempotent behavior or a clean duplicate message, never duplicate chips.
 5. Request suggested tags (`GET /papers/{paper_id}/suggested-tags`). Confirm suggestions are local, exclude existing tags, and accepting one creates exactly one chip.
 6. Remove a tag (`DELETE /papers/{paper_id}/tags/{tag_id}`). Confirm the chip disappears and orphaned tags are pruned from the global list.

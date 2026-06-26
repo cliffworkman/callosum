@@ -18,7 +18,7 @@ Start by:
 ## Finding your way around
 Callosum uses three main areas:
 
-- **Left pane:** Callosum identity, Help, Settings, and an **accordion** with **Axes**, **Synthesis**, and **Tags** — click a section header to open it (one open at a time).
+- **Left pane:** Callosum identity, Help, Settings, and an **accordion** with **Axes** and **Synthesis** — click a section header to open it (one open at a time). The **Axes** section has two tabs, **Axes** and **Tags** (your labels live alongside your conceptual lenses).
 - **Center pane:** the Library tab and any open PDF tabs.
 - **Right pane:** a **Details** accordion section — the editable bibliographic information for the paper you have selected (it shows a hint until you select one).
 
@@ -245,7 +245,7 @@ Tags you added and tags that were **imported** (Zotero tags, Crossref subject ke
 
 To browse and remove:
 
-- The left pane's **Tags** accordion section lists every tag with its paper count (it's always available — when you have no tags yet it shows a hint pointing you to add them from a paper's Details). Click a tag to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the section to narrow the list by source.
+- The left pane's **Tags** tab (the second tab of the **Axes** section) lists every tag with its paper count (it's always available — when you have no tags yet it shows a hint pointing you to add them from a paper's Details). Click a tag to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the section to narrow the list by source.
 - Click a tag's name in a paper's **Tags** row to **filter the library** to every paper carrying that tag (a "Filtered to tag …" banner appears; click **clear** to return). The tag filter and the axis filter are mutually exclusive.
 - Click the **×** on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically (and disappears from the sidebar panel).
 

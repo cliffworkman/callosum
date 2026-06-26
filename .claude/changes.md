@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 139) — help corpus current as of the Tags-tab / accordion-tabs rewrite -->
+## 2026-06-26 — Increment 139: accordion tabs-within-a-section (Tags → a tab of AXES; METHODS reordered)
+- **Files:** `app/frontend/js/05_panes.jsx` + `15_axes.jsx` + `10_pdf_layer.jsx` + `06_methods_statcheck.jsx` +
+  `07_methods_grim.jsx` + `styles.css` + `callosum-app.html`, `.claude/DESIGN.md`, `app/backend/help/help_content.md`,
+  `.claude/qa-routes/route_00_smoke_readonly.md` + `route_20_tags.md`, `INCREMENT-139-NOTES.md`.
+- **What:** The pane registry gains **tabs-within-a-section** (`registerPaneTab`); **Tags** moves from its own
+  THEORY section to the **second tab of AXES** (`[Axes | Tags]`); METHODS reordered so **Data consistency (GRIM)**
+  precedes **Statistics check**. Tab strip reuses the `.tags-srcfilter` chip recipe; tabs mount-but-hide + persist.
+- **Why:** Codify the IA rule (accordion sections = broad categories, tabs = like-with-like submenus, order by
+  cognitive task) so the accordion stays shallow as more METHODS modules land (user request).
+- **Revert:** restore the listed frontend files from git + rebuild.
+
 ## 2026-06-26 — Increment 138: auto-select the top library paper on load (Details populated)
 - **Files:** `app/frontend/js/40_app.jsx`, `callosum-app.html`, `.claude/qa-routes/route_00_smoke_readonly.md`,
   `INCREMENT-138-NOTES.md`.

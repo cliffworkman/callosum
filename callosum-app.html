@@ -142,6 +142,10 @@
   .acc-chevron { color: var(--ink-3); }
   .acc-body { display: none; min-height: 0; }
   .acc-section.open .acc-body { display: block; }
+  /* inc 139: tabs-within-a-section (like-with-like submenus). The strip reuses the .tags-srcfilter segmented-chip
+     recipe; inactive tabs stay mounted-but-hidden so their in-progress state survives a tab switch (DESIGN.md §5). */
+  .pane-tabs { margin: 2px 0 8px; }
+  .pane-tab:not(.active) { display: none; }
 
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
   .divider { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -1708,10 +1712,24 @@
   }
   const PANE_SECTIONS = [];
   function registerPaneSection(section) {
-    if (!PANE_SECTIONS.some((s) => s.id === section.id)) PANE_SECTIONS.push(section);
+    registerPaneTab(
+      { id: section.id, label: section.label, paneId: section.paneId, order: section.order },
+      { id: section.id, label: section.label, order: 0, render: section.render }
+    );
+  }
+  function registerPaneTab(host, tab) {
+    let section = PANE_SECTIONS.find((s) => s.id === host.id);
+    if (!section) {
+      section = { id: host.id, label: host.label, paneId: host.paneId, order: host.order, tabs: [] };
+      PANE_SECTIONS.push(section);
+    }
+    if (!section.tabs.some((t) => t.id === tab.id)) section.tabs.push(tab);
   }
   function paneSections(paneId) {
     return PANE_SECTIONS.filter((s) => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+  function sectionTabs(section) {
+    return [...section.tabs].sort((a, b) => (a.order || 0) - (b.order || 0));
   }
   registerPaneSection({
     id: "details",
@@ -1730,19 +1748,43 @@
   });
   function PaneAccordion({ paneId, ctx, openId, onOpen }) {
     const sections = paneSections(paneId);
+    const [tabState, setTabState] = useState({});
     if (sections.length === 0) return null;
     const active = sections.some((s) => s.id === openId) ? openId : sections[0].id;
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-accordion" }, sections.map((s) => /* @__PURE__ */ React.createElement("section", { key: s.id, className: "acc-section" + (s.id === active ? " open" : "") }, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "acc-header",
-        "aria-expanded": s.id === active,
-        onClick: () => onOpen(s.id),
-        title: s.label
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "acc-chevron" }, s.id === active ? "\u25BE" : "\u25B8"),
-      /* @__PURE__ */ React.createElement("span", { className: "acc-label" }, s.label)
-    ), /* @__PURE__ */ React.createElement("div", { className: "acc-body" }, s.render(ctx)))));
+    const activeTabId = (s) => {
+      const tabs = sectionTabs(s);
+      const cur = tabState[s.id] ?? _loadLayout("callosum.panetab." + s.id, tabs[0].id);
+      return tabs.some((t) => t.id === cur) ? cur : tabs[0].id;
+    };
+    const setTab = (sid, tid) => {
+      setTabState((m) => ({ ...m, [sid]: tid }));
+      _saveLayout("callosum.panetab." + sid, tid);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-accordion" }, sections.map((s) => {
+      const tabs = sectionTabs(s);
+      const at = activeTabId(s);
+      return /* @__PURE__ */ React.createElement("section", { key: s.id, className: "acc-section" + (s.id === active ? " open" : "") }, /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "acc-header",
+          "aria-expanded": s.id === active,
+          onClick: () => onOpen(s.id),
+          title: s.label
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "acc-chevron" }, s.id === active ? "\u25BE" : "\u25B8"),
+        /* @__PURE__ */ React.createElement("span", { className: "acc-label" }, s.label)
+      ), /* @__PURE__ */ React.createElement("div", { className: "acc-body" }, tabs.length > 1 ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter pane-tabs", role: "tablist" }, tabs.map((t) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: t.id,
+          role: "tab",
+          "aria-selected": t.id === at,
+          className: "tags-srcfilter-btn" + (t.id === at ? " on" : ""),
+          onClick: () => setTab(s.id, t.id)
+        },
+        t.label
+      ))), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "pane-tab" + (t.id === at ? " active" : "") }, t.render(ctx)))) : tabs[0].render(ctx)));
+    }));
   }
   function StatcheckLibrary({ onShowFlagged, onRan }) {
     const [run, setRun] = useState({ status: "idle" });
@@ -1807,7 +1849,7 @@
     id: "statcheck",
     label: "Statistics check",
     paneId: "methods",
-    order: 20,
+    order: 30,
     render: (ctx) => /* @__PURE__ */ React.createElement(StatcheckSection, { ctx })
   });
   const GRIM_CSL = {
@@ -1847,7 +1889,7 @@
     const d = state.data;
     return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check whether a reported mean (and SD) of ", /* @__PURE__ */ React.createElement("b", null, "integer-scale"), " data \u2014 counts or Likert-type items \u2014 is mathematically possible for the sample size. Enter a value you're reading; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement("label", null, "Mean ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.mean, onChange: set("mean"), placeholder: "3.45", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "SD ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.sd, onChange: set("sd"), placeholder: "(optional)", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "N ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.n, onChange: set("n"), placeholder: "50", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "items ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.items, onChange: set("items"), title: "scale items averaged per score; 1 for a single integer measure" })), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !f.mean.trim() || !f.n.trim(), onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIM"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grim.consistent ? "verified" : "flagged") }, d.grim.consistent ? "consistent" : "impossible"), !d.grim.consistent && /* @__PURE__ */ React.createElement("span", { className: "grim-near" }, "nearest possible: ", d.grim.nearest.join(" / "))), d.grim.no_power && /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "N is large for this precision \u2014 GRIM has little power here (most means are achievable)."), d.grimmer && /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIMMER"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grimmer.consistent ? "verified" : "flagged") }, d.grimmer.consistent ? "consistent" : "impossible")), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "GRIM/GRIMMER assume integer-scale data \u2014 they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.")), /* @__PURE__ */ React.createElement("div", { className: "grim-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "grim-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.")));
   }
-  registerPaneSection({ id: "grim", label: "Data consistency (GRIM)", paneId: "methods", order: 30, render: () => /* @__PURE__ */ React.createElement(GrimSection, null) });
+  registerPaneSection({ id: "grim", label: "Data consistency (GRIM)", paneId: "methods", order: 20, render: () => /* @__PURE__ */ React.createElement(GrimSection, null) });
   function findingText(f) {
     const p = f.payload || {};
     return p.desc || p.label || p.text || p.title || JSON.stringify(p);
@@ -2138,13 +2180,15 @@
       /* @__PURE__ */ React.createElement("span", { className: "tags-panel-count" }, t.paper_count)
     )), tags.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no matching tags")));
   }
-  registerPaneSection({
-    id: "tags",
-    label: "Tags",
-    paneId: "theory",
-    order: 30,
-    render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
-  });
+  registerPaneTab(
+    { id: "axes", label: "Axes", paneId: "theory", order: 10 },
+    {
+      id: "tags-tab",
+      label: "Tags",
+      order: 20,
+      render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
+    }
+  );
   function Sidebar({ conn, onOpenSettings, onOpenHelp, ctx, theoryOpen, onTheoryOpen }) {
     return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("button", { className: "icon-help", title: "Help & tips", onClick: onOpenHelp }, "?"), /* @__PURE__ */ React.createElement("button", { className: "icon-gear", title: "Settings", onClick: onOpenSettings }, "\u2699"), /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "theory", ctx, openId: theoryOpen, onOpen: onTheoryOpen }));
   }
@@ -2934,26 +2978,28 @@
       loadAxes();
     } }));
   }
-  registerPaneSection({
-    id: "axes",
-    label: "Axes",
-    paneId: "theory",
-    order: 10,
-    render: (ctx) => /* @__PURE__ */ React.createElement(
-      AxesPanel,
-      {
-        onSelectPaper: ctx.onSelectPaper,
-        selectedPaper: ctx.selectedPaper,
-        onOpenPaper: ctx.onOpenPaper,
-        onEnterFocus: ctx.onEnterFocus,
-        onFilterToAxis: ctx.onFilterToAxis,
-        onOpenMyPubsDashboard: ctx.onOpenMyPubsDashboard,
-        axisRefresh: ctx.axisRefresh,
-        hideUncertainDefault: ctx.hideUncertainDefault,
-        axisCutoffDefault: ctx.axisCutoffDefault
-      }
-    )
-  });
+  registerPaneTab(
+    { id: "axes", label: "Axes", paneId: "theory", order: 10 },
+    {
+      id: "axes-tab",
+      label: "Axes",
+      order: 10,
+      render: (ctx) => /* @__PURE__ */ React.createElement(
+        AxesPanel,
+        {
+          onSelectPaper: ctx.onSelectPaper,
+          selectedPaper: ctx.selectedPaper,
+          onOpenPaper: ctx.onOpenPaper,
+          onEnterFocus: ctx.onEnterFocus,
+          onFilterToAxis: ctx.onFilterToAxis,
+          onOpenMyPubsDashboard: ctx.onOpenMyPubsDashboard,
+          axisRefresh: ctx.axisRefresh,
+          hideUncertainDefault: ctx.hideUncertainDefault,
+          axisCutoffDefault: ctx.axisCutoffDefault
+        }
+      )
+    }
+  );
   function _axisBase(description) {
     return (description || "").split(/\n*Related:\s*/i)[0].trim();
   }

@@ -118,6 +118,10 @@
   .acc-chevron { color: var(--ink-3); }
   .acc-body { display: none; min-height: 0; }
   .acc-section.open .acc-body { display: block; }
+  /* inc 139: tabs-within-a-section (like-with-like submenus). The strip reuses the .tags-srcfilter segmented-chip
+     recipe; inactive tabs stay mounted-but-hidden so their in-progress state survives a tab switch (DESIGN.md §5). */
+  .pane-tabs { margin: 2px 0 8px; }
+  .pane-tab:not(.active) { display: none; }
 
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
   .divider { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; }

@@ -490,11 +490,13 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   );
 }
 
-// inc 121: register AXES as a THEORY-pane accordion section (see 05_panes.jsx).
-registerPaneSection({
-  id: "axes", label: "Axes", paneId: "theory", order: 10,
-  render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
-    onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
-    onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh}
-    hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault} />,
-});
+// inc 121 / inc 139: AXES is a THEORY-pane accordion section; the "Axes" view is its first tab (Tags is the
+// second, registered in 10_pdf_layer.jsx — like-with-like, see 05_panes.jsx + DESIGN.md §5).
+registerPaneTab(
+  { id: "axes", label: "Axes", paneId: "theory", order: 10 },
+  { id: "axes-tab", label: "Axes", order: 10,
+    render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
+      onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
+      onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh}
+      hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault} /> },
+);

@@ -246,16 +246,18 @@ center `LibraryFrame` (library/PDF/dashboard tabs) is separate and untouched.
 
 **Placement rubric — place a tool by the user's COGNITIVE TASK, not its implementation.** "AI-powered" is
 orthogonal to the distinction.
-- **THEORY (left pane)** — *knowing the literature*: **AXES** (your conceptual lenses), **SYNTHESIS** (what the
-  corpus says), **TAGS** (your labels). `paneId: "theory"`.
-- **METHODS (right pane)** — *evaluating how a paper was studied*: **DETAILS** + **STATISTICS CHECK** (inc 122 —
-  the first real METHODS module: statcheck's per-paper check *and* library-wide batch, moved out of Settings +
-  the Details pane into `06_methods_statcheck.jsx`, section `order: 20`, reusing the `.settings-*` / `.detail-statcheck`
-  / `.statcheck-*` recipes — no new tokens), **DATA CONSISTENCY (GRIM)** (inc 127), and **REVIEW** (inc 130 — the
-  findings subsystem, `08_methods_findings.jsx`, section `order: 40`); other checks later. `paneId: "methods"`.
-- **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS / TAGS //
-  DETAILS / STATISTICS CHECK), **no "THEORY"/"METHODS" umbrella header** — the vocabulary is adopted once the METHODS modules earn it. The
-  `paneId` is the internal architecture + the eventual rename.
+- **THEORY (left pane)** — *knowing the literature*: **AXES** (your conceptual lenses, with a **Tags** tab — your
+  labels — alongside it, inc 139: like-with-like, see "Tabs within a section" below) and **SYNTHESIS** (what the
+  corpus says). `paneId: "theory"`.
+- **METHODS (right pane)** — *evaluating how a paper was studied*, **ordered by cognitive task** (inc 139):
+  **DETAILS** (`order: 10`) → **DATA CONSISTENCY (GRIM)** (inc 127, `order: 20` — it examines the *raw data*, so it
+  precedes the analysis check) → **STATISTICS CHECK** (inc 122, `order: 30` — statcheck's per-paper check *and*
+  library-wide batch, moved out of Settings + the Details pane into `06_methods_statcheck.jsx`, reusing the
+  `.settings-*` / `.detail-statcheck` / `.statcheck-*` recipes — no new tokens) → **REVIEW** (inc 130 — the findings
+  subsystem, `08_methods_findings.jsx`, `order: 40`); other checks later. `paneId: "methods"`.
+- **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS //
+  DETAILS / DATA CONSISTENCY / STATISTICS CHECK / REVIEW), **no "THEORY"/"METHODS" umbrella header** — the vocabulary
+  is adopted once the METHODS modules earn it. The `paneId` is the internal architecture + the eventual rename.
 
 **The registry pattern.** Sections are **data**, not hard-coded markup: a new section is one `registerPaneSection`
 call in its own chunk (chunk load order 05<10<15<20<25 ⇒ the registry exists before the calls run), `order`
@@ -264,6 +266,17 @@ modules. **Mount-but-hide:** every section body stays mounted, inactive ones `di
 so in-progress work (a running synthesis) survives a section switch. One section open per pane; the open section
 persists (`callosum.theoryOpen` / `callosum.methodsOpen`). **Note the esbuild gotcha:** a registered-but-unreferenced
 component is dead-code-eliminated from the build until something uses it — wire the consumer in the same change.
+
+**Tabs within a section (inc 139) — the IA rule.** **Accordion sections are broad tool *categories*; within a
+section, TABS present like-with-like submenus** so the accordion stays shallow instead of sprouting a sibling
+section for every variant. AXES = `[Axes | Tags]` (your conceptual lenses + your labels — same cognitive task,
+different lens). The rule going forward: **like groups with like** — e.g. future statistics checks become **tabs
+inside STATISTICS CHECK**, not new sections; and **order sections by cognitive task**, not implementation
+(DATA CONSISTENCY before STATISTICS CHECK). Mechanics (`05_panes.jsx`): `registerPaneTab({id,label,paneId,order},
+{id,label,order,render})` adds a tab to a find-or-created host section; `registerPaneSection({…,render})` is sugar
+for a one-tab section (no strip shown). The tab strip **reuses the `.tags-srcfilter` segmented-chip recipe**
+(`.pane-tabs`, no new tokens); tabs **mount-but-hide** like sections (`.pane-tab:not(.active){display:none}`) so an
+open axis / running action survives a tab switch; the active tab persists (`callosum.panetab.<sectionId>`).
 
 **AI-usage principle.** The AI's job is to make verification cheap, **never to substitute for it.** For any AI
 feature ask *"where did the judgment go?"* — it must land on a checkable computation or on the human, never hide in
