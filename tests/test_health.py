@@ -208,6 +208,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
         ("/settings", frozenset({"PUT"})),  # BYOK: set key + egress consent (inc 146)
+        ("/settings/test-key", frozenset({"POST"})),  # BYOK: validate the key (inc 147)
     }
     api_routes = [
         route

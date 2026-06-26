@@ -14,6 +14,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
 from app.backend import app_settings
+from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
 
@@ -65,3 +66,43 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
     if update.data_egress_enabled is not None:
         app_settings.set_data_egress(update.data_egress_enabled)
     return _status()
+
+
+class KeyTestResult(BaseModel):
+    ok: bool
+    detail: str
+
+
+def _ping_gemini(model: str, api_key: str) -> tuple[bool, str]:
+    """Make a minimal NON-LIBRARY call to confirm the key authenticates + can generate.
+
+    Sends a fixed throwaway prompt (never library text). The key is never logged and never returned: any
+    provider error is redacted (`replace(api_key, "***")`) + length-capped before it reaches `detail`.
+    """
+    try:
+        from google import genai
+
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(model=model, contents="Reply with the single word OK.")
+        text = (getattr(response, "text", "") or "").strip()
+        return True, "Key works — Gemini responded." if text else "Key authenticated."
+    except Exception as exc:  # noqa: BLE001 — surface a sanitized message, never the key
+        msg = str(exc).replace(api_key, "***") if api_key else str(exc)
+        return False, f"Key test failed: {msg[:300]}"
+
+
+@router.post("/settings/test-key", response_model=KeyTestResult)
+def test_key() -> KeyTestResult:
+    """Validate the active Gemini key with a tiny ping. Gated on egress ON — when AI is off, Callosum makes
+    no outbound call (the egress toggle's promise stays ironclad; invariant #3). Always HTTP 200 (a result)."""
+    cfg = GeminiConfig.from_environment()
+    if not cfg.data_egress_enabled:
+        return KeyTestResult(
+            ok=False,
+            detail="Turn on “Allow AI features” first — Callosum won’t contact Google while it’s off.",
+        )
+    key = cfg.resolved_api_key()
+    if not key:
+        return KeyTestResult(ok=False, detail="No API key is set. Paste one above and Save.")
+    ok, detail = _ping_gemini(cfg.model, key)
+    return KeyTestResult(ok=ok, detail=detail)

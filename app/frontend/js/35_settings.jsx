@@ -88,8 +88,17 @@ function AiSettings() {
   const [keyInput, setKeyInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [test, setTest] = useState(null);  // {ok, detail} from POST /settings/test-key
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => { api("/settings").then(r => { if (r.ok) setStatus(r.data); }); }, []);
+
+  const testKey = async () => {
+    setTesting(true); setTest(null);
+    const r = await apiPost("/settings/test-key", {});
+    setTesting(false);
+    setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
+  };
 
   const applyKey = async (value, doneMsg) => {
     setBusy(true); setMsg("");
@@ -128,6 +137,11 @@ function AiSettings() {
           {keySet && !fromEnv &&
             <button className="btn btn-ghost" disabled={busy} onClick={() => applyKey("", "Key cleared.")}>Clear</button>}
         </div>
+        {keySet &&
+          <div className="settings-keytest">
+            <button className="btn btn-ghost" disabled={testing} onClick={testKey}>{testing ? "Testing…" : "Test key"}</button>
+            {test && <span className={"settings-keytest-result " + (test.ok ? "ok" : "err")}>{test.detail}</span>}
+          </div>}
       </div>
       <div className="settings-row">
         <span className="settings-label">Allow AI features (sends text to Google)

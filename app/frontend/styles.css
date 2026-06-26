@@ -235,6 +235,10 @@
   .settings-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
   .settings-keyrow { display: flex; gap: 8px; align-items: center; }  /* BYOK key input + Save/Clear (inc 146) */
   .settings-keyrow .settings-input { flex: 1; }
+  .settings-keytest { display: flex; gap: 8px; align-items: center; margin-top: 6px; }  /* Test key (inc 147) */
+  .settings-keytest-result { font-size: 11.5px; }
+  .settings-keytest-result.ok { color: var(--verified); }
+  .settings-keytest-result.err { color: var(--flag-ink); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
 

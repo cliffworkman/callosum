@@ -259,6 +259,10 @@
   .settings-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
   .settings-keyrow { display: flex; gap: 8px; align-items: center; }  /* BYOK key input + Save/Clear (inc 146) */
   .settings-keyrow .settings-input { flex: 1; }
+  .settings-keytest { display: flex; gap: 8px; align-items: center; margin-top: 6px; }  /* Test key (inc 147) */
+  .settings-keytest-result { font-size: 11.5px; }
+  .settings-keytest-result.ok { color: var(--verified); }
+  .settings-keytest-result.err { color: var(--flag-ink); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
 
@@ -5577,11 +5581,20 @@
     const [keyInput, setKeyInput] = useState("");
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState("");
+    const [test, setTest] = useState(null);
+    const [testing, setTesting] = useState(false);
     useEffect(() => {
       api("/settings").then((r) => {
         if (r.ok) setStatus(r.data);
       });
     }, []);
+    const testKey = async () => {
+      setTesting(true);
+      setTest(null);
+      const r = await apiPost("/settings/test-key", {});
+      setTesting(false);
+      setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
+    };
     const applyKey = async (value, doneMsg) => {
       setBusy(true);
       setMsg("");
@@ -5611,7 +5624,7 @@
         value: keyInput,
         onChange: (e) => setKeyInput(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: () => applyKey(keyInput, "Key saved.") }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => applyKey("", "Key cleared.") }, "Clear"))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to Google)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to Google's Gemini API; every sentence is still verified locally against your PDFs.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: () => applyKey(keyInput, "Key saved.") }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => applyKey("", "Key cleared.") }, "Clear")), keySet && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testKey }, testing ? "Testing\u2026" : "Test key"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to Google)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to Google's Gemini API; every sentence is still verified locally against your PDFs.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",

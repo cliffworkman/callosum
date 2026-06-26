@@ -101,3 +101,59 @@ def test_stored_egress_off_still_blocks_generation() -> None:
     gen = GeminiSummaryGenerator(config=GeminiConfig.from_environment())
     with pytest.raises(DataEgressDisabledError):
         gen.generate(source_chunks=[], scope_ref={})
+
+
+# --- inc 147: "Test this key" (egress-gated ping) ---
+
+
+def test_test_key_egress_off_does_not_ping(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With egress OFF, the endpoint must NOT contact Google (the toggle's promise) — _ping_gemini not called."""
+    from app.backend.api.routers import settings as settings_router
+
+    monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
+    app_settings.set_api_key("sk-present")  # key present, but egress off
+    calls = []
+    monkeypatch.setattr(settings_router, "_ping_gemini", lambda *a, **k: (calls.append(1), (True, "x"))[1])
+
+    body = TestClient(create_app(db_url=temp_db_url)).post("/settings/test-key").json()
+    assert body["ok"] is False
+    assert "Allow AI features" in body["detail"]
+    assert calls == []  # no outbound call attempted
+
+
+def test_test_key_egress_on_no_key(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)  # egress on (conftest), but no key anywhere
+    body = TestClient(create_app(db_url=temp_db_url)).post("/settings/test-key").json()
+    assert body["ok"] is False
+    assert "No API key" in body["detail"]
+
+
+def test_test_key_egress_on_with_key_pings(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.backend.api.routers import settings as settings_router
+
+    app_settings.set_api_key("sk-works")  # egress on by conftest
+    monkeypatch.setattr(settings_router, "_ping_gemini", lambda model, key: (True, "Key works — Gemini responded."))
+    body = TestClient(create_app(db_url=temp_db_url)).post("/settings/test-key").json()
+    assert body["ok"] is True and "responded" in body["detail"]
+
+
+def test_ping_gemini_redacts_the_key_from_errors() -> None:
+    """A provider error that echoes the key must be redacted before it reaches `detail`."""
+    from app.backend.api.routers import settings as settings_router
+
+    key = "sk-leak-me-1234567890"
+    import google.genai as genai_mod  # the SDK is importable in dev/CI
+
+    # Force the genai client path to raise an error containing the key; _ping_gemini must redact it.
+    orig = genai_mod.Client
+
+    def _raise(**kw):
+        raise RuntimeError(f"401 invalid key {key} rejected")
+
+    try:
+        genai_mod.Client = _raise
+        ok, detail = settings_router._ping_gemini("gemini-2.5-flash-lite", key)
+    finally:
+        genai_mod.Client = orig
+    assert ok is False
+    assert key not in detail and "***" in detail

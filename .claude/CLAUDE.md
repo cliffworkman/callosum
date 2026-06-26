@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 146** (see Increment workflow) with **532 pytest tests
+It is currently at **Increment 147** (see Increment workflow) with **536 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -769,7 +769,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 146 (BYOK — Gemini API key + egress consent from the Settings UI):
+*Last updated: 2026-06-26 — increment 147 (BYOK follow-on: "Test this key" — egress-gated key validation):
+a **Test key** button in Settings → AI features confirms a pasted Gemini key works before the user relies on it.
+**`POST /settings/test-key`** (`routers/settings.py`) → `KeyTestResult{ok, detail}`: egress OFF → "Turn on Allow
+AI features first…" + **no outbound call** (the toggle's promise stays ironclad — strongest reading of invariant #3,
+no second egress path); no key → "No API key is set…"; else `_ping_gemini(model, key)` makes a minimal **non-library**
+call (`generate_content(contents="Reply with the single word OK.")`). The key is **never logged**, and any provider
+error is **redacted** (`str(exc).replace(key, "***")`) + length-capped before reaching `detail`. Frontend: a Test
+key button + ✓/✗ result line (`35_settings.jsx`, shown when a key is available); one CSS block `.settings-keytest`
+(`.ok`=green `--verified`, `.err`=amber `--flag-ink`). **Principles gate non-triggering** (no claim/signal; it
+*strengthens* the egress posture). **Audit `.claude/security-audits/2026-06-26_test-key.md` PASS.** **Rule #10:**
+`route_35_settings.md` extended (`/settings/test-key` + the egress-off-no-call step) → surface **109/109 API +
+549/549 FE, 0 uncovered**. help corpus Settings AI bullet gained a Test-key line (`HELP-DOCS-SYNCED` → 147). pytest
+**536** (+4 `test_settings.py`: egress-off→no-ping, egress-on+no-key, egress-on+key→ping, `_ping_gemini` redaction;
+route-surface extended); `ruff` clean; build + assembly green; **no migration**. **Verified headed, no egress**
+(`.local/visual/drive_inc147_testkey.py` — key saved + egress OFF → Test → "Turn on Allow AI features…", **0 genai**,
+key not in DOM). Notes: `INCREMENT-147-NOTES.md`. **NEXT:** inc 148 (synthesis-pane egress-off nudge) → inc 149–150
+(multi-provider LLM #39: OpenAI/Anthropic/local via httpx; the local provider = summaries with zero egress).
+
+Earlier — increment 146 (BYOK — Gemini API key + egress consent from the Settings UI):
 the user-prioritized feature after the slate. Set the Gemini **API key** and toggle **data egress** from
 **Settings → AI features**, instead of editing env vars — so a GitHub user can enable AI summaries end-to-end
 from the UI. New `app/backend/app_settings.py` (a tiny local store: read/write a JSON file at

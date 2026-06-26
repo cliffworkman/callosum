@@ -9,7 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 146) — help corpus current as of BYOK (set the Gemini key + egress in Settings) -->
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 147) — help corpus current as of the Test-key button -->
+## 2026-06-26 — Increment 147: "Test this key" — egress-gated key validation
+- **Files:** `app/backend/api/routers/settings.py`, `app/frontend/js/35_settings.jsx` + `styles.css` +
+  `callosum-app.html`, `app/backend/help/help_content.md`, `tests/test_settings.py`, `tests/test_health.py`,
+  `.claude/qa-routes/route_35_settings.md`, `.claude/security-audits/2026-06-26_test-key.md`, `INCREMENT-147-NOTES.md`.
+- **What:** A **Test key** button (Settings → AI features) validates a saved Gemini key via a tiny non-library
+  ping. `POST /settings/test-key` → `{ok, detail}`; gated on egress ON (off ⟹ no outbound call); key never
+  logged/returned (errors redacted).
+- **Why:** A BYOK user wants to confirm a pasted key works before relying on it — without running a full summary.
+- **Revert:** remove the endpoint + the Settings button; restore from git.
+
 ## 2026-06-26 — Increment 146: BYOK — Gemini API key + egress consent from the Settings UI
 - **Files:** `app/backend/app_settings.py` (new), `app/backend/api/routers/settings.py` (new),
   `app/backend/api/app.py`, `integrations/gemini/generator.py`, `app/frontend/js/35_settings.jsx` + `styles.css` +
