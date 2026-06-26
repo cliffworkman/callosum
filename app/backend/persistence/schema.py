@@ -559,6 +559,27 @@ open_science_signals = Table(
     UniqueConstraint("paper_id", "signal_type", "source", name="uq_open_science_signal_paper_type_source"),
 )
 
+# Findings subsystem (inc 130): the shared FACT-vs-CANDIDATE store every METHODS check emits into. A FACT is an
+# established truth (review_state NULL — not resolvable); a CANDIDATE is reviewable. content_key gives idempotency
+# (re-runs preserve reviews on unchanged findings). State lives here, not localStorage.
+paper_findings = Table(
+    "paper_findings",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("source", String(100), nullable=False),  # the producing check
+    Column("kind", String(20), nullable=False),  # 'fact' | 'candidate'
+    Column("tier", String(20)),  # 'primary' | 'speculative' | NULL
+    Column("payload", JSON, nullable=False),
+    Column("content_key", String(64), nullable=False),  # sha256(source + canonical payload) — idempotency
+    Column("review_state", String(20)),  # 'unreviewed'|'confirmed'|'accepted'|'noted' | NULL (facts)
+    Column("review_reason", Text),
+    Column("reviewed_at", DateTime),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("paper_id", "source", "content_key", name="uq_paper_findings_paper_source_key"),
+    Index("ix_paper_findings_paper_id", "paper_id"),
+)
+
 # Watched library folders (inc 98): folders callosum re-scans to pick up new PDFs (Zotero/Mendeley-style).
 # Scanning a folder registers it here; auto-rescan-on-launch + a manual "Re-scan all" reconcile them.
 watched_folders = Table(
