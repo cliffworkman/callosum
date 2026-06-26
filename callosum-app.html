@@ -1890,7 +1890,9 @@
     const load = () => api("/methods/retraction/database").then((r) => {
       if (r.ok) setDb(r.data);
     });
-    useEffect(load, []);
+    useEffect(() => {
+      load();
+    }, []);
     const refresh = async () => {
       setRun({ status: "running" });
       const poll = (jobId) => api(`/methods/retraction/database/refresh/${jobId}`).then((r2) => {

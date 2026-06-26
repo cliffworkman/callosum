@@ -73,7 +73,7 @@ function RetractionDatabasePanel({ ctx }) {
   const [db, setDb] = useState(null);  // { count, retrieved_at }
   const [run, setRun] = useState({ status: "idle" });
   const load = () => api("/methods/retraction/database").then(r => { if (r.ok) setDb(r.data); });
-  useEffect(load, []);
+  useEffect(() => { load(); }, []);  // call load() (its Promise must NOT become the effect's cleanup return)
   const refresh = async () => {
     setRun({ status: "running" });
     const poll = (jobId) => api(`/methods/retraction/database/refresh/${jobId}`).then(r => {
