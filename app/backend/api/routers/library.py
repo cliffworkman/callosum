@@ -31,6 +31,7 @@ from app.backend.embeddings.pipeline import embed_chunks, embed_papers
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.metadata.citation_import import MAX_IMPORT_BYTES, import_citations
 from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref
+from app.backend.methods.retraction import auto_check_retractions
 from app.backend.pdf_processing.library_scan import scan_library_folder
 from app.backend.persistence.watched_repo import (
     add_watched_folder,
@@ -81,9 +82,10 @@ def scan_status(job_id: str, request: Request) -> ScanJobResponse:
     return ScanJobResponse(job_id=job_id, status=job.status, detail=job.detail)
 
 
-def _process_scan_result(conn, scanned, *, model, store, crossref) -> None:
+def _process_scan_result(conn, scanned, *, model, store, crossref, retraction_checkers=None) -> None:
     """Enrich new papers from Crossref + embed new chunks/papers for one scan result (shared by scan + rescan).
-    Crossref is resilient (unresolved → the inc-80 Unsorted view) and is NOT the Gemini gate."""
+    Crossref is resilient (unresolved → the inc-80 Unsorted view) and is NOT the Gemini gate. Inc 134: a
+    best-effort retraction auto-check runs on the new papers (so a freshly scanned retracted paper flags now)."""
     added_papers = [int(a["paper_id"]) for a in scanned["added"]]
     added_chunks = [int(cid) for a in scanned["added"] for cid in (a.get("chunk_ids") or [])]
     for paper_id in added_papers:
@@ -95,6 +97,8 @@ def _process_scan_result(conn, scanned, *, model, store, crossref) -> None:
         embed_chunks(conn, model=model, vector_store=store, chunk_ids=added_chunks)
     if added_papers:
         embed_papers(conn, model=model, vector_store=store, paper_ids=added_papers)
+        if retraction_checkers:
+            auto_check_retractions(conn, added_papers, checkers=retraction_checkers)
 
 
 def _scan_summary(scanned) -> ScanSummary:
@@ -115,7 +119,14 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         crossref = app.state.crossref_client
         with app.state.engine.begin() as conn:
             scanned = scan_library_folder(conn, folder)
-            _process_scan_result(conn, scanned, model=model, store=store, crossref=crossref)
+            _process_scan_result(
+                conn,
+                scanned,
+                model=model,
+                store=store,
+                crossref=crossref,
+                retraction_checkers=app.state.retraction_checkers,
+            )
             add_watched_folder(conn, folder)  # inc 98: scanning a folder starts watching it
             touch_last_scanned(conn, folder)
         jobs.mark_done(job_id, ScanJobResponse(job_id=job_id, status="done", summary=_scan_summary(scanned)))
@@ -183,7 +194,14 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                     agg["errors"] += 1
                     continue
                 scanned = scan_library_folder(conn, folder)
-                _process_scan_result(conn, scanned, model=model, store=store, crossref=crossref)
+                _process_scan_result(
+                    conn,
+                    scanned,
+                    model=model,
+                    store=store,
+                    crossref=crossref,
+                    retraction_checkers=app.state.retraction_checkers,
+                )
                 touch_last_scanned(conn, folder)
                 for key in agg:
                     agg[key] += len(scanned[key])
@@ -244,6 +262,8 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
             created = [int(pid) for pid in result["created"]]
             if created:  # embed the new papers' metadata so they're searchable / axis-scorable
                 embed_papers(conn, model=model, vector_store=store, paper_ids=created)
+                # inc 134: best-effort retraction auto-check on the imported papers (a known-retracted DOI flags now)
+                auto_check_retractions(conn, created, checkers=app.state.retraction_checkers)
         jobs.mark_done(
             job_id,
             ImportJobResponse(

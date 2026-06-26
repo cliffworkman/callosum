@@ -8,6 +8,7 @@ from app.backend.methods.retraction import (
     RetractionChecker,
     RetractionSignal,
     apply_retraction,
+    auto_check_retractions,
     detect_retraction,
     merge_signals,
 )
@@ -283,3 +284,50 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     assert any(f["payload"]["status"] == "retracted" for f in facts)
 
     assert client.get("/papers/999999/retraction").status_code == 404
+
+
+# ---- on-import auto-check (inc 134) -----------------------------------------
+
+
+def test_auto_check_retractions_best_effort(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/retracted", title="A")
+        b = _paper(conn, doi="10.1/clean", title="B")
+
+        def fake(conn, paper):
+            return RetractionSignal(source="crossref", status="retracted") if paper["doi"] == "10.1/retracted" else None
+
+        n = auto_check_retractions(
+            conn, [a, b, 999999], checkers=[RetractionChecker("crossref", fake)]
+        )  # 999999 missing → skipped
+        a_findings = get_paper_findings(conn, a)
+        b_status = get_retraction_status(conn, b)
+    engine.dispose()
+    assert n == 1  # only A flagged; the missing id is swallowed, B is clean
+    assert len(a_findings["facts"]) == 1 and a_findings["facts"][0]["payload"]["status"] == "retracted"
+    assert b_status["status"] == "none"  # B was checked-clean (silence != clean)
+
+
+def test_citation_import_auto_checks_retraction(temp_db_url):
+    import json as _json
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.retraction_checkers = [
+        RetractionChecker(
+            "crossref",
+            lambda c, p: RetractionSignal(source="crossref", status="retracted", notice_doi="10.1/n")
+            if p["doi"] == "10.1/retracted"
+            else None,
+        )
+    ]
+    csl = [{"DOI": "10.1/retracted", "title": "Imported Paper", "type": "article-journal"}]
+    started = client.post("/library/import", json={"content": _json.dumps(csl), "format": "csl-json"})
+    assert started.status_code == 202
+    jid = started.json()["job_id"]
+    for _ in range(30):
+        if client.get(f"/library/import/{jid}").json()["status"] in ("done", "error"):
+            break
+    pid = next(p["id"] for p in client.get("/papers").json() if p["title"] == "Imported Paper")
+    facts = client.get(f"/papers/{pid}/findings").json()["facts"]
+    assert any(f["payload"]["status"] == "retracted" for f in facts)  # flagged on import, no manual batch

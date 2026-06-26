@@ -23,6 +23,7 @@ from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import PaperRef
 from app.backend.persistence.findings_repo import upsert_findings
+from app.backend.persistence.repository import get_paper
 from app.backend.persistence.retraction_repo import lookup_retraction_record
 from app.backend.persistence.signals_repo import store_retraction_status
 from integrations.crossref.adapter import CrossrefClient
@@ -144,6 +145,22 @@ def apply_retraction(conn: Connection, paper_id: int, outcome: RetractionOutcome
         store_retraction_status(
             conn, paper_id, status=outcome.status_kind, sources=outcome.sources_checked, checked_at=checked_at
         )
+
+
+def auto_check_retractions(conn: Connection, paper_ids: list[int], *, checkers: list[RetractionChecker]) -> int:
+    """Best-effort retraction check over a set of papers — the **on-import** hook (inc 134). A failure for any one
+    paper (a missing row, a source error) is swallowed and never aborts the others, so it can't break an import.
+    Returns the number flagged retracted. (The Crossref checker reads the cache a just-run enrich populated.)"""
+    flagged = 0
+    for paper_id in paper_ids:
+        try:
+            outcome = detect_retraction(conn, get_paper(conn, paper_id), checkers=checkers)
+            apply_retraction(conn, paper_id, outcome)
+            if outcome.merged is not None and outcome.merged.status == "retracted":
+                flagged += 1
+        except Exception:
+            continue
+    return flagged
 
 
 def _paper_doi(paper: Mapping[str, Any]) -> str | None:
