@@ -11,7 +11,6 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
-    MetaData,
     String,
     Table,
     Text,
@@ -19,16 +18,7 @@ from sqlalchemy import (
     func,
 )
 
-NAMING_CONVENTION = {
-    "ix": "ix_%(column_0_label)s",
-    "uq": "uq_%(table_name)s_%(column_0_name)s",
-    "ck": "ck_%(table_name)s_%(constraint_name)s",
-    "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-    "pk": "pk_%(table_name)s",
-}
-
-metadata = MetaData(naming_convention=NAMING_CONVENTION)
-
+from app.backend.persistence.schema_base import metadata
 
 PROCESSING_TIERS = ("metadata-only", "abstract-embedded", "fully-chunked")
 ATTACHMENT_STORAGE_MODES = ("managed", "linked", "url")
@@ -543,61 +533,6 @@ missing_literature_suggestions = Table(
     CheckConstraint("score IS NULL OR (score >= 0 AND score <= 1)", name="missing_lit_score_0_1"),
 )
 
-open_science_signals = Table(
-    "open_science_signals",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
-    Column("signal_type", String(100), nullable=False),
-    Column("status", String(100), nullable=False),
-    Column("evidence_snippet", Text),
-    Column("evidence_url", Text),
-    Column("confidence", Float),
-    Column("source", String(100)),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    CheckConstraint("confidence IS NULL OR (confidence >= 0 AND confidence <= 1)", name="open_science_confidence_0_1"),
-    Index("ix_open_science_signals_paper_id", "paper_id"),
-    UniqueConstraint("paper_id", "signal_type", "source", name="uq_open_science_signal_paper_type_source"),
-)
-
-# Findings subsystem (inc 130): the shared FACT-vs-CANDIDATE store every METHODS check emits into. A FACT is an
-# established truth (review_state NULL — not resolvable); a CANDIDATE is reviewable. content_key gives idempotency
-# (re-runs preserve reviews on unchanged findings). State lives here, not localStorage.
-paper_findings = Table(
-    "paper_findings",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
-    Column("source", String(100), nullable=False),  # the producing check
-    Column("kind", String(20), nullable=False),  # 'fact' | 'candidate'
-    Column("tier", String(20)),  # 'primary' | 'speculative' | NULL
-    Column("payload", JSON, nullable=False),
-    Column("content_key", String(64), nullable=False),  # sha256(source + canonical payload) — idempotency
-    Column("review_state", String(20)),  # 'unreviewed'|'confirmed'|'accepted'|'noted' | NULL (facts)
-    Column("review_reason", Text),
-    Column("reviewed_at", DateTime),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    UniqueConstraint("paper_id", "source", "content_key", name="uq_paper_findings_paper_source_key"),
-    Index("ix_paper_findings_paper_id", "paper_id"),
-)
-
-# A local mirror of the Retraction Watch Database (Crossref-hosted, CC0), refreshed on demand (inc 132). One row
-# per RW notice; the producer matches a paper's DOI here offline. Replace-all on refresh (the DB is authoritative).
-retraction_records = Table(
-    "retraction_records",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("original_doi", String(255), nullable=False),  # the retracted paper's DOI (normalized lower) — match key
-    Column("status", String(20), nullable=False),  # retracted | correction | concern
-    Column("nature", String(100)),  # the raw RW nature label (display)
-    Column("date", String(40)),
-    Column("reason", Text),
-    Column("notice_doi", String(255)),
-    Column("notice_url", Text),
-    Column("retrieved_at", String(40), nullable=False),  # when this snapshot was downloaded
-    Index("ix_retraction_records_original_doi", "original_doi"),
-)
-
 # Watched library folders (inc 98): folders callosum re-scans to pick up new PDFs (Zotero/Mendeley-style).
 # Scanning a folder registers it here; auto-rescan-on-launch + a manual "Re-scan all" reconcile them.
 watched_folders = Table(
@@ -608,4 +543,15 @@ watched_folders = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("last_scanned_at", DateTime),
     UniqueConstraint("path", name="uq_watched_folders_path"),
+)
+
+# Findings / open-science-signals / retraction-mirror / gap-finder tables live in schema_findings (split out to
+# keep this file under the 600-line cap, rule #1). Re-exported here so existing
+# ``from app.backend.persistence.schema import paper_findings`` imports keep working, and so importing this module
+# registers those tables on the shared ``metadata`` (0001's ``metadata.create_all`` then includes them).
+from app.backend.persistence.schema_findings import (  # noqa: E402,F401
+    gap_candidates,
+    open_science_signals,
+    paper_findings,
+    retraction_records,
 )

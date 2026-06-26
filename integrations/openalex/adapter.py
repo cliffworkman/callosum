@@ -23,6 +23,7 @@ from app.backend.persistence.schema import external_api_cache
 OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
 MAX_REFERENCED = 500  # cap on referenced-work ids read per paper (inc 135; bound the gap-finder fetches)
+MAX_CITING = 200  # cap on citing works read per paper (inc 137 forward gap; bound + a documented coverage limit)
 
 # OpenAlex `oa_status` → our OA color. "closed" (and anything unknown) → None = no authorized OA copy.
 _OA_STATUS_TO_COLOR: dict[str, OaColor] = {
@@ -112,6 +113,51 @@ class OpenAlexClient:
         if status != 200 or not isinstance(body, dict):
             return None
         return _meta_from_work(body)
+
+    def fetch_work_id(self, conn: Connection, ref: PaperRef) -> str | None:
+        """The OpenAlex `W…` id for a paper (inc 137 forward gap) — read from the cached DOI→work fetch."""
+        work = self._fetch_work(conn, ref)
+        raw = work.get("id") if isinstance(work, dict) else None
+        wid = str(raw).rsplit("/", 1)[-1] if raw else None
+        return wid if wid and re.fullmatch(r"W\d+", wid) else None
+
+    def fetch_citing_works(self, conn: Connection, work_id: str) -> list[dict[str, Any]]:
+        """Works that CITE a given work (inc 137 forward gap) — `?filter=cites:<W…>`, capped, cached, fail-closed.
+        Returns meta dicts (openalex_work_id/doi/title/authors/year)."""
+        if not re.fullmatch(r"W\d+", work_id or ""):
+            return []
+        cache_key = f"citing:{work_id}"
+        cached = _cached_response(conn, cache_key)
+        if cached is not None:
+            body = cached["response_json"] if cached["status_code"] == 200 else None
+        else:
+            try:
+                status, body = self.fetcher(
+                    "",
+                    params={"filter": f"cites:{work_id}", "per-page": "200", **self._polite_params()},
+                    headers=self._headers(),
+                    timeout=self.timeout,
+                )
+            except Exception:
+                _store_cache(
+                    conn,
+                    cache_key,
+                    request_json={"work_id": work_id},
+                    response_json={"error": "fetch failed"},
+                    status_code=None,
+                )
+                return []
+            _store_cache(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
+            if status != 200:
+                body = None
+        if not isinstance(body, dict):
+            return []
+        out: list[dict[str, Any]] = []
+        for work in (body.get("results") or [])[:MAX_CITING]:
+            meta = _meta_from_work(work)
+            if meta and meta.get("openalex_work_id"):
+                out.append(meta)
+        return out
 
     def lookup_retraction(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         """Read OpenAlex's `is_retracted` boolean for a work (inc 131). Thin (a boolean, no notice detail) —

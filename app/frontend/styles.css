@@ -852,7 +852,8 @@
   .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
   .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
   /* inc 135: literature gap-finder modal */
-  .gaps-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .gaps-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .gaps-controls .lib-sort { margin: 0; }
   .gaps-coverage { font-size: 11.5px; color: var(--ink-3); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
   .gap-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
   .gap-row-info { flex: 1; min-width: 0; }

@@ -350,7 +350,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView &&
               <button className="trash-toggle" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
             {!trashView &&
-              <button className="trash-toggle" onClick={onOpenGaps} title="Works cited by several of your papers that you don't have yet">Gaps</button>}
+              <button className="trash-toggle" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {trashView && state.status === "ready" && state.papers.length > 0 &&

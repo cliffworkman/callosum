@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 137) — help corpus current as of the gap-finder v2 (direction/axis/cache) rewrite -->
+## 2026-06-26 — Increment 137: gap-finder v2 (forward gap + axis-scoped + persistent cache)
+- **Files:** `app/backend/clustering/gapfinder.py`, `integrations/openalex/adapter.py`,
+  `app/backend/persistence/gap_repo.py` (new) + `schema_base.py` (new) + `schema_findings.py` (new) +
+  `schema.py` (split) + `alembic/versions/0019_gap_candidates.py` (new), `app/backend/api/routers/gaps.py`,
+  `app/frontend/js/36_gaps.jsx` + `10_pdf_layer.jsx` + `styles.css` + `callosum-app.html`, `tests/test_gapfinder.py`
+  + `test_health.py`, `app/backend/help/help_content.md`, `.claude/security-audits/2026-06-26_gapfinder.md`
+  (addendum), `.claude/qa-routes/route_41_gaps.md`, `INCREMENT-137-NOTES.md`.
+- **What:** Extends the gap-finder with a **forward** direction (works that *cite* your papers), **axis-scoped**
+  scanning, and a **persistent `gap_candidates` cache** (GET reads instantly + filters dismissed/in-library at
+  read time; Refresh recomputes). New OpenAlex `fetch_work_id` + `fetch_citing_works`; new `GET /gaps` +
+  `POST/GET /gaps/refresh` (replacing `/gaps/find*`). Frontend gains a direction toggle + axis dropdown + Refresh.
+- **Why:** The user chose "persistent cache + axis-scoped + forward gap" — surface newer work building on the
+  library, scope discovery to a topic, and open the modal instantly without re-scanning.
+- **Also:** Split `schema.py` (611 → 558, over the 600-line cap from inc 130/132) — the findings/signals/retraction
+  + gap tables moved to `schema_findings.py` on a shared `schema_base.metadata`, re-exported (zero blast radius).
+- **Revert:** restore the listed files from git (this commit); `gap_candidates` is additive (migration 0019).
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 136) — help corpus current as of the watched-folder focus-rescan line -->
 ## 2026-06-26 — Increment 136: watched folders rescan on window focus (live-ish pickup)
 - **Files:** `app/frontend/js/40_app.jsx`, `app/backend/help/help_content.md`, `INCREMENT-136-NOTES.md`.

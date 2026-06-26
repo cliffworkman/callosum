@@ -876,7 +876,8 @@
   .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
   .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
   /* inc 135: literature gap-finder modal */
-  .gaps-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .gaps-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
+  .gaps-controls .lib-sort { margin: 0; }
   .gaps-coverage { font-size: 11.5px; color: var(--ink-3); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px; }
   .gap-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--line); }
   .gap-row-info { flex: 1; min-width: 0; }
@@ -2332,7 +2333,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works cited by several of your papers that you don't have yet" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -5502,47 +5503,66 @@
     )), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function GapsModal({ onClose, onChanged }) {
-    const [run, setRun] = useState({ status: "idle" });
+    const [direction, setDirection] = useState("backward");
+    const [axisId, setAxisId] = useState("");
+    const [axes, setAxes] = useState([]);
     const [rows, setRows] = useState([]);
-    const [coverage, setCoverage] = useState(null);
-    const find = async () => {
-      setRun({ status: "running" });
-      setRows([]);
-      setCoverage(null);
-      const poll = (jobId) => api(`/gaps/find/${jobId}`).then((r2) => {
+    const [computedAt, setComputedAt] = useState(null);
+    const [refresh, setRefresh] = useState({ status: "idle" });
+    const [lastScan, setLastScan] = useState(null);
+    useEffect(() => {
+      api("/axes").then((r) => setAxes(r.ok ? r.data.filter((a) => a.kind !== "my_publications") : []));
+    }, []);
+    const scopeQS = () => `direction=${direction}${axisId ? `&axis_id=${axisId}` : ""}`;
+    const load = React.useCallback(() => {
+      api(`/gaps?${scopeQS()}`).then((r) => {
+        if (r.ok) {
+          setRows(r.data.candidates || []);
+          setComputedAt(r.data.computed_at);
+        }
+      });
+    }, [direction, axisId]);
+    useEffect(() => {
+      setLastScan(null);
+      load();
+    }, [load]);
+    const runRefresh = async () => {
+      setRefresh({ status: "running" });
+      setLastScan(null);
+      const poll = (jobId) => api(`/gaps/refresh/${jobId}`).then((r2) => {
         if (!r2.ok) {
-          setRun({ status: "error", error: r2.error });
+          setRefresh({ status: "error", error: r2.error });
           return;
         }
         const d = r2.data;
         if (d.status === "done") {
-          setRun({ status: "done" });
-          setRows((d.result.candidates || []).map((c) => ({ ...c, _state: null })));
-          setCoverage({ checked: d.result.checked, total: d.result.total, note: d.result.note });
-        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Gap-finder failed." });
+          setRefresh({ status: "done" });
+          setLastScan({ checked: d.result.checked, total: d.result.total, note: d.result.note });
+          load();
+        } else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Gap-finder failed." });
         else setTimeout(() => poll(jobId), 2e3);
       });
-      const r = await apiPost("/gaps/find", {});
+      const r = await apiPost("/gaps/refresh", { direction, axis_id: axisId ? Number(axisId) : null });
       if (!r.ok) {
-        setRun({ status: "error", error: r.error });
+        setRefresh({ status: "error", error: r.error });
         return;
       }
       poll(r.data.job_id);
     };
-    const mark = (id, state) => setRows((rs) => rs.map((x) => x.openalex_work_id === id ? { ...x, _state: state } : x));
     const add = async (row) => {
       const r = await apiPost("/gaps/add", { doi: row.doi, openalex_work_id: row.openalex_work_id, title: row.title });
       if (r.ok) {
-        mark(row.openalex_work_id, "added");
+        load();
         if (onChanged) onChanged();
       }
     };
     const dismiss = async (row) => {
       const r = await apiPost("/gaps/dismiss", { openalex_work_id: row.openalex_work_id, doi: row.doi });
-      if (r.ok) mark(row.openalex_work_id, "dismissed");
+      if (r.ok) load();
     };
-    const visible = rows.filter((r) => r._state !== "dismissed");
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Gaps in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Works that ", /* @__PURE__ */ React.createElement("b", null, "several of your papers cite"), " but that aren't in your library yet \u2014 likely references worth adding. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers cite each one, not a measure of importance. ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good."), /* @__PURE__ */ React.createElement("div", { className: "gaps-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: find }, run.status === "running" ? "Finding\u2026" : "Find gaps")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning your library's references (OpenAlex)\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, run.error), coverage && /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, "Scanned ", coverage.checked, " of ", coverage.total, " papers (the rest have no DOI). ", coverage.note), run.status === "done" && visible.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No gaps found \u2014 every work cited by several of your papers is already in your library."), visible.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, "cited by ", row.cited_by_in_library, " of your papers"), row.authors && row.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", row.authors.slice(0, 3).join(", "), row.authors.length > 3 ? " et al." : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, row._state === "added" ? /* @__PURE__ */ React.createElement("span", { className: "gap-added" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss")))))));
+    const countLabel = (n) => direction === "forward" ? `cites ${n} of your papers` : `cited by ${n} of your papers`;
+    const running = refresh.status === "running";
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Gaps in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, direction === "forward" ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Works that ", /* @__PURE__ */ React.createElement("b", null, "cite several of your papers"), " but aren't in your library \u2014 newer work building on yours. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers each one cites, not a measure of importance.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Works that ", /* @__PURE__ */ React.createElement("b", null, "several of your papers cite"), " but aren't in your library yet \u2014 likely references worth adding. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers cite each one, not a measure of importance."), " ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good."), /* @__PURE__ */ React.createElement("div", { className: "gaps-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, /* @__PURE__ */ React.createElement("button", { className: `tags-srcfilter-btn${direction === "backward" ? " on" : ""}`, onClick: () => setDirection("backward") }, "Works you cite"), /* @__PURE__ */ React.createElement("button", { className: `tags-srcfilter-btn${direction === "forward" ? " on" : ""}`, onClick: () => setDirection("forward") }, "Works citing you")), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: axisId, onChange: (e) => setAxisId(e.target.value), title: "Scope to an axis" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All papers"), axes.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.id, value: a.id }, a.label))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running, onClick: runRefresh }, running ? "Scanning\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, computedAt ? `Last refreshed ${new Date(computedAt).toLocaleString()}.` : "Not computed yet for this scope \u2014 Refresh to scan.", lastScan && ` Scanned ${lastScan.checked} of ${lastScan.total} papers (the rest have no DOI). ${lastScan.note}`), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning your library against OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), !running && computedAt && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No gaps in this scope \u2014 everything related to several of your papers is already in your library."), rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, countLabel(row.cited_by_in_library)), row.authors && row.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", row.authors.slice(0, 3).join(", "), row.authors.length > 3 ? " et al." : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss"))))));
   }
   function App() {
     const [conn, setConn] = useState({ state: "wait" });

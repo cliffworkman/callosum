@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 136** (see Increment workflow) with **514 pytest tests
+It is currently at **Increment 137** (see Increment workflow) with **519 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -224,7 +224,10 @@ callosum/
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
 │   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
    │                          gaps [literature gap-finder, inc 135],help}.py [models + handlers])
-│   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
+│   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
+│   │   │                          schema_findings.py [findings/signals/retraction/gap tables; re-exported from
+│   │   │                          schema — inc 137 split to keep schema.py < 600], gap_repo.py [gap_candidates
+│   │   │                          cache, inc 137], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
 │   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78],
@@ -277,7 +280,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0018_profile_dismissed_gaps)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0019_gap_candidates)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -305,12 +308,13 @@ shared/core code loading first.
 **Exempt-but-watched:** `tests/` and `tools/` (the validation harness is allowed to be large),
 and non-code (Markdown, SQL, config).
 
-**Standing split tasks:** none currently over the limit. **Inc 91** split two files that had silently drifted
-over (the prior "~577/~576" note here was stale — re-measure, don't trust this line): `repository.py` (625→538,
-extracting native-annotations data-access → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539,
-extracting PDF file-serving → `routers/paper_files.py`). Largest app-source files now (re-measure before
-trusting): `schema.py` (~559), `repository.py` (~556), `routers/papers.py` (~554), `extraction.py` (~551),
-`routers/axes.py` (~537) — all under 600, but several are **close**, so check `wc -l` before adding to them.
+**Standing split tasks:** none currently over the limit. **Inc 137** split `schema.py` (611→558, over the cap
+since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
+shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
+`repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
+**Watch (re-measure before trusting):** `clustering/my_publications.py` (~594, **closest** — split before the next
+backend addition there), `repository.py` (~556), `routers/papers.py` (~554), `extraction.py` (~551),
+`routers/axes.py` (~537) — all under 600, but check `wc -l` before adding to them.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
 `app/backend/metadata/paper_edits.py`.)
 
@@ -742,7 +746,36 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 136 (watched folders rescan on window focus — live-ish pickup): a user
+*Last updated: 2026-06-26 — increment 137 (gap-finder v2 — forward gap + axis-scoped + persistent cache): rounds
+out the inc-135 backward gap-finder with the user-chosen scope. **Forward gap** (`compute_gaps(direction="forward")`):
+works that **cite** ≥ N of your papers ("cites N of your papers") — newer work building on your collection — via new
+OpenAlex `fetch_work_id` + `fetch_citing_works` (`?filter=cites:<W…>`, validated `^W\d+$`, cached `citing:<id>`,
+capped `MAX_CITING=200`, fail-closed); **backward** (works your papers cite) is the unchanged other branch. **Axis-scoped**
+(`axis_id`): `_scoped_paper_rows` restricts the scan to an axis's members (inc-63 subquery). **Persistent cache**
+(`gap_candidates`, **migration 0019**; `persistence/gap_repo.py` replace-all-per-scope + read): **`GET /gaps
+{direction,axis_id}`** reads the cache and **filters dismissed / now-in-library at read time** (Add/Dismiss take
+effect with no recompute), **`POST`/`GET /gaps/refresh`** recomputes + replaces a scope (the inc-135 `/gaps/find*`
+removed). Frontend `36_gaps.jsx` gains a **direction toggle** + an **axis dropdown** + a **Refresh** button (opening /
+toggling reads the cache instantly; a "Last refreshed …" line). **Honesty/Principles unchanged** — "cited by / cites N
+of *your* papers" is a library count, never a global importance/quality rank; coverage stated; candidates-not-verdicts;
+Add metadata-only (no PDF → no paywall circumvention); forward adds no new judgment (declined a must-read leaderboard).
+**Gotcha:** OpenAlex ids are `W`+**digits** — the backward path drops non-digit ids (`^W\d+$`), so seed/test data must
+use real `W<digits>` ids. **Rule-#1 prerequisite:** split `schema.py` (611→**558**, over since inc 130/132) — the
+findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a shared `persistence/schema_base.py`
+`metadata`, re-exported from `schema.py` (no circular import; zero blast-radius; `metadata.create_all` still includes
+every table). Audit: **addendum** to `2026-06-26_gapfinder.md` (same OA-metadata posture; additive/guarded migration;
+bound-param SQL; no new dependency; no Gemini egress) **PASS**. Rule #10: `route_41_gaps.md` updated → surface
+**106/106 API + 528/528 FE, 0 uncovered**. pytest **519** (+5: `fetch_work_id`, `fetch_citing_works`, forward,
+axis-scoped, `gap_repo`, + 2 endpoint tests replacing the find-endpoint tests); `ruff` clean; build + assembly green;
+migration head **0019**. **Verified headed, no egress** (`.local/visual/drive_inc137_gaps.py` — free port + own-process
+check; pre-seeded `external_api_cache` so the real client runs offline: Refresh backward → "cited by 3 of your papers"
++ coverage; toggle forward → Refresh → "cites 3 of your papers"; Dismiss drops the row; 0 console/page/genai). Notes:
+`INCREMENT-137-NOTES.md`. **NEXT (queued):** auto-select the top library paper on load (Details populated); the
+accordion-tabs design rule (tabs-within-a-section for like-with-like — Axes+Tags tabs; order Data-consistency before
+Statistics-check; codify in `DESIGN.md`); gap-finder followed-authors / similarity ranking; a cadence auto-refresh.
+**Watch (rule #1):** `clustering/my_publications.py` at **594/600** — split before the next backend addition there.
+
+Earlier — increment 136 (watched folders rescan on window focus — live-ish pickup): a user
 dropped a PDF into their library folder expecting it to appear (and be retraction-tagged); nothing happened.
 Root cause (no code bug): the watched-folder auto-rescan only ran **on app launch** (`40_app.jsx`'s effect had
 `[]` deps → mount-only), so a **mid-session** drop wasn't picked up until a restart / manual "Re-scan all". Fix

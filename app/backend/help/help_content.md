@@ -662,11 +662,16 @@ Gotcha: Callosum currently flags likely duplicates; it does not merge records in
 
 <!-- section: finding-gaps -->
 ## Finding gaps in your library
-The **Gaps** button (in the library header) finds works that **several of your papers cite** but that aren't in your library yet — often the foundational references your collection leans on. Click **Find gaps**: Callosum looks up what each of your papers cites (via OpenAlex) and lists the works cited by the most of your papers that you don't already have.
+The **Gaps** button (in the library header) finds works **related to several of your papers** that aren't in your library yet — in two directions you can toggle between:
 
-Each candidate shows **"cited by N of your papers"** — that's simply how many of *your own* papers reference it, **not** a measure of importance or quality, and never a ranking of what you "should" read. For each one you can **Add** it (imports the metadata into your library — the PDF stays the separate "Acquire OA copy" step) or **Dismiss** it (so it won't come back).
+- **Works you cite** (backward): works that **several of your papers cite** but you don't have — often the foundational references your collection leans on.
+- **Works citing you** (forward): newer works that **cite several of your papers** but you don't have — recent work building on your collection.
 
-It tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on the references OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
+You can scope the scan to a single **axis** (the dropdown), or leave it on **All papers**. Click **Refresh** to scan (via OpenAlex); results are then **cached**, so re-opening or switching direction/axis shows them instantly without re-scanning — the "Last refreshed …" line tells you how fresh each scope is.
+
+Each candidate shows **"cited by N of your papers"** (backward) or **"cites N of your papers"** (forward) — that's simply how many of *your own* papers it relates to, **not** a measure of importance or quality, and never a ranking of what you "should" read. For each one you can **Add** it (imports the metadata into your library — the PDF stays the separate "Acquire OA copy" step) or **Dismiss** it (so it won't come back).
+
+After a Refresh it tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
 
 <!-- section: trash-and-restore -->
 ## Trash and restore

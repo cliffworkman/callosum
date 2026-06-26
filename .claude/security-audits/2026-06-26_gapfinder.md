@@ -64,3 +64,45 @@ papers that the library doesn't have ("cited by N of your papers") as Add/Dismis
 **Security Audit: PASS.** Public OpenAlex/Crossref metadata (bounded, validated, cached, fail-closed), reuse of
 the audited citing-import (metadata-only, deduped, no PDF/paywall), bound-param SQL, additive migration, escaped
 output, no Gemini egress, no new dependency, candidates-not-verdicts.
+
+---
+
+## Addendum — inc 137 (forward gap + axis-scoped + persistent cache)
+
+inc 137 extends the gap-finder: a **forward** direction (works that CITE your papers), **axis-scoped** scanning,
+and a **persistent cache** (`gap_candidates`). Re-audited the deltas; the inc-135 posture above is preserved.
+
+**New external fetch (`fetch_citing_works`).** `OpenAlexClient.fetch_citing_works(conn, work_id)` queries
+`?filter=cites:<W…>` — the **same host, pattern, and posture** as the inc-119 `OpenAlexAuthorClient.fetch_citing_works`
+(already audited): `work_id` is validated `^W\d+$` **before** any request; results are **cached** (`citing:<id>`),
+**capped** (`MAX_CITING=200`, a documented coverage limit), and **fail-closed** (any exception / non-200 → `[]`).
+`fetch_work_id` reads the bare `W…` id from the already-cached DOI→work fetch (no new request). Public metadata,
+**not** the Gemini gate.
+
+**New migration / table (0019 `gap_candidates`).** Additive + guarded (`if "gap_candidates" not in
+inspector.get_table_names()`), same idempotent pattern as 0002-0018; no down-migration. `axis_id` is a plain
+scope tag (**no FK**) — a stale row for a deleted axis is simply never read (the axis won't appear in the
+dropdown). All writes/reads are SQLAlchemy Core **bound parameters** (`gap_repo.py`); `replace_gap_candidates`
+deletes + re-inserts the scope authoritatively (no stale candidate survives).
+
+**Schema split (rule #1).** `schema.py` had drifted to 611 (>600) from inc 130/132; the findings/signals/retraction
+tables + the new `gap_candidates` moved to `schema_findings.py` (importing the shared `metadata` from a new
+`schema_base.py`), re-exported from `schema.py` (now 558). Behaviour-preserving — verified by the full suite +
+`metadata.create_all` still includes every table (the re-export registers them).
+
+**Read-time filtering (`GET /gaps`).** The cache is filtered at read time against `dismissed_gaps` (OA id **or**
+DOI) and `find_existing_paper_by_identity` (now-in-library by DOI) — so Add/Dismiss take effect with no recompute
+and a dismissed/owned work can never be re-surfaced from a stale cache row.
+
+**New endpoints.** `GET /gaps` (read-only), `POST /gaps/refresh` + `GET /gaps/refresh/{job_id}` (async job, reuses
+`app.state.gap_jobs`). `direction` is a `Literal["backward","forward"]` (FastAPI rejects other values → 422);
+`axis_id` is an optional int. The inc-135 `/gaps/find*` endpoints were removed (superseded). `/gaps/add` +
+`/gaps/dismiss` are unchanged. No new dependency, no Gemini egress.
+
+**Negative-path (run):** invalid `direction` → 422 (FastAPI Literal); a bad work id → `fetch_citing_works` returns
+`[]` without a request; forward + backward caches are isolated (`test_gap_refresh_forward_direction_is_independent`,
+`test_gap_repo_replace_and_read_isolated_by_scope`); axis-scope restricts the scan
+(`test_compute_gaps_axis_scoped_restricts_to_members`). Full suite **519 passed**.
+
+**Result: PASS** (addendum). Same OA-metadata posture, bound-param SQL, additive/guarded migration, validated
+inputs, fail-closed fetches, no new dependency, no Gemini egress, candidates-not-verdicts.
