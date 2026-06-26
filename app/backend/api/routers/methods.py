@@ -29,6 +29,7 @@ from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.retraction import apply_retraction, detect_retraction
 from app.backend.methods.statcheck import run_statcheck
+from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.retraction_repo import retraction_db_status
 from app.backend.persistence.signals_repo import (
@@ -284,7 +285,8 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
                 report = run_statcheck(get_chunks_for_paper(conn, paper_id))
                 if report.checked > 0:
                     checked += 1
-                if report.inconsistent + report.decision_errors > 0:
+                flagged_n = report.inconsistent + report.decision_errors
+                if flagged_n > 0:
                     flagged += 1
                 store_statcheck(
                     conn,
@@ -293,6 +295,33 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
                     inconsistent=report.inconsistent,
                     decision_errors=report.decision_errors,
                 )
+                # inc 133: also emit a CANDIDATE finding for the unified review queue (a prompt to look, reviewable
+                # — coexists with the signal above, which is the persistent fact). Clean → supersede any prior one.
+                if flagged_n > 0:
+                    page = next(
+                        (r.page for r in report.results if r.consistency != "consistent" and r.page is not None), None
+                    )
+                    upsert_findings(
+                        conn,
+                        paper_id,
+                        "statcheck",
+                        [
+                            {
+                                "kind": "candidate",
+                                "tier": "primary",
+                                "payload": {
+                                    "desc": f"{flagged_n} statistical reporting "
+                                    f"inconsistenc{'y' if flagged_n == 1 else 'ies'} (statcheck) — review",
+                                    "inconsistent": report.inconsistent,
+                                    "decision_errors": report.decision_errors,
+                                    "checked": report.checked,
+                                    "page": page,
+                                },
+                            }
+                        ],
+                    )
+                else:
+                    upsert_findings(conn, paper_id, "statcheck", [])
         jobs.mark_done(
             job_id,
             StatcheckRunResponse(

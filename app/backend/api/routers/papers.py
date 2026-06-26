@@ -178,6 +178,7 @@ def papers_index(
     signal: str | None = Query(
         default=None
     ),  # filter to a Methods-producer signal (allowlisted in repo), e.g. statcheck
+    finding: str | None = Query(default=None),  # the "to review" queue: papers with unreviewed candidate findings
     sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted in repo)
     conn: Connection = Depends(get_connection),
 ) -> list[PaperListItem]:
@@ -193,6 +194,7 @@ def papers_index(
         item_type=item_type,
         needs_review=needs_review,
         signal=signal,
+        finding=finding,
         sort=sort,
     )
     return [_paper_list_item(row) for row in rows]

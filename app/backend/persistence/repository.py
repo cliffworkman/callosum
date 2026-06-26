@@ -30,6 +30,7 @@ from app.backend.persistence.schema import (
     cluster_nodes,
     embeddings,
     open_science_signals,
+    paper_findings,
     paper_tags,
     papers,
     summaries,
@@ -130,6 +131,10 @@ SIGNAL_FILTERS = {
     "retraction-retracted": ("retraction", "retracted"),  # inc 131: filter to papers a registry records retracted
 }
 
+# Findings review-queue filters (inc 133). `finding` value → the paper_findings.review_state to match. A *work
+# state* (papers with findings the user hasn't reviewed), never a quality rank. Allowlist (rule #3).
+FINDING_FILTERS = {"needs-review": "unreviewed"}
+
 
 def _search_clause(field: str, pattern: str):
     """A WHERE clause for the q search, scoped by ``field``. The full bibliographic record lives in
@@ -162,6 +167,7 @@ def list_papers(
     item_type: str | None = None,
     needs_review: bool = False,
     signal: str | None = None,
+    finding: str | None = None,
     sort: str = "added",
 ) -> list[RowMapping]:
     attachment_count = (
@@ -222,6 +228,14 @@ def list_papers(
                     open_science_signals.c.signal_type == sig_type,
                     open_science_signals.c.status == sig_status,
                 )
+            )
+        )
+    if finding in FINDING_FILTERS:
+        # The unified "to review" queue (inc 133): papers carrying a CANDIDATE finding in a given review state
+        # (v1: 'unreviewed'). The user's *work state*, never a rank. Bound IN-subquery (rule #3); composes above.
+        stmt = stmt.where(
+            papers.c.id.in_(
+                select(paper_findings.c.paper_id).where(paper_findings.c.review_state == FINDING_FILTERS[finding])
             )
         )
     return list(conn.execute(stmt.limit(limit).offset(offset)).mappings())
