@@ -40,6 +40,7 @@ from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, loa
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.help.assistant import HelpAssistant
+from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTION_CHECKERS
 from app.backend.persistence.database import make_engine
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview import OverviewGenerator
@@ -104,6 +105,8 @@ def create_app(
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
+    api.state.retraction_jobs = JobStore()  # inc 131: library-wide retraction batch
+    api.state.retraction_checkers = DEFAULT_RETRACTION_CHECKERS  # inc 131: per-source checkers (overridable in tests)
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model

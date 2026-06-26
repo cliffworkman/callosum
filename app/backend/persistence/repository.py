@@ -125,7 +125,10 @@ SEARCH_FIELDS = ("all", "title", "author", "journal")
 # Library signal filters (inc 97). The `signal` param value indexes this allowlist (never interpolated — rule #3)
 # → a fixed (signal_type, status) subquery against open_science_signals. A *filter* (papers to review), NOT a
 # rank or score; unknown values are ignored.
-SIGNAL_FILTERS = {"statcheck-inconsistent": ("statcheck", "inconsistent")}
+SIGNAL_FILTERS = {
+    "statcheck-inconsistent": ("statcheck", "inconsistent"),
+    "retraction-retracted": ("retraction", "retracted"),  # inc 131: filter to papers a registry records retracted
+}
 
 
 def _search_clause(field: str, pattern: str):

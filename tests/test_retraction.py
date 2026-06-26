@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
 from app.backend.acquisition.registry import PaperRef
+from app.backend.api import create_app
 from app.backend.methods.retraction import (
     RetractionChecker,
     RetractionSignal,
@@ -230,3 +233,53 @@ def test_openalex_lookup_is_retracted(temp_db_url):
     engine.dispose()
     assert flagged["status"] == "retracted"
     assert clean is None
+
+
+# ---- endpoints + library filter (injected fake checkers, no network) --------
+
+
+def test_retraction_endpoints_and_filter(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/retracted", title="A")
+        b = _paper(conn, doi="10.1/clean", title="B")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    def fake(conn, paper):  # deterministic, offline
+        if paper["doi"] == "10.1/retracted":
+            return RetractionSignal(source="crossref", status="retracted", notice_doi="10.1/n")
+        return None
+
+    client.app.state.retraction_checkers = [RetractionChecker("crossref", fake)]
+
+    # per-paper status before any run → never checked
+    pre = client.get(f"/papers/{a}/retraction").json()
+    assert pre["status"] == "unchecked" and pre["checked"] is False
+
+    # library-wide batch
+    run = client.post("/methods/retraction/run")
+    assert run.status_code == 202
+    done = client.get(f"/methods/retraction/run/{run.json()['job_id']}").json()
+    assert done["status"] == "done" and done["summary"]["flagged"] == 1
+
+    # A flagged retracted, B honestly checked-clean
+    assert client.get(f"/papers/{a}/retraction").json()["status"] == "retracted"
+    assert client.get(f"/papers/{b}/retraction").json() == {
+        "paper_id": b,
+        "status": "none",
+        "checked": True,
+        "sources": ["crossref"],
+        "checked_at": client.get(f"/papers/{b}/retraction").json()["checked_at"],
+    }
+
+    # the chip count + the library "Retracted" filter
+    assert client.get("/methods/retraction/summary").json()["retracted"] == 1
+    ids = [p["id"] for p in client.get("/papers?signal=retraction-retracted").json()]
+    assert a in ids and b not in ids
+
+    # A carries the retraction FACT
+    facts = client.get(f"/papers/{a}/findings").json()["facts"]
+    assert any(f["payload"]["status"] == "retracted" for f in facts)
+
+    assert client.get("/papers/999999/retraction").status_code == 404
