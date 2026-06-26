@@ -1812,7 +1812,7 @@
     const s = run.summary;
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute reported APA-style p-values across your whole library (statcheck) \u2014 local, no AI. It flags where a reported and recomputed p disagree; usually innocent (typos, rounding, one-tailed tests) \u2014 a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Checking\u2026" : "Check all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Recomputing statistics\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Check failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.checked, " paper", s.checked === 1 ? "" : "s", " with statistics checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.flagged), " with inconsistencies.", s.flagged > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, "Show flagged papers"))));
   }
-  function StatcheckPaper({ paperId, onOpenPaper }) {
+  function StatcheckPaper({ paperId, onOpenPaper, active }) {
     const [meta, setMeta] = useState(null);
     const [state, setState] = useState({ status: "idle" });
     useEffect(() => {
@@ -1833,6 +1833,9 @@
       const r = await api(`/papers/${paperId}/statcheck`);
       setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
     };
+    useEffect(() => {
+      if (active && meta && meta.hasText && state.status === "idle") run();
+    }, [active, meta]);
     const open = (page) => {
       if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" });
     };
@@ -1843,7 +1846,7 @@
     return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 statcheck reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from this paper's text \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No APA-format statistics found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list" }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item", title: r.page != null ? "Open page " + r.page : "", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "computed p = ", r.computed_p), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "consistent" ? "verified" : "flagged") }, label(r.consistency))))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "statcheck reads only inline APA-style tests and recomputes each p \u2014 it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) \u2014 a prompt to look, not a verdict."))));
   }
   function StatcheckSection({ ctx }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(StatcheckLibrary, { onShowFlagged: ctx.onShowStatcheckFlagged, onRan: ctx.onStatcheckRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(StatcheckPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper }));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(StatcheckLibrary, { onShowFlagged: ctx.onShowStatcheckFlagged, onRan: ctx.onStatcheckRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(StatcheckPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "statcheck" }));
   }
   registerPaneSection({
     id: "statcheck",
@@ -5670,6 +5673,7 @@
     const [libraryItemType, setLibraryItemType] = useState("");
     const [itemTypes, setItemTypes] = useState([]);
     const [libRefresh, setLibRefresh] = useState(0);
+    const pendingSelectTopRef = useRef(false);
     const [tagRefresh, setTagRefresh] = useState(0);
     const [duplicatesOpen, setDuplicatesOpen] = useState(false);
     const [wantedOpen, setWantedOpen] = useState(false);
@@ -5945,10 +5949,12 @@
       setLibraryNeedsReview(false);
       cancelFocus();
       setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      pendingSelectTopRef.current = true;
       setSettingsOpen(false);
       setActiveTab("library");
+      setMethodsOpen("statcheck");
       setPage(0);
-    }, [cancelFocus]);
+    }, [cancelFocus, setMethodsOpen]);
     const clearSignalFilter = useCallback(() => {
       setLibrarySignalFilter(null);
       setPage(0);
@@ -6065,8 +6071,13 @@
       if (librarySort !== "added") qs.set("sort", librarySort);
       api(`/papers?${qs.toString()}`).then((r) => {
         if (!live) return;
-        if (r.ok) setListState({ status: "ready", papers: r.data });
-        else setListState({ status: "error", error: r.error, papers: [] });
+        if (r.ok) {
+          setListState({ status: "ready", papers: r.data });
+          if (pendingSelectTopRef.current) {
+            pendingSelectTopRef.current = false;
+            setSelected(r.data.length ? r.data[0].id : null);
+          }
+        } else setListState({ status: "error", error: r.error, papers: [] });
       });
       return () => {
         live = false;
@@ -6115,6 +6126,8 @@
       tagRefresh,
       hideUncertainDefault,
       axisCutoffDefault,
+      methodsOpen,
+      // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
       onShowStatcheckFlagged: showStatcheckFlagged,
       onStatcheckRan: refreshStatcheckChip,
       onShowRetractionFlagged: showRetractionFlagged,

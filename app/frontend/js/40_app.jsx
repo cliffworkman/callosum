@@ -54,6 +54,7 @@ function App() {
   const [libraryItemType, setLibraryItemType] = useState("");  // inc-91: filter to a single CSL item type ("" = all)
   const [itemTypes, setItemTypes] = useState([]);  // inc-91: distinct item types present in the library (Type dropdown)
   const [libRefresh, setLibRefresh] = useState(0);
+  const pendingSelectTopRef = useRef(false);  // inc-140: a view-change (e.g. the flagged chip) wants the next loaded list's top paper selected
   const [tagRefresh, setTagRefresh] = useState(0);  // inc-96: bump to refetch the sidebar Tags browser (tag add/remove)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
@@ -321,10 +322,12 @@ function App() {
     setLibrarySignalFilter("statcheck-inconsistent");
     setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); cancelFocus();
     setSelectedLibraryIds(new Set());
+    pendingSelectTopRef.current = true;  // inc-140: select the top of the freshly-loaded FLAGGED list (not the stale one) so the section lands on a flagged paper
     setSettingsOpen(false);
     setActiveTab("library");
+    setMethodsOpen("statcheck");  // inc-140: open the METHODS Statistics check section so the flagged paper's check is right there (auto-runs)
     setPage(0);
-  }, [cancelFocus]);
+  }, [cancelFocus, setMethodsOpen]);
   const clearSignalFilter = useCallback(() => { setLibrarySignalFilter(null); setPage(0); }, []);
 
   // inc-122: refresh the header "N flagged" chip from the persisted statcheck summary (cache-only count). Called
@@ -434,7 +437,13 @@ function App() {
     if (librarySort !== "added") qs.set("sort", librarySort);
     api(`/papers?${qs.toString()}`).then(r => {
       if (!live) return;
-      if (r.ok) setListState({ status: "ready", papers: r.data });
+      if (r.ok) {
+        setListState({ status: "ready", papers: r.data });
+        if (pendingSelectTopRef.current) {  // inc-140: select the top of THIS freshly-loaded list (e.g. the flagged filter), not the stale one
+          pendingSelectTopRef.current = false;
+          setSelected(r.data.length ? r.data[0].id : null);
+        }
+      }
       else setListState({ status: "error", error: r.error, papers: [] });
     });
     return () => { live = false; };
@@ -481,6 +490,7 @@ function App() {
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
     onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault,
+    methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),

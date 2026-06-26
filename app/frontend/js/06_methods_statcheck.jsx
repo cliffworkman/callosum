@@ -43,7 +43,7 @@ function StatcheckLibrary({ onShowFlagged, onRan }) {
 // Per-paper check (moved from StatcheckRow in 25_detail.jsx, inc 95). The section gets only the paper id via ctx,
 // so it self-fetches the paper's title + chunk_count (statcheck needs extracted text). Each row routes to its
 // page at region precision (page-open, never a fake exact highlight — coordinate-honesty contract).
-function StatcheckPaper({ paperId, onOpenPaper }) {
+function StatcheckPaper({ paperId, onOpenPaper, active }) {
   const [meta, setMeta] = useState(null);          // { title, hasText } | null
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
   useEffect(() => {
@@ -61,6 +61,13 @@ function StatcheckPaper({ paperId, onOpenPaper }) {
     const r = await api(`/papers/${paperId}/statcheck`);
     setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
   };
+  // inc-140 build-first: when this section is the OPEN one, auto-run the check so a (flagged) paper's per-test
+  // rows show with no extra click — the experience-pass gap. Gated on `active` (sections are mount-but-hidden, so
+  // a hidden section never runs); re-runs per paper (the meta-reset effect above puts status back to idle).
+  useEffect(() => {
+    if (active && meta && meta.hasText && state.status === "idle") run();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, meta]);
   const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" }); };
   const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its statistical reporting.</div>;
@@ -105,7 +112,7 @@ function StatcheckSection({ ctx }) {
       <p className="eyebrow">Whole library</p>
       <StatcheckLibrary onShowFlagged={ctx.onShowStatcheckFlagged} onRan={ctx.onStatcheckRan} />
       <p className="eyebrow">This paper</p>
-      <StatcheckPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} />
+      <StatcheckPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "statcheck"} />
     </div>
   );
 }

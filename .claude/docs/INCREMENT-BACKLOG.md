@@ -52,20 +52,17 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
-**▲ BUILD FIRST — statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
-finding, inc 140; persona: the **deadline citer** vetting a paper's stats before citing it.)* The per-paper drill-down
-(METHODS → **Statistics check** → "This paper" → Check statistics → per-test rows with reported-vs-recomputed *p* +
-page) **exists and is good**, but the path to it is hidden: the METHODS pane defaults to **Details**, and clicking a
-flagged paper (from the "⚠ N flagged" chip → filter) lands on **Details**, not Statistics check, and ignores the
-flagged state. Sub-findings, simplest first: **(a)** when the user activates the flagged view (the "⚠ N flagged"
-chip), also open the METHODS **Statistics check** section (`methodsOpen = "statcheck"`) so the selected flagged paper's
-check is right there — *the cheap, highest-value fix*; **(b)** a "Check statistics" entry point on the paper itself
-(a card chip or a Details button) so vetting starts where the paper is — **[design]** (inc-122 deliberately moved
-statcheck *out* of Details, so weigh re-cluttering); **(c)** pre-run/cache the per-paper per-test detail for a flagged
-paper so it shows immediately without a manual "Check statistics" click; **(d)** deep-link the flagged chip to the
-specific inconsistent test + its page, not just the filtered list; **(e)** **[design]** the "⚠ flagged" (signal) vs
-"📋 to review" (work-state) duality confuses a citer who just wants "what's wrong with these numbers" — clarify or
-collapse for this use case (inc-133 made them coexist on purpose). Frontend-mostly; (a) is a few lines.
+**statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
+finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →
+per-test rows with reported-vs-recomputed *p* + page) exists and is good, but the path to it was hidden.
+**~~(a)~~ + ~~(c)~~ SHIPPED inc 141:** the "⚠ N flagged" chip now opens the **Statistics check** section, re-targets
+the top flagged paper (a deferred-select ref so it lands on the *filtered* list's top, not the stale one), and
+**auto-runs** the per-paper check when the section is the open one — so the inconsistent rows show with no manual
+click (headed-verified). **Remaining:** **(b)** a "Check statistics" entry point on the paper itself (card chip /
+Details button) — **[design]** (inc-122 deliberately moved statcheck *out* of Details, so weigh re-cluttering);
+**(d)** deep-link the flagged chip to the specific inconsistent test + its page, not just the filtered list;
+**(e)** **[design]** the "⚠ flagged" (signal) vs "📋 to review" (work-state) duality confuses a citer who just wants
+"what's wrong with these numbers" — clarify or collapse for this use case (inc-133 made them coexist on purpose).
 
 **1. Confirm where the in-app images (the `.webp`s) are stored/served** — investigation, read-only.
 *(Answered in the sandbox run: there are **no** `.webp` assets — the brand images are PNGs inlined as base64;

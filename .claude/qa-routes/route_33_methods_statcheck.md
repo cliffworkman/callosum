@@ -35,7 +35,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 2. Confirm each row shows the reported statistic, recomputed p value, match status, page/quote when known, and counts. Assert there is no composite score and no accusation.
 3. Click each row with a location. Confirm coordinate honesty: exact bbox only for exact; approximate/null do not draw fake highlights (per-test rows open the page at region precision).
 4. In the same section's "Whole library" block, start library statcheck (Check all papers; `POST /methods/statcheck/run`) and poll (`GET /methods/statcheck/run/{job_id}`). Navigate away mid-run and return.
-5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks.
+5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks. Click the **"⚠ N flagged" chip** (inc 141) → the library filters to flagged papers, the METHODS **Statistics check** section opens, the **top flagged paper is auto-selected**, and its per-test rows **auto-show** (no manual "Check statistics" click) — the citer lands on the specific inconsistent result, not just "which papers".
 6. Directly visit a fake job id and a paper without parseable methods text. Confirm clean empty/error states. Confirm statcheck no longer appears in Settings or the Details pane (it lives only in the METHODS section now).
 
 ## Pass criteria

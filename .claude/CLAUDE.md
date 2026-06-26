@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 140** (see Increment workflow) with **519 pytest tests
+It is currently at **Increment 141** (see Increment workflow) with **519 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -764,7 +764,27 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 140 (the end-user experience pass — a 4th gate — + its first dogfood): codifies
+*Last updated: 2026-06-26 — increment 141 (statcheck flagged→detail path — the experience-pass fix): the first fix
+**produced by** the inc-140 end-user experience pass. The dogfood (deadline-citer persona vs statcheck) found that
+"this paper is flagged" and "here is the specific result that doesn't recompute" were two good halves that **didn't
+link** — the METHODS pane defaults to **Details**, and the "⚠ N flagged" chip→filter left you on Details with the
+already-selected paper. Fix (frontend-only, `40_app.jsx` + `06_methods_statcheck.jsx`): the flagged chip now (1) opens
+the METHODS **Statistics check** section (`setMethodsOpen("statcheck")`; `methodsOpen` added to `paneCtx`), (2)
+**re-targets the top *flagged* paper** via a **`pendingSelectTopRef`** resolved in the `/papers` fetch callback (so it
+selects the *filtered* list's top, not the stale pre-filter one — the bug behind the first failed headed run), and (3)
+the per-paper `StatcheckPaper` **auto-runs** its check when its section is the open one (`active = ctx.methodsOpen ===
+"statcheck"`; gated so the mount-but-hidden section never runs) — so the inconsistent rows (reported vs recomputed *p*
++ page link) show with **no manual "Check statistics" click**. Net: the citer clicks "⚠ N flagged" → the flagged
+paper's specific result is right there (backlog sub-findings (a)+(c) shipped; (b)/(d)/(e) remain). **No Principles
+trigger** (UX wiring; counts/rows unchanged — still a list-to-review, region page-open); **no new surface** (106/106 API
++ 530/530 FE, 0 uncovered); pytest **519** unchanged; `ruff` clean; build + assembly green. **Verified headed, no
+egress** (`.local/visual/drive_inc141_statcheck_path.py` — chip → Statistics check opens → flagged paper auto-selected →
+inconsistent row auto-shows `computed p = 0.0449` vs reported `.001`; 0 console/page/genai). Notes: `INCREMENT-141-NOTES.md`.
+**NEXT (queued):** remaining statcheck sub-findings (b on-paper entry [design], d deep-link to the test, e flagged-vs-to-review
+duality [design]); gap-finder followed-authors / similarity ranking; a cadence auto-refresh. **Watch (rule #1):**
+`clustering/my_publications.py` at **594/600**.
+
+Earlier — increment 140 (the end-user experience pass — a 4th gate — + its first dogfood): codifies
 the standing orientation the user asked for — **before any user-facing change is "done," make a pass inhabiting the
 end user of the thing you touched** (does it actually *serve* them?). New **`.claude/EXPERIENCE-PASS.md`** + **CLAUDE.md
 rule #11**: two questions — (1) **reception** (discoverable / legible / is the next step obvious) and (2) **intended

@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-26 — Increment 141: statcheck flagged→detail path (the experience-pass fix)
+- **Files:** `app/frontend/js/40_app.jsx` + `06_methods_statcheck.jsx` + `callosum-app.html`,
+  `.claude/qa-routes/route_33_methods_statcheck.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-141-NOTES.md`.
+- **What:** The inc-140 experience-pass dogfood found "this paper is flagged" never linked to "the specific result
+  that doesn't recompute." Fix (frontend-only): the "⚠ N flagged" chip now opens the METHODS **Statistics check**
+  section, re-targets the top *flagged* paper (a deferred-select ref, so it uses the filtered list not the stale
+  one), and the per-paper check **auto-runs** when that section is open — so the inconsistent rows (reported vs
+  recomputed *p* + page) show with no manual "Check statistics" click.
+- **Why:** Close the experience gap the persona agent surfaced — the deadline citer's exact frustration.
+- **Revert:** restore the two frontend files from git + rebuild.
+
 ## 2026-06-26 — Increment 140: the end-user experience pass (a 4th gate) + its first dogfood
 - **Files:** `.claude/EXPERIENCE-PASS.md` (new), `.claude/CLAUDE.md` (rule #11 + reference row + footer),
   `.claude/docs/INCREMENT-BACKLOG.md` (the dogfood finding), `INCREMENT-140-NOTES.md`.
