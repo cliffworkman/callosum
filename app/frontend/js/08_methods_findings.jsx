@@ -87,12 +87,17 @@ function RetractionDatabasePanel({ ctx }) {
     if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
     poll(r.data.job_id);
   };
+  // inc 134: world-state staleness — a registry snapshot ages, so nudge a refresh past 30 days (the data isn't
+  // wrong, just old). Browser Date is fine here (the script-sandbox Date restriction is workflow-only).
+  const ageDays = db && db.retrieved_at ? Math.floor((Date.now() - new Date(db.retrieved_at).getTime()) / 86400000) : null;
+  const stale = ageDays != null && ageDays > 30;
   return (
     <div className="retraction-db">
       <span className="retraction-db-line">
         {db && db.count > 0
           ? `Retraction Watch database: ${db.count.toLocaleString()} records${db.retrieved_at ? " · as of " + db.retrieved_at.slice(0, 10) : ""}`
           : "Retraction Watch database: not downloaded — refresh to enable the richest source"}
+        {stale && <span className="retraction-db-stale"> · {ageDays} days old — refresh recommended</span>}
       </span>
       <button className="btn-link" disabled={run.status === "running"} onClick={refresh}>
         {run.status === "running" ? "Downloading…" : "Refresh database"}

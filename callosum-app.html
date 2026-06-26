@@ -495,6 +495,7 @@
   /* inc 132: the Retraction Watch DB as-of line + refresh */
   .retraction-db { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
   .retraction-db-line { font-size: 11.5px; color: var(--ink-3); }
+  .retraction-db-stale { color: var(--flag); }   /* inc 134: snapshot age nudge — a status, amber */
   .axis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
   .term-chip {
     border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);
@@ -1916,7 +1917,9 @@
       }
       poll(r.data.job_id);
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "retraction-db" }, /* @__PURE__ */ React.createElement("span", { className: "retraction-db-line" }, db && db.count > 0 ? `Retraction Watch database: ${db.count.toLocaleString()} records${db.retrieved_at ? " \xB7 as of " + db.retrieved_at.slice(0, 10) : ""}` : "Retraction Watch database: not downloaded \u2014 refresh to enable the richest source"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: run.status === "running", onClick: refresh }, run.status === "running" ? "Downloading\u2026" : "Refresh database"), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, run.error));
+    const ageDays = db && db.retrieved_at ? Math.floor((Date.now() - new Date(db.retrieved_at).getTime()) / 864e5) : null;
+    const stale = ageDays != null && ageDays > 30;
+    return /* @__PURE__ */ React.createElement("div", { className: "retraction-db" }, /* @__PURE__ */ React.createElement("span", { className: "retraction-db-line" }, db && db.count > 0 ? `Retraction Watch database: ${db.count.toLocaleString()} records${db.retrieved_at ? " \xB7 as of " + db.retrieved_at.slice(0, 10) : ""}` : "Retraction Watch database: not downloaded \u2014 refresh to enable the richest source", stale && /* @__PURE__ */ React.createElement("span", { className: "retraction-db-stale" }, " \xB7 ", ageDays, " days old \u2014 refresh recommended")), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: run.status === "running", onClick: refresh }, run.status === "running" ? "Downloading\u2026" : "Refresh database"), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, run.error));
   }
   function RetractionStatusLine({ paperId }) {
     const [st, setSt] = useState(null);
