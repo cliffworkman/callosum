@@ -46,6 +46,7 @@ function App() {
   const [libraryNeedsReview, setLibraryNeedsReview] = useState(false);  // inc-79: the "Unsorted" (needs-metadata) view
   const [librarySignalFilter, setLibrarySignalFilter] = useState(null);  // inc-97: a Methods-signal view, e.g. "statcheck-inconsistent"
   const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
+  const [retractionFlagged, setRetractionFlagged] = useState(0);  // inc-131: # papers a registry records retracted → header chip
   const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
     try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
   });
@@ -331,6 +332,20 @@ function App() {
     api("/methods/statcheck/summary").then(r => { if (r.ok) setStatcheckFlagged(r.data.flagged || 0); });
   }, []);
 
+  // inc-131: the retraction library lens — mirror the statcheck chip/filter. A registry FACT (verify before
+  // citing), never an accusation. The chip jumps to the "Retracted" filter view; the count is cache-only.
+  const showRetractionFlagged = useCallback(() => {
+    setLibrarySignalFilter("retraction-retracted");
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); cancelFocus();
+    setSelectedLibraryIds(new Set());
+    setSettingsOpen(false);
+    setActiveTab("library");
+    setPage(0);
+  }, [cancelFocus]);
+  const refreshRetractionChip = useCallback(() => {
+    api("/methods/retraction/summary").then(r => { if (r.ok) setRetractionFlagged(r.data.retracted || 0); });
+  }, []);
+
   // inc-130: per-paper findings overview → the library "N to review" badge + FactMark. Re-fetched after a review.
   const [findingsByPaper, setFindingsByPaper] = useState({});
   const [findingsRefresh, setFindingsRefresh] = useState(0);
@@ -404,6 +419,7 @@ function App() {
   // inc-100/122: the statcheck "N flagged" header chip — fetched on mount; refreshed after a batch run via the
   // METHODS "Statistics check" section's ctx.onStatcheckRan (the batch no longer lives in Settings).
   useEffect(() => { refreshStatcheckChip(); }, [refreshStatcheckChip]);
+  useEffect(() => { refreshRetractionChip(); }, [refreshRetractionChip]);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
   const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen || !!pcurvePapers;
@@ -428,6 +444,7 @@ function App() {
     onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault,
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
+    onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
   };
 
@@ -463,6 +480,7 @@ function App() {
           libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,
           librarySignalFilter, onClearSignalFilter: clearSignalFilter,
           statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
+          retractionFlagged, onShowRetractionFlagged: showRetractionFlagged,
           findingsByPaper,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,

@@ -317,7 +317,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     onBulkSummarize, onBulkPcurve, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
-                    statcheckFlagged, onShowStatcheckFlagged, findingsByPaper,
+                    statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan, onOpenImport }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -336,6 +336,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" &&
               <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
                 title="Papers with a reporting inconsistency from the last statistics check — usually innocent; a list to review">⚠ {statcheckFlagged} flagged</button>}
+            {!trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted" &&
+              <button className="trash-toggle retraction-chip" onClick={onShowRetractionFlagged}
+                title="Papers a registry records as retracted — verify before citing">⚠ {retractionFlagged} retracted</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
                 title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
@@ -390,6 +393,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         {librarySignalFilter === "statcheck-inconsistent" &&
           <div className="focus-card">
             <div className="focus-card-head">Reporting inconsistencies — papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict.</div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
+              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+            </div>
+          </div>}
+        {librarySignalFilter === "retraction-retracted" &&
+          <div className="focus-card">
+            <div className="focus-card-head">Retracted — papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
               <button className="axis-link" onClick={onClearSignalFilter}>clear</button>

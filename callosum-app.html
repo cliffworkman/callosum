@@ -486,6 +486,12 @@
   .finding-reason { display: flex; gap: 6px; margin-top: 6px; }
   .finding-reason-in { width: 180px; }
   .finding-reviewed { font-size: 11.5px; color: var(--verified); margin-top: 4px; }
+  /* inc 131: retraction producer — the FactMark variant + per-paper status line + the batch section. Tokens only. */
+  .fact-mark.retraction { color: var(--flag); border-color: var(--flag-line); background: var(--flag-soft); }
+  .fact-mark.retraction.retraction-severe { color: var(--danger); border-color: var(--danger-line); }
+  .fact-mark.retraction .btn-link { font-size: 11px; }
+  .retraction-status { font-size: 11.5px; color: var(--ink-3); margin: 4px 0; }
+  .retraction-batch { margin-bottom: 10px; }
   .axis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
   .term-chip {
     border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);
@@ -673,6 +679,7 @@
   .trash-toggle:hover { color: var(--accent); }
   .trash-toggle.danger, .trash-toggle.danger:hover { color: var(--danger); }   /* Empty Trash — destructive */
   .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
+  .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -1829,8 +1836,68 @@
     const p = f.payload || {};
     return p.desc || p.label || p.text || p.title || JSON.stringify(p);
   }
+  const RETRACTION_LABEL = { retracted: "Retracted", correction: "Correction", concern: "Expression of Concern" };
   function FactMark({ finding }) {
+    const p = finding.payload || {};
+    if (finding.source === "retraction") {
+      const label = RETRACTION_LABEL[p.status] || "Retracted";
+      const severe = p.status === "retracted";
+      return /* @__PURE__ */ React.createElement(
+        "span",
+        {
+          className: "fact-mark retraction" + (severe ? " retraction-severe" : ""),
+          title: "Source(s): " + (p.sources || []).join(", ")
+        },
+        "\u26A0 ",
+        label,
+        p.notice_url && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: p.notice_url, target: "_blank", rel: "noopener noreferrer" }, "notice"))
+      );
+    }
     return /* @__PURE__ */ React.createElement("span", { className: "fact-mark", title: finding.source }, "\u25C6 ", findingText(finding));
+  }
+  function RetractionBatch({ ctx }) {
+    const [run, setRun] = useState({ status: "idle" });
+    const start = async () => {
+      setRun({ status: "running" });
+      const poll = (jobId) => api(`/methods/retraction/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRun({ status: "done", summary: d.summary });
+          if (ctx.onRetractionRan) ctx.onRetractionRan();
+        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Check failed." });
+        else setTimeout(() => poll(jobId), 1500);
+      });
+      const r = await apiPost("/methods/retraction/run", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const s = run.summary;
+    return /* @__PURE__ */ React.createElement("div", { className: "retraction-batch" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retraction check"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check every paper's DOI against Crossref + OpenAlex for retractions, corrections, or expressions of concern \u2014 public metadata, no AI. A registry record to verify before citing, never an accusation."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Checking\u2026" : "Check all papers for retractions")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking retraction registries\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Check failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.checked, " paper", s.checked === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.flagged), " retracted.", s.flagged > 0 && ctx.onShowRetractionFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: ctx.onShowRetractionFlagged }, "Show retracted papers"))));
+  }
+  function RetractionStatusLine({ paperId }) {
+    const [st, setSt] = useState(null);
+    useEffect(() => {
+      setSt(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}/retraction`).then((r) => {
+        if (live && r.ok) setSt(r.data);
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    if (!st || st.status === "retracted" || st.status === "correction" || st.status === "concern") return null;
+    if (!st.checked) return /* @__PURE__ */ React.createElement("div", { className: "retraction-status" }, "Retraction: not yet checked \u2014 run the retraction check above.");
+    if (st.status === "unchecked") return /* @__PURE__ */ React.createElement("div", { className: "retraction-status" }, "Retraction: unchecked \u2014 no DOI to look up.");
+    return /* @__PURE__ */ React.createElement("div", { className: "retraction-status" }, "Retraction: checked \u2014 none found", st.sources && st.sources.length ? ` (${st.sources.join(", ")})` : "", ".");
   }
   function FindingCard({ finding, onReviewed, onOpenPaper }) {
     const [reasonOpen, setReasonOpen] = useState(false);
@@ -1862,11 +1929,9 @@
       load();
       if (ctx.onFindingsChanged) ctx.onFindingsChanged();
     };
-    if (pid == null) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.");
-    if (state.status !== "ready") return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026");
-    const { facts, candidates } = state.data;
-    if (!facts.length && !candidates.length) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.");
-    return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper })));
+    const facts = state.status === "ready" ? state.data.facts : [];
+    const candidates = state.status === "ready" ? state.data.candidates : [];
+    return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, /* @__PURE__ */ React.createElement(RetractionBatch, { ctx }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), pid == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RetractionStatusLine, { paperId: pid }), state.status !== "ready" ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026") : facts.length || candidates.length ? /* @__PURE__ */ React.createElement(React.Fragment, null, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper }))) : /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.")));
   }
   registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
   const _CSL_TYPE_LABELS = {
@@ -2153,6 +2218,8 @@
     onClearSignalFilter,
     statcheckFlagged,
     onShowStatcheckFlagged,
+    retractionFlagged,
+    onShowRetractionFlagged,
     findingsByPaper,
     onToggleTrash,
     onRestore,
@@ -2184,6 +2251,16 @@
       "\u26A0 ",
       statcheckFlagged,
       " flagged"
+    ), !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted" && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle retraction-chip",
+        onClick: onShowRetractionFlagged,
+        title: "Papers a registry records as retracted \u2014 verify before citing"
+      },
+      "\u26A0 ",
+      retractionFlagged,
+      " retracted"
     ), !trashView && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -2200,7 +2277,7 @@
         title: "Permanently delete every paper in Trash \u2014 cannot be undone"
       },
       "Empty Trash"
-    ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         placeholder: "Search title, author, journal\u2026",
@@ -5409,6 +5486,7 @@
     const [libraryNeedsReview, setLibraryNeedsReview] = useState(false);
     const [librarySignalFilter, setLibrarySignalFilter] = useState(null);
     const [statcheckFlagged, setStatcheckFlagged] = useState(0);
+    const [retractionFlagged, setRetractionFlagged] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -5707,6 +5785,23 @@
         if (r.ok) setStatcheckFlagged(r.data.flagged || 0);
       });
     }, []);
+    const showRetractionFlagged = useCallback(() => {
+      setLibrarySignalFilter("retraction-retracted");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus]);
+    const refreshRetractionChip = useCallback(() => {
+      api("/methods/retraction/summary").then((r) => {
+        if (r.ok) setRetractionFlagged(r.data.retracted || 0);
+      });
+    }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
     const [findingsRefresh, setFindingsRefresh] = useState(0);
     useEffect(() => {
@@ -5781,6 +5876,9 @@
     useEffect(() => {
       refreshStatcheckChip();
     }, [refreshStatcheckChip]);
+    useEffect(() => {
+      refreshRetractionChip();
+    }, [refreshRetractionChip]);
     const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || scanOpen || importOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
@@ -5810,6 +5908,8 @@
       axisCutoffDefault,
       onShowStatcheckFlagged: showStatcheckFlagged,
       onStatcheckRan: refreshStatcheckChip,
+      onShowRetractionFlagged: showRetractionFlagged,
+      onRetractionRan: refreshRetractionChip,
       onFindingsChanged: () => setFindingsRefresh((n) => n + 1)
     };
     return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? /* @__PURE__ */ React.createElement(
@@ -5892,6 +5992,8 @@
           onClearSignalFilter: clearSignalFilter,
           statcheckFlagged,
           onShowStatcheckFlagged: showStatcheckFlagged,
+          retractionFlagged,
+          onShowRetractionFlagged: showRetractionFlagged,
           findingsByPaper,
           onToggleTrash: toggleTrash,
           onRestore: restorePaper,

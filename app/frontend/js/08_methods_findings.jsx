@@ -8,8 +8,79 @@ function findingText(f) {
   return p.desc || p.label || p.text || p.title || JSON.stringify(p);
 }
 
+const RETRACTION_LABEL = { retracted: "Retracted", correction: "Correction", concern: "Expression of Concern" };
+
 function FactMark({ finding }) {
+  const p = finding.payload || {};
+  // inc 131: retraction FACTs render a status label + a link to the notice (the registry record — verify before
+  // citing, never an accusation). The notice URL is only ever a derived https://doi.org/<doi>.
+  if (finding.source === "retraction") {
+    const label = RETRACTION_LABEL[p.status] || "Retracted";
+    const severe = p.status === "retracted";
+    return (
+      <span className={"fact-mark retraction" + (severe ? " retraction-severe" : "")}
+        title={"Source(s): " + (p.sources || []).join(", ")}>
+        ⚠ {label}
+        {p.notice_url && <> · <a className="btn-link" href={p.notice_url} target="_blank" rel="noopener noreferrer">notice</a></>}
+      </span>
+    );
+  }
   return <span className="fact-mark" title={finding.source}>◆ {findingText(finding)}</span>;
+}
+
+// inc 131: the library-wide retraction check (mirrors the statcheck batch). Public DOI metadata (Crossref +
+// OpenAlex), no AI. On completion it refreshes the header "N retracted" chip via ctx.onRetractionRan.
+function RetractionBatch({ ctx }) {
+  const [run, setRun] = useState({ status: "idle" });
+  const start = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/retraction/run/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setRun({ status: "done", summary: d.summary }); if (ctx.onRetractionRan) ctx.onRetractionRan(); }
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Check failed." });
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    const r = await apiPost("/methods/retraction/run", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const s = run.summary;
+  return (
+    <div className="retraction-batch">
+      <p className="eyebrow">Retraction check</p>
+      <div className="settings-sub">Check every paper's DOI against Crossref + OpenAlex for retractions, corrections, or expressions of concern — public metadata, no AI. A registry record to verify before citing, never an accusation.</div>
+      <div className="settings-actions">
+        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+          {run.status === "running" ? "Checking…" : "Check all papers for retractions"}
+        </button>
+      </div>
+      {run.status === "running" && <ProgressBar label="Checking retraction registries…" />}
+      {run.status === "error" && <div className="settings-note settings-note-err">Check failed: {run.error}</div>}
+      {run.status === "done" && s &&
+        <div className="settings-note">
+          {s.checked} paper{s.checked === 1 ? "" : "s"} checked · <b>{s.flagged}</b> retracted.
+          {s.flagged > 0 && ctx.onShowRetractionFlagged && <> <button className="btn-link" onClick={ctx.onShowRetractionFlagged}>Show retracted papers</button></>}
+        </div>}
+    </div>
+  );
+}
+
+// inc 131: the per-paper retraction CHECK status (silence != clean). Shows "checked — none found" / "unchecked —
+// no DOI" / "not yet checked"; a retracted paper's FactMark already carries the verdict, so this stays quiet then.
+function RetractionStatusLine({ paperId }) {
+  const [st, setSt] = useState(null);
+  useEffect(() => {
+    setSt(null);
+    if (paperId == null) return;
+    let live = true;
+    api(`/papers/${paperId}/retraction`).then(r => { if (live && r.ok) setSt(r.data); });
+    return () => { live = false; };
+  }, [paperId]);
+  if (!st || st.status === "retracted" || st.status === "correction" || st.status === "concern") return null;
+  if (!st.checked) return <div className="retraction-status">Retraction: not yet checked — run the retraction check above.</div>;
+  if (st.status === "unchecked") return <div className="retraction-status">Retraction: unchecked — no DOI to look up.</div>;
+  return <div className="retraction-status">Retraction: checked — none found{st.sources && st.sources.length ? ` (${st.sources.join(", ")})` : ""}.</div>;
 }
 
 function FindingCard({ finding, onReviewed, onOpenPaper }) {
@@ -58,14 +129,25 @@ function FindingsSection({ ctx }) {
   };
   useEffect(load, [pid]);
   const onReviewed = () => { load(); if (ctx.onFindingsChanged) ctx.onFindingsChanged(); };
-  if (pid == null) return <div className="axis-hint">Select a paper to review its findings.</div>;
-  if (state.status !== "ready") return <div className="tag-suggest-empty">{state.status === "error" ? state.error : "Loading…"}</div>;
-  const { facts, candidates } = state.data;
-  if (!facts.length && !candidates.length) return <div className="tag-suggest-empty">No findings for this paper yet.</div>;
+  const facts = state.status === "ready" ? state.data.facts : [];
+  const candidates = state.status === "ready" ? state.data.candidates : [];
   return (
     <div className="findings-section">
-      {facts.length > 0 && <div className="findings-facts">{facts.map(f => <FactMark key={f.id} finding={f} />)}</div>}
-      {candidates.map(c => <FindingCard key={c.id} finding={c} onReviewed={onReviewed} onOpenPaper={ctx.onOpenPaper} />)}
+      <RetractionBatch ctx={ctx} />
+      <p className="eyebrow">This paper</p>
+      {pid == null
+        ? <div className="axis-hint">Select a paper to review its findings.</div>
+        : <>
+            <RetractionStatusLine paperId={pid} />
+            {state.status !== "ready"
+              ? <div className="tag-suggest-empty">{state.status === "error" ? state.error : "Loading…"}</div>
+              : facts.length || candidates.length
+                ? <>
+                    {facts.length > 0 && <div className="findings-facts">{facts.map(f => <FactMark key={f.id} finding={f} />)}</div>}
+                    {candidates.map(c => <FindingCard key={c.id} finding={c} onReviewed={onReviewed} onOpenPaper={ctx.onOpenPaper} />)}
+                  </>
+                : <div className="tag-suggest-empty">No findings for this paper yet.</div>}
+          </>}
     </div>
   );
 }
