@@ -52,10 +52,12 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
-> **★ PRIORITIZED (Cliff, 2026-06-26):** after the current **build-and-test slate** (the experience-pass exercise —
-> inc 142 Migrator/progress ✓; inc 143 Librarian/protect-tags; inc 144 Close-reader/reading; inc 145
-> Synthesizer/focus-query), **push BYOK to the top of the pile** — the Gemini API key field in Settings (**#10**) →
-> full bring-your-own-key (**#39**). It's the gating feature for GitHub users to actually use the AI surfaces.
+> **★ PRIORITIZED (Cliff, 2026-06-26):** the **build-and-test slate** (the experience-pass exercise — inc 142
+> Migrator/progress, 143 Librarian/protect-tags, 144 Close-reader/reading, 145 Synthesizer/focus-query) is **done
+> (4/4)**, and **BYOK shipped in inc 146 (#10 ✓)** — the Gemini API key + egress consent are now set from
+> Settings → AI features (a local `~/.callosum/app-settings.json` store overlaying the env fallback; key write-only
+> over the wire). **#39 (full multi-provider BYOK)** remains the larger follow-on (provider abstraction beyond
+> Gemini); the OS-keychain storage upgrade is the deferred hardening for it.
 >
 > **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** keyboard zoom
 > (Ctrl +/−) + next/prev-mark hotkeys; a "noted-only" filter + a search box over note text in the Notes panel; a
@@ -145,9 +147,11 @@ UI. *(The clobber-guard sub-task is promoted above the cut as #3.)* NB a per-**l
 per-paper facts (a global tag's `import_source` can't say "THIS paper is retracted") — those likely belong to the
 findings subsystem, projected as read-only system-tags.
 
-**10. Gemini API key field in Settings** — **[security]** set `GOOGLE_API_KEY` from the UI (the **BYO-key** model
-for GitHub users). _Security:_ OS keychain (see Packaging, **#21**) or at minimum never log/commit it; composes with
-the egress gate. Review the key-handling approach before this is built. Precursor to BYOK (**#39**).
+**10. Gemini API key field in Settings** — ✅ **SHIPPED inc 146.** Set the key + egress consent from Settings → AI
+features; a local `~/.callosum/app-settings.json` store (outside the repo + synced Dropbox) overlays the env
+fallback; key write-only over the wire (`GET /settings` = status only); egress stays default-off. Audit
+`2026-06-26_byok-api-key.md` PASS. _Deferred hardening:_ the OS-keychain storage upgrade (with Packaging **#21**) —
+folded into **#39** (full multi-provider BYOK), which remains open.
 
 **11. README front-door expansion** (`future-tracks/opus4.8_future-tracks_readmescopeaudit.md`) — **[outward-facing
 — your voice]** expand the README into a contributor front door: known-limitations, a **safety note** (127.0.0.1,
