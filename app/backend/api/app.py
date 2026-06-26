@@ -24,6 +24,7 @@ from app.backend.api.routers import (
     axes,
     citations,
     duplicates,
+    findings,
     health,
     help,
     library,
@@ -154,6 +155,7 @@ def create_app(
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
+    api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
     api.include_router(annotations.router)
     api.include_router(tags.router)

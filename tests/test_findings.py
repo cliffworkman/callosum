@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
+from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.findings_repo import (
     findings_overview,
@@ -90,3 +93,27 @@ def test_findings_overview_counts(temp_db_url):
     engine.dispose()
     assert ov[a]["unreviewed_count"] == 1 and ov[a]["has_facts"] is True
     assert ov[b]["unreviewed_count"] == 0 and ov[b]["has_facts"] is True
+
+
+def test_findings_endpoints(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, "Endpoint")
+        upsert_findings(conn, pid, "demo", [FACT, CAND])
+        cand_id = get_paper_findings(conn, pid)["candidates"][0]["id"]
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    got = client.get(f"/papers/{pid}/findings").json()
+    assert len(got["facts"]) == 1 and len(got["candidates"]) == 1
+    assert client.get("/papers/999999/findings").status_code == 404
+
+    ov = {o["paper_id"]: o for o in client.get("/findings/overview").json()}
+    assert ov[pid]["unreviewed_count"] == 1 and ov[pid]["has_facts"] is True
+
+    # accepted needs a reason; a valid review drops the count
+    assert client.post(f"/findings/{cand_id}/review", json={"state": "accepted"}).status_code == 422
+    ok = client.post(f"/findings/{cand_id}/review", json={"state": "accepted", "reason": "minor"})
+    assert ok.status_code == 200 and ok.json()["review_state"] == "accepted"
+    assert {o["paper_id"]: o for o in client.get("/findings/overview").json()}[pid]["unreviewed_count"] == 0
+    assert client.post("/findings/999999/review", json={"state": "noted"}).status_code == 404

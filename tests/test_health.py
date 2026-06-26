@@ -121,6 +121,8 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/methods/statcheck/summary",
         "/methods/statcheck/run/{job_id}",
         "/methods/pcurve/run/{job_id}",
+        "/papers/{paper_id}/findings",
+        "/findings/overview",
         "/citations/styles",
         "/papers/acquire-oa/{job_id}",
         "/wanted",
@@ -189,6 +191,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/methods/statcheck/run", frozenset({"POST"})),
         ("/methods/pcurve/run", frozenset({"POST"})),
         ("/methods/grim", frozenset({"POST"})),
+        ("/findings/{finding_id}/review", frozenset({"POST"})),
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
     }
