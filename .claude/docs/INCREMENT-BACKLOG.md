@@ -227,9 +227,13 @@ center tabs over a `SourceProvider` layer (PubMed/Crossref/bioRxiv), Fraser-meth
 **highlight (augment, never filter)**; save→auto-axis (attach source keywords as tags). Foundational for discovery
 (unblocks #18's keyword sourcing).
 
-**29. Literature gap-finder** (`…_gapfinder.md`) — **[future track]** surface relevant-but-absent papers via
-citation methods (backward/forward gap, followed authors) with transparent provenance, ranked by axis relevance,
-add-or-dismiss. Depends on the OpenAlex adapter.
+**29. Literature gap-finder** (`…_gapfinder.md`) — **[v1 SHIPPED inc 135 — backward gap]** the **backward
+citation gap** shipped: aggregate each library paper's OpenAlex `referenced_works` → works cited by ≥N of your
+papers that you don't have ("cited by N of your papers"), a **Gaps** button + modal with Add/Dismiss (dismissals
+persisted, migration 0018); the count is your-library citing (never a quality rank), coverage stated, candidates
+not verdicts; audit PASS. **REMAINING:** axis-scoped ranking ("gaps for [axis]"), the **forward gap** (works that
+cite many of your papers — distinct from inc-119's per-paper citing), a persistent `gap_candidates` cache, and
+followed-authors. Built on the OpenAlex adapter.
 
 **30. Highlight-to-suggest / highlight-to-evaluate** (Track C) — **[future track]** for a draft sentence — suggest
 papers to cite (in-library = retrieval in reverse, local; beyond-library via OpenAlex/Semantic-Scholar with

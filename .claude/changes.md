@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 135) — help corpus current as of the "Finding gaps" section -->
+## 2026-06-26 — Increment 135: literature gap-finder (backward citation gap)
+- **Files:** `integrations/openalex/adapter.py`, `app/backend/clustering/gapfinder.py` (new),
+  `app/backend/api/routers/gaps.py` (new), `app/backend/persistence/profile_repo.py` + `schema.py` +
+  `alembic/versions/0018_profile_dismissed_gaps.py` (new), `app/backend/clustering/my_publications.py`,
+  `app/backend/api/app.py`, `app/frontend/js/36_gaps.jsx` (new) + `10_pdf_layer.jsx` + `40_app.jsx` + `styles.css`,
+  `tests/test_gapfinder.py` (new) + `test_health.py`, `.claude/security-audits/2026-06-26_gapfinder.md` (new),
+  `.claude/qa-routes/route_41_gaps.md` (new), `help_content.md`, `INCREMENT-135-NOTES.md`.
+- **What:** Aggregate each library paper's OpenAlex `referenced_works` → surface works cited by ≥N of your papers
+  that you don't have ("cited by N of your papers") as Add/Dismiss candidates. New OpenAlex fetches
+  (`fetch_referenced_works` + `fetch_work_meta`); `clustering/gapfinder.compute_gaps`; an ephemeral async job
+  (`POST/GET /gaps/find`); `POST /gaps/add` (metadata-only into the general library, reusing import_citing_work) +
+  `POST /gaps/dismiss` (persisted in `profile.dismissed_gap_works`, migration 0018); a "Gaps" library-header
+  button + modal. The count is the user's-library citing, never a quality rank; coverage stated.
+- **Why:** A long-wanted discovery capability — find the important references your library leans on but is missing.
+- **Revert:** restore the listed files from git (commits `…t1` adapter/compute, `…t2` migration+endpoints, `…t3`
+  UI, + this docs commit); migration 0018 is additive (drop the `dismissed_gap_works` column to revert).
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 134) — help corpus current as of the on-import/staleness lines -->
 ## 2026-06-26 — Increment 134: retraction lifecycle (on-import auto-check + RW staleness nudge)
 - **Files:** `app/backend/methods/retraction.py` (`auto_check_retractions`), `app/backend/api/routers/library.py`

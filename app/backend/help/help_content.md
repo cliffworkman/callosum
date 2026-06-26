@@ -660,6 +660,14 @@ How to think about confidence:
 
 Gotcha: Callosum currently flags likely duplicates; it does not merge records into one canonical paper.
 
+<!-- section: finding-gaps -->
+## Finding gaps in your library
+The **Gaps** button (in the library header) finds works that **several of your papers cite** but that aren't in your library yet — often the foundational references your collection leans on. Click **Find gaps**: Callosum looks up what each of your papers cites (via OpenAlex) and lists the works cited by the most of your papers that you don't already have.
+
+Each candidate shows **"cited by N of your papers"** — that's simply how many of *your own* papers reference it, **not** a measure of importance or quality, and never a ranking of what you "should" read. For each one you can **Add** it (imports the metadata into your library — the PDF stays the separate "Acquire OA copy" step) or **Dismiss** it (so it won't come back).
+
+It tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on the references OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
+
 <!-- section: trash-and-restore -->
 ## Trash and restore
 Trash is for reversible cleanup. Deleting a paper moves it out of the active Library, axes, and duplicate suggestions, but keeps it restorable.

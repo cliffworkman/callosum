@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 134** (see Increment workflow) with **506 pytest tests
+It is currently at **Increment 135** (see Increment workflow) with **514 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -222,7 +222,8 @@ callosum/
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,paper_files [PDF
 │   │   │                          file-serving, inc 91],methods [statcheck, inc 95],citations [formatted-citation
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
-│   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],help}.py [models + handlers])
+│   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
+   │                          gaps [literature gap-finder, inc 135],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core], database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
@@ -239,7 +240,8 @@ callosum/
 │   │   ├── clustering/            (abstract_clustering.py, axis_scoring.py [scoring engine],
 │   │                          axis_assignments.py [manual-override + state API], axis_suggestion.py,
 │   │                          axis_operations.py, duplicate_detection.py, tag_suggestion.py [inc 72],
-│   │                          my_publications.py [own-papers resolver + import hook, inc 78])
+│   │                          my_publications.py [own-papers resolver + import hook, inc 78],
+   │                          gapfinder.py [backward citation gap-finder, inc 135])
 │   │   ├── methods/               (statcheck.py [NHST p-value recomputation, inc 95], pcurve.py [inc 126], grim.py
    │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131])
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
@@ -275,7 +277,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0017_retraction_records)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0018_profile_dismissed_gaps)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -740,7 +742,35 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 134 (retraction lifecycle — on-import auto-check + RW staleness nudge):
+*Last updated: 2026-06-26 — increment 135 (literature gap-finder — backward citation gap): a new **discovery**
+capability (a long-wanted future-track). Aggregate each library paper's OpenAlex **`referenced_works`** → surface
+external works cited by **≥ N (default 3) of your papers** that the library doesn't have ("**cited by N of your
+papers**") as **Add / Dismiss candidates** — the inverse of the inc-119 "who cites my work" feature. New OpenAlex
+adapter methods `fetch_referenced_works` (cached DOI→work, bare `W…` ids, capped, fail-closed) + `fetch_work_meta`
+(a candidate by `W…` id — **validated `^W\d+$` before any fetch**, cached); `clustering/gapfinder.compute_gaps`
+(aggregate `ref_id → set(paper_id)`; keep ≥ min; **exclude** no-DOI / already-in-library / dismissed; rank by
+count + a coverage dict); an **ephemeral async job** `POST`/`GET /gaps/find` (`app.state.gap_jobs` over
+`app.state.openalex_client`); `POST /gaps/add` (reuses the inc-119 `import_citing_work` with a new `imported_source`
+param → `"gap-import"` — **metadata-only, deduped, into the general library**; the PDF stays the OA-acquire lane →
+no paywall circumvention); `POST /gaps/dismiss` (persisted in `profile.dismissed_gap_works`, **migration 0018**
+additive; `dismiss_gap` inserts a minimal profile row if none — the gap-finder needs no My-Pubs profile). A **"Gaps"**
+library-header button → `36_gaps.jsx` modal (Find gaps → candidate list + Add/Dismiss + the coverage caveat).
+**Honesty/Principles:** "cited by N of *your* papers" is a count over the user's own library, **never a global
+importance/quality rank**; coverage is **stated** ("scanned M of N papers; partial"); candidates-not-verdicts; no
+PDF on Add. **Principles gate run** (declined a "must-read importance leaderboard"); **audit
+`.claude/security-audits/2026-06-26_gapfinder.md` PASS**; **rule #10** `route_41_gaps.md` → surface **105/105 API +
+522/522 FE, 0 uncovered**; help corpus gained a "Finding gaps in your library" section (`HELP-DOCS-SYNCED` → 135).
+Egress = public **OpenAlex/Crossref metadata** (bounded, cached, fail-closed), **not** the Gemini gate. pytest
+**514** (+8 `test_gapfinder.py`); `ruff` clean; build + assembly + the **e2e suite** green; migration head **0018**.
+**Verified headed, no egress** (pre-seeded `external_api_cache` so the **real** code path ran offline — a "cited by
+3" candidate, Add → in-library; 0 console/page/genai). **Op gotcha:** stray uvicorns from repeated headed-driver
+runs can hold a port + serve a *stale* app — use a free port + assert your own process is alive (folded into
+`route_41`). **Watch:** `my_publications.py` at **594/600** (the `import_citing_work` signature growth) — split
+before the next addition there. Notes: `INCREMENT-135-NOTES.md`. **NEXT:** axis-scoped gaps ("gaps for [axis]"); a
+persistent `gap_candidates` cache (v1 recomputes — cached OpenAlex makes the 2nd run fast); external-search
+discovery beyond the library.
+
+Earlier — increment 134 (retraction lifecycle — on-import auto-check + RW staleness nudge):
 completes the producer's world-state lifecycle. The retraction producer checked only on demand (the batch /
 per-paper), so a freshly imported retracted paper wouldn't flag until a manual re-run. Now: (1) **on-import
 auto-check** — new `methods/retraction.py::auto_check_retractions(conn, paper_ids, *, checkers)` runs a **guarded
