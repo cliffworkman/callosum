@@ -355,6 +355,17 @@ function App() {
       const m = {}; r.data.forEach(o => { m[o.paper_id] = o; }); setFindingsByPaper(m);
     });
   }, [findingsRefresh, libRefresh]);
+  // inc-133: the unified review queue — # papers with an unreviewed candidate (cheap derive); the header chip
+  // jumps to the needs-review filter view (reuses librarySignalFilter, like the statcheck/retraction chips).
+  const findingsToReview = Object.values(findingsByPaper).filter(o => o.unreviewed_count > 0).length;
+  const showFindingsToReview = useCallback(() => {
+    setLibrarySignalFilter("needs-review");
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); cancelFocus();
+    setSelectedLibraryIds(new Set());
+    setSettingsOpen(false);
+    setActiveTab("library");
+    setPage(0);
+  }, [cancelFocus]);
 
   // health check
   useEffect(() => {
@@ -401,7 +412,10 @@ function App() {
     if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
     if (libraryItemType) qs.set("item_type", libraryItemType);
     if (libraryNeedsReview) qs.set("needs_review", "true");
-    if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+    // inc-133: the unified "to review" view reuses librarySignalFilter with the sentinel "needs-review" (→ the
+    // findings filter); any other value is a Methods signal (→ the signal filter).
+    if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");
+    else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
     if (librarySort !== "added") qs.set("sort", librarySort);
     api(`/papers?${qs.toString()}`).then(r => {
       if (!live) return;
@@ -409,7 +423,7 @@ function App() {
       else setListState({ status: "error", error: r.error, papers: [] });
     });
     return () => { live = false; };
-  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
+  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort, findingsRefresh]);
 
   // inc-91: distinct item types present in the library (for the Type filter dropdown); refresh on library change
   useEffect(() => {
@@ -481,6 +495,7 @@ function App() {
           librarySignalFilter, onClearSignalFilter: clearSignalFilter,
           statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
           retractionFlagged, onShowRetractionFlagged: showRetractionFlagged,
+          findingsToReview, onShowFindingsToReview: showFindingsToReview,
           findingsByPaper,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,

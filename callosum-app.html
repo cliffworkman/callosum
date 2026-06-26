@@ -683,6 +683,7 @@
   .trash-toggle.danger, .trash-toggle.danger:hover { color: var(--danger); }   /* Empty Trash — destructive */
   .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
   .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
+  .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -2256,6 +2257,8 @@
     onShowStatcheckFlagged,
     retractionFlagged,
     onShowRetractionFlagged,
+    findingsToReview,
+    onShowFindingsToReview,
     findingsByPaper,
     onToggleTrash,
     onRestore,
@@ -2297,6 +2300,16 @@
       "\u26A0 ",
       retractionFlagged,
       " retracted"
+    ), !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review" && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle findings-chip",
+        onClick: onShowFindingsToReview,
+        title: "Findings you haven't reviewed yet \u2014 open each paper's Review section"
+      },
+      "\u{1F4CB} ",
+      findingsToReview,
+      " to review"
     ), !trashView && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -2313,7 +2326,7 @@
         title: "Permanently delete every paper in Trash \u2014 cannot be undone"
       },
       "Empty Trash"
-    ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "needs-review" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "To review \u2014 papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         placeholder: "Search title, author, journal\u2026",
@@ -5850,6 +5863,19 @@
         setFindingsByPaper(m);
       });
     }, [findingsRefresh, libRefresh]);
+    const findingsToReview = Object.values(findingsByPaper).filter((o) => o.unreviewed_count > 0).length;
+    const showFindingsToReview = useCallback(() => {
+      setLibrarySignalFilter("needs-review");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus]);
     useEffect(() => {
       api("/health").then((r) => {
         if (r.ok) setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
@@ -5893,7 +5919,8 @@
       if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
       if (libraryItemType) qs.set("item_type", libraryItemType);
       if (libraryNeedsReview) qs.set("needs_review", "true");
-      if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+      if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");
+      else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
       if (librarySort !== "added") qs.set("sort", librarySort);
       api(`/papers?${qs.toString()}`).then((r) => {
         if (!live) return;
@@ -5903,7 +5930,7 @@
       return () => {
         live = false;
       };
-    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
+    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort, findingsRefresh]);
     useEffect(() => {
       api("/papers/item-types").then((r) => {
         if (r.ok) setItemTypes(r.data);
@@ -6030,6 +6057,8 @@
           onShowStatcheckFlagged: showStatcheckFlagged,
           retractionFlagged,
           onShowRetractionFlagged: showRetractionFlagged,
+          findingsToReview,
+          onShowFindingsToReview: showFindingsToReview,
           findingsByPaper,
           onToggleTrash: toggleTrash,
           onRestore: restorePaper,

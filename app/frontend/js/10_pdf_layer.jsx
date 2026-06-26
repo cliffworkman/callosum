@@ -317,7 +317,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     onBulkSummarize, onBulkPcurve, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
-                    statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged, findingsByPaper,
+                    statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
+                    findingsToReview, onShowFindingsToReview, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan, onOpenImport }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -339,6 +340,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted" &&
               <button className="trash-toggle retraction-chip" onClick={onShowRetractionFlagged}
                 title="Papers a registry records as retracted — verify before citing">⚠ {retractionFlagged} retracted</button>}
+            {!trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review" &&
+              <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
+                title="Findings you haven't reviewed yet — open each paper's Review section">📋 {findingsToReview} to review</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
                 title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>
@@ -401,6 +405,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         {librarySignalFilter === "retraction-retracted" &&
           <div className="focus-card">
             <div className="focus-card-head">Retracted — papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice.</div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
+              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+            </div>
+          </div>}
+        {librarySignalFilter === "needs-review" &&
+          <div className="focus-card">
+            <div className="focus-card-head">To review — papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
               <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
