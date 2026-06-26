@@ -25,6 +25,7 @@ from app.backend.api.routers import (
     citations,
     duplicates,
     findings,
+    gaps,
     health,
     help,
     library,
@@ -110,6 +111,7 @@ def create_app(
     api.state.retraction_checkers = DEFAULT_RETRACTION_CHECKERS  # inc 131: per-source checkers (overridable in tests)
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
+    api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
@@ -162,6 +164,7 @@ def create_app(
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
+    api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
     api.include_router(annotations.router)
     api.include_router(tags.router)

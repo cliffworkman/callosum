@@ -120,3 +120,71 @@ def test_compute_gaps_excludes_in_library_and_dismissed(temp_db_url):
     engine.dispose()
     assert [c.openalex_work_id for c in all_cands] == ["W2"]  # W1 excluded (already in library)
     assert dismissed_cands == []  # W2 dismissed, W1 in library → nothing left
+
+
+# ---- dismissals + endpoints (injected fake client) -------------------------
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.backend.api import create_app  # noqa: E402
+from app.backend.persistence.profile_repo import dismiss_gap, dismissed_gaps  # noqa: E402
+
+
+def test_dismiss_gap_round_trip_without_a_profile(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assert dismissed_gaps(conn) == set()  # no profile yet
+        dismiss_gap(conn, "W7")  # inserts a minimal profile row
+        dismiss_gap(conn, "10.9/x")
+        keys = dismissed_gaps(conn)
+    engine.dispose()
+    assert keys == {"W7", "10.9/x"}
+
+
+def _drive_find(client):
+    jid = client.post("/gaps/find").json()["job_id"]
+    for _ in range(30):
+        data = client.get(f"/gaps/find/{jid}").json()
+        if data["status"] in ("done", "error"):
+            return data
+    return data
+
+
+def test_gap_find_add_dismiss_endpoints(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:  # 3 papers all citing W1 (router default min=3)
+        for d in ("10.1/p1", "10.1/p2", "10.1/p3"):
+            _paper(conn, d)
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = _FakeOA(
+        refs_by_doi={"10.1/p1": ["W1"], "10.1/p2": ["W1"], "10.1/p3": ["W1"]},
+        meta_by_id={"W1": _meta("W1", "10.9/w1", "Gap Work")},
+    )
+
+    found = _drive_find(client)
+    assert found["status"] == "done"
+    cands = found["result"]["candidates"]
+    assert [c["openalex_work_id"] for c in cands] == ["W1"] and cands[0]["cited_by_in_library"] == 3
+    assert found["result"]["checked"] == 3 and "coverage" in found["result"]["note"].lower()
+
+    # add → imported, idempotent, and then it's in the library so a re-run drops it
+    add = client.post("/gaps/add", json={"doi": "10.9/w1", "openalex_work_id": "W1", "title": "Gap Work"})
+    assert add.status_code == 200 and add.json()["status"] == "imported"
+    assert client.post("/gaps/add", json={"doi": "10.9/w1"}).json()["status"] == "exists"
+    assert _drive_find(client)["result"]["candidates"] == []  # now in library
+
+
+def test_gap_dismiss_endpoint_excludes_candidate(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        for d in ("10.1/p1", "10.1/p2", "10.1/p3"):
+            _paper(conn, d)
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.openalex_client = _FakeOA(
+        refs_by_doi={"10.1/p1": ["W1"], "10.1/p2": ["W1"], "10.1/p3": ["W1"]},
+        meta_by_id={"W1": _meta("W1", "10.9/w1")},
+    )
+    assert client.post("/gaps/dismiss", json={"openalex_work_id": "W1", "doi": "10.9/w1"}).status_code == 204
+    assert _drive_find(client)["result"]["candidates"] == []  # dismissed → never resurfaces

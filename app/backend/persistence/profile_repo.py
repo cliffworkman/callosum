@@ -176,3 +176,31 @@ def set_decision(conn: Connection, paper_id: int, decision: str) -> None:
     """Upsert a confirm/reject decision for a paper (one row per paper)."""
     conn.execute(delete(my_publication_decisions).where(my_publication_decisions.c.paper_id == paper_id))
     conn.execute(insert(my_publication_decisions).values(paper_id=paper_id, decision=decision))
+
+
+def dismiss_gap(conn: Connection, key: str) -> None:
+    """Dismiss a literature-gap candidate (inc 135) by a stable key (its OpenAlex id and/or DOI) so a re-run
+    doesn't resurface it. Unlike the My-Pubs dismissals, the gap-finder doesn't require a profile, so this
+    inserts a minimal profile row if none exists. No-op on a blank key."""
+    normalized = (key or "").strip()
+    if not normalized:
+        return
+    existing = get_profile(conn)
+    if existing is None:
+        conn.execute(insert(profile).values(dismissed_gap_works=[normalized]))
+        return
+    keys = {str(k).strip() for k in (existing.get("dismissed_gap_works") or []) if str(k).strip()}
+    keys.add(normalized)
+    conn.execute(
+        update(profile)
+        .where(profile.c.id == int(existing["id"]))
+        .values(dismissed_gap_works=sorted(keys), updated_at=func.current_timestamp())
+    )
+
+
+def dismissed_gaps(conn: Connection) -> set[str]:
+    """The set of dismissed gap keys (OpenAlex ids + DOIs); empty when the profile is unset."""
+    existing = get_profile(conn)
+    if existing is None:
+        return set()
+    return {str(k).strip() for k in (existing.get("dismissed_gap_works") or []) if str(k).strip()}

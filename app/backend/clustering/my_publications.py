@@ -537,12 +537,19 @@ def import_missing_work(conn: Connection, *, doi: str, author_client, crossref_c
 
 
 def import_citing_work(
-    conn: Connection, *, doi: str, openalex_work_id: str | None = None, title: str | None = None, crossref_client=None
+    conn: Connection,
+    *,
+    doi: str,
+    openalex_work_id: str | None = None,
+    title: str | None = None,
+    crossref_client=None,
+    imported_source: str = "citing-import",
 ) -> dict[str, Any]:
-    """inc 119 (SP3 #14): import a paper that CITES one of the user's works — an arbitrary DOI (NOT the user's own
-    work, so there is no author guardrail and it is NOT added to My Publications). Metadata-only: dedup → create_paper
-    → Crossref enrich. The PDF stays the separate OA-acquire step (no paywall circumvention). Crossref DOI lookup
-    only — NOT the Gemini gate. Idempotent. Returns ``{status: imported|exists|invalid, paper_id}``."""
+    """inc 119 (SP3 #14): import an arbitrary external work by DOI — a paper that CITES one of the user's works
+    (citing-import) OR a literature-gap candidate (gap-import, inc 135). NOT the user's own work (no author
+    guardrail, NOT added to My Publications). Metadata-only: dedup → create_paper → Crossref enrich. The PDF stays
+    the separate OA-acquire step (no paywall circumvention). Crossref DOI lookup only — NOT the Gemini gate.
+    Idempotent. Returns ``{status: imported|exists|invalid, paper_id}``."""
     normalized = (doi or "").strip().lower()
     if not normalized:
         return {"status": "invalid"}
@@ -558,7 +565,7 @@ def import_citing_work(
         csl_json={"id": normalized, "type": "document", "title": label, "DOI": normalized},
         doi=normalized,
         openalex_work_id=openalex_work_id,
-        imported_source="citing-import",
+        imported_source=imported_source,
     )
     # Crossref enrich fills the real metadata (DOI-only, not the Gemini gate). Its My-Pubs hook is a no-op here:
     # a citing paper's DOI is not among the author's works, so it is never auto-added to My Publications.

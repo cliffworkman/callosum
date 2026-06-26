@@ -128,6 +128,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/methods/retraction/database/refresh/{job_id}",
         "/papers/{paper_id}/findings",
         "/findings/overview",
+        "/gaps/find/{job_id}",
         "/citations/styles",
         "/papers/acquire-oa/{job_id}",
         "/wanted",
@@ -199,6 +200,9 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/methods/retraction/run", frozenset({"POST"})),
         ("/methods/retraction/database/refresh", frozenset({"POST"})),
         ("/findings/{finding_id}/review", frozenset({"POST"})),
+        ("/gaps/find", frozenset({"POST"})),
+        ("/gaps/add", frozenset({"POST"})),
+        ("/gaps/dismiss", frozenset({"POST"})),
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
     }
