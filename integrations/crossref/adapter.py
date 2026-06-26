@@ -98,6 +98,22 @@ class CrossrefClient:
             source="network",
         )
 
+    def lookup_retraction(self, conn: Connection, doi: str) -> dict[str, Any] | None:
+        """Read Crossref's retraction/correction/concern record for a DOI (inc 131). Ensures the work is
+        fetched+cached (via `resolve_doi`), then parses the RAW `message.update-to` (the Retraction-Watch-fed
+        relation a retracted item carries pointing at its notice). Returns the richest flagged record
+        `{status, nature, date, notice_doi, notice_url}` or None (no retraction record / unresolved)."""
+        normalized = _normalize_doi(doi)
+        self.resolve_doi(conn, normalized)  # populate the cache (network or cache-hit); never raises
+        cached = _cached_response(conn, normalized)
+        if cached is None or cached["status_code"] != 200:
+            return None
+        body = cached["response_json"]
+        message = body.get("message") if isinstance(body, dict) else None
+        if not isinstance(message, dict):
+            return None
+        return _parse_retraction(message)
+
     def _headers(self) -> dict[str, str]:
         user_agent = "Callosum/0.1 (local-first reference manager)"
         if self.mailto:
@@ -240,6 +256,53 @@ def _crossref_type_to_csl(value: str) -> str:
         "proceedings-article": "paper-conference",
         "book": "book",
     }.get(value, value)
+
+
+# Crossref `update-to[].type` → our retraction status (inc 131). Kept local (no import from app.backend.methods,
+# which imports this adapter — would cycle). The merge layer re-ranks across sources.
+_UPDATE_TYPE_TO_STATUS = {
+    "retraction": "retracted",
+    "withdrawal": "retracted",
+    "removal": "retracted",
+    "correction": "correction",
+    "erratum": "correction",
+    "addendum": "correction",
+    "expression_of_concern": "concern",
+    "concern": "concern",
+}
+_RETRACTION_RANK = {"concern": 0, "correction": 1, "retracted": 2}
+
+
+def _parse_retraction(message: dict[str, Any]) -> dict[str, Any] | None:
+    """Pick the highest-severity `update-to` entry of a recognized retraction type, or None."""
+    entries = message.get("update-to")
+    if not isinstance(entries, list):
+        return None
+    best: tuple[int, dict[str, Any]] | None = None
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        kind = str(entry.get("type") or "").strip().lower().replace("-", "_")
+        status = _UPDATE_TYPE_TO_STATUS.get(kind)
+        if status is None:
+            continue
+        rank = _RETRACTION_RANK[status]
+        if best is not None and rank <= best[0]:
+            continue
+        notice_doi = entry.get("DOI")
+        notice_doi = str(notice_doi).strip().lower() if notice_doi else None
+        parts = _date_parts(entry.get("updated"))
+        best = (
+            rank,
+            {
+                "status": status,
+                "nature": str(entry.get("label")) if entry.get("label") else None,
+                "date": "-".join(f"{p:02d}" if i else str(p) for i, p in enumerate(parts)) if parts else None,
+                "notice_doi": notice_doi,
+                "notice_url": f"https://doi.org/{notice_doi}" if notice_doi else None,
+            },
+        )
+    return best[1] if best is not None else None
 
 
 def _normalize_doi(doi: str) -> str:

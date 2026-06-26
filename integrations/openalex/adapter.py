@@ -66,6 +66,14 @@ class OpenAlexClient:
             return None
         return _best_oa_location_from_work(work)
 
+    def lookup_retraction(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
+        """Read OpenAlex's `is_retracted` boolean for a work (inc 131). Thin (a boolean, no notice detail) —
+        corroboration + coverage alongside Crossref. Returns `{"status": "retracted"}` or None; never raises."""
+        work = self._fetch_work(conn, ref)
+        if isinstance(work, dict) and work.get("is_retracted") is True:
+            return {"status": "retracted"}
+        return None
+
     def _fetch_work(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         path, params, cache_key = _endpoint_for(ref)
         if path is None:
