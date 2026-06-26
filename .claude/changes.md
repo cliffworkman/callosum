@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-26 — Increment 140: the end-user experience pass (a 4th gate) + its first dogfood
+- **Files:** `.claude/EXPERIENCE-PASS.md` (new), `.claude/CLAUDE.md` (rule #11 + reference row + footer),
+  `.claude/docs/INCREMENT-BACKLOG.md` (the dogfood finding), `INCREMENT-140-NOTES.md`.
+- **What:** Codifies a standing orientation — before any user-facing change is "done," make a pass *inhabiting the
+  end user* (reception + intended-use, the latter bounded by the #9 + A-A vetoes) via **persona-grounded
+  experience agents** (a subagent in-character as a concrete user with a goal-in-the-moment). The 4th gate beside
+  DESIGN (looks) / PRINCIPLES (honest) / QA (works+covered): **EXPERIENCE (serves the user).** Dogfooded it on
+  statcheck (the deadline-citer persona) → found the "this paper is flagged → the specific result that doesn't
+  recompute" path is hidden; filed it **▲ BUILD FIRST** to the backlog.
+- **Why:** A change can pass DESIGN/PRINCIPLES/QA and still strand a real person mid-task (the statcheck case the
+  user kept raising). This gate catches that.
+- **Revert:** delete `EXPERIENCE-PASS.md` + the rule #11 / reference-row / backlog additions. Docs-only.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 139) — help corpus current as of the Tags-tab / accordion-tabs rewrite -->
 ## 2026-06-26 — Increment 139: accordion tabs-within-a-section (Tags → a tab of AXES; METHODS reordered)
 - **Files:** `app/frontend/js/05_panes.jsx` + `15_axes.jsx` + `10_pdf_layer.jsx` + `06_methods_statcheck.jsx` +

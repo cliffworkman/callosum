@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 139** (see Increment workflow) with **519 pytest tests
+It is currently at **Increment 140** (see Increment workflow) with **519 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -399,6 +399,23 @@ Security-class findings open a `.claude/security-audits/` stub via the existing 
 duplicates it. The Codex-`exec` supervisor (`tools/qa/supervisor.py`) runs the routes and deposits reports to the
 watched `.claude/qa-inbox/`; you are the triage-and-fix half (Session-kickoff step #11).
 
+### 11. End-user experience: read `.claude/EXPERIENCE-PASS.md` before calling a user-facing change done
+
+**Before any user-facing change is "done" — a new feature, a revised flow, a moved control, a new signal/output —
+run the [end-user experience pass](EXPERIENCE-PASS.md).** Where DESIGN (#8) asks *does it look right*, PRINCIPLES
+(#9) *is it honest*, and QA (#10) *does the surface work + is it covered*, this asks **does it actually serve the
+user** — a change can pass all three and still strand a real person mid-task (a correct signal with no obvious path
+to the action it implies; a feature buried where no one finds it; a number with no way to reach the evidence
+behind it). **Inhabit the end user of the thing you touched** and ask: (1) **reception** — is it discoverable,
+legible, is the next step obvious; (2) **intended use** — what does the user reach for next, does the built thing
+support it or dead-end (vigilance: a desire that conflicts with our commitments — accusation, paywall
+circumvention, an opaque score — is **declined** per #9 + APPROACH-AVOIDANCE, not served). For a **newly
+rolled-out or materially-changed** feature, **dispatch a persona-grounded experience agent** (or more than one) per
+the doc's mechanism — a subagent *in character* as a concrete user with a goal-in-the-moment (e.g. the **deadline
+citer** vetting a paper's stats before citing it), driving the feature and reporting what's left to be desired. A
+**reflective pause, not a block**; the output is a finding — fix what's cheap in the same increment, else file a UX
+follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record the pass in the increment notes.
+
 ---
 
 ## Increment workflow
@@ -593,6 +610,7 @@ before large design changes:
 | `.claude/CREDIT-THE-LINEAGE.md` | **Values-layer cross-cutting principle (inbox-captured 2026-06-21): any tool that implements/operationalizes/is-built-on identifiable scholarly work must credit it *in-context* + offer the source paper(s) to the library (one-click), and credit a prior *tool* by citation + library-add, never by appropriating its name. Apply to every method-implementing feature; the retroactive credit-help backfill is in the backlog. Not yet wired as a hard rule-#9 gate trigger.** |
 | `.claude/DESIGN.md` | **Design dictionary — read before ANY CSS/inline-style change (rule #8): tokens, element recipes, fixed color/type semantics, consolidation worklist** |
 | `.claude/QA-POLICY.md` | **The QA contract — read before changing any end-user surface (rule #10): the fixture contract, the computed coverage gate (`tools/qa/build_surface_map.py`), the honesty-invariant assertions, the severity rubric, and the Codex-exec supervisor + watched-inbox loop. Add/extend a QA route in the same increment as a surface change.** |
+| `.claude/EXPERIENCE-PASS.md` | **The end-user experience pass — read before calling any user-facing change done (rule #11): the two questions (reception / intended-use, the latter bounded by the #9 + A-A vetoes), the persona-grounded experience-agent mechanism (dispatch a subagent in-character as a concrete user with a goal-in-the-moment), the extensible persona/scenario library (deadline citer / corpus builder / skeptical synthesizer), and the statcheck worked example. A reflective pause → a finding (fix-cheap or backlog). The 4th gate: DESIGN=looks, PRINCIPLES=honest, QA=works+covered, EXPERIENCE=serves the user.** |
 | `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
 | `.claude/HELP.md` | Historical tip text (superseded by the served corpus above; kept as a dev note) |
@@ -746,7 +764,27 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 139 (accordion tabs-within-a-section — Tags becomes a tab of AXES; METHODS
+*Last updated: 2026-06-26 — increment 140 (the end-user experience pass — a 4th gate — + its first dogfood): codifies
+the standing orientation the user asked for — **before any user-facing change is "done," make a pass inhabiting the
+end user of the thing you touched** (does it actually *serve* them?). New **`.claude/EXPERIENCE-PASS.md`** + **CLAUDE.md
+rule #11**: two questions — (1) **reception** (discoverable / legible / is the next step obvious) and (2) **intended
+use** (what does the user reach for next; does the built thing support it or dead-end), the latter **bounded by our
+commitments** (a desire conflicting with the ethics — accusation, paywall circumvention, an opaque score — is *declined*
+per #9 + A-A, not served). The user's key upgrade = the **mechanism**: *persona-grounded experience agents* — dispatch
+a subagent **in character** as a concrete persona with a **goal in the moment** (the **deadline citer** vetting a paper's
+stats before citing; the corpus builder; the skeptical synthesizer) to drive the feature and report what's left to be
+desired — grounding turns "is the UX good?" into "can *this* person, doing *this*, get where they're going?" The 4th
+gate beside DESIGN (#8 looks) / PRINCIPLES (#9 honest) / QA (#10 works+covered) → **EXPERIENCE (#11 serves the user)**;
+reflective pause → a finding (fix-cheap or backlog). **Dogfooded immediately:** a deadline-citer agent drove the live
+statcheck flow and found the per-paper drill-down (METHODS → Statistics check → "This paper" → per-test rows) is
+**hidden** — the METHODS pane defaults to Details and the "⚠ N flagged" chip→filter lands on Details, ignoring the
+flagged state, so "flagged" and "the specific result that doesn't recompute" never link. Filed **▲ BUILD FIRST** to
+`INCREMENT-BACKLOG.md` (5 sub-findings, simplest-first; (a) open Statistics check from the flagged view = the cheap fix).
+**Docs-only** — no app code / build / migration / surface change; pytest **519** unchanged. Notes: `INCREMENT-140-NOTES.md`.
+**NEXT (queued):** the statcheck flagged→per-test fix [build-first (a)]; gap-finder followed-authors / similarity ranking;
+a cadence auto-refresh. **Watch (rule #1):** `clustering/my_publications.py` at **594/600**.
+
+Earlier — increment 139 (accordion tabs-within-a-section — Tags becomes a tab of AXES; METHODS
 reordered): codifies the IA rule that **accordion sections are broad tool categories and TABS present like-with-like
 submenus** (DESIGN.md §5). **`05_panes.jsx`** registry now supports tabs: `registerPaneTab({id,label,paneId,order},
 {id,label,order,render})` adds a tab to a find-or-created host section; `registerPaneSection` is sugar for a one-tab
