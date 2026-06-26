@@ -30,12 +30,14 @@ from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.retraction import apply_retraction, detect_retraction
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
+from app.backend.persistence.retraction_repo import retraction_db_status
 from app.backend.persistence.signals_repo import (
     count_retraction_flagged,
     count_statcheck_flagged,
     get_retraction_status,
     store_statcheck,
 )
+from integrations.retraction_watch.adapter import RetractionWatchUnavailable, download_retraction_database
 
 MAX_PCURVE_PAPERS = 1000  # bound the selection a p-curve runs over (rule #4)
 
@@ -401,5 +403,61 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
                 summary=RetractionRunSummary(total=total, checked=checked, flagged=flagged),
             ),
         )
+    except Exception as exc:
+        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+
+
+# ── Retraction Watch DB (inc 132): the bulk third source — download the Crossref-hosted RW database (CC0) into a
+# local mirror the producer matches DOIs against offline. Public bulk metadata (CALLOSUM_CROSSREF_MAILTO). ──
+
+
+class RetractionDbStatus(BaseModel):
+    count: int = 0
+    retrieved_at: str | None = None
+
+
+class RetractionDbRefreshResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    detail: str | None = None
+    count: int | None = None
+
+
+@router.get("/methods/retraction/database", response_model=RetractionDbStatus)
+def retraction_database(conn: Connection = Depends(get_connection)) -> RetractionDbStatus:
+    status = retraction_db_status(conn)
+    return RetractionDbStatus(count=status["count"], retrieved_at=status["retrieved_at"])
+
+
+@router.post(
+    "/methods/retraction/database/refresh",
+    response_model=RetractionDbRefreshResponse,
+    status_code=http_status.HTTP_202_ACCEPTED,
+)
+def retraction_database_refresh(background_tasks: BackgroundTasks, request: Request) -> RetractionDbRefreshResponse:
+    job_id = request.app.state.retraction_db_jobs.create()
+    background_tasks.add_task(_run_retraction_db_refresh_job, request.app, job_id)
+    return RetractionDbRefreshResponse(job_id=job_id, status="pending")
+
+
+@router.get("/methods/retraction/database/refresh/{job_id}", response_model=RetractionDbRefreshResponse)
+def retraction_database_refresh_status(job_id: str, request: Request) -> RetractionDbRefreshResponse:
+    job = request.app.state.retraction_db_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Retraction database refresh job not found")
+    if job.status == "done" and job.result is not None:
+        return job.result
+    return RetractionDbRefreshResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+def _run_retraction_db_refresh_job(app: FastAPI, job_id: str) -> None:
+    jobs: JobStore[RetractionDbRefreshResponse] = app.state.retraction_db_jobs
+    jobs.mark_running(job_id)
+    try:
+        with app.state.engine.begin() as conn:
+            count = download_retraction_database(app.state.retraction_watch_client, conn)
+        jobs.mark_done(job_id, RetractionDbRefreshResponse(job_id=job_id, status="done", count=count))
+    except RetractionWatchUnavailable as exc:
+        jobs.mark_error(job_id, str(exc))  # mailto absent / oversize / network — a clear, expected failure
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")

@@ -23,6 +23,7 @@ from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import PaperRef
 from app.backend.persistence.findings_repo import upsert_findings
+from app.backend.persistence.retraction_repo import lookup_retraction_record
 from app.backend.persistence.signals_repo import store_retraction_status
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
@@ -173,6 +174,18 @@ def _openalex_fetch(conn: Connection, paper: Mapping[str, Any]) -> RetractionSig
     return RetractionSignal(source="openalex", **raw) if raw else None
 
 
+def _retraction_watch_fetch(conn: Connection, paper: Mapping[str, Any]) -> RetractionSignal | None:
+    # The local Retraction Watch mirror (inc 132) — offline, the richest source (nature/date/reason/notice).
+    doi = _paper_doi(paper)
+    if not doi:
+        return None
+    raw = lookup_retraction_record(conn, doi)
+    return RetractionSignal(source="retraction-watch", **raw) if raw else None
+
+
 CROSSREF_CHECKER = RetractionChecker("crossref", _crossref_fetch)
 OPENALEX_CHECKER = RetractionChecker("openalex", _openalex_fetch)
-DEFAULT_CHECKERS: list[RetractionChecker] = [CROSSREF_CHECKER, OPENALEX_CHECKER]
+RETRACTION_WATCH_CHECKER = RetractionChecker("retraction-watch", _retraction_watch_fetch)
+# RW first → its richer detail (reason/date/notice) wins merge_signals' first-non-null pick. If the mirror is
+# empty (never downloaded), it returns None and the per-DOI sources still work.
+DEFAULT_CHECKERS: list[RetractionChecker] = [RETRACTION_WATCH_CHECKER, CROSSREF_CHECKER, OPENALEX_CHECKER]

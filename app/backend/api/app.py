@@ -48,6 +48,7 @@ from app.backend.summarization.verification import SupportScorer, VerificationCo
 from integrations.crossref import CrossrefClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
+from integrations.retraction_watch import RetractionWatchClient
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
 FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
@@ -107,6 +108,8 @@ def create_app(
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
     api.state.retraction_jobs = JobStore()  # inc 131: library-wide retraction batch
     api.state.retraction_checkers = DEFAULT_RETRACTION_CHECKERS  # inc 131: per-source checkers (overridable in tests)
+    api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
+    api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model

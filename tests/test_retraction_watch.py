@@ -90,3 +90,63 @@ def test_mailto_absent_fails_closed():
     client.mailto = None  # force absent regardless of env
     with pytest.raises(RetractionWatchUnavailable):
         client.fetch_csv()
+
+
+# ---- the RW checker + DEFAULT_CHECKERS + endpoints (offline) -----------------
+
+from fastapi.testclient import TestClient  # noqa: E402
+
+from app.backend.api import create_app  # noqa: E402
+from app.backend.methods.retraction import (  # noqa: E402
+    DEFAULT_CHECKERS,
+    RETRACTION_WATCH_CHECKER,
+    RetractionChecker,
+    RetractionSignal,
+    detect_retraction,
+)
+
+
+def test_retraction_watch_checker_first_and_wraps_record(temp_db_url):
+    assert DEFAULT_CHECKERS[0].source == "retraction-watch"  # richest source first → its detail wins the merge
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        replace_retraction_records(conn, parse_retraction_csv(FAKE_CSV), retrieved_at="t1")
+        hit = RETRACTION_WATCH_CHECKER(conn, {"doi": "10.1/orig", "csl_json": {}})
+        miss = RETRACTION_WATCH_CHECKER(conn, {"doi": "10.9/none", "csl_json": {}})
+    engine.dispose()
+    assert isinstance(hit, RetractionSignal) and hit.source == "retraction-watch"
+    assert hit.status == "retracted" and "Falsification" in hit.reason
+    assert miss is None
+
+
+def test_detect_merges_rw_reason_over_thin_crossref(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        replace_retraction_records(conn, parse_retraction_csv(FAKE_CSV), retrieved_at="t1")
+        thin = RetractionChecker("crossref", lambda c, p: RetractionSignal(source="crossref", status="retracted"))
+        outcome = detect_retraction(
+            conn, {"doi": "10.1/orig", "csl_json": {}}, checkers=[RETRACTION_WATCH_CHECKER, thin]
+        )
+    engine.dispose()
+    assert outcome.status_kind == "retracted"
+    assert "Falsification" in outcome.merged.reason  # RW's richer detail won
+    assert outcome.merged.sources == ["crossref", "retraction-watch"]
+
+
+def test_refresh_endpoint_and_status(temp_db_url):
+    def fake(url, *, timeout, max_bytes):
+        return FAKE_CSV
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.retraction_watch_client = RetractionWatchClient(fetcher=fake, mailto="x@y.z")
+
+    pre = client.get("/methods/retraction/database").json()
+    assert pre["count"] == 0 and pre["retrieved_at"] is None
+
+    run = client.post("/methods/retraction/database/refresh")
+    assert run.status_code == 202
+    done = client.get(f"/methods/retraction/database/refresh/{run.json()['job_id']}").json()
+    assert done["status"] == "done" and done["count"] == 4
+
+    post = client.get("/methods/retraction/database").json()
+    assert post["count"] == 4 and post["retrieved_at"]
