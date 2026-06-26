@@ -9,8 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 145) — help corpus current as of the slate (export-highlights, durable keyword deletion, the selection focus query) -->
-## 2026-06-26 — Increment 145: discoverable multi-paper focus query (Skeptical synthesizer pass + backlog #7)
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 146) — help corpus current as of BYOK (set the Gemini key + egress in Settings) -->
+## 2026-06-26 — Increment 146: BYOK — Gemini API key + egress consent from the Settings UI
+- **Files:** `app/backend/app_settings.py` (new), `app/backend/api/routers/settings.py` (new),
+  `app/backend/api/app.py`, `integrations/gemini/generator.py`, `app/frontend/js/35_settings.jsx` + `styles.css` +
+  `callosum-app.html`, `app/backend/help/help_content.md`, `tests/conftest.py`, `tests/test_settings.py`,
+  `tests/test_health.py`, `.claude/qa-routes/route_35_settings.md`,
+  `.claude/security-audits/2026-06-26_byok-api-key.md`, `INCREMENT-146-NOTES.md`.
+- **What:** Bring-your-own-key — set the Gemini API key **and** toggle data egress from **Settings → AI features**,
+  not just env vars. A local store (`~/.callosum/app-settings.json`, outside the repo + synced Dropbox) overlays the
+  env defaults in `GeminiConfig.from_environment()` (so every AI feature picks it up with zero call-site changes).
+  `GET /settings` returns status only (never the key value); `PUT /settings` sets/clears the key + toggles egress.
+- **Why:** A GitHub user shouldn't have to edit a `.env` to use AI. The key never leaves the machine except to
+  Google; egress stays default-OFF + explicit (invariant #3 unchanged); the key is write-only over the wire.
+- **Revert:** delete the two new backend files + the router include + the `GeminiConfig` overlay + the frontend
+  section; restore from git. (No migration.)
+
+
 - **Files:** `app/frontend/js/10_pdf_layer.jsx` + `20_synthesis.jsx` + `40_app.jsx` + `styles.css` +
   `callosum-app.html`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_55_synthesis_verification.md`,
   `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-145-NOTES.md`. (Help corpus also brought current for inc 143/144.)

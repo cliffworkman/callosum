@@ -9,7 +9,7 @@ from alembic.config import Config
 
 
 @pytest.fixture(autouse=True)
-def _egress_consent_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def _egress_consent_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Model data-egress consent as GIVEN by default for the suite.
 
     Generation now runs through the egress gate at the DI seam (inc 58), so an injected fake provider
@@ -22,6 +22,9 @@ def _egress_consent_default(monkeypatch: pytest.MonkeyPatch) -> None:
     """
     monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
     monkeypatch.setenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "1")
+    # BYOK (inc 146): isolate the local app-settings file per test so the suite never reads/writes the real
+    # ~/.callosum/app-settings.json (and one test's writes can't leak into another).
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "app-settings.json"))
 
 
 @pytest.fixture()

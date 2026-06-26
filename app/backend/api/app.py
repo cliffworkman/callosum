@@ -33,6 +33,7 @@ from app.backend.api.routers import (
     my_publications,
     paper_files,
     papers,
+    settings,
     summaries,
     tags,
     wanted,
@@ -172,6 +173,7 @@ def create_app(
     api.include_router(axes.router)
     api.include_router(summaries.router)
     api.include_router(help.router)
+    api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
 
     return api
 

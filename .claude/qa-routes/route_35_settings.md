@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api:
+api: /settings
 fe: 35_settings.jsx
 -->
 
@@ -17,6 +17,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Console-error budget = 0.** Any console `error` >= Medium; any `pageerror` >= High.
 - **No uncompletable control.** Any visible control that cannot be completed through the UI is a bug.
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
+- **BYOK key secrecy (inc 146).** `GET /settings` must return STATUS ONLY — the response body containing the literal API-key value is **Critical**. The "Allow AI features" egress toggle must default to OFF on a clean instance; defaulting ON without an explicit toggle is **Critical** (invariant #3).
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
 
@@ -30,12 +31,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 ## Steps
 
-1. Open settings. Confirm all controls render: theme, default axis cutoff, hide uncertain, watched-folder auto-rescan, and help assistant section.
+1. Open settings. Confirm all controls render: theme, AI features (key + egress toggle), default axis cutoff, hide uncertain, watched-folder auto-rescan, and help assistant section.
 2. Toggle theme on/off. Confirm app chrome changes and PDF page rendering remains light/readable.
 3. Move the default-axis-cutoff slider through min/mid/max. Confirm labels/count previews stay signal-only.
 4. Toggle hide-uncertain and watched-folder auto-rescan. Reload and confirm intended persistence or documented session-only behavior.
 5. Open and close help-assistant settings. With egress unset, no genai request is allowed.
-6. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
+6. **AI features (BYOK).** Confirm the section renders: a (password-masked) Gemini API key input + Save, and an "Allow AI features" toggle that is **OFF** on the clean instance. Paste a fake key, Save; reload and confirm a "key saved" status with **no key value shown anywhere** (inspect `GET /settings` — body must not contain the pasted string). Toggle egress on then off; confirm no genai request fires (egress unset; this only writes the local store). Clear the key; confirm it reverts to "Not set".
+7. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
 
 ## Pass criteria
 

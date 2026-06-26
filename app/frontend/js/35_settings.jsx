@@ -81,6 +81,70 @@ function MyPubsSettings({ onRefreshed }) {
   );
 }
 
+// AI features (inc 146 — BYOK). Set your Gemini API key + turn on data egress here, instead of env vars.
+// The key is write-only: GET /settings returns status only (never the value); egress is default-OFF.
+function AiSettings() {
+  const [status, setStatus] = useState(null);  // {api_key_set, api_key_source, data_egress_enabled, egress_source}
+  const [keyInput, setKeyInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setStatus(r.data); }); }, []);
+
+  const applyKey = async (value, doneMsg) => {
+    setBusy(true); setMsg("");
+    const r = await apiPut("/settings", { set_api_key: true, api_key: value });
+    setBusy(false);
+    if (r.ok) { setStatus(r.data); setKeyInput(""); setMsg(doneMsg); }
+    else setMsg("Couldn't save: " + (r.error || "error"));
+  };
+
+  const toggleEgress = async () => {
+    if (!status) return;
+    const r = await apiPut("/settings", { data_egress_enabled: !status.data_egress_enabled });
+    if (r.ok) setStatus(r.data);
+  };
+
+  const egressOn = !!(status && status.data_egress_enabled);
+  const keySet = !!(status && status.api_key_set);
+  const fromEnv = status && status.api_key_source === "env";
+  return (
+    <>
+      <p className="eyebrow">AI features</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Gemini API key
+          <span className="settings-sub">
+            {keySet
+              ? (fromEnv ? "Set via the GOOGLE_API_KEY environment variable." : "A key is saved on this machine.")
+              : "Not set. AI summaries need a key — stored locally, never sent anywhere but Google."}
+            {" "}<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Get a key →</a>
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <input className="settings-input" type="password" autoComplete="off"
+            placeholder={keySet && !fromEnv ? "•••••••• (saved) — type to replace" : "Paste your key"}
+            value={keyInput} onChange={e => setKeyInput(e.target.value)} />
+          <button className="btn btn-ghost" disabled={busy || !keyInput.trim()} onClick={() => applyKey(keyInput, "Key saved.")}>{busy ? "Saving…" : "Save"}</button>
+          {keySet && !fromEnv &&
+            <button className="btn btn-ghost" disabled={busy} onClick={() => applyKey("", "Key cleared.")}>Clear</button>}
+        </div>
+      </div>
+      <div className="settings-row">
+        <span className="settings-label">Allow AI features (sends text to Google)
+          <span className="settings-sub">
+            Off by default. When on, generating a summary sends the relevant library text to Google's Gemini API; every sentence is still verified locally against your PDFs.
+            {status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : ""}
+          </span>
+        </span>
+        <button type="button" className={"settings-switch" + (egressOn ? " on" : "")}
+          role="switch" aria-checked={egressOn} aria-label="Allow AI features"
+          onClick={toggleEgress}><span className="settings-knob" /></button>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
@@ -101,6 +165,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
             onClick={() => onTheme(dark ? "light" : "dark")}
           ><span className="settings-knob" /></button>
         </div>
+
+        <AiSettings />
 
         <p className="eyebrow">Axes</p>
         <div className="settings-row">

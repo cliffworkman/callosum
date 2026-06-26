@@ -709,9 +709,10 @@ Gotchas:
 ## Settings and connection status
 Settings are intentionally small right now. Click the gear (`⚙`) in the sidebar to open **Settings**.
 
-Available setting:
+Available settings include:
 
 - **Dark mode:** switches the app chrome between light and dark themes. The PDF page itself stays light so paper rendering remains readable.
+- **AI features (bring your own key):** paste your **Gemini API key** and turn on **Allow AI features** here, instead of setting environment variables. The key is stored only on this machine (in a file in your home folder, outside the app and any synced folder) and is **never shown back to you** — Settings only reports whether a key is set. **Allow AI features** is **off by default**; turning it on lets summary generation send the relevant library text to Google's Gemini API (every sentence is still verified locally against your PDFs). Clearing the key or turning the toggle off stops all egress. If you'd rather use environment variables, `GOOGLE_API_KEY` and `CALLOSUM_ALLOW_DATA_EGRESS=1` still work and act as the fallback.
 
 The Callosum logo also carries connection status:
 
@@ -746,7 +747,7 @@ The features that can use Gemini are optional and off by default:
 - **Search related terms:** sends axis text so Gemini can suggest possible terms.
 - **Suggested axis label polishing:** may send a small set of representative paper titles when egress is enabled; otherwise it falls back locally.
 
-To enable Gemini-backed features, start Callosum with data egress explicitly allowed and a Gemini API key configured. In the current app, the relevant settings are `CALLOSUM_ALLOW_DATA_EGRESS=1` and `GOOGLE_API_KEY`.
+To enable Gemini-backed features, either set them in **Settings → AI features** (paste your Gemini API key and turn on **Allow AI features** — the convenient path) or, equivalently, start Callosum with the environment variables `CALLOSUM_ALLOW_DATA_EGRESS=1` and `GOOGLE_API_KEY` configured. A value set in Settings is stored locally (in your home folder, outside the app and any synced folder) and overrides the environment fallback; either way, AI stays off until you explicitly turn it on.
 
 Important distinctions:
 

@@ -115,6 +115,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         "/summaries",
         "/summaries/{summary_id}",
         "/help/corpus",
+        "/settings",
         "/tags",
         "/papers/{paper_id}/suggested-tags",
         "/papers/{paper_id}/statcheck",
@@ -206,6 +207,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/gaps/dismiss", frozenset({"POST"})),
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
+        ("/settings", frozenset({"PUT"})),  # BYOK: set key + egress consent (inc 146)
     }
     api_routes = [
         route

@@ -257,6 +257,8 @@
   .settings-input { width: 100%; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--panel); color: var(--ink); font: inherit; font-size: 12.5px; padding: 6px 9px; }
   .settings-input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   .settings-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
+  .settings-keyrow { display: flex; gap: 8px; align-items: center; }  /* BYOK key input + Save/Clear (inc 146) */
+  .settings-keyrow .settings-input { flex: 1; }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
 
@@ -5570,6 +5572,58 @@
     const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID.` : "Done.";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your name"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "e.g. Ada Lovelace", value: name, onChange: (e) => setName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Other published names (one per line)"), /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 2, placeholder: "A. Lovelace\nAugusta Ada King", value: variants, onChange: (e) => setVariants(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (recommended \u2014 gives an exact match)"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : "Refresh my papers")), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Resolved via OpenAlex (public metadata \u2014 not the Gemini gate); never uses an LLM."));
   }
+  function AiSettings() {
+    const [status, setStatus] = useState(null);
+    const [keyInput, setKeyInput] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) setStatus(r.data);
+      });
+    }, []);
+    const applyKey = async (value, doneMsg) => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/settings", { set_api_key: true, api_key: value });
+      setBusy(false);
+      if (r.ok) {
+        setStatus(r.data);
+        setKeyInput("");
+        setMsg(doneMsg);
+      } else setMsg("Couldn't save: " + (r.error || "error"));
+    };
+    const toggleEgress = async () => {
+      if (!status) return;
+      const r = await apiPut("/settings", { data_egress_enabled: !status.data_egress_enabled });
+      if (r.ok) setStatus(r.data);
+    };
+    const egressOn = !!(status && status.data_egress_enabled);
+    const keySet = !!(status && status.api_key_set);
+    const fromEnv = status && status.api_key_source === "env";
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI features"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Gemini API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via the GOOGLE_API_KEY environment variable." : "A key is saved on this machine." : "Not set. AI summaries need a key \u2014 stored locally, never sent anywhere but Google.", " ", /* @__PURE__ */ React.createElement("a", { href: "https://aistudio.google.com/apikey", target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192"))), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: keySet && !fromEnv ? "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved) \u2014 type to replace" : "Paste your key",
+        value: keyInput,
+        onChange: (e) => setKeyInput(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: () => applyKey(keyInput, "Key saved.") }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => applyKey("", "Key cleared.") }, "Clear"))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to Google)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to Google's Gemini API; every sentence is still verified locally against your PDFs.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (egressOn ? " on" : ""),
+        role: "switch",
+        "aria-checked": egressOn,
+        "aria-label": "Allow AI features",
+        onClick: toggleEgress
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
   function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal settings-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Settings"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
@@ -5583,7 +5637,7 @@
         onClick: () => onTheme(dark ? "light" : "dark")
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Axes"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Hide uncertain papers by default", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "New axis cards start in the assigned/manual-only view (the \u{1F441} toggle).")), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement(AiSettings, null), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Axes"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Hide uncertain papers by default", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "New axis cards start in the assigned/manual-only view (the \u{1F441} toggle).")), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",

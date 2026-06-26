@@ -35,11 +35,21 @@ class GeminiConfig:
 
     @classmethod
     def from_environment(cls) -> "GeminiConfig":
-        enabled = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
+        # BYOK (inc 146): the Settings UI can store an API key + egress consent in a local file; when present,
+        # the stored value OVERLAYS the env default (env stays the fallback, so existing .env setups are
+        # unaffected). Lazy import keeps integrations/ loosely coupled to app.backend.
+        from app.backend.app_settings import load_settings
+
+        stored = load_settings()
+        env_egress = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
+        stored_egress = stored.get("data_egress_enabled")
+        enabled = stored_egress if isinstance(stored_egress, bool) else env_egress
         # The help assistant has its OWN, independent toggle: it sends only the user's question + the public
         # help docs (never library text), so it must NOT be gated by the library data-egress flag above.
         help_enabled = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
-        return cls(data_egress_enabled=enabled, help_assistant_enabled=help_enabled)
+        stored_key = stored.get("api_key")
+        api_key = stored_key if isinstance(stored_key, str) and stored_key.strip() else None
+        return cls(data_egress_enabled=enabled, help_assistant_enabled=help_enabled, api_key=api_key)
 
     def resolved_api_key(self) -> str | None:
         return self.api_key or os.getenv(self.api_key_env)

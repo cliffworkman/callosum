@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 145** (see Increment workflow) with **524 pytest tests
+It is currently at **Increment 146** (see Increment workflow) with **532 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -223,7 +223,8 @@ callosum/
 │   │   │                          file-serving, inc 91],methods [statcheck, inc 95],citations [formatted-citation
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
 │   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
-   │                          gaps [literature gap-finder, inc 135],help}.py [models + handlers])
+   │                          gaps [literature gap-finder, inc 135],settings [BYOK: Gemini key + egress
+   │                          consent, inc 146],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables; re-exported from
 │   │   │                          schema — inc 137 split to keep schema.py < 600], gap_repo.py [gap_candidates
@@ -327,7 +328,11 @@ per-probe split). Tests are now per-resource (`tests/test_papers.py`, etc.) shar
 
 `GOOGLE_API_KEY` (Gemini) and `CALLOSUM_DB_URL` come from the environment. Never commit a key
 or hardcode one in a `.py` file. Non-secret constants (model names, thresholds, table names)
-are fine as literals. When a `.env` is introduced, it must be gitignored.
+are fine as literals. When a `.env` is introduced, it must be gitignored. **BYOK (inc 146):** a user can also
+set the Gemini key + egress consent from Settings; they persist in a local file at `~/.callosum/app-settings.json`
+(`app/backend/app_settings.py`; override `CALLOSUM_SETTINGS_PATH`) — outside the repo + the synced Dropbox folder.
+The key is **write-only over the wire** (`GET /settings` returns a set/not-set status, never the value), never
+logged, and `GeminiConfig.from_environment()` overlays it over the env fallback. Egress stays default-off.
 
 ### 3. Parameterized SQL only
 
@@ -764,7 +769,39 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 145 (discoverable multi-paper focus query — Skeptical synthesizer dogfood;
+*Last updated: 2026-06-26 — increment 146 (BYOK — Gemini API key + egress consent from the Settings UI):
+the user-prioritized feature after the slate. Set the Gemini **API key** and toggle **data egress** from
+**Settings → AI features**, instead of editing env vars — so a GitHub user can enable AI summaries end-to-end
+from the UI. New `app/backend/app_settings.py` (a tiny local store: read/write a JSON file at
+**`~/.callosum/app-settings.json`**, override `CALLOSUM_SETTINGS_PATH` — *outside the repo + the synced Dropbox
+folder*, so the secret never travels with a copy of the library `.sqlite`; atomic write, best-effort 0600,
+fail-soft load). **`GeminiConfig.from_environment()` overlays** the stored key + egress over the env defaults
+(lazy import; stored wins, env is the fallback) — so all ~12 AI call sites pick up BYOK with **zero call-site
+changes**. New `routers/settings.py`: **`GET /settings`** returns **status only** (`api_key_set`,
+`api_key_source`∈{ui,env,null}, `data_egress_enabled`, `egress_source`) — *never the key value*; **`PUT /settings`**
+sets/clears the key + toggles egress (`set_api_key` guard so an egress-only PUT can't clear the key; `max_length`
+512 → 422). Frontend: a Settings **AI features** section (`35_settings.jsx`) — a password-masked key input +
+Save/Clear (+ a "Get a key →" link) and an **"Allow AI features (sends text to Google)"** toggle (default OFF);
+one CSS class `.settings-keyrow`. **The egress invariant (#3) is unchanged** — egress stays default-OFF (stored
+flag absent → env fallback, default off), the `EgressGated*` gate logic is byte-identical, and a present key does
+**not** bypass the gate (test: stored egress OFF + key set → still raises `DataEgressDisabledError`). The UI
+toggle is an explicit, labeled, default-off opt-in (consent surface moved from env var to UI control). **Key
+storage was the user's call** (gitignored local file, over OS-keychain/DB/in-memory) — realized at `~/.callosum/`
+to keep the secret out of the synced DB; OS-keychain is the documented hardening upgrade (ties to the
+desktop-shell packaging). **Audit `.claude/security-audits/2026-06-26_byok-api-key.md` PASS** (key never
+logged/returned/committed; length-capped; fixed/env settings path → no traversal; no new dependency; egress-off
+still blocks). **Rule #10:** `route_35_settings.md` extended (BYOK steps + the key-secrecy + egress-default-off
+assertions) → surface **108/108 API + 547/547 FE, 0 uncovered**. help corpus's Settings + privacy sections updated
+(`HELP-DOCS-SYNCED` → 146). pytest **532** (+8 `test_settings.py`: store round-trip/clear, GET-never-returns-key,
+PUT set/clear/toggle, oversized-key 422, env-source status, config overlay of stored key + egress, egress-off-
+still-blocks; route-surface extended); `ruff` clean; build + assembly green; **no migration**. **Verified headed,
+no egress** (`.local/visual/drive_inc146_byok.py` — egress toggle defaults OFF; paste a key → Save → `GET /settings`
+has **no key value in the body or DOM**; toggle egress on→off, 0 genai; Clear → stored UI key removed, falls back
+to env; 0 console/page/genai). Notes: `INCREMENT-146-NOTES.md`. **NEXT (deferred):** OS-keychain storage
+(hardening / desktop-shell); a "test this key" egress-gated ping; an inline "AI is off — enable in Settings" nudge
+in the synthesis pane when egress is off.
+
+Earlier — increment 145 (discoverable multi-paper focus query — Skeptical synthesizer dogfood;
 **completes the build-and-test slate, 4/4**): the last slate build. A dispatched **Skeptical synthesizer** persona
 agent drove the select→summarize flow and found the trust machinery is strong (every claim carries quote+page+
 confidence; verified-vs-flagged is clean) and **the focus query already worked** (a query in the Synthesis textarea
