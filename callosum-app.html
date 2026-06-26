@@ -6032,6 +6032,11 @@
       });
     }, [libRefresh]);
     useEffect(() => {
+      if (selected == null && !trashView && listState.status === "ready" && listState.papers.length > 0) {
+        setSelected(listState.papers[0].id);
+      }
+    }, [selected, trashView, listState]);
+    useEffect(() => {
       refreshStatcheckChip();
     }, [refreshStatcheckChip]);
     useEffect(() => {

@@ -445,6 +445,15 @@ function App() {
     api("/papers/item-types").then(r => { if (r.ok) setItemTypes(r.data); });
   }, [libRefresh]);
 
+  // inc-138: auto-select the top library paper on load so Details start populated (not the empty hint). Fires
+  // only when nothing is selected and the (non-trash) list is ready with papers — covers first load + a cleared
+  // selection (e.g. the selected paper was trashed). Never overrides a paper the user has already selected.
+  useEffect(() => {
+    if (selected == null && !trashView && listState.status === "ready" && listState.papers.length > 0) {
+      setSelected(listState.papers[0].id);
+    }
+  }, [selected, trashView, listState]);
+
   // inc-100/122: the statcheck "N flagged" header chip — fetched on mount; refreshed after a batch run via the
   // METHODS "Statistics check" section's ctx.onStatcheckRan (the batch no longer lives in Settings).
   useEffect(() => { refreshStatcheckChip(); }, [refreshStatcheckChip]);

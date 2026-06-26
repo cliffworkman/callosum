@@ -41,11 +41,13 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
    ok). Click **TAGS** → the tag list renders, or the **"No tags yet — add tags from a paper's Details pane"**
    empty-state hint when the library has none (it always shows now — discoverability). Reload and confirm the
    open section **persists** (`callosum.theoryOpen`).
-5. **METHODS accordion — right pane** (`25_detail.jsx`): the right pane is the **DETAILS** accordion section. With
-   nothing selected it shows the **"Select a paper to see its details"** hint; selecting a paper renders the
-   editable Details. (AXES scoring/merge/suggest is exercised in its own route — here just confirm AXES lists the
-   seeded axis.) Bonus check: start nothing, switch THEORY to SYNTHESIS, select a paper (METHODS shows details),
-   switch THEORY back to AXES — the synthesis section's state is preserved (mount-but-hide).
+5. **METHODS accordion — right pane** (`25_detail.jsx`): the right pane is the **DETAILS** accordion section. On
+   load the **top library paper is auto-selected** (inc 138), so DETAILS shows its editable Details right away (not
+   the empty hint); selecting a different paper updates it. The **"Select a paper to see its details"** hint shows
+   only when nothing is selected (e.g. an empty library — no paper to auto-select). (AXES scoring/merge/suggest is
+   exercised in its own route — here just confirm AXES lists the seeded axis.) Bonus check: switch THEORY to
+   SYNTHESIS, select another paper (METHODS shows its details), switch THEORY back to AXES — the synthesis section's
+   state is preserved (mount-but-hide).
 6. **Settings** (`35_settings.jsx`): open the gear. Confirm theme toggle, default-axis-cutoff slider,
    hide-uncertain toggle, watched-folder auto-rescan toggle, help-assistant section all render. Toggle dark
    mode on/off and confirm the chrome re-themes while the (future) PDF page stays light. Close.

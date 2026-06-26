@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-26 — Increment 138: auto-select the top library paper on load (Details populated)
+- **Files:** `app/frontend/js/40_app.jsx`, `callosum-app.html`, `.claude/qa-routes/route_00_smoke_readonly.md`,
+  `INCREMENT-138-NOTES.md`.
+- **What:** On load the top library paper is auto-selected, so the METHODS → DETAILS section starts populated
+  (its editable Details) instead of the "Select a paper …" hint. Fires only when nothing is selected and the
+  (non-trash) list is ready; never overrides a user's selection. Frontend-only.
+- **Why:** The right pane started empty until the user clicked a paper; auto-selecting the top one makes Details
+  immediately useful on load (user request).
+- **Revert:** remove the auto-select effect from `40_app.jsx` + rebuild.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 137) — help corpus current as of the gap-finder v2 (direction/axis/cache) rewrite -->
 ## 2026-06-26 — Increment 137: gap-finder v2 (forward gap + axis-scoped + persistent cache)
 - **Files:** `app/backend/clustering/gapfinder.py`, `integrations/openalex/adapter.py`,

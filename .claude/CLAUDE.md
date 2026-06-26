@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 137** (see Increment workflow) with **519 pytest tests
+It is currently at **Increment 138** (see Increment workflow) with **519 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -746,7 +746,23 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 137 (gap-finder v2 — forward gap + axis-scoped + persistent cache): rounds
+*Last updated: 2026-06-26 — increment 138 (auto-select the top library paper on load — Details populated): on app
+load the **top library paper is auto-selected**, so the METHODS → DETAILS section starts **populated** (its editable
+Details) instead of the empty "Select a paper …" hint — the right pane is useful without a first click. **Frontend-only**
+(`40_app.jsx`): an effect sets `selected` to `listState.papers[0].id` when **nothing is selected** and the **(non-trash)**
+list is ready with papers; it fires on first load + when a selection clears to null (e.g. the selected paper was trashed),
+and **never overrides** a paper the user already picked (guarded `selected == null` → idempotent, no loop). Auto-selects
+**Details only** (does not open a PDF tab — `openPdf` is separate). **No Principles trigger** (auto-triggers an existing
+view-state), **no new surface** (surface map unchanged 106/106 API + 528/528 FE, 0 uncovered) — `route_00` step 5 reworded
+(DETAILS starts populated; the hint shows only for an empty library). pytest **519** unchanged; `ruff` clean; build +
+assembly green. **Verified headed, no egress** (`.local/visual/drive_inc138_autoselect.py` — on load the top paper's
+title fills Details, no hint, clicking another paper updates it; 0 console/page/genai). Notes: `INCREMENT-138-NOTES.md`.
+**NEXT (queued):** the accordion-tabs design rule (tabs-within-a-section for like-with-like — Axes+Tags tabs; order
+Data-consistency before Statistics-check; codify in `DESIGN.md`); gap-finder followed-authors / similarity ranking; a
+cadence auto-refresh. **Watch (rule #1):** `clustering/my_publications.py` at **594/600** — split before the next backend
+addition there.
+
+Earlier — increment 137 (gap-finder v2 — forward gap + axis-scoped + persistent cache): rounds
 out the inc-135 backward gap-finder with the user-chosen scope. **Forward gap** (`compute_gaps(direction="forward")`):
 works that **cite** ≥ N of your papers ("cites N of your papers") — newer work building on your collection — via new
 OpenAlex `fetch_work_id` + `fetch_citing_works` (`?filter=cites:<W…>`, validated `^W\d+$`, cached `citing:<id>`,
