@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 130** (see Increment workflow) with **478 pytest tests
+It is currently at **Increment 131** (see Increment workflow) with **493 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -228,7 +228,7 @@ callosum/
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
 │   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78],
 │   │   │                          annotations_repo.py [native-annotation data access, inc 91],
-│   │   │                          signals_repo.py [open_science_signals: statcheck summaries, inc 97],
+│   │   │                          signals_repo.py [open_science_signals: statcheck + retraction status, inc 97/131],
 │   │   │                          watched_repo.py [watched_folders, inc 98],
    │   │                          findings_repo.py [paper_findings: FACT/CANDIDATE contract, inc 130])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
@@ -239,7 +239,8 @@ callosum/
 │   │                          axis_assignments.py [manual-override + state API], axis_suggestion.py,
 │   │                          axis_operations.py, duplicate_detection.py, tag_suggestion.py [inc 72],
 │   │                          my_publications.py [own-papers resolver + import hook, inc 78])
-│   │   ├── methods/               (statcheck.py [deterministic NHST p-value recomputation, inc 95]; GRIM/p-curve later)
+│   │   ├── methods/               (statcheck.py [NHST p-value recomputation, inc 95], pcurve.py [inc 126], grim.py
+   │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131])
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          citeproc_runner.js [Node sidecar; per-item + mode:"document"], csl/{styles,locales} [bundled CSL data, CC-BY-SA])
@@ -738,7 +739,37 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 130 (findings subsystem — the FACT-vs-CANDIDATE backbone, foundation only):
+*Last updated: 2026-06-26 — increment 131 (retraction producer, SP1: Crossref + OpenAlex — the first findings
+producer): the first real producer feeding the inc-130 findings contract. For each library paper's DOI, query
+**multiple sources** (Crossref + OpenAlex in SP1), **merge**, and persist a **FACT** in `paper_findings` (the
+Review-pane FactMark + a notice link + the ◆-fact card mark) plus an honest per-paper **check status** in
+`open_science_signals` (`none` when checked-clean, `unchecked` when no DOI — **silence ≠ clean**) that also powers
+a library **"Retracted" chip + filter**. The user asked for *all three* sources ("critical to know before
+citing") → SP1 = the per-DOI two-source core via the existing audited adapters; **SP2 (inc 132) adds the
+Retraction Watch DB** as a third checker (the merge layer already accepts it → additive). New
+`app/backend/methods/retraction.py` (pure `RetractionSignal`/`merge_signals`/`detect_retraction`/`apply_retraction`;
+checkers are injected `RetractionChecker`s → **hermetic**; no-DOI → `unchecked`, a source raising is skipped never
+aborts, a now-clean paper supersedes its stale FACT); `CrossrefClient.lookup_retraction` parses the raw
+`message.update-to`, `OpenAlexClient.lookup_retraction` reads `is_retracted` (the type→status map is **local to
+each adapter** — no `methods`→`integrations` cycle); `signals_repo` store/count/get retraction status; endpoints
+(`routers/methods.py`) `GET /papers/{id}/retraction` (read-only) + async `POST`/`GET /methods/retraction/run` +
+`GET /methods/retraction/summary`; `app.state.retraction_jobs` + `retraction_checkers` (overridable in tests);
+`SIGNAL_FILTERS["retraction-retracted"]` for the filter; the frontend FactMark/status-line/chip/filter/batch. **No
+migration** (reuses `paper_findings` + `open_science_signals`). **Honesty/Principles:** a registry FACT relayed
+verbatim (no LLM), evidence-carried (sources + notice), **no accusation** (the chip is a *filter* count, never an
+author/reputation signal — A-A veto), and `notice_url` is **derived-only** (`https://doi.org/<doi>` → no SSRF).
+Public DOI metadata egress — **not** the Gemini gate. **Principles gate run** (declined the author-reputation +
+unchecked-as-clean easy paths); **audit `.claude/security-audits/2026-06-26_retraction.md` PASS**; **rule #10**
+`route_39_retraction.md` → surface **98/98 API + 504/504 FE, 0 uncovered**; help corpus gained a "Checking for
+retractions" section (`HELP-DOCS-SYNCED` → 131). pytest **493** (+15 `test_retraction.py`); `ruff` clean; build +
+assembly green. **Verified headed, no egress** (`.local/visual/drive_inc131_retraction.py` — chip + filter,
+FactMark + notice link, checked-none / unchecked status lines; 0 console/page errors, 0 genai hits). Notes:
+`INCREMENT-131-NOTES.md`. **NEXT (queued):** SP2 (inc 132) — the **Retraction Watch DB** bulk source (a
+`retraction_records` table + a download/index job + the third checker); then an on-import auto-check + TTL expiry;
+then statcheck/p-curve/GRIM can optionally emit *candidates* into the same findings store + a unified
+"needs review" facet.
+
+Earlier — increment 130 (findings subsystem — the FACT-vs-CANDIDATE backbone, foundation only):
 the architectural spine the METHODS "data-detective" features (statcheck, p-curve, GRIM, and the coming retraction
 producer) plug into — a persistent, typed, per-paper **findings** store + a review surface. **v1 ships the contract +
 UI only — no producer is wired yet** (retraction is the explicit next increment; user-chosen scope "foundation only").

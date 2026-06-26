@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 131) — help corpus current as of the "Retraction checks" section -->
+## 2026-06-26 — Increment 131: retraction producer (SP1: Crossref + OpenAlex) — the first findings producer
+- **Files:** `app/backend/methods/retraction.py` (new), `integrations/crossref/adapter.py`,
+  `integrations/openalex/adapter.py`, `app/backend/persistence/signals_repo.py`, `repository.py`,
+  `app/backend/api/routers/methods.py`, `app.py`, `app/frontend/js/{08_methods_findings,10_pdf_layer,40_app}.jsx`,
+  `styles.css`, `tests/test_retraction.py` (new) + `test_health.py`, `.claude/qa-routes/route_39_retraction.md` (new),
+  `.claude/security-audits/2026-06-26_retraction.md` (new), `DESIGN.md`, `help_content.md`, `INCREMENT-131-NOTES.md`.
+- **What:** Multi-source (Crossref + OpenAlex) per-DOI retraction detection → a FACT in `paper_findings`
+  (Review-pane FactMark + notice link + ◆ card mark) + an honest per-paper check status in
+  `open_science_signals` (silence ≠ clean) + a library "Retracted" chip/filter + a library-wide batch. `GET
+  /papers/{id}/retraction`, `POST`/`GET /methods/retraction/run`, `GET /methods/retraction/summary`. No migration.
+- **Why:** The first real findings producer; retractions are high-stakes to know before citing. A registry FACT
+  relayed verbatim (no LLM), evidence-carried (sources + notice), no-accusation (the A-A veto), silence-honest.
+- **Revert:** restore the listed files from git (commits `…t1` core, `…t2` endpoints, `…t3` UI, + this docs/gates
+  commit); no migration to undo (reuses `paper_findings` + `open_science_signals`).
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 130) — help corpus current as of the findings "Review" section -->
 ## 2026-06-26 — Increment 130: findings subsystem (FACT-vs-CANDIDATE backbone), foundation only
 - **Files:** `app/backend/persistence/schema.py` + `findings_repo.py` (new), `alembic/versions/0016_paper_findings.py`

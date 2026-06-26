@@ -617,7 +617,17 @@ A paper can carry **findings** — short, sourced notes about it. Select a paper
 
 In the library, a card shows a small **◆ fact** mark when a paper has a fact, and an **"N to review"** badge counting its unreviewed candidates. The badge tracks **your review work**, not paper quality — it's never a score or a ranking, and it disappears once you've reviewed everything. Nothing is ever decided for you, and nothing labels a paper or its authors; you stay the filter.
 
-(In this version findings are the foundation for upcoming checks — the surface is here before the first automatic producer is wired in.)
+<!-- section: retraction-checks -->
+## Checking for retractions
+Citing a retracted paper is a real hazard, so Callosum can check your library against public registries. In the **METHODS** pane's **Review** section, click **Check all papers for retractions**: each paper's DOI is looked up in **Crossref** and **OpenAlex** (public metadata, no AI), and any retraction, correction, or expression of concern is recorded as a **finding** on that paper.
+
+How results show up:
+
+- A retracted paper gets a **⚠ Retracted** mark (in its Review section and on its library card) with a link to the **retraction notice** and the source(s) that reported it — a registry record to **verify before citing**, never an accusation of the authors.
+- A red **"⚠ N retracted"** chip appears in the library header; click it to filter to just those papers.
+- For a paper that was checked and **nothing** was found, the Review section says **"checked — none found"**; a paper with **no DOI** says **"unchecked — no DOI"**. Silence is never presented as "clean" — absence of a mark only means *nothing was found among the papers that could be checked*.
+
+Re-run the check anytime (retractions can happen years after publication); it updates each paper and removes a mark if a record is ever withdrawn.
 
 <!-- section: duplicates -->
 ## Finding possible duplicates

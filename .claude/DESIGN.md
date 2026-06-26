@@ -272,7 +272,11 @@ neutral persistent **mark** (`.fact-mark`, e.g. "◆ retracted"), a **CANDIDATE*
 (`.finding-card` → Confirmed / Accepted[needs reason] / Noted); the library badge (`.finding-badge`, "N to review")
 describes the user's **WORK STATE**, never paper quality, and shows nothing at zero. Speculative candidates get a
 `.speculative` dashed card; every candidate routes to its page at **region** precision (no fabricated exact rect).
-This is the FACT-vs-CANDIDATE backbone the later producers (retraction, etc.) plug into.
+This is the FACT-vs-CANDIDATE backbone the later producers plug into. **inc 131 (retraction)** is the first
+producer: its FACT renders a specialized FactMark (`.fact-mark.retraction` — `--flag` amber for correction/concern,
+`--danger` red for `.retraction-severe` = retracted) carrying a **notice** link + the flagging sources; a per-paper
+`.retraction-status` line states "checked — none found" / "unchecked — no DOI" (silence ≠ clean); the
+`.trash-toggle.retraction-chip` (red `--danger`) is the library "N retracted" *filter* count, never a verdict.
 
 **Accessibility.** Differentiate sections/states by **icon + label, not color alone**; prefer a highlight/glow over
 a blink; gate motion behind `prefers-reduced-motion`. Accordion headers carry `aria-expanded`.

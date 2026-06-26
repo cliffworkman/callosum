@@ -240,10 +240,13 @@ explainable reasons) + evaluate support/contrast/mention via the NLI spine. Neve
 contract SHIPPED; first producer next]** the module-registry accordion shipped **inc 121** (THEORY/METHODS panes);
 the **FACT-vs-candidate findings model** shipped **inc 130** (`paper_findings` store + `findings_repo.upsert_findings`
 producer contract + the METHODS "Review" section + the library "N to review" work-state badge — **contract + UI only,
-no producer wired**). **REMAINING — the first real producer = retraction** (Crossref / Retraction Watch → a **FACT**
-with a TTL; its own increment, trips the audit gate [new external fetch] + the Principles gate); then statcheck /
-transparency producers can emit candidates into the same store. **Cross-cut:** system FACTs (`RETRACTED`) filterable
-via the inc-71 tag mechanism (see #19); a library-wide "needs review" facet can read `findings_overview`.
+no producer wired**). the **first producer = retraction** shipped **inc 131 (SP1: Crossref + OpenAlex)** — multi-source per-DOI →
+a FACT (Review FactMark + notice link + ◆ card mark) + an honest per-paper check status (silence ≠ clean) +
+a library "Retracted" chip/filter + a batch. **REMAINING: SP2 (inc 132) = the Retraction Watch DB** bulk source
+(a `retraction_records` table + a download/index job + a third checker; the merge layer already accepts it →
+additive); then an on-import auto-check + TTL expiry; then statcheck / transparency producers can emit *candidates*
+into the same store. **Cross-cut:** system FACTs (`RETRACTED`) filterable via the inc-71 tag mechanism (see #19);
+a library-wide "needs review" facet can read `findings_overview`.
 
 **32. THEORY/METHODS module pool** (`…_theorymethodsextension.md`) — **[future track]** additional principle-aligned
 panel-module candidates; depends on the findings subsystem + module registry (#31).
