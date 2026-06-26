@@ -19,7 +19,7 @@ function FactMark({ finding }) {
     const severe = p.status === "retracted";
     return (
       <span className={"fact-mark retraction" + (severe ? " retraction-severe" : "")}
-        title={"Source(s): " + (p.sources || []).join(", ")}>
+        title={"Source(s): " + (p.sources || []).join(", ") + (p.reason ? " · Reason: " + p.reason : "")}>
         ⚠ {label}
         {p.notice_url && <> · <a className="btn-link" href={p.notice_url} target="_blank" rel="noopener noreferrer">notice</a></>}
       </span>

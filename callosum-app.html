@@ -1849,7 +1849,7 @@
         "span",
         {
           className: "fact-mark retraction" + (severe ? " retraction-severe" : ""),
-          title: "Source(s): " + (p.sources || []).join(", ")
+          title: "Source(s): " + (p.sources || []).join(", ") + (p.reason ? " \xB7 Reason: " + p.reason : "")
         },
         "\u26A0 ",
         label,

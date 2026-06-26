@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 132) — help corpus current as of the RW-database paragraph -->
+## 2026-06-26 — Increment 132: Retraction Watch DB (SP2) — the bulk third retraction source
+- **Files:** `app/backend/persistence/schema.py` + `retraction_repo.py` (new), `alembic/versions/0017_retraction_records.py`
+  (new), `integrations/retraction_watch/{__init__,adapter}.py` (new), `app/backend/methods/retraction.py`,
+  `app/backend/api/routers/methods.py`, `app.py`, `app/frontend/js/08_methods_findings.jsx` + `styles.css`,
+  `tests/test_retraction_watch.py` (new) + `test_health.py`, `.claude/qa-routes/route_40_retraction_watch.md` (new),
+  `.claude/security-audits/2026-06-26_retraction-watch.md` (new), `help_content.md`, `INCREMENT-132-NOTES.md`.
+- **What:** Download the Crossref-hosted Retraction Watch DB (CC0 CSV) into a local `retraction_records` mirror
+  (migration 0017) + a third checker (`RETRACTION_WATCH_CHECKER`, prepended to DEFAULT_CHECKERS — richest source,
+  its reason/date/notice wins the merge) + `GET /methods/retraction/database` + async `POST`/`GET
+  /methods/retraction/database/refresh` + a "Refresh database" UI with an as-of line. Reinstatements never flagged;
+  replace-all keeps the mirror honest.
+- **Why:** Completes the user's "all three sources" ask — the RW DB is the authoritative, richest retraction
+  source; matching offline scales to the whole library from one download.
+- **Revert:** restore the listed files from git (commits `…t1` storage+adapter, `…t2` checker+endpoints, `…t3` UI,
+  + this docs/gates commit); migration 0017 is additive (drop `retraction_records` to revert the schema).
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 131) — help corpus current as of the "Retraction checks" section -->
 ## 2026-06-26 — Increment 131: retraction producer (SP1: Crossref + OpenAlex) — the first findings producer
 - **Files:** `app/backend/methods/retraction.py` (new), `integrations/crossref/adapter.py`,

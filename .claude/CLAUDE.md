@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 131** (see Increment workflow) with **493 pytest tests
+It is currently at **Increment 132** (see Increment workflow) with **501 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -230,7 +230,8 @@ callosum/
 │   │   │                          annotations_repo.py [native-annotation data access, inc 91],
 │   │   │                          signals_repo.py [open_science_signals: statcheck + retraction status, inc 97/131],
 │   │   │                          watched_repo.py [watched_folders, inc 98],
-   │   │                          findings_repo.py [paper_findings: FACT/CANDIDATE contract, inc 130])
+   │   │                          findings_repo.py [paper_findings: FACT/CANDIDATE contract, inc 130],
+   │   │                          retraction_repo.py [retraction_records: local Retraction Watch mirror, inc 132])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
 │   │   │                          location.py, cli.py)
@@ -264,8 +265,8 @@ callosum/
 │   └── libreoffice/               app, NOT a server integration). inc 108: callosum_cite.py [UNO cite-while-you-write
 │                                  macro], README.md, selftest_uno.py [headless round-trip harness]. Word/Docs next.
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
-│                                  arxiv, biorxiv, osf [impl]; api_cache.py [shared cache helper]; semantic-scholar,
-│                                  grobid, mendeley [planned])
+│                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
+│                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
@@ -274,7 +275,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0016_paper_findings)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0017_retraction_records)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -739,7 +740,34 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 131 (retraction producer, SP1: Crossref + OpenAlex — the first findings
+*Last updated: 2026-06-26 — increment 132 (Retraction Watch DB, SP2 — the bulk third retraction source):
+completes the user's "all three sources" ask. The **Retraction Watch Database** (Crossref-hosted, CC0) joins
+Crossref + OpenAlex (SP1) as the **third checker** — downloaded once into a local **`retraction_records`** mirror
+(migration **0017**, additive/guarded) and matched against every library DOI **offline**; it's the **richest**
+source (nature, date, **reason**, notice), **prepended** to `DEFAULT_CHECKERS` so its detail wins the merge (an
+empty mirror → None, the SP1 sources still work). New `persistence/retraction_repo.py` (`replace_retraction_records`
+[DELETE-all + bulk INSERT — authoritative, withdrawn records vanish] / `lookup_retraction_record` [most-severe] /
+`retraction_db_status`); `integrations/retraction_watch/` (`RetractionWatchClient` — an injectable **size-capped**
+https fetcher mirroring `acquisition/fetch.py`, mailto from `CALLOSUM_CROSSREF_MAILTO`, **absent →
+`RetractionWatchUnavailable`** fail-closed; `parse_retraction_csv` — **stdlib `csv`, no new dependency**, tolerant
+headers, **skips no-DOI + Reinstatement + unknown natures**; `download_retraction_database`). `RETRACTION_WATCH_CHECKER`
+in `methods/retraction.py`; endpoints `GET /methods/retraction/database` + async `POST`/`GET
+/methods/retraction/database/refresh` (`app.state.retraction_db_jobs` + `retraction_watch_client`, overridable);
+a "Refresh database" UI + as-of line + the RW **reason** in the FactMark tooltip. **No new dependency.** Public
+**bulk CC0 metadata** (manual-triggered, snapshot date shown) — **not** the Gemini gate; **reinstatements never
+flagged** (an un-retraction is the opposite of a finding); `notice_url` derived-only (no SSRF). **Audit
+`.claude/security-audits/2026-06-26_retraction-watch.md` PASS**; **rule #10** `route_40_retraction_watch.md` →
+surface **101/101 API + 506/506 FE, 0 uncovered**; help corpus gained an RW-database paragraph (`HELP-DOCS-SYNCED`
+→ 132). pytest **501** (+8 `test_retraction_watch.py`); `ruff` clean; build + assembly green; migration head 0017.
+**Verified headed, no egress** (`.local/visual/drive_inc132_retraction_watch.py` — as-of line, FactMark + notice +
+RW-reason tooltip; 0 console/page/genai). **The real CSV download is the user's manual check** (needs their
+`CALLOSUM_CROSSREF_MAILTO` + a ~tens-of-MB fetch; verifies the live URL + CSV schema the hermetic tests assume).
+`methods.py` at **463/600** — a `routers/retraction.py` split when it next grows. Notes: `INCREMENT-132-NOTES.md`.
+**This completes the retraction arc (SP1 inc 131 + SP2 inc 132) — all three sources.** **NEXT:** an on-import
+auto-check + TTL/cadence refresh; then statcheck/p-curve/GRIM can emit *candidates* into the findings store + a
+unified library-wide "needs review" facet.
+
+Earlier — increment 131 (retraction producer, SP1: Crossref + OpenAlex — the first findings
 producer): the first real producer feeding the inc-130 findings contract. For each library paper's DOI, query
 **multiple sources** (Crossref + OpenAlex in SP1), **merge**, and persist a **FACT** in `paper_findings` (the
 Review-pane FactMark + a notice link + the ◆-fact card mark) plus an honest per-paper **check status** in

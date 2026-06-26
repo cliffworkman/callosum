@@ -629,6 +629,8 @@ How results show up:
 
 Re-run the check anytime (retractions can happen years after publication); it updates each paper and removes a mark if a record is ever withdrawn.
 
+For the most complete coverage, the Review section can also download the **Retraction Watch database** (a free, openly-licensed registry of retractions) into a local copy — click **Refresh database**. It's the richest source (it adds the *reason* and date), and once downloaded the check matches your library against it offline. The line shows how many records you have and the date of your copy; refresh it now and then to stay current. (Downloading needs a contact email set in `CALLOSUM_CROSSREF_MAILTO`, the same polite-pool setting Crossref uses.)
+
 <!-- section: duplicates -->
 ## Finding possible duplicates
 The **Duplicates** scan helps you find likely duplicate records without automatically deleting or merging anything.
