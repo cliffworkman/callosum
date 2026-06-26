@@ -263,7 +263,7 @@ function PaperCopyButton({ paperId }) {
 // inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
 // render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
 // caller append context buttons (the library passes its focus/trash buttons here).
-function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra, citeInfo }) {
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo }) {
   const unresolved = needsMetadata(p);
   return (
     <div
@@ -294,6 +294,9 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
         <span className={"tier " + tierClass(p.processing_tier)}>{tierLabel(p.processing_tier)}</span>
         {p.attachment_count > 0 && <span className="chip">{p.attachment_count} file{p.attachment_count > 1 ? "s" : ""}</span>}
         {unresolved && <span className="needs-doi">needs DOI</span>}
+        {/* inc 130: findings — a neutral FactMark + the work-state "N to review" badge (zero shows nothing). */}
+        {findings && findings.has_facts && <span className="fact-mark fact-mark-card" title="Has a fact finding (e.g. retracted)">◆ fact</span>}
+        {findings && findings.unreviewed_count > 0 && <span className="finding-badge" title="Unreviewed candidate findings to review">{findings.unreviewed_count} to review</span>}
         {/* inc 119 (SP3 #14): OpenAlex cited-by count; clickable (→ citing list) once the work id is known. */}
         {citeInfo && (citeInfo.workId
           ? <button className="paper-cite" title="Papers that cite this, per OpenAlex — click to view"
@@ -314,7 +317,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     onBulkSummarize, onBulkPcurve, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
-                    statcheckFlagged, onShowStatcheckFlagged,
+                    statcheckFlagged, onShowStatcheckFlagged, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenScan, onOpenImport }) {
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -500,6 +503,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             key={p.id} paper={p} selecting={selecting} isSelected={selected === p.id}
             onSelect={onSelect} onOpen={onOpenPdf}
             checked={selectedLibraryIds && selectedLibraryIds.has(p.id)} onToggleCheck={onToggleLibrarySelect}
+            findings={findingsByPaper && findingsByPaper[p.id]}
             footExtra={footExtra}
           />
         );

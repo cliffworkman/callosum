@@ -331,6 +331,16 @@ function App() {
     api("/methods/statcheck/summary").then(r => { if (r.ok) setStatcheckFlagged(r.data.flagged || 0); });
   }, []);
 
+  // inc-130: per-paper findings overview → the library "N to review" badge + FactMark. Re-fetched after a review.
+  const [findingsByPaper, setFindingsByPaper] = useState({});
+  const [findingsRefresh, setFindingsRefresh] = useState(0);
+  useEffect(() => {
+    api("/findings/overview").then(r => {
+      if (!r.ok) return;
+      const m = {}; r.data.forEach(o => { m[o.paper_id] = o; }); setFindingsByPaper(m);
+    });
+  }, [findingsRefresh, libRefresh]);
+
   // health check
   useEffect(() => {
     api("/health").then(r => {
@@ -418,6 +428,7 @@ function App() {
     onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault,
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
+    onFindingsChanged: () => setFindingsRefresh(n => n + 1),
   };
 
   return (
@@ -452,6 +463,7 @@ function App() {
           libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,
           librarySignalFilter, onClearSignalFilter: clearSignalFilter,
           statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
+          findingsByPaper,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),

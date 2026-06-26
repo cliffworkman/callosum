@@ -469,6 +469,23 @@
   .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
   .grim-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .grim-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  /* inc 130: findings subsystem (FactMark + review cards + library badge). Tokens only. */
+  .findings-section { font-size: 12px; }
+  .findings-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .fact-mark { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-sm); padding: 2px 7px; }
+  .fact-mark-card { font-size: 10px; padding: 1px 6px; color: var(--ink-3); margin-left: 6px; }
+  .finding-badge { font-size: 10px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 7px; margin-left: 6px; }
+  .finding-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; margin: 6px 0; }
+  .finding-card.speculative { border-style: dashed; }
+  .finding-card.reviewed { opacity: .7; }
+  .finding-head { display: flex; align-items: baseline; gap: 8px; }
+  .finding-text { font-size: 12.5px; color: var(--ink); }
+  .finding-tier { font-size: 10px; color: var(--flag); text-transform: uppercase; letter-spacing: .04em; }
+  .finding-anchor { display: inline-block; margin: 4px 0; font-size: 11px; }
+  .finding-actions { display: flex; gap: 10px; margin-top: 4px; }
+  .finding-reason { display: flex; gap: 6px; margin-top: 6px; }
+  .finding-reason-in { width: 180px; }
+  .finding-reviewed { font-size: 11.5px; color: var(--verified); margin-top: 4px; }
   .axis-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; }
   .term-chip {
     border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);
@@ -1808,6 +1825,50 @@
     return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check whether a reported mean (and SD) of ", /* @__PURE__ */ React.createElement("b", null, "integer-scale"), " data \u2014 counts or Likert-type items \u2014 is mathematically possible for the sample size. Enter a value you're reading; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement("label", null, "Mean ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.mean, onChange: set("mean"), placeholder: "3.45", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "SD ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.sd, onChange: set("sd"), placeholder: "(optional)", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "N ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.n, onChange: set("n"), placeholder: "50", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "items ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.items, onChange: set("items"), title: "scale items averaged per score; 1 for a single integer measure" })), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !f.mean.trim() || !f.n.trim(), onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIM"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grim.consistent ? "verified" : "flagged") }, d.grim.consistent ? "consistent" : "impossible"), !d.grim.consistent && /* @__PURE__ */ React.createElement("span", { className: "grim-near" }, "nearest possible: ", d.grim.nearest.join(" / "))), d.grim.no_power && /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "N is large for this precision \u2014 GRIM has little power here (most means are achievable)."), d.grimmer && /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIMMER"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grimmer.consistent ? "verified" : "flagged") }, d.grimmer.consistent ? "consistent" : "impossible")), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "GRIM/GRIMMER assume integer-scale data \u2014 they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.")), /* @__PURE__ */ React.createElement("div", { className: "grim-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "grim-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.")));
   }
   registerPaneSection({ id: "grim", label: "Data consistency (GRIM)", paneId: "methods", order: 30, render: () => /* @__PURE__ */ React.createElement(GrimSection, null) });
+  function findingText(f) {
+    const p = f.payload || {};
+    return p.desc || p.label || p.text || p.title || JSON.stringify(p);
+  }
+  function FactMark({ finding }) {
+    return /* @__PURE__ */ React.createElement("span", { className: "fact-mark", title: finding.source }, "\u25C6 ", findingText(finding));
+  }
+  function FindingCard({ finding, onReviewed, onOpenPaper }) {
+    const [reasonOpen, setReasonOpen] = useState(false);
+    const [reason, setReason] = useState("");
+    const [busy, setBusy] = useState(false);
+    const reviewed = finding.review_state && finding.review_state !== "unreviewed";
+    const page = finding.payload && finding.payload.page;
+    const review = async (state, why) => {
+      setBusy(true);
+      const r = await apiPost(`/findings/${finding.id}/review`, why ? { state, reason: why } : { state });
+      setBusy(false);
+      if (r.ok && onReviewed) onReviewed();
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "finding-card" + (finding.tier === "speculative" ? " speculative" : "") + (reviewed ? " reviewed" : "") }, /* @__PURE__ */ React.createElement("div", { className: "finding-head" }, /* @__PURE__ */ React.createElement("span", { className: "finding-text" }, findingText(finding)), finding.tier === "speculative" && /* @__PURE__ */ React.createElement("span", { className: "finding-tier" }, "speculative")), page != null && onOpenPaper && /* @__PURE__ */ React.createElement("button", { className: "btn-link finding-anchor", onClick: () => onOpenPaper({ id: finding.paper_id, title: "" }, { page, precision: "region" }) }, "show in paper \xB7 p.", page), reviewed ? /* @__PURE__ */ React.createElement("div", { className: "finding-reviewed" }, "\u2713 ", finding.review_state, finding.review_reason ? ` \u2014 ${finding.review_reason}` : "") : /* @__PURE__ */ React.createElement("div", { className: "finding-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => review("confirmed") }, "Confirmed"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => setReasonOpen((v) => !v) }, "Accepted\u2026"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => review("noted") }, "Noted")), reasonOpen && !reviewed && /* @__PURE__ */ React.createElement("div", { className: "finding-reason" }, /* @__PURE__ */ React.createElement("input", { className: "grim-in finding-reason-in", placeholder: "why (required)", value: reason, onChange: (e) => setReason(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy || !reason.trim(), onClick: () => review("accepted", reason.trim()) }, "save")));
+  }
+  function FindingsSection({ ctx }) {
+    const [state, setState] = useState({ status: "idle" });
+    const pid = ctx.selectedPaper;
+    const load = () => {
+      if (pid == null) {
+        setState({ status: "idle" });
+        return;
+      }
+      setState({ status: "loading" });
+      api(`/papers/${pid}/findings`).then((r) => setState(r.ok ? { status: "ready", data: r.data } : { status: "error", error: r.error }));
+    };
+    useEffect(load, [pid]);
+    const onReviewed = () => {
+      load();
+      if (ctx.onFindingsChanged) ctx.onFindingsChanged();
+    };
+    if (pid == null) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.");
+    if (state.status !== "ready") return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026");
+    const { facts, candidates } = state.data;
+    if (!facts.length && !candidates.length) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.");
+    return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper })));
+  }
+  registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
   const _CSL_TYPE_LABELS = {
     "article-journal": "Journal article",
     "article": "Article",
@@ -2009,7 +2070,7 @@
       copied ? /* @__PURE__ */ React.createElement(CheckIcon, null) : /* @__PURE__ */ React.createElement(ClipboardIcon, null)
     );
   }
-  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, footExtra, citeInfo }) {
+  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo }) {
     const unresolved = needsMetadata(p);
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -2033,7 +2094,7 @@
       ),
       /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, p.title || /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "Untitled")),
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, unresolved ? /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "metadata not yet resolved") : /* @__PURE__ */ React.createElement(React.Fragment, null, p.authors && p.authors.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, fmtAuthors(p.authors)), p.year && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", p.year), p.venue && /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, "\xB7 ", p.venue))),
-      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), citeInfo && (citeInfo.workId ? /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), findings && findings.has_facts && /* @__PURE__ */ React.createElement("span", { className: "fact-mark fact-mark-card", title: "Has a fact finding (e.g. retracted)" }, "\u25C6 fact"), findings && findings.unreviewed_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "finding-badge", title: "Unreviewed candidate findings to review" }, findings.unreviewed_count, " to review"), citeInfo && (citeInfo.workId ? /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "paper-cite",
@@ -2092,6 +2153,7 @@
     onClearSignalFilter,
     statcheckFlagged,
     onShowStatcheckFlagged,
+    findingsByPaper,
     onToggleTrash,
     onRestore,
     onPurge,
@@ -2226,6 +2288,7 @@
           onOpen: onOpenPdf,
           checked: selectedLibraryIds && selectedLibraryIds.has(p.id),
           onToggleCheck: onToggleLibrarySelect,
+          findings: findingsByPaper && findingsByPaper[p.id],
           footExtra
         }
       );
@@ -5644,6 +5707,18 @@
         if (r.ok) setStatcheckFlagged(r.data.flagged || 0);
       });
     }, []);
+    const [findingsByPaper, setFindingsByPaper] = useState({});
+    const [findingsRefresh, setFindingsRefresh] = useState(0);
+    useEffect(() => {
+      api("/findings/overview").then((r) => {
+        if (!r.ok) return;
+        const m = {};
+        r.data.forEach((o) => {
+          m[o.paper_id] = o;
+        });
+        setFindingsByPaper(m);
+      });
+    }, [findingsRefresh, libRefresh]);
     useEffect(() => {
       api("/health").then((r) => {
         if (r.ok) setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
@@ -5734,7 +5809,8 @@
       hideUncertainDefault,
       axisCutoffDefault,
       onShowStatcheckFlagged: showStatcheckFlagged,
-      onStatcheckRan: refreshStatcheckChip
+      onStatcheckRan: refreshStatcheckChip,
+      onFindingsChanged: () => setFindingsRefresh((n) => n + 1)
     };
     return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? /* @__PURE__ */ React.createElement(
       Sidebar,
@@ -5816,6 +5892,7 @@
           onClearSignalFilter: clearSignalFilter,
           statcheckFlagged,
           onShowStatcheckFlagged: showStatcheckFlagged,
+          findingsByPaper,
           onToggleTrash: toggleTrash,
           onRestore: restorePaper,
           onPurge: purgePaper,

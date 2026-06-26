@@ -22,6 +22,7 @@ __pycache__/
 # --- Tool / editor scratch ---
 .ruff_cache/
 .playwright-mcp/
+.serena/
 *.tmp.*
 
 # --- Frontend build toolchain (esbuild; inc 102) — installed via `npm ci` from the committed
