@@ -152,8 +152,9 @@ def test_summarize_real_generator_without_egress_fails_gracefully(
 
     assert started.status_code == 202
     assert result["status"] == "error"
-    assert "CALLOSUM_ALLOW_DATA_EGRESS=true" in result["detail"]
-    assert "Gemini API key" in result["detail"]
+    # inc 149: the BYOK/multi-provider era message points the user at Settings (egress is no longer env-only).
+    assert "data-egress consent" in result["detail"]
+    assert "Settings" in result["detail"]
 
 
 def test_summarize_hallucinated_quote_remains_flagged_at_endpoint(temp_db_url: str) -> None:

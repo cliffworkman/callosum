@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 148** (see Increment workflow) with **536 pytest tests
+It is currently at **Increment 149** (see Increment workflow) with **546 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -44,8 +44,12 @@ rather than this file's footer; the footer's detailed narrative resumes at incre
   a LibreOffice (UNO) cite-while-you-write macro (`adapters/libreoffice/`) that places ReferenceMark live fields +
   rides `render-document` — client-side, no server change.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
-- **LLM (selective):** `google-genai` → Gemini `gemini-2.5-flash-lite`, **summary generation
-  only**, OFF by default (see Core design invariants). Verification NLI runs locally
+- **LLM (selective, multi-provider — inc 149):** all generators route through one
+  `app/backend/llm/providers.py::complete(config, prompt)` seam — **Gemini** (`google-genai`, default
+  `gemini-2.5-flash-lite`) / **OpenAI** / **Anthropic** / a **local** OpenAI-compatible endpoint (Ollama etc.),
+  the latter three via **httpx** (no new dep). LLM is used for **generation only** (summary, axis-terms, research
+  summary, overview, help) and is **OFF by default** (egress gate, invariant #3); a **loopback local** provider
+  runs with **zero egress** (`requires_egress("local")` is False). Verification NLI runs locally
   (`cross-encoder/nli-MiniLM2-L6-H768`).
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
@@ -769,7 +773,33 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 148 (BYOK follow-on: synthesis pane "AI is off" nudge):
+*Last updated: 2026-06-26 — increment 149 (multi-provider LLM engine — #39 part 1):
+one provider-neutral **`complete(config, prompt)`** seam (`app/backend/llm/providers.py`) routes all six LLM
+generators to **Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint** — hand-rolled via **httpx (no new
+dependency)**. **The local provider is the flagship: summaries with zero egress.** `GeminiConfig` → **`LLMConfig`**
+(back-compat alias kept; ~12 import sites unaffected) gains `provider` + `base_url` + per-provider key resolution
+(`from_environment()` reads the stored provider/key/model/`local_base_url`; `DEFAULT_MODELS` per provider). The 6
+generators (`generator`/`axis_terms`/`axis_cluster_labeler`/`research_summary`/`overview`/`help_assistant`) each
+swapped their `genai.Client().generate_content()` block for `complete(self.config, …)` (uniform ×6; prompt-build +
+parse unchanged). The `EgressGated*` wrappers gained a `provider` field + the gate is now
+**`if requires_egress(provider) and not data_egress_enabled: raise`** — and the 6 router factories pass
+`provider=config.provider`. `app_settings` gained `set_provider`/`set_model`/`set_local_base_url`/`set_provider_key`.
+**Principles gate (rule #9) run — the local-no-egress decision:** the egress invariant protects *library text
+leaving the machine*; a **loopback-restricted** local model keeps text on the machine, so `requires_egress("local")`
+is False — not a loosening of the promise but the promise recognizing local ≠ egress. The misaligned easy path
+(arbitrary `base_url` under a "no egress" label) is **declined** — `complete()` rejects a non-loopback local
+base_url (`ProviderError`; inc 150 422s it at the write boundary). Cloud providers stay fully gated. **Audit
+`.claude/security-audits/2026-06-26_multi-provider-llm.md` PASS** (SSRF: loopback-only local + constant cloud hosts;
+per-provider key redaction; fail-closed httpx; no new dep). pytest **546** (+10 `test_providers.py`: per-provider
+request/parse/usage via an injected fake client, loopback truth table + non-loopback rejection, the gate [local
+skips / cloud blocks], per-provider key resolution, **the headline — a local summary generates with egress OFF**);
+the 73 existing LLM tests confirm the gemini path is behavior-preserved through the seam. `ruff` clean; **no
+migration, no new endpoint** (engine-only → route + QA surface unchanged); no frontend change. Notes:
+`INCREMENT-149-NOTES.md`. **NEXT:** inc 150 — the Settings provider UI (provider dropdown + per-provider key /
+local base_url + the egress toggle auto-satisfied for local; `PUT /settings` extension with a loopback-422) + help
+corpus "choosing a provider". (Real OpenAI/Anthropic/Ollama round-trips are the user's manual check.)
+
+Earlier — increment 148 (BYOK follow-on: synthesis pane "AI is off" nudge):
 when AI is off, the Synthesis pane shows a clear **"AI summaries are off — Enable in Settings →"** nudge instead of
 a dead-end raw `DataEgressDisabledError` string. **Frontend-only.** `40_app.jsx`: `paneCtx` gains
 `onOpenSettings: () => setSettingsOpen(true)` + a **`settingsNonce`** bumped on the Settings modal's `onClose` (so

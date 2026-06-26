@@ -31,16 +31,13 @@ class GeminiResearchSummaryGenerator:
     name: str = "gemini-research-summary"
 
     def generate(self, *, documents: list[dict[str, str]]) -> str:
-        if not self.config.data_egress_enabled:
-            # Check (and bail) BEFORE importing/calling genai, so egress-off never touches the network.
-            raise DataEgressDisabledError("Gemini research-summary generation requires explicit data-egress consent.")
+        from app.backend.llm.providers import complete, requires_egress
 
-        from google import genai
-
-        client = genai.Client(api_key=self.config.resolved_api_key())
-        response = client.models.generate_content(model=self.config.model, contents=_prompt(documents))
-        log_usage("research-summary", self.config.model, response)
-        return _clean(str(response.text or ""))
+        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+            raise DataEgressDisabledError("Research-summary generation requires explicit data-egress consent.")
+        result = complete(self.config, _prompt(documents))
+        log_usage("research-summary", self.config.model, result)
+        return _clean(str(result.text or ""))
 
 
 def _prompt(documents: list[dict[str, str]]) -> str:

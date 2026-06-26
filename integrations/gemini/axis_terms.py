@@ -29,19 +29,14 @@ class GeminiAxisTermSuggester:
     name: str = "gemini-axis-term-suggester"
 
     def suggest(self, *, label: str, description: str | None) -> list[str]:
-        if not self.config.data_egress_enabled:
-            # Check (and bail) BEFORE importing/calling genai, so egress-off never touches the network.
-            raise DataEgressDisabledError("Gemini axis-term suggestion requires explicit data-egress consent.")
+        from app.backend.llm.providers import complete, requires_egress
 
-        from google import genai
-
-        client = genai.Client(api_key=self.config.resolved_api_key())
-        response = client.models.generate_content(
-            model=self.config.model,
-            contents=_prompt(label=label, description=description),
-        )
-        log_usage("axis-terms", self.config.model, response)
-        return _parse_terms(str(response.text or "[]"), label=label, description=description)
+        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+            # Bail BEFORE the network call, so egress-off never touches a cloud provider.
+            raise DataEgressDisabledError("Axis-term suggestion requires explicit data-egress consent.")
+        result = complete(self.config, _prompt(label=label, description=description))
+        log_usage("axis-terms", self.config.model, result)
+        return _parse_terms(str(result.text or "[]"), label=label, description=description)
 
 
 def _prompt(*, label: str, description: str | None) -> str:

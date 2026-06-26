@@ -10,6 +10,17 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 148) — help corpus current as of the synthesis egress-off nudge -->
+## 2026-06-26 — Increment 149: multi-provider LLM engine (#39 part 1)
+- **Files:** `app/backend/llm/providers.py` (new), `integrations/gemini/generator.py` (+ the 5 other
+  `integrations/gemini/*.py` generators), `app/backend/llm/egress.py`, `app/backend/app_settings.py`,
+  `app/backend/api/routers/{summaries,axes,my_publications}.py`, `tests/test_providers.py` (new),
+  `.claude/security-audits/2026-06-26_multi-provider-llm.md`, `INCREMENT-149-NOTES.md`.
+- **What:** One `complete(config, prompt)` seam routes all 6 generators to Gemini/OpenAI/Anthropic/local (httpx,
+  no new dep). `GeminiConfig`→`LLMConfig` (+alias) gains `provider`/`base_url` + per-provider key resolution; the
+  `EgressGated*` gate is provider-aware (`requires_egress`); a **loopback** local provider runs with **zero egress**.
+- **Why:** BYOK beyond Gemini (#39) — and a local model means AI summaries that never leave the machine.
+- **Revert:** revert the 6 generators to the genai call + drop providers.py + the gate `provider` field; from git.
+
 ## 2026-06-26 — Increment 148: synthesis pane "AI is off" nudge (frontend-only)
 - **Files:** `app/frontend/js/{40_app,20_synthesis}.jsx` + `styles.css` + `callosum-app.html`,
   `app/backend/help/help_content.md`, `INCREMENT-148-NOTES.md`.

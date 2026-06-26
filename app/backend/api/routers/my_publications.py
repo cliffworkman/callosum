@@ -459,12 +459,14 @@ def _author_client(app: FastAPI) -> OpenAlexAuthorClient:
 
 
 def _research_summary_generator(app: FastAPI) -> ResearchSummaryGenerator:
+    config = GeminiConfig.from_environment()
     inner = app.state.research_summary_generator
     if inner is None:
-        inner = GeminiResearchSummaryGenerator(config=GeminiConfig.from_environment())
-    # Authoritative egress gate at the seam — covers the injected generator AND the default (invariant #3).
+        inner = GeminiResearchSummaryGenerator(config=config)
+    # Authoritative egress gate at the seam — covers the injected generator AND the default (invariant #3;
+    # provider-aware: a loopback local provider needs no egress consent).
     return EgressGatedResearchSummaryGenerator(
-        inner=inner, data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled
+        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
     )
 
 

@@ -22,37 +22,80 @@ SUMMARY_PROMPT_VERSION = "summary-v1"
 # ``DataEgressDisabledError`` is re-exported (its canonical home is app/backend/llm/egress.py) so the
 # provider self-checks below and the existing `from integrations.gemini import DataEgressDisabledError`
 # imports keep resolving unchanged.
-__all__ = ["DataEgressDisabledError", "GeminiConfig", "GeminiSummaryGenerator"]
+__all__ = ["DataEgressDisabledError", "GeminiConfig", "LLMConfig", "GeminiSummaryGenerator"]
+
+# Per-provider default models (inc 149). `local` has no default — the user names their own model.
+DEFAULT_MODELS = {
+    "gemini": "gemini-2.5-flash-lite",
+    "openai": "gpt-4o-mini",
+    "anthropic": "claude-3-5-haiku-latest",
+    "local": "",
+}
 
 
 @dataclass(frozen=True)
-class GeminiConfig:
+class LLMConfig:
+    """Provider-neutral LLM config (inc 149). `provider` ∈ gemini/openai/anthropic/local; `api_key` is the
+    ACTIVE provider's resolved key; `base_url` is the loopback endpoint for the local provider. The generators
+    route every call through ``app.backend.llm.providers.complete(config, prompt)``."""
+
     model: str = "gemini-2.5-flash-lite"
     api_key_env: str = "GOOGLE_API_KEY"
     api_key: str | None = None
+    provider: str = "gemini"
+    base_url: str | None = None  # the local (OpenAI-compatible) endpoint
     data_egress_enabled: bool = False
     help_assistant_enabled: bool = False
 
     @classmethod
-    def from_environment(cls) -> "GeminiConfig":
-        # BYOK (inc 146): the Settings UI can store an API key + egress consent in a local file; when present,
-        # the stored value OVERLAYS the env default (env stays the fallback, so existing .env setups are
-        # unaffected). Lazy import keeps integrations/ loosely coupled to app.backend.
+    def from_environment(cls) -> "LLMConfig":
+        # BYOK (inc 146/149): the Settings UI stores the provider + per-provider key + egress consent in a local
+        # file; when present, the stored value OVERLAYS the env default (env stays the fallback). Lazy import keeps
+        # integrations/ loosely coupled to app.backend.
         from app.backend.app_settings import load_settings
 
         stored = load_settings()
+        provider = stored.get("provider")
+        if provider not in {"gemini", "openai", "anthropic", "local"}:
+            provider = "gemini"
         env_egress = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
         stored_egress = stored.get("data_egress_enabled")
         enabled = stored_egress if isinstance(stored_egress, bool) else env_egress
         # The help assistant has its OWN, independent toggle: it sends only the user's question + the public
         # help docs (never library text), so it must NOT be gated by the library data-egress flag above.
         help_enabled = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
-        stored_key = stored.get("api_key")
-        api_key = stored_key if isinstance(stored_key, str) and stored_key.strip() else None
-        return cls(data_egress_enabled=enabled, help_assistant_enabled=help_enabled, api_key=api_key)
+        model = (stored.get("model") or "").strip() or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["gemini"])
+        base_url = (stored.get("local_base_url") or "").strip() or None
+        return cls(
+            provider=provider,
+            model=model,
+            api_key=_resolve_key(provider, stored),
+            base_url=base_url,
+            data_egress_enabled=enabled,
+            help_assistant_enabled=help_enabled,
+        )
 
     def resolved_api_key(self) -> str | None:
-        return self.api_key or os.getenv(self.api_key_env)
+        # The active provider's key. The GOOGLE_API_KEY env fallback applies only to gemini (the others have no
+        # env fallback baked into a directly-constructed config; from_environment resolves their stored keys).
+        return self.api_key or (os.getenv(self.api_key_env) if self.provider == "gemini" else None)
+
+
+def _resolve_key(provider: str, stored: dict) -> str | None:
+    def _s(v: object) -> str | None:
+        return v if isinstance(v, str) and v.strip() else None
+
+    if provider == "gemini":
+        return _s(stored.get("api_key")) or os.getenv("GOOGLE_API_KEY")  # inc-146 key stored under "api_key"
+    if provider == "openai":
+        return _s(stored.get("openai_api_key")) or os.getenv("OPENAI_API_KEY")
+    if provider == "anthropic":
+        return _s(stored.get("anthropic_api_key")) or os.getenv("ANTHROPIC_API_KEY")
+    return _s(stored.get("local_api_key"))  # local: usually none (a loopback server)
+
+
+# Back-compat alias: the config is multi-provider now, but ~12 call sites import ``GeminiConfig``.
+GeminiConfig = LLMConfig
 
 
 @dataclass(frozen=True)
@@ -72,18 +115,13 @@ class GeminiSummaryGenerator:
         scope_ref: dict[str, object],
         conn: "Connection | None" = None,  # caching is handled by the wrapper; the provider ignores it
     ) -> list[CandidateSummarySentence]:
-        if not self.config.data_egress_enabled:
-            raise DataEgressDisabledError("Gemini summary generation requires explicit data-egress consent.")
+        from app.backend.llm.providers import complete, requires_egress
 
-        from google import genai
-
-        client = genai.Client(api_key=self.config.resolved_api_key())
-        response = client.models.generate_content(
-            model=self.config.model,
-            contents=_prompt(source_chunks=source_chunks, scope_ref=scope_ref),
-        )
-        log_usage("summary", self.config.model, response)
-        return _parse_response_text(str(response.text or "[]"))
+        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+            raise DataEgressDisabledError("Summary generation requires explicit data-egress consent.")
+        result = complete(self.config, _prompt(source_chunks=source_chunks, scope_ref=scope_ref))
+        log_usage("summary", self.config.model, result)
+        return _parse_response_text(str(result.text or "[]"))
 
 
 def _prompt(*, source_chunks: list[SourceChunk], scope_ref: dict[str, object]) -> str:

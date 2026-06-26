@@ -28,16 +28,13 @@ class GeminiOverviewGenerator:
     name: str = "gemini-overview-generator"
 
     def generate(self, *, verified_claims: list[str], scope_ref: dict[str, object]) -> list[OverviewSentence]:
-        if not self.config.data_egress_enabled:
-            # Check (and bail) BEFORE importing/calling genai, so egress-off never touches the network.
-            raise DataEgressDisabledError("Gemini overview generation requires explicit data-egress consent.")
+        from app.backend.llm.providers import complete, requires_egress
 
-        from google import genai
-
-        client = genai.Client(api_key=self.config.resolved_api_key())
-        response = client.models.generate_content(model=self.config.model, contents=_prompt(verified_claims))
-        log_usage("overview", self.config.model, response)
-        return _parse_overview_response(str(response.text or "[]"))
+        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+            raise DataEgressDisabledError("Overview generation requires explicit data-egress consent.")
+        result = complete(self.config, _prompt(verified_claims))
+        log_usage("overview", self.config.model, result)
+        return _parse_overview_response(str(result.text or "[]"))
 
 
 def _prompt(verified_claims: list[str]) -> str:

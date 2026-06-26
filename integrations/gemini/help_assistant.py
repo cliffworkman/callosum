@@ -33,18 +33,16 @@ class GeminiHelpAssistant:
 
     def answer(self, *, message: str, history: list[HelpTurn]) -> HelpAnswer:
         if not self.config.help_assistant_enabled:
-            # Defense-in-depth (the seam wrapper is the authoritative gate); bail BEFORE importing genai.
+            # Defense-in-depth (the seam wrapper is the authoritative gate); bail BEFORE any network call.
+            # NB: gated on its OWN toggle (sends only the question + public help docs, never library text), so it
+            # is independent of the library egress flag AND of the provider's requires_egress.
             raise HelpAssistantDisabledError("The AI help assistant requires CALLOSUM_HELP_ASSISTANT_ENABLED.")
 
-        from google import genai
+        from app.backend.llm.providers import complete
 
-        client = genai.Client(api_key=self.config.resolved_api_key())
-        response = client.models.generate_content(
-            model=self.config.model,
-            contents=_prompt(message=message, history=history),
-        )
-        log_usage("help-assistant", self.config.model, response)
-        return _parse_answer(str(response.text or "{}"))
+        result = complete(self.config, _prompt(message=message, history=history))
+        log_usage("help-assistant", self.config.model, result)
+        return _parse_answer(str(result.text or "{}"))
 
 
 def _prompt(*, message: str, history: list[HelpTurn]) -> str:

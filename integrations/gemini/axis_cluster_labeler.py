@@ -31,19 +31,14 @@ class GeminiAxisClusterLabeler:
     name: str = "gemini-axis-cluster-labeler"
 
     def label(self, *, titles: list[str], terms: list[str]) -> dict:
-        if not self.config.data_egress_enabled:
-            # Bail BEFORE importing/calling genai, so egress-off never touches the network.
-            raise DataEgressDisabledError("Gemini axis-cluster labeling requires explicit data-egress consent.")
+        from app.backend.llm.providers import complete, requires_egress
 
-        from google import genai
-
-        client = genai.Client(api_key=self.config.resolved_api_key())
-        response = client.models.generate_content(
-            model=self.config.model,
-            contents=_prompt(titles=titles, terms=terms),
-        )
-        log_usage("axis-cluster-labeler", self.config.model, response)
-        return _parse_label(str(response.text or "{}"))
+        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+            # Bail BEFORE the network call, so egress-off never touches a cloud provider.
+            raise DataEgressDisabledError("Axis-cluster labeling requires explicit data-egress consent.")
+        result = complete(self.config, _prompt(titles=titles, terms=terms))
+        log_usage("axis-cluster-labeler", self.config.model, result)
+        return _parse_label(str(result.text or "{}"))
 
 
 def _prompt(*, titles: list[str], terms: list[str]) -> str:

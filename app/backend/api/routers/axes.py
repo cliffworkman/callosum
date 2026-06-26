@@ -491,24 +491,25 @@ def _vector_store(app: FastAPI) -> VectorStore:
 
 
 def _axis_term_suggester(app: FastAPI) -> AxisTermSuggester:
+    config = GeminiConfig.from_environment()
     inner = app.state.axis_term_suggester
     if inner is None:
-        inner = GeminiAxisTermSuggester(config=GeminiConfig.from_environment())
-    # Authoritative egress gate at the seam — covers the injected suggester AND the default.
+        inner = GeminiAxisTermSuggester(config=config)
+    # Authoritative egress gate at the seam — covers the injected suggester AND the default (provider-aware: a
+    # loopback local provider needs no egress consent).
     return EgressGatedAxisTermSuggester(
-        inner=inner,
-        data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled,
+        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
     )
 
 
 def _axis_cluster_labeler(app: FastAPI) -> AxisClusterLabeler:
+    config = GeminiConfig.from_environment()
     inner = app.state.axis_cluster_labeler
     if inner is None:
-        inner = GeminiAxisClusterLabeler(config=GeminiConfig.from_environment())
+        inner = GeminiAxisClusterLabeler(config=config)
     # Authoritative egress gate at the seam — covers the injected labeler AND the default.
     return EgressGatedAxisClusterLabeler(
-        inner=inner,
-        data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled,
+        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
     )
 
 

@@ -212,34 +212,42 @@ def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> 
 
 
 def _summary_generator(api: FastAPI) -> SummaryGenerator:
+    from app.backend.llm.providers import requires_egress
+
+    config = GeminiConfig.from_environment()
     inner = api.state.summary_generator
     if inner is None:
-        config = GeminiConfig.from_environment()
-        if not config.data_egress_enabled:
-            raise RuntimeError("summary generation requires CALLOSUM_ALLOW_DATA_EGRESS=true and a Gemini API key")
-        if not config.resolved_api_key():
-            raise RuntimeError(f"summary generation requires CALLOSUM_ALLOW_DATA_EGRESS=true and {config.api_key_env}")
+        # A loopback `local` provider needs neither egress consent nor an API key (inc 149).
+        if requires_egress(config.provider):
+            if not config.data_egress_enabled:
+                raise RuntimeError("summary generation requires data-egress consent (Settings → AI features)")
+            if not config.resolved_api_key():
+                raise RuntimeError("summary generation requires an API key (Settings → AI features)")
         inner = GeminiSummaryGenerator(config=config)
     # Content-addressed cache INSIDE the egress gate (so egress-off still errors before the cache is
     # consulted), then the authoritative egress gate OUTSIDE — covers the injected provider AND the default.
     return EgressGatedSummaryGenerator(
         inner=CachedSummaryGenerator(inner=inner),
-        data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled,
+        data_egress_enabled=config.data_egress_enabled,
+        provider=config.provider,
     )
 
 
 def _overview_generator(api: FastAPI):
     from app.backend.llm.egress import EgressGatedOverviewGenerator
+    from app.backend.llm.providers import requires_egress
     from integrations.gemini.overview import GeminiOverviewGenerator
 
+    config = GeminiConfig.from_environment()
     inner = api.state.overview_generator
     if inner is None:
-        config = GeminiConfig.from_environment()
-        if not (config.data_egress_enabled and config.resolved_api_key()):
-            return None  # no overview without egress + a key; the verified claims stand alone
+        # For a cloud provider, no overview without egress + a key (the verified claims stand alone); a loopback
+        # `local` provider needs neither.
+        if requires_egress(config.provider) and not (config.data_egress_enabled and config.resolved_api_key()):
+            return None
         inner = GeminiOverviewGenerator(config=config)
     return EgressGatedOverviewGenerator(
-        inner=inner, data_egress_enabled=GeminiConfig.from_environment().data_egress_enabled
+        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
     )
 
 

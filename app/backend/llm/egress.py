@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from app.backend.llm.providers import requires_egress
 from app.backend.summarization.generators import (
     CandidateSummarySentence,
     SourceChunk,
@@ -60,6 +61,7 @@ class EgressGatedSummaryGenerator:
 
     inner: SummaryGenerator
     data_egress_enabled: bool
+    provider: str = "gemini"  # a loopback `local` provider needs no egress consent (inc 149)
 
     @property
     def name(self) -> str:
@@ -77,9 +79,10 @@ class EgressGatedSummaryGenerator:
         conn: "Connection | None" = None,
     ) -> list[CandidateSummarySentence]:
         # Egress is checked FIRST (outermost), before the inner cache is ever consulted, so egress-off
-        # behaves exactly as before — a cache hit can never bypass the gate.
-        if not self.data_egress_enabled:
-            raise DataEgressDisabledError("Gemini summary generation requires explicit data-egress consent.")
+        # behaves exactly as before — a cache hit can never bypass the gate. A loopback `local` provider keeps
+        # text on the machine (requires_egress("local") is False), so consent-to-egress is correctly N/A.
+        if requires_egress(self.provider) and not self.data_egress_enabled:
+            raise DataEgressDisabledError("Summary generation requires explicit data-egress consent.")
         return self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref, conn=conn)
 
 
@@ -89,10 +92,11 @@ class EgressGatedAxisTermSuggester:
 
     inner: "AxisTermSuggester"
     data_egress_enabled: bool
+    provider: str = "gemini"
 
     def suggest(self, *, label: str, description: str | None) -> list[str]:
-        if not self.data_egress_enabled:
-            raise DataEgressDisabledError("Gemini axis-term suggestion requires explicit data-egress consent.")
+        if requires_egress(self.provider) and not self.data_egress_enabled:
+            raise DataEgressDisabledError("Axis-term suggestion requires explicit data-egress consent.")
         return self.inner.suggest(label=label, description=description)
 
 
@@ -103,10 +107,11 @@ class EgressGatedResearchSummaryGenerator:
 
     inner: "ResearchSummaryGenerator"
     data_egress_enabled: bool
+    provider: str = "gemini"
 
     def generate(self, *, documents: list[dict[str, str]]) -> str:
-        if not self.data_egress_enabled:
-            raise DataEgressDisabledError("Gemini research-summary generation requires explicit data-egress consent.")
+        if requires_egress(self.provider) and not self.data_egress_enabled:
+            raise DataEgressDisabledError("Research-summary generation requires explicit data-egress consent.")
         return self.inner.generate(documents=documents)
 
 
@@ -117,14 +122,15 @@ class EgressGatedOverviewGenerator:
 
     inner: "OverviewGenerator"
     data_egress_enabled: bool
+    provider: str = "gemini"
 
     @property
     def name(self) -> str:
         return self.inner.name
 
     def generate(self, *, verified_claims: list[str], scope_ref: dict[str, object]) -> list["OverviewSentence"]:
-        if not self.data_egress_enabled:
-            raise DataEgressDisabledError("Gemini overview generation requires explicit data-egress consent.")
+        if requires_egress(self.provider) and not self.data_egress_enabled:
+            raise DataEgressDisabledError("Overview generation requires explicit data-egress consent.")
         return self.inner.generate(verified_claims=verified_claims, scope_ref=scope_ref)
 
 
@@ -134,10 +140,11 @@ class EgressGatedAxisClusterLabeler:
 
     inner: "AxisClusterLabeler"
     data_egress_enabled: bool
+    provider: str = "gemini"
 
     def label(self, *, titles: list[str], terms: list[str]) -> dict:
-        if not self.data_egress_enabled:
-            raise DataEgressDisabledError("Gemini axis-cluster labeling requires explicit data-egress consent.")
+        if requires_egress(self.provider) and not self.data_egress_enabled:
+            raise DataEgressDisabledError("Axis-cluster labeling requires explicit data-egress consent.")
         return self.inner.label(titles=titles, terms=terms)
 
 

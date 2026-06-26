@@ -81,3 +81,53 @@ def stored_egress() -> bool | None:
     """The stored egress choice, or None if the user has never toggled it (→ fall back to env)."""
     val = load_settings().get("data_egress_enabled")
     return val if isinstance(val, bool) else None
+
+
+# --- Multi-provider (inc 149): provider selection + per-provider keys + the local endpoint ---
+
+# The gemini key stays under "api_key" (the inc-146 field) for back-compat; other providers get their own field.
+_PROVIDER_KEY_FIELD = {
+    "gemini": "api_key",
+    "openai": "openai_api_key",
+    "anthropic": "anthropic_api_key",
+    "local": "local_api_key",
+}
+
+
+def set_provider(provider: str) -> None:
+    data = load_settings()
+    data["provider"] = provider
+    _write(data)
+
+
+def set_model(model: str | None) -> None:
+    """Override the model name for the active provider; empty clears it (→ the provider's default)."""
+    data = load_settings()
+    model = (model or "").strip()
+    if model:
+        data["model"] = model
+    else:
+        data.pop("model", None)
+    _write(data)
+
+
+def set_local_base_url(url: str | None) -> None:
+    data = load_settings()
+    url = (url or "").strip()
+    if url:
+        data["local_base_url"] = url
+    else:
+        data.pop("local_base_url", None)
+    _write(data)
+
+
+def set_provider_key(provider: str, key: str | None) -> None:
+    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field). Empty/whitespace clears it."""
+    field = _PROVIDER_KEY_FIELD.get(provider, "api_key")
+    data = load_settings()
+    key = (key or "").strip()
+    if key:
+        data[field] = key
+    else:
+        data.pop(field, None)
+    _write(data)
