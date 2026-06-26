@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from typing import Any, Protocol
 from urllib.parse import quote
 
@@ -21,6 +22,7 @@ from app.backend.persistence.schema import external_api_cache
 
 OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
+MAX_REFERENCED = 500  # cap on referenced-work ids read per paper (inc 135; bound the gap-finder fetches)
 
 # OpenAlex `oa_status` → our OA color. "closed" (and anything unknown) → None = no authorized OA copy.
 _OA_STATUS_TO_COLOR: dict[str, OaColor] = {
@@ -65,6 +67,51 @@ class OpenAlexClient:
         if work is None:
             return None
         return _best_oa_location_from_work(work)
+
+    def fetch_referenced_works(self, conn: Connection, ref: PaperRef) -> list[str]:
+        """The OpenAlex work ids a paper CITES (inc 135 gap-finder) — `referenced_works`, bare `W…` ids, capped.
+        Reuses the cached DOI→work fetch; fail-closed (no work / no field → [])."""
+        work = self._fetch_work(conn, ref)
+        if not isinstance(work, dict):
+            return []
+        out: list[str] = []
+        for url in work.get("referenced_works") or []:
+            if not isinstance(url, str):
+                continue
+            wid = url.rsplit("/", 1)[-1]
+            if re.fullmatch(r"W\d+", wid):
+                out.append(wid)
+            if len(out) >= MAX_REFERENCED:
+                break
+        return out
+
+    def fetch_work_meta(self, conn: Connection, work_id: str) -> dict[str, Any] | None:
+        """Metadata for one OpenAlex work by its `W…` id (inc 135) — for a gap candidate's title/DOI/authors.
+        Validated, cached (`work:<id>`), fail-closed → None."""
+        if not re.fullmatch(r"W\d+", work_id or ""):
+            return None
+        cache_key = f"work:{work_id}"
+        cached = _cached_response(conn, cache_key)
+        if cached is not None:
+            status = int(cached["status_code"]) if cached["status_code"] is not None else None
+            return _meta_from_work(cached["response_json"]) if status == 200 else None
+        try:
+            status, body = self.fetcher(
+                f"/{work_id}", params=self._polite_params(), headers=self._headers(), timeout=self.timeout
+            )
+        except Exception:
+            _store_cache(
+                conn,
+                cache_key,
+                request_json={"work_id": work_id},
+                response_json={"error": "fetch failed"},
+                status_code=None,
+            )
+            return None
+        _store_cache(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
+        if status != 200 or not isinstance(body, dict):
+            return None
+        return _meta_from_work(body)
 
     def lookup_retraction(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         """Read OpenAlex's `is_retracted` boolean for a work (inc 131). Thin (a boolean, no notice detail) —
@@ -136,6 +183,30 @@ def _httpx_fetcher(
     except ValueError:
         body = None
     return response.status_code, body
+
+
+def _meta_from_work(work: Any) -> dict[str, Any] | None:
+    """Map an OpenAlex work object → a gap-candidate meta dict (inc 135). DOI normalized lower, prefix stripped."""
+    if not isinstance(work, dict):
+        return None
+    raw_id = str(work.get("id") or "")
+    raw_doi = work.get("doi") or (work.get("ids") or {}).get("doi")
+    doi = raw_doi.strip().lower().replace("https://doi.org/", "") if isinstance(raw_doi, str) and raw_doi else None
+    title = work.get("title") or work.get("display_name")
+    year = work.get("publication_year")
+    authors = [
+        str((a.get("author") or {}).get("display_name") or "").strip()
+        for a in (work.get("authorships") or [])
+        if isinstance(a, dict)
+    ]
+    return {
+        "openalex_work_id": raw_id.rsplit("/", 1)[-1] if raw_id else None,
+        "doi": doi,
+        "title": str(title) if title else None,
+        "year": int(year) if isinstance(year, int) else None,
+        "authors": [a for a in authors if a][:8],
+        "cited_by_count": int(work.get("cited_by_count") or 0),
+    }
 
 
 def _work_from_body(body: Any) -> dict[str, Any] | None:
