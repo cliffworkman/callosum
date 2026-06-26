@@ -82,10 +82,12 @@ inc-34 scale/text-layer alignment invariant untouched. *(Built clean in the sand
 click-through is the one check a headless session can't run; record the reproduction steps in the increment
 notes.)*
 
-**3. Protect imported/system tags from silent clobber** — mirror the **inc-49 user-edit guard** so imported
-keyword tags and system tags aren't silently overwritten on edit. Bounded; follow the existing inc-49 pattern.
-*(Extracted from the Tag-provenance item — see **#9** for the full provenance context and its remaining
-design-level sub-tasks.)*
+**3. Protect imported/system tags from silent clobber** — **inc 143 (Librarian pass) shipped the core:** deleting
+an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
+backfill no longer silently re-adds a removed keyword; re-adding it clears the suppression). **Remaining (librarian
+pass findings):** a **confirm before 🔎 re-resolve overwrites hand-edited metadata** (`force=True` clobbers silently);
+a tag's **source as an always-on label/icon** (not only on hover); a "what re-resolve changed" **diff toast**; a
+**lock-this-tag** affordance. *(See **#9** for the full tag-provenance context.)*
 
 **4. Progress indication for long operations** — partly shipped inc 79 (indeterminate `ProgressBar`) → **inc 142
 (Migrator experience pass) shipped DETERMINATE "X / N" progress** for the scan + import jobs (`JobStore.mark_progress`

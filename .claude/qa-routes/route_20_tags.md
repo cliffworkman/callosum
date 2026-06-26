@@ -36,7 +36,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 3. Open a paper detail pane. Add a new tag (`POST /papers/{paper_id}/tags`); confirm the chip appears in detail and the global tag panel (the AXES → Tags tab) without switching papers.
 4. Add the same tag again by rapid double-submit. Confirm idempotent behavior or a clean duplicate message, never duplicate chips.
 5. Request suggested tags (`GET /papers/{paper_id}/suggested-tags`). Confirm suggestions are local, exclude existing tags, and accepting one creates exactly one chip.
-6. Remove a tag (`DELETE /papers/{paper_id}/tags/{tag_id}`). Confirm the chip disappears and orphaned tags are pruned from the global list.
+6. Remove a tag (`DELETE /papers/{paper_id}/tags/{tag_id}`). Confirm the chip disappears and orphaned tags are pruned from the global list. **inc 143 (Librarian):** removing an **imported keyword** tag (`keyword:*`, the muted chips) is **durable** — it is recorded as suppressed, so a later **🔎 re-resolve** / batch enrich does **not** silently re-add it (re-adding it by name clears the suppression). Removing a **user** tag does not suppress.
 
 ## Pass criteria
 

@@ -10,9 +10,36 @@ from __future__ import annotations
 
 from sqlalchemy import Connection, RowMapping, delete, func, insert, select
 
-from app.backend.persistence.schema import paper_tags, tags
+from app.backend.persistence.schema import paper_tags, suppressed_paper_tags, tags
 
 TAG_NAME_MAX = 100
+
+
+def suppress_paper_tag(conn: Connection, paper_id: int, name: str) -> None:
+    """Remember that the user deleted this (imported keyword) tag from this paper (inc 143) — so a later
+    re-resolve / backfill won't silently re-add it. Idempotent. Caller commits."""
+    conn.execute(
+        insert(suppressed_paper_tags).prefix_with("OR IGNORE").values(paper_id=paper_id, tag_name=name.strip())
+    )
+
+
+def unsuppress_paper_tag(conn: Connection, paper_id: int, name: str) -> None:
+    """Clear a suppression (inc 143) — re-adding a tag by that name means the user wants it again. Caller commits."""
+    conn.execute(
+        delete(suppressed_paper_tags).where(
+            suppressed_paper_tags.c.paper_id == paper_id, suppressed_paper_tags.c.tag_name == name.strip()
+        )
+    )
+
+
+def suppressed_tag_names(conn: Connection, paper_id: int) -> set[str]:
+    """The tag names the user has deleted for this paper that enrich must not re-add (inc 143)."""
+    return {
+        r[0]
+        for r in conn.execute(
+            select(suppressed_paper_tags.c.tag_name).where(suppressed_paper_tags.c.paper_id == paper_id)
+        )
+    }
 
 
 def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
@@ -56,6 +83,7 @@ def add_tag_to_paper(conn: Connection, paper_id: int, name: str, *, import_sourc
             .one()
         )
     conn.execute(insert(paper_tags).prefix_with("OR IGNORE").values(paper_id=paper_id, tag_id=int(row["id"])))
+    unsuppress_paper_tag(conn, paper_id, clean)  # inc 143: re-adding a tag clears any prior deletion-suppression
     return row
 
 
@@ -66,10 +94,14 @@ def add_tags_to_paper(conn: Connection, paper_id: int, names, *, import_source: 
 
 def remove_tag_from_paper(conn: Connection, paper_id: int, tag_id: int) -> bool:
     """Unlink a tag from the paper; prune the tag if it now has no papers. False if it wasn't linked.
-    Caller commits."""
+    Inc 143: if the removed tag was an imported ``keyword:*`` tag, record a suppression so a later re-resolve /
+    backfill doesn't silently re-add it (read its name/source before the row is pruned). Caller commits."""
+    tag = conn.execute(select(tags.c.name, tags.c.import_source).where(tags.c.id == tag_id)).mappings().first()
     result = conn.execute(delete(paper_tags).where(paper_tags.c.paper_id == paper_id, paper_tags.c.tag_id == tag_id))
     if not result.rowcount:
         return False
+    if tag and str(tag["import_source"] or "").startswith("keyword:"):
+        suppress_paper_tag(conn, paper_id, str(tag["name"]))
     still_used = conn.execute(
         select(func.count()).select_from(paper_tags).where(paper_tags.c.tag_id == tag_id)
     ).scalar_one()

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 142** (see Increment workflow) with **522 pytest tests
+It is currently at **Increment 143** (see Increment workflow) with **524 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -280,7 +280,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0019_gap_candidates)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0020_suppressed_paper_tags)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -764,7 +764,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 142 (determinate import/scan progress — Migrator experience pass + backlog #4):
+*Last updated: 2026-06-26 — increment 143 (deleting an imported keyword tag is durable — Librarian experience pass +
+backlog #3): the 3rd build in the slate. A dispatched **Librarian** persona agent drove the tag-curation + 🔎 re-resolve
+flow and found: tags don't *duplicate* and imported-vs-typed is clear (those work), but **deleting an imported keyword
+tag isn't durable** — `apply_crossref_subject_tags` re-adds *every* `subject`, so re-resolve (the cleanup button)
+silently **resurrects** a keyword the librarian deliberately removed. Fix (backend-only, the tag analogue of the inc-49
+user-edit guard): a per-paper **`suppressed_paper_tags`** table (migration **0020**, additive/guarded) keyed by
+`(paper_id, tag_name)`; `remove_tag_from_paper` reads the removed tag's source *before* the orphan-prune and, if it's
+an imported `keyword:*` tag, records a suppression; `add_tag_to_paper` **clears** it (re-adding = the user wants it);
+`apply_crossref_subject_tags` filters `subject` by the suppressed set, so 🔎 re-resolve **and** `backfill_keyword_tags.py`
+honor the deletion. Gated to keyword sources (removing a **user** tag never suppresses). No new endpoint/response/egress/
+surface (rides the existing `DELETE /papers/{id}/tags/{tag_id}` + re-resolve). pytest **524** (+2: delete-keyword-not-
+re-added round-trip; user-removal-doesn't-suppress); `ruff` clean; migration head **0020** (derived by `alembic_head()`,
+no test edit); apply-callers unchanged. **Backend-only → unit-verified the exact librarian scenario** (import → delete →
+re-resolve → stays gone → re-add → cleared); the UI (TagsRow ×, 🔎) is unchanged. Remaining librarian findings filed to
+backlog #3/#9 (a re-resolve-overwrites-metadata confirm; an always-on source label; a diff toast; a tag-lock). Notes:
+`INCREMENT-143-NOTES.md`. **NEXT (the slate):** inc 144 **Close reader ↔ dogfood the reading flow**; inc 145
+**Skeptical synthesizer ↔ multi-paper focus query**. **Then BYOK** (user-prioritized after the slate).
+
+Earlier — increment 142 (determinate import/scan progress — Migrator experience pass + backlog #4):
 the 2nd build in the "build + persona-test 4 features" exercise (after inc 141). A dispatched **Migrator** persona
 agent drove the import/scan onboarding flow and found the bar was an **indeterminate pulse** ("looks identical at item
 3 and item 380") — for a few-hundred-item import the migrator's #1 anxiety ("stuck? how far?") went unanswered (the

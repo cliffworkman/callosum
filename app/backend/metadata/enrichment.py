@@ -11,7 +11,7 @@ from sqlalchemy import Connection, select
 from app.backend.metadata.doi import DoiCandidate, find_doi_in_pdf
 from app.backend.persistence.repository import refresh_processing_tier, update_paper_metadata
 from app.backend.persistence.schema import attachments, papers
-from app.backend.persistence.tags_repo import add_tags_to_paper
+from app.backend.persistence.tags_repo import add_tags_to_paper, suppressed_tag_names
 from integrations.crossref import CrossrefClient
 
 PDF_SCAFFOLD_SOURCE = "pdf-scaffold"
@@ -140,8 +140,10 @@ def apply_crossref_subject_tags(conn: Connection, paper_id: int, csl_json: dict[
     subjects = (csl_json or {}).get("subject")
     if not isinstance(subjects, list) or not subjects:
         return []
-    add_tags_to_paper(conn, paper_id, subjects, import_source=CROSSREF_KEYWORD_SOURCE)
-    return [str(s).strip() for s in subjects if str(s).strip()]
+    suppressed = suppressed_tag_names(conn, paper_id)  # inc 143: don't re-add a keyword the librarian deleted
+    keep = [s for s in subjects if str(s).strip() and str(s).strip() not in suppressed]
+    add_tags_to_paper(conn, paper_id, keep, import_source=CROSSREF_KEYWORD_SOURCE)
+    return [str(s).strip() for s in keep]
 
 
 def _doi_for_paper(conn: Connection, paper_id: int, *, existing_doi: str | None) -> DoiCandidate | None:

@@ -125,3 +125,48 @@ def test_tag_source_exposed_on_responses(temp_db_url: str) -> None:
     listed = {t["name"]: t["source"] for t in client.get("/tags").json()}
     assert listed["Neuroscience"] == "keyword:crossref" and listed["my-note"] == "user"
     assert client.post(f"/papers/{a}/tags", json={"name": "fresh"}).json()["source"] == "user"  # POST returns it
+
+
+def test_deleted_keyword_tag_is_not_re_added_on_enrich(temp_db_url: str) -> None:
+    # inc 143 (Librarian pass): deleting an imported keyword tag must be durable — a re-resolve / backfill that
+    # re-runs apply_crossref_subject_tags must NOT silently resurrect it.
+    from app.backend.metadata.enrichment import apply_crossref_subject_tags
+    from app.backend.persistence.tags_repo import (
+        add_tag_to_paper,
+        get_tags_for_paper,
+        remove_tag_from_paper,
+        suppressed_tag_names,
+    )
+
+    csl = {"subject": ["Neuroscience", "Miscellaneous"]}
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_crossref_subject_tags(conn, pid, csl)  # the original import
+        assert {t["name"] for t in get_tags_for_paper(conn, pid)} == {"Neuroscience", "Miscellaneous"}
+
+        misc = next(t for t in get_tags_for_paper(conn, pid) if t["name"] == "Miscellaneous")
+        remove_tag_from_paper(conn, pid, int(misc["id"]))  # the librarian deletes the noisy keyword
+        assert suppressed_tag_names(conn, pid) == {"Miscellaneous"}
+
+        apply_crossref_subject_tags(conn, pid, csl)  # re-resolve — must respect the deletion
+        assert {t["name"] for t in get_tags_for_paper(conn, pid)} == {"Neuroscience"}
+
+        add_tag_to_paper(conn, pid, "Miscellaneous")  # re-adding it clears the suppression
+        assert suppressed_tag_names(conn, pid) == set()
+        apply_crossref_subject_tags(conn, pid, csl)
+        assert "Miscellaneous" in {t["name"] for t in get_tags_for_paper(conn, pid)}
+    engine.dispose()
+
+
+def test_removing_a_user_tag_does_not_suppress(temp_db_url: str) -> None:
+    # inc 143: only imported keyword:* removals suppress — a user-typed tag is not enrich-re-added, so no suppression.
+    from app.backend.persistence.tags_repo import add_tag_to_paper, remove_tag_from_paper, suppressed_tag_names
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        row = add_tag_to_paper(conn, pid, "my-tag")  # import_source defaults to "user"
+        remove_tag_from_paper(conn, pid, int(row["id"]))
+        assert suppressed_tag_names(conn, pid) == set()
+    engine.dispose()

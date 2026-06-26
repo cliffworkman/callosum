@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-26 — Increment 143: deleting an imported keyword tag is durable (Librarian pass + backlog #3)
+- **Files:** `app/backend/persistence/schema.py` + `alembic/versions/0020_suppressed_paper_tags.py` (new),
+  `app/backend/persistence/tags_repo.py`, `app/backend/metadata/enrichment.py`, `tests/test_tags.py`,
+  `.claude/qa-routes/route_20_tags.md`, `INCREMENT-143-NOTES.md`.
+- **What:** Ran the **Librarian** persona pass on the tag-curation flow → found deleting an imported keyword tag
+  wasn't durable (🔎 re-resolve silently re-added it; tags don't duplicate + mine-vs-imported is clear — those
+  work). Built a per-paper **suppressed-keyword** set (`suppressed_paper_tags`, migration 0020): removing an
+  imported `keyword:*` tag records a suppression; `apply_crossref_subject_tags` skips suppressed names; re-adding a
+  tag clears it. Backend-only.
+- **Why:** A librarian must trust curation is non-destructive — a deliberate keyword removal shouldn't be undone by
+  the next enrich.
+- **Revert:** restore the listed files from git; `suppressed_paper_tags` is additive (migration 0020).
+
 ## 2026-06-26 — Increment 142: determinate import/scan progress (Migrator experience pass + backlog #4)
 - **Files:** `app/backend/api/job_store.py`, `app/backend/embeddings/pipeline.py`,
   `app/backend/pdf_processing/library_scan.py`, `app/backend/api/routers/library.py`,

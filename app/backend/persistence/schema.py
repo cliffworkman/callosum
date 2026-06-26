@@ -154,6 +154,17 @@ paper_tags = Table(
     Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
 
+# Suppressed imported-keyword tags (inc 143): when the librarian deletes an imported `keyword:*` tag, remember it
+# by name per paper so a later re-resolve / backfill does NOT silently re-add it. Adding a tag by that name clears
+# the suppression. Names only (the tag row is pruned on delete) — the analogue of the inc-49 user-edit guard.
+suppressed_paper_tags = Table(
+    "suppressed_paper_tags",
+    metadata,
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_name", Text, primary_key=True),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+)
+
 notes = Table(
     "notes",
     metadata,
