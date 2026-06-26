@@ -580,6 +580,23 @@ paper_findings = Table(
     Index("ix_paper_findings_paper_id", "paper_id"),
 )
 
+# A local mirror of the Retraction Watch Database (Crossref-hosted, CC0), refreshed on demand (inc 132). One row
+# per RW notice; the producer matches a paper's DOI here offline. Replace-all on refresh (the DB is authoritative).
+retraction_records = Table(
+    "retraction_records",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("original_doi", String(255), nullable=False),  # the retracted paper's DOI (normalized lower) — match key
+    Column("status", String(20), nullable=False),  # retracted | correction | concern
+    Column("nature", String(100)),  # the raw RW nature label (display)
+    Column("date", String(40)),
+    Column("reason", Text),
+    Column("notice_doi", String(255)),
+    Column("notice_url", Text),
+    Column("retrieved_at", String(40), nullable=False),  # when this snapshot was downloaded
+    Index("ix_retraction_records_original_doi", "original_doi"),
+)
+
 # Watched library folders (inc 98): folders callosum re-scans to pick up new PDFs (Zotero/Mendeley-style).
 # Scanning a folder registers it here; auto-rescan-on-launch + a manual "Re-scan all" reconcile them.
 watched_folders = Table(
