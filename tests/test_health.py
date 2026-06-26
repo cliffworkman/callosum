@@ -188,6 +188,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/library/watched/rescan", frozenset({"POST"})),
         ("/methods/statcheck/run", frozenset({"POST"})),
         ("/methods/pcurve/run", frozenset({"POST"})),
+        ("/methods/grim", frozenset({"POST"})),
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
     }

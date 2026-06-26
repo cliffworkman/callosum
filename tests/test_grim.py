@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import pytest
+from fastapi.testclient import TestClient
 
+from app.backend.api import create_app
 from app.backend.methods.grim import GrimResult, GrimmerResult, grim_test, grimmer_test
 
 
@@ -56,3 +58,15 @@ def test_grimmer_requires_grim_consistent_mean():
 def test_grimmer_multi_item_unsupported_v1():
     r = grimmer_test("2.74", "0.96", 63, items=2)
     assert r.supported is False  # GRIM still works for items>1; GRIMMER multi-item is deferred
+
+
+def test_grim_endpoint(temp_db_url):
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post("/methods/grim", json={"mean": "3.48", "n": 20})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["grim"]["consistent"] is False and body["grimmer"] is None
+    assert body["grim"]["nearest"] == ["3.45", "3.50"]
+    r2 = client.post("/methods/grim", json={"mean": "5.23", "sd": "2.55", "n": 31})
+    assert r2.json()["grimmer"]["consistent"] is True
+    assert client.post("/methods/grim", json={"mean": "3.45", "n": 0}).status_code == 422

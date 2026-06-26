@@ -24,6 +24,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
@@ -75,6 +76,58 @@ def paper_statcheck(paper_id: int, conn: Connection = Depends(get_connection)) -
             )
             for r in report.results
         ],
+    )
+
+
+# ── GRIM + GRIMMER (inc 127): an assisted, per-value data-consistency calculator (sync, stateless, no DB/egress).
+# The user enters one reported value to check — inherently non-accusatory; a prompt to look, never a verdict. ──
+
+
+class GrimRequest(BaseModel):
+    mean: str
+    sd: str | None = None
+    n: int
+    items: int = 1
+
+
+class GrimResultModel(BaseModel):
+    consistent: bool
+    reported_mean: str
+    n: int
+    items: int
+    decimals: int
+    granularity: float
+    nearest: list[str]
+    no_power: bool
+    note: str
+
+
+class GrimmerResultModel(BaseModel):
+    consistent: bool
+    reported_sd: str
+    decimals: int
+    supported: bool
+    note: str
+
+
+class GrimComputeResponse(BaseModel):
+    grim: GrimResultModel
+    grimmer: GrimmerResultModel | None = None
+
+
+@router.post("/methods/grim", response_model=GrimComputeResponse)
+def grim_compute(payload: GrimRequest) -> GrimComputeResponse:
+    try:
+        grim = grim_test(payload.mean, payload.n, payload.items)
+        grimmer = grimmer_test(payload.mean, payload.sd, payload.n, payload.items) if payload.sd else None
+    except (ValueError, ArithmeticError):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid GRIM inputs: mean/SD must be numbers; n and items must be positive.",
+        ) from None
+    return GrimComputeResponse(
+        grim=GrimResultModel(**vars(grim)),
+        grimmer=GrimmerResultModel(**vars(grimmer)) if grimmer else None,
     )
 
 
