@@ -243,10 +243,12 @@ producer contract + the METHODS "Review" section + the library "N to review" wor
 no producer wired**). the **first producer = retraction** shipped across **inc 131 (SP1: Crossref + OpenAlex)** + **inc 132 (SP2: the
 Retraction Watch DB)** — multi-source (all three) per-DOI → a FACT (Review FactMark + notice link + ◆ card mark) +
 an honest per-paper check status (silence ≠ clean) + a library "Retracted" chip/filter + a batch + the RW bulk
-mirror (`retraction_records`, migration 0017, with a "Refresh database" action). **REMAINING:** an on-import
-auto-check + a TTL/cadence refresh; then statcheck / transparency producers can emit *candidates* into the same
-store. **Cross-cut:** system FACTs (`RETRACTED`) filterable via the inc-71 tag mechanism (see #19); a library-wide
-"needs review" facet can read `findings_overview`.
+mirror (`retraction_records`, migration 0017, with a "Refresh database" action). **SHIPPED inc 133:** statcheck
+emits **candidate** findings + a unified **"N to review"** library facet (`?finding=needs-review`) reading
+`findings_overview` — the candidate-review half is now live + exercised. **REMAINING:** the retraction
+**on-import auto-check + a TTL/cadence refresh**; p-curve/GRIM are collection/per-value (don't naturally emit
+per-paper candidates → deferred); a later consolidation could fold the statcheck signal chip into the unified
+facet (coexist is the v1). **Cross-cut:** system FACTs (`RETRACTED`) filterable via the inc-71 tag mechanism (see #19).
 
 **32. THEORY/METHODS module pool** (`…_theorymethodsextension.md`) — **[future track]** additional principle-aligned
 panel-module candidates; depends on the findings subsystem + module registry (#31).

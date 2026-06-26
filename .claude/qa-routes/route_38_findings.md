@@ -68,10 +68,25 @@ with engine.begin() as conn:
 6. Adversarial: **Accepted...** with empty reason is not saveable; a review on a bad/old id fails closed; a
    no-findings paper shows the honest empty state.
 
+## The unified review queue (inc 133)
+
+A producer that emits CANDIDATEs (statcheck — run its batch in the METHODS "Statistics check" section, or seed a
+candidate via `upsert_findings`) populates a library-wide **"📋 N to review"** chip + filter:
+
+- The chip counts papers with ≥1 **unreviewed candidate** (from `/findings/overview`); it is a **work-state
+  queue** ("have I looked?"), never a quality rank/score, and it disappears at zero.
+- Click it → the library filters to those papers (`GET /papers?finding=needs-review`) with a banner; **clear**
+  restores. Open a paper → its candidate card → **Confirm / Note** → it drops from the chip + the filtered view
+  **live** (the view re-narrows).
+- A statcheck candidate **coexists** with the statcheck **signal** (the "⚠ N flagged" chip): the signal is a fact
+  about the paper (persists after review); the candidate is the user's review work. Reviewing the candidate
+  removes the paper from the "to review" queue but **not** from the statcheck-flagged filter. Confusing the two —
+  or treating the queue as a quality ranking — is a bug.
+
 ## Pass criteria
 
 - FACTs render as neutral marks; CANDIDATEs as reviewable cards; the three review actions work and persist.
-- The library badge is work-state only (drops to nothing at zero unreviewed), never a verdict/score.
+- The library badge + the "N to review" chip are work-state only (drop to nothing at zero unreviewed), never a verdict/score.
 - Anchors open the page at region precision (no fabricated exact highlight).
 - 0 console/page errors; **0 genai-host requests** (local).
 - Bad inputs fail closed (404/422-class); mobile viewport has no horizontal overflow.

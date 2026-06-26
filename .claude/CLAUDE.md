@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 132** (see Increment workflow) with **501 pytest tests
+It is currently at **Increment 133** (see Increment workflow) with **504 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -740,7 +740,33 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 132 (Retraction Watch DB, SP2 — the bulk third retraction source):
+*Last updated: 2026-06-26 — increment 133 (activate the candidate-review half — statcheck candidates + a unified
+"N to review" facet): the inc-130 Confirmed/Accepted/Noted candidate-review machinery was built but **unexercised**
+(the only producer, retraction, writes *facts*). Now the **statcheck batch also emits a CANDIDATE finding** per
+flagged paper (`source="statcheck"`, `desc` + counts + the flagged result's page; clean re-check → supersede; a
+reviewed candidate's state is **preserved** across re-runs via `upsert_findings`' `content_key` idempotency) —
+**coexisting** with the inc-97 **signal** (the candidate = the user's reviewable *work-state*; the signal = the
+persistent *fact* about the paper — reviewing the candidate drops it from the review queue but **not** from the
+"⚠ N flagged" statcheck filter). A unified **"📋 N to review"** library chip (count of papers with an unreviewed
+candidate, derived from the `/findings/overview` already fetched into `findingsByPaper`) + filter view
+(`GET /papers?finding=needs-review` → `repository.FINDING_FILTERS` allowlist → a bound subquery on
+`paper_findings.review_state`, mirroring the inc-97 `SIGNAL_FILTERS`) reuses `librarySignalFilter` with the
+sentinel `"needs-review"` (**zero new view-state**); the `/papers` fetch gained `findingsRefresh` as a dep so
+reviewing a paper **re-narrows the queue live**. The Review-pane `FindingCard` + per-card badge already render
+candidates (inc 130). **Principles** (run inline): a statcheck candidate is *a prompt to look, reviewable* (the
+inc-95/97 framing) — signal-not-verdict, no score, non-accusatory; the facet is a work-state queue, not a rank;
+retraction **facts** are correctly excluded (`review_state=None`). **No new endpoint, no migration, no external
+fetch, no egress** → no audit gate. **Rule #10:** `route_38_findings.md` extended; surface **101/101 API +
+510/510 FE, 0 uncovered** (the `finding` param rides the existing `/papers`). help corpus "Reviewing findings"
+gained the review-queue lines (`HELP-DOCS-SYNCED` → 133). pytest **504** (+3 `test_findings_review.py`); `ruff`
+clean; build + assembly + the **e2e suite (incl. reading mode)** green locally. **Verified headed, no egress**
+(`.local/visual/drive_inc133_review.py` — chip → filter → the statcheck candidate card → Confirm → drops from the
+queue live; 0 console/page/genai). `methods.py` at **492/600** (split watch). Notes: `INCREMENT-133-NOTES.md`.
+**NEXT:** p-curve/GRIM are collection-level / per-value (not per-paper auto-scans → don't naturally emit
+candidates, deferred); the retraction **on-import auto-check + a TTL/staleness nudge** remains open; a later
+consolidation could fold the statcheck signal chip into the unified facet (coexist is the deliberate v1).
+
+Earlier — increment 132 (Retraction Watch DB, SP2 — the bulk third retraction source):
 completes the user's "all three sources" ask. The **Retraction Watch Database** (Crossref-hosted, CC0) joins
 Crossref + OpenAlex (SP1) as the **third checker** — downloaded once into a local **`retraction_records`** mirror
 (migration **0017**, additive/guarded) and matched against every library DOI **offline**; it's the **richest**

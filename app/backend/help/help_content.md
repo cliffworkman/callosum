@@ -617,6 +617,8 @@ A paper can carry **findings** — short, sourced notes about it. Select a paper
 
 In the library, a card shows a small **◆ fact** mark when a paper has a fact, and an **"N to review"** badge counting its unreviewed candidates. The badge tracks **your review work**, not paper quality — it's never a score or a ranking, and it disappears once you've reviewed everything. Nothing is ever decided for you, and nothing labels a paper or its authors; you stay the filter.
 
+The library header also shows a **"📋 N to review"** chip counting *all* the papers with findings you haven't reviewed yet; click it to filter to them, then open each and Confirm or Note its findings — they drop out of the queue as you go. The **statistics check** feeds this queue: when its batch flags a paper's reporting, that becomes a candidate to review here (separate from the "⚠ flagged" statistics chip, which simply marks that inconsistencies exist — reviewing the candidate doesn't change that fact).
+
 <!-- section: retraction-checks -->
 ## Checking for retractions
 Citing a retracted paper is a real hazard, so Callosum can check your library against public registries. In the **METHODS** pane's **Review** section, click **Check all papers for retractions**: each paper's DOI is looked up in **Crossref** and **OpenAlex** (public metadata, no AI), and any retraction, correction, or expression of concern is recorded as a **finding** on that paper.

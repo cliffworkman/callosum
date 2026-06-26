@@ -272,8 +272,13 @@ neutral persistent **mark** (`.fact-mark`, e.g. "◆ retracted"), a **CANDIDATE*
 (`.finding-card` → Confirmed / Accepted[needs reason] / Noted); the library badge (`.finding-badge`, "N to review")
 describes the user's **WORK STATE**, never paper quality, and shows nothing at zero. Speculative candidates get a
 `.speculative` dashed card; every candidate routes to its page at **region** precision (no fabricated exact rect).
-This is the FACT-vs-CANDIDATE backbone the later producers plug into. **inc 131 (retraction)** is the first
-producer: its FACT renders a specialized FactMark (`.fact-mark.retraction` — `--flag` amber for correction/concern,
+This is the FACT-vs-CANDIDATE backbone the later producers plug into. **inc 133** activates the candidate half: a
+producer (statcheck) emits CANDIDATE findings, and a unified **"📋 N to review"** library chip
+(`.trash-toggle.findings-chip`, indigo `--accent` = the work-state/provenance accent, deliberately **not** the
+red/amber reserved for fact/status) + a `?finding=needs-review` filter surface every paper with an unreviewed
+candidate. The chip is a *work-state queue* count (papers you haven't reviewed), never a quality rank — distinct
+from the red retraction chip (a fact) and the amber statcheck chip (a signal). **inc 131 (retraction)** is the
+first producer: its FACT renders a specialized FactMark (`.fact-mark.retraction` — `--flag` amber for correction/concern,
 `--danger` red for `.retraction-severe` = retracted) carrying a **notice** link + the flagging sources; a per-paper
 `.retraction-status` line states "checked — none found" / "unchecked — no DOI" (silence ≠ clean); the
 `.trash-toggle.retraction-chip` (red `--danger`) is the library "N retracted" *filter* count, never a verdict.

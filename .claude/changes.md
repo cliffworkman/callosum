@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 133) — help corpus current as of the review-queue lines -->
+## 2026-06-26 — Increment 133: activate the candidate-review half (statcheck candidates + "N to review" facet)
+- **Files:** `app/backend/api/routers/methods.py` (statcheck batch), `repository.py` (the `finding` filter),
+  `routers/papers.py` (the `finding` param), `app/frontend/js/{40_app,10_pdf_layer}.jsx` + `styles.css`,
+  `tests/test_findings_review.py` (new), `.claude/qa-routes/route_38_findings.md`, `help_content.md`, `INCREMENT-133-NOTES.md`.
+- **What:** The statcheck batch now also emits a CANDIDATE finding per flagged paper (coexisting with the inc-97
+  signal — candidate = the user's reviewable work-state, signal = the persistent fact), and a unified "📋 N to
+  review" library chip + filter (`GET /papers?finding=needs-review` → `FINDING_FILTERS` bound subquery) surfaces
+  every paper with an unreviewed candidate; reviewing one drops it from the queue live.
+- **Why:** The inc-130 Confirmed/Accepted/Noted candidate-review machinery was built but unexercised (retraction
+  writes facts); this gives it real content + a place to triage it library-wide.
+- **Revert:** restore the listed files from git (commits `…t1` backend, `…t2` frontend, + this docs commit); no
+  migration to undo (reuses `paper_findings` + a query param).
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 132) — help corpus current as of the RW-database paragraph -->
 ## 2026-06-26 — Increment 132: Retraction Watch DB (SP2) — the bulk third retraction source
 - **Files:** `app/backend/persistence/schema.py` + `retraction_repo.py` (new), `alembic/versions/0017_retraction_records.py`
