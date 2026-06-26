@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 128** (see Increment workflow) with **471 pytest tests
+It is currently at **Increment 129** (see Increment workflow) with **472 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 128 (split 40_app.jsx — relieve the 600-line cap): a behavior-preserving
+*Last updated: 2026-06-25 — increment 129 (multi-item GRIMMER): completes the inc-127 GRIMMER — `grimmer_test`
+now supports **multi-item scales** (`items > 1`), not just single-item. The multi-item math is the same analytic
+check with an **`items²` factor** on the variance term and the total taken over all `N*items` item responses,
+**with the same parity refinement** (`Σc_i² ≡ Σc_i = T (mod 2)`); `items=1` is the special case (the single-item
+behavior is unchanged). **Derived from first principles + validated against the scrutiny reference** (mean 2.74,
+SD 0.96, N 63, items 2 → consistent). The `items != 1 → supported=False` guard is gone (`supported` is now always
+true); the dead frontend "unsupported" branch was removed (rule #5) and the help line updated. The simplified
+analytic **errs toward leniency** (no per-item-range min-SS bound), so any miss is a *missed* inconsistency, never
+a false "impossible" — the safe, non-accusatory direction. Backend math + tests + a 1-line frontend/help tidy;
+**no API/surface change** (the GRIMMER verdict render path was headed-verified in inc 127 and is unchanged).
+pytest **472** (+1 net: the "unsupported" test became two multi-item tests); `ruff` clean; build + assembly green.
+Notes: `INCREMENT-129-NOTES.md`. **NEXT (user's pick):** the **findings subsystem** (the FACT-vs-CANDIDATE
+backbone — the big architectural arc these METHODS features plug into); or other backlog.
+
+Earlier — increment 128 (split 40_app.jsx — relieve the 600-line cap): a behavior-preserving
 refactor clearing the rule-#1 risk flagged since inc 126/127 (`40_app.jsx` had crept to **590/600**). New early
 chunk **`app/frontend/js/04_layout.jsx`** (107) holds, extracted verbatim: the module-scope layout helpers
 (`_loadLayout`/`_saveLayout`/`_clampW`/`_beginDrag`, the `LEFT_*`/`RIGHT_*` width consts, the `Divider` component)

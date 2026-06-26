@@ -599,7 +599,7 @@ GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check wheth
 It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data consistency (GRIM)**, then type a value you're reading — the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure) — and click **Check**. You get:
 
 - **GRIM:** consistent, or **impossible** with the **nearest possible** means shown (so you can see how far off it is).
-- **GRIMMER** (when you enter an SD): consistent or impossible (single-item only for now).
+- **GRIMMER** (when you enter an SD): consistent or impossible, for single- or multi-item scales (set **items**).
 - A **no-power** note when N is large for the precision (then almost any mean is achievable, so GRIM can't say much).
 
 Read it as a prompt, not a judgment:

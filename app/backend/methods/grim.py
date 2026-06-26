@@ -87,19 +87,16 @@ def grim_test(mean: str, n: int, items: int = 1) -> GrimResult:
 
 
 def grimmer_test(mean: str, sd: str, n: int, items: int = 1) -> GrimmerResult:
+    # Multi-item (items>1): each person's score is the mean of `items` integer items, so over all N*items item
+    # responses the total T is an integer and the variance of the N person-scores is
+    # (Sum(c_i^2) - T^2/N) / (items^2 * (N-1)), where c_i is person i's integer item-sum. So the achievable integer
+    # Sum(c_i^2) = SD^2 * (N-1) * items^2 + T^2/N, with the same parity refinement Sum(c_i^2) == Sum(c_i) = T (mod 2).
+    # items=1 is the special case (items^2 = 1). Validated against the scrutiny reference cases.
     _check(n, items)
     d_sd = _decimals(sd)
-    if items != 1:
-        return GrimmerResult(
-            False,
-            sd,
-            d_sd,
-            supported=False,
-            note="Multi-item GRIMMER isn't supported yet — GRIM still checks the mean above.",
-        )
     d_m = _decimals(mean)
     m, s = float(mean), float(sd)
-    totals = _consistent_totals(m, n, d_m)
+    totals = _consistent_totals(m, n * items, d_m)  # the integer total over all N*items item responses
     if not totals:
         return GrimmerResult(
             False,
@@ -112,10 +109,10 @@ def grimmer_test(mean: str, sd: str, n: int, items: int = 1) -> GrimmerResult:
     s_lo, s_hi = max(0.0, s - half), s + half
     consistent = False
     for total in totals:
-        ss_lo = s_lo * s_lo * (n - 1) + (total * total) / n
-        ss_hi = s_hi * s_hi * (n - 1) + (total * total) / n
+        ss_lo = s_lo * s_lo * (n - 1) * items * items + (total * total) / n
+        ss_hi = s_hi * s_hi * (n - 1) * items * items + (total * total) / n
         lo_i, hi_i = math.ceil(ss_lo - 1e-9), math.floor(ss_hi + 1e-9)
-        # an integer sum-of-squares in the SD interval with the right parity (Sum(x^2) == Sum(x) (mod 2))
+        # an integer sum-of-squares in the SD interval with the right parity (Sum(c^2) == Sum(c) (mod 2))
         if any((ss % 2) == (total % 2) for ss in range(lo_i, hi_i + 1)):
             consistent = True
             break
@@ -124,7 +121,7 @@ def grimmer_test(mean: str, sd: str, n: int, items: int = 1) -> GrimmerResult:
         if consistent
         else (
             "GRIMMER-inconsistent — no integer dataset of this N gives this mean AND SD. A prompt to look, not a "
-            "verdict; assumes integer-scale, single-item data."
+            "verdict; assumes integer-scale data."
         )
     )
     return GrimmerResult(consistent, sd, d_sd, supported=True, note=note)

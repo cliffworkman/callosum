@@ -59,12 +59,11 @@ function GrimSection() {
             {!d.grim.consistent && <span className="grim-near">nearest possible: {d.grim.nearest.join(" / ")}</span>}
           </div>
           {d.grim.no_power && <div className="grim-caveat">N is large for this precision — GRIM has little power here (most means are achievable).</div>}
-          {d.grimmer && d.grimmer.supported &&
+          {d.grimmer &&
             <div className="grim-line">
               <span className="grim-k">GRIMMER</span>
               <span className={"cite-status " + (d.grimmer.consistent ? "verified" : "flagged")}>{d.grimmer.consistent ? "consistent" : "impossible"}</span>
             </div>}
-          {d.grimmer && !d.grimmer.supported && <div className="grim-caveat">{d.grimmer.note}</div>}
           <div className="grim-caveat">GRIM/GRIMMER assume integer-scale data — they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.</div>
         </div>}
       <div className="grim-credit">

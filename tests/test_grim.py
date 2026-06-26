@@ -55,9 +55,16 @@ def test_grimmer_requires_grim_consistent_mean():
     assert isinstance(r, GrimmerResult) and r.consistent is False
 
 
-def test_grimmer_multi_item_unsupported_v1():
+def test_grimmer_multi_item_consistent():
+    # scrutiny multi-item reference: mean 2.74, SD 0.96, N 63, items 2 → consistent.
     r = grimmer_test("2.74", "0.96", 63, items=2)
-    assert r.supported is False  # GRIM still works for items>1; GRIMMER multi-item is deferred
+    assert r.supported is True and r.consistent is True
+
+
+def test_grimmer_multi_item_grim_fail_is_inconsistent():
+    # items=2 → denom 2N=126; 2.749 isn't achievable (346/126=2.746, 347/126=2.754) → GRIM fails → inconsistent.
+    r = grimmer_test("2.749", "0.96", 63, items=2)
+    assert r.consistent is False
 
 
 def test_grim_endpoint(temp_db_url):
@@ -69,4 +76,6 @@ def test_grim_endpoint(temp_db_url):
     assert body["grim"]["nearest"] == ["3.45", "3.50"]
     r2 = client.post("/methods/grim", json={"mean": "5.23", "sd": "2.55", "n": 31})
     assert r2.json()["grimmer"]["consistent"] is True
+    r3 = client.post("/methods/grim", json={"mean": "2.74", "sd": "0.96", "n": 63, "items": 2})
+    assert r3.json()["grimmer"]["supported"] is True and r3.json()["grimmer"]["consistent"] is True
     assert client.post("/methods/grim", json={"mean": "3.45", "n": 0}).status_code == 422

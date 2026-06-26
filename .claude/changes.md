@@ -22,6 +22,17 @@ are the design diary; this is the chronological "what & why" record.
   per-sentence claim traces.
 - **Revert:** restore the inc-123 `is_front_matter_chunk` body (commit `e446b46`).
 
+## 2026-06-25 — Increment 129: multi-item GRIMMER
+- **Files:** `app/backend/methods/grim.py`, `app/frontend/js/07_methods_grim.jsx`, `callosum-app.html`,
+  `app/backend/help/help_content.md`, `tests/test_grim.py`, `INCREMENT-129-NOTES.md`.
+- **What:** Completes inc-127 GRIMMER — `grimmer_test` now supports `items > 1` (multi-item scales): the same
+  analytic check with an `items²` factor on the variance term + the total over `N*items` responses + the same
+  parity refinement. Validated against the scrutiny reference (2.74/0.96/63/items=2 → consistent). `supported` is
+  now always true; removed the dead frontend "unsupported" branch (rule #5).
+- **Why:** GRIMMER shipped single-item-only in inc 127; this finishes it. Errs toward leniency (safe,
+  non-accusatory direction).
+- **Revert:** restore the `items != 1 → supported=False` guard + the single-item SS formula in `grimmer_test`.
+
 ## 2026-06-25 — Increment 128: split 40_app.jsx (relieve the 600-line cap)
 - **Files:** NEW `app/frontend/js/04_layout.jsx`; `app/frontend/js/40_app.jsx`, `callosum-app.html`,
   `INCREMENT-128-NOTES.md`.
