@@ -9,7 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 147) — help corpus current as of the Test-key button -->
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 148) — help corpus current as of the synthesis egress-off nudge -->
+## 2026-06-26 — Increment 148: synthesis pane "AI is off" nudge (frontend-only)
+- **Files:** `app/frontend/js/{40_app,20_synthesis}.jsx` + `styles.css` + `callosum-app.html`,
+  `app/backend/help/help_content.md`, `INCREMENT-148-NOTES.md`.
+- **What:** When AI is off, the Synthesis pane shows an **"AI summaries are off — Enable in Settings →"** nudge
+  (proactive + in place of the raw `DataEgressDisabledError`) instead of a dead-end. `paneCtx.onOpenSettings` +
+  a `settingsNonce` (re-read egress on Settings close) wire it; the button opens the Settings modal.
+- **Why:** A user who tries to summarize with egress off got a developer-y error with no path to fix it.
+- **Revert:** restore the two frontend chunks + `styles.css` from git + rebuild.
+
 ## 2026-06-26 — Increment 147: "Test this key" — egress-gated key validation
 - **Files:** `app/backend/api/routers/settings.py`, `app/frontend/js/35_settings.jsx` + `styles.css` +
   `callosum-app.html`, `app/backend/help/help_content.md`, `tests/test_settings.py`, `tests/test_health.py`,

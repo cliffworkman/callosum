@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 147** (see Increment workflow) with **536 pytest tests
+It is currently at **Increment 148** (see Increment workflow) with **536 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -769,7 +769,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 147 (BYOK follow-on: "Test this key" — egress-gated key validation):
+*Last updated: 2026-06-26 — increment 148 (BYOK follow-on: synthesis pane "AI is off" nudge):
+when AI is off, the Synthesis pane shows a clear **"AI summaries are off — Enable in Settings →"** nudge instead of
+a dead-end raw `DataEgressDisabledError` string. **Frontend-only.** `40_app.jsx`: `paneCtx` gains
+`onOpenSettings: () => setSettingsOpen(true)` + a **`settingsNonce`** bumped on the Settings modal's `onClose` (so
+panes re-read egress state when Settings closes). `20_synthesis.jsx` (`SynthesisPane` + its `registerPaneSection`
+render): a `GET /settings` read on mount + on `settingsNonce` change → `egressOff`; **proactive** `.synth-nudge`
+banner above the run controls when off, and **reactive** — the `.errbox` renders the same nudge when `state.error`
+contains `DataEgressDisabledError`. One CSS recipe `.synth-nudge` (amber `--flag` banner + a `.btn-link` door,
+mirrors `.synth-scope-note`; tokens only, rule #8). Informational, not a block (local features stay usable); reuses
+the inc-146 `GET /settings` (no new endpoint) + the inc-121 accordion `paneCtx`. **No Principles trigger** (a UX
+affordance over an existing state; egress posture unchanged); **no new surface** (surface map unchanged). pytest
+**536** unchanged (frontend-only; wiring headed-verified); `ruff` clean; build + assembly green; **no migration**.
+help corpus synthesis section's egress-off line now describes the nudge (`HELP-DOCS-SYNCED` → 148). **Verified headed,
+no egress** (`.local/visual/drive_inc148_nudge.py` — egress OFF → THEORY → Synthesis shows the nudge → **Enable in
+Settings →** opens the Settings modal; 0 console/page/genai). Notes: `INCREMENT-148-NOTES.md`. **NEXT:** inc 149–150
+multi-provider LLM (#39) — OpenAI/Anthropic/local via httpx; the local provider = summaries with zero egress
+(Principles-gate + audit).
+
+Earlier — increment 147 (BYOK follow-on: "Test this key" — egress-gated key validation):
 a **Test key** button in Settings → AI features confirms a pasted Gemini key works before the user relies on it.
 **`POST /settings/test-key`** (`routers/settings.py`) → `KeyTestResult{ok, detail}`: egress OFF → "Turn on Allow
 AI features first…" + **no outbound call** (the toggle's promise stays ironclad — strongest reading of invariant #3,

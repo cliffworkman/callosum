@@ -511,7 +511,7 @@ There are two ways to run a synthesis:
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
 
-If Gemini data egress is not enabled, synthesis will not run. The app will show an error explaining that summary generation requires opt-in egress and an API key.
+If AI features are not enabled, synthesis will not run. The Synthesis pane shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section (where you set a key + turn on data egress). The nudge clears once AI is on.
 
 Tips:
 

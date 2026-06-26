@@ -3,6 +3,7 @@
 function App() {
   const [conn, setConn] = useState({ state: "wait" });
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsNonce, setSettingsNonce] = useState(0);  // bumped on Settings close → panes re-read egress state (inc 148)
   const [helpOpen, setHelpOpen] = useState(false);
 
   // theme + axis/scan prefs + side-panel layout + accordion-open + Reading mode (all in 04_layout.jsx).
@@ -501,6 +502,7 @@ function App() {
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
+    onOpenSettings: () => setSettingsOpen(true), settingsNonce,  // inc 148: synthesis egress-off nudge → open Settings
   };
 
   return (
@@ -563,7 +565,7 @@ function App() {
       {rightOpen && !readingMode
         ? <div className="pane pane-detail"><PaneAccordion paneId="methods" ctx={paneCtx} openId={methodsOpen} onOpen={setMethodsOpen} /></div>
         : <div className="pane-collapsed" />}
-      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} onClose={() => { setSettingsOpen(false); setSettingsNonce(n => n + 1); }} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {duplicatesOpen &&
         <DuplicatesModal

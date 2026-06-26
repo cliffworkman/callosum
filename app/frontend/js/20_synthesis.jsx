@@ -29,12 +29,18 @@ function OverviewBlock({ overview }) {
   );
 }
 
-function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
+function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce }) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState({ status: "idle" });
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
   const [history, setHistory] = useState({ status: "loading", items: [] });
+  const [egressOff, setEgressOff] = useState(false);  // inc 148: AI off → show a nudge with a door into Settings
   const pollRef = useRef(null);
+
+  // Re-read egress state on mount + whenever Settings closes (settingsNonce), so the nudge clears once AI is on.
+  useEffect(() => {
+    api("/settings").then(r => { if (r.ok && r.data) setEgressOff(!r.data.data_egress_enabled); });
+  }, [settingsNonce]);
 
   const loadHistory = useCallback(() => {
     setHistory(h => ({ ...h, status: "loading" }));
@@ -144,6 +150,15 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
   const verifiedCount = sentences.filter(s => !s.flagged).length;
   const flaggedCount = sentences.filter(s => s.flagged).length;
 
+  // inc 148: a friendly "AI is off" nudge with a one-click door into Settings (shown proactively when egress is
+  // off, and reactively in place of a raw DataEgressDisabledError). Local features stay usable — this informs.
+  const egressNudge = (
+    <div className="synth-nudge">
+      <span>AI summaries are off. Turn on <b>AI features</b> in Settings to generate a verified synthesis.</span>
+      <button className="btn btn-link" onClick={() => onOpenSettings && onOpenSettings()}>Enable in Settings →</button>
+    </div>
+  );
+
   return (
     <div className="synth">
       <textarea
@@ -161,6 +176,8 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
       </div>
       {busy && <ProgressBar />}
 
+      {egressOff && state.status !== "error" && egressNudge}
+
       {scopeNote &&
         <div className="synth-scope-note">Summary of <b>{scopeNote}</b> from the library selection.</div>}
 
@@ -171,10 +188,12 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
         </div>}
 
       {state.status === "error" &&
-        <div className="errbox" style={{ margin: "14px 0 0" }}>
-          <b>Summary could not be generated.</b><br />
-          {state.error}
-        </div>}
+        (String(state.error || "").includes("DataEgressDisabledError")
+          ? egressNudge
+          : <div className="errbox" style={{ margin: "14px 0 0" }}>
+              <b>Summary could not be generated.</b><br />
+              {state.error}
+            </div>)}
 
       {state.status === "done" &&
         <div>
@@ -379,5 +398,5 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
 registerPaneSection({
   id: "synthesis", label: "Synthesis", paneId: "theory", order: 20,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
-    pendingSummarize={ctx.pendingSummarize} />,
+    pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce} />,
 });

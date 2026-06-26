@@ -953,6 +953,8 @@
   .synth-actions button { padding: 7px 11px; font-size: 12.5px; }
   .synth-status { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .synth-scope-note { font-size: 11.5px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 5px 9px; margin: 9px 0 0; }
+  /* AI-off nudge (inc 148): amber status banner + a door into Settings. Mirrors .synth-scope-note on the --flag family. */
+  .synth-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 9px 11px; margin: 14px 0 0; }
   .synth-status.running::before {
     content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
     background: var(--accent); margin-right: 7px; animation: pulse 1.2s infinite;
@@ -3398,12 +3400,18 @@
       /* @__PURE__ */ React.createElement("span", { className: "overview-trace" }, (item.claim_ordinals || []).map((o) => "[" + (o + 1) + "]").join(" "))
     )));
   }
-  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
+  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce }) {
     const [query, setQuery] = useState("");
     const [state, setState] = useState({ status: "idle" });
     const [scopeNote, setScopeNote] = useState(null);
     const [history, setHistory] = useState({ status: "loading", items: [] });
+    const [egressOff, setEgressOff] = useState(false);
     const pollRef = useRef(null);
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok && r.data) setEgressOff(!r.data.data_egress_enabled);
+      });
+    }, [settingsNonce]);
     const loadHistory = useCallback(() => {
       setHistory((h) => ({ ...h, status: "loading" }));
       api("/summaries?limit=20&offset=0").then((r) => {
@@ -3494,6 +3502,7 @@
     const sentences = state.result && state.result.sentences ? state.result.sentences : [];
     const verifiedCount = sentences.filter((s) => !s.flagged).length;
     const flaggedCount = sentences.filter((s) => s.flagged).length;
+    const egressNudge = /* @__PURE__ */ React.createElement("div", { className: "synth-nudge" }, /* @__PURE__ */ React.createElement("span", null, "AI summaries are off. Turn on ", /* @__PURE__ */ React.createElement("b", null, "AI features"), " in Settings to generate a verified synthesis."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: () => onOpenSettings && onOpenSettings() }, "Enable in Settings \u2192"));
     return /* @__PURE__ */ React.createElement("div", { className: "synth" }, /* @__PURE__ */ React.createElement(
       "textarea",
       {
@@ -3503,7 +3512,7 @@
         onChange: (e) => setQuery(e.target.value),
         disabled: busy
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Summary could not be generated."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "done" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "summary-meta" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), egressOff && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && (String(state.error || "").includes("DataEgressDisabledError") ? egressNudge : /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Summary could not be generated."), /* @__PURE__ */ React.createElement("br", null), state.error)), state.status === "done" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "summary-meta" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-link summary-close",
@@ -3585,7 +3594,9 @@
       {
         onOpenCitation: ctx.onOpenCitation,
         onSaveHighlight: ctx.onSaveHighlight,
-        pendingSummarize: ctx.pendingSummarize
+        pendingSummarize: ctx.pendingSummarize,
+        onOpenSettings: ctx.onOpenSettings,
+        settingsNonce: ctx.settingsNonce
       }
     )
   });
@@ -5750,6 +5761,7 @@
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
     const [settingsOpen, setSettingsOpen] = useState(false);
+    const [settingsNonce, setSettingsNonce] = useState(0);
     const [helpOpen, setHelpOpen] = useState(false);
     const {
       theme,
@@ -6276,7 +6288,10 @@
       onStatcheckRan: refreshStatcheckChip,
       onShowRetractionFlagged: showRetractionFlagged,
       onRetractionRan: refreshRetractionChip,
-      onFindingsChanged: () => setFindingsRefresh((n) => n + 1)
+      onFindingsChanged: () => setFindingsRefresh((n) => n + 1),
+      onOpenSettings: () => setSettingsOpen(true),
+      settingsNonce
+      // inc 148: synthesis egress-off nudge → open Settings
     };
     return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? /* @__PURE__ */ React.createElement(
       Sidebar,
@@ -6402,7 +6417,10 @@
           });
         }
       }
-    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen })) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => setSettingsOpen(false) }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
+    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen })) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => {
+      setSettingsOpen(false);
+      setSettingsNonce((n) => n + 1);
+    } }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
       DuplicatesModal,
       {
         onClose: () => setDuplicatesOpen(false),
