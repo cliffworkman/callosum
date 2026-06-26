@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 127** (see Increment workflow) with **471 pytest tests
+It is currently at **Increment 128** (see Increment workflow) with **471 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,23 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 127 (GRIM + GRIMMER data-consistency calculator — the second GRIM/p-curve
+*Last updated: 2026-06-25 — increment 128 (split 40_app.jsx — relieve the 600-line cap): a behavior-preserving
+refactor clearing the rule-#1 risk flagged since inc 126/127 (`40_app.jsx` had crept to **590/600**). New early
+chunk **`app/frontend/js/04_layout.jsx`** (107) holds, extracted verbatim: the module-scope layout helpers
+(`_loadLayout`/`_saveLayout`/`_clampW`/`_beginDrag`, the `LEFT_*`/`RIGHT_*` width consts, the `Divider` component)
++ a new **`useUiPrefs()`** hook = the app's persisted UI state (theme; axis hide-uncertain + cutoff defaults;
+auto-scan-watched; side-panel widths/open + their localStorage effects; THEORY/METHODS accordion-open; transient
+Reading mode), lifted out of `App` unchanged. **`40_app.jsx` 590 → 514**: `App` now replaces ~50 lines of
+pref/layout state with one `const { … } = useUiPrefs();` (only `settingsOpen`/`helpOpen` stay — modal toggles).
+**Chunk-order-safe** (04 loads before its consumers; `30_viewer.jsx` already used `_loadLayout`/`_saveLayout` via
+the IIFE function-hoist — now they're defined-before-use). No user-facing / API / surface change. pytest **471**
+(unchanged); `ruff` clean; QA surface 91/484 0-uncovered. **Verified behavior-preserving headed**
+(`.local/visual/drive_inc128_layout.py` — renders all 6 accordion sections; dark-mode toggles; left-panel collapse
+works **and persists across reload**; Reading mode + Esc; 0 console/page errors). Notes: `INCREMENT-128-NOTES.md`.
+**NEXT (user's pick):** multi-item GRIMMER; or the **findings subsystem** (the FACT-vs-CANDIDATE backbone — the big
+architectural arc the methods plug into).
+
+Earlier — increment 127 (GRIM + GRIMMER data-consistency calculator — the second GRIM/p-curve
 "data-detective" METHODS feature): **GRIM** (Brown & Heathers, 2017) checks whether a reported **mean** of
 integer-scale data is mathematically possible for the sample size; **GRIMMER** (Anaya 2016 / Allard 2018) extends
 the check to the **SD**. Brainstorming chose an **assisted per-value calculator** (NOT an auto-scanner — pulling

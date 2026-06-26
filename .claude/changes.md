@@ -22,6 +22,17 @@ are the design diary; this is the chronological "what & why" record.
   per-sentence claim traces.
 - **Revert:** restore the inc-123 `is_front_matter_chunk` body (commit `e446b46`).
 
+## 2026-06-25 — Increment 128: split 40_app.jsx (relieve the 600-line cap)
+- **Files:** NEW `app/frontend/js/04_layout.jsx`; `app/frontend/js/40_app.jsx`, `callosum-app.html`,
+  `INCREMENT-128-NOTES.md`.
+- **What:** Behavior-preserving refactor — moved the layout helpers (`_loadLayout`/`_saveLayout`/`_clampW`/
+  `_beginDrag`/`Divider` + the `LEFT_*`/`RIGHT_*` consts) and a new `useUiPrefs()` hook (theme + axis/scan prefs +
+  panel layout + accordion-open + Reading mode) out of `40_app.jsx` into a new early-loading chunk. `40_app.jsx`
+  **590 → 514**; `04_layout.jsx` 107.
+- **Why:** `40_app.jsx` was at 590/600 (rule-#1 risk flagged since inc 126/127); cleared before the next feature
+  lands there. No user-facing change, no API change, no new surface.
+- **Revert:** restore the helper block + the inline pref/layout state in `40_app.jsx`; delete `04_layout.jsx`.
+
 ## 2026-06-25 — Increment 127: GRIM + GRIMMER data-consistency calculator
 <!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 127 (2026-06-25) — added a "Data consistency (GRIM / GRIMMER)" section. Entries ABOVE this line are newer than the last help sync. -->
 - **Files:** NEW `app/backend/methods/grim.py`, `app/frontend/js/07_methods_grim.jsx`,

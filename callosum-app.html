@@ -1542,6 +1542,130 @@
     const n = parseInt(m[1], 16);
     return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${alpha})`;
   }
+  function _loadLayout(key, fallback) {
+    try {
+      const v = window.localStorage.getItem(key);
+      return v == null ? fallback : v;
+    } catch (e) {
+      return fallback;
+    }
+  }
+  function _saveLayout(key, value) {
+    try {
+      window.localStorage.setItem(key, String(value));
+    } catch (e) {
+    }
+  }
+  function _clampW(w, lo, hi) {
+    return Math.max(lo, Math.min(hi, w));
+  }
+  const LEFT_MIN = 300;
+  const LEFT_MAX = 600;
+  const LEFT_COLLAPSE_AT = 220;
+  const RIGHT_MIN = 415;
+  const RIGHT_MAX = 640;
+  const RIGHT_COLLAPSE_AT = 335;
+  function _beginDrag(e, onMove) {
+    e.preventDefault();
+    const move = (ev) => onMove(ev.clientX, ev.clientY);
+    const up = () => {
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+    document.body.style.userSelect = "none";
+  }
+  function Divider({ side, open, onToggle, onDragStart }) {
+    const chevron = side === "left" ? open ? "\u2039" : "\u203A" : open ? "\u203A" : "\u2039";
+    return /* @__PURE__ */ React.createElement("div", { className: "divider divider-" + side + (open ? "" : " collapsed") }, open && /* @__PURE__ */ React.createElement("div", { className: "divider-grip", onMouseDown: onDragStart, title: "Drag to resize" }), /* @__PURE__ */ React.createElement("button", { className: "divider-toggle", onClick: onToggle, title: open ? "Collapse panel" : "Expand panel" }, chevron));
+  }
+  function useUiPrefs() {
+    const [theme, setThemeState] = useState(() => {
+      try {
+        return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
+      } catch (e) {
+        return "light";
+      }
+    });
+    const setTheme = useCallback((next) => {
+      setThemeState(next);
+      try {
+        document.documentElement.setAttribute("data-theme", next);
+        localStorage.setItem("callosum.theme", next);
+      } catch (e) {
+      }
+    }, []);
+    const [hideUncertainDefault, setHideUncertainDefaultState] = useState(() => _loadLayout("callosum.hideUncertainDefault", "0") === "1");
+    const setHideUncertainDefault = useCallback((on) => {
+      setHideUncertainDefaultState(on);
+      _saveLayout("callosum.hideUncertainDefault", on ? "1" : "0");
+    }, []);
+    const [axisCutoffDefault, setAxisCutoffDefaultState] = useState(() => {
+      const v = Number(_loadLayout("callosum.axisCutoffDefault", "0.35"));
+      return v >= 0.2 && v <= 0.6 ? v : 0.35;
+    });
+    const setAxisCutoffDefault = useCallback((v) => {
+      setAxisCutoffDefaultState(v);
+      _saveLayout("callosum.axisCutoffDefault", v);
+    }, []);
+    const [autoScanWatched, setAutoScanWatchedState] = useState(() => _loadLayout("callosum.autoScanWatched", "1") === "1");
+    const setAutoScanWatched = useCallback((on) => {
+      setAutoScanWatchedState(on);
+      _saveLayout("callosum.autoScanWatched", on ? "1" : "0");
+    }, []);
+    const [leftW, setLeftW] = useState(() => Math.max(LEFT_MIN, Number(_loadLayout("callosum.leftW", LEFT_MIN)) || LEFT_MIN));
+    const [rightW, setRightW] = useState(() => Math.max(RIGHT_MIN, Number(_loadLayout("callosum.rightW", RIGHT_MIN)) || RIGHT_MIN));
+    const [leftOpen, setLeftOpen] = useState(() => _loadLayout("callosum.leftOpen", "1") !== "0");
+    const [rightOpen, setRightOpen] = useState(() => _loadLayout("callosum.rightOpen", "1") !== "0");
+    useEffect(() => {
+      _saveLayout("callosum.leftW", leftW);
+    }, [leftW]);
+    useEffect(() => {
+      _saveLayout("callosum.rightW", rightW);
+    }, [rightW]);
+    useEffect(() => {
+      _saveLayout("callosum.leftOpen", leftOpen ? "1" : "0");
+    }, [leftOpen]);
+    useEffect(() => {
+      _saveLayout("callosum.rightOpen", rightOpen ? "1" : "0");
+    }, [rightOpen]);
+    const [theoryOpen, setTheoryOpen] = useState(() => _loadLayout("callosum.theoryOpen", "axes"));
+    const [methodsOpen, setMethodsOpen] = useState(() => _loadLayout("callosum.methodsOpen", "details"));
+    useEffect(() => {
+      _saveLayout("callosum.theoryOpen", theoryOpen);
+    }, [theoryOpen]);
+    useEffect(() => {
+      _saveLayout("callosum.methodsOpen", methodsOpen);
+    }, [methodsOpen]);
+    const [readingMode, setReadingMode] = useState(false);
+    const toggleReading = useCallback(() => setReadingMode((on) => !on), []);
+    return {
+      theme,
+      setTheme,
+      hideUncertainDefault,
+      setHideUncertainDefault,
+      axisCutoffDefault,
+      setAxisCutoffDefault,
+      autoScanWatched,
+      setAutoScanWatched,
+      leftW,
+      setLeftW,
+      rightW,
+      setRightW,
+      leftOpen,
+      setLeftOpen,
+      rightOpen,
+      setRightOpen,
+      theoryOpen,
+      setTheoryOpen,
+      methodsOpen,
+      setMethodsOpen,
+      readingMode,
+      toggleReading
+    };
+  }
   const PANE_SECTIONS = [];
   function registerPaneSection(section) {
     if (!PANE_SECTIONS.some((s) => s.id === section.id)) PANE_SECTIONS.push(section);
@@ -5174,108 +5298,34 @@
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
     )), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
-  function _loadLayout(key, fallback) {
-    try {
-      const v = window.localStorage.getItem(key);
-      return v == null ? fallback : v;
-    } catch (e) {
-      return fallback;
-    }
-  }
-  function _saveLayout(key, value) {
-    try {
-      window.localStorage.setItem(key, String(value));
-    } catch (e) {
-    }
-  }
-  function _clampW(w, lo, hi) {
-    return Math.max(lo, Math.min(hi, w));
-  }
-  const LEFT_MIN = 300;
-  const LEFT_MAX = 600;
-  const LEFT_COLLAPSE_AT = 220;
-  const RIGHT_MIN = 415;
-  const RIGHT_MAX = 640;
-  const RIGHT_COLLAPSE_AT = 335;
-  function _beginDrag(e, onMove) {
-    e.preventDefault();
-    const move = (ev) => onMove(ev.clientX, ev.clientY);
-    const up = () => {
-      document.removeEventListener("mousemove", move);
-      document.removeEventListener("mouseup", up);
-      document.body.style.userSelect = "";
-    };
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-    document.body.style.userSelect = "none";
-  }
-  function Divider({ side, open, onToggle, onDragStart }) {
-    const chevron = side === "left" ? open ? "\u2039" : "\u203A" : open ? "\u203A" : "\u2039";
-    return /* @__PURE__ */ React.createElement("div", { className: "divider divider-" + side + (open ? "" : " collapsed") }, open && /* @__PURE__ */ React.createElement("div", { className: "divider-grip", onMouseDown: onDragStart, title: "Drag to resize" }), /* @__PURE__ */ React.createElement("button", { className: "divider-toggle", onClick: onToggle, title: open ? "Collapse panel" : "Expand panel" }, chevron));
-  }
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
-    const [theme, setThemeState] = useState(() => {
-      try {
-        return document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light";
-      } catch (e) {
-        return "light";
-      }
-    });
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [helpOpen, setHelpOpen] = useState(false);
-    const setTheme = useCallback((next) => {
-      setThemeState(next);
-      try {
-        document.documentElement.setAttribute("data-theme", next);
-        localStorage.setItem("callosum.theme", next);
-      } catch (e) {
-      }
-    }, []);
-    const [hideUncertainDefault, setHideUncertainDefaultState] = useState(() => _loadLayout("callosum.hideUncertainDefault", "0") === "1");
-    const setHideUncertainDefault = useCallback((on) => {
-      setHideUncertainDefaultState(on);
-      _saveLayout("callosum.hideUncertainDefault", on ? "1" : "0");
-    }, []);
-    const [axisCutoffDefault, setAxisCutoffDefaultState] = useState(() => {
-      const v = Number(_loadLayout("callosum.axisCutoffDefault", "0.35"));
-      return v >= 0.2 && v <= 0.6 ? v : 0.35;
-    });
-    const setAxisCutoffDefault = useCallback((v) => {
-      setAxisCutoffDefaultState(v);
-      _saveLayout("callosum.axisCutoffDefault", v);
-    }, []);
-    const [autoScanWatched, setAutoScanWatchedState] = useState(() => _loadLayout("callosum.autoScanWatched", "1") === "1");
-    const setAutoScanWatched = useCallback((on) => {
-      setAutoScanWatchedState(on);
-      _saveLayout("callosum.autoScanWatched", on ? "1" : "0");
-    }, []);
-    const [leftW, setLeftW] = useState(() => Math.max(LEFT_MIN, Number(_loadLayout("callosum.leftW", LEFT_MIN)) || LEFT_MIN));
-    const [rightW, setRightW] = useState(() => Math.max(RIGHT_MIN, Number(_loadLayout("callosum.rightW", RIGHT_MIN)) || RIGHT_MIN));
-    const [leftOpen, setLeftOpen] = useState(() => _loadLayout("callosum.leftOpen", "1") !== "0");
-    const [rightOpen, setRightOpen] = useState(() => _loadLayout("callosum.rightOpen", "1") !== "0");
-    useEffect(() => {
-      _saveLayout("callosum.leftW", leftW);
-    }, [leftW]);
-    useEffect(() => {
-      _saveLayout("callosum.rightW", rightW);
-    }, [rightW]);
-    useEffect(() => {
-      _saveLayout("callosum.leftOpen", leftOpen ? "1" : "0");
-    }, [leftOpen]);
-    useEffect(() => {
-      _saveLayout("callosum.rightOpen", rightOpen ? "1" : "0");
-    }, [rightOpen]);
-    const [theoryOpen, setTheoryOpen] = useState(() => _loadLayout("callosum.theoryOpen", "axes"));
-    const [methodsOpen, setMethodsOpen] = useState(() => _loadLayout("callosum.methodsOpen", "details"));
-    useEffect(() => {
-      _saveLayout("callosum.theoryOpen", theoryOpen);
-    }, [theoryOpen]);
-    useEffect(() => {
-      _saveLayout("callosum.methodsOpen", methodsOpen);
-    }, [methodsOpen]);
-    const [readingMode, setReadingMode] = useState(false);
-    const toggleReading = useCallback(() => setReadingMode((on) => !on), []);
+    const {
+      theme,
+      setTheme,
+      hideUncertainDefault,
+      setHideUncertainDefault,
+      axisCutoffDefault,
+      setAxisCutoffDefault,
+      autoScanWatched,
+      setAutoScanWatched,
+      leftW,
+      setLeftW,
+      rightW,
+      setRightW,
+      leftOpen,
+      setLeftOpen,
+      rightOpen,
+      setRightOpen,
+      theoryOpen,
+      setTheoryOpen,
+      methodsOpen,
+      setMethodsOpen,
+      readingMode,
+      toggleReading
+    } = useUiPrefs();
     const [listState, setListState] = useState({ status: "loading", papers: [] });
     const [query, setQuery] = useState("");
     const [debounced, setDebounced] = useState("");
