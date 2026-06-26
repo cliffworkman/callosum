@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 126** (see Increment workflow) with **459 pytest tests
+It is currently at **Increment 127** (see Increment workflow) with **471 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -737,7 +737,35 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-25 — increment 126 (p-curve — collection-level evidential-value check; the first GRIM/p-curve
+*Last updated: 2026-06-25 — increment 127 (GRIM + GRIMMER data-consistency calculator — the second GRIM/p-curve
+"data-detective" METHODS feature): **GRIM** (Brown & Heathers, 2017) checks whether a reported **mean** of
+integer-scale data is mathematically possible for the sample size; **GRIMMER** (Anaya 2016 / Allard 2018) extends
+the check to the **SD**. Brainstorming chose an **assisted per-value calculator** (NOT an auto-scanner — pulling
+mean+N+granularity from PDF prose is unreliable and would risk false, accusation-flavored flags): the user enters
+a specific reported value to check, exactly how researchers use GRIM. **New `app/backend/methods/grim.py`** (pure
+stdlib, no scipy/LLM/egress): `grim_test(mean, n, items=1)` (achievable means `K/(N*items)`; **nearest-possible**
+values; a `no_power` flag when `N*items >= 10**decimals`) + `grimmer_test(mean, sd, n, items=1)` — **items=1**:
+GRIM-check the mean, then test for an **integer sum-of-squares in the SD interval with the parity refinement
+`SS ≡ T (mod 2)`** (the Allard correction over Anaya; **validated against the `scrutiny` reference** —
+5.23/2.55/31→consistent, /35→inconsistent: for N=35 the only integer SS is even while the total is odd, so parity
+correctly flips it). Rounding is **round-half-up via `Decimal`** (not banker's / float `==`). **`POST /methods/grim`**
+(`routers/methods.py`) — sync, stateless, no DB/egress; `{mean, sd?, n, items}` → `{grim, grimmer?}`; bad inputs →
+**422**. **Frontend `07_methods_grim.jsx`** — a **self-registering** METHODS section "Data consistency (GRIM)"
+(order 30): a mean/SD/N/items form → GRIM (✓/✗ + nearest) + GRIMMER (✓/✗) + the no-power + integer-scale caveats +
+a credit block with one-click **add to library**; tokens-only CSS; **no `40_app.jsx` change** (self-registered →
+sidesteps the 590/600 cap there). **Assisted/per-value → inherently non-accusatory** (the user picks the value; it
+never scans/ranks/labels a paper or author): **Principles gate #9 aligned** (declined an auto-scanner of
+guessed-N flags; the A-A no-accusation veto held); **audit `.claude/security-audits/2026-06-25_grim.md` PASS**;
+**rule #10** `route_37_methods_grim.md` + surface **91 API / 484 FE, 0 uncovered**; **credit-the-lineage** —
+`THIRD-PARTY-NOTICES.md` (GRIM + GRIMMER + the `scrutiny` reference [Lukas Jung] + the Lakens catalog). **GRIMMER
+is items=1 in v1** (multi-item deferred; GRIM supports items). pytest **471** (+12 `test_grim.py`: math + endpoint;
+route-surface updated); `ruff` clean. **Verified headed, no egress** (`.local/visual/drive_inc127_grim.py` — 3.48/
+N20 → impossible + nearest 3.45/3.50; 5.23/2.55/31 → GRIM+GRIMMER consistent; add-to-library; 0 console/page/genai).
+Design/plan: `.claude/docs/specs/2026-06-25-grim-calculator-{design,plan}.md`; notes: `INCREMENT-127-NOTES.md`.
+**NEXT (user's pick):** multi-item GRIMMER; the findings subsystem (FACT vs CANDIDATE); or the overdue
+**`40_app.jsx` 590/600 split** (rule #1).
+
+Earlier — increment 126 (p-curve — collection-level evidential-value check; the first GRIM/p-curve
 "data-detective" METHODS feature): the user asked for GRIM/p-curve (surfaced via Daniël Lakens'
 [automated-review catalog](https://lakens.github.io/automated_review_daily_build/)); we built **p-curve first**
 (lower risk — it **reuses the proven statcheck p-value extractor**; GRIM's hard, low-coverage mean+N+granularity

@@ -22,8 +22,24 @@ are the design diary; this is the chronological "what & why" record.
   per-sentence claim traces.
 - **Revert:** restore the inc-123 `is_front_matter_chunk` body (commit `e446b46`).
 
+## 2026-06-25 — Increment 127: GRIM + GRIMMER data-consistency calculator
+<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 127 (2026-06-25) — added a "Data consistency (GRIM / GRIMMER)" section. Entries ABOVE this line are newer than the last help sync. -->
+- **Files:** NEW `app/backend/methods/grim.py`, `app/frontend/js/07_methods_grim.jsx`,
+  `.claude/security-audits/2026-06-25_grim.md`, `.claude/qa-routes/route_37_methods_grim.md`,
+  `INCREMENT-127-NOTES.md`; `app/backend/api/routers/methods.py`, `app/frontend/styles.css`, `callosum-app.html`,
+  `app/backend/help/help_content.md`, `THIRD-PARTY-NOTICES.md`, `tests/{test_grim.py, test_health.py}`.
+- **What:** The second GRIM/p-curve "data-detective" METHODS feature — an **assisted, per-value GRIM + GRIMMER
+  calculator** (METHODS pane → "Data consistency (GRIM)"): enter a reported mean (+ SD), N, items → is it
+  mathematically possible for integer data, with nearest-possible values + caveats + credit/add-to-library.
+- **Why:** The user asked for GRIM (via the Lakens catalog). An assisted calculator (not an auto-scanner) is
+  reliable + honest — extraction of mean+N+granularity from prose is unreliable. Inherently non-accusatory.
+- **Gates:** Principles #9 aligned; audit `2026-06-25_grim.md` PASS; rule #10 route_37 + surface 91 API / 484 FE,
+  0 uncovered; credit-the-lineage (THIRD-PARTY-NOTICES + in-context + add-to-library). No DB/migration/egress.
+  GRIMMER is items=1 in v1 (multi-item deferred); GRIM supports items.
+- **Revert:** `git revert` the inc-127 range, or drop `methods/grim.py` + the endpoint + the METHODS section.
+
 ## 2026-06-25 — Increment 126: p-curve (collection-level evidential-value check)
-<!-- HELP-DOCS-SYNCED: app/backend/help/help_content.md current as of increment 126 (2026-06-25) — added a "p-curve: evidential value" section. Entries ABOVE this line are newer than the last help sync. -->
+<!-- (prior help-sync marker for inc 126; superseded by the inc-127 marker above) added a "p-curve: evidential value" section. -->
 - **Files:** NEW `app/backend/methods/pcurve.py`, `app/frontend/js/29_pcurve.jsx`,
   `.claude/security-audits/2026-06-25_pcurve.md`, `.claude/qa-routes/route_36_methods_pcurve.md`,
   `INCREMENT-126-NOTES.md`; `app/backend/api/{routers/methods.py, app.py}`, `app/frontend/js/{10_pdf_layer,40_app}.jsx`,

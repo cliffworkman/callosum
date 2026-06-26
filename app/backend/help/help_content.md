@@ -592,6 +592,22 @@ Read it as a prompt to think, not a judgment:
 - Below about 5 significant results the curve is too sparse to interpret; the modal says so.
 - The modal credits the method (Simonsohn, Nelson & Simmons, 2014) and offers a one-click **add to library**.
 
+<!-- section: data-consistency-grim -->
+## Data consistency (GRIM / GRIMMER)
+GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check whether a reported **mean** (and **SD**) of **integer-scale** data — counts, or Likert-type items — is mathematically *possible* for the stated sample size. A mean of N integers must equal a whole number divided by N, so at a given decimal precision only certain means can occur; GRIMMER extends the same logic to the standard deviation.
+
+It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data consistency (GRIM)**, then type a value you're reading — the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure) — and click **Check**. You get:
+
+- **GRIM:** consistent, or **impossible** with the **nearest possible** means shown (so you can see how far off it is).
+- **GRIMMER** (when you enter an SD): consistent or impossible (single-item only for now).
+- A **no-power** note when N is large for the precision (then almost any mean is achievable, so GRIM can't say much).
+
+Read it as a prompt, not a judgment:
+
+- It only applies to **integer-scale** data — not continuous measures (reaction times, proportions). An inconsistency is usually a typo or a misreported N; it is **a prompt to look, never a verdict or an accusation**.
+- Because *you* enter a specific value, it never scans, ranks, or labels papers or people.
+- The section credits the methods (Brown & Heathers; Anaya / Allard) and offers a one-click **add to library**.
+
 <!-- section: duplicates -->
 ## Finding possible duplicates
 The **Duplicates** scan helps you find likely duplicate records without automatically deleting or merging anything.

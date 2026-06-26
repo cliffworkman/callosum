@@ -91,7 +91,10 @@ def grimmer_test(mean: str, sd: str, n: int, items: int = 1) -> GrimmerResult:
     d_sd = _decimals(sd)
     if items != 1:
         return GrimmerResult(
-            False, sd, d_sd, supported=False,
+            False,
+            sd,
+            d_sd,
+            supported=False,
             note="Multi-item GRIMMER isn't supported yet — GRIM still checks the mean above.",
         )
     d_m = _decimals(mean)
@@ -99,7 +102,10 @@ def grimmer_test(mean: str, sd: str, n: int, items: int = 1) -> GrimmerResult:
     totals = _consistent_totals(m, n, d_m)
     if not totals:
         return GrimmerResult(
-            False, sd, d_sd, supported=True,
+            False,
+            sd,
+            d_sd,
+            supported=True,
             note="The mean is GRIM-inconsistent, so the SD cannot be consistent either.",
         )
     half = 0.5 * 10 ** (-d_sd)

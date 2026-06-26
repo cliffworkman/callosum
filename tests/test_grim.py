@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.methods.grim import GrimResult, GrimmerResult, grim_test, grimmer_test
+from app.backend.methods.grim import GrimmerResult, GrimResult, grim_test, grimmer_test
 
 
 def test_grim_impossible_mean():

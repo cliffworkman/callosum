@@ -73,6 +73,16 @@ The per-paper NHST p-value recomputation is the **statcheck** method:
   <https://doi.org/10.3758/s13428-015-0664-2>.
 - Re-implemented from the paper (the `statcheck` R package is by Nuijten & Epskamp) — credited, not reused.
 
+### GRIM + GRIMMER (inc 127)
+The data-consistency calculator implements the **GRIM** and **GRIMMER** methods:
+- GRIM — Brown, N. J. L., & Heathers, J. A. J. (2017). *The GRIM test: A simple technique detects numerous
+  anomalies in the reporting of results in psychology.* Social Psychological and Personality Science, 8(4),
+  363–369. <https://doi.org/10.1177/1948550616673876>.
+- GRIMMER — Anaya, J. (2016). *The GRIMMER test.* PeerJ Preprints 4:e2400v1; with the analytic refinement by
+  Allard, A. (2018), *Analytic-GRIMMER.*
+- Re-implemented from the papers (the reference R implementation is **`scrutiny`**, Lukas Jung,
+  <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
+
 ---
 
 ## Corresponding source (AGPL §13)
