@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 136) — help corpus current as of the watched-folder focus-rescan line -->
+## 2026-06-26 — Increment 136: watched folders rescan on window focus (live-ish pickup)
+- **Files:** `app/frontend/js/40_app.jsx`, `app/backend/help/help_content.md`, `INCREMENT-136-NOTES.md`.
+- **What:** Watched-folder rescans now also fire when the window regains focus (throttled 20s + in-flight guard),
+  not just on launch — so a PDF dropped into a watched folder appears when you switch back to Callosum (its DOI is
+  read from the file → enriched → retraction-checked, all already wired). Frontend-only.
+- **Why:** A user dropped a PDF expecting it to appear; rescans only ran on launch, so nothing happened
+  mid-session. A reasonable user expects a watched folder to feel live.
+- **Revert:** restore `40_app.jsx` from git (this commit).
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 135) — help corpus current as of the "Finding gaps" section -->
 ## 2026-06-26 — Increment 135: literature gap-finder (backward citation gap)
 - **Files:** `integrations/openalex/adapter.py`, `app/backend/clustering/gapfinder.py` (new),

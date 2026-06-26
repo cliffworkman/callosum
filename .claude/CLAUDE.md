@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 135** (see Increment workflow) with **514 pytest tests
+It is currently at **Increment 136** (see Increment workflow) with **514 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -742,7 +742,24 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 135 (literature gap-finder — backward citation gap): a new **discovery**
+*Last updated: 2026-06-26 — increment 136 (watched folders rescan on window focus — live-ish pickup): a user
+dropped a PDF into their library folder expecting it to appear (and be retraction-tagged); nothing happened.
+Root cause (no code bug): the watched-folder auto-rescan only ran **on app launch** (`40_app.jsx`'s effect had
+`[]` deps → mount-only), so a **mid-session** drop wasn't picked up until a restart / manual "Re-scan all". Fix
+(**frontend-only**): the rescan now also fires **on window `focus`** (throttled 20s + an in-flight guard, gated by
+the existing `callosum.autoScanWatched` toggle) — drop a PDF, switch back to Callosum, it appears. The rest of the
+chain already worked: scan → `pdf-scaffold` → enrich (**`find_doi_in_pdf` reads the DOI from the PDF text**,
+`enrichment.py:160` → Crossref → metadata) → the inc-134 `auto_check_retractions` tags it. Two prerequisites the
+user owns: the folder must be **registered as watched** (a one-time "Scan folder" via the UI — can't be done
+remotely), and a retraction check must have run / runs on-import. pytest **514** unchanged (frontend-only; the
+rescan endpoint + chain are already tested); build + assembly + the e2e suite green; help corpus watched-folders
+line updated (`HELP-DOCS-SYNCED` → 136). Notes: `INCREMENT-136-NOTES.md`. **NEXT (queued):** gap-finder v2
+(forward gap + axis-scoped ranking + a persistent `gap_candidates` cache — user-chosen scope); auto-select the top
+library paper on load; the accordion-tabs design rule (tabs-within-a-section for like-with-like, Axes+Tags tabs,
+order Data-consistency before Statistics-check, codify in `DESIGN.md`); a true live OS file-watcher later if
+focus-rescan isn't enough.
+
+Earlier — increment 135 (literature gap-finder — backward citation gap): a new **discovery**
 capability (a long-wanted future-track). Aggregate each library paper's OpenAlex **`referenced_works`** → surface
 external works cited by **≥ N (default 3) of your papers** that the library doesn't have ("**cited by N of your
 papers**") as **Add / Dismiss candidates** — the inverse of the inc-119 "who cites my work" feature. New OpenAlex

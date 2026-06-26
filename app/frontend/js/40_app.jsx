@@ -378,22 +378,36 @@ function App() {
 
   // inc-98: re-scan watched folders on launch (default on; Settings toggle). Non-blocking background job — the
   // rescan endpoint no-ops if there are no watched folders. Bumps libRefresh/tagRefresh when new papers land.
-  const didAutoScan = useRef(false);
-  useEffect(() => {
-    if (didAutoScan.current || !autoScanWatched) return;
-    didAutoScan.current = true;
+  // inc-136: rescan on launch AND whenever the window regains focus (you dropped a PDF in the folder, then
+  // switched back) — so a watched folder feels live without a manual "Re-scan all". Throttled to avoid hammering
+  // the disk on rapid focus changes; in-flight guard prevents overlapping scans.
+  const rescanInFlight = useRef(false);
+  const lastRescan = useRef(0);
+  const triggerWatchedRescan = useCallback(() => {
+    if (!autoScanWatched || rescanInFlight.current) return;
+    if (Date.now() - lastRescan.current < 20000) return;  // at most once per 20s
+    rescanInFlight.current = true;
+    lastRescan.current = Date.now();
     apiPost("/library/watched/rescan", {}).then(r => {
-      if (!r.ok) return;
+      if (!r.ok) { rescanInFlight.current = false; return; }
       const poll = (jobId) => api(`/library/watched/rescan/${jobId}`).then(rr => {
-        if (!rr.ok) return;
+        if (!rr.ok) { rescanInFlight.current = false; return; }
         if (rr.data.status === "done") {
+          rescanInFlight.current = false;
           const sm = rr.data.summary;
           if (sm && (sm.added || sm.removed)) { setLibRefresh(n => n + 1); setTagRefresh(n => n + 1); }
-        } else if (rr.data.status !== "error") setTimeout(() => poll(jobId), 2000);
+        } else if (rr.data.status === "error") rescanInFlight.current = false;
+        else setTimeout(() => poll(jobId), 2000);
       });
       poll(r.data.job_id);
     });
-  }, []);
+  }, [autoScanWatched]);
+  useEffect(() => {
+    triggerWatchedRescan();  // on launch
+    const onFocus = () => triggerWatchedRescan();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [triggerWatchedRescan]);
 
   // debounce search
   useEffect(() => {
