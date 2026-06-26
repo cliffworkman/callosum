@@ -113,6 +113,8 @@ The toolbar shows:
 
 Callosum renders the PDF pages and an invisible selectable text layer. That means you can select text to highlight, while the visible page stays aligned with highlights and citation overlays across zoom levels.
 
+The **Notes** panel lists every highlight in the paper (with its page and a snippet of the highlighted text); click a row to scroll to it and flash it. When you have at least one highlight, the panel header offers **Copy** and **Export .md** — they assemble all your highlights and notes for the paper into a Markdown digest (each as the highlighted text, its page, and your note), so you can copy them out or save a `*-notes.md` file to take your marked-up reading elsewhere.
+
 For distraction-free reading, click **⛶ Read** at the right of the tab bar — it hides both side panels to give the page the full width. Click **⤢ Exit** or press **Esc** to bring the panels back exactly as they were. (Reading mode is temporary; reloading the page returns to the normal layout.)
 
 Gotchas:
@@ -247,7 +249,7 @@ To browse and remove:
 
 - The left pane's **Tags** tab (the second tab of the **Axes** section) lists every tag with its paper count (it's always available — when you have no tags yet it shows a hint pointing you to add them from a paper's Details). Click a tag to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the section to narrow the list by source.
 - Click a tag's name in a paper's **Tags** row to **filter the library** to every paper carrying that tag (a "Filtered to tag …" banner appears; click **clear** to return). The tag filter and the axis filter are mutually exclusive.
-- Click the **×** on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically (and disappears from the sidebar panel).
+- Click the **×** on a tag to remove it from that paper. A tag that ends up on no papers is cleaned up automatically (and disappears from the sidebar panel). Removing an **imported keyword** tag is durable: a later re-resolve or keyword backfill will not silently bring it back. (Re-adding the tag by name lets it return.)
 
 Tags are stored locally; nothing is sent anywhere.
 
@@ -505,7 +507,7 @@ Synthesis is for asking a question across your library and getting a citation-gr
 There are two ways to run a synthesis:
 
 - **Ask a question.** Type a question in **Ask a synthesis question about the library...**, click **Synthesize**, and Callosum retrieves the most relevant chunks across your library, generates an answer, and verifies each citation. Read the result under **Verified** and **Flagged · needs review**.
-- **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum generates a verified synthesis of just those papers (the Synthesis pane shows a "N selected papers" note), spreading its attention across all the papers you picked. This is the fast path for "summarize these specific papers" without phrasing a question.
+- **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum generates a verified synthesis of just those papers (the Synthesis pane shows a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
 

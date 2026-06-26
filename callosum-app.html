@@ -613,6 +613,9 @@
   /* citation export (inc 70): the bulk-bar format picker + the Details "Cite" row (links reuse .btn-link) */
   .bulk-export { border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); border-radius: var(--radius-sm); padding: 2px 4px; font-size: 11px; font-family: var(--sans); cursor: pointer; }
   .bulk-export:hover { border-color: var(--accent); }
+  /* inc 145: optional focus query in the selection bar — makes the multi-paper "focused synthesis" discoverable */
+  .bulk-focus { min-width: 180px; border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); font: inherit; font-size: 11.5px; padding: 3px 8px; }
+  .bulk-focus:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
   .detail-cite { display: flex; flex-direction: column; gap: 6px; margin: 14px 0 4px; }   /* inc-106: now stacked */
   .detail-cite-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .detail-cite-label { font-family: var(--sans); font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
@@ -2348,6 +2351,7 @@
     onOpenScan,
     onOpenImport
   }) {
+    const [bulkFocus, setBulkFocus] = useState("");
     const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
     const pendingAdd = pendingOps.filter((o) => o === "add").length;
     const pendingRemove = pendingOps.filter((o) => o === "remove").length;
@@ -2413,7 +2417,19 @@
         onChange: (e) => onQuery(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkSummarize, title: "Generate a verified synthesis of the selected papers" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "bulk-focus",
+        placeholder: "Focus on\u2026 (optional)",
+        value: bulkFocus,
+        title: "Optionally focus the synthesis on a question \u2014 leave blank for a general summary",
+        onChange: (e) => setBulkFocus(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") onBulkSummarize(bulkFocus);
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -3435,7 +3451,8 @@
       if (!pendingSummarize) return;
       const MAX_CHUNKS = 50;
       const n = pendingSummarize.count;
-      const focus = query.trim();
+      const focus = (pendingSummarize.focus != null ? pendingSummarize.focus : query).trim();
+      if (pendingSummarize.focus) setQuery(pendingSummarize.focus);
       const focusShort = focus.length > 60 ? focus.slice(0, 60) + "\u2026" : focus;
       setScopeNote(
         `${n} selected paper${n === 1 ? "" : "s"}` + (focus ? ` \xB7 focused on \u201C${focusShort}\u201D` : "") + (n > MAX_CHUNKS ? ` \xB7 capped at ${MAX_CHUNKS} chunks` : "")
@@ -5834,10 +5851,10 @@
         setLibRefresh((n) => n + 1);
       });
     }, [selectedLibraryIds]);
-    const bulkSummarizePapers = useCallback(() => {
+    const bulkSummarizePapers = useCallback((focus) => {
       const ids = [...selectedLibraryIds];
       if (!ids.length) return;
-      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
+      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1, focus: (focus || "").trim() || null }));
       setLeftOpen(true);
       setTheoryOpen("synthesis");
       setSelectedLibraryIds(/* @__PURE__ */ new Set());

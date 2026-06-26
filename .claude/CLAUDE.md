@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 144** (see Increment workflow) with **524 pytest tests
+It is currently at **Increment 145** (see Increment workflow) with **524 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -764,7 +764,29 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 144 (export / copy a paper's highlights + notes — Close reader dogfood): the
+*Last updated: 2026-06-26 — increment 145 (discoverable multi-paper focus query — Skeptical synthesizer dogfood;
+**completes the build-and-test slate, 4/4**): the last slate build. A dispatched **Skeptical synthesizer** persona
+agent drove the select→summarize flow and found the trust machinery is strong (every claim carries quote+page+
+confidence; verified-vs-flagged is clean) and **the focus query already worked** (a query in the Synthesis textarea
+makes the selection summary query-ranked, inc 111) — **but it was invisible at the moment of action**: the focus
+lived in a different accordion section, the selection bar's `summarize` gave no hint, and the help even *misframed*
+selection-summarize as "without phrasing a question." Fix (frontend + a help edit): a **"Focus on… (optional)"** input
+in the library selection bar (`10_pdf_layer.jsx`) → `bulkSummarizePapers(focus)` (`40_app.jsx`) → `pendingSummarize.focus`
+→ the multi-paper synthesis (`20_synthesis.jsx`) **prefers it** (falls back to the textarea, inc-111), reflects it into
+the textarea, and sets `body.query = focus` (query-ranked) + the "focused on …" scope-note. **Discoverability, not a
+new capability** — the backend papers-scope already honored `query`; the verification spine + honesty contract are
+unchanged (the focus *ranks* coverage, never fabricates). **Principles gate non-triggering** (no new claim type).
+pytest **524** unchanged (frontend + help; wiring headed-verified); `ruff` clean; build + assembly green; surface
+**106/106 API + 539/539 FE, 0 uncovered**. **Verified headed, no egress** (`.local/visual/drive_inc145_focus.py` —
+select 2 papers → Focus input → summarize → the `POST /summarize` body carries `query=<focus>` + `scope_type:papers`,
+the scope-note reads "focused on …", the textarea reflects it; 0 console/page/genai). Help corpus also brought current
+for inc 143 (durable keyword deletion) + inc 144 (export highlights) → `HELP-DOCS-SYNCED` moved to 145. Remaining
+synthesizer findings → backlog #7 (coverage readout "drew from M of N"; answerability note; show the top_k cap).
+Notes: `INCREMENT-145-NOTES.md`. **The slate is done — 6 persona runs (incl. inc 141), 6 real gaps found + fixed,
+validating the experience-pass gate + its persona-agent mechanism.** **NEXT: BYOK** (Gemini API key in Settings →
+full bring-your-own-key) — user-prioritized to the top of the pile now that the slate is complete.
+
+Earlier — increment 144 (export / copy a paper's highlights + notes — Close reader dogfood): the
 4th build in the slate. A dispatched **Close reader** persona agent drove the read→highlight→note→navigate→return
 flow and found the reading experience is genuinely good (page comfort, select→note in one gesture, a Notes panel
 that lists + jumps + flashes, marks that persist + re-find) — but **no way to get the marks *out***: they're trapped

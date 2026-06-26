@@ -179,10 +179,11 @@ function App() {
   // inc-62: "summarize N" → drive the (always-visible) Synthesis pane to summarize the selected subset.
   // A nonce makes each click a fresh trigger; inc 121: synthesis lives in the THEORY (left) accordion now, so
   // open the left pane + switch it to the SYNTHESIS section so the result is visible.
-  const bulkSummarizePapers = useCallback(() => {
+  const bulkSummarizePapers = useCallback((focus) => {
     const ids = [...selectedLibraryIds];
     if (!ids.length) return;
-    setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
+    // inc-145: an optional focus query from the selection bar → a query-RANKED synthesis of just the selection.
+    setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1, focus: (focus || "").trim() || null }));
     setLeftOpen(true); setTheoryOpen("synthesis");
     setSelectedLibraryIds(new Set());
   }, [selectedLibraryIds]);

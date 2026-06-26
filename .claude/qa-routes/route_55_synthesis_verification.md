@@ -33,6 +33,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 
 1. Open the Synthesis pane (`20_synthesis.jsx`) and existing summaries (`GET /summaries`). Confirm empty/list states.
 2. Generate a paper-scope summary (`POST /summarize`) using the fake generator. Poll (`GET /summarize/{job_id}`) through completion; navigate away mid-job and return.
+   - **inc 145 (Skeptical synthesizer):** select papers in the Library → the selection bar shows a **"Focus on…" input**; typing a question + **summarize** sends `scope_type:"papers"` **with `query=<focus>`** (a query-RANKED synthesis of just the selection) and the Synthesis scope-note reads "… · focused on '…'" (the focus also reflects into the Synthesis textarea). Blank focus → a general selection summary (no `query`). Confirm the focus is honest — it ranks coverage, never fabricates a claim the evidence doesn't support.
 3. Generate cluster and query summaries, including an empty/whitespace query. Confirm validation and no orphaned spinners.
 4. Open persisted summary detail (`GET /summaries/{summary_id}`). Confirm every sentence shows visible verification status and every citation shows confidence, quote, page, and coordinate precision.
 5. Click citations. Assert exact/region/null coordinate honesty in the PDF viewer.

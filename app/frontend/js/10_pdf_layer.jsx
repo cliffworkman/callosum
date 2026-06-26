@@ -330,6 +330,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport }) {
+  const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
@@ -473,7 +474,11 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
       {selecting && selCount > 0 &&
         <div className="axis-bulk-bar">
           <span className="axis-bulk-count">{selCount} selected</span>
-          <button className="axis-link" onClick={onBulkSummarize} title="Generate a verified synthesis of the selected papers">summarize</button>
+          <input className="bulk-focus" placeholder="Focus on… (optional)" value={bulkFocus}
+            title="Optionally focus the synthesis on a question — leave blank for a general summary"
+            onChange={e => setBulkFocus(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") onBulkSummarize(bulkFocus); }} />
+          <button className="axis-link" onClick={() => onBulkSummarize(bulkFocus)} title="Generate a verified synthesis of the selected papers — focused on your question if you typed one">summarize</button>
           <button className="axis-link" onClick={onBulkPcurve} title="Run a p-curve (evidential value) over the selected papers — collection-level, never per-paper">p-curve</button>
           <select className="bulk-export" value="" title="Export citations for the selected papers"
             onChange={e => { if (e.target.value) { onBulkExport(e.target.value); e.target.value = ""; } }}>

@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 145) — help corpus current as of the slate (export-highlights, durable keyword deletion, the selection focus query) -->
+## 2026-06-26 — Increment 145: discoverable multi-paper focus query (Skeptical synthesizer pass + backlog #7)
+- **Files:** `app/frontend/js/10_pdf_layer.jsx` + `20_synthesis.jsx` + `40_app.jsx` + `styles.css` +
+  `callosum-app.html`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_55_synthesis_verification.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-145-NOTES.md`. (Help corpus also brought current for inc 143/144.)
+- **What:** Ran the **Skeptical synthesizer** persona pass on the select→summarize flow → the focus query (a
+  query-ranked multi-paper synthesis, inc 111) **already worked but was invisible** (the focus lived in the
+  Synthesis textarea, not the selection bar; the help even misframed it). Added a **"Focus on… (optional)"** input
+  to the selection bar → threads to the multi-paper synthesis as `query` (query-ranked) + reflects into the
+  textarea + the "focused on …" scope-note. Frontend + a help fix.
+- **Why:** A skeptic would never discover the focused path and walk away thinking it only does generic summaries.
+- **Revert:** restore the listed frontend files from git + rebuild.
+
 ## 2026-06-26 — Increment 144: export / copy a paper's highlights + notes (Close reader dogfood)
 - **Files:** `app/frontend/js/30_viewer.jsx` + `styles.css` + `callosum-app.html`,
   `.claude/qa-routes/route_32_viewer_annotations.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-144-NOTES.md`.

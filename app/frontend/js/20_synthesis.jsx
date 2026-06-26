@@ -100,7 +100,9 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize }) {
     if (!pendingSummarize) return;
     const MAX_CHUNKS = 50;   // SummarizeRequest caps top_k at 50
     const n = pendingSummarize.count;
-    const focus = query.trim();
+    // inc-145: prefer the focus typed in the selection bar; fall back to the synthesis textarea (inc-111 behavior).
+    const focus = (pendingSummarize.focus != null ? pendingSummarize.focus : query).trim();
+    if (pendingSummarize.focus) setQuery(pendingSummarize.focus);  // reflect it in the textarea so it's visible
     const focusShort = focus.length > 60 ? focus.slice(0, 60) + "…" : focus;
     setScopeNote(
       `${n} selected paper${n === 1 ? "" : "s"}`
