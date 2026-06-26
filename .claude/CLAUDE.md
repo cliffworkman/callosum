@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 133** (see Increment workflow) with **504 pytest tests
+It is currently at **Increment 134** (see Increment workflow) with **506 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -740,7 +740,30 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 133 (activate the candidate-review half — statcheck candidates + a unified
+*Last updated: 2026-06-26 — increment 134 (retraction lifecycle — on-import auto-check + RW staleness nudge):
+completes the producer's world-state lifecycle. The retraction producer checked only on demand (the batch /
+per-paper), so a freshly imported retracted paper wouldn't flag until a manual re-run. Now: (1) **on-import
+auto-check** — new `methods/retraction.py::auto_check_retractions(conn, paper_ids, *, checkers)` runs a **guarded
+best-effort** detect+apply over a set of papers (each wrapped in `try/except` on top of `detect_retraction`'s
+per-source guard, so a source error / missing row **never aborts the import**), hooked into the **scan** job
+(`_process_scan_result` gained a `retraction_checkers` param, passed by scan + watched-rescan) and the
+**citation-import** job over the *new* paper ids via `app.state.retraction_checkers` — a freshly imported
+retracted paper flags immediately (Crossref reads the cache the enrich just populated; the RW mirror is offline;
+OpenAlex is one cached lookup → marginal); (2) an **RW staleness nudge** — the Retraction Watch panel computes its
+snapshot age from `retrieved_at` and past **30 days** appends "· N days old — refresh recommended" (amber; the
+data isn't wrong, just old). **No new endpoint, migration, external-fetch type/host, or dependency** → reuses the
+inc-131 audit (an **addendum** was added to `2026-06-26_retraction.md`) + the established Principles posture (no
+new claim type); **no new end-user surface** (an internal auto-check + a text nudge in the already-QA-covered RW
+panel) → no new QA route, surface map unchanged (**0 uncovered**). help corpus's retraction section gained the
+on-import + staleness lines (`HELP-DOCS-SYNCED` → 134). pytest **506** (+2 `test_retraction.py`:
+`auto_check_retractions` best-effort [flagged / clean / missing-id swallowed]; the citation-import job auto-checks
+→ the imported paper carries the FACT); `ruff` clean; build + assembly + the **e2e suite** green locally; the
+staleness endpoint + render confirmed live. `library.py` 284/600. Notes: `INCREMENT-134-NOTES.md`. **This
+completes the retraction arc end-to-end (131 SP1 → 132 SP2 → 133 candidate-review → 134 lifecycle).** **NEXT:**
+on-import for the Zotero / single-PDF paths; an automatic *cadence* refresh of the RW DB; the broader backlog
+(discovery/gapfinder, a live OS file-watcher, the Word/Docs adapters, auth).
+
+Earlier — increment 133 (activate the candidate-review half — statcheck candidates + a unified
 "N to review" facet): the inc-130 Confirmed/Accepted/Noted candidate-review machinery was built but **unexercised**
 (the only producer, retraction, writes *facts*). Now the **statcheck batch also emits a CANDIDATE finding** per
 flagged paper (`source="statcheck"`, `desc` + counts + the flagged result's page; clean re-check → supersede; a

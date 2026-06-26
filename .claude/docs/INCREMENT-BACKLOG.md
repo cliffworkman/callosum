@@ -245,10 +245,13 @@ Retraction Watch DB)** — multi-source (all three) per-DOI → a FACT (Review F
 an honest per-paper check status (silence ≠ clean) + a library "Retracted" chip/filter + a batch + the RW bulk
 mirror (`retraction_records`, migration 0017, with a "Refresh database" action). **SHIPPED inc 133:** statcheck
 emits **candidate** findings + a unified **"N to review"** library facet (`?finding=needs-review`) reading
-`findings_overview` — the candidate-review half is now live + exercised. **REMAINING:** the retraction
-**on-import auto-check + a TTL/cadence refresh**; p-curve/GRIM are collection/per-value (don't naturally emit
-per-paper candidates → deferred); a later consolidation could fold the statcheck signal chip into the unified
-facet (coexist is the v1). **Cross-cut:** system FACTs (`RETRACTED`) filterable via the inc-71 tag mechanism (see #19).
+`findings_overview` — the candidate-review half is now live + exercised. **SHIPPED inc 134:** the retraction
+**on-import auto-check** (scan + citation-import) + an **RW staleness nudge** — the producer lifecycle is now
+complete (on-demand + automatic-at-import + staleness-visible). **REMAINING:** on-import for the Zotero /
+single-PDF paths; an automatic *cadence* refresh of the RW DB (manual + the nudge is v1); p-curve/GRIM are
+collection/per-value (don't naturally emit per-paper candidates → deferred); a later consolidation could fold the
+statcheck signal chip into the unified facet (coexist is the v1). **Cross-cut:** system FACTs (`RETRACTED`)
+filterable via the inc-71 tag mechanism (see #19).
 
 **32. THEORY/METHODS module pool** (`…_theorymethodsextension.md`) — **[future track]** additional principle-aligned
 panel-module candidates; depends on the findings subsystem + module registry (#31).

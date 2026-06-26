@@ -629,6 +629,8 @@ How results show up:
 - A red **"⚠ N retracted"** chip appears in the library header; click it to filter to just those papers.
 - For a paper that was checked and **nothing** was found, the Review section says **"checked — none found"**; a paper with **no DOI** says **"unchecked — no DOI"**. Silence is never presented as "clean" — absence of a mark only means *nothing was found among the papers that could be checked*.
 
+New papers are also checked **automatically as they're imported** (a scan or a citation-file import), so a freshly added retracted paper flags right away without waiting for a batch run. And because a registry snapshot ages, the Retraction Watch line nudges you to refresh once your copy is more than 30 days old (the data isn't wrong, just old).
+
 Re-run the check anytime (retractions can happen years after publication); it updates each paper and removes a mark if a record is ever withdrawn.
 
 For the most complete coverage, the Review section can also download the **Retraction Watch database** (a free, openly-licensed registry of retractions) into a local copy — click **Refresh database**. It's the richest source (it adds the *reason* and date), and once downloaded the check matches your library against it offline. The line shows how many records you have and the date of your copy; refresh it now and then to stay current. (Downloading needs a contact email set in `CALLOSUM_CROSSREF_MAILTO`, the same polite-pool setting Crossref uses.)

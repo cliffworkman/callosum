@@ -71,3 +71,15 @@ retraction reads), #5 (net-new feature spanning 3+ files). Not #3 (no file inges
 **Security Audit: PASS.** Local public-metadata lookups, defensive untrusted-response parsing, derived-only
 notice URLs (no SSRF), escaped output, bound-param SQL, fail-closed per source, no new dependency, no Gemini
 egress. SP2 (the Retraction Watch DB bulk download) will get its own audit for the new fetch/storage pattern.
+
+## Addendum — on-import auto-check (inc 134)
+
+`auto_check_retractions(conn, paper_ids, *, checkers)` runs the **same** detect+apply over newly-imported papers
+(the scan + citation-import jobs), using `app.state.retraction_checkers`. No new fetch type/host (the inc-131
+Crossref+OpenAlex checkers + the inc-132 RW mirror) — the threat review above is unchanged. New considerations:
+- **Best-effort isolation:** each paper's check is wrapped in `try/except` (on top of `detect_retraction`'s
+  per-source guard), so a source error / a missing row **never aborts the import** or 500s — the paper is simply
+  left unchecked (honest, not "clean").
+- **Cost:** bounded by the count of *new* papers per import; the Crossref checker reads the cache the enrich just
+  populated (free), the RW checker is offline, OpenAlex is one cached lookup — marginal on an already-async job.
+- No new endpoint, no migration, no egress beyond the already-audited DOI metadata lookups. **Still PASS.**

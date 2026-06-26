@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 134) — help corpus current as of the on-import/staleness lines -->
+## 2026-06-26 — Increment 134: retraction lifecycle (on-import auto-check + RW staleness nudge)
+- **Files:** `app/backend/methods/retraction.py` (`auto_check_retractions`), `app/backend/api/routers/library.py`
+  (scan + import hooks), `app/frontend/js/08_methods_findings.jsx` + `styles.css`, `tests/test_retraction.py`,
+  `.claude/security-audits/2026-06-26_retraction.md` (addendum), `help_content.md`, `INCREMENT-134-NOTES.md`.
+- **What:** New papers are auto-checked for retraction on import (the scan + citation-import jobs, guarded
+  best-effort over the new paper ids, reusing the inc-131 checkers) so a freshly imported retracted paper flags
+  immediately; the Retraction Watch panel surfaces its snapshot age and nudges a refresh past 30 days.
+- **Why:** Completes the producer's world-state lifecycle — automatic at import, with staleness visible — beyond
+  the on-demand batch/per-paper.
+- **Revert:** restore the listed files from git (commits `…t1` backend, `…t2` frontend, + this docs commit); no
+  migration/endpoint to undo.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 133) — help corpus current as of the review-queue lines -->
 ## 2026-06-26 — Increment 133: activate the candidate-review half (statcheck candidates + "N to review" facet)
 - **Files:** `app/backend/api/routers/methods.py` (statcheck batch), `repository.py` (the `finding` filter),
