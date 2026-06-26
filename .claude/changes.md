@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-26 — Increment 144: export / copy a paper's highlights + notes (Close reader dogfood)
+- **Files:** `app/frontend/js/30_viewer.jsx` + `styles.css` + `callosum-app.html`,
+  `.claude/qa-routes/route_32_viewer_annotations.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-144-NOTES.md`.
+- **What:** Ran the **Close reader** persona pass on the read→highlight→note→return flow → reading + marking +
+  re-finding all work well, but the marks were trapped in the panel (no way to get them out). Added **Copy** +
+  **Export .md** buttons in the Notes panel head → a Markdown digest of the paper's highlights + notes (built from
+  the loaded annotations; `navigator.clipboard` + blob-download, the inc-70 pattern). Frontend-only.
+- **Why:** A close reader's payoff is the marked-up artifact — "show me everything I marked, as a list I can carry
+  elsewhere."
+- **Revert:** restore `30_viewer.jsx` + `styles.css` from git + rebuild.
+
 ## 2026-06-26 — Increment 143: deleting an imported keyword tag is durable (Librarian pass + backlog #3)
 - **Files:** `app/backend/persistence/schema.py` + `alembic/versions/0020_suppressed_paper_tags.py` (new),
   `app/backend/persistence/tags_repo.py`, `app/backend/metadata/enrichment.py`, `tests/test_tags.py`,

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 143** (see Increment workflow) with **524 pytest tests
+It is currently at **Increment 144** (see Increment workflow) with **524 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -764,7 +764,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 143 (deleting an imported keyword tag is durable — Librarian experience pass +
+*Last updated: 2026-06-26 — increment 144 (export / copy a paper's highlights + notes — Close reader dogfood): the
+4th build in the slate. A dispatched **Close reader** persona agent drove the read→highlight→note→navigate→return
+flow and found the reading experience is genuinely good (page comfort, select→note in one gesture, a Notes panel
+that lists + jumps + flashes, marks that persist + re-find) — but **no way to get the marks *out***: they're trapped
+in the panel (no copy-all, no per-paper digest, no markdown export). Fix (frontend-only, `30_viewer.jsx`): **Copy** +
+**Export .md** buttons in the Notes panel head (shown when ≥1 highlight) assemble a Markdown **digest** from the
+already-loaded annotations (`# title`, `**p.N** — <highlighted text>`, the note as a `> blockquote`, page-ordered) —
+`copyDigest` via `navigator.clipboard` + `exportDigest` via a blob `*-notes.md` download (the inc-70 pattern). No
+backend endpoint / new data (the annotation list already carries quote+note+page; a reusable export endpoint is a
+deferred follow-up). pytest **524** unchanged (frontend-only; the pure `buildAnnotationDigest` is **node-verified**,
+the flow **headed-verified**); `ruff` clean; build + assembly green; surface **106/106 API + 536/536 FE, 0 uncovered**.
+**Verified headed, no egress** (`.local/visual/drive_inc144_marks.py` — seeds a real 2-page PDF + 2 marks, opens the
+viewer → Notes panel → Copy → the exact digest is read back off the clipboard; 0 console/page/genai). Remaining
+close-reader findings filed to the backlog (keyboard zoom + next/prev-mark hotkeys; noted-only filter + note-text
+search; fit-page + remembered scroll position; free-form note colors; a minimap highlight marker). Notes:
+`INCREMENT-144-NOTES.md`. **NEXT (the slate, last):** inc 145 **Skeptical synthesizer ↔ multi-paper focus query (#7)**
+(needs egress to test live). **Then BYOK** (user-prioritized after the slate).
+
+Earlier — increment 143 (deleting an imported keyword tag is durable — Librarian experience pass +
 backlog #3): the 3rd build in the slate. A dispatched **Librarian** persona agent drove the tag-curation + 🔎 re-resolve
 flow and found: tags don't *duplicate* and imported-vs-typed is clear (those work), but **deleting an imported keyword
 tag isn't durable** — `apply_crossref_subject_tags` re-adds *every* `subject`, so re-resolve (the cleanup button)

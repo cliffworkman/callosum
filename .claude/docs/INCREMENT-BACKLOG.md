@@ -56,6 +56,11 @@ _Italic notes are light implementation pointers, not designs._
 > inc 142 Migrator/progress ✓; inc 143 Librarian/protect-tags; inc 144 Close-reader/reading; inc 145
 > Synthesizer/focus-query), **push BYOK to the top of the pile** — the Gemini API key field in Settings (**#10**) →
 > full bring-your-own-key (**#39**). It's the gating feature for GitHub users to actually use the AI surfaces.
+>
+> **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** keyboard zoom
+> (Ctrl +/−) + next/prev-mark hotkeys; a "noted-only" filter + a search box over note text in the Notes panel; a
+> "fit page"/fit-height option + **remembered scroll position** per paper; free-form note colors/labels; a
+> scrollbar/minimap marker for where highlights sit in a long PDF. Frontend-mostly. (See `INCREMENT-144-NOTES.md`.)
 
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →

@@ -35,6 +35,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 3. Select text and create a highlight (`POST /papers/{paper_id}/annotations`). Confirm the saved bbox draws as an exact rect only when precision is exact.
 4. Edit note and color (`PATCH /annotations/{annotation_id}`). Confirm persistence after reload and no duplicate overlay.
 5. Delete the annotation (`DELETE /annotations/{annotation_id}`). Confirm it disappears after reload.
+   - **inc 144 (Close reader):** with ≥1 highlight, the Notes panel head shows **Copy** + **Export .md** — they assemble a Markdown digest of the paper's highlights + notes (`# title`, `**p.N** — <highlighted text>`, a note as a `> blockquote`). Copy → the digest is on the clipboard; Export → a `*-notes.md` download. Frontend-only (no endpoint); the buttons appear only when there are highlights.
 6. Try an oversized note, invalid color, negative/non-finite bbox, and missing anchor text through the UI or API-backed form state. Confirm 422-class handling, not a crash.
 7. Exercise citation jumps from any visible page-routing source (synthesis citation, detail-pane Files, statcheck rows in the METHODS "Statistics check" section): `exact` draws a bbox, `region` scrolls and shows approximate note, `null` opens page without a rect.
 

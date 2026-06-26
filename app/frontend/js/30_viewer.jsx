@@ -1,3 +1,17 @@
+// inc-144 (Close reader pass): assemble a paper's highlights + notes into a copy/printable Markdown digest — the
+// reader's payoff ("show me everything I marked, as a list I can take elsewhere"). Pure; built from the already-
+// loaded annotations ({page, anchor_text, note}), page-ordered like the panel.
+function buildAnnotationDigest(title, annotations) {
+  const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
+  for (const a of annotations) {
+    const quote = (a.anchor_text || "").trim();
+    lines.push(`**p.${a.page}**${quote ? " — " + quote : ""}`);
+    if (a.note && a.note.trim()) lines.push(`> ${a.note.trim()}`);
+    lines.push("");
+  }
+  return lines.join("\n").trim() + "\n";
+}
+
 function PdfViewer({ paperId, title, target, annoRefresh }) {
   const [state, setState] = useState({ status: "loading" });
   const [scale, setScale] = useState(1.15);
@@ -404,6 +418,25 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
     else flashNotice("Couldn't delete highlight — " + (r.error || "unknown error"));
   }, [flashNotice]);
 
+  // inc-144: copy / download the paper's highlights + notes as a Markdown digest (the close reader's "get my
+  // marks out"). navigator.clipboard is fine on the 127.0.0.1 secure context (cf. the inc-70 citation copy).
+  const copyDigest = useCallback(() => {
+    navigator.clipboard.writeText(buildAnnotationDigest(title, annotations))
+      .then(() => flashNotice("Highlights + notes copied"))
+      .catch(() => flashNotice("Couldn't copy — try Export .md"));
+  }, [title, annotations, flashNotice]);
+  const exportDigest = useCallback(() => {
+    const blob = new Blob([buildAnnotationDigest(title, annotations)], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const el = document.createElement("a");
+    el.href = url;
+    el.download = (title || "highlights").replace(/[^\w.-]+/g, "_").slice(0, 60) + "-notes.md";
+    document.body.appendChild(el);
+    el.click();
+    el.remove();
+    URL.revokeObjectURL(url);
+  }, [title, annotations]);
+
   // Scroll the viewer to an annotation's page and briefly flash its highlight.
   const jumpToAnnotation = useCallback((ann) => {
     const host = pagesRef.current;
@@ -461,7 +494,13 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
         </div>
         {panelOpen && state.status === "ready" &&
           <div className="pdf-annot-panel">
-            <div className="pdf-annot-head">Annotations <span>· {annotations.length}</span></div>
+            <div className="pdf-annot-head">Annotations <span>· {annotations.length}</span>
+              {annotations.length > 0 &&
+                <span className="pdf-annot-export">
+                  <button className="btn-link" onClick={copyDigest} title="Copy all highlights + notes as text">Copy</button>
+                  <button className="btn-link" onClick={exportDigest} title="Download highlights + notes as a Markdown file">Export .md</button>
+                </span>}
+            </div>
             {annotations.length === 0 &&
               <div className="pdf-annot-empty">No highlights yet. Select text in the PDF to add one, then click it to add a note.</div>}
             {annotations.map(a =>
