@@ -53,20 +53,22 @@ function ScanModal({ onClose, onScanned, onShowUnsorted }) {
           <button className="axis-link" onClick={onClose}>×</button>
         </div>
         <div className="axis-modal-note">
-          Point Callosum at folders of PDFs. New files are added (text extracted, chunked, embedded, with metadata
-          from Crossref where possible); files already in your library are skipped. Watched folders are re-scanned
-          automatically on launch, so new PDFs appear without re-adding — and the folder your library came from is
-          already tracked once it's listed here. PDFs stay where they are; nothing is moved or copied.
+          Your <b>library folder</b> is watched by default (shown below) — drop a PDF into it and it's picked up
+          automatically on launch (and when you switch back to Callosum). Add more folders to watch them the same
+          way. New files are added (text extracted, chunked, embedded, Crossref-enriched); files already in your
+          library are skipped. PDFs stay where they are; nothing is moved or copied.
         </div>
         {watched.length > 0 &&
           <div className="watched-list">
             {watched.map(w => (
-              <div key={w.id} className="watched-row">
+              <div key={w.id} className={"watched-row" + (w.is_default ? " is-default" : "")}>
                 <div className="watched-info">
                   <div className="watched-path" title={w.path}>{w.path}</div>
-                  <div className="watched-meta">{w.last_scanned_at ? "last scanned " + w.last_scanned_at.slice(0, 10) : "not yet scanned"}</div>
+                  <div className="watched-meta">{w.is_default ? "your library folder · always watched" : (w.last_scanned_at ? "last scanned " + w.last_scanned_at.slice(0, 10) : "not yet scanned")}</div>
                 </div>
-                <button className="axis-link" title="Stop watching (keeps the imported papers)" onClick={() => unwatch(w.id)}>remove</button>
+                {w.is_default
+                  ? <span className="watched-default-note" title="Your library folder is always watched — it can't be removed">default</span>
+                  : <button className="axis-link" title="Stop watching (keeps the imported papers)" onClick={() => unwatch(w.id)}>remove</button>}
               </div>
             ))}
             <button className="btn btn-ghost" disabled={scan.status === "running"} onClick={rescanAll}>

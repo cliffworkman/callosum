@@ -81,8 +81,11 @@ def test_scan_registers_watched_then_rescan_picks_up_new(temp_db_url, tmp_path):
     started = client.post("/library/scan", json={"folder": str(folder)})
     assert _poll(client, f"/library/scan/{started.json()['job_id']}")["status"] == "done"
     watched = client.get("/library/watched").json()
-    assert len(watched) == 1 and watched[0]["last_scanned_at"]  # scanning registered + stamped the folder
-    folder_id = watched[0]["id"]
+    # the pinned library-folder default (inc 160) + the just-scanned user folder
+    assert any(w["is_default"] for w in watched)
+    user = [w for w in watched if not w["is_default"]]
+    assert len(user) == 1 and user[0]["last_scanned_at"]  # scanning registered + stamped the folder
+    folder_id = user[0]["id"]
     assert len(client.get("/papers").json()) == 1
 
     _make_pdf(folder / "b.pdf", "Beta computation memoir two.")  # a new file drops into the watched folder
@@ -95,8 +98,48 @@ def test_scan_registers_watched_then_rescan_picks_up_new(temp_db_url, tmp_path):
     again = _poll(client, f"/library/watched/rescan/{client.post('/library/watched/rescan').json()['job_id']}")
     assert again["summary"]["added"] == 0 and again["summary"]["unchanged"] == 2  # idempotent (content-dedup)
 
-    # un-watching drops the watch but keeps the papers
+    # un-watching drops the watch but keeps the papers — only the pinned library-folder default remains
     assert client.delete(f"/library/watched/{folder_id}").status_code == 204
-    assert client.get("/library/watched").json() == []
+    remaining = client.get("/library/watched").json()
+    assert all(w["is_default"] for w in remaining) and not [w for w in remaining if not w["is_default"]]
     assert len(client.get("/papers").json()) == 2
     assert client.get("/library/watched/rescan/nope").status_code == 404
+
+
+def test_library_folder_is_pinned_default_and_not_removable(temp_db_url, monkeypatch, tmp_path):
+    lib = tmp_path / "mylib"
+    lib.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(lib))
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+
+    watched = client.get("/library/watched").json()
+    # always present, even with no registered rows — the library folder is watched by default (inc 160)
+    assert len(watched) == 1
+    assert watched[0]["is_default"] is True and watched[0]["id"] == 0 and Path(watched[0]["path"]) == lib
+    assert client.delete("/library/watched/0").status_code == 422  # the default can't be removed
+
+
+def test_library_folder_auto_rescan_picks_up_a_drop_with_no_prior_scan(temp_db_url, monkeypatch, tmp_path):
+    lib = tmp_path / "mylib"
+    lib.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(lib))
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+    assert len(client.get("/papers").json()) == 0
+
+    _make_pdf(lib / "retracted.pdf", "A study later retracted, about cells.")  # dropped straight into the library
+    done = _poll(client, f"/library/watched/rescan/{client.post('/library/watched/rescan').json()['job_id']}")
+    assert done["status"] == "done" and done["summary"]["added"] == 1  # picked up WITHOUT any prior 'Scan folder'
+    assert len(client.get("/papers").json()) == 1
+
+
+def test_user_scanning_the_library_folder_is_not_listed_twice(temp_db_url, monkeypatch, tmp_path):
+    lib = tmp_path / "mylib"
+    lib.mkdir()
+    _make_pdf(lib / "a.pdf", "Alpha analytical engine study.")
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(lib))
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+
+    started = client.post("/library/scan", json={"folder": str(lib)})
+    assert _poll(client, f"/library/scan/{started.json()['job_id']}")["status"] == "done"
+    watched = client.get("/library/watched").json()
+    assert len(watched) == 1 and watched[0]["is_default"] is True  # folded into the pinned default, not duplicated

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 159** (see Increment workflow) with **578 pytest tests
+It is currently at **Increment 160** (see Increment workflow) with **581 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -516,10 +516,11 @@ work is called done:
 **Before any public/internet-facing deployment** (not done today — track it):
 - There is **no authentication and no rate limiting.** Add both before exposing the app.
 - The localhost-only CORS + PDF/file-serving paths must be re-reviewed for a hosted context.
-- **`POST /library/scan` reads a user-supplied folder server-side** (inc 87), and **watched folders (inc 98)
-  persist those paths + auto-read them on launch** (`POST /library/watched/rescan`) — fine on 127.0.0.1 (the
-  server is the user's machine), but a remote caller could enumerate/read server files. **Gate or remove these
-  before any hosted deployment.**
+- **`POST /library/scan` reads a user-supplied folder server-side** (inc 87), **watched folders (inc 98)
+  persist those paths + auto-read them on launch** (`POST /library/watched/rescan`), and **the library folder
+  (`library_dir()` = `CALLOSUM_LIBRARY_DIR` / project `library/`) is auto-read on every launch/focus rescan
+  (inc 160)** — fine on 127.0.0.1 (the server is the user's machine), but a remote caller could enumerate/read
+  server files. **Gate or remove these before any hosted deployment.**
 - Re-audit the egress gate, secret storage, and per-IP resource caps.
 
 ---
@@ -777,7 +778,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 159 (formatted "Cite as…" in the in-app Cite pane — #30 follow-on): the
+*Last updated: 2026-06-27 — increment 160 (the library folder is watched by default): a user dropped a known-
+retracted PDF into the library folder and it never appeared (even across restart + hard refresh), blocking the
+Retraction Watch test. **Root cause (systematic-debugging):** the auto-rescan (launch/focus, inc 98/136) only
+re-scans **registered** watched folders, and `watched_folders` was **empty** — the library papers were
+harness-ingested (`pdf-scaffold`), never UI-"Scan folder"ed (which registers + sets `library-scan`), so the
+library folder was never watched (confirmed: `library/Whitehouse…2019…Nature.pdf` on disk, absent from the DB).
+**Fix (the user's design):** the **library folder is watched by default**. The canonical folder already existed —
+`acquisition/fetch.py::library_dir()` (`CALLOSUM_LIBRARY_DIR` env, else project `library/`; where OA-acquired
+PDFs land), now **public**. `routers/library.py`: the rescan **always scans `library_dir()` first** (even with no
+rows), then user folders (deduped via `_path_key` resolve+casefold); `GET /library/watched` **pins it first** as
+`id=0, is_default=True` (non-removable; a user folder equal to it folds in); `DELETE /library/watched/0` → **422**.
+`27_scan.jsx`: the modal shows it as a pinned **"default · always watched"** row (accent border + a "default"
+pill, no remove). `conftest.py` now isolates **`CALLOSUM_LIBRARY_DIR`** per-test (hermetic; also stops OA tests
+writing the real `library/`). **No new endpoint** (`is_default` additive), no migration/egress/dependency, no
+Principles trigger (a watched-folder default, not a claim/signal); the server-side library-folder read is the
+same posture as existing watched folders (deployment-gate note extended). pytest **581** (+3 `test_watched_folders.py`);
+`ruff` clean; build + assembly green; surface **110/110 API + 577/577 FE, 0 uncovered**; help corpus's
+Watched-folders section leads with the default (`HELP-DOCS-SYNCED` → 160). **Verified headed, no egress**
+(`.local/visual/drive_inc160_library_watched.py`: the pinned non-removable default row + a drop → Re-scan all →
+"1 added"; 0 console/page/genai). **For the user: restart uvicorn** (autoScanWatched on, default) → the on-launch
+rescan scans `callosum/library/` → **Whitehouse ingests + Crossref-enriches (DOI) + retraction-auto-checks**
+(inc 134), unblocking the RW test (the RW *database* source also needs the Settings → Metadata access contact
+email, inc 158). Notes: `INCREMENT-160-NOTES.md`. **NEXT:** back to **#30 — SP2 beyond-library discovery**
+(design-led; its own plan-mode session).
+
+Earlier — increment 159 (formatted "Cite as…" in the in-app Cite pane — #30 follow-on): the
 deadline-writer persona's ask from the inc-156 experience pass — the Cite pane could only extract **BibTeX** (for
 a reference manager), but a writer hand-citing in prose wants a **formatted** human citation. **Frontend-only**
 (`app/frontend/js/37_cite.jsx` + `styles.css`): a pane-level **style picker** (`/citations/styles`, default apa) +

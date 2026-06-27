@@ -33,7 +33,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 1. Open Add -> Scan folder (`27_scan.jsx`). Submit a valid disposable fixture folder (`POST /library/scan`) and poll (`GET /library/scan/{job_id}`).
 2. Navigate away mid-scan and return. Confirm progress/result state recovers and imported papers appear only once.
 3. Submit an empty path, whitespace path, and forbidden/outside path. Confirm clean validation and no server traceback.
-4. Open watched folders. Confirm list loads (`GET /library/watched`), run rescan (`POST /library/watched/rescan`, `GET /library/watched/rescan/{job_id}`), and delete a disposable watched folder (`DELETE /library/watched/{folder_id}`).
+4. Open watched folders. Confirm list loads (`GET /library/watched`) and **always includes the pinned library-folder default** (inc 160): an `is_default` row shown as "default · always watched" with **no remove button**; `DELETE /library/watched/0` must be refused (**422**). Run rescan (`POST /library/watched/rescan`, `GET /library/watched/rescan/{job_id}`), and delete a disposable *user-added* watched folder (`DELETE /library/watched/{folder_id}`) — the default remains.
 5. Open Add -> Import (`28_import.jsx`). Import a valid fixture PDF (`POST /library/import`) and poll (`GET /library/import/{job_id}`).
 6. Import a garbage/non-PDF fixture and a duplicate file. Confirm explicit failure/duplicate messaging, not a crash.
 

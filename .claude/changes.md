@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 160) — the Watched-folders section now leads with the library folder being watched by default. -->
+## 2026-06-27 — Increment 160: the library folder is watched by default
+- **Files:** `app/backend/acquisition/fetch.py` (`library_dir()` public), `app/backend/api/routers/library.py`
+  (rescan always scans `library_dir()`; `GET /library/watched` pins it as the `is_default` entry; `DELETE 0`→422),
+  `app/frontend/js/27_scan.jsx` + `styles.css` + `callosum-app.html`, `tests/conftest.py` (isolate
+  `CALLOSUM_LIBRARY_DIR`), `tests/test_watched_folders.py` (+3), help corpus, `INCREMENT-160-NOTES.md`.
+- **What:** The library folder (`library_dir()` = `CALLOSUM_LIBRARY_DIR` or the project `library/`) is now
+  **watched by default** — the auto-rescan (launch/focus) always scans it even with no registered rows, and the
+  Watched Folders modal shows it pinned as "default · always watched" (not removable). User-added folders work
+  as before; one equal to the library folder folds into the pin.
+- **Why:** the user dropped a (retracted) PDF into the library folder and it never appeared — root cause: the
+  library folder was never a *registered* watched folder (harness-ingested as `pdf-scaffold`, never UI-scanned),
+  and the rescan only scans registered folders. The user's design: the library folder should be watched by
+  default + shown as such.
+- **Notes:** no new endpoint (`is_default` additive); no migration/egress/dependency; conftest now isolates the
+  library dir per-test (also stops OA tests writing the real `library/`). pytest 581; surface 110/110 + 577/577.
+  Verified headed (`drive_inc160_library_watched.py`): pinned default row (no remove) + a drop → Re-scan all →
+  "1 added"; 0 console/page/genai. **For the user:** restart uvicorn → the library folder auto-rescans →
+  Whitehouse ingests + Crossref-enriches + retraction-checks.
+- **Revert:** revert the rescan/GET changes in `routers/library.py` + the modal; from git.
+
 ## 2026-06-27 — Increment 159: formatted "Cite as…" in the Cite pane (#30 follow-on)
 - **Files:** `app/frontend/js/37_cite.jsx` + `styles.css` + `callosum-app.html`, `INCREMENT-159-NOTES.md`.
 - **What:** The in-app Cite pane gains a **style picker** + a per-card formatted **Cite** button that renders the

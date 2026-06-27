@@ -80,9 +80,9 @@ def import_oa_pdf(
     """Move a validated OA PDF into the managed library dir (named per the library convention), attach it to
     the EXISTING paper, label its OA color/version/source, and enrich metadata. Returns a result dict."""
     paper = get_paper(conn, paper_id)
-    library_dir = _library_dir()
-    library_dir.mkdir(parents=True, exist_ok=True)
-    managed_path = _unique_path(library_dir, library_filename_for(paper))
+    lib_dir = library_dir()
+    lib_dir.mkdir(parents=True, exist_ok=True)
+    managed_path = _unique_path(lib_dir, library_filename_for(paper))
     shutil.move(str(temp_pdf_path), str(managed_path))
     result = attach_pdf_to_paper(
         conn,
@@ -114,7 +114,9 @@ def import_oa_pdf(
     }
 
 
-def _library_dir() -> Path:
+def library_dir() -> Path:
+    """The managed / library folder — ``CALLOSUM_LIBRARY_DIR`` env, else the project ``library/``. Where
+    OA-acquired PDFs land, and the **default-watched** library folder the rescan always includes (inc 160)."""
     configured = os.environ.get("CALLOSUM_LIBRARY_DIR")
     return Path(configured) if configured else (PROJECT_ROOT / "library")
 

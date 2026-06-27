@@ -56,7 +56,7 @@ Gotchas:
 
 <!-- section: scanning-a-folder -->
 ## Watched folders (scanning for PDFs)
-If your PDFs live in a folder (not Zotero), point Callosum at it: open **+ Add → Watched folders…** at the top of the Library, enter the folder's path on this computer, and click **Add + scan**.
+Your **library folder is watched by default** — it's pinned at the top of the **+ Add → Watched folders…** dialog as the "always watched" default (you can't remove it). Drop a PDF into it and Callosum picks it up on its own (see below). To watch additional folders, open that dialog, enter a folder's path on this computer, and click **Add + scan**. (The library folder is where Callosum keeps acquired PDFs; set a custom location with the `CALLOSUM_LIBRARY_DIR` environment variable.)
 
 Callosum walks the folder for PDFs and reconciles them with your library:
 

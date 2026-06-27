@@ -26,6 +26,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException,
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
 
+from app.backend.acquisition.fetch import library_dir
 from app.backend.api.job_store import JobStore
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.pipeline import embed_chunks, embed_papers
@@ -43,6 +44,14 @@ from app.backend.persistence.watched_repo import (
 
 router = APIRouter()
 _log = logging.getLogger("callosum.library")
+
+
+def _path_key(p: Path) -> str:
+    """A normalized key for comparing folder paths (resolve + casefold — Windows is case-insensitive)."""
+    try:
+        return str(p.resolve()).casefold()
+    except OSError:
+        return str(p).casefold()
 
 
 class JobProgressOut(BaseModel):
@@ -187,26 +196,46 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
 
 
 class WatchedFolder(BaseModel):
-    id: int
+    id: int  # 0 = the always-watched library folder (the pinned default, inc 160); >=1 = a user-added folder
     path: str
     last_scanned_at: str | None = None
+    is_default: bool = False  # inc 160: the library folder, always watched + not removable
 
 
 @router.get("/library/watched", response_model=list[WatchedFolder])
 def watched_list(request: Request) -> list[WatchedFolder]:
+    # The library folder (`library_dir()`) is ALWAYS watched (inc 160) — pinned first as a non-removable default,
+    # even with no registered rows. A user folder equal to it is folded into that pin (never listed twice).
+    lib = library_dir()
+    lib_key = _path_key(lib)
     with request.app.state.engine.begin() as conn:
-        return [
+        rows = list(list_watched_folders(conn))
+    lib_row = next((r for r in rows if _path_key(Path(r["path"])) == lib_key), None)
+    out = [
+        WatchedFolder(
+            id=0,
+            path=str(lib),
+            last_scanned_at=str(lib_row["last_scanned_at"]) if lib_row and lib_row["last_scanned_at"] else None,
+            is_default=True,
+        )
+    ]
+    for r in rows:
+        if _path_key(Path(r["path"])) == lib_key:
+            continue  # the library folder is shown as the pinned default above
+        out.append(
             WatchedFolder(
                 id=int(r["id"]),
                 path=r["path"],
                 last_scanned_at=str(r["last_scanned_at"]) if r["last_scanned_at"] else None,
             )
-            for r in list_watched_folders(conn)
-        ]
+        )
+    return out
 
 
 @router.delete("/library/watched/{folder_id}", status_code=http_status.HTTP_204_NO_CONTENT)
 def watched_remove(folder_id: int, request: Request) -> Response:
+    if folder_id == 0:  # the library folder is always watched (inc 160)
+        raise HTTPException(status_code=422, detail="The library folder is always watched and can't be removed.")
     with request.app.state.engine.begin() as conn:
         remove_watched_folder(conn, folder_id)  # drops the watch only — the papers it imported are kept
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
@@ -241,8 +270,14 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
         agg = {"added": 0, "unchanged": 0, "removed": 0, "errors": 0}
         error_details: list[ScanError] = []  # inc 155: per-file failures across all watched folders (capped)
         with app.state.engine.begin() as conn:
-            for row in list_watched_folders(conn):
-                folder = row["path"]
+            # inc 160: the library folder is ALWAYS rescanned (the pinned default) — even with no registered rows,
+            # so a PDF dropped into it is picked up on launch/focus. Then the user-added folders (skip the library
+            # folder if a user also added it, so it isn't scanned twice).
+            lib = library_dir()
+            lib_key = _path_key(lib)
+            targets: list[str] = [str(lib)] if lib.is_dir() else []
+            targets += [r["path"] for r in list_watched_folders(conn) if _path_key(Path(r["path"])) != lib_key]
+            for folder in targets:
                 if not Path(folder).is_dir():  # a watched folder that's gone → noted, never fatal
                     agg["errors"] += 1
                     if len(error_details) < _SCAN_ERROR_DETAIL_CAP:

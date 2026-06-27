@@ -25,6 +25,10 @@ def _egress_consent_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     # BYOK (inc 146): isolate the local app-settings file per test so the suite never reads/writes the real
     # ~/.callosum/app-settings.json (and one test's writes can't leak into another).
     monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "app-settings.json"))
+    # inc 160: isolate the library folder (the always-watched default + OA-acquire managed dir) to a per-test
+    # temp dir, so the suite never scans/writes the real project `library/`. Non-existent by default → the
+    # rescan skips it; a test that needs it real mkdirs + overrides this env var itself.
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(tmp_path / "_library"))
 
 
 @pytest.fixture()
