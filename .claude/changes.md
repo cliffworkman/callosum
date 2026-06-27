@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 155: scan done-summary surfaces which files couldn't be read (#4)
+- **Files:** `app/backend/api/routers/library.py`, `app/frontend/js/27_scan.jsx` + `styles.css` + `callosum-app.html`,
+  `tests/test_library_scan.py`, `INCREMENT-155-NOTES.md`.
+- **What:** The folder-scan done-summary now lists **which files failed and why** (a `ScanError{path,error}` model +
+  `ScanSummary.error_details`, populated from the scan's already-collected per-file errors; a collapsible in the
+  scan modal). Scan side only — import parse-drops need a parser change (deferred, noted on #4).
+- **Why:** the Migrator experience-pass (#4): "which entries were skipped/failed, and why."
+- **Revert:** drop `error_details`/`ScanError` + the `.scan-errors` render; from git.
+
 ## 2026-06-27 — Increment 154: statcheck flagged-chip deep-link flashes the specific inconsistent test
 - **Files:** `app/frontend/js/06_methods_statcheck.jsx` + `styles.css` + `callosum-app.html`, `INCREMENT-154-NOTES.md`.
 - **What:** When a per-paper statcheck run finishes, the first inconsistent row scrolls into view + flashes

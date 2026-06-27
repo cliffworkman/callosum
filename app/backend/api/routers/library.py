@@ -62,11 +62,20 @@ class ScanRequest(BaseModel):
     folder: str
 
 
+_SCAN_ERROR_DETAIL_CAP = 25  # how many per-file failure reasons to surface in the done-summary (inc 155)
+
+
+class ScanError(BaseModel):
+    path: str
+    error: str
+
+
 class ScanSummary(BaseModel):
     added: int = 0
     unchanged: int = 0
     removed: int = 0
     errors: int = 0
+    error_details: list[ScanError] = []  # inc 155: which files couldn't be read + why (capped)
 
 
 class ScanJobResponse(BaseModel):
@@ -146,6 +155,7 @@ def _scan_summary(scanned) -> ScanSummary:
         unchanged=len(scanned["unchanged"]),
         removed=len(scanned["removed"]),
         errors=len(scanned["errors"]),
+        error_details=[ScanError(path=e["path"], error=e["error"]) for e in scanned["errors"][:_SCAN_ERROR_DETAIL_CAP]],
     )
 
 
@@ -229,11 +239,14 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
         store = _vector_store(app)
         crossref = app.state.crossref_client
         agg = {"added": 0, "unchanged": 0, "removed": 0, "errors": 0}
+        error_details: list[ScanError] = []  # inc 155: per-file failures across all watched folders (capped)
         with app.state.engine.begin() as conn:
             for row in list_watched_folders(conn):
                 folder = row["path"]
                 if not Path(folder).is_dir():  # a watched folder that's gone → noted, never fatal
                     agg["errors"] += 1
+                    if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
+                        error_details.append(ScanError(path=folder, error="watched folder no longer exists"))
                     continue
                 scanned = scan_library_folder(
                     conn, folder, on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Reading PDFs")
@@ -250,7 +263,13 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                 touch_last_scanned(conn, folder)
                 for key in agg:
                     agg[key] += len(scanned[key])
-        jobs.mark_done(job_id, ScanJobResponse(job_id=job_id, status="done", summary=ScanSummary(**agg)))
+                for e in scanned["errors"]:
+                    if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
+                        error_details.append(ScanError(path=e["path"], error=e["error"]))
+        jobs.mark_done(
+            job_id,
+            ScanJobResponse(job_id=job_id, status="done", summary=ScanSummary(**agg, error_details=error_details)),
+        )
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
 

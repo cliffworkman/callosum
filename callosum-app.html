@@ -1361,6 +1361,12 @@
   .scan-row { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
   .scan-row .wanted-add { flex: 1; }
   .scan-summary { font-size: 12px; color: var(--ink-2); margin: 8px 0; }
+  /* inc 155: a collapsible "which entries were skipped/failed, and why" list in the scan/import done-summary. */
+  .scan-errors { margin: 6px 0 0; font-size: 11.5px; color: var(--flag-ink); }
+  .scan-errors summary { cursor: pointer; color: var(--flag-ink); }
+  .scan-errors ul { margin: 4px 0 0; padding-left: 18px; }
+  .scan-errors li { margin: 2px 0; }
+  .scan-errors .scan-err-path { font-weight: 600; }
   /* watched-folders list (inc 98) */
   .watched-list { display: flex; flex-direction: column; gap: 5px; margin: 10px 0; }
   .watched-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -4349,7 +4355,7 @@
           if (e.key === "Enter") run();
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: scan.status === "running" || !folder.trim(), onClick: run }, scan.status === "running" ? "Scanning\u2026" : "Add + scan")), scan.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning + processing PDFs\u2026", progress: scan.progress }), scan.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scan failed: ", scan.error), scan.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.added), " added \xB7 ", s.unchanged, " unchanged \xB7 ", s.removed, " missing", s.errors ? ` \xB7 ${s.errors} error${s.errors === 1 ? "" : "s"}` : "", s.added > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 any whose DOI didn't resolve need a look.", onShowUnsorted && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => {
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: scan.status === "running" || !folder.trim(), onClick: run }, scan.status === "running" ? "Scanning\u2026" : "Add + scan")), scan.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning + processing PDFs\u2026", progress: scan.progress }), scan.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scan failed: ", scan.error), scan.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.added), " added \xB7 ", s.unchanged, " unchanged \xB7 ", s.removed, " missing", s.errors ? ` \xB7 ${s.errors} error${s.errors === 1 ? "" : "s"}` : "", s.error_details && s.error_details.length > 0 && /* @__PURE__ */ React.createElement("details", { className: "scan-errors" }, /* @__PURE__ */ React.createElement("summary", null, s.errors, " file", s.errors === 1 ? "" : "s", " couldn't be read"), /* @__PURE__ */ React.createElement("ul", null, s.error_details.map((e, i) => /* @__PURE__ */ React.createElement("li", { key: i }, /* @__PURE__ */ React.createElement("span", { className: "scan-err-path", title: e.path }, e.path.split(/[\\/]/).pop()), " \u2014 ", e.error))), s.errors > s.error_details.length && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "\u2026and ", s.errors - s.error_details.length, " more.")), s.added > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library \u2014 any whose DOI didn't resolve need a look.", onShowUnsorted && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => {
       onShowUnsorted();
       onClose();
     } }, "Review unsorted \u2192")))), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));

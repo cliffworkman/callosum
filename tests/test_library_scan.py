@@ -95,6 +95,27 @@ def test_scan_endpoint_processes_folder(temp_db_url, tmp_path):
     assert len(client.get("/papers", params={"needs_review": "true"}).json()) == 2
 
 
+def test_scan_surfaces_per_file_errors(temp_db_url, tmp_path):
+    # inc 155: a file that can't be read is isolated AND surfaced in the done-summary (path + reason).
+    folder = tmp_path / "lib"
+    folder.mkdir()
+    _make_pdf(folder / "good.pdf", "A valid analytical paper.")
+    (folder / "broken.pdf").write_bytes(b"this is not a pdf at all")
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+    started = client.post("/library/scan", json={"folder": str(folder)})
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(30):
+        result = client.get(f"/library/scan/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+    assert result["status"] == "done", result
+    s = result["summary"]
+    assert s["errors"] >= 1
+    assert any("broken.pdf" in e["path"] for e in s["error_details"])
+    assert all(e["error"] for e in s["error_details"])  # each carries a non-empty reason
+
+
 def test_scan_nonexistent_folder_422(temp_db_url, tmp_path):
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.post("/library/scan", json={"folder": str(tmp_path / "nope")}).status_code == 422

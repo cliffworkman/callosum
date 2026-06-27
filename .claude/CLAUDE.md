@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 154** (see Increment workflow) with **556 pytest tests
+It is currently at **Increment 155** (see Increment workflow) with **557 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -774,7 +774,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 154 (statcheck flagged-chip deep-link → the specific inconsistent test):
+*Last updated: 2026-06-27 — increment 155 (scan done-summary surfaces which files couldn't be read — backlog #4):
+the autonomous part of the Migrator experience-pass remainder. The folder scan already isolated per-file failures
+(`scan_library_folder` → `errors:[{path,error}]` via savepoints) but reported only a count — now the done-summary
+shows **which files failed + why**. `routers/library.py`: a `ScanError{path,error}` model; `ScanSummary.error_details`
+(capped 25); `_scan_summary` maps the scan's errors; the watched-rescan agg collects them across folders. Frontend
+(`27_scan.jsx`): a collapsible `<details className="scan-errors">` "N file(s) couldn't be read" → `<basename> —
+<reason>` (+ "…and K more" when capped); one `.scan-errors` CSS recipe (tokens). **Scope (honest):** scan side only
+— the import path's "skipped" records are dropped *at parse* (both parsers silently drop title-less/malformed entries
+before the `failed` count), so surfacing those needs a **parser-level** change (deferred, noted on #4); ETA + cancel
+also stay deferred (timing / cooperative-cancellation infra). No new endpoint (additive field), no migration.
+**Principles non-triggering** (surfaces existing data). pytest **557** (+1 `test_library_scan.py`: a broken file →
+`summary.errors>=1` + `error_details` with path + reason); `ruff` clean; build + assembly green; QA surface
+**109/109 API + 561/561 FE, 0 uncovered**. **Verified headed, no egress** (`.local/visual/drive_inc155_scan_errors.py`
+— a temp folder with a valid + a broken PDF → scan → "1 added · 1 error" + the collapsible lists "broken.pdf —
+FileDataError…"; 0 console/page/genai). Notes: `INCREMENT-155-NOTES.md`. **This completes the autonomous-work pass
+(inc 153 synthesis coverage · 154 statcheck deep-link · 155 scan error detail).** The remaining open backlog is all
+design-gated / destructive-security / future-track / non-code — none autonomous-cheap.
+
+Earlier — increment 154 (statcheck flagged-chip deep-link → the specific inconsistent test):
 the remaining autonomous part of the statcheck experience-pass finding (d). **Frontend-only** (`06_methods_statcheck.jsx`):
 when a per-paper statcheck run finishes, a `listRef` + a `state.status` effect scroll the **first inconsistent row
 into view + flash it** (the row is marked `.flagged-row` when `consistency !== "consistent"`) — so the "⚠ N flagged"

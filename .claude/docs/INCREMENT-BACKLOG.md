@@ -83,12 +83,13 @@ pass findings):** a **confirm before 🔎 re-resolve overwrites hand-edited meta
 a tag's **source as an always-on label/icon** (not only on hover); a "what re-resolve changed" **diff toast**; a
 **lock-this-tag** affordance. *(See **#9** for the full tag-provenance context.)*
 
-**4. Progress indication for long operations** — partly shipped inc 79 (indeterminate `ProgressBar`) → **inc 142
-(Migrator experience pass) shipped DETERMINATE "X / N" progress** for the scan + import jobs (`JobStore.mark_progress`
-+ `on_progress` through `embed_*`/`scan_library_folder`; the modals render a real fill + "Embedding papers — X / N")
-**+ a "Review unsorted →" door** in the scan done-summary. **Remaining (migrator pass findings):** a "which entries
-were skipped/failed, and why" list in the done-summary (not just a count); the per-item **filename** in the progress
-label + a rough **ETA**; a **cancel** button for a run you think hung.
+**4. Progress indication for long operations** — **[mostly shipped]** indeterminate bar (79) → DETERMINATE "X / N"
+progress for scan + import (142) + a "Review unsorted →" door + the **scan done-summary now lists which files
+couldn't be read + why** (155). **Remaining:** the **import** path's skipped-record detail (the BibTeX/CSL/RIS
+parsers silently drop malformed/title-less entries *at parse* before any count — needs a parser-level change to
+report drops); the per-item **filename** in the progress label + a rough **ETA**; a **cancel** button (needs
+cooperative job cancellation). The filename/ETA/cancel are smaller-but-infra; the parser-drop reporting is the
+genuinely-useful import remainder.
 
 **5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** **Shipped:** the "More" add-arbitrary-field menu
 (inc 96 — an `AddFieldRow` reusing the validated `csl` patch) + **editable Translator(s)** (inc 111). **Remaining:**

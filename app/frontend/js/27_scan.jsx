@@ -87,6 +87,14 @@ function ScanModal({ onClose, onScanned, onShowUnsorted }) {
           <div className="scan-summary">
             <b>{s.added}</b> added · {s.unchanged} unchanged · {s.removed} missing
             {s.errors ? ` · ${s.errors} error${s.errors === 1 ? "" : "s"}` : ""}
+            {s.error_details && s.error_details.length > 0 &&
+              <details className="scan-errors">
+                <summary>{s.errors} file{s.errors === 1 ? "" : "s"} couldn't be read</summary>
+                <ul>{s.error_details.map((e, i) => (
+                  <li key={i}><span className="scan-err-path" title={e.path}>{e.path.split(/[\\/]/).pop()}</span> — {e.error}</li>
+                ))}</ul>
+                {s.errors > s.error_details.length && <div className="axis-hint">…and {s.errors - s.error_details.length} more.</div>}
+              </details>}
             {s.added > 0 &&
               <div className="axis-hint">New papers are in your library — any whose DOI didn't resolve need a look.
                 {onShowUnsorted && <> <button className="btn-link" onClick={() => { onShowUnsorted(); onClose(); }}>Review unsorted →</button></>}
