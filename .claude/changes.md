@@ -9,7 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 165) — "Citing in Microsoft Word" help section updated to live citations + Refresh/renumber + bibliography (SP2). -->
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 166) — "Citing in Microsoft Word" help section now covers Suggest / one-click style switch / Flatten (SP3, full parity). -->
+## 2026-06-27 — Increment 166: Word add-in SP3 — parity (Suggest + one-click style switch + Flatten)
+- **Files:** `adapters/word/taskpane.js` (Suggest + style-onChange + Flatten + collapse-to-end insert),
+  `adapters/word/taskpane_core.js` (SP3 pure helpers: `pickQueryText`/`buildSuggestRequest`/`formatSuggestRows`),
+  `adapters/word/taskpane.{html,css}` (Suggest + Flatten buttons + suggestions list), `adapters/word/taskpane_core.test.js`
+  (+3 tests → 11), `adapters/word/README.md`, `app/backend/help/help_content.md` (cite-in-word → SP3), `INCREMENT-166-NOTES.md`.
+- **What:** complete Word parity — **Suggest from the sentence** (read selection/paragraph → `/citations/suggest` →
+  ranked candidates with stance + quote → insert *after* the sentence), **one-click whole-doc style switch** (style
+  dropdown re-renders + persists per-document), and **Flatten** (live → static, two-click confirm). Insert now
+  collapses to the selection END (so Suggest doesn't overwrite the sentence).
+- **Why:** the user's roadmap — finish the Word adapter (SP1+SP2+SP3).
+- **Revert:** `git checkout` the `adapters/word/` files to the inc-165 state; no backend/schema touched.
+  **Verification reality:** the user has no Word, so the Office.js glue is exercised by no one (best-effort-correct);
+  the pure logic is `node --test` 11/11 and the called endpoints (`/citations/suggest`, render-document, export,
+  styles) are all pytest-proven.
+
 ## 2026-06-27 — Increment 165: Word add-in SP2 — live cite-while-you-write (Content Controls + Refresh/renumber + bibliography)
 - **Files:** `adapters/word/taskpane.js` (rewrite: live insert + Refresh loop), `adapters/word/taskpane_core.js`
   (SP2 pure helpers — tag encode/decode, render-document request/response mapping; SP1-only helpers removed),

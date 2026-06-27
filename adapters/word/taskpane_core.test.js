@@ -85,3 +85,34 @@ test("inTextResults: the in-text strings in order; bibliographyText: the joined 
   assert.deepStrictEqual(core.inTextResults(null), []);
   assert.strictEqual(core.bibliographyText({}), "");
 });
+
+// ---- suggest-from-the-sentence (SP3) ----
+test("pickQueryText: selection wins, else the paragraph, else empty", () => {
+  assert.strictEqual(core.pickQueryText("  the selected sentence  ", "the whole para"), "the selected sentence");
+  assert.strictEqual(core.pickQueryText("   ", "the whole para"), "the whole para");
+  assert.strictEqual(core.pickQueryText("", ""), "");
+  assert.strictEqual(core.pickQueryText(null, null), "");
+});
+
+test("buildSuggestRequest: caps text at 4000, default top_k 8, evaluate true", () => {
+  const big = "x".repeat(5000);
+  const req = core.buildSuggestRequest(big, undefined);
+  assert.strictEqual(req.text.length, 4000);
+  assert.strictEqual(req.top_k, 8);
+  assert.strictEqual(req.evaluate, true);
+  assert.strictEqual(core.buildSuggestRequest("claim", 5).top_k, 5);
+});
+
+test("formatSuggestRows: '[stance] Author Year · match — quote' keyed by paper_id; missing stance → [?]; drops id-less", () => {
+  const rows = core.formatSuggestRows([
+    { paper_id: 7, author: "Lovelace", year: 1843, match_score: 0.8234, quote: "the engine can be made to act",
+      stance: { label: "support", confidence: 0.9 } },
+    { paper_id: 9, author: "Turing", year: 1936, match_score: 0.5, quote: "a number is computable", stance: null },
+    { author: "NoId", year: 2020, match_score: 0.4 },
+  ]);
+  assert.deepStrictEqual(rows, [
+    { id: 7, label: '[support] Lovelace 1843 · match 0.82 — "the engine can be made to act…"' },
+    { id: 9, label: '[?] Turing 1936 · match 0.50 — "a number is computable…"' },
+  ]);
+  assert.deepStrictEqual(core.formatSuggestRows(null), []);
+});

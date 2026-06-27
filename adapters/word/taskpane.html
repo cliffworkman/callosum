@@ -12,14 +12,23 @@
 <body>
   <div id="app" style="display:none">
     <h1>Callosum citations</h1>
-    <p class="hint">Search your library to insert a live citation; Refresh re-renders + renumbers the whole document and rebuilds the bibliography.</p>
     <label class="field">Citation style
       <select id="style" aria-label="Citation style"></select>
     </label>
+
+    <p class="hint">Search to insert a live citation:</p>
     <input id="q" type="search" placeholder="Search author, title, year…" autocomplete="off" aria-label="Search your library"/>
     <ul id="results" class="results"></ul>
+
+    <p class="hint">…or let Callosum suggest from the sentence you're writing:</p>
+    <div class="actions">
+      <button id="suggest" type="button" class="secondary">Suggest from the sentence</button>
+    </div>
+    <ul id="suggestions" class="results"></ul>
+
     <div class="actions">
       <button id="refresh" type="button" class="refresh">Refresh / renumber + bibliography</button>
+      <button id="flatten" type="button" class="secondary">Flatten to static text</button>
     </div>
     <div id="status" class="status" role="status" aria-live="polite"></div>
   </div>

@@ -267,9 +267,15 @@ You can also cite from your callosum library inside **desktop Microsoft Word** (
 2. **Run callosum over HTTPS** — run `python tools/run_https.py`, then open the app at **https://localhost:8443**. (Plain HTTP on :8080 still works for everyday use; HTTPS is only needed while citing in Word.)
 3. **Add the manifest to Word** — in **Settings → Microsoft Word add-in → Download manifest**, then sideload it (Windows: register the folder as a Trusted Add-in Catalog; Mac: drop it in Word's `wef` folder — see `adapters/word/README.md`).
 
-Then in Word: **Home → Callosum → Show Citations**. Pick a style, search your library, and click a result to insert a **live** citation at the cursor. Click **Refresh / renumber + bibliography** after edits or moves to re-render every citation in document order and rebuild the **References** list at the end of the document (numeric styles renumber by position, like Zotero).
+Then in Word: **Home → Callosum → Show Citations**. The task pane mirrors the LibreOffice plugin:
 
-*(Suggest — relevance-from-the-sentence — plus one-click style switching and flatten-to-static are on the way, mirroring the LibreOffice plugin.)*
+- **Search → insert** a live citation at the cursor (pick a style, type author/title/year, click a result).
+- **Suggest from the sentence** — place your cursor in the sentence you're writing and Callosum ranks your library by relevance, showing each candidate's stance (supports / contrasts / mentions) and a quote; pick one to insert after the sentence.
+- **Refresh / renumber + bibliography** — re-render every citation in document order and rebuild the **References** list (numeric styles renumber by position, like Zotero).
+- **Citation style** — changing the dropdown re-renders the whole document in the new style (remembered per document).
+- **Flatten to static text** — convert the live citations + bibliography to plain text for hand-off (one-way).
+
+Everything is local: the task pane talks only to callosum on your own machine, and all formatting is done by callosum's citation engine.
 
 <!-- section: tags -->
 ## Tagging papers
