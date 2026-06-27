@@ -260,8 +260,9 @@ suggest papers to cite + evaluate support/contrast/mention via the NLI spine. Ne
   `CallosumSuggestCitations`) on the SP1a contract — select a sentence → suggest (pick-list: stance + quote +
   match) → **Insert** the chosen cite via the inc-108 flow. Client-side only; verified by the headless UNO
   round-trip (SELFTEST OK). See `INCREMENT-157-NOTES.md`.
-- **NEXT (small):** a formatted **"Cite as… (style)"** copy in the in-app Cite pane via the inc-106 render engine
-  (the persona's deadline-writer ask; SP1a ships a BibTeX copy).
+- **Formatted "Cite as…" (inc 159) — DONE:** the in-app Cite pane gained a style picker + a per-card formatted
+  **Cite** button (inc-106 render engine), beside the BibTeX copy — the persona's deadline-writer ask.
+- **NEXT (big):** **SP2 / Stage-3 — beyond-library discovery** (below).
 - **SP2 / Stage-3 — beyond-library suggest:** OpenAlex `related_works` / co-citation + Semantic-Scholar
   recommendations, each candidate carrying an **explainable reason** ("shares N refs", "co-cited with X"); this is
   where the bias-amplification mitigation lives (surface the reason; never rank by citation count). Trips the audit

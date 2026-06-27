@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 159: formatted "Cite as…" in the Cite pane (#30 follow-on)
+- **Files:** `app/frontend/js/37_cite.jsx` + `styles.css` + `callosum-app.html`, `INCREMENT-159-NOTES.md`.
+- **What:** The in-app Cite pane gains a **style picker** + a per-card formatted **Cite** button that renders the
+  paper (APA/MLA/IEEE/…) via the inc-106 citeproc engine and copies the reference; the BibTeX copy stays as a
+  secondary action. Completes the deadline-writer persona's ask (a formatted citation, not just BibTeX).
+- **Why:** #30 — a writer hand-citing in prose wants a formatted human citation, not a reference-manager BibTeX.
+- **Notes:** frontend-only; reuses `/citations/render` + `/citations/styles` (local, no egress); no backend/
+  endpoint/migration/gate. pytest 578 unchanged; surface 110/110 + 577/577, 0 uncovered. Verified headed
+  (`drive_inc159_cite_format.py`): Cite click fires a render (200), 0 console/page/genai.
+- **Revert:** drop `FormattedCiteButton` + the style picker from `37_cite.jsx`; from git.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 158) — Settings + Retraction Watch sections now point to Settings → Metadata access (contact email) instead of the env var. -->
 ## 2026-06-27 — Increment 158: contact email (polite-pool mailto) in Settings
 - **Files:** `app/backend/app_settings.py` (`set_contact_email`/`stored_contact_email`/`resolved_mailto`),

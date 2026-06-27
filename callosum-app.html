@@ -1030,6 +1030,10 @@
   /* inc 156: highlight-to-suggest / evaluate — the Cite pane (THEORY accordion). Reuses .synth-input/.synth-actions. */
   .cite-note { font-size: 11px; color: var(--ink-3); margin: 10px 0 4px; line-height: 1.4; }
   .cite-results { margin-top: 6px; }
+  .cite-results-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .cite-results-head .cite-note { flex: 1; }
+  .cite-style { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin-top: 10px; }
+  .cite-style select { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px; }
   .cite-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; margin-top: 10px; }
   .cite-card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
   .cite-title { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
@@ -5904,9 +5908,39 @@
         console.warn("[callosum] copy BibTeX error:", err);
       }
     };
-    return /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: copy }, copied ? "Copied \u2713" : "Copy BibTeX");
+    return /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: copy, title: "Copy a BibTeX entry (for a reference manager)" }, copied ? "Copied \u2713" : "BibTeX");
   }
-  function SuggestionCard({ s, onOpenCitation }) {
+  function FormattedCiteButton({ paperId, style }) {
+    const [st, setSt] = useState("idle");
+    const copy = async (e) => {
+      e.preventDefault();
+      setSt("busy");
+      const r = await apiPost("/citations/render", { paper_ids: [paperId], style });
+      const item = r.ok && r.data.items && r.data.items[0] ? r.data.items[0] : null;
+      if (item && item.reference_text) {
+        try {
+          await navigator.clipboard.writeText(item.reference_text);
+          setSt("copied");
+          setTimeout(() => setSt("idle"), 1500);
+          return;
+        } catch (err) {
+          console.warn("[callosum] copy formatted cite error:", err);
+        }
+      }
+      setSt("idle");
+    };
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        onClick: copy,
+        disabled: st === "busy",
+        title: "Copy the formatted citation in the selected style"
+      },
+      st === "copied" ? "Copied \u2713" : st === "busy" ? "\u2026" : "Cite"
+    );
+  }
+  function SuggestionCard({ s, onOpenCitation, style }) {
     const stance = s.stance;
     const canOpen = onOpenCitation && s.paper_id != null && (s.page_start != null || s.page_end != null);
     const open = (event) => {
@@ -5923,11 +5957,18 @@
       });
     };
     const meta = [s.author, s.year].filter(Boolean).join(" \xB7 ");
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-card" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, s.title || "Paper " + s.paper_id), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-stance " + stance.label, title: "NLI stance over the matched passage" }, stance.label) : /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "The local NLI model couldn't be loaded" }, "stance n/a"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Relevance of this passage to your sentence (a ranking aid, not a correctness claim)" }, "match ", s.match_score.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u201C", s.quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, canOpen && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: open }, "Open source region"), /* @__PURE__ */ React.createElement(CiteCopyButton, { paperId: s.paper_id }), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "stance confidence ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf cite-conf-warn" }, "stance unavailable \u2014 local model not loaded")));
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-card" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, s.title || "Paper " + s.paper_id), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-stance " + stance.label, title: "NLI stance over the matched passage" }, stance.label) : /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "The local NLI model couldn't be loaded" }, "stance n/a"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Relevance of this passage to your sentence (a ranking aid, not a correctness claim)" }, "match ", s.match_score.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u201C", s.quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, canOpen && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: open }, "Open source region"), /* @__PURE__ */ React.createElement(FormattedCiteButton, { paperId: s.paper_id, style }), /* @__PURE__ */ React.createElement(CiteCopyButton, { paperId: s.paper_id }), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "stance confidence ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf cite-conf-warn" }, "stance unavailable \u2014 local model not loaded")));
   }
   function CitePane({ ctx }) {
     const [text, setText] = useState("");
     const [state, setState] = useState({ status: "idle" });
+    const [styles, setStyles] = useState([]);
+    const [style, setStyle] = useState("apa");
+    useEffect(() => {
+      api("/citations/styles").then((r) => {
+        if (r.ok) setStyles(r.data.styles || []);
+      });
+    }, []);
     const run = () => {
       const trimmed = text.trim();
       if (!trimmed) return;
@@ -5951,7 +5992,7 @@
         onChange: (e) => setText(e.target.value),
         disabled: busy
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !text.trim(), onClick: run }, "Suggest"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? "Finding suggestions\u2026" : "from your library \xB7 local, no egress")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't get suggestions."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "26px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Suggest citations"), "Paste a draft sentence. Callosum ranks your library by relevance and checks whether each paper supports, contrasts, or just mentions the claim \u2014 you decide the right citation."), state.status === "done" && suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "22px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No related papers in your library."), "Nothing in your library matched this sentence closely enough to suggest."), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-results" }, /* @__PURE__ */ React.createElement("div", { className: "cite-note" }, "Ranked by relevance to your sentence \u2014 a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight."), suggestions.map((s) => /* @__PURE__ */ React.createElement(SuggestionCard, { key: s.chunk_id, s, onOpenCitation: ctx.onOpenCitation }))));
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !text.trim(), onClick: run }, "Suggest"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? "Finding suggestions\u2026" : "from your library \xB7 local, no egress")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't get suggestions."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "26px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Suggest citations"), "Paste a draft sentence. Callosum ranks your library by relevance and checks whether each paper supports, contrasts, or just mentions the claim \u2014 you decide the right citation."), state.status === "done" && suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "22px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No related papers in your library."), "Nothing in your library matched this sentence closely enough to suggest."), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-results" }, /* @__PURE__ */ React.createElement("div", { className: "cite-results-head" }, /* @__PURE__ */ React.createElement("div", { className: "cite-note" }, "Ranked by relevance to your sentence \u2014 a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight."), styles.length > 0 && /* @__PURE__ */ React.createElement("label", { className: "cite-style", title: "Style for the \u201CCite\u201D (formatted) copy" }, "Cite as", /* @__PURE__ */ React.createElement("select", { value: style, onChange: (e) => setStyle(e.target.value) }, styles.map((o) => /* @__PURE__ */ React.createElement("option", { key: o.id, value: o.id }, o.title))))), suggestions.map((s) => /* @__PURE__ */ React.createElement(SuggestionCard, { key: s.chunk_id, s, onOpenCitation: ctx.onOpenCitation, style }))));
   }
   registerPaneSection({
     id: "cite",

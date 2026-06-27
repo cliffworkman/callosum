@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 158** (see Increment workflow) with **578 pytest tests
+It is currently at **Increment 159** (see Increment workflow) with **578 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -777,7 +777,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 158 (contact email / polite-pool mailto in Settings): a UX fix the user
+*Last updated: 2026-06-27 — increment 159 (formatted "Cite as…" in the in-app Cite pane — #30 follow-on): the
+deadline-writer persona's ask from the inc-156 experience pass — the Cite pane could only extract **BibTeX** (for
+a reference manager), but a writer hand-citing in prose wants a **formatted** human citation. **Frontend-only**
+(`app/frontend/js/37_cite.jsx` + `styles.css`): a pane-level **style picker** (`/citations/styles`, default apa) +
+a per-card **`FormattedCiteButton`** ("Cite") that renders the paper in the chosen style via the inc-106
+`POST /citations/render` (local citeproc) and copies the `reference_text`; the BibTeX copy stays as a secondary
+action ("BibTeX"). Reuses tested endpoints (local, **no egress**) → **no backend/endpoint/migration/audit gate**;
+**no new claim/signal** (formatting is mechanical — Principles non-triggering); surface unchanged (route_42 claims
+`37_cite.jsx`): **110/110 API + 577/577 FE, 0 uncovered**. pytest **578** unchanged (frontend-only;
+`test_frontend_assembly` confirms the build is in sync); `ruff` clean. **Verified headed, no egress**
+(`.local/visual/drive_inc159_cite_format.py`: the Cite click fires a `/citations/render` 200 — the formatted-cite
+path runs UI→engine; 0 console/page/genai). The clipboard write is the shipped Details "Cite as…"/BibTeX pattern —
+headed Chromium blocks `clipboard.writeText` without OS focus, so the driver asserts the render call, not the
+clipboard. Notes: `INCREMENT-159-NOTES.md`. **NEXT:** the bigger #30 continuation — **SP2 beyond-library
+discovery** (OpenAlex/Semantic-Scholar, explainable reasons; design-led → its own plan-mode increment, trips the
+audit + Principles gates) + Stage-4 section-scoping; the Word (Office.js) + Google Docs adapters remain the broader
+word-processor track.
+
+Earlier — increment 158 (contact email / polite-pool mailto in Settings): a UX fix the user
 flagged — the Retraction Watch download (inc 132) hard-required the `CALLOSUM_CROSSREF_MAILTO` **env var**, while
 everything else configurable now lives in Settings (the inc-146 BYOK pattern). Now **one Contact email** in
 **Settings → Metadata access** supplies the polite-pool contact for **all** public metadata APIs (Crossref,

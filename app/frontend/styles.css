@@ -1006,6 +1006,10 @@
   /* inc 156: highlight-to-suggest / evaluate — the Cite pane (THEORY accordion). Reuses .synth-input/.synth-actions. */
   .cite-note { font-size: 11px; color: var(--ink-3); margin: 10px 0 4px; line-height: 1.4; }
   .cite-results { margin-top: 6px; }
+  .cite-results-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .cite-results-head .cite-note { flex: 1; }
+  .cite-style { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin-top: 10px; }
+  .cite-style select { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px; }
   .cite-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; margin-top: 10px; }
   .cite-card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
   .cite-title { font-size: 12.5px; font-weight: 600; line-height: 1.35; }

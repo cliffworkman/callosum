@@ -27,10 +27,36 @@ function CiteCopyButton({ paperId }) {
       setCopied(true); setTimeout(() => setCopied(false), 1500);
     } catch (err) { console.warn("[callosum] copy BibTeX error:", err); }
   };
-  return <button className="btn btn-ghost" onClick={copy}>{copied ? "Copied ✓" : "Copy BibTeX"}</button>;
+  return <button className="btn btn-ghost" onClick={copy} title="Copy a BibTeX entry (for a reference manager)">{copied ? "Copied ✓" : "BibTeX"}</button>;
 }
 
-function SuggestionCard({ s, onOpenCitation }) {
+// A formatted human citation (APA/MLA/IEEE/… in the pane's chosen style) — what a writer hand-citing in a
+// document actually pastes. Renders on demand via the inc-106 citeproc engine (local, no egress) + copies the
+// reference text. The render is the same engine as Details "Cite as…" + the word-processor adapters.
+function FormattedCiteButton({ paperId, style }) {
+  const [st, setSt] = useState("idle");  // idle | busy | copied
+  const copy = async (e) => {
+    e.preventDefault();
+    setSt("busy");
+    const r = await apiPost("/citations/render", { paper_ids: [paperId], style });
+    const item = r.ok && r.data.items && r.data.items[0] ? r.data.items[0] : null;
+    if (item && item.reference_text) {
+      try {
+        await navigator.clipboard.writeText(item.reference_text);
+        setSt("copied"); setTimeout(() => setSt("idle"), 1500); return;
+      } catch (err) { console.warn("[callosum] copy formatted cite error:", err); }
+    }
+    setSt("idle");
+  };
+  return (
+    <button className="btn btn-ghost" onClick={copy} disabled={st === "busy"}
+      title="Copy the formatted citation in the selected style">
+      {st === "copied" ? "Copied ✓" : st === "busy" ? "…" : "Cite"}
+    </button>
+  );
+}
+
+function SuggestionCard({ s, onOpenCitation, style }) {
   const stance = s.stance;
   const canOpen = onOpenCitation && s.paper_id != null && (s.page_start != null || s.page_end != null);
   const open = (event) => {
@@ -59,6 +85,7 @@ function SuggestionCard({ s, onOpenCitation }) {
       <div className="quote">“{s.quote}”</div>
       <div className="cite-card-foot">
         {canOpen && <button className="btn btn-ghost" onClick={open}>Open source region</button>}
+        <FormattedCiteButton paperId={s.paper_id} style={style} />
         <CiteCopyButton paperId={s.paper_id} />
         {stance
           ? <span className="cite-conf">stance confidence {stance.confidence.toFixed(2)}</span>
@@ -71,6 +98,9 @@ function SuggestionCard({ s, onOpenCitation }) {
 function CitePane({ ctx }) {
   const [text, setText] = useState("");
   const [state, setState] = useState({ status: "idle" });
+  const [styles, setStyles] = useState([]);   // inc 159: formatted-citation styles (inc-106 engine)
+  const [style, setStyle] = useState("apa");
+  useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setStyles(r.data.styles || []); }); }, []);
   const run = () => {
     const trimmed = text.trim();
     if (!trimmed) return;
@@ -112,8 +142,16 @@ function CitePane({ ctx }) {
         </div>}
       {suggestions.length > 0 &&
         <div className="cite-results">
-          <div className="cite-note">Ranked by relevance to your sentence — a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight.</div>
-          {suggestions.map(s => <SuggestionCard key={s.chunk_id} s={s} onOpenCitation={ctx.onOpenCitation} />)}
+          <div className="cite-results-head">
+            <div className="cite-note">Ranked by relevance to your sentence — a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight.</div>
+            {styles.length > 0 &&
+              <label className="cite-style" title="Style for the “Cite” (formatted) copy">Cite as
+                <select value={style} onChange={e => setStyle(e.target.value)}>
+                  {styles.map(o => <option key={o.id} value={o.id}>{o.title}</option>)}
+                </select>
+              </label>}
+          </div>
+          {suggestions.map(s => <SuggestionCard key={s.chunk_id} s={s} onOpenCitation={ctx.onOpenCitation} style={style} />)}
         </div>}
     </div>
   );
