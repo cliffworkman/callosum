@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 164** (see Increment workflow) with **611 pytest tests
+It is currently at **Increment 165** (see Increment workflow) with **611 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -282,10 +282,12 @@ callosum/
 │                                  + callosum_addon.py [XJobExecutor dispatcher] → a one-click `.oxt` (built by
 │                                  tools/build_libreoffice_oxt.py; installable from Settings, inc 162). README.md,
 │                                  selftest_uno.py [headless round-trip: unopkg-installs the .oxt + verifies the
-│   └── word/                       dispatcher]. inc 164 (Word add-in, Office.js, SP1): manifest.xml + taskpane.{html,js,css}
-│                                  + taskpane_core.js [pure logic, node --test] + icon.png + README.md — a desktop-Word
-│                                  task pane served by callosum over HTTPS (Architecture A: same-origin, zero egress).
-│                                  Google Docs next (via the future clffwrkmn.net relay).
+│   └── word/                       dispatcher]. inc 164/165 (Word add-in, Office.js, SP1/SP2): manifest.xml +
+│                                  taskpane.{html,js,css} + taskpane_core.js [pure logic, node --test] + icon.png +
+│                                  README.md — a desktop-Word task pane served by callosum over HTTPS (Architecture A:
+│                                  same-origin, zero egress). SP2 = live citations (Content Controls carrying CSL-JSON)
+│                                  + Refresh/renumber + bibliography via /citations/render-document. Google Docs next
+│                                  (via the future clffwrkmn.net relay).
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
@@ -657,6 +659,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Word add-in SP2 = live cite-while-you-write via **Content Controls** carrying CSL-JSON + a Refresh on `/citations/render-document` (inc 165) | Upgrades the SP1 static-text insert to the Zotero-style loop. Each citation is a Word **Content Control** whose `.tag` carries the cluster's CSL-JSON (base64), `appearance:"Hidden"` (a live field, not a visible box) — the Office.js analogue of LibreOffice's ReferenceMark/CSL-JSON. **Insert** = `/papers/export` csl-json → wrap a CC around the inserted range → **Refresh**. **Refresh** scans citation CCs **in document order** (`body.contentControls`, filter by the `CALLOSUM_CITATION ` tag prefix), POSTs them to the inc-107 `/citations/render-document` (positional `citationID`s), writes each CC's text back via `cc.insertText(..,"Replace")` (Office.js keeps the CC — no LibreOffice setString-destroys-the-mark trap), and rebuilds a managed **References** CC (tag `CALLOSUM_BIBLIOGRAPHY`) at the body end. **Content Controls over ADDIN fields** (the plan's default — the more mature/robust Office.js primitive). **No backend change** (reuses `/papers/export` + `/citations/render-document`, both already audited/tested) → no new endpoint/surface/migration/egress/dependency; no new audit gate. **Verification reality (the user has no Word):** the in-Word Office.js glue (`taskpane.js`) is exercised by **no one** — it ships best-effort-correct per the Office.js docs; the **pure logic** (`taskpane_core.js`: tag encode/decode incl. unicode + malformed→null, the render-document request/response mapping) is `node --test`-covered (8/8) and the render-document contract is pytest-proven (inc 107). Principles non-triggering (field-placer; formatting stays in citeproc). |
 | Word add-in (Office.js) = a task pane served by callosum over **local HTTPS, same-origin** (Architecture A: desktop-only, zero egress); SP1 (inc 164) | The second word-processor adapter (after LibreOffice inc 108/162). A Word add-in is a **web task pane**, and Office requires it over **HTTPS** + **can't fetch `http://localhost`** (and Word-on-the-web can't reach localhost) → research forced an architecture decision the **user chose in plan mode: Architecture A** (local HTTPS, desktop-only, zero egress) over a clffwrkmn.net relay (deferred to the Google Docs increment). callosum serves the task pane at `https://localhost:8443` **same-origin** with its API, so the add-in reaches the library with **no CORS change and no egress** (CORSMiddleware only applies cross-origin; everything is loopback) — the cost is a one-time local-cert trust (`npx office-addin-dev-certs install` + `python tools/run_https.py`). New `adapters/word/` (manifest.xml + taskpane.{html,js,css} + `taskpane_core.js` [pure logic, `node --test`] + icon + README) — a **thin field-placer** reusing the audited cite contracts (`/papers?q=`, `/citations/render`); SP1 inserts a formatted citation as **static text** via `Word.run` (SP2 = live Content-Control fields + `/citations/render-document` renumber/bib; SP3 = suggest/style/flatten). `routers/word.py` serves the task pane + manifest via **explicit per-filename `FileResponse` routes** (no `{filename}` param → no traversal) + `POST …/install` (opens the add-in folder; graceful). **GOTCHAS (carry to SP2/Docs):** office.js **cannot take SRI** (MS updates it in place at the fixed URL); **no headless Word** → the in-Word round-trip is the user's MANUAL check (so the pure logic lives in `taskpane_core.js` to be unit-testable). **No migration, no egress, no new dependency** (office.js CDN-loaded by Word; `office-addin-dev-certs` via `npx`; `node --test` built-in). Audit `2026-06-27_word-addin.md` PASS; Principles non-triggering (packaging/field-placer); local-only → pre-hosted-deploy gate recorded. |
 | "Coming soon" accordion placeholders = honest, inert roadmap stubs (inc 163) | The user wanted the planned THEORY/METHODS sections + subsection tabs visible in-GUI "to keep me psyched." Built as honest scaffolds, not vaporware: `09_placeholders.jsx` (a `<ComingSoon title body builds/>` component + `.coming-soon*` tokens-only CSS) registers THEORY → **Discover** (tabs Beyond library/Feed/Search, #30/#28) + METHODS → Mixed-model/Bayesian/Meta-analysis/Citation-equity (#23/#24/#37/#25) + a **"More checks"** tab appended to the shipped statcheck section (#27) via `registerPaneTab` find-or-create (no edit to `06_methods_statcheck.jsx`). The convention (DESIGN §5): each stub (1) names a real backlog item, (2) is placed by cognitive task, (3) **bakes in its ship-time principle framing** (signal-not-verdict / never-accusation), (4) is **inert** ("silence is not a certificate"); **remove each stub in the increment its real feature lands**. Where-to-submit (#40) deliberately NOT stubbed (authoring-support ≠ method-evaluation → breaks the placement rubric). Frontend-only; Principles non-triggering; surface unchanged. |
 | LibreOffice adapter v2 = a one-click `.oxt` (Callosum menu/toolbar via an XJobExecutor dispatcher) + search-to-cite + install-from-Settings (inc 162) | The inc-108 adapter worked but the *routing* was unusable (macros buried in Organize Macros → Python; insert by numeric paper id). Research (Zotero/Mendeley/EndNote) = a toolbar that appears after install + an "Add Citation" search box. Built: a single **`.oxt`** (`adapters/libreoffice/oxt/` — `Addons.xcu` Callosum menu+toolbar; manifest registers `callosum_addon.py`, a UNO **`XJobExecutor`** dispatcher → `service:com.callosum.cite.Dispatcher?<action>`, **path-independent** vs the fragile `vnd.sun.star.script:` URIs). `callosum_cite.py` gained an `_ACTIONS`/`dispatch` registry shared by the macro entry points + the dispatcher, `_DISPATCH_CTX` (bridge the component context into the dialog helpers, which otherwise need the macro-only `XSCRIPTCONTEXT`), a configurable server URL (`~/.callosum/libreoffice.json`), and **`add_citation_by_search`** (GET `/papers?q=` → pick-list → insert — the everyday cite action, no ids; **Suggest** stays the relevance-from-the-sentence complement). `tools/build_libreoffice_oxt.py` (stdlib zip; importable). **One-click install from Settings:** `routers/libreoffice.py` `GET /integrations/libreoffice/plugin.oxt` (serve) + `POST …/install` (open the .oxt → LibreOffice Extension Manager; graceful `{opened:false}` fallback) + a `35_settings.jsx` LibreOffice-plugin section. **Gotchas (for Word/Docs):** a Python UNO component must import siblings **lazily** after `sys.path.insert(dirname(__file__))` (registration-time the ext dir isn't importable); the component needs `_DISPATCH_CTX` (no `XSCRIPTCONTEXT`). **No migration, no egress, no new dependency.** Audit `2026-06-27_libreoffice-install.md` PASS (fixed-artifact path; local-only → pre-hosted-deploy gate); Principles non-triggering (packaging/UX). Verified through real LibreOffice (`unopkg add` rc=0 + dispatcher resolves + search-to-cite, SELFTEST OK) + headed Settings drive. |
@@ -794,7 +797,37 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 164 (Microsoft Word add-in, Office.js — SP1: HTTPS spine + search-and-insert
+*Last updated: 2026-06-27 — increment 165 (Microsoft Word add-in, Office.js — SP2: live cite-while-you-write):
+upgrades the inc-164 SP1 static-text insert to the Zotero-style loop — **live citations + Refresh/renumber +
+bibliography**. Each citation is a Word **Content Control** whose `.tag` carries the cluster's CSL-JSON (base64,
+unicode-safe), `appearance:"Hidden"` (a live field, not a visible box). **Insert** = `POST /papers/export` csl-json
+→ `Word.run` wrap a Content Control around the inserted range → **Refresh**. **Refresh** scans citation Content
+Controls **in document order** (`body.contentControls`, filtered by the `CALLOSUM_CITATION ` tag prefix), POSTs them
+to the inc-107 **`/citations/render-document`** (positional `citationID`s), writes each control's text back with
+`cc.insertText(text,"Replace")` (Office.js preserves the control — no LibreOffice setString-destroys-the-mark trap),
+and rebuilds a managed **References** Content Control (tag `CALLOSUM_BIBLIOGRAPHY`) at the body end. Chose **Content
+Controls** over ADDIN fields (the more mature Office.js primitive). The style dropdown feeds Refresh (one-click
+whole-doc style-switch + Flatten + Suggest = SP3). **All in `adapters/word/`** (`taskpane.js` rewrite + the SP2 pure
+helpers in `taskpane_core.js` + a Refresh button in `taskpane.html`/`.css`); the SP1-only per-item helpers were
+removed (rule #5). **No backend change** — reuses `/papers/export` (inc 70) + `/citations/render-document` (inc 107),
+both already audited + pytest-tested → **no new endpoint/surface/migration/egress/dependency, no new audit gate**;
+the inc-164 audit posture (same-origin loopback, zero egress, no traversal) is unchanged. **Verification reality —
+the user has no Word, so the in-Word Office.js glue (`taskpane.js`) is exercised by NO ONE** (it ships
+best-effort-correct per the Office.js docs); the value is the **pure logic** (`taskpane_core.js`: tag encode/decode
+incl. a unicode round-trip + malformed→null-never-guess, the render-document request builder + response extractors)
+**`node --test` 8/8** + the render-document contract it calls being **pytest-proven** (inc 107). **GOTCHA (carry to
+Docs):** `cc.insertText(.., "Replace")` keeps the Content Control (unlike LibreOffice ReferenceMarks); content-control
+iteration is in document order. pytest **611** unchanged (SP2 is frontend/adapter-only; `tests/test_word_addin.py`
+re-confirms the rewritten assets serve with no AI host); `node --test "adapters/word/*.test.js"` **8/8**; surface
+**120/120 API + 599/599 FE, 0 uncovered** (no surface change); `ruff` clean; no frontend rebuild (only `adapters/word/`
+touched). help corpus's "Citing in Microsoft Word" section updated to live-fields + Refresh (`HELP-DOCS-SYNCED` →
+165). **NOT headed-verifiable** (the task pane needs Word; the SP1 headed Settings drive still covers the Settings
+surface, unchanged). Notes: `INCREMENT-165-NOTES.md`. **NEXT:** **SP3 (inc 166)** — Suggest (`/citations/suggest`,
+relevance-from-the-sentence) + a one-click whole-doc style switch + Flatten (live→static). Then **Google Docs** via
+the authenticated **clffwrkmn.net relay** (its own design-led increment). Carried: the **`40_app.jsx` 630/600 split**
+(rule #1).
+
+Earlier — increment 164 (Microsoft Word add-in, Office.js — SP1: HTTPS spine + search-and-insert
 task pane): the second word-processor adapter (after LibreOffice). A Word add-in is a **web task pane**, and Office
 requires it over **HTTPS** + **can't fetch `http://localhost`** (Word-on-the-web can't reach localhost at all) — so
 the user chose **Architecture A** in plan mode: callosum serves the task pane over **local HTTPS, same-origin** with

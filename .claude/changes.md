@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 164) — new "Citing in Microsoft Word (desktop)" help section (the 3-step HTTPS/cert/sideload setup + Show Citations + the static-text-for-now caveat). -->
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 165) — "Citing in Microsoft Word" help section updated to live citations + Refresh/renumber + bibliography (SP2). -->
+## 2026-06-27 — Increment 165: Word add-in SP2 — live cite-while-you-write (Content Controls + Refresh/renumber + bibliography)
+- **Files:** `adapters/word/taskpane.js` (rewrite: live insert + Refresh loop), `adapters/word/taskpane_core.js`
+  (SP2 pure helpers — tag encode/decode, render-document request/response mapping; SP1-only helpers removed),
+  `adapters/word/taskpane.{html,css}` (Refresh button), `adapters/word/taskpane_core.test.js` (SP2 node tests),
+  `adapters/word/README.md`, `app/backend/help/help_content.md` (cite-in-word → SP2), `INCREMENT-165-NOTES.md`.
+- **What:** upgrade the SP1 static-text insert to the Zotero-style loop — each citation is a Word **Content Control**
+  whose `.tag` carries the cluster's CSL-JSON (base64); **Insert** = `/papers/export` csl-json → wrap a CC → Refresh;
+  **Refresh** scans citation CCs in document order → `POST /citations/render-document` → writes back position-aware
+  in-text + a managed **References** CC. Style dropdown feeds Refresh. (Suggest / style-switch / flatten = SP3.)
+- **Why:** the user's roadmap — the real cite-while-you-write feature (after SP1 de-risked the platform).
+- **Revert:** `git checkout` the `adapters/word/` files to the inc-164 state; no backend/schema touched.
+  **Verification reality:** the user has no Word, so the Office.js glue is exercised by no one (best-effort-correct);
+  the pure logic is `node --test` 8/8 and the `/citations/render-document` contract is pytest-proven (inc 107).
+
 ## 2026-06-27 — Increment 164: Microsoft Word add-in (Office.js), SP1 — HTTPS spine + search-and-insert task pane
 - **Files:** `adapters/word/{manifest.xml,taskpane.html,taskpane.js,taskpane_core.js,taskpane.css,icon.png,README.md,taskpane_core.test.js}`
   (new — the add-in, shipped client code), `app/backend/api/routers/word.py` (new — serve the task pane + manifest +

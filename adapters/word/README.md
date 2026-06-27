@@ -4,9 +4,10 @@ Cite while you write in **desktop Microsoft Word** (Windows/Mac), backed by your
 LibreOffice adapter, this is a thin *field-placer* — it never formats citations itself; it searches your library
 and inserts what callosum's citation engine renders. **Everything stays on your machine** (see *How it works*).
 
-> **SP1 (this version)** ships the spine: **search your library → insert a formatted citation as static text** at
-> the cursor. Live, updatable citations + whole-document renumbering/bibliography (the Zotero-style
-> cite-while-you-write loop) land in SP2; Suggest / style switching / flatten in SP3.
+> **SP2 (this version)** ships cite-while-you-write: **search your library → insert a live citation**, and a
+> **Refresh** that re-renders + renumbers every citation in document order and rebuilds the bibliography (via
+> `/citations/render-document` — numeric styles renumber `[1][2][3]` by position; author-date disambiguates).
+> Suggest (relevance-from-the-sentence) / one-click style switching / flatten-to-static land in SP3.
 
 ## Why the setup is different from LibreOffice
 A Word add-in is a **web page** that runs inside Word, and Office requires it to be served over **HTTPS** — it
@@ -38,23 +39,36 @@ Word-on-the-web runs in a cloud sandbox that can't reach your local library (tha
 
 ## Use
 Open Word → **Home → Callosum → Show Citations**. In the task pane: pick a citation **style**, type an
-author/title/year, and click a result — the formatted in-text citation is inserted at your cursor.
-(callosum must be running in HTTPS mode for the task pane to reach it.)
+author/title/year, and click a result — a **live** citation is inserted at your cursor (a Content Control carrying
+the work's CSL-JSON). Click **Refresh / renumber + bibliography** after edits or moves to re-render every citation
+in document order and rebuild the **References** block at the end of the document. (callosum must be running in
+HTTPS mode for the task pane to reach it.)
 
 ## How it works (for the curious)
 The task pane is served by callosum at `https://localhost:8443/integrations/word/taskpane.html` and its API calls
-(`/papers?q=`, `/citations/render`) are **same-origin** — so they reach your local library directly, with **no
-egress** and no CORS exception. The only external load is **office.js** from Microsoft's CDN: that is the Office
-platform SDK every add-in must load (it cannot use Subresource Integrity because Microsoft updates it in place);
-it is not callosum sending your data anywhere. Citation formatting happens in callosum's bundled citeproc engine,
-so the output matches the in-app "Cite as…" and the LibreOffice adapter.
+(`/papers?q=`, `/papers/export`, `/citations/render-document`) are **same-origin** — so they reach your local
+library directly, with **no egress** and no CORS exception. Each citation is a Word **Content Control** whose
+`.tag` carries the cited work's CSL-JSON (base64) — the Zotero/LibreOffice embedded-CSL-JSON pattern. **Refresh**
+scans those controls **in document order**, POSTs them to `/citations/render-document`, and writes back the
+position-aware in-text + a managed **References** Content Control (tagged `CALLOSUM_BIBLIOGRAPHY`) at the document
+end. The only external load is **office.js** from Microsoft's CDN: that is the Office platform SDK every add-in
+must load (it cannot use Subresource Integrity because Microsoft updates it in place); it is not callosum sending
+your data anywhere. All formatting happens in callosum's bundled citeproc engine, so the output matches the in-app
+"Cite as…" and the LibreOffice adapter.
 
 ## Credit
-The live-field / embedded-CSL-JSON cite design (coming in SP2) follows the **Zotero `CSL_CITATION` field
-convention** (reused as a *pattern*, not code). callosum's rendering is built on **citeproc-js** + the **CSL**
-project — see the project's `THIRD-PARTY-NOTICES.md`. **office.js** is Microsoft's Office Add-ins SDK.
+The live-field / embedded-CSL-JSON cite design follows the **Zotero `CSL_CITATION` field convention** (reused as a
+*pattern*, not code). callosum's rendering is built on **citeproc-js** + the **CSL** project — see the project's
+`THIRD-PARTY-NOTICES.md`. **office.js** is Microsoft's Office Add-ins SDK.
 
-## Limitations (SP1)
-Inserts a single citation as **static text** (no live updating / renumbering / bibliography yet — that is SP2);
-no Suggest / style-switch-whole-doc / flatten yet (SP3); **desktop Word only**; requires the HTTPS run-mode +
-the trusted dev cert. Word-on-the-web + Google Docs ride a future authenticated relay.
+## Limitations (SP2)
+One work per citation (no grouped cites / page-locators yet); no Suggest (relevance-from-the-sentence) /
+one-click style-switch / flatten-to-static yet (SP3); the bibliography lives at the document end; **desktop Word
+only**; requires the HTTPS run-mode + the trusted dev cert. Word-on-the-web + Google Docs ride a future
+authenticated relay.
+
+> **Verification note:** there is no headless Word, so the in-Word behavior of the Office.js parts
+> (`taskpane.js`) is **not exercised by an automated test** (nor, currently, by the maintainer — it ships
+> best-effort-correct per the Office.js docs). The **pure logic** (`taskpane_core.js`: tag encode/decode, the
+> render-document request/response mapping) is unit-tested with `node --test`, and the `/citations/render-document`
+> contract it calls is covered by the Python suite. Treat the in-Word flow as untested until you run it in Word.

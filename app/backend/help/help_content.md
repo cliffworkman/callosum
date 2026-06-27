@@ -267,9 +267,9 @@ You can also cite from your callosum library inside **desktop Microsoft Word** (
 2. **Run callosum over HTTPS** — run `python tools/run_https.py`, then open the app at **https://localhost:8443**. (Plain HTTP on :8080 still works for everyday use; HTTPS is only needed while citing in Word.)
 3. **Add the manifest to Word** — in **Settings → Microsoft Word add-in → Download manifest**, then sideload it (Windows: register the folder as a Trusted Add-in Catalog; Mac: drop it in Word's `wef` folder — see `adapters/word/README.md`).
 
-Then in Word: **Home → Callosum → Show Citations**. Pick a style, search your library, and click a result to insert the formatted citation at the cursor.
+Then in Word: **Home → Callosum → Show Citations**. Pick a style, search your library, and click a result to insert a **live** citation at the cursor. Click **Refresh / renumber + bibliography** after edits or moves to re-render every citation in document order and rebuild the **References** list at the end of the document (numeric styles renumber by position, like Zotero).
 
-*(This first version inserts a citation as static text; live updating citations, whole-document renumbering, a bibliography, and Suggest are on the way, mirroring the LibreOffice plugin.)*
+*(Suggest — relevance-from-the-sentence — plus one-click style switching and flatten-to-static are on the way, mirroring the LibreOffice plugin.)*
 
 <!-- section: tags -->
 ## Tagging papers
