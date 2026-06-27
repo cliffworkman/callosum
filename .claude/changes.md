@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 153: synthesis coverage readout + top_k + answerability (#7)
+- **Files:** `app/frontend/js/20_synthesis.jsx` + `styles.css` + `callosum-app.html`, `INCREMENT-153-NOTES.md`.
+- **What:** After a papers-scope synthesis, a coverage line — "Drew from M of N selected papers · top K chunks
+  (· K contributed no cited passage)" — computed from the result's citation `paper_id`s + a new `scopeMeta`; plus
+  an answerability note when no claim clears verification. Frontend-only display.
+- **Why:** the Skeptical-synthesizer pass (#7): show how much of the selection actually fed the summary.
+- **Revert:** restore `20_synthesis.jsx` + `styles.css` from git + rebuild.
+
 ## 2026-06-27 — Backlog reconciliation (docs-only; no increment)
 - **Files:** `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
 - **What:** Reconciled the open backlog against what actually shipped in inc 109–152 (it had drifted — many items

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 152** (see Increment workflow) with **556 pytest tests
+It is currently at **Increment 153** (see Increment workflow) with **556 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -774,7 +774,23 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 152 (BYOK deferred item: OS-keychain key storage — optional `keyring`, file
+*Last updated: 2026-06-27 — increment 153 (synthesis coverage readout + top_k + answerability — backlog #7):
+the remaining autonomous part of the Skeptical-synthesizer follow-ups. **Frontend-only** (`20_synthesis.jsx`): a
+new `scopeMeta` state `{total, topK}` captured on a papers-scope launch → on done, a **coverage line** "Drew from
+**M** of N selected papers · top K chunks (· K contributed no cited passage)" computed from distinct `paper_id`
+across the result's citations; an **answerability** note (`.synth-coverage-warn`) when claims exist but none clear
+verification (`verifiedCount===0`); and a sharper 0-sentence empty state. `scopeMeta` clears on a query-scope run +
+on loading a saved synthesis (N unknown). Display-only — doesn't touch generation/retrieval (so the "eyes on first
+run" caveat, about LLM quality, doesn't apply); **Principles non-triggering** (makes coverage inspectable, no new
+claim). One CSS recipe `.synth-coverage` (tokens only). pytest **556** unchanged (frontend-only; the data path —
+citations carry `paper_id` — is covered by `test_summaries`); `ruff` clean; build + assembly green; QA surface
+**109/109 API + 561/561 FE, 0 uncovered**; no migration. **Verified headed, no real egress**
+(`.local/visual/drive_inc153_coverage.py` — a fake-generator app citing 1 of 2 selected papers → "Drew from 1 of 2
+selected papers · top 8 chunks · 1 contributed no cited passage"; 0 console/page/genai). Notes:
+`INCREMENT-153-NOTES.md`. **NEXT (this autonomous run):** statcheck (d) deep-link to the specific failing test (inc
+154); progress skipped/failed detail + filename (inc 155).
+
+Earlier — increment 152 (BYOK deferred item: OS-keychain key storage — optional `keyring`, file
 fallback): per-provider BYOK keys can live in the **OS keychain** (Windows Credential Manager / macOS Keychain /
 Linux Secret Service) instead of the gitignored file. `app_settings._keyring()` returns the `keyring` module iff
 importable with a usable backend (else None → file); `get_provider_key` reads keychain→file (a pre-keychain key is

@@ -109,13 +109,11 @@ follows the canonical rules. **⚠ Lowest build effort below the line — but it
 documented exceptions" ruling, which CC caught and escalated in the sandbox instead of executing. Rule on that
 (stale item, or are you reversing inc-86?) and it's a trivial promote above the cut.**
 
-**7. Multi-paper summary follow-ups** — **inc 145 (Skeptical synthesizer pass) shipped the focus query's
-discoverability:** a **"Focus on… (optional)"** input in the library selection bar → a query-RANKED synthesis of the
-selection (the capability existed since inc 111 but was invisible — the focus lived in the Synthesis textarea). The
-help was also corrected. **Remaining (synthesizer pass findings):** a **coverage readout** ("drew from M of N
-selected papers"; name the papers that contributed no chunks); an **answerability** note ("your question may not be
-addressed in these papers" when nothing clears retrieval); show the `top_k` cap in the scope-note for all cases.
-Coverage beyond the 24/50-chunk cap. *(Touches the synthesis core + the LLM — eyes on the first live run.)*
+**7. Multi-paper summary follow-ups** — **[mostly shipped]** focus-query discoverability (inc 145) + the
+**coverage readout** ("Drew from M of N selected papers · top K chunks · K contributed no cited passage") + the
+**answerability** note (no claim cleared verification) + the `top_k` display (inc 153) all shipped → relocated to
+DONE. **Remaining only:** coverage *beyond* the 24/50-chunk cap (a real multi-pass / map-reduce synthesis change —
+its own design + a live eyeball; not autonomous-cheap).
 
 **8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **[your call: attributions]** the retroactive
 credit-help backfill: Lane A scholarly-method lineage (statcheck → Nuijten & Epskamp / Nuijten et al. 2016; etc.)

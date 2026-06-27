@@ -33,6 +33,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
   const [query, setQuery] = useState("");
   const [state, setState] = useState({ status: "idle" });
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
+  const [scopeMeta, setScopeMeta] = useState(null);   // {total, topK} for the papers scope → the coverage readout (inc 153)
   const [history, setHistory] = useState({ status: "loading", items: [] });
   const [egressOff, setEgressOff] = useState(false);  // inc 148: AI off → show a nudge with a door into Settings
   const pollRef = useRef(null);
@@ -94,6 +95,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
     const trimmed = query.trim();
     if (!trimmed) return;
     setScopeNote(null);
+    setScopeMeta(null);  // query scope: no fixed N to report coverage against
     launch({ scope_type: "query", query: trimmed, top_k: 8 }, "Starting summarization");
   }, [query, launch]);
 
@@ -115,7 +117,9 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
       + (focus ? ` · focused on “${focusShort}”` : "")
       + (n > MAX_CHUNKS ? ` · capped at ${MAX_CHUNKS} chunks` : ""),
     );
-    const body = { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: Math.min(Math.max(8, n), MAX_CHUNKS) };
+    const topK = Math.min(Math.max(8, n), MAX_CHUNKS);
+    setScopeMeta({ total: n, topK });   // for the coverage readout once it's done
+    const body = { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: topK };
     if (focus) body.query = focus;   // focus query → query-ranked coverage of the selection
     launch(body, `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`);
   }, [pendingSummarize ? pendingSummarize.nonce : null]);
@@ -123,6 +127,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
   const loadSummary = useCallback((summaryId) => {
     if (pollRef.current) clearTimeout(pollRef.current);
     setScopeNote(null);
+    setScopeMeta(null);  // a saved synthesis — the original selection size isn't recorded
     setState({ status: "loading-summary", message: "Loading saved synthesis" });
     api(`/summaries/${summaryId}`).then(r => {
       if (r.ok) setState({ status: "done", result: r.data, loadedSummaryId: summaryId });
@@ -149,6 +154,12 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
   const sentences = state.result && state.result.sentences ? state.result.sentences : [];
   const verifiedCount = sentences.filter(s => !s.flagged).length;
   const flaggedCount = sentences.filter(s => s.flagged).length;
+  // inc 153: which selected papers actually contributed a cited passage (the coverage readout).
+  const drewFromPapers = (() => {
+    const ids = new Set();
+    sentences.forEach(s => (s.citations || []).forEach(c => { if (c.paper_id != null) ids.add(c.paper_id); }));
+    return ids.size;
+  })();
 
   // inc 148: a friendly "AI is off" nudge with a one-click door into Settings (shown proactively when egress is
   // off, and reactively in place of a raw DataEgressDisabledError). Local features stay usable — this informs.
@@ -206,10 +217,17 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
             summary #{state.result.summary_id} · {state.result.summary_status}
             {` · ${verifiedCount} verified · ${flaggedCount} flagged`}
           </div>
+          {scopeMeta && scopeMeta.total != null &&
+            <div className="synth-coverage">
+              Drew from <b>{drewFromPapers}</b> of {scopeMeta.total} selected paper{scopeMeta.total === 1 ? "" : "s"} · top {scopeMeta.topK} chunks
+              {drewFromPapers < scopeMeta.total ? ` · ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""}
+            </div>}
+          {sentences.length > 0 && verifiedCount === 0 &&
+            <div className="synth-coverage synth-coverage-warn">No claim cleared local verification — your question may not be well-addressed in these papers.</div>}
           {sentences.length === 0 &&
             <div className="state" style={{ padding: "24px 10px" }}>
               <div className="big">No groundable summary produced.</div>
-              The generator returned no sentences for this scope.
+              The generator returned no sentences — your question may not be addressed in this scope.
             </div>}
           {sentences.length > 0 && <OverviewBlock overview={state.result.overview} />}
           {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} />}

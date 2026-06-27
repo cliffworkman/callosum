@@ -955,6 +955,9 @@
   .synth-actions button { padding: 7px 11px; font-size: 12.5px; }
   .synth-status { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .synth-scope-note { font-size: 11.5px; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 5px 9px; margin: 9px 0 0; }
+  /* Coverage readout (inc 153): "drew from M of N papers"; the -warn variant when nothing cleared verification. */
+  .synth-coverage { font-size: 11px; color: var(--ink-3); margin: 6px 0 0; }
+  .synth-coverage-warn { color: var(--flag-ink); }
   /* AI-off nudge (inc 148): amber status banner + a door into Settings. Mirrors .synth-scope-note on the --flag family. */
   .synth-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 9px 11px; margin: 14px 0 0; }
   .synth-status.running::before {
@@ -3406,6 +3409,7 @@
     const [query, setQuery] = useState("");
     const [state, setState] = useState({ status: "idle" });
     const [scopeNote, setScopeNote] = useState(null);
+    const [scopeMeta, setScopeMeta] = useState(null);
     const [history, setHistory] = useState({ status: "loading", items: [] });
     const [egressOff, setEgressOff] = useState(false);
     const pollRef = useRef(null);
@@ -3461,6 +3465,7 @@
       const trimmed = query.trim();
       if (!trimmed) return;
       setScopeNote(null);
+      setScopeMeta(null);
       launch({ scope_type: "query", query: trimmed, top_k: 8 }, "Starting summarization");
     }, [query, launch]);
     useEffect(() => {
@@ -3473,13 +3478,16 @@
       setScopeNote(
         `${n} selected paper${n === 1 ? "" : "s"}` + (focus ? ` \xB7 focused on \u201C${focusShort}\u201D` : "") + (n > MAX_CHUNKS ? ` \xB7 capped at ${MAX_CHUNKS} chunks` : "")
       );
-      const body = { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: Math.min(Math.max(8, n), MAX_CHUNKS) };
+      const topK = Math.min(Math.max(8, n), MAX_CHUNKS);
+      setScopeMeta({ total: n, topK });
+      const body = { scope_type: "papers", paper_ids: pendingSummarize.paper_ids, top_k: topK };
       if (focus) body.query = focus;
       launch(body, `Summarizing ${n} selected paper${n === 1 ? "" : "s"}`);
     }, [pendingSummarize ? pendingSummarize.nonce : null]);
     const loadSummary = useCallback((summaryId) => {
       if (pollRef.current) clearTimeout(pollRef.current);
       setScopeNote(null);
+      setScopeMeta(null);
       setState({ status: "loading-summary", message: "Loading saved synthesis" });
       api(`/summaries/${summaryId}`).then((r) => {
         if (r.ok) setState({ status: "done", result: r.data, loadedSummaryId: summaryId });
@@ -3504,6 +3512,13 @@
     const sentences = state.result && state.result.sentences ? state.result.sentences : [];
     const verifiedCount = sentences.filter((s) => !s.flagged).length;
     const flaggedCount = sentences.filter((s) => s.flagged).length;
+    const drewFromPapers = (() => {
+      const ids = /* @__PURE__ */ new Set();
+      sentences.forEach((s) => (s.citations || []).forEach((c) => {
+        if (c.paper_id != null) ids.add(c.paper_id);
+      }));
+      return ids.size;
+    })();
     const egressNudge = /* @__PURE__ */ React.createElement("div", { className: "synth-nudge" }, /* @__PURE__ */ React.createElement("span", null, "AI summaries are off. Turn on ", /* @__PURE__ */ React.createElement("b", null, "AI features"), " in Settings to generate a verified synthesis."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: () => onOpenSettings && onOpenSettings() }, "Enable in Settings \u2192"));
     return /* @__PURE__ */ React.createElement("div", { className: "synth" }, /* @__PURE__ */ React.createElement(
       "textarea",
@@ -3525,7 +3540,7 @@
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences for this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), scopeMeta && scopeMeta.total != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Drew from ", /* @__PURE__ */ React.createElement("b", null, drewFromPapers), " of ", scopeMeta.total, " selected paper", scopeMeta.total === 1 ? "" : "s", " \xB7 top ", scopeMeta.topK, " chunks", drewFromPapers < scopeMeta.total ? ` \xB7 ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""), sentences.length > 0 && verifiedCount === 0 && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage synth-coverage-warn" }, "No claim cleared local verification \u2014 your question may not be well-addressed in these papers."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
       SummaryHistory,
       {
         state: history,
