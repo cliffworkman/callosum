@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 163: "Coming soon" accordion placeholders (a visible roadmap)
+- **Files:** `app/frontend/js/09_placeholders.jsx` (new), `app/frontend/styles.css` (`.coming-soon*`),
+  `callosum-app.html`, `.claude/DESIGN.md` (§5 placeholder convention), `INCREMENT-163-NOTES.md`.
+- **What:** Scaffold the planned THEORY/METHODS accordion sections + subsection tabs as honest, inert "Coming soon"
+  stubs (a visible roadmap): THEORY → **Discover** (tabs Beyond library / Feed / Search, #30/#28); METHODS →
+  **Mixed-model reporting** (#23), **Bayesian statistics** (#24), **Meta-analysis** (#37), **Citation equity** (#25);
+  + a **"More checks"** tab appended to the shipped Statistics check (#27). Each names a real backlog item, is placed
+  by the DESIGN §5 cognitive-task rubric, bakes in its signal-not-verdict framing, and shows no data.
+- **Why:** the user wanted the roadmap visible in-GUI "to keep me psyched about all of the stuff we're gonna build."
+- **Revert:** delete `09_placeholders.jsx` + the `.coming-soon*` CSS + rebuild. (Frontend-only; no backend/schema.)
+
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 162) — new "Citing in LibreOffice Writer" help section (install from Settings + the Callosum menu/toolbar; Add vs Suggest); the suggesting-citations "on the way" line corrected. -->
 ## 2026-06-27 — Increment 162: LibreOffice adapter v2 — discoverable, installable cite flow
 - **Files:** `adapters/libreoffice/oxt/{description.xml,META-INF/manifest.xml,Addons.xcu}` (new — the extension),

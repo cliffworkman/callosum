@@ -278,6 +278,17 @@ for a one-tab section (no strip shown). The tab strip **reuses the `.tags-srcfil
 (`.pane-tabs`, no new tokens); tabs **mount-but-hide** like sections (`.pane-tab:not(.active){display:none}`) so an
 open axis / running action survives a tab switch; the active tab persists (`callosum.panetab.<sectionId>`).
 
+**"Coming soon" placeholders (inc 163) — honest roadmap stubs.** Planned-but-unbuilt sections/tabs may be
+scaffolded ahead of time (a visible roadmap), but only **honestly**: a stub must (1) name a **genuine,
+backlog-tracked** capability — not vaporware; (2) be placed by the **cognitive-task rubric** above (THEORY new
+sections after Cite; METHODS evaluation modules after REVIEW at `order: 50+`; *more stat checks become TABS in
+STATISTICS CHECK*, not new sections — `09_placeholders.jsx` appends a "More checks" tab to the `statcheck` section
+via `registerPaneTab` find-or-create, no edit to `06_methods_statcheck.jsx`); (3) **bake in the principle framing
+it will ship with** (signal-not-verdict, never accusation) so the roadmap itself coheres; and (4) be **inert** —
+no controls, no data ("silence is not a certificate": a placeholder *signals* incomplete work, it never fakes a
+result). Recipe: the `<ComingSoon title body builds/>` component (`09_placeholders.jsx`) + the `.coming-soon*`
+CSS (an `--accent-soft` badge + muted body; tokens only). Remove a stub in the same increment its real feature lands.
+
 **AI-usage principle.** The AI's job is to make verification cheap, **never to substitute for it.** For any AI
 feature ask *"where did the judgment go?"* — it must land on a checkable computation or on the human, never hide in
 an opaque selection/score. **The findings output contract (inc 130, METHODS "Review"):** a **FACT** renders as a

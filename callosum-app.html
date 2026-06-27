@@ -146,6 +146,12 @@
      recipe; inactive tabs stay mounted-but-hidden so their in-progress state survives a tab switch (DESIGN.md §5). */
   .pane-tabs { margin: 2px 0 8px; }
   .pane-tab:not(.active) { display: none; }
+  /* inc 163: honest "Coming soon" roadmap stubs (planned THEORY/METHODS sections + tabs); inert, clearly labeled */
+  .coming-soon { padding: 6px 2px 10px; }
+  .coming-soon-badge { display: inline-block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 8px; }
+  .coming-soon-title { font-size: 13px; font-weight: 600; color: var(--ink); margin: 8px 0 4px; }
+  .coming-soon-body { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin: 0 0 6px; }
+  .coming-soon-builds { font-size: 11px; color: var(--ink-3); margin: 0; }
 
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
   .divider { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; }
@@ -2099,6 +2105,129 @@
     return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, /* @__PURE__ */ React.createElement(RetractionBatch, { ctx }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), pid == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RetractionStatusLine, { paperId: pid }), state.status !== "ready" ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026") : facts.length || candidates.length ? /* @__PURE__ */ React.createElement(React.Fragment, null, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper }))) : /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.")));
   }
   registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
+  function ComingSoon({ title, body, builds }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
+  }
+  registerPaneTab(
+    { id: "discover", label: "Discover", paneId: "theory", order: 30 },
+    {
+      id: "discover-beyond",
+      label: "Beyond library",
+      order: 10,
+      render: () => /* @__PURE__ */ React.createElement(
+        ComingSoon,
+        {
+          title: "Find papers beyond your library",
+          body: "Surface work your collection cites or is cited by, and topically related papers (OpenAlex / Semantic Scholar) \u2014 each with an explainable reason. Ranked by relevance to your work, never by raw citation count.",
+          builds: "Builds on the gap-finder + the citation engine. (Backlog #30 SP2)"
+        }
+      )
+    }
+  );
+  registerPaneTab(
+    { id: "discover", label: "Discover", paneId: "theory", order: 30 },
+    {
+      id: "discover-feed",
+      label: "Feed",
+      order: 20,
+      render: () => /* @__PURE__ */ React.createElement(
+        ComingSoon,
+        {
+          title: "A feed of new work in your topics",
+          body: "A running feed of recent papers in your library's topics and from authors you follow \u2014 surfaced to skim and save, never auto-added to your library.",
+          builds: "Part of the Feed/Search track. (Backlog #28)"
+        }
+      )
+    }
+  );
+  registerPaneTab(
+    { id: "discover", label: "Discover", paneId: "theory", order: 30 },
+    {
+      id: "discover-search",
+      label: "Search",
+      order: 30,
+      render: () => /* @__PURE__ */ React.createElement(
+        ComingSoon,
+        {
+          title: "Search beyond your library",
+          body: "Search open scholarly indexes from inside callosum; save a hit to import it (its keywords ride along as tags).",
+          builds: "Part of the Feed/Search track. (Backlog #28)"
+        }
+      )
+    }
+  );
+  registerPaneSection({
+    id: "lmm",
+    label: "Mixed-model reporting",
+    paneId: "methods",
+    order: 50,
+    render: () => /* @__PURE__ */ React.createElement(
+      ComingSoon,
+      {
+        title: "A reader's checklist for mixed-model (LMM) papers",
+        body: "Flags what to look for in a mixed-model paper \u2014 random-effects structure, df method, convergence, REML vs ML, ICC/R\xB2, missing-data sensitivity \u2014 read from the reported text. It tells you what to check; it never runs a model.",
+        builds: "A consumer-side reporting auditor. (Backlog #23)"
+      }
+    )
+  });
+  registerPaneSection({
+    id: "bayesian",
+    label: "Bayesian statistics",
+    paneId: "methods",
+    order: 60,
+    render: () => /* @__PURE__ */ React.createElement(
+      ComingSoon,
+      {
+        title: "Recompute Bayes factors + audit completeness",
+        body: "Recompute default Bayes factors for canonical designs (t / F / r + N) and audit reporting completeness. A signal to inspect \u2014 never a 'BF > 3 = significant' verdict.",
+        builds: "A deterministic recompute + completeness pass. (Backlog #24)"
+      }
+    )
+  });
+  registerPaneSection({
+    id: "meta-analysis",
+    label: "Meta-analysis",
+    paneId: "methods",
+    order: 70,
+    render: () => /* @__PURE__ */ React.createElement(
+      ComingSoon,
+      {
+        title: "Surface a meta-analysis's choices",
+        body: "Extract and structure a meta-analysis's effect sizes, model, heterogeneity, and sensitivity choices so you can inspect them. It extracts and structures \u2014 it never pools, models, or adjudicates.",
+        builds: "An extraction/structuring aid, never a re-analysis. (Backlog #37)"
+      }
+    )
+  });
+  registerPaneSection({
+    id: "citation-equity",
+    label: "Citation equity",
+    paneId: "methods",
+    order: 80,
+    render: () => /* @__PURE__ */ React.createElement(
+      ComingSoon,
+      {
+        title: "A structural look at the reference list",
+        body: "An identity-agnostic, structural audit of a paper's references \u2014 self-citation, source concentration, topical gaps, overlooked work \u2014 to inform, with add-only 'overlooked work' remediation. Descriptive, never an accusation about anyone.",
+        builds: "Structural + topical, identity-agnostic. (Backlog #25)"
+      }
+    )
+  });
+  registerPaneTab(
+    { id: "statcheck", label: "Statistics check", paneId: "methods", order: 30 },
+    {
+      id: "statcheck-more",
+      label: "More checks",
+      order: 20,
+      render: () => /* @__PURE__ */ React.createElement(
+        ComingSoon,
+        {
+          title: "More test forms + p-curve, here",
+          body: "Additional NHST forms (test-statistic comparisons, results reported in tables) and the collection-level p-curve will live alongside statcheck.",
+          builds: "Extends the inc-95 statcheck engine. (Backlog #27)"
+        }
+      )
+    }
+  );
   const _CSL_TYPE_LABELS = {
     "article-journal": "Journal article",
     "article": "Article",
