@@ -726,9 +726,9 @@ If the Library fails to load, the app will show an error and a backend start com
 ## Asking the help assistant
 The help assistant — the **Ask the help assistant…** box at the top of this Help window — answers questions about using Callosum in plain language and links its answer to the relevant help sections. Click a reference chip under an answer to jump to and highlight that section below. It is conversational, so follow-up questions keep the thread.
 
-It is **optional and off by default**, with its **own** switch — separate from the synthesis/Gemini data-egress gate. That separation is deliberate: the help assistant only ever sends your question and the **public help text** — never your library, PDFs, or metadata — so you can use it even when data egress for your library is turned off.
+It is **optional and off by default**, with its **own** switch — separate from the synthesis data-egress gate. That separation is deliberate: the help assistant only ever sends your question and the **public help text** — never your library, PDFs, or metadata — so you can use it even when data egress for your library is turned off. It uses whichever **model provider** you've configured (Gemini / OpenAI / Anthropic / local).
 
-To enable it, start Callosum with `CALLOSUM_HELP_ASSISTANT_ENABLED=1` and a `GOOGLE_API_KEY`. When it is off, the box tells you how to turn it on, and the written help below still works normally.
+To enable it, flip **AI help assistant** in **Settings → AI features** (or set `CALLOSUM_HELP_ASSISTANT_ENABLED=1` in the environment), with a key configured for your chosen provider. When it is off, the box tells you how to turn it on, and the written help below still works normally.
 
 Tips:
 

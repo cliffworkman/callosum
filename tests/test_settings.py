@@ -171,6 +171,21 @@ def test_put_per_provider_key_isolated(temp_db_url: str) -> None:
     assert app_settings.stored_api_key() is None  # the gemini "api_key" field was not written
 
 
+def test_put_toggles_help_assistant(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    body = client.put("/settings", json={"help_assistant_enabled": False}).json()
+    assert body["help_assistant_enabled"] is False and body["help_source"] == "ui"
+    body = client.put("/settings", json={"help_assistant_enabled": True}).json()
+    assert body["help_assistant_enabled"] is True and body["help_source"] == "ui"
+
+
+def test_geminiconfig_overlays_stored_help_over_env() -> None:
+    # Conftest sets CALLOSUM_HELP_ASSISTANT_ENABLED=1; a stored OFF overlays it (independent of egress).
+    assert GeminiConfig.from_environment().help_assistant_enabled is True
+    app_settings.set_help_assistant_enabled(False)
+    assert GeminiConfig.from_environment().help_assistant_enabled is False
+
+
 def test_test_key_local_works_without_egress(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """A loopback local provider validates without egress consent (it makes no cloud call)."""
     from app.backend.llm import providers

@@ -9,7 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 150) — help corpus current as of multi-provider BYOK (provider picker + local) -->
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 151) — help corpus current as of the help-assistant toggle + validation disclaimer -->
+## 2026-06-27 — Increment 151: validation-lock disclaimer + help-assistant toggle in Settings
+- **Files:** `app/backend/api/routers/settings.py`, `app/backend/app_settings.py`, `integrations/gemini/generator.py`,
+  `app/frontend/js/35_settings.jsx` + `styles.css` + `callosum-app.html`, `app/backend/help/help_content.md`,
+  `tests/test_settings.py`, `INCREMENT-151-NOTES.md`.
+- **What:** (A) A standing "verified locally — your model affects quality, not which citations pass" disclaimer in
+  Settings → AI features (the validation-lock made visible). (B) The AI help assistant (already per-provider via the
+  inc-149 seam) is now toggleable in Settings, not env-only — `help_assistant_enabled` stored + overlaid like egress.
+- **Why:** set expectations for non-flagship/local models (quality vs correctness); finish moving AI config to the UI.
+- **Revert:** drop the help-toggle field + the disclaimer note from the settings router + `35_settings.jsx`; from git.
+
 ## 2026-06-26 — Increment 150: multi-provider Settings UI (#39 part 2 — completes #39)
 - **Files:** `app/backend/api/routers/settings.py`, `app/frontend/js/35_settings.jsx` + `callosum-app.html`,
   `app/backend/help/help_content.md`, `tests/test_settings.py`, `tests/test_providers.py`,

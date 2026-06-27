@@ -62,8 +62,11 @@ class LLMConfig:
         stored_egress = stored.get("data_egress_enabled")
         enabled = stored_egress if isinstance(stored_egress, bool) else env_egress
         # The help assistant has its OWN, independent toggle: it sends only the user's question + the public
-        # help docs (never library text), so it must NOT be gated by the library data-egress flag above.
-        help_enabled = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+        # help docs (never library text), so it must NOT be gated by the library data-egress flag above. The
+        # stored UI value overlays the env default (like egress).
+        env_help = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+        stored_help = stored.get("help_assistant_enabled")
+        help_enabled = stored_help if isinstance(stored_help, bool) else env_help
         model = (stored.get("model") or "").strip() or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["gemini"])
         base_url = (stored.get("local_base_url") or "").strip() or None
         return cls(

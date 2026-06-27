@@ -39,6 +39,8 @@ class SettingsStatus(BaseModel):
     local_base_url: str | None = None
     model: str = ""  # the active provider's model override ("" = the provider default)
     provider_keys_set: dict[str, bool] = {}  # which cloud providers have a stored UI key
+    help_assistant_enabled: bool = False  # the AI help assistant's OWN gate (independent of egress)
+    help_source: str = "env"  # "ui" | "env"
 
 
 class SettingsUpdate(BaseModel):
@@ -51,6 +53,7 @@ class SettingsUpdate(BaseModel):
     set_model: bool = False
     model: str | None = Field(default=None, max_length=200)
     data_egress_enabled: bool | None = None
+    help_assistant_enabled: bool | None = None
 
 
 def _stored_key(stored: dict, provider: str) -> bool:
@@ -71,6 +74,12 @@ def _status() -> SettingsStatus:
     else:
         egress = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
         egress_source = "env"
+    stored_help = stored.get("help_assistant_enabled")
+    if isinstance(stored_help, bool):
+        help_enabled, help_source = stored_help, "ui"
+    else:
+        help_enabled = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
+        help_source = "env"
     return SettingsStatus(
         provider=provider,
         api_key_set=ui_key or env_key,
@@ -80,6 +89,8 @@ def _status() -> SettingsStatus:
         local_base_url=(stored.get("local_base_url") or None),
         model=(stored.get("model") or ""),
         provider_keys_set={p: _stored_key(stored, p) for p in ("gemini", "openai", "anthropic")},
+        help_assistant_enabled=help_enabled,
+        help_source=help_source,
     )
 
 
@@ -111,6 +122,8 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         app_settings.set_provider_key(target, update.api_key)  # max_length on the field already 422s an oversized key
     if update.data_egress_enabled is not None:
         app_settings.set_data_egress(update.data_egress_enabled)
+    if update.help_assistant_enabled is not None:
+        app_settings.set_help_assistant_enabled(update.help_assistant_enabled)
     return _status()
 
 

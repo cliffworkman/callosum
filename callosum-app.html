@@ -263,6 +263,8 @@
   .settings-keytest-result { font-size: 11.5px; }
   .settings-keytest-result.ok { color: var(--verified); }
   .settings-keytest-result.err { color: var(--flag-ink); }
+  /* The validation-lock disclaimer (inc 151): verification is local + provider-agnostic, separated as a footer note. */
+  .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
 
@@ -5638,6 +5640,7 @@
     const clearKey = () => put({ set_api_key: true, api_key: "", api_key_provider: provider }, "Key cleared.");
     const saveUrl = () => put({ set_local_base_url: true, local_base_url: urlInput }, "Endpoint saved.");
     const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
+    const toggleHelp = () => status && put({ help_assistant_enabled: !status.help_assistant_enabled });
     const testActive = async () => {
       setTesting(true);
       setTest(null);
@@ -5646,6 +5649,7 @@
       setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
     };
     const egressOn = !!(status && status.data_egress_enabled);
+    const helpOn = !!(status && status.help_assistant_enabled);
     const keySet = !!(status && status.api_key_set);
     const fromEnv = status && status.api_key_source === "env";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI features"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Model provider"), /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: provider, disabled: busy, onChange: (e) => changeProvider(e.target.value) }, AI_PROVIDERS.map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.label)))), isLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Local endpoint (OpenAI-compatible)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "e.g. Ollama / LM Studio at ", /* @__PURE__ */ React.createElement("code", null, "http://127.0.0.1:11434"), ". Must be a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ", so no data-egress consent is needed.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "http://127.0.0.1:11434", value: urlInput, onChange: (e) => setUrlInput(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !urlInput.trim(), onClick: saveUrl }, busy ? "Saving\u2026" : "Save")), status && status.local_base_url && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testActive }, testing ? "Testing\u2026" : "Test connection"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, meta.label, " API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via an environment variable." : "A key is saved on this machine." : "Not set. AI features need a key \u2014 stored locally, sent only to the provider.", meta.keyUrl ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { href: meta.keyUrl, target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192")) : null)), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
@@ -5669,7 +5673,18 @@
         onClick: toggleEgress
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    ))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+    ))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "AI help assistant", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Answers questions about using Callosum (the \u201CAsk\u2026\u201D box in Help). Its ", /* @__PURE__ */ React.createElement("b", null, "own"), " switch \u2014 it sends only your question + the public help docs, never your library, so it works with any provider and is independent of the egress toggle above.", status && status.help_source === "env" ? " Currently set by the CALLOSUM_HELP_ASSISTANT_ENABLED environment variable." : "")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (helpOn ? " on" : ""),
+        role: "switch",
+        "aria-checked": helpOn,
+        "aria-label": "AI help assistant",
+        onClick: toggleHelp
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-ai-note" }, "Whichever provider you choose, every summary sentence is still ", /* @__PURE__ */ React.createElement("b", null, "verified locally"), " against your PDFs \u2014 your model choice affects draft quality + coverage, never which citations are accepted."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 150** (see Increment workflow) with **550 pytest tests
+It is currently at **Increment 151** (see Increment workflow) with **552 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -773,7 +773,25 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 150 (multi-provider Settings UI — #39 part 2; completes #39):
+*Last updated: 2026-06-27 — increment 151 (BYOK deferred items: validation-lock disclaimer + help-assistant toggle):
+two small Settings → AI features additions. **(A)** A standing footer disclaimer (`.settings-ai-note`): *"Whichever
+provider you choose, every summary sentence is still verified locally against your PDFs — your model choice affects
+draft quality + coverage, never which citations are accepted."* — the validation-lock (local, provider-agnostic
+verification, re-run every result since inc 61) made visible. **(B)** The AI help assistant (already per-provider
+via the inc-149 `complete()` seam) is now a Settings **toggle** instead of env-only: `app_settings.
+set_help_assistant_enabled` + `GeminiConfig.from_environment()` overlays the stored flag over
+`CALLOSUM_HELP_ASSISTANT_ENABLED`; `SettingsStatus` gains `help_assistant_enabled` + `help_source`; `PUT /settings`
+accepts it; `35_settings.jsx` shows an **AI help assistant** switch (its OWN gate — sends only the question + public
+help docs, never library text — independent of egress). **No new audit** (the only schema change is a non-secret
+bool toggle identical to the audited egress flag; no secret/fetch/migration); **Principles gate aligned/non-triggering**
+(the disclaimer reinforces "verification is the substrate's job, not the model's"). pytest **552** (+2
+`test_settings.py`); `ruff` clean; build + assembly green; QA surface **109/109 API + 561/561 FE, 0 uncovered**; help
+corpus help-assistant section updated (`HELP-DOCS-SYNCED` → 151). **Verified headed, no egress**
+(`.local/visual/drive_inc151_aisettings.py` — the help toggle flips + the disclaimer renders; 0 console/page/genai).
+Notes: `INCREMENT-151-NOTES.md`. **NEXT:** inc 152 — OS-keychain key storage (optional `keyring` + file fallback;
+the last deferred #39 item; audited).
+
+Earlier — increment 150 (multi-provider Settings UI — #39 part 2; completes #39):
 the Settings → AI features section became **provider-aware**. **`PUT /settings`** extended — `provider` (allowlisted
 → 422), per-provider `api_key` via `api_key_provider` (gemini stays the inc-146 `api_key` field), `local_base_url`
 (**loopback-validated → 422**), `model`; `SettingsStatus` gained `provider`/`local_base_url`/`model`/

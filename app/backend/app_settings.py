@@ -71,6 +71,13 @@ def set_data_egress(enabled: bool) -> None:
     _write(data)
 
 
+def set_help_assistant_enabled(enabled: bool) -> None:
+    """Persist the UI help-assistant toggle (its OWN gate, independent of egress; overlays the env default)."""
+    data = load_settings()
+    data["help_assistant_enabled"] = bool(enabled)
+    _write(data)
+
+
 def stored_api_key() -> str | None:
     """The stored key, or None if unset/blank."""
     key = load_settings().get("api_key")

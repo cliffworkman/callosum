@@ -123,6 +123,7 @@ function AiSettings() {
   const clearKey = () => put({ set_api_key: true, api_key: "", api_key_provider: provider }, "Key cleared.");
   const saveUrl = () => put({ set_local_base_url: true, local_base_url: urlInput }, "Endpoint saved.");
   const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
+  const toggleHelp = () => status && put({ help_assistant_enabled: !status.help_assistant_enabled });
 
   const testActive = async () => {
     setTesting(true); setTest(null);
@@ -132,6 +133,7 @@ function AiSettings() {
   };
 
   const egressOn = !!(status && status.data_egress_enabled);
+  const helpOn = !!(status && status.help_assistant_enabled);
   const keySet = !!(status && status.api_key_set);
   const fromEnv = status && status.api_key_source === "env";
   return (
@@ -197,6 +199,18 @@ function AiSettings() {
           </div>
         </>
       )}
+      <div className="settings-row">
+        <span className="settings-label">AI help assistant
+          <span className="settings-sub">
+            Answers questions about using Callosum (the “Ask…” box in Help). Its <b>own</b> switch — it sends only your question + the public help docs, never your library, so it works with any provider and is independent of the egress toggle above.
+            {status && status.help_source === "env" ? " Currently set by the CALLOSUM_HELP_ASSISTANT_ENABLED environment variable." : ""}
+          </span>
+        </span>
+        <button type="button" className={"settings-switch" + (helpOn ? " on" : "")}
+          role="switch" aria-checked={helpOn} aria-label="AI help assistant"
+          onClick={toggleHelp}><span className="settings-knob" /></button>
+      </div>
+      <div className="settings-ai-note">Whichever provider you choose, every summary sentence is still <b>verified locally</b> against your PDFs — your model choice affects draft quality + coverage, never which citations are accepted.</div>
       {msg && <div className="settings-note">{msg}</div>}
     </>
   );

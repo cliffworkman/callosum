@@ -239,6 +239,8 @@
   .settings-keytest-result { font-size: 11.5px; }
   .settings-keytest-result.ok { color: var(--verified); }
   .settings-keytest-result.err { color: var(--flag-ink); }
+  /* The validation-lock disclaimer (inc 151): verification is local + provider-agnostic, separated as a footer note. */
+  .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
 
