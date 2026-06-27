@@ -46,7 +46,7 @@ from app.backend.methods.retraction import DEFAULT_CHECKERS as DEFAULT_RETRACTIO
 from app.backend.persistence.database import make_engine
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview import OverviewGenerator
-from app.backend.summarization.verification import SupportScorer, VerificationConfig
+from app.backend.summarization.verification import StanceScorer, SupportScorer, VerificationConfig
 from integrations.crossref import CrossrefClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
@@ -68,6 +68,7 @@ def create_app(
     embedding_model: EmbeddingModel | None = None,
     vector_store: VectorStore | None = None,
     support_scorer: SupportScorer | None = None,
+    stance_scorer: StanceScorer | None = None,
     verifier_config: VerificationConfig | None = None,
     axis_term_suggester: AxisTermSuggester | None = None,
     axis_cluster_labeler: AxisClusterLabeler | None = None,
@@ -118,6 +119,7 @@ def create_app(
     api.state.embedding_model = embedding_model
     api.state.vector_store = vector_store
     api.state.support_scorer = support_scorer
+    api.state.stance_scorer = stance_scorer  # inc 156: NLI stance for highlight-to-evaluate (overridable in tests)
     api.state.verifier_config = verifier_config
     api.state.axis_term_suggester = axis_term_suggester
     api.state.axis_cluster_labeler = axis_cluster_labeler

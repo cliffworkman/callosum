@@ -1000,13 +1000,18 @@
   .summary-sentence.flagged { border-left: 3px solid var(--flag); background: var(--flag-soft); }
   .sent-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
   .sent-text { font-family: var(--serif); font-size: 15px; line-height: 1.45; margin: 0; }
-  .sent-badge, .cite-status, .coord {
+  .sent-badge, .cite-status, .coord, .cite-stance, .cite-match {
     flex: 0 0 auto; font-family: var(--mono); font-size: 10px; text-transform: uppercase;
     letter-spacing: .04em; border-radius: var(--radius-pill); padding: 2px 7px;
   }
   .sent-badge.verified, .cite-status.verified, .coord.exact { background: var(--verified-soft); color: var(--verified); }
   .sent-badge.flagged, .cite-status.flagged, .coord.region { background: var(--flag-soft); color: var(--flag); }
   .coord.none { background: var(--line); color: var(--ink-2); }
+  /* inc 156: stance pills — support=verified-green, contrast=flag-amber (warrants attention), mention/unknown=muted. */
+  .cite-stance.support { background: var(--verified-soft); color: var(--verified); }
+  .cite-stance.contrast { background: var(--flag-soft); color: var(--flag); }
+  .cite-stance.mention, .cite-stance.unknown { background: var(--line); color: var(--ink-2); }
+  .cite-match { background: var(--panel-2); color: var(--ink-3); border: 1px solid var(--line); }
   .citation { margin-top: 9px; border-top: 1px solid var(--line); padding-top: 8px; }
   .citation summary {
     cursor: pointer; list-style: none; display: flex; align-items: center;
@@ -1022,6 +1027,17 @@
   .conf { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px; }
   .conf .k { display: block; color: var(--ink-3); font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; }
   .conf .v { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+  /* inc 156: highlight-to-suggest / evaluate — the Cite pane (THEORY accordion). Reuses .synth-input/.synth-actions. */
+  .cite-note { font-size: 11px; color: var(--ink-3); margin: 10px 0 4px; line-height: 1.4; }
+  .cite-results { margin-top: 6px; }
+  .cite-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; margin-top: 10px; }
+  .cite-card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+  .cite-title { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
+  .cite-meta { margin-top: 2px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .cite-pills { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+  .cite-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+  .cite-conf { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
+  .cite-conf-warn { color: var(--flag); }
   .history { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
   .history-row {
     width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 8px;
@@ -5830,6 +5846,83 @@
     const running = refresh.status === "running";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Gaps in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, direction === "forward" ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Works that ", /* @__PURE__ */ React.createElement("b", null, "cite several of your papers"), " but aren't in your library \u2014 newer work building on yours. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers each one cites, not a measure of importance.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Works that ", /* @__PURE__ */ React.createElement("b", null, "several of your papers cite"), " but aren't in your library yet \u2014 likely references worth adding. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers cite each one, not a measure of importance."), " ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good."), /* @__PURE__ */ React.createElement("div", { className: "gaps-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, /* @__PURE__ */ React.createElement("button", { className: `tags-srcfilter-btn${direction === "backward" ? " on" : ""}`, onClick: () => setDirection("backward") }, "Works you cite"), /* @__PURE__ */ React.createElement("button", { className: `tags-srcfilter-btn${direction === "forward" ? " on" : ""}`, onClick: () => setDirection("forward") }, "Works citing you")), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: axisId, onChange: (e) => setAxisId(e.target.value), title: "Scope to an axis" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All papers"), axes.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.id, value: a.id }, a.label))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running, onClick: runRefresh }, running ? "Scanning\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, computedAt ? `Last refreshed ${new Date(computedAt).toLocaleString()}.` : "Not computed yet for this scope \u2014 Refresh to scan.", lastScan && ` Scanned ${lastScan.checked} of ${lastScan.total} papers (the rest have no DOI). ${lastScan.note}`), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning your library against OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), !running && computedAt && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No gaps in this scope \u2014 everything related to several of your papers is already in your library."), rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, countLabel(row.cited_by_in_library)), row.authors && row.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", row.authors.slice(0, 3).join(", "), row.authors.length > 3 ? " et al." : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss"))))));
   }
+  function CiteCopyButton({ paperId }) {
+    const [copied, setCopied] = useState(false);
+    const copy = async (e) => {
+      e.preventDefault();
+      try {
+        const res = await fetch(API_BASE + "/papers/export", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ paper_ids: [paperId], format: "bibtex" })
+        });
+        if (!res.ok) {
+          console.warn("[callosum] copy BibTeX failed:", res.status);
+          return;
+        }
+        await navigator.clipboard.writeText(await res.text());
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      } catch (err) {
+        console.warn("[callosum] copy BibTeX error:", err);
+      }
+    };
+    return /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: copy }, copied ? "Copied \u2713" : "Copy BibTeX");
+  }
+  function SuggestionCard({ s, onOpenCitation }) {
+    const stance = s.stance;
+    const canOpen = onOpenCitation && s.paper_id != null && (s.page_start != null || s.page_end != null);
+    const open = (event) => {
+      event.preventDefault();
+      onOpenCitation({
+        paper_id: s.paper_id,
+        paper_title: s.title,
+        chunk_id: s.chunk_id,
+        page_start: s.page_start,
+        page_end: s.page_end,
+        coordinate_precision: s.coordinate_precision,
+        bbox_json: s.bbox_json,
+        quote: s.quote
+      });
+    };
+    const meta = [s.author, s.year].filter(Boolean).join(" \xB7 ");
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-card" }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, s.title || "Paper " + s.paper_id), meta && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, meta)), /* @__PURE__ */ React.createElement("div", { className: "cite-pills" }, stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-stance " + stance.label, title: "NLI stance over the matched passage" }, stance.label) : /* @__PURE__ */ React.createElement("span", { className: "cite-stance unknown", title: "The local NLI model couldn't be loaded" }, "stance n/a"), /* @__PURE__ */ React.createElement("span", { className: "cite-match", title: "Relevance of this passage to your sentence (a ranking aid, not a correctness claim)" }, "match ", s.match_score.toFixed(2)))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u201C", s.quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, canOpen && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: open }, "Open source region"), /* @__PURE__ */ React.createElement(CiteCopyButton, { paperId: s.paper_id }), stance ? /* @__PURE__ */ React.createElement("span", { className: "cite-conf" }, "stance confidence ", stance.confidence.toFixed(2)) : /* @__PURE__ */ React.createElement("span", { className: "cite-conf cite-conf-warn" }, "stance unavailable \u2014 local model not loaded")));
+  }
+  function CitePane({ ctx }) {
+    const [text, setText] = useState("");
+    const [state, setState] = useState({ status: "idle" });
+    const run = () => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      setState({ status: "loading" });
+      apiPost("/citations/suggest", { text: trimmed, top_k: 5, evaluate: true }).then((r) => {
+        if (!r.ok) {
+          setState({ status: "error", error: r.error });
+          return;
+        }
+        setState({ status: "done", suggestions: r.data.suggestions || [] });
+      });
+    };
+    const busy = state.status === "loading";
+    const suggestions = state.status === "done" ? state.suggestions : [];
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-pane" }, /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "synth-input",
+        placeholder: "Paste a sentence from your draft to find papers to cite\u2026",
+        value: text,
+        onChange: (e) => setText(e.target.value),
+        disabled: busy
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !text.trim(), onClick: run }, "Suggest"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? "Finding suggestions\u2026" : "from your library \xB7 local, no egress")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "12px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't get suggestions."), /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "26px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Suggest citations"), "Paste a draft sentence. Callosum ranks your library by relevance and checks whether each paper supports, contrasts, or just mentions the claim \u2014 you decide the right citation."), state.status === "done" && suggestions.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "22px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No related papers in your library."), "Nothing in your library matched this sentence closely enough to suggest."), suggestions.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cite-results" }, /* @__PURE__ */ React.createElement("div", { className: "cite-note" }, "Ranked by relevance to your sentence \u2014 a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight."), suggestions.map((s) => /* @__PURE__ */ React.createElement(SuggestionCard, { key: s.chunk_id, s, onOpenCitation: ctx.onOpenCitation }))));
+  }
+  registerPaneSection({
+    id: "cite",
+    label: "Cite",
+    paneId: "theory",
+    order: 25,
+    render: (ctx) => /* @__PURE__ */ React.createElement(CitePane, { ctx })
+  });
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
     const [settingsOpen, setSettingsOpen] = useState(false);

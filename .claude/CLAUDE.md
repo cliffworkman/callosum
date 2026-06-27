@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 155** (see Increment workflow) with **557 pytest tests
+It is currently at **Increment 156** (see Increment workflow) with **568 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -254,6 +254,7 @@ callosum/
    │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131])
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
+│   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
 │   │   │                          citeproc_runner.js [Node sidecar; per-item + mode:"document"], csl/{styles,locales} [bundled CSL data, CC-BY-SA])
 │   │   ├── summarization/         (pipeline.py, generators.py, verification.py)
 │   │   ├── llm/                   (egress.py [provider-neutral DataEgressDisabledError + seam-gate wrappers, inc 58];
@@ -642,6 +643,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Highlight-to-suggest / evaluate = a local engine + the `POST /citations/suggest` contract + an in-app Cite pane (Track C SP1a, inc 156) | The highest-value novel capability (#30), built as engine-first (like inc-107→108): given a draft sentence, **suggest** library papers to cite (`retrieval.search_similar(target_types=("chunk",))` run against the span → best chunk per paper → rank by score; trashed excluded) and **evaluate** each candidate's stance via a new **local NLI stance scorer** (`summarization/verification.py::NLIStanceScorer` — the existing `cross-encoder/nli-MiniLM2-L6-H768` 3-way softmax: entailment→support, contradiction→contrast, neutral→mention; `_label_index` generalizes `_entailment_index`; any failure → `None`, never a guessed verdict). `app/backend/citations/suggest.py::suggest_citations` + `POST /citations/suggest {text≤4000, top_k≤20, evaluate}` → `{suggestions:[{paper_id,title,year,author,match_score,chunk_id,quote,page_start/end,coordinate_precision:"region",bbox_json,stance}]}`. **Fully local — no egress** (local embed + local NLI; the heavy models are cached on `app.state`, injected ones win for tests via `create_app(stance_scorer=…)`). In-app **Cite** pane (`js/37_cite.jsx`, THEORY accordion order 25): paste → cards (stance pill · match · verbatim quote · Open source region · Copy BibTeX). **Honesty (Principles gate run):** suggestions carry their quote+page+match-score as the **reason** (#8), are **candidates the author picks** — nothing auto-inserts (#3/#5); stance leads with the verbatim quote+confidence, a labeled signal not a bare verdict (#1/#4), local-NLI-only; evidence is **region** precision, never a fabricated exact rect (#2); `match_score` is one labeled similarity, **no opaque composite** (#7); ranked by sentence-match not citation count (bias is an SP3 concern); accuses no one (A-A veto). Audit `2026-06-27_citation-suggest.md` PASS; **no migration / no new dependency**. Experience pass (deadline-writer persona) → added the Copy-BibTeX extract + visible stance-unavailable + de-duped boilerplate in-increment. **NEXT: SP1b** — the LibreOffice "Suggest citations" UNO macro on this contract (insert via the inc-108 flow); then SP2 beyond-library discovery (OpenAlex/Semantic-Scholar) + Stage-4 section-scoping. |
 | THEORY/METHODS side panes = accordion on a module registry (inc 121, the "next major upgrade" UI-shell half) | Replaced the fixed left `Sidebar` (Axes+Tags) + right `RightPane` (inc-57 Synthesis/Details drag-split) with two **accordions** driven by an extensible **registry** (`05_panes.jsx`: `registerPaneSection({id,label,paneId,order,render})` + `<PaneAccordion>`). **Left = THEORY** (Axes/Synthesis/Tags, AXES default); **right = METHODS** (Details). Sections **self-register from their own chunks** (load order 05<10<15<20<25 ⇒ registry-first; `order` = display position; adding a section is one call, **zero `PaneAccordion` edits** — proven with a throwaway chunk). **Mount-but-hide** keeps an in-progress synthesis alive across a switch; open section persists (`callosum.theoryOpen`/`methodsOpen`). **Soft labels** (section headers only; `paneId` is the internal architecture + future rename). Behavior-preserving except **Tags now always shows** (empty-state hint) for discoverability. **(Superseded by inc 139: the registry gained tabs-within-a-section — Tags is now the second tab of the AXES section, not its own section; METHODS reordered Data-consistency before Statistics-check. See DESIGN.md §5.)** **esbuild DCEs unreferenced top-level functions** (a registered-but-unused component is stripped until used → wire the consumer in the same change; raw-assembly inclusion is the gate, not bundle-grep). `25_detail.jsx` was already 625 (>600) → the Details registration lives in `05_panes.jsx` to not worsen it; a split is queued (the statcheck→METHODS move relieves it). Frontend-only; Principles gate non-triggering. DESIGN.md §5 = the placement rubric + registry pattern + AI-usage principle. Verified headed (`:8097`, 0 console errors). **NEXT (user-queued):** statcheck Settings→a METHODS section (the first real METHODS module); investigate synthesis showing no text summary. |
 | My Publications citing articles & citation counts (SP3 of the My-Pubs overhaul, inc 119 — overhaul complete) | TDL #14. Each own-pub card shows its **OpenAlex cited-by count** (verbatim + attributed — never a Callosum composite/verdict; declined #7/#2) + a **"Most cited"** sort; clicking opens a **citing-articles modal** (papers OpenAlex records as citing it — **candidates**, coverage stated, #3/#6) with per-row **Import** + a confirm-gated **Import all** → **metadata-only**, deduped, into the **general** library (not My Pubs; PDF stays the OA-only lane → no paywall circumvention, A-A veto held). Backend: `AuthorWork.openalex_work_id` (was discarded), `paper_citations` on the dashboard, `OpenAlexAuthorClient.fetch_citing_works` (`cites:<id>`, cached, capped 100, fail-closed) + `GET /my-publications/citing/{work_id}` + `import_citing_work` + `POST /my-publications/citing/import`; **`resolve` now `fetch_author_works(refresh=True)`** so a Refresh repopulates counts + work ids. Egress = **public metadata, bounded/cached/on-demand** (#10), NOT the Gemini gate. Principles gate run (spec §2, aligned); audit `2026-06-24_mypubs-citing.md` PASS; no migration. New chunk `34_mypubs_citing.jsx`. Verified headed (Playwright, `:8097` — real `cites:` fetch). **Watch:** `clustering/my_publications.py` at 587/600 — split before the next backend addition there. **This completes the My Publications overhaul (SP1 inc 117 + SP2 inc 118 + SP3 inc 119 = TDL #1 + #3–18).** |
 | My Publications organized by research domain (SP2 of the My-Pubs overhaul, inc 118) | TDL #9/#15/#16/#17/#18. A **Group by domain** toggle regroups the publications under per-domain headers (dashboard list) / collapsible subheadings (sidebar axis card), **"Other"** group last, **starred-first** within each. **Rename domains** inline (the box pre-suggests the closest **axis** name by term overlap); custom names **persist across Re-decompose** by paper-overlap (Jaccard ≥ 0.5) — a `custom` flag in the existing `research_domains` JSON + `_reapply_custom_labels`, so **no migration**. **#18:** selecting a domain locks the Overview flip-chart to Publications (filtered) + disables the Citations pill. Backend additive: `Domain.paper_ids` + `DashboardResponse.starred_ids` on the dashboard, a per-paper **`ClusterPaperResponse.domain`** gated to the my-pubs `/axes/{id}/clusters` (mirrors inc-84 `starred` — so the sidebar groups with no new route/fetch), and one new endpoint `POST /my-publications/domains/rename` (local profile-JSON write; audit PASS). No egress, no Principles trigger (organizational, not a new claim/signal). Verified headed (Playwright, `:8097`). **SP3** = citing articles + citation counts (#14, a new OpenAlex cited-by fetch → trips both gates). |
@@ -774,7 +776,44 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 155 (scan done-summary surfaces which files couldn't be read — backlog #4):
+*Last updated: 2026-06-27 — increment 156 (highlight-to-suggest / evaluate — Track C, SP1a): the first build of
+the highest-value novel capability (#30), and the start of a new design-led arc (brainstorm → Principles gate →
+plan → build). Given a draft sentence, **suggest** which library papers to cite (retrieval in reverse) and
+**evaluate** whether each candidate *supports / contrasts / mentions* the claim — evidence shown. **User-scoped:**
+SP1 = suggest+evaluate together; the real input is the sentence being written in the **LibreOffice document**
+(inc-108 cite-while-you-write); sequence like **inc-107→108** — engine + endpoint contract first (SP1a, this
+increment) with a thin in-app surface to verify it, then the LO macro (SP1b). **SP1a:** `app/backend/citations/
+suggest.py::suggest_citations` (`search_similar(target_types=("chunk",))` → best chunk per paper → rank by score,
+trashed excluded) + a **local NLI stance scorer** beside `NLISupportScorer` in `summarization/verification.py`
+(the `cross-encoder/nli-MiniLM2-L6-H768` 3-way softmax: entailment→support, contradiction→contrast,
+neutral→mention; `_label_index` generalizes `_entailment_index`; **any failure → None**, never a guessed verdict)
++ **`POST /citations/suggest`** (`routers/citations.py`; the adapter contract; whitespace→422, caps via Pydantic;
+the heavy embed + NLI models cached on `app.state`, injected ones win via `create_app(stance_scorer=…)`) + an
+in-app **Cite** pane (`js/37_cite.jsx`, THEORY accordion order 25): paste a sentence → cards (stance pill · match
+· verbatim quote · **Open source region** · **Copy BibTeX**). **Fully local — no egress; no migration** (read-only
+over chunks). **Honesty (Principles gate run):** suggestions carry their quote+page+match-score as the **reason**
+(#8), are **candidates the author picks** — nothing auto-inserts (#3/#5); stance leads with the verbatim
+quote+confidence, a labeled signal not a bare verdict (#1/#4), local-NLI-only; evidence is **region** precision,
+never a fabricated exact rect (#2); `match_score` is one labeled similarity, **no opaque composite** (#7); ranked
+by sentence-match not citation count (bias-amplification is an SP3 concern); accuses no one (A-A veto). **Audit
+`.claude/security-audits/2026-06-27_citation-suggest.md` PASS** (local, bounded, bound-param, region-honest, no
+new dependency, graceful NLI degradation). **Rule #10:** new `route_42_cite.md` (`/citations*` already globbed by
+route_34) → surface **110/110 API + 569/569 FE, 0 uncovered**. help corpus gained a "Suggesting citations"
+section (`HELP-DOCS-SYNCED` → 156). pytest **568** (+11 `test_citations_suggest.py`: ranking/one-per-paper,
+region-not-exact, evaluate attaches/omits stance, trashed excluded, the NLI label-mapping + graceful + loader
+path, endpoint shape/stance/evaluate-false/empty/whitespace/oversized→422; route-surface +1); `ruff` clean; build
++ assembly green. **Experience pass (rule #11)** — a deadline-writer persona found the *vet* half strong but a
+pane named "Cite" that couldn't **extract** anything dead-ended → fixed in-increment (cheap): a **Copy BibTeX**
+button per card (the in-app bridge for hand-citing; reuses inc-70 export), a **visible** "stance unavailable"
+note, de-duped the per-card boilerplate. **Verified headed, no egress** (`.local/visual/drive_inc156_cite.py` —
+paste → 2 cards (SUPPORT pill, MATCH 1.00, quote, Copy BibTeX), Open source region → real PDF at region; 0
+console/page/genai). Notes: `INCREMENT-156-NOTES.md`; design spec `.claude/docs/specs/2026-06-27-highlight-suggest-design.md`.
+**NEXT: SP1b** — the LibreOffice "Suggest citations" UNO macro (`adapters/libreoffice/callosum_cite.py`): grab the
+current sentence → `/citations/suggest` → present + Insert via the inc-108 flow (headless UNO round-trip; no server
+change). Deferred (backlog/SP1b+): a formatted "Cite as… (style)" copy via the inc-106 engine; SP2 beyond-library
+discovery (OpenAlex/Semantic-Scholar); Stage-4 plugin section-scoping.
+
+Earlier — increment 155 (scan done-summary surfaces which files couldn't be read — backlog #4):
 the autonomous part of the Migrator experience-pass remainder. The folder scan already isolated per-file failures
 (`scan_library_folder` → `errors:[{path,error}]` via savepoints) but reported only a count — now the done-summary
 shows **which files failed + why**. `routers/library.py`: a `ScanError{path,error}` model; `ScanSummary.error_details`

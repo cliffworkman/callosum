@@ -207,6 +207,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/gaps/dismiss", frozenset({"POST"})),
         ("/citations/render", frozenset({"POST"})),
         ("/citations/render-document", frozenset({"POST"})),
+        ("/citations/suggest", frozenset({"POST"})),  # inc 156: highlight-to-suggest / evaluate
         ("/settings", frozenset({"PUT"})),  # BYOK: set key + egress consent (inc 146)
         ("/settings/test-key", frozenset({"POST"})),  # BYOK: validate the key (inc 147)
     }

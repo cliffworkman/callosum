@@ -250,10 +250,24 @@ candidates not verdicts; audits PASS. **Remaining only:** **followed-authors** a
 followed-authors concept that doesn't exist yet → effectively blocked on that) + external-search discovery beyond
 the library (overlaps the discovery track #28).
 
-**30. Highlight-to-suggest / highlight-to-evaluate** (Track C) — **[future track]** for a draft sentence — suggest
-papers to cite (in-library = retrieval in reverse, local; beyond-library via OpenAlex/Semantic-Scholar with
-explainable reasons) + evaluate support/contrast/mention via the NLI spine. Never auto-insert/auto-judge.
+**30. Highlight-to-suggest / highlight-to-evaluate** (Track C) — **[SP1a SHIPPED, inc 156]** for a draft sentence —
+suggest papers to cite + evaluate support/contrast/mention via the NLI spine. Never auto-insert/auto-judge.
 **Highest-value novel capability.**
+- **SP1a (inc 156) — DONE:** the local **in-library** suggest+evaluate engine + `POST /citations/suggest` contract
+  + an in-app **Cite** pane (paste a sentence → ranked cards with stance pill + verbatim quote + match + Open
+  source region + Copy BibTeX). Fully local, no egress. See `INCREMENT-156-NOTES.md`.
+- **SP1b (NEXT):** the **LibreOffice "Suggest citations" UNO macro** (`adapters/libreoffice/callosum_cite.py`) on
+  the SP1a contract — grab the current sentence → suggest → **Insert** the chosen cite via the inc-108 flow
+  (headless UNO round-trip; no server change). + a formatted **"Cite as… (style)"** copy in the Cite pane via the
+  inc-106 render engine (the persona's deadline-writer ask; v1 ships BibTeX copy).
+- **SP2 / Stage-3 — beyond-library suggest:** OpenAlex `related_works` / co-citation + Semantic-Scholar
+  recommendations, each candidate carrying an **explainable reason** ("shares N refs", "co-cited with X"); this is
+  where the bias-amplification mitigation lives (surface the reason; never rank by citation count). Trips the audit
+  + Principles gates (new external fetch / discovery signal).
+- **Stage-4 — section-scoping:** constrain candidates to a manuscript section's working bibliography (needs GROBID
+  section awareness + the plugin). Last.
+- **UX backlog (from the inc-156 experience pass):** an accordion entry signpost for the Cite section; (the
+  `match 1.00`-looks-fake reaction is a seed-data artifact — real cosine varies).
 
 **31. THEORY/METHODS panes + findings subsystem** (`…_theorymethods.md`) — **[mostly SHIPPED — relocated to DONE]**
 the accordion shell (inc 121), the FACT-vs-candidate findings model (inc 130), the **first producer = retraction**

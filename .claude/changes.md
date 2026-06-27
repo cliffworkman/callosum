@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 156) — added "Suggesting citations for a draft sentence"; fixed the stale "formatted styles not produced yet" line. -->
+## 2026-06-27 — Increment 156: highlight-to-suggest / evaluate (Track C, SP1a)
+- **Files:** `app/backend/citations/suggest.py` (new), `app/backend/summarization/verification.py` (NLI stance),
+  `app/backend/api/routers/citations.py` (`POST /citations/suggest`), `app/backend/api/app.py` (`stance_scorer`),
+  `app/frontend/js/37_cite.jsx` (new) + `styles.css` + `callosum-app.html`, `tests/test_citations_suggest.py` (new)
+  + `tests/test_health.py`, `.claude/qa-routes/route_42_cite.md` (new),
+  `.claude/security-audits/2026-06-27_citation-suggest.md`, help corpus, `INCREMENT-156-NOTES.md`, the design spec.
+- **What:** Given a draft sentence, **suggest** library papers to cite (retrieval in reverse) + **evaluate** each
+  candidate's stance (supports/contrasts/mentions via local NLI). A new **Cite** pane (THEORY accordion) pastes a
+  sentence → ranked cards (stance pill · match · verbatim quote · Open source region · Copy BibTeX). The
+  `POST /citations/suggest` contract is what the LibreOffice macro (SP1b) will call. Fully local — **no egress**;
+  no migration.
+- **Why:** Track C (#30) — the highest-value novel capability; SP1a (engine + contract + in-app surface), then
+  SP1b (the LibreOffice insert macro), per the inc-107→108 pattern.
+- **Notes:** Principles gate run (candidates-not-verdicts, stance-with-quote, region-honest, no opaque score);
+  audit PASS; experience pass (deadline-writer persona) → added the Copy-BibTeX extract + visible
+  stance-unavailable + de-duped boilerplate in-increment. pytest 568; surface 110/110 + 569/569, 0 uncovered.
+- **Revert:** drop the suggest engine/endpoint/pane + the stance scorer; from git.
+
 ## 2026-06-27 — Increment 155: scan done-summary surfaces which files couldn't be read (#4)
 - **Files:** `app/backend/api/routers/library.py`, `app/frontend/js/27_scan.jsx` + `styles.css` + `callosum-app.html`,
   `tests/test_library_scan.py`, `INCREMENT-155-NOTES.md`.

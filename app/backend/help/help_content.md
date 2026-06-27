@@ -222,7 +222,23 @@ Notes:
 
 - BibTeX entry keys use the paper's cite key when present (Zotero imports), otherwise an author+year key; collisions get a letter suffix.
 - Trashed papers are never exported.
-- These are machine-readable interchange formats. Formatted "human" citation styles (APA, MLA, …) are not produced yet.
+- BibTeX / RIS / CSL-JSON are machine-readable interchange formats; the **Cite as** row (above) also renders formatted human styles (APA, MLA, …).
+
+<!-- section: suggesting-citations -->
+## Suggesting citations for a draft sentence
+The **Cite** panel (left pane, under Synthesis) helps you find which papers in **your library** to cite for a sentence you're writing — and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. It runs entirely on your machine (no AI is sent off-device).
+
+To use it:
+
+- Open the **Cite** section in the left pane, paste a sentence from your draft into the box, and click **Suggest**.
+- Callosum ranks your library by how closely each paper's text matches your sentence and shows a card per paper with:
+  - a **stance** pill — **supports** (green), **contrasts** (amber), or **mentions** (grey) — read from a local language model over the matched passage. If the model can't be loaded, the card says "stance unavailable" rather than guessing.
+  - a **match** score (relevance to your sentence — a ranking aid, **not** a correctness claim).
+  - the **verbatim quote** from the matched passage — the evidence; read it to decide whether the paper really fits.
+- **Open source region** opens that paper's PDF at the page so you can read the passage in context (the match is a passage *region*, not an exact highlight).
+- **Copy BibTeX** puts the paper's citation on your clipboard to drop into a reference manager or your manuscript.
+
+The first **Suggest** in a session loads the local models, so it can take a few seconds; later suggestions are fast. Ranking is by relevance to your sentence (never by citation count), and Callosum only **proposes** — you decide which paper is the right citation. Suggestions cover papers already in your library; finding relevant papers you *don't* have yet, and inserting citations live inside Word/LibreOffice, are on the way.
 
 <!-- section: tags -->
 ## Tagging papers

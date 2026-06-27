@@ -104,6 +104,57 @@ def default_support_scorer(model: EmbeddingModel) -> SupportScorer:
     return NLISupportScorer(fallback_scorer=EmbeddingSupportScorer(model))
 
 
+@dataclass(frozen=True)
+class Stance:
+    """A 3-way NLI stance of a passage toward a claim (inc 156, highlight-to-evaluate)."""
+
+    label: str  # "support" | "contrast" | "mention"
+    confidence: float
+    probs: dict[str, float]  # {"support": .., "contrast": .., "mention": ..}
+
+
+class StanceScorer(Protocol):
+    def classify_stance(self, *, sentence: str, passage: str) -> Stance | None:
+        """Local NLI stance of `passage` toward `sentence`, or None if unavailable (never a guessed verdict)."""
+
+
+@dataclass
+class NLIStanceScorer:
+    """Local CrossEncoder NLI stance scorer (shares the model family with NLISupportScorer).
+
+    The passage is the premise and the claim sentence is the hypothesis; the 3-way softmax maps
+    entailment→support, contradiction→contrast, neutral→mention. On ANY failure → None, so the evaluate path
+    shows no stance rather than a guessed verdict ("silence is not a certificate").
+    """
+
+    model_name: str = "cross-encoder/nli-MiniLM2-L6-H768"
+    local_files_only: bool = False
+    _model: object | None = field(default=None, init=False, repr=False)
+    _loader: Callable[[], object] | None = field(default=None, repr=False)
+
+    def classify_stance(self, *, sentence: str, passage: str) -> Stance | None:
+        try:
+            model = self._load_model()
+            scores = model.predict([(passage, sentence)], apply_softmax=True)  # type: ignore[attr-defined]
+            return _stance_from_scores(scores, model=model)
+        except Exception:
+            return None
+
+    def _load_model(self) -> object:
+        if self._model is None:
+            if self._loader is not None:
+                self._model = self._loader()
+            else:
+                from sentence_transformers import CrossEncoder
+
+                self._model = CrossEncoder(self.model_name, local_files_only=self.local_files_only)
+        return self._model
+
+
+def default_stance_scorer() -> StanceScorer:
+    return NLIStanceScorer()
+
+
 class LocalCitationVerifier:
     def __init__(
         self,
@@ -309,14 +360,35 @@ def _entailment_confidence(scores, *, model: object) -> float:  # type: ignore[n
     return max(0.0, min(1.0, values[index]))
 
 
-def _entailment_index(*, model: object, count: int) -> int:
+# NLI label → stance label (inc 156). Standard 3-class NLI cross-encoders order [contradiction, entailment, neutral].
+_STANCE_BY_NLI = {"entailment": "support", "contradiction": "contrast", "neutral": "mention"}
+_DEFAULT_STANCE_INDEX = {"support": 1, "contrast": 0, "mention": 2}
+
+
+def _label_index(*, model: object, count: int, label: str, default: int) -> int:
     config = getattr(getattr(model, "model", None), "config", None)
     id2label = getattr(config, "id2label", None)
     if isinstance(id2label, dict):
-        for key, label in id2label.items():
-            if str(label).lower() == "entailment":
+        for key, lab in id2label.items():
+            if str(lab).lower() == label:
                 return int(key)
-    return 1 if count > 1 else 0
+    return default
+
+
+def _entailment_index(*, model: object, count: int) -> int:
+    return _label_index(model=model, count=count, label="entailment", default=1 if count > 1 else 0)
+
+
+def _stance_from_scores(scores, *, model: object) -> Stance:  # type: ignore[no-untyped-def]
+    row = scores[0] if hasattr(scores, "__len__") and len(scores) else scores
+    values = [float(value) for value in row]
+    count = len(values)
+    probs: dict[str, float] = {}
+    for nli_label, stance_label in _STANCE_BY_NLI.items():
+        idx = _label_index(model=model, count=count, label=nli_label, default=_DEFAULT_STANCE_INDEX[stance_label])
+        probs[stance_label] = max(0.0, min(1.0, values[idx])) if 0 <= idx < count else 0.0
+    label = max(probs, key=lambda key: probs[key])
+    return Stance(label=label, confidence=probs[label], probs=probs)
 
 
 def _normalize_space(text: str) -> str:
