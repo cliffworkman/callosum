@@ -1,5 +1,6 @@
-// App: the root component. Layout helpers, the Divider, and the persisted-UI-state hook (useUiPrefs) live in
-// 04_layout.jsx (extracted inc 128 to keep this file under the 600-line cap).
+// App: the root component. To keep this file under the 600-line cap, cohesive pieces live in their own chunks:
+// layout helpers + the Divider + useUiPrefs in 04_layout.jsx (inc 128); the axis focus-mode hook useFocusMode in
+// 39_focus.jsx (inc 167); the citation-download helpers in 00_lib.jsx (inc 167). App owns the shell + wiring.
 function App() {
   const [conn, setConn] = useState({ state: "wait" });
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -30,13 +31,6 @@ function App() {
   // its annotations and shows the new highlight without a reload (see PdfViewer).
   const [annoRefresh, setAnnoRefresh] = useState(0);
 
-  // Library focus-mode (inc-50 C): add/remove papers to an axis from the library list. Changes are
-  // STAGED (focusPending: paperId → "add"|"remove", relative to focusMembers) and committed on Save.
-  const [focusAxis, setFocusAxis] = useState(null);                    // {id, label} | null
-  const [focusMembers, setFocusMembers] = useState(() => new Set());   // paper ids already on the axis
-  const [focusPending, setFocusPending] = useState({});                // staged changes
-  const [axisRefresh, setAxisRefresh] = useState(0);                   // bumped after Save → AxesPanel reloads
-
   // Library delete (inc-54 D): soft-delete multi-select + a Trash view. selectedLibraryIds = checkbox
   // multi-select; trashView toggles the live/Trash listing; libRefresh forces a reload after delete/restore.
   const [selectedLibraryIds, setSelectedLibraryIds] = useState(() => new Set());
@@ -62,6 +56,16 @@ function App() {
   const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
+
+  // Library focus-mode (inc-50 C; extracted to useFocusMode in 39_focus.jsx, inc 167). Entering focus brings the
+  // library list into view + replaces any view filter. axisRefresh is bumped after Save (and after a merge).
+  const {
+    focusAxis, focusMembers, focusPending, axisRefresh, setAxisRefresh,
+    enterFocus, cancelFocus, toggleFocusPaper, saveFocus,
+  } = useFocusMode({
+    setActiveTab,
+    onEnterClearFilters: () => { setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); },
+  });
 
   const openPdf = useCallback((paper, target) => {
     const key = "pdf:" + paper.id;
@@ -115,51 +119,6 @@ function App() {
     setTabs(prev => prev.filter(t => t.key !== key));
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
-
-  const enterFocus = useCallback((axis) => {
-    setFocusAxis(axis);
-    setLibraryAxisFilter(null);  // the add-papers focus replaces any view filter
-    setLibraryTagFilter(null);
-    setLibrarySignalFilter(null);
-    setFocusPending({});
-    setFocusMembers(new Set());
-    setActiveTab("library");  // bring the library list (where the add buttons live) into view
-    api(`/axes/${axis.id}/clusters`).then(r => {
-      if (r.ok) setFocusMembers(new Set((r.data || []).flatMap(n => n.papers || []).map(p => p.id)));
-    });
-  }, []);
-
-  const cancelFocus = useCallback(() => { setFocusAxis(null); setFocusPending({}); setFocusMembers(new Set()); }, []);
-
-  // Toggle a paper's staged membership. effective = staged ? (staged==="add") : isMember; click flips it,
-  // collapsing back to "no change" when the flip matches the persisted state.
-  const toggleFocusPaper = useCallback((paperId) => {
-    setFocusPending(prev => {
-      const next = { ...prev };
-      const isMember = focusMembers.has(paperId);
-      const staged = prev[paperId];
-      const effective = staged ? staged === "add" : isMember;
-      if (effective) {
-        if (isMember) next[paperId] = "remove"; else delete next[paperId];
-      } else {
-        if (isMember) delete next[paperId]; else next[paperId] = "add";
-      }
-      return next;
-    });
-  }, [focusMembers]);
-
-  const saveFocus = useCallback(async () => {
-    if (!focusAxis) return;
-    const entries = Object.entries(focusPending);
-    const adds = entries.filter(([, op]) => op === "add").map(([id]) => Number(id));
-    const removes = entries.filter(([, op]) => op === "remove").map(([id]) => Number(id));
-    await Promise.all([
-      ...adds.map(pid => apiPost(`/axes/${focusAxis.id}/papers`, { paper_id: pid })),
-      ...removes.map(pid => apiDelete(`/axes/${focusAxis.id}/papers/${pid}`)),
-    ]);
-    setAxisRefresh(n => n + 1);   // AxesPanel reloads counts + the open axis's papers
-    cancelFocus();
-  }, [focusAxis, focusPending, cancelFocus]);
 
   const toggleLibrarySelect = useCallback((id) => {
     setSelectedLibraryIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -217,47 +176,10 @@ function App() {
     setLeftOpen(true); setTheoryOpen("synthesis");
   }, []);
 
-  // inc-70: export the selected papers' citations as a downloaded file. Raw fetch (apiPost forces .json());
-  // selection is kept so you can export another format. Non-destructive.
-  const bulkExportPapers = useCallback((format) => {
-    const ids = [...selectedLibraryIds];
-    if (!ids.length) return;
-    const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
-    (async () => {
-      try {
-        const res = await fetch(API_BASE + "/papers/export", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ paper_ids: ids, format }),
-        });
-        if (!res.ok) { console.warn("[callosum] export failed:", res.status); return; }
-        const url = URL.createObjectURL(await res.blob());
-        const a = document.createElement("a");
-        a.href = url; a.download = `callosum-citations.${ext}`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      } catch (e) { console.warn("[callosum] export error:", e); }
-    })();
-  }, [selectedLibraryIds]);
-
-  // inc-106: download a FORMATTED bibliography for the selection (citeproc engine → sanitized HTML → .html file).
-  const bulkBibliography = useCallback((style) => {
-    const ids = [...selectedLibraryIds];
-    if (!ids.length) return;
-    (async () => {
-      const r = await apiPost("/citations/render", { paper_ids: ids, style });
-      if (!r.ok) { console.warn("[callosum] bibliography failed:", r.error); return; }
-      const entries = (r.data && r.data.bibliography_html) || [];
-      if (!entries.length) return;
-      const body = entries.map(e => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
-      const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title>` +
-        `<body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
-      const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-      const a = document.createElement("a");
-      a.href = url; a.download = `callosum-bibliography-${style}.html`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    })();
-  }, [selectedLibraryIds]);
+  // inc-70 / inc-106: download the selection's citations (BibTeX/RIS/CSL-JSON) or a formatted bibliography.
+  // The download logic lives in 00_lib.jsx (downloadCitationExport/downloadBibliography); selection is kept.
+  const bulkExportPapers = useCallback((format) => downloadCitationExport([...selectedLibraryIds], format), [selectedLibraryIds]);
+  const bulkBibliography = useCallback((style) => downloadBibliography([...selectedLibraryIds], style), [selectedLibraryIds]);
 
   const restorePaper = useCallback((id) => {
     apiPost(`/papers/${id}/restore`, {}).then(r => { if (r.ok) setLibRefresh(n => n + 1); });

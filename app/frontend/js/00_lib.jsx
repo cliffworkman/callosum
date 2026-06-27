@@ -112,6 +112,45 @@ async function apiPut(path, body) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// Client-side file downloads (citation export + formatted bibliography). Extracted from App (inc 167) so the
+// god-component stays under the 600-line cap; these are pure UI utilities over the existing export/render endpoints.
+// ─────────────────────────────────────────────────────────────
+function _downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+// inc-70: download the given papers' citations as a file (BibTeX/RIS/CSL-JSON). Raw fetch — apiPost forces .json().
+async function downloadCitationExport(ids, format) {
+  if (!ids || !ids.length) return;
+  const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
+  try {
+    const res = await fetch(API_BASE + "/papers/export", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paper_ids: ids, format }),
+    });
+    if (!res.ok) { console.warn("[callosum] export failed:", res.status); return; }
+    _downloadBlob(await res.blob(), `callosum-citations.${ext}`);
+  } catch (e) { console.warn("[callosum] export error:", e); }
+}
+
+// inc-106: download a FORMATTED bibliography (citeproc engine → sanitized HTML → .html file).
+async function downloadBibliography(ids, style) {
+  if (!ids || !ids.length) return;
+  const r = await apiPost("/citations/render", { paper_ids: ids, style });
+  if (!r.ok) { console.warn("[callosum] bibliography failed:", r.error); return; }
+  const entries = (r.data && r.data.bibliography_html) || [];
+  if (!entries.length) return;
+  const body = entries.map(e => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
+  const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title>` +
+    `<body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
+  _downloadBlob(new Blob([html], { type: "text/html" }), `callosum-bibliography-${style}.html`);
+}
+
+// ─────────────────────────────────────────────────────────────
 // PDF.js — loaded lazily from cdnjs, exactly once, the first time a
 // PDF tab is opened. UMD build (3.x) so it works with no build step.
 // ─────────────────────────────────────────────────────────────

@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 167: split 40_app.jsx (clear the carried 600-line violation)
+- **Files:** `app/frontend/js/39_focus.jsx` (new — `useFocusMode` hook), `app/frontend/js/00_lib.jsx`
+  (+`downloadCitationExport`/`downloadBibliography`/`_downloadBlob`), `app/frontend/js/40_app.jsx`
+  (630→551: focus state/callbacks → the hook; the two download bodies → 00_lib; thin wrappers), `callosum-app.html`,
+  `INCREMENT-167-NOTES.md`.
+- **What:** a behavior-preserving refactor — lift the axis focus-mode subsystem into a `useFocusMode` hook
+  (`39_focus.jsx`) and the citation-download helpers into `00_lib.jsx`, dropping `40_app.jsx` from **630 to 551**
+  (under the 600-line cap with margin). The inc-128 precedent (extract a hook into an earlier chunk).
+- **Why:** clears the rule-#1 violation flagged as "the immediate next chore" across the last six increment footers
+  (the App god-component had crept back over 600).
+- **Revert:** `git checkout` `40_app.jsx`/`39_focus.jsx`/`00_lib.jsx` + rebuild. No backend/schema/surface change.
+  Verified headed (`.local/visual/drive_inc167_app_split.py`: render + bulk-export download + focus-mode + axis
+  filter, 0 console/page/genai). New rule-#1 watch: `30_viewer.jsx` at 595/600.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 166) — "Citing in Microsoft Word" help section now covers Suggest / one-click style switch / Flatten (SP3, full parity). -->
 ## 2026-06-27 — Increment 166: Word add-in SP3 — parity (Suggest + one-click style switch + Flatten)
 - **Files:** `adapters/word/taskpane.js` (Suggest + style-onChange + Flatten + collapse-to-end insert),

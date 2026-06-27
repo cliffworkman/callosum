@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 166** (see Increment workflow) with **611 pytest tests
+It is currently at **Increment 167** (see Increment workflow) with **611 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -330,7 +330,10 @@ shared/core code loading first.
 **Exempt-but-watched:** `tests/` and `tools/` (the validation harness is allowed to be large),
 and non-code (Markdown, SQL, config).
 
-**Standing split tasks:** none currently over the limit. **Inc 137** split `schema.py` (611→558, over the cap
+**Standing split tasks:** none currently over the limit. **Inc 167** split `app/frontend/js/40_app.jsx` (630→551:
+the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
+**frontend chunks count too** (they're under `app/`). **Frontend watch:** `js/30_viewer.jsx` (**595**, closest),
+`js/25_detail.jsx` (579), `js/10_pdf_layer.jsx` (562). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
@@ -660,6 +663,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Split `40_app.jsx` 630→551 — `useFocusMode` hook + download helpers (inc 167) | A behavior-preserving refactor clearing the rule-#1 violation carried across six footers (the App god-component had crept to 630/600). The inc-128 precedent (extract a hook into an earlier chunk): the axis focus-mode subsystem → **`js/39_focus.jsx`**'s `useFocusMode({setActiveTab, onEnterClearFilters})` (returns the focus state + actions + `axisRefresh`/`setAxisRefresh`); the two big client-download helpers (`downloadCitationExport`/`downloadBibliography`) → **`js/00_lib.jsx`** (the utils home). App's `bulkExport`/`bulkBibliography` became 1-liners; the focus call-sites resolve from the hook destructure (no changes). **Chunk-order-safe** (00 < 39 < 40; esbuild DCE keeps all three). `useFocusMode` is called *after* the filter `useState`s (it closes over their setters). **Frontend-only — no backend/surface/migration/egress/dependency; no audit/Principles trigger.** Verified headed (render + bulk-export download + focus-mode enter/cancel + axis filter, 0 console/page/genai). **New rule-#1 watch: `js/30_viewer.jsx` 595/600.** |
 | Word add-in SP3 = parity — Suggest (`/citations/suggest`) + one-click style-switch + Flatten (inc 166) | Completes the Word surface (mirrors LibreOffice). **Suggest:** read the sentence (selection, else the cursor's paragraph) → `POST /citations/suggest {text≤4000, top_k, evaluate}` (inc 156) → ranked candidates rendered `[stance] Author Year · match N.NN — "quote…"` (the quote IS the reason — signal not verdict) → pick → insert. **Insert now collapses to the selection END** (`getRange(RangeLocation.end)`), so Suggest inserts *after* the sentence instead of replacing it (a strict improvement for the search path too). **Style switch:** the dropdown's `change` re-renders the whole doc (`refreshDocument`) + persists per-document via `Office.context.document.settings` (loaded on `Office.onReady`). **Flatten:** two-click confirm (no dialog dependency) → `cc.delete(true)` on every citation + bibliography Content Control (keeps text, drops the live field; one-way). New pure helpers (`pickQueryText`, `buildSuggestRequest` [caps text 4000], `formatSuggestRows`) — `node --test` **11/11**. **No backend change** (reuses `/citations/suggest`, `/citations/styles`, `/citations/render-document`, `/papers/export` — all already audited/tested) → no new endpoint/surface/migration/egress/dependency/audit gate. **Verification reality unchanged:** the Office.js glue is untested-by-anyone (the user has no Word) — best-effort-correct per the docs; the pure logic + the called contracts are proven. **This completes the Word adapter (SP1 inc 164 + SP2 inc 165 + SP3 inc 166).** |
 | Word add-in SP2 = live cite-while-you-write via **Content Controls** carrying CSL-JSON + a Refresh on `/citations/render-document` (inc 165) | Upgrades the SP1 static-text insert to the Zotero-style loop. Each citation is a Word **Content Control** whose `.tag` carries the cluster's CSL-JSON (base64), `appearance:"Hidden"` (a live field, not a visible box) — the Office.js analogue of LibreOffice's ReferenceMark/CSL-JSON. **Insert** = `/papers/export` csl-json → wrap a CC around the inserted range → **Refresh**. **Refresh** scans citation CCs **in document order** (`body.contentControls`, filter by the `CALLOSUM_CITATION ` tag prefix), POSTs them to the inc-107 `/citations/render-document` (positional `citationID`s), writes each CC's text back via `cc.insertText(..,"Replace")` (Office.js keeps the CC — no LibreOffice setString-destroys-the-mark trap), and rebuilds a managed **References** CC (tag `CALLOSUM_BIBLIOGRAPHY`) at the body end. **Content Controls over ADDIN fields** (the plan's default — the more mature/robust Office.js primitive). **No backend change** (reuses `/papers/export` + `/citations/render-document`, both already audited/tested) → no new endpoint/surface/migration/egress/dependency; no new audit gate. **Verification reality (the user has no Word):** the in-Word Office.js glue (`taskpane.js`) is exercised by **no one** — it ships best-effort-correct per the Office.js docs; the **pure logic** (`taskpane_core.js`: tag encode/decode incl. unicode + malformed→null, the render-document request/response mapping) is `node --test`-covered (8/8) and the render-document contract is pytest-proven (inc 107). Principles non-triggering (field-placer; formatting stays in citeproc). |
 | Word add-in (Office.js) = a task pane served by callosum over **local HTTPS, same-origin** (Architecture A: desktop-only, zero egress); SP1 (inc 164) | The second word-processor adapter (after LibreOffice inc 108/162). A Word add-in is a **web task pane**, and Office requires it over **HTTPS** + **can't fetch `http://localhost`** (and Word-on-the-web can't reach localhost) → research forced an architecture decision the **user chose in plan mode: Architecture A** (local HTTPS, desktop-only, zero egress) over a clffwrkmn.net relay (deferred to the Google Docs increment). callosum serves the task pane at `https://localhost:8443` **same-origin** with its API, so the add-in reaches the library with **no CORS change and no egress** (CORSMiddleware only applies cross-origin; everything is loopback) — the cost is a one-time local-cert trust (`npx office-addin-dev-certs install` + `python tools/run_https.py`). New `adapters/word/` (manifest.xml + taskpane.{html,js,css} + `taskpane_core.js` [pure logic, `node --test`] + icon + README) — a **thin field-placer** reusing the audited cite contracts (`/papers?q=`, `/citations/render`); SP1 inserts a formatted citation as **static text** via `Word.run` (SP2 = live Content-Control fields + `/citations/render-document` renumber/bib; SP3 = suggest/style/flatten). `routers/word.py` serves the task pane + manifest via **explicit per-filename `FileResponse` routes** (no `{filename}` param → no traversal) + `POST …/install` (opens the add-in folder; graceful). **GOTCHAS (carry to SP2/Docs):** office.js **cannot take SRI** (MS updates it in place at the fixed URL); **no headless Word** → the in-Word round-trip is the user's MANUAL check (so the pure logic lives in `taskpane_core.js` to be unit-testable). **No migration, no egress, no new dependency** (office.js CDN-loaded by Word; `office-addin-dev-certs` via `npx`; `node --test` built-in). Audit `2026-06-27_word-addin.md` PASS; Principles non-triggering (packaging/field-placer); local-only → pre-hosted-deploy gate recorded. |
@@ -799,7 +803,30 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 166 (Microsoft Word add-in, Office.js — SP3: parity — Suggest + style-switch +
+*Last updated: 2026-06-27 — increment 167 (split `40_app.jsx` 630→551 — clear the carried 600-line violation): a
+**behavior-preserving** refactor (no feature change), done autonomously to clear the rule-#1 violation flagged as
+"the immediate next chore" across the last six footers (the App god-component had crept to 630/600). The inc-128
+precedent (extract a hook into an earlier-loading chunk): the **axis focus-mode subsystem** → new
+**`app/frontend/js/39_focus.jsx`** (`useFocusMode({setActiveTab, onEnterClearFilters})` — owns
+`focusAxis`/`focusMembers`/`focusPending`/`axisRefresh` + `enterFocus`/`cancelFocus`/`toggleFocusPaper`/`saveFocus`,
+lifted verbatim); the two big **citation-download helpers** (`downloadCitationExport` inc-70 / `downloadBibliography`
+inc-106 + a shared `_downloadBlob`) → **`app/frontend/js/00_lib.jsx`** (the utils home). `40_app.jsx`: removed the
+focus state + its 4 callbacks + the two ~18-line download bodies; calls `useFocusMode(...)` after the library
+`useState`s (so the filter setters it closes over exist) + destructures the bundle; `bulkExport`/`bulkBibliography`
+are now 1-line wrappers. **Chunk-order-safe** (00 < 39 < 40; esbuild DCE keeps all three since App references them).
+**Frontend-only — no backend/surface/migration/egress/dependency; no audit/Principles trigger; help corpus
+unchanged.** pytest **611** unchanged (`test_frontend_assembly` confirms `39_focus.jsx` is in the build + in sync);
+`node --test` 11/11; surface **120/120 API + 599/599 FE, 0 uncovered**; `ruff` clean. **Verified headed, no egress**
+(`.local/visual/drive_inc167_app_split.py` — seeds a real library + axis: the list renders, **bulk export** downloads
+`callosum-citations.bib` [the moved `downloadCitationExport`], **focus-mode** enters via the axis ＋ + cancels [the
+`useFocusMode` hook], the **axis filter** applies [uses the hook's `cancelFocus`]; 0 console/page/genai). **New
+rule-#1 watch: `app/frontend/js/30_viewer.jsx` 595/600** (split before the next addition there). Notes:
+`INCREMENT-167-NOTES.md`. **NEXT (both need the user's steering):** **Google Docs** via the authenticated
+clffwrkmn.net relay (tunnel + auth + rate-limiting + opt-in egress; its own design-led increment) and/or
+**beyond-library discovery** (#30 SP2 — feeds Word's Suggest + the in-app Cite pane; trips the audit + Principles
+gates).
+
+Earlier — increment 166 (Microsoft Word add-in, Office.js — SP3: parity — Suggest + style-switch +
 Flatten): completes the Word adapter. **Suggest from the sentence** — `taskpane.js` reads the selection (else the
 cursor's paragraph), `POST /citations/suggest {text≤4000, top_k, evaluate}` (inc 156), renders ranked candidates as
 `[stance] Author Year · match N.NN — "quote…"` (the quote IS the reason — signal not verdict), pick → insert.

@@ -1514,6 +1514,47 @@
       return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
     }
   }
+  function _downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+  async function downloadCitationExport(ids, format) {
+    if (!ids || !ids.length) return;
+    const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
+    try {
+      const res = await fetch(API_BASE + "/papers/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paper_ids: ids, format })
+      });
+      if (!res.ok) {
+        console.warn("[callosum] export failed:", res.status);
+        return;
+      }
+      _downloadBlob(await res.blob(), `callosum-citations.${ext}`);
+    } catch (e) {
+      console.warn("[callosum] export error:", e);
+    }
+  }
+  async function downloadBibliography(ids, style) {
+    if (!ids || !ids.length) return;
+    const r = await apiPost("/citations/render", { paper_ids: ids, style });
+    if (!r.ok) {
+      console.warn("[callosum] bibliography failed:", r.error);
+      return;
+    }
+    const entries = r.data && r.data.bibliography_html || [];
+    if (!entries.length) return;
+    const body = entries.map((e) => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
+    const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title><body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
+    _downloadBlob(new Blob([html], { type: "text/html" }), `callosum-bibliography-${style}.html`);
+  }
   const PDFJS_VERSION = "3.11.174";
   let pdfLibPromise = null;
   function loadPdfJs() {
@@ -6329,6 +6370,66 @@
       }
     ), a.filename, /* @__PURE__ */ React.createElement("span", { className: "merge-opt-from" }, " \xB7 from \u201C", a.paperTitle, "\u201D"))), /* @__PURE__ */ React.createElement("div", { className: "merge-keep-note" }, "All ", pdfs.length, " PDFs are kept; this one leads.")), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose, disabled: busy }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: submit, disabled: busy }, busy ? "Merging\u2026" : "Merge")))));
   }
+  function useFocusMode({ setActiveTab, onEnterClearFilters }) {
+    const [focusAxis, setFocusAxis] = useState(null);
+    const [focusMembers, setFocusMembers] = useState(() => /* @__PURE__ */ new Set());
+    const [focusPending, setFocusPending] = useState({});
+    const [axisRefresh, setAxisRefresh] = useState(0);
+    const enterFocus = useCallback((axis) => {
+      setFocusAxis(axis);
+      if (onEnterClearFilters) onEnterClearFilters();
+      setFocusPending({});
+      setFocusMembers(/* @__PURE__ */ new Set());
+      setActiveTab("library");
+      api(`/axes/${axis.id}/clusters`).then((r) => {
+        if (r.ok) setFocusMembers(new Set((r.data || []).flatMap((n) => n.papers || []).map((p) => p.id)));
+      });
+    }, [setActiveTab, onEnterClearFilters]);
+    const cancelFocus = useCallback(() => {
+      setFocusAxis(null);
+      setFocusPending({});
+      setFocusMembers(/* @__PURE__ */ new Set());
+    }, []);
+    const toggleFocusPaper = useCallback((paperId) => {
+      setFocusPending((prev) => {
+        const next = { ...prev };
+        const isMember = focusMembers.has(paperId);
+        const staged = prev[paperId];
+        const effective = staged ? staged === "add" : isMember;
+        if (effective) {
+          if (isMember) next[paperId] = "remove";
+          else delete next[paperId];
+        } else {
+          if (isMember) delete next[paperId];
+          else next[paperId] = "add";
+        }
+        return next;
+      });
+    }, [focusMembers]);
+    const saveFocus = useCallback(async () => {
+      if (!focusAxis) return;
+      const entries = Object.entries(focusPending);
+      const adds = entries.filter(([, op]) => op === "add").map(([id]) => Number(id));
+      const removes = entries.filter(([, op]) => op === "remove").map(([id]) => Number(id));
+      await Promise.all([
+        ...adds.map((pid) => apiPost(`/axes/${focusAxis.id}/papers`, { paper_id: pid })),
+        ...removes.map((pid) => apiDelete(`/axes/${focusAxis.id}/papers/${pid}`))
+      ]);
+      setAxisRefresh((n) => n + 1);
+      cancelFocus();
+    }, [focusAxis, focusPending, cancelFocus]);
+    return {
+      focusAxis,
+      focusMembers,
+      focusPending,
+      axisRefresh,
+      setAxisRefresh,
+      enterFocus,
+      cancelFocus,
+      toggleFocusPaper,
+      saveFocus
+    };
+  }
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -6366,10 +6467,6 @@
     const [tabs, setTabs] = useState([]);
     const [activeTab, setActiveTab] = useState("library");
     const [annoRefresh, setAnnoRefresh] = useState(0);
-    const [focusAxis, setFocusAxis] = useState(null);
-    const [focusMembers, setFocusMembers] = useState(() => /* @__PURE__ */ new Set());
-    const [focusPending, setFocusPending] = useState({});
-    const [axisRefresh, setAxisRefresh] = useState(0);
     const [selectedLibraryIds, setSelectedLibraryIds] = useState(() => /* @__PURE__ */ new Set());
     const [pendingSummarize, setPendingSummarize] = useState(null);
     const [libraryAxisFilter, setLibraryAxisFilter] = useState(null);
@@ -6397,6 +6494,24 @@
     const [gapsOpen, setGapsOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
+    const {
+      focusAxis,
+      focusMembers,
+      focusPending,
+      axisRefresh,
+      setAxisRefresh,
+      enterFocus,
+      cancelFocus,
+      toggleFocusPaper,
+      saveFocus
+    } = useFocusMode({
+      setActiveTab,
+      onEnterClearFilters: () => {
+        setLibraryAxisFilter(null);
+        setLibraryTagFilter(null);
+        setLibrarySignalFilter(null);
+      }
+    });
     const openPdf = useCallback((paper, target) => {
       const key = "pdf:" + paper.id;
       const title = paper.title || "Paper " + paper.id;
@@ -6438,51 +6553,6 @@
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
-    const enterFocus = useCallback((axis) => {
-      setFocusAxis(axis);
-      setLibraryAxisFilter(null);
-      setLibraryTagFilter(null);
-      setLibrarySignalFilter(null);
-      setFocusPending({});
-      setFocusMembers(/* @__PURE__ */ new Set());
-      setActiveTab("library");
-      api(`/axes/${axis.id}/clusters`).then((r) => {
-        if (r.ok) setFocusMembers(new Set((r.data || []).flatMap((n) => n.papers || []).map((p) => p.id)));
-      });
-    }, []);
-    const cancelFocus = useCallback(() => {
-      setFocusAxis(null);
-      setFocusPending({});
-      setFocusMembers(/* @__PURE__ */ new Set());
-    }, []);
-    const toggleFocusPaper = useCallback((paperId) => {
-      setFocusPending((prev) => {
-        const next = { ...prev };
-        const isMember = focusMembers.has(paperId);
-        const staged = prev[paperId];
-        const effective = staged ? staged === "add" : isMember;
-        if (effective) {
-          if (isMember) next[paperId] = "remove";
-          else delete next[paperId];
-        } else {
-          if (isMember) delete next[paperId];
-          else next[paperId] = "add";
-        }
-        return next;
-      });
-    }, [focusMembers]);
-    const saveFocus = useCallback(async () => {
-      if (!focusAxis) return;
-      const entries = Object.entries(focusPending);
-      const adds = entries.filter(([, op]) => op === "add").map(([id]) => Number(id));
-      const removes = entries.filter(([, op]) => op === "remove").map(([id]) => Number(id));
-      await Promise.all([
-        ...adds.map((pid) => apiPost(`/axes/${focusAxis.id}/papers`, { paper_id: pid })),
-        ...removes.map((pid) => apiDelete(`/axes/${focusAxis.id}/papers/${pid}`))
-      ]);
-      setAxisRefresh((n) => n + 1);
-      cancelFocus();
-    }, [focusAxis, focusPending, cancelFocus]);
     const toggleLibrarySelect = useCallback((id) => {
       setSelectedLibraryIds((prev) => {
         const n = new Set(prev);
@@ -6536,57 +6606,8 @@
       setLeftOpen(true);
       setTheoryOpen("synthesis");
     }, []);
-    const bulkExportPapers = useCallback((format) => {
-      const ids = [...selectedLibraryIds];
-      if (!ids.length) return;
-      const ext = format === "ris" ? "ris" : format === "csl-json" ? "json" : "bib";
-      (async () => {
-        try {
-          const res = await fetch(API_BASE + "/papers/export", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ paper_ids: ids, format })
-          });
-          if (!res.ok) {
-            console.warn("[callosum] export failed:", res.status);
-            return;
-          }
-          const url = URL.createObjectURL(await res.blob());
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `callosum-citations.${ext}`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch (e) {
-          console.warn("[callosum] export error:", e);
-        }
-      })();
-    }, [selectedLibraryIds]);
-    const bulkBibliography = useCallback((style) => {
-      const ids = [...selectedLibraryIds];
-      if (!ids.length) return;
-      (async () => {
-        const r = await apiPost("/citations/render", { paper_ids: ids, style });
-        if (!r.ok) {
-          console.warn("[callosum] bibliography failed:", r.error);
-          return;
-        }
-        const entries = r.data && r.data.bibliography_html || [];
-        if (!entries.length) return;
-        const body = entries.map((e) => `<p style="text-indent:-2em;padding-left:2em;margin:0 0 .6em">${e}</p>`).join("");
-        const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title><body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
-        const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `callosum-bibliography-${style}.html`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      })();
-    }, [selectedLibraryIds]);
+    const bulkExportPapers = useCallback((format) => downloadCitationExport([...selectedLibraryIds], format), [selectedLibraryIds]);
+    const bulkBibliography = useCallback((style) => downloadBibliography([...selectedLibraryIds], style), [selectedLibraryIds]);
     const restorePaper = useCallback((id) => {
       apiPost(`/papers/${id}/restore`, {}).then((r) => {
         if (r.ok) setLibRefresh((n) => n + 1);
