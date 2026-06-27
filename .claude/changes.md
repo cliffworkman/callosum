@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Backlog reconciliation (docs-only; no increment)
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
+- **What:** Reconciled the open backlog against what actually shipped in inc 109–152 (it had drifted — many items
+  listed open/partial were done). Relocated the fully-shipped items to DONE (full entries) + the breadcrumb list:
+  #1 brand-assets (non-issue, 109), #2 page-view (110), #10 Gemini key (146), #39 BYOK arc (146–152); tightened the
+  partial tracks to their true remainder (#5 Translators-done; #22; #27 GRIM/p-curve/facet-done; #29 gap-finder
+  v2-done; #31 findings-done; #35 My-Pubs L1–3-done); retired the shipped "NEXT MAJOR UPGRADE" (121). Number gaps
+  (#1/#2/#10/#39) kept for cross-ref stability.
+- **Why:** so the OPEN list shows only genuine remaining work ("a good sense of what remains").
+- **Verified read-only:** #1 is a non-bug (`inline_brand_assets.py` reads `.claude/media/` correctly); no app code touched.
+- **Revert:** from git.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 152) — help corpus current as of OS-keychain key storage -->
 ## 2026-06-27 — Increment 152: OS-keychain key storage (optional keyring, file fallback)
 - **Files:** `app/backend/app_settings.py`, `integrations/gemini/generator.py`, `app/backend/api/routers/settings.py`,

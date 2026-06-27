@@ -84,3 +84,58 @@ new work goes in the open backlog.
   dead-code + security + lint (ruff, generic `JobStore[R]`) · **Phase 5.5** README coverage reconciliation ·
   **Phase 6** `.claude/` consolidation · **Phase 7** **published to github.com/cliffworkman/callosum** (public,
   AGPL-3.0) · **Phase 8** the future-tracks watched-inbox session-kickoff rule. Chronology: `changes.md`.
+
+## Frontend / UX pass (inc 109–116; journaled in `RECOVERY-LOG.md`)
+- [x] **Brand-asset source move** (inc 109) — sources at `.claude/media/`; `inline_brand_assets.py` re-inlines from
+  there. *(Closes the stale open-#1 "is it broken?" — it isn't.)*
+- [x] **PDF page-view options** (inc 110, was open #2) — fit-to-width + two-up, persisted (`callosum.pageView`),
+  on the existing viewer; the inc-34 scale/text-layer invariant preserved.
+- [x] **Editable Translator(s)** (inc 111, part of open #5) — the Details pane edits CSL `translator` like authors.
+- [x] **Multi-paper focus query** (inc 112; discoverability completed inc 145) — a query ranks the selection
+  summary's coverage (see #7).
+- [x] **Button canonicalization** (inc 113–115) — advanced DESIGN.md §3; the `.btn-*` DRY + radius-middle +
+  the inc-86 "documented exceptions" decision remain open (#6).
+- [x] **Synthesis ✕-close + AXES ambient outlines** (inc 116).
+
+## My Publications overhaul (inc 117–119)
+- [x] **SP1 dashboard restructure + browsable publication cards** (inc 117); **SP2 group-by-domain** (inc 118);
+  **SP3 citing articles + per-paper OpenAlex citation counts** (inc 119, = Layer 3). *(Only Layer 4 grounded
+  prospection remains — open #35.)*
+
+## QA + UI-shell + experience gates (inc 120–122, 140)
+- [x] **QA mechanism** (inc 120) — `tools/qa/build_surface_map.py` surface-coverage gate + the Codex-exec
+  supervisor + the watched `qa-inbox`; **CLAUDE.md rule #10**.
+- [x] **THEORY/METHODS accordion on a self-registering module registry** (inc 121, the designated "next major
+  upgrade") — DESIGN.md §5; **inc 122** relocated statcheck into a METHODS section; **inc 139** added
+  tabs-within-a-section (Tags → an AXES tab) + METHODS reorder; **inc 138** auto-selects the top library paper.
+- [x] **End-user experience pass — rule #11 + `EXPERIENCE-PASS.md`** (inc 140) — the persona-grounded
+  experience-agent mechanism (the 4th gate: serves-the-user).
+
+## Methods / data-detective producers (inc 123–137)
+- [x] **Synthesis overview fix** — front-matter-aware no-query selection (inc 123) + an evidence-traceable
+  **Overview** above the verified claims (inc 124) + a strengthened front-matter classifier, live-validated (inc 125).
+- [x] **p-curve** (inc 126), **GRIM/GRIMMER** (inc 127) + multi-item GRIMMER (inc 129) — collection/per-value
+  data-detective checks; credited (`THIRD-PARTY-NOTICES.md`). *(Open #27 keeps only "more statcheck test forms".)*
+- [x] **40_app.jsx split** to relieve the 600-line cap (inc 128).
+- [x] **Findings subsystem** — FACT-vs-candidate `paper_findings` store + Review pane (inc 130); **retraction
+  producer** Crossref/OpenAlex (inc 131) + the Retraction Watch DB mirror (inc 132); statcheck **candidates** +
+  the unified **"N to review"** facet (inc 133); on-import auto-check + RW staleness nudge (inc 134). *(Open #31
+  keeps only Zotero/single-PDF on-import + a cadence RW refresh.)*
+- [x] **Literature gap-finder** — backward gap (inc 135) + watched-folder focus-rescan (inc 136) + **v2**
+  forward/axis-scoped/cached gaps, migration 0019 (inc 137). *(Open #29 keeps only followed-authors.)*
+
+## Build-and-test slate — persona experience passes (inc 141–145)
+- [x] **statcheck flagged→detail path** (141); **determinate "X / N" import/scan progress** (142); **durable
+  imported-keyword deletion** (143, `suppressed_paper_tags`, migration 0020); **export/copy highlights + notes**
+  (144); **discoverable multi-paper focus query** (145). Each found + fixed a real gap via a persona agent.
+
+## BYOK / multi-provider LLM arc (inc 146–152; open #10 + #39)
+- [x] **Gemini API key + egress consent in Settings** (inc 146, was #10) — local `~/.callosum/app-settings.json`
+  store overlays the env fallback; key write-only over the wire; egress default-off. Audit `2026-06-26_byok-api-key.md`.
+- [x] **"Test this key"** egress-gated ping (inc 147); **synthesis "AI is off → Enable in Settings →" nudge** (inc 148).
+- [x] **Multi-provider engine** (inc 149) — one `complete()` seam → Gemini/OpenAI/Anthropic/**local** (httpx, no new
+  dep); a loopback **local provider runs with zero egress** (`requires_egress`); provider-aware egress gate. **Settings
+  provider UI** (inc 150). Audit `2026-06-26_multi-provider-llm.md`.
+- [x] **Validation-lock disclaimer + help-assistant Settings toggle** (inc 151); **OS-keychain key storage**
+  (inc 152, optional `keyring` + file fallback). Audit `2026-06-27_keychain-storage.md`. *(Truly deferred: real
+  cloud/Ollama/OS-vault round-trips = manual spot-checks.)*

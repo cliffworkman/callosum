@@ -1,6 +1,13 @@
 # Increment backlog — OPEN (complexity-ordered for autonomous operation, 2026-06-21)
 
-> **The cut point is currently after item 4.** Slide it wherever you like (see below).
+> **Reconciled against inc 109–152 on 2026-06-27.** A lot that was listed open/partial actually shipped (inc 109–116
+> frontend/UX; 117–119 My-Pubs overhaul; 121 THEORY/METHODS accordion; 126–137 GRIM/p-curve/findings/gap-finder;
+> 146–152 the BYOK arc). Those were **relocated to `INCREMENT-BACKLOG-DONE.md`** and the partial items below tightened
+> to their *true remainder*. **Number gaps (#1, #2, #10, #39 …) = shipped + relocated** — numbers are kept stable for
+> the cross-references; see the Shipped breadcrumbs at the bottom + the DONE file.
+>
+> **The cut point** (the `⛔ NEEDS CLIFF` line) separates what Claude Code may build unattended from what needs your
+> judgment. Slide it; items are numbered so "move #N above the cut" is unambiguous.
 
 > **How this file is organized now.** Every open item is in **one list, ordered by how ready it is for
 > Claude Code to execute *unattended*** — simplest/safest at the top, most complex / most-needs-me at the
@@ -33,20 +40,10 @@
 
 _Italic notes are light implementation pointers, not designs._
 
-> ## ⭐ NEXT MAJOR UPGRADE (designated by Cliff, 2026-06-24)
-> **THEORY / METHODS panes → accordion on a module registry.** Reorganize the side panels around the
-> THEORY (knowing the thing) vs METHODS (evaluating how it was studied) distinction: **THEORY (left)** holds
-> AXES + SYNTHESIS; **METHODS (right)** holds DETAILS — and the inner draggable top/bottom sub-split is replaced
-> by an **accordion** built on an **extensible, self-registering module registry** (`{id, label, paneId, render}`),
-> so future sections are additive. Behavior-preserving (axes/synthesis/details functionality unchanged — only
-> arrangement + selection change); the outer panel resize/collapse + the center LibraryFrame tabs are preserved;
-> saved layout state survives. **Full build prompt:** [`future-tracks/opus4.8_future-tracks_theorymethods.md`](future-tracks/opus4.8_future-tracks_theorymethods.md)
-> (its STEPs 1–3 are the UI shell; **NOTE the staleness** — that doc's STEP 4 "create DESIGN.md at repo root" is
-> already done, `.claude/DESIGN.md` exists as rule #8, so STEP 4 becomes "fold its pane-semantics / AI-usage /
-> output-contract principles into the existing DESIGN.md"). Scope is **UI shell + DESIGN.md only** — the
-> findings/flag/review subsystem + statcheck/OpenAlex/OSF METHODS checks are *separate* tracks
-> (`_theorymethodsextension.md`), explicitly NOT part of this. **This is design-led → starts with a brainstorm +
-> the Principles alignment gate + a plan before any code** (the SP-style spec→plan→build flow we've been using).
+> ## ⭐ NEXT MAJOR UPGRADE — ✅ SHIPPED inc 121 (relocated to DONE)
+> The THEORY/METHODS accordion-on-a-module-registry shell shipped inc 121 (DESIGN.md §5 = the placement rubric +
+> registry pattern); the findings/flag/review subsystem it set up then shipped across inc 130–134 (see #31). The
+> remaining METHODS-module pool is #32. **No designated "next major upgrade" right now** — pick from the open list.
 
 ---
 
@@ -76,18 +73,9 @@ Details button) — **[design]** (inc-122 deliberately moved statcheck *out* of 
 **(e)** **[design]** the "⚠ flagged" (signal) vs "📋 to review" (work-state) duality confuses a citer who just wants
 "what's wrong with these numbers" — clarify or collapse for this use case (inc-133 made them coexist on purpose).
 
-**1. Confirm where the in-app images (the `.webp`s) are stored/served** — investigation, read-only.
-*(Answered in the sandbox run: there are **no** `.webp` assets — the brand images are PNGs inlined as base64;
-the `.webp` hits were grep-noise. The run also surfaced a real bug worth fixing: `tools/inline_brand_assets.py`
-reads its source PNGs from a non-existent `app/media/` and therefore silently no-ops (SKIPs all six assets every
-run). **Actionable remainder:** verify that path bug is present, repoint the tool to `.claude/media/`, and confirm
-the re-run reports all six assets **unchanged** — zero frontend change, dev-tool repair only.)*
-
-**2. PDF viewer — page-view options** — fit-to-width, two-up / side-by-side, etc. Frontend-only, on the existing
-viewer; persist like the other view prefs; reuse the `.pdf-annot-toggle` CSS recipe (no new tokens); leave the
-inc-34 scale/text-layer alignment invariant untouched. *(Built clean in the sandbox as inc 109 — the live visual
-click-through is the one check a headless session can't run; record the reproduction steps in the increment
-notes.)*
+*(#1 brand-assets investigation — ✅ resolved/non-issue: no `.webp` assets exist, and `inline_brand_assets.py` reads
+`.claude/media/` correctly [inc 109 moved the source]; the "silent no-op" was a stale pre-inc-109 sandbox note.
+#2 PDF page-view options [fit-width / two-up] — ✅ SHIPPED inc 110. Both relocated to DONE.)*
 
 **3. Protect imported/system tags from silent clobber** — **inc 143 (Librarian pass) shipped the core:** deleting
 an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
@@ -103,11 +91,10 @@ a tag's **source as an always-on label/icon** (not only on hover); a "what re-re
 were skipped/failed, and why" list in the done-summary (not just a count); the per-item **filename** in the progress
 label + a rough **ETA**; a **cancel** button for a run you think hung.
 
-**5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** per-attachment PDF serving (Files opens the
-*primary* PDF today — true per-file routing lands with the duplicate-merge multi-PDF records); multiple URLs;
-Translator(s). The multiple-URLs / translator parts are self-contained; per-file serving is coupled to the merge
-work (**#17**) and wants a design pass. *(The "More" add-arbitrary-field menu shipped inc 96 — an `AddFieldRow` in
-the Details "More" section reusing the validated `csl` patch.)*
+**5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** **Shipped:** the "More" add-arbitrary-field menu
+(inc 96 — an `AddFieldRow` reusing the validated `csl` patch) + **editable Translator(s)** (inc 111). **Remaining:**
+**multiple URLs** (self-contained, small frontend) + **per-attachment PDF serving** (Files opens the *primary* PDF
+today — true per-file routing is coupled to the duplicate-merge multi-PDF records, **#17**, and wants a design pass).
 
 ⛔ NEEDS CLIFF — requires my judgment; do NOT build autonomously
 
@@ -147,11 +134,7 @@ UI. *(The clobber-guard sub-task is promoted above the cut as #3.)* NB a per-**l
 per-paper facts (a global tag's `import_source` can't say "THIS paper is retracted") — those likely belong to the
 findings subsystem, projected as read-only system-tags.
 
-**10. Gemini API key field in Settings** — ✅ **SHIPPED inc 146.** Set the key + egress consent from Settings → AI
-features; a local `~/.callosum/app-settings.json` store (outside the repo + synced Dropbox) overlays the env
-fallback; key write-only over the wire (`GET /settings` = status only); egress stays default-off. Audit
-`2026-06-26_byok-api-key.md` PASS. _Deferred hardening:_ the OS-keychain storage upgrade (with Packaging **#21**) —
-folded into **#39** (full multi-provider BYOK), which remains open.
+*(#10 Gemini API key field in Settings — ✅ SHIPPED inc 146; folded into the BYOK arc #39. Relocated to DONE.)*
 
 **11. README front-door expansion** (`future-tracks/opus4.8_future-tracks_readmescopeaudit.md`) — **[outward-facing
 — your voice]** expand the README into a contributor front door: known-limitations, a **safety note** (127.0.0.1,
@@ -229,9 +212,9 @@ gate** before any build. Sequenced *toward*, not queued — the core UX above co
 README.md` for the index. *(Roughly ordered below from most self-contained to most foundational/most gated — all
 well below the cut; each needs its own design + my graduation call.)*
 
-**22. Free-legal full-text acquisition** (Track D) — **[future track]** **largely shipped as inc 74–76** (the OA
-lane + cascade + wanted list). Remaining track-D ideas: institutional / author-contact resolvers, the honest "not
-found" UX polish. **Explicitly excludes paywall circumvention.**
+**22. Free-legal full-text acquisition** (Track D) — **[future track — mostly shipped]** the OA lane + 7-source
+cascade + wanted list shipped inc 74–76 (relocated to DONE). **Remaining only:** institutional / author-contact
+resolvers + the honest "not found" UX polish. **Explicitly excludes paywall circumvention.**
 
 **23. LMM-reporting auditor** (`…_lmmreportingauditor.md`, METHODS, consumer-side) — **[future track]** flags what a
 reader should look for in a mixed-model paper (random-effects structure, df method, convergence, REML/ML, ICC, R²,
@@ -251,45 +234,38 @@ gated** (A-A no-accusation).
 grid (NISO CRediT) → a contributorship statement injected via the Word link (depends on #33/#34); **builder, not
 verifier**; credits **tenzing** + library-adds its paper (credit-the-lineage).
 
-**27. Open-science signals — statcheck follow-ons** — **[future track]** the sibling deterministic producers
-**GRIM / p-curve** (self-contained, like statcheck) + a **unified findings-subsystem facet** across signal types
-(depends on #31), plus more test forms (test-stat `<`/`>`, tables). *(statcheck v1 + the library-wide lens + the
-header chip shipped inc 95/97/100; the `methods/` + `open_science_signals` foundations leave room.)*
+**27. Open-science signals — statcheck follow-ons** — **[mostly shipped]** statcheck v1 + library lens + header
+chip (inc 95/97/100); the sibling producers **p-curve** (inc 126) + **GRIM/GRIMMER** (inc 127/129); and the
+**unified findings-subsystem "N to review" facet** (inc 133) — all shipped + relocated to DONE. **Remaining only:**
+more statcheck **test forms** (test-stat `<`/`>` comparisons, results in tables) — a regex-extension increment.
 
 **28. Literature discovery — Feed/Search tabs** (`…_librarypaneltabadditions.md`) — **[future track]** FEED + SEARCH
 center tabs over a `SourceProvider` layer (PubMed/Crossref/bioRxiv), Fraser-method triage, axis-relevance
 **highlight (augment, never filter)**; save→auto-axis (attach source keywords as tags). Foundational for discovery
 (unblocks #18's keyword sourcing).
 
-**29. Literature gap-finder** (`…_gapfinder.md`) — **[v1 SHIPPED inc 135 — backward gap]** the **backward
-citation gap** shipped: aggregate each library paper's OpenAlex `referenced_works` → works cited by ≥N of your
-papers that you don't have ("cited by N of your papers"), a **Gaps** button + modal with Add/Dismiss (dismissals
-persisted, migration 0018); the count is your-library citing (never a quality rank), coverage stated, candidates
-not verdicts; audit PASS. **REMAINING:** axis-scoped ranking ("gaps for [axis]"), the **forward gap** (works that
-cite many of your papers — distinct from inc-119's per-paper citing), a persistent `gap_candidates` cache, and
-followed-authors. Built on the OpenAlex adapter.
+**29. Literature gap-finder** (`…_gapfinder.md`) — **[v1+v2 SHIPPED inc 135/137 — relocated to DONE]** the
+**backward gap** (works cited by ≥N of your papers; Gaps button + Add/Dismiss; inc 135) and **v2** — the **forward
+gap** (works that cite ≥N of your papers), **axis-scoped** ranking, and the persistent `gap_candidates` cache
+(migration 0019) — all shipped (inc 137). Counts are your-library citing (never a quality rank); coverage stated;
+candidates not verdicts; audits PASS. **Remaining only:** **followed-authors** as a gap source (needs a
+followed-authors concept that doesn't exist yet → effectively blocked on that) + external-search discovery beyond
+the library (overlaps the discovery track #28).
 
 **30. Highlight-to-suggest / highlight-to-evaluate** (Track C) — **[future track]** for a draft sentence — suggest
 papers to cite (in-library = retrieval in reverse, local; beyond-library via OpenAlex/Semantic-Scholar with
 explainable reasons) + evaluate support/contrast/mention via the NLI spine. Never auto-insert/auto-judge.
 **Highest-value novel capability.**
 
-**31. THEORY/METHODS panes + findings subsystem** (`…_theorymethods.md`) — **[foundational — UI shell + findings
-contract SHIPPED; first producer next]** the module-registry accordion shipped **inc 121** (THEORY/METHODS panes);
-the **FACT-vs-candidate findings model** shipped **inc 130** (`paper_findings` store + `findings_repo.upsert_findings`
-producer contract + the METHODS "Review" section + the library "N to review" work-state badge — **contract + UI only,
-no producer wired**). the **first producer = retraction** shipped across **inc 131 (SP1: Crossref + OpenAlex)** + **inc 132 (SP2: the
-Retraction Watch DB)** — multi-source (all three) per-DOI → a FACT (Review FactMark + notice link + ◆ card mark) +
-an honest per-paper check status (silence ≠ clean) + a library "Retracted" chip/filter + a batch + the RW bulk
-mirror (`retraction_records`, migration 0017, with a "Refresh database" action). **SHIPPED inc 133:** statcheck
-emits **candidate** findings + a unified **"N to review"** library facet (`?finding=needs-review`) reading
-`findings_overview` — the candidate-review half is now live + exercised. **SHIPPED inc 134:** the retraction
-**on-import auto-check** (scan + citation-import) + an **RW staleness nudge** — the producer lifecycle is now
-complete (on-demand + automatic-at-import + staleness-visible). **REMAINING:** on-import for the Zotero /
-single-PDF paths; an automatic *cadence* refresh of the RW DB (manual + the nudge is v1); p-curve/GRIM are
-collection/per-value (don't naturally emit per-paper candidates → deferred); a later consolidation could fold the
-statcheck signal chip into the unified facet (coexist is the v1). **Cross-cut:** system FACTs (`RETRACTED`)
-filterable via the inc-71 tag mechanism (see #19).
+**31. THEORY/METHODS panes + findings subsystem** (`…_theorymethods.md`) — **[mostly SHIPPED — relocated to DONE]**
+the accordion shell (inc 121), the FACT-vs-candidate findings model (inc 130), the **first producer = retraction**
+(inc 131 Crossref/OpenAlex + inc 132 the Retraction Watch DB mirror), the statcheck **candidate** findings + the
+unified **"N to review"** facet (inc 133), and the retraction **on-import auto-check + RW staleness nudge** (inc 134)
+all shipped. **Remaining only:** on-import retraction-check for the **Zotero / single-PDF import paths** (scan +
+citation-import are wired); an automatic **cadence** refresh of the RW DB (manual + the staleness nudge is v1); a
+later consolidation folding the statcheck signal chip into the unified facet (coexist is the deliberate v1).
+(p-curve/GRIM are collection/per-value → they don't emit per-paper candidates, by design.) **Cross-cut:** system
+FACTs (`RETRACTED`) filterable via the inc-71 tag mechanism (see #19).
 
 **32. THEORY/METHODS module pool** (`…_theorymethodsextension.md`) — **[future track]** additional principle-aligned
 panel-module candidates; depends on the findings subsystem + module registry (#31).
@@ -321,17 +297,12 @@ content-controls/ADDIN fields; Win+Mac parity) over the same `render-document` e
 ranges; the fenced cloud opt-in; last). LibreOffice follow-ups: `.oxt` packaging + toolbar, a library-search picker,
 grouped cites/locators, note-style footnotes. **Never auto-inserts.**
 
-**35. My Publications — Part 2: impact dashboard tab** (`…_mypublications.md`) — **[future track]** **Part 1 shipped
-inc 78** (the auto-axis); **Layer 1 shipped inc 81** (the 📊 dashboard tab — headline OpenAlex metrics + the
-indexed-vs-library gap + a publications-by-year SVG chart + an editable AI research summary; cache-only read, the
-summary egress-gated); **Layer 2 shipped inc 83** (the **Research domains** section — local clustering of confirmed
-own-papers into domains + impact-by-domain citation sums + a click-to-re-filter chart; stored as
-`profile.research_domains` JSON, not child cluster_nodes). Remaining: **Layer 3** enriched paper cards (per-paper
-OpenAlex citation count + citing-works modal, field/year percentile, citations-by-year sparkline, self-vs-external
-split); **Layer 4** grounded prospection (citation gaps, emerging citing-topics, candidate collaborators — LLM
-narration over graph data only). The author-resolution infra (`integrations/openalex/author.py`) now also unlocks
-the **gap-finder** / discovery track (a separate parked future-track you floated: find papers beyond the library /
-external search).
+**35. My Publications — Part 2: impact dashboard** (`…_mypublications.md`) — **[mostly SHIPPED — relocated to DONE]**
+Part 1 auto-axis (inc 78); Layer 1 dashboard tab (inc 81); Layer 2 Research domains (inc 83); **the full SP1–SP3
+overhaul (inc 117–119)** — dashboard restructure + browsable publication cards, group-by-domain, and **Layer 3
+citing articles + per-paper citation counts** (inc 119). **Remaining only:** **Layer 4** grounded prospection
+(citation gaps, emerging citing-topics, candidate collaborators — LLM narration over graph data only). The
+author-resolution infra also powered the gap-finder (#29).
 
 **36. Meta-analysis extraction workbench** (`…_metaanalysisextractionworkbench.md`, its **own** REVIEW/SYNTHESIS
 workspace) — **[future track]** protocol → embedding-screened queue → LLM-drafted **provenance-anchored,
@@ -353,16 +324,9 @@ only near-term, buildable-now parts) vs **B.** cross-user impact signal (far-fut
 Principles gate **and** the A-A values layer (default-deny; compute-locally / transmit-summaries-only; public field
 registry; commons reciprocity; valence rule = *less* time-in-app is the win). Graduation is my explicit call.
 
-**39. BYOK / multi-provider LLM** — ✅ **SHIPPED inc 149 (engine) + inc 150 (Settings UI).** User-supplied keys for
-**Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint**, all via one `complete()` seam (httpx, no new
-dep); a **local loopback provider runs with zero egress** (`requires_egress("local")` is False, loopback-enforced at
-both the write boundary and `complete()`); per-provider keys are write-only; the egress gate is provider-aware;
-embeddings + verification stay local. Audit `2026-06-26_multi-provider-llm.md` PASS. **Follow-ons all shipped:**
-inc 147 Test-key, 148 synthesis nudge, **151** validation-lock/quality disclaimer + help-assistant Settings toggle
-(it was already per-provider via the inc-149 seam), **152** OS-keychain key storage (optional `keyring`, file
-fallback; audit `2026-06-27_keychain-storage.md` PASS). The Gemini-key field (#10, inc 146) was its precursor.
-_Truly deferred:_ real cloud/Ollama/OS-vault round-trips (the user's manual spot-checks); a heavier "validation
-lock" UX beyond the disclaimer text isn't planned.
+*(#39 BYOK / multi-provider LLM — ✅ SHIPPED inc 146–152 (engine + Settings UI + Test-key + nudge + disclaimer +
+help-toggle + OS-keychain). Relocated to DONE. Truly deferred: real cloud/Ollama/OS-vault round-trips = your manual
+spot-checks.)*
 
 **40. PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
 `…_publisherschoicegate.md`) — **[future track — DO NOT BUILD YET]** at submission time, surface **verifiable,
@@ -402,5 +366,15 @@ is the only way to neutralize copies that exist *outside* git. Deferred by me.
 - PDF Reading mode (⛶ Read / ⤢ Exit / Esc) — inc 101
 - Re-score line-wrapping fix — inc 86
 - More settings → axis cutoff default in Settings — inc 105 *(ongoing: other prefs as they arise)*
-- Open-science signals — statcheck v1 + library-wide lens + header chip — inc 95/97/100 *(GRIM/p-curve + findings facet remain — see #27)*
+- Open-science signals — statcheck v1 + library lens + header chip (95/97/100); **p-curve (126) + GRIM/GRIMMER (127/129) + unified "N to review" facet (133)** *(only "more test forms" remains — see #27)*
 - Citation engine Phase 1/2 + LibreOffice adapter — inc 106/107/108 *(Word + Google Docs adapters remain — see #33/#34)*
+- **Frontend/UX pass — inc 109–116:** brand-asset source move (109); **PDF page-view options** fit-width/two-up (110, was #2); editable Translators (111, part of #5); multi-paper focus query (112, see #7); button canonicalization (113–115, see #6); synthesis ✕-close + AXES ambient outlines (116). *(Journaled in `RECOVERY-LOG.md`.)*
+- **My Publications overhaul SP1–SP3 — inc 117–119:** dashboard restructure + browsable publication cards; group-by-domain; **citing articles + per-paper citation counts** *(only Layer 4 prospection remains — see #35)*
+- **QA mechanism** — surface-coverage gate + Codex-exec supervisor + watched inbox (rule #10) — inc 120
+- **THEORY/METHODS accordion** on a self-registering module registry (the "next major upgrade") — inc 121; statcheck relocated into a METHODS section — inc 122
+- **Synthesis overview fix** — front-matter-aware no-query selection (123) + evidence-traceable Overview (124) + strengthened classifier (125)
+- **Findings subsystem** — FACT-vs-candidate store + Review pane (130); retraction producer Crossref/OpenAlex (131) + Retraction Watch DB (132); statcheck candidates + unified facet (133); on-import auto-check + RW staleness nudge (134) *(see #31 for remainder)*
+- **Literature gap-finder** — backward gap (135) + watched-folder focus-rescan (136) + **v2** forward/axis-scoped/cached (137) *(only followed-authors remains — see #29)*
+- **Auto-select top library paper on load** (138); **accordion tabs-within-a-section** — Tags→AXES tab, METHODS reorder (139)
+- **End-user experience pass (rule #11 + EXPERIENCE-PASS.md)** + persona-agent mechanism (140); the build-and-test slate — statcheck path (141), determinate progress (142), durable keyword deletion (143), export highlights (144), discoverable focus query (145)
+- **BYOK arc — inc 146–152 (#10 + #39):** Gemini key in Settings (146); Test-key (147); synthesis "AI is off" nudge (148); multi-provider engine Gemini/OpenAI/Anthropic/local (149) + Settings provider UI (150); validation disclaimer + help-assistant toggle (151); OS-keychain storage (152)
