@@ -324,7 +324,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     focusAxis, focusMembers, focusPending, onToggleFocusPaper, onSaveFocus, onCancelFocus,
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
                     libraryItemType, itemTypes, onItemTypeChange, onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
-                    onBulkSummarize, onBulkPcurve, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
@@ -480,6 +480,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onKeyDown={e => { if (e.key === "Enter") onBulkSummarize(bulkFocus); }} />
           <button className="axis-link" onClick={() => onBulkSummarize(bulkFocus)} title="Generate a verified synthesis of the selected papers — focused on your question if you typed one">summarize</button>
           <button className="axis-link" onClick={onBulkPcurve} title="Run a p-curve (evidential value) over the selected papers — collection-level, never per-paper">p-curve</button>
+          {selCount >= 2 &&
+            <button className="axis-link" onClick={onBulkMerge} title="Merge the selected papers into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>}
           <select className="bulk-export" value="" title="Export citations for the selected papers"
             onChange={e => { if (e.target.value) { onBulkExport(e.target.value); e.target.value = ""; } }}>
             <option value="" disabled>export…</option>

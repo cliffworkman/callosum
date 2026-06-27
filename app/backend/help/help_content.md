@@ -663,12 +663,22 @@ To use it:
 - Wait while Callosum scans your library.
 - Review each **Possible duplicates** group.
 - Click **open** to inspect a paper.
-- Click **delete** on the redundant copy if you are confident.
+- Click **merge** to combine the group into one record (recommended for true duplicates — see below).
+- Click **delete** on the redundant copy if you'd rather just remove it.
 - Click **dismiss** if the group is not a duplicate.
 
 Deleted duplicates go to Trash and can be restored. Dismissing a group marks those papers as "not a duplicate" and **persists** — future scans will not flag that group again, even across restarts.
 
 Changed your mind? Open the **Duplicates** scan and expand **Previously dismissed** at the bottom — each dismissed pair has an **un-dismiss** button that lets the scan flag it again.
+
+### Merging duplicates (keeps everything)
+
+When two records really are the same paper — for example a **preprint and its published version** — **merge** them instead of deleting one. Merging is **non-destructive**: it combines everything onto one surviving record and never throws anything away.
+
+- Launch it from a duplicate group's **merge** button, or select two or more papers in the library (tick their checkboxes) and click **merge** in the selection bar.
+- In the dialog, pick which record to **keep as the main record**, resolve any **differing fields** (title, year, DOI, link, …) with the radio buttons, and choose the **primary PDF**.
+- **Both PDFs are kept** (so you can keep the preprint's file *and* the published one), every **link, tag, and highlight** moves onto the surviving record, and a **"Merged from…" note** records the other copies' identifiers (DOI, OSF/URL, PMID, arXiv) — so a link can never be silently lost.
+- The other copies move to **Trash** (restorable), so a merge is reversible to that extent and leaves an audit trail. Nothing is hard-deleted and no file is removed from disk.
 
 How to think about confidence:
 
@@ -676,7 +686,7 @@ How to think about confidence:
 - Lower confidence can still be useful, but you should inspect both records.
 - Similar-topic papers can look close by embedding, so do not delete based on confidence alone.
 
-Gotcha: Callosum currently flags likely duplicates; it does not merge records into one canonical paper.
+Gotcha: a merge composes the surviving record from the choices you make in the dialog; the merged-away copies remain in Trash (with their original metadata) until you empty it.
 
 <!-- section: finding-gaps -->
 ## Finding gaps in your library

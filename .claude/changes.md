@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 160) — the Watched-folders section now leads with the library folder being watched by default. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 161) — the duplicates help section gained a "Merging duplicates (keeps everything)" subsection + corrected the stale "does not merge" gotcha. -->
+## 2026-06-27 — Increment 161: non-destructive merge of duplicate papers
+- **Files:** `app/backend/metadata/paper_merge.py` (new engine), `app/backend/api/routers/duplicates.py`
+  (+`POST /papers/merge`), `app/backend/metadata/enrichment.py` (+`MERGED_SOURCE`),
+  `app/backend/persistence/profile_repo.py` (+`replace_paper_id`), `app/frontend/js/38_merge.jsx` (new),
+  `19_duplicates.jsx` / `10_pdf_layer.jsx` / `40_app.jsx` + `styles.css` (`.merge-*`) + `callosum-app.html`,
+  `tests/test_paper_merge.py` (+10), `.claude/qa-routes/route_24_duplicates.md`,
+  `.claude/security-audits/2026-06-27_paper-merge.md`, help corpus, `INCREMENT-161-NOTES.md`.
+- **What:** Merge two+ duplicate papers (a preprint + its published copy) into one **without deleting anything** —
+  launched from the Duplicates modal or the library bulk bar (≥2 selected). The survivor absorbs **both PDFs** +
+  every link/tag/highlight/axis-membership/external-id; the user picks the survivor + resolves differing fields +
+  the primary PDF; a **"Merged from…"** note records each merged copy's identifiers (so the OSF link survives); the
+  merged-away copies go to **Trash** (restorable husks). `POST /papers/merge` (422/409 on bad requests); local;
+  no migration; no egress.
+- **Why:** the user's real workflow — keep the preprint's PDF + ensure the OSF link survives — which the old
+  delete-the-redundant-copy flow couldn't do without risking data loss.
+- **Revert:** revert the commit, or remove `paper_merge.py` + the `/papers/merge` endpoint + `38_merge.jsx` + the
+  four wiring edits. (No schema change to undo.)
+
 ## 2026-06-27 — Increment 160: the library folder is watched by default
 - **Files:** `app/backend/acquisition/fetch.py` (`library_dir()` public), `app/backend/api/routers/library.py`
   (rescan always scans `library_dir()`; `GET /library/watched` pins it as the `is_default` entry; `DELETE 0`→422),

@@ -25,6 +25,9 @@ CROSSREF_KEYWORD_SOURCE = "keyword:crossref"
 # silently clobber a user's edits; the explicit per-paper re-resolve passes
 # force=True to override this when the user asks for a fresh Crossref fetch.
 USER_EDITED_SOURCE = "user-edited"
+# Provenance for a record produced by merging duplicate papers (inc 161). Like USER_EDITED_SOURCE, kept OUT of
+# the `_can_update_from_crossref` allowlist so a batch enrich won't clobber the user's curated merge.
+MERGED_SOURCE = "merged"
 
 
 @dataclass(frozen=True)

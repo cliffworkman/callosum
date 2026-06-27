@@ -196,6 +196,20 @@ function App() {
     if (ids.length) { setPcurvePapers(ids); setSelectedLibraryIds(new Set()); }
   }, [selectedLibraryIds]);
 
+  // inc-161: merge ≥2 papers into one survivor (the modal owns the field-pick UI + the POST). null = closed.
+  // Launched from the library bulk bar (selected ids) or the Duplicates modal (a group's ids).
+  const [mergeIds, setMergeIds] = useState(null);
+  const bulkMergePapers = useCallback(() => {
+    const ids = [...selectedLibraryIds];
+    if (ids.length >= 2) setMergeIds(ids);
+  }, [selectedLibraryIds]);
+  const onMerged = useCallback((survivorId) => {
+    setMergeIds(null);
+    setSelectedLibraryIds(new Set());
+    setSelected(survivorId || null);  // show the merged record; the merged-away copies are now in Trash
+    setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); setTagRefresh(n => n + 1);
+  }, []);
+
   // inc 117 (SP1): summarize an explicit id set (from the My Publications tab) → drive the synthesis section.
   const summarizePaperIds = useCallback((ids) => {
     if (!ids || !ids.length) return;
@@ -531,7 +545,7 @@ function App() {
           librarySearchField, onSearchFieldChange: (f) => { setLibrarySearchField(f); setPage(0); },
           libraryItemType, itemTypes, onItemTypeChange: (t) => { setLibraryItemType(t); setPage(0); },
           onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-          onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkExport: bulkExportPapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
+          onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkExport: bulkExportPapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
           libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
           libraryTagFilter, onClearTagFilter: clearTagFilter,
           libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,
@@ -572,6 +586,13 @@ function App() {
           onClose={() => setDuplicatesOpen(false)}
           onOpenPaper={openPdf}
           onChanged={() => setLibRefresh(n => n + 1)}
+          onMerge={(ids) => setMergeIds(ids)}
+        />}
+      {mergeIds &&
+        <MergePapersModal
+          ids={mergeIds}
+          onClose={() => setMergeIds(null)}
+          onMerged={onMerged}
         />}
       {wantedOpen &&
         <WantedModal

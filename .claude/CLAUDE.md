@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 160** (see Increment workflow) with **581 pytest tests
+It is currently at **Increment 161** (see Increment workflow) with **591 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -263,6 +263,7 @@ callosum/
 │   │   │                          md→html], assistant.py [HelpAssistant Protocol + dataclasses, inc 60])
 │   │   ├── importers/             (zotero.py)
 │   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py, paper_edits.py,
+│   │   │                          paper_merge.py [non-destructive duplicate merge, inc 161],
 │   │   │                          citation_export.py [→BibTeX/RIS/CSL-JSON, inc 70],
 │   │   │                          citation_import.py [←parse BibTeX/RIS/CSL-JSON, inc 93])
 │   │   └── acquisition/           (registry.py [OaLocation OA-only seam + cascade], fetch.py [download/validate/
@@ -645,6 +646,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Non-destructive paper merge = re-point source rows onto a survivor + Trash the husks; never delete (inc 161) | The user's real workflow (a preprint + its published copy → *merge*, not delete; keep the preprint PDF + ensure the OSF link survives). Scales the long-deferred library merge into the dedup flow. `metadata/paper_merge.py::merge_papers`: re-point `attachments`/`chunks`/`annotations`/`notes`/`paper_external_identifiers` via `UPDATE paper_id` (no per-paper UNIQUE — verified; chunk embeddings follow via the unchanged `chunk.id`, so **no vector surgery**); union `paper_tags`/`collection_papers`/manual `cluster_node_papers` idempotently; **free the husk's UNIQUE id columns first** (`doi`/`openalex_work_id`/… → NULL; `csl_json` keeps them for audit) so the survivor can adopt them (soft-delete keeps the row, so the UNIQUE would otherwise block it); compose the survivor's metadata from the user's per-field picks via `paper_edits.build_paper_update` + a **"Merged from…" lineage note** in `csl_json["note"]` (so a link can never be silently lost) + `imported_source=MERGED_SOURCE` (kept out of the crossref-update allowlist like `user-edited`); set the chosen primary attachment (**both PDFs kept**); **soft-delete** the husks (restorable; FK rows already moved). `POST /papers/merge` in `routers/duplicates.py` (registered before `/papers/{paper_id}`; `MergeValidationError`→422, `MergeConflictError`→409 on a DOI clash with an outside paper; `conn.commit()` all-or-nothing). Frontend `38_merge.jsx` (survivor + per-conflict-field + primary-PDF picks), launched from the Duplicates modal + the library bulk bar (≥2). **No migration, no egress, no new dependency.** Derived signals/findings recompute (not migrated); the husk retains its copies. Audit `2026-06-27_paper-merge.md` PASS; Principles gate run (preserves provenance/inspectability — the aligned alternative to lossy delete). |
 | Highlight-to-suggest / evaluate = a local engine + the `POST /citations/suggest` contract + an in-app Cite pane (Track C SP1a, inc 156) | The highest-value novel capability (#30), built as engine-first (like inc-107→108): given a draft sentence, **suggest** library papers to cite (`retrieval.search_similar(target_types=("chunk",))` run against the span → best chunk per paper → rank by score; trashed excluded) and **evaluate** each candidate's stance via a new **local NLI stance scorer** (`summarization/verification.py::NLIStanceScorer` — the existing `cross-encoder/nli-MiniLM2-L6-H768` 3-way softmax: entailment→support, contradiction→contrast, neutral→mention; `_label_index` generalizes `_entailment_index`; any failure → `None`, never a guessed verdict). `app/backend/citations/suggest.py::suggest_citations` + `POST /citations/suggest {text≤4000, top_k≤20, evaluate}` → `{suggestions:[{paper_id,title,year,author,match_score,chunk_id,quote,page_start/end,coordinate_precision:"region",bbox_json,stance}]}`. **Fully local — no egress** (local embed + local NLI; the heavy models are cached on `app.state`, injected ones win for tests via `create_app(stance_scorer=…)`). In-app **Cite** pane (`js/37_cite.jsx`, THEORY accordion order 25): paste → cards (stance pill · match · verbatim quote · Open source region · Copy BibTeX). **Honesty (Principles gate run):** suggestions carry their quote+page+match-score as the **reason** (#8), are **candidates the author picks** — nothing auto-inserts (#3/#5); stance leads with the verbatim quote+confidence, a labeled signal not a bare verdict (#1/#4), local-NLI-only; evidence is **region** precision, never a fabricated exact rect (#2); `match_score` is one labeled similarity, **no opaque composite** (#7); ranked by sentence-match not citation count (bias is an SP3 concern); accuses no one (A-A veto). Audit `2026-06-27_citation-suggest.md` PASS; **no migration / no new dependency**. Experience pass (deadline-writer persona) → added the Copy-BibTeX extract + visible stance-unavailable + de-duped boilerplate in-increment. **NEXT: SP1b** — the LibreOffice "Suggest citations" UNO macro on this contract (insert via the inc-108 flow); then SP2 beyond-library discovery (OpenAlex/Semantic-Scholar) + Stage-4 section-scoping. |
 | THEORY/METHODS side panes = accordion on a module registry (inc 121, the "next major upgrade" UI-shell half) | Replaced the fixed left `Sidebar` (Axes+Tags) + right `RightPane` (inc-57 Synthesis/Details drag-split) with two **accordions** driven by an extensible **registry** (`05_panes.jsx`: `registerPaneSection({id,label,paneId,order,render})` + `<PaneAccordion>`). **Left = THEORY** (Axes/Synthesis/Tags, AXES default); **right = METHODS** (Details). Sections **self-register from their own chunks** (load order 05<10<15<20<25 ⇒ registry-first; `order` = display position; adding a section is one call, **zero `PaneAccordion` edits** — proven with a throwaway chunk). **Mount-but-hide** keeps an in-progress synthesis alive across a switch; open section persists (`callosum.theoryOpen`/`methodsOpen`). **Soft labels** (section headers only; `paneId` is the internal architecture + future rename). Behavior-preserving except **Tags now always shows** (empty-state hint) for discoverability. **(Superseded by inc 139: the registry gained tabs-within-a-section — Tags is now the second tab of the AXES section, not its own section; METHODS reordered Data-consistency before Statistics-check. See DESIGN.md §5.)** **esbuild DCEs unreferenced top-level functions** (a registered-but-unused component is stripped until used → wire the consumer in the same change; raw-assembly inclusion is the gate, not bundle-grep). `25_detail.jsx` was already 625 (>600) → the Details registration lives in `05_panes.jsx` to not worsen it; a split is queued (the statcheck→METHODS move relieves it). Frontend-only; Principles gate non-triggering. DESIGN.md §5 = the placement rubric + registry pattern + AI-usage principle. Verified headed (`:8097`, 0 console errors). **NEXT (user-queued):** statcheck Settings→a METHODS section (the first real METHODS module); investigate synthesis showing no text summary. |
 | My Publications citing articles & citation counts (SP3 of the My-Pubs overhaul, inc 119 — overhaul complete) | TDL #14. Each own-pub card shows its **OpenAlex cited-by count** (verbatim + attributed — never a Callosum composite/verdict; declined #7/#2) + a **"Most cited"** sort; clicking opens a **citing-articles modal** (papers OpenAlex records as citing it — **candidates**, coverage stated, #3/#6) with per-row **Import** + a confirm-gated **Import all** → **metadata-only**, deduped, into the **general** library (not My Pubs; PDF stays the OA-only lane → no paywall circumvention, A-A veto held). Backend: `AuthorWork.openalex_work_id` (was discarded), `paper_citations` on the dashboard, `OpenAlexAuthorClient.fetch_citing_works` (`cites:<id>`, cached, capped 100, fail-closed) + `GET /my-publications/citing/{work_id}` + `import_citing_work` + `POST /my-publications/citing/import`; **`resolve` now `fetch_author_works(refresh=True)`** so a Refresh repopulates counts + work ids. Egress = **public metadata, bounded/cached/on-demand** (#10), NOT the Gemini gate. Principles gate run (spec §2, aligned); audit `2026-06-24_mypubs-citing.md` PASS; no migration. New chunk `34_mypubs_citing.jsx`. Verified headed (Playwright, `:8097` — real `cites:` fetch). **Watch:** `clustering/my_publications.py` at 587/600 — split before the next backend addition there. **This completes the My Publications overhaul (SP1 inc 117 + SP2 inc 118 + SP3 inc 119 = TDL #1 + #3–18).** |
@@ -778,7 +780,42 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 160 (the library folder is watched by default): a user dropped a known-
+*Last updated: 2026-06-27 — increment 161 (non-destructive merge of duplicate papers): the user's real workflow —
+a **preprint + its published copy**, *merge* not delete, **keep the preprint PDF + ensure the OSF link survives**,
+and never risk losing info by mis-identifying which line item to delete. Scales the long-deferred library merge into
+the dedup flow. New **`app/backend/metadata/paper_merge.py::merge_papers`**: re-points the merged copies' **source
+data** onto a chosen survivor — `attachments`/`chunks`/`annotations`/`notes`/`paper_external_identifiers` via
+`UPDATE paper_id` (no per-paper UNIQUE — verified; **chunk embeddings follow via the unchanged `chunk.id` → no
+vector surgery**); unions `paper_tags`/`collection_papers`/manual `cluster_node_papers` idempotently; repoints
+`profile.starred_paper_ids`/`research_domains` (`profile_repo.replace_paper_id`). It **frees each husk's UNIQUE id
+columns first** (`doi`/`openalex_work_id`/… → NULL; `csl_json` keeps them for audit) so the survivor can adopt them
+(soft-delete keeps the row, so the UNIQUE would otherwise block it) + auto-adopts the matching ids the survivor
+lacks; composes the survivor's metadata from the user's per-field picks via `paper_edits.build_paper_update`; appends
+a **"Merged from…" lineage note** to `csl_json["note"]` capturing every merged copy's identifiers (so a link can
+never be silently lost); stamps `imported_source=MERGED_SOURCE` (kept OUT of the crossref-update allowlist like
+`user-edited`); sets the chosen **primary** attachment (**both PDFs kept**); **soft-deletes** the husks (restorable
+Trash; FK rows already moved). **`POST /papers/merge`** in `routers/duplicates.py` (registered before
+`/papers/{paper_id}`; `MergeMetadata` typed + `extra="forbid"`; `MergeValidationError`→422, `MergeConflictError`→409
+on a DOI clash with an **outside** paper; `conn.commit()` all-or-nothing). Frontend **`38_merge.jsx`**
+(`MergePapersModal`: survivor pick + per-conflict-field radios + primary-PDF pick; reads each paper via
+`GET /papers/{id}`; sends only fields differing from the survivor) wired into `19_duplicates.jsx` (per-group
+**merge**), `10_pdf_layer.jsx` (bulk-bar **merge** at ≥2 selected), `40_app.jsx` (`mergeIds` state + `onMerged`
+selects the survivor + refreshes lib/axes/tags). **No migration, no egress, no new dependency.** Derived
+signals/findings recompute (not migrated); the husk retains its copies. Audit `2026-06-27_paper-merge.md` PASS;
+Principles gate run (preserves provenance/inspectability — the aligned alternative to lossy delete; no A-A veto in
+play). Rule #10: `route_24_duplicates.md` extended → surface **111/111 API + 595/595 FE, 0 uncovered**; help corpus
+gained a "Merging duplicates (keeps everything)" subsection (`HELP-DOCS-SYNCED` → 161). pytest **591** (+10
+`test_paper_merge.py`; the suite is slow ~16min with model loading — run offline `HF_HUB_OFFLINE=1` to avoid a HF
+network stall); `ruff` clean; build + assembly green. **Verified headed, no egress**
+(`.local/visual/drive_inc161_merge.py`: select a seeded preprint + published → bulk-bar **merge** → the dialog →
+Merge → survivor keeps the DOI + the **OSF URL** + **both PDFs** + a "Merged from…" note; the preprint is in Trash;
+0 console/page/genai). **WATCH (rule #1):** `app/frontend/js/40_app.jsx` is now **630/600** — it was already 609 at
+HEAD (a prior slip; the App god-component accreted modal/bulk wiring since the inc-128 split). A behavior-preserving
+split (extract the modal-render block or another `use*` hook, the inc-128 precedent) is the **immediate next chore**.
+Notes: `INCREMENT-161-NOTES.md`. **NEXT:** the 40_app.jsx split; then back to **#30 — SP2 beyond-library discovery**
+(design-led; its own plan-mode session).
+
+Earlier — increment 160 (the library folder is watched by default): a user dropped a known-
 retracted PDF into the library folder and it never appeared (even across restart + hard refresh), blocking the
 Retraction Watch test. **Root cause (systematic-debugging):** the auto-rescan (launch/focus, inc 98/136) only
 re-scans **registered** watched folders, and `watched_folders` was **empty** — the library papers were

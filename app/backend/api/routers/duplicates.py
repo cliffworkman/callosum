@@ -1,10 +1,12 @@
-"""Duplicate-detection endpoints (inc 56) — an async scan job + a persistent "not a duplicate" dismiss.
+"""Duplicate-detection + merge endpoints (inc 56 / 161) — an async scan job, a persistent "not a duplicate"
+dismiss, and a non-destructive **merge**.
 
-Flag-only and entirely **local** (no egress): the scan reads the library and flags likely-duplicate groups
-for review; the user resolves by trashing a copy (soft-delete) or marking a group **not a duplicate** —
-which is persisted (inc 64) so the scan never re-flags it. Extracted from `papers.py` (inc 64) to keep that
-module under the 600-line cap. Registered BEFORE `papers.router` in `app.py` so the literal `/papers/duplicates`
-segment wins over `/papers/{paper_id}`.
+Flag-only detection + dismiss are entirely **local** (no egress): the scan reads the library and flags
+likely-duplicate groups for review; the user resolves by trashing a copy (soft-delete), marking a group **not a
+duplicate** (persisted, inc 64, so the scan never re-flags it), or **merging** them (inc 161 — fold every copy's
+source data onto a survivor; the others go to Trash; see `metadata/paper_merge.py`). Extracted from `papers.py`
+(inc 64) to keep that module under the 600-line cap. Registered BEFORE `papers.router` in `app.py` so the literal
+`/papers/duplicates` + `/papers/merge` segments win over `/papers/{paper_id}`.
 """
 
 from __future__ import annotations
@@ -13,13 +15,14 @@ from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection, Engine, select
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.duplicate_detection import find_duplicate_groups
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.metadata.paper_merge import MergeConflictError, MergeValidationError, merge_papers
 from app.backend.persistence.dedup_repo import (
     dismiss_duplicate_pairs,
     list_dismissed_duplicate_pairs,
@@ -135,6 +138,68 @@ def undismiss_duplicates(payload: UndismissDuplicatesRequest, conn: Connection =
             undismiss_duplicate_pair(conn, ids[i], ids[j])  # canonical (low, high)
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+class MergeMetadata(BaseModel):
+    # The chosen scalar field values for the surviving record (the dialog's per-field picks). Only the fields the
+    # client sets become `edits` for `build_paper_update` (omitted → the survivor keeps its own value). Keys match
+    # the Details-editor field names. `extra="forbid"` so an unknown field is a 422, not a silent drop.
+    model_config = ConfigDict(extra="forbid")
+    title: str | None = None
+    abstract: str | None = None
+    venue: str | None = None
+    language: str | None = None
+    item_type: str | None = None
+    doi: str | None = None
+    citation_key: str | None = None
+    url: str | None = None
+    pmid: str | None = None
+    arxiv: str | None = None
+    issn: str | None = None
+    isbn: str | None = None
+    volume: str | None = None
+    issue: str | None = None
+    page: str | None = None
+    year: int | None = None
+    month: int | None = None
+    day: int | None = None
+    authors: list[str] | None = None
+    translators: list[str] | None = None
+
+
+class MergePapersRequest(BaseModel):
+    survivor_id: int
+    merged_ids: list[int] = Field(min_length=1, max_length=20)  # the copies folded into the survivor
+    metadata: MergeMetadata = Field(default_factory=MergeMetadata)
+    primary_attachment_id: int | None = None
+
+
+class MergePapersResponse(BaseModel):
+    survivor_id: int
+    merged_ids: list[int]
+    trashed: list[int]
+
+
+@router.post("/papers/merge", response_model=MergePapersResponse)
+def merge_papers_endpoint(
+    payload: MergePapersRequest, conn: Connection = Depends(get_connection)
+) -> MergePapersResponse:
+    # Non-destructive merge (inc 161): fold every merged copy's source data onto the survivor; the others go to
+    # Trash. Local, bound-param, transaction all-or-nothing. Registered before /papers/{paper_id}.
+    try:
+        result = merge_papers(
+            conn,
+            survivor_id=payload.survivor_id,
+            merged_ids=payload.merged_ids,
+            metadata=payload.metadata.model_dump(exclude_unset=True),
+            primary_attachment_id=payload.primary_attachment_id,
+        )
+    except MergeConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except MergeValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    conn.commit()
+    return MergePapersResponse(survivor_id=result.survivor_id, merged_ids=result.merged_ids, trashed=result.trashed)
 
 
 def _embedding_model(app: FastAPI) -> EmbeddingModel:

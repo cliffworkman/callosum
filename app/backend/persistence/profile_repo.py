@@ -123,6 +123,35 @@ def set_starred(conn: Connection, paper_id: int, starred: bool) -> None:
     )
 
 
+def replace_paper_id(conn: Connection, old_id: int, new_id: int) -> None:
+    """Repoint any My-Publications references to ``old_id`` onto ``new_id`` (inc 161, paper merge): in
+    ``starred_paper_ids`` and every ``research_domains[].paper_ids`` list, swap old→new and dedup, so a merged-away
+    paper doesn't linger as a phantom/trashed entry. No-op if the profile is unset or has no such reference."""
+    existing = get_profile(conn)
+    if existing is None or old_id == new_id:
+        return
+    values: dict[str, Any] = {}
+
+    starred = [int(x) for x in (existing.get("starred_paper_ids") or [])]
+    if old_id in starred:
+        swapped = {new_id if x == old_id else x for x in starred}
+        values["starred_paper_ids"] = sorted(swapped) or None
+
+    domains = existing.get("research_domains") or []
+    changed = False
+    for d in domains:
+        ids = [int(x) for x in (d.get("paper_ids") or [])]
+        if old_id in ids:
+            d["paper_ids"] = sorted({new_id if x == old_id else x for x in ids})
+            changed = True
+    if changed:
+        values["research_domains"] = domains
+
+    if values:
+        values["updated_at"] = func.current_timestamp()
+        conn.execute(update(profile).where(profile.c.id == int(existing["id"])).values(**values))
+
+
 def dismiss_work(conn: Connection, doi: str) -> None:
     """Dismiss an OpenAlex-indexed work from the missing-works review queue (inc 85), by normalized DOI. So it
     is not re-proposed. No-op if the profile is unset or the DOI is blank."""

@@ -695,6 +695,15 @@
   .dup-dismissed-row { display: flex; align-items: baseline; gap: 8px; padding: 3px 0 3px 12px; }
   .dup-dismissed-titles { flex: 1; font-size: 12px; color: var(--ink-2); word-break: break-word; }
   .dup-dismissed-sep { color: var(--ink-3); }
+  /* merge dialog (inc 161): survivor pick + per-field conflict radios + primary-PDF pick */
+  .merge-section { margin: 12px 0 4px; }
+  .merge-eyebrow { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); margin-bottom: 5px; }
+  .merge-field { margin-bottom: 9px; }
+  .merge-field-label { font-size: 11.5px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+  .merge-opt { display: block; font-size: 12.5px; color: var(--ink-2); padding: 3px 0; cursor: pointer; line-height: 1.35; word-break: break-word; }
+  .merge-opt input { margin-right: 8px; }
+  .merge-opt-from { color: var(--ink-3); font-size: 11px; }
+  .merge-keep-note { font-size: 11px; color: var(--ink-3); margin-top: 3px; }
   .trash-toggle { background: none; border: none; color: var(--ink-3); font-size: 11px; cursor: pointer; font-family: var(--sans); padding: 0; }
   .trash-toggle:hover { color: var(--accent); }
   .trash-toggle.danger, .trash-toggle.danger:hover { color: var(--danger); }   /* Empty Trash — destructive */
@@ -2377,6 +2386,7 @@
     onBulkDelete,
     onBulkSummarize,
     onBulkPcurve,
+    onBulkMerge,
     onBulkExport,
     onBulkBibliography,
     onSelectAll,
@@ -2484,7 +2494,7 @@
           if (e.key === "Enter") onBulkSummarize(bulkFocus);
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -3342,7 +3352,7 @@
   function _dupConfLabel(c) {
     return Math.round((c || 0) * 100) + "%";
   }
-  function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss }) {
+  function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss, onMerge }) {
     const [papers, setPapers] = useState(group.papers);
     const [busy, setBusy] = useState(false);
     if (papers.length < 2) return null;
@@ -3355,9 +3365,17 @@
       setPapers((ps) => ps.filter((p) => p.id !== paper.id));
       if (onChanged) onChanged();
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "dup-group" }, /* @__PURE__ */ React.createElement("div", { className: "dup-group-head" }, /* @__PURE__ */ React.createElement("span", { className: "dup-conf" }, _dupConfLabel(group.confidence)), /* @__PURE__ */ React.createElement("span", { className: "dup-reason" }, group.reason), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss, title: "Not a duplicate \u2014 won't be flagged again" }, "dismiss")), papers.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.id, className: "dup-paper" }, /* @__PURE__ */ React.createElement("div", { className: "dup-paper-info" }, /* @__PURE__ */ React.createElement("div", { className: "dup-paper-title" }, p.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "dup-paper-meta" }, fmtAuthors(p.authors) || "\u2014", p.year ? " \xB7 " + p.year : "", p.venue ? " \xB7 " + p.venue : "")), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onOpenPaper && onOpenPaper(p) }, "open"), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", disabled: busy, onClick: () => del(p) }, "delete"))));
+    return /* @__PURE__ */ React.createElement("div", { className: "dup-group" }, /* @__PURE__ */ React.createElement("div", { className: "dup-group-head" }, /* @__PURE__ */ React.createElement("span", { className: "dup-conf" }, _dupConfLabel(group.confidence)), /* @__PURE__ */ React.createElement("span", { className: "dup-reason" }, group.reason), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-link",
+        onClick: () => onMerge && onMerge(papers.map((p) => p.id)),
+        title: "Merge these into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash"
+      },
+      "merge"
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onDismiss, title: "Not a duplicate \u2014 won't be flagged again" }, "dismiss")), papers.map((p) => /* @__PURE__ */ React.createElement("div", { key: p.id, className: "dup-paper" }, /* @__PURE__ */ React.createElement("div", { className: "dup-paper-info" }, /* @__PURE__ */ React.createElement("div", { className: "dup-paper-title" }, p.title || "Untitled"), /* @__PURE__ */ React.createElement("div", { className: "dup-paper-meta" }, fmtAuthors(p.authors) || "\u2014", p.year ? " \xB7 " + p.year : "", p.venue ? " \xB7 " + p.venue : "")), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onOpenPaper && onOpenPaper(p) }, "open"), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", disabled: busy, onClick: () => del(p) }, "delete"))));
   }
-  function DuplicatesModal({ onClose, onOpenPaper, onChanged }) {
+  function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge }) {
     const [state, setState] = useState({ status: "loading", groups: [] });
     const [dismissed, setDismissed] = useState(() => /* @__PURE__ */ new Set());
     const [dismissedPairs, setDismissedPairs] = useState([]);
@@ -3405,6 +3423,7 @@
         group: g,
         onOpenPaper,
         onChanged,
+        onMerge,
         onDismiss: () => {
           setDismissed((s) => new Set(s).add(i));
           apiPost("/papers/duplicates/dismiss", { paper_ids: g.papers.map((p) => p.id) }).then((r) => {
@@ -6004,6 +6023,159 @@
     order: 25,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitePane, { ctx })
   });
+  const _MERGE_FIELDS = [
+    { key: "title", label: "Title", list: false },
+    { key: "authors", label: "Authors", list: true },
+    { key: "year", label: "Year", list: false },
+    { key: "venue", label: "Venue", list: false },
+    { key: "doi", label: "DOI", list: false },
+    { key: "url", label: "URL / link", list: false },
+    { key: "item_type", label: "Type", list: false },
+    { key: "abstract", label: "Abstract", list: false }
+  ];
+  function _mergeFieldVal(p, key) {
+    const csl = p.csl_json || {};
+    switch (key) {
+      case "title":
+        return csl.title || p.title || "";
+      case "authors":
+        return p.authors || [];
+      case "year": {
+        if (p.year != null) return p.year;
+        const dp = csl.issued && csl.issued["date-parts"];
+        return dp && dp[0] && dp[0][0] != null ? dp[0][0] : null;
+      }
+      case "venue":
+        return csl["container-title"] || p.venue || "";
+      case "doi":
+        return csl.DOI || p.doi || "";
+      case "url":
+        return csl.URL || "";
+      case "item_type":
+        return csl.type || p.item_type || "";
+      case "abstract":
+        return p.abstract_text || p.abstract || "";
+      default:
+        return "";
+    }
+  }
+  function _mergeIsEmpty(v) {
+    if (v == null) return true;
+    if (Array.isArray(v)) return v.length === 0;
+    return String(v).trim() === "";
+  }
+  function _mergeCmp(v, list) {
+    return list ? JSON.stringify(v || []) : String(v == null ? "" : v).trim();
+  }
+  function _mergeDisplay(v, list) {
+    if (_mergeIsEmpty(v)) return "\u2014";
+    const s = list ? v.join("; ") : String(v);
+    return s.length > 160 ? s.slice(0, 160) + "\u2026" : s;
+  }
+  function _mergePdfs(papers) {
+    return papers.flatMap(
+      (p) => (p.attachments || []).filter((a) => (a.content_type || "").includes("pdf") || a.attachment_type === "pdf").map((a) => ({ id: a.id, filename: a.filename || "PDF", role: a.role, paperId: p.id, paperTitle: p.title || "Untitled" }))
+    );
+  }
+  function MergePapersModal({ ids, onClose, onMerged }) {
+    const [papers, setPapers] = useState(null);
+    const [survivorId, setSurvivorId] = useState(null);
+    const [picks, setPicks] = useState({});
+    const [primaryId, setPrimaryId] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState(null);
+    useEffect(() => {
+      let live = true;
+      Promise.all(ids.map((id) => api(`/papers/${id}`))).then((rs) => {
+        if (!live) return;
+        const ok = rs.filter((r) => r.ok).map((r) => r.data);
+        if (ok.length < 2) {
+          setPapers([]);
+          return;
+        }
+        setPapers(ok);
+        const surv = ok.find((p) => p.doi) || ok[0];
+        setSurvivorId(surv.id);
+        const fp = {};
+        _MERGE_FIELDS.forEach((f) => {
+          const sv = _mergeFieldVal(surv, f.key);
+          const chosen = _mergeIsEmpty(sv) ? ok.map((p) => _mergeFieldVal(p, f.key)).find((v) => !_mergeIsEmpty(v)) : sv;
+          if (!_mergeIsEmpty(chosen)) fp[f.key] = chosen;
+        });
+        setPicks(fp);
+        const pdfs2 = _mergePdfs(ok);
+        const def = pdfs2.find((a) => a.paperId === surv.id && a.role === "primary") || pdfs2.find((a) => a.paperId === surv.id) || pdfs2[0];
+        setPrimaryId(def ? def.id : null);
+      });
+      return () => {
+        live = false;
+      };
+    }, [ids]);
+    const survivor = papers && papers.find((p) => p.id === survivorId);
+    const conflicts = (papers || []).length ? _MERGE_FIELDS.map((f) => {
+      const seen = /* @__PURE__ */ new Map();
+      papers.forEach((p) => {
+        const v = _mergeFieldVal(p, f.key);
+        if (_mergeIsEmpty(v)) return;
+        const k = _mergeCmp(v, f.list);
+        if (!seen.has(k)) seen.set(k, v);
+      });
+      return { f, options: [...seen.values()] };
+    }).filter((c) => c.options.length >= 2) : [];
+    const pdfs = _mergePdfs(papers || []);
+    const submit = async () => {
+      if (!survivor) return;
+      setBusy(true);
+      setErr(null);
+      const metadata = {};
+      _MERGE_FIELDS.forEach((f) => {
+        const chosen = picks[f.key];
+        if (_mergeIsEmpty(chosen)) return;
+        if (_mergeCmp(chosen, f.list) !== _mergeCmp(_mergeFieldVal(survivor, f.key), f.list)) {
+          metadata[f.key] = chosen;
+        }
+      });
+      const merged_ids = papers.map((p) => p.id).filter((id) => id !== survivorId);
+      const r = await apiPost("/papers/merge", {
+        survivor_id: survivorId,
+        merged_ids,
+        metadata,
+        primary_attachment_id: primaryId
+      });
+      setBusy(false);
+      if (!r.ok) {
+        setErr(r.error || "Merge failed.");
+        return;
+      }
+      onMerged(survivorId);
+    };
+    const count = papers ? papers.length : ids.length;
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Merge ", count, " papers"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Combine these into one record. Every PDF, link, tag, and highlight is kept on the surviving record; the others move to Trash, and a \u201CMerged from\u2026\u201D note records their identifiers so nothing is lost."), papers === null && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Loading papers\u2026" }), papers !== null && papers.length < 2 && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t load at least two papers to merge."), survivor && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "merge-section" }, /* @__PURE__ */ React.createElement("div", { className: "merge-eyebrow" }, "Keep as the main record"), papers.map((p) => /* @__PURE__ */ React.createElement("label", { key: p.id, className: "merge-opt" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "radio",
+        name: "merge-survivor",
+        checked: p.id === survivorId,
+        onChange: () => setSurvivorId(p.id)
+      }
+    ), p.title || "Untitled", /* @__PURE__ */ React.createElement("span", { className: "merge-opt-from" }, " ", p.year ? "\xB7 " + p.year : "", p.doi ? " \xB7 " + p.doi : "")))), conflicts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "merge-section" }, /* @__PURE__ */ React.createElement("div", { className: "merge-eyebrow" }, "Resolve differing fields"), conflicts.map(({ f, options }) => /* @__PURE__ */ React.createElement("div", { key: f.key, className: "merge-field" }, /* @__PURE__ */ React.createElement("div", { className: "merge-field-label" }, f.label), options.map((v, i) => /* @__PURE__ */ React.createElement("label", { key: i, className: "merge-opt" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "radio",
+        name: "merge-f-" + f.key,
+        checked: _mergeCmp(picks[f.key], f.list) === _mergeCmp(v, f.list),
+        onChange: () => setPicks((prev) => ({ ...prev, [f.key]: v }))
+      }
+    ), _mergeDisplay(v, f.list)))))), pdfs.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "merge-section" }, /* @__PURE__ */ React.createElement("div", { className: "merge-eyebrow" }, "Primary PDF"), pdfs.map((a) => /* @__PURE__ */ React.createElement("label", { key: a.id, className: "merge-opt" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "radio",
+        name: "merge-primary",
+        checked: a.id === primaryId,
+        onChange: () => setPrimaryId(a.id)
+      }
+    ), a.filename, /* @__PURE__ */ React.createElement("span", { className: "merge-opt-from" }, " \xB7 from \u201C", a.paperTitle, "\u201D"))), /* @__PURE__ */ React.createElement("div", { className: "merge-keep-note" }, "All ", pdfs.length, " PDFs are kept; this one leads.")), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose, disabled: busy }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: submit, disabled: busy }, busy ? "Merging\u2026" : "Merge")))));
+  }
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
     const [settingsOpen, setSettingsOpen] = useState(false);
@@ -6192,6 +6364,19 @@
         setSelectedLibraryIds(/* @__PURE__ */ new Set());
       }
     }, [selectedLibraryIds]);
+    const [mergeIds, setMergeIds] = useState(null);
+    const bulkMergePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length >= 2) setMergeIds(ids);
+    }, [selectedLibraryIds]);
+    const onMerged = useCallback((survivorId) => {
+      setMergeIds(null);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSelected(survivorId || null);
+      setLibRefresh((n) => n + 1);
+      setAxisRefresh((n) => n + 1);
+      setTagRefresh((n) => n + 1);
+    }, []);
     const summarizePaperIds = useCallback((ids) => {
       if (!ids || !ids.length) return;
       setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
@@ -6605,6 +6790,7 @@
           onBulkDelete: bulkDeletePapers,
           onBulkSummarize: bulkSummarizePapers,
           onBulkPcurve: bulkPcurvePapers,
+          onBulkMerge: bulkMergePapers,
           onBulkExport: bulkExportPapers,
           onBulkBibliography: bulkBibliography,
           onSelectAll: selectAllLibrary,
@@ -6671,7 +6857,15 @@
       {
         onClose: () => setDuplicatesOpen(false),
         onOpenPaper: openPdf,
-        onChanged: () => setLibRefresh((n) => n + 1)
+        onChanged: () => setLibRefresh((n) => n + 1),
+        onMerge: (ids) => setMergeIds(ids)
+      }
+    ), mergeIds && /* @__PURE__ */ React.createElement(
+      MergePapersModal,
+      {
+        ids: mergeIds,
+        onClose: () => setMergeIds(null),
+        onMerged
       }
     ), wantedOpen && /* @__PURE__ */ React.createElement(
       WantedModal,

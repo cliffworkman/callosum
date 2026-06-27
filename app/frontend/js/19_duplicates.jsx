@@ -5,7 +5,7 @@
 
 function _dupConfLabel(c) { return Math.round((c || 0) * 100) + "%"; }
 
-function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss }) {
+function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss, onMerge }) {
   const [papers, setPapers] = useState(group.papers);
   const [busy, setBusy] = useState(false);
   if (papers.length < 2) return null;  // resolved (a copy was trashed)
@@ -25,6 +25,8 @@ function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss }) {
       <div className="dup-group-head">
         <span className="dup-conf">{_dupConfLabel(group.confidence)}</span>
         <span className="dup-reason">{group.reason}</span>
+        <button className="axis-link" onClick={() => onMerge && onMerge(papers.map(p => p.id))}
+          title="Merge these into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>
         <button className="axis-link" onClick={onDismiss} title="Not a duplicate — won't be flagged again">dismiss</button>
       </div>
       {papers.map(p => (
@@ -43,7 +45,7 @@ function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss }) {
   );
 }
 
-function DuplicatesModal({ onClose, onOpenPaper, onChanged }) {
+function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge }) {
   const [state, setState] = useState({ status: "loading", groups: [] });
   const [dismissed, setDismissed] = useState(() => new Set());  // session-only hide for the current scan
   const [dismissedPairs, setDismissedPairs] = useState([]);     // persisted dismissals, for un-dismiss (inc 67)
@@ -92,7 +94,7 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged }) {
         {state.status === "ready" && remaining === 0 && <div className="axis-hint">No likely duplicates found.</div>}
         {state.status === "ready" && state.groups.map((g, i) => (
           dismissed.has(i) ? null :
-            <DuplicateGroupCard key={i} group={g} onOpenPaper={onOpenPaper} onChanged={onChanged}
+            <DuplicateGroupCard key={i} group={g} onOpenPaper={onOpenPaper} onChanged={onChanged} onMerge={onMerge}
               onDismiss={() => {
                 setDismissed(s => new Set(s).add(i));                                   // hide now (this session)
                 apiPost("/papers/duplicates/dismiss", { paper_ids: g.papers.map(p => p.id) })  // persist (inc 64)
