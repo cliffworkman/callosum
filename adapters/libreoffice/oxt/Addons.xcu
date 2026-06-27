@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    oor:name="Addons" oor:package="org.openoffice.Office">
+  <node oor:name="AddonUI">
+
+    <!-- Top-level "Callosum" menu in Writer. Each item dispatches service:com.callosum.cite.Dispatcher?<action>,
+         which instantiates the .oxt dispatcher component and runs the matching action in callosum_cite.py. -->
+    <node oor:name="OfficeMenuBar">
+      <node oor:name="com.callosum.libreoffice.menu" oor:op="replace">
+        <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Callosum</value></prop>
+        <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+        <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        <node oor:name="Submenu">
+          <node oor:name="m00" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?addCitation</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Add citation… (search your library)</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m01" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?suggest</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Suggest citation (from the sentence)</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m02" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?insert</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Insert citation by id…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m03" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>private:separator</value></prop>
+          </node>
+          <node oor:name="m04" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?refresh</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Refresh / renumber + bibliography</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m05" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?setStyle</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Citation style…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m06" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?flatten</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Flatten to static text</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m07" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>private:separator</value></prop>
+          </node>
+          <node oor:name="m08" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?setServerUrl</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Server URL…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+        </node>
+      </node>
+    </node>
+
+    <!-- A matching "Callosum" toolbar (text buttons; icons are a later polish). -->
+    <node oor:name="OfficeToolBar">
+      <node oor:name="com.callosum.libreoffice.toolbar" oor:op="replace">
+        <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Callosum</value></prop>
+        <node oor:name="t00" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?addCitation</value></prop>
+          <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Add citation</value></prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        </node>
+        <node oor:name="t01" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?suggest</value></prop>
+          <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Suggest citation</value></prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        </node>
+        <node oor:name="t02" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?insert</value></prop>
+          <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Insert by id</value></prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        </node>
+        <node oor:name="t03" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?refresh</value></prop>
+          <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Refresh</value></prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        </node>
+        <node oor:name="t04" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?setStyle</value></prop>
+          <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Style…</value></prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        </node>
+        <node oor:name="t05" oor:op="replace">
+          <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?flatten</value></prop>
+          <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Flatten</value></prop>
+          <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+          <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+        </node>
+      </node>
+    </node>
+
+  </node>
+</oor:component-data>

@@ -29,6 +29,7 @@ from app.backend.api.routers import (
     health,
     help,
     library,
+    libreoffice,
     methods,
     my_publications,
     paper_files,
@@ -176,6 +177,9 @@ def create_app(
     api.include_router(summaries.router)
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
+    api.include_router(
+        libreoffice.router
+    )  # /integrations/libreoffice/* — install the LO plugin from Settings (inc 162)
 
     return api
 

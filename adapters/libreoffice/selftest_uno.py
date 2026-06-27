@@ -165,6 +165,31 @@ def main():
         check(len(marks2) == 1, f"suggest-insert produced {len(marks2)} marks, expected 1")
         log("suggest-insert OK")
 
+        # 4b) inc 162: the search-to-cite path (Add Citation). Drive the non-dialog parts directly (the input box +
+        # pick-list are GUI): search the library, format the rows, insert a hit. ("attention" matches Vaswani.)
+        log("search-to-cite")
+        hits = cc.search_library(base, "attention")
+        log(f"search hits = {[(h.get('id'), h.get('title')) for h in hits]}")
+        check(len(hits) >= 1, "library search returned no hits for 'attention'")
+        srows = cc.build_search_rows(hits)
+        check(len(srows) == len(hits) and " — " in srows[0], f"search rows malformed: {srows}")
+        doc3 = new_writer(ctx)
+        t3 = doc3.getText()
+        t3.createTextCursorByRange(t3.getStart()).setString("Background.\n")
+        cc.insert_citation(doc3, hits[0]["id"], base, cursor=t3.createTextCursorByRange(t3.getEnd()))
+        m3 = [n for n in doc3.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+        check(len(m3) == 1, f"search-insert produced {len(m3)} marks, expected 1")
+        log("search-to-cite OK")
+
+        # 5) inc 162: the .oxt menu/toolbar dispatcher resolves. The orchestrator installs callosum.oxt before
+        # launching soffice; this confirms the extension registered + that the menu URLs
+        # (service:com.callosum.cite.Dispatcher?<action>) will instantiate the component and run an action.
+        log("dispatcher: resolving the .oxt service")
+        disp = ctx.ServiceManager.createInstanceWithContext("com.callosum.cite.Dispatcher", ctx)
+        check(disp is not None, "the .oxt dispatcher service did not resolve — extension not installed/registered?")
+        check(hasattr(disp, "trigger"), "the .oxt dispatcher does not expose trigger() (XJobExecutor)")
+        log("dispatcher OK")
+
         print("SELFTEST OK", flush=True)
         return 0
     finally:

@@ -238,7 +238,24 @@ To use it:
 - **Open source region** opens that paper's PDF at the page so you can read the passage in context (the match is a passage *region*, not an exact highlight).
 - **Copy BibTeX** puts the paper's citation on your clipboard to drop into a reference manager or your manuscript.
 
-The first **Suggest** in a session loads the local models, so it can take a few seconds; later suggestions are fast. Ranking is by relevance to your sentence (never by citation count), and Callosum only **proposes** — you decide which paper is the right citation. Suggestions cover papers already in your library; finding relevant papers you *don't* have yet, and inserting citations live inside Word/LibreOffice, are on the way.
+The first **Suggest** in a session loads the local models, so it can take a few seconds; later suggestions are fast. Ranking is by relevance to your sentence (never by citation count), and Callosum only **proposes** — you decide which paper is the right citation. Suggestions cover papers already in your library; the same Suggest is also available **inside LibreOffice Writer** (see *Citing in LibreOffice Writer*). Finding relevant papers you *don't* have yet, and Word/Google Docs, are on the way.
+
+<!-- section: cite-in-libreoffice -->
+## Citing in LibreOffice Writer
+Cite straight from your callosum library while you write in **LibreOffice Writer** — like Zotero or Mendeley, with a dedicated **Callosum** menu and toolbar.
+
+**Install it once:** open **Settings → LibreOffice plugin → Install plugin**. LibreOffice's Extension Manager opens — click Install, then restart Writer. (Or use **Download .oxt** and double-click the file.) The callosum app must be running for the plugin to reach it.
+
+A **Callosum** menu (and toolbar) then appears in Writer:
+
+- **Add citation…** — search your library (author / title / year), pick a paper, and it's inserted as a live, formatted citation. (No paper ids to remember.)
+- **Suggest citation** — select the sentence you're writing; callosum suggests papers by relevance, with stance + a quote, the same engine as the in-app Cite panel.
+- **Refresh / renumber + bibliography** — re-render every citation and rebuild the References list (numeric styles renumber by position; run it after edits).
+- **Citation style…** — pick a CSL style (apa, ieee, nature, …) and locale; the whole document re-renders.
+- **Flatten to static text** — convert the live citations to plain text for hand-off (one-way).
+- **Server URL…** — only needed if you run callosum on a non-default port.
+
+Everything is local: the plugin talks only to callosum on your own machine, and all formatting is done by callosum's citation engine (so it matches the in-app "Cite as…"). Nothing leaves your machine.
 
 <!-- section: tags -->
 ## Tagging papers

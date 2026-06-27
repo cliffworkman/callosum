@@ -6,16 +6,26 @@ of your document, and writes back the in-text citations + bibliography that call
 renumbering and author-date disambiguation). Everything is **local** — the macro talks only to your callosum
 server on `127.0.0.1`.
 
-This is **v1**: a drop-in Python macro (the `.oxt` extension with a toolbar comes later). It covers the core loop —
-insert, **suggest-and-cite**, refresh/restyle/renumber, bibliography, and flatten.
+This is **v2** (inc 162): a one-click **extension** (`.oxt`) that adds a **Callosum** menu + toolbar to Writer, so
+you never touch the macro dialog. It covers the core loop — **add citation** (search your library), **suggest-and-cite**
+(from the sentence), refresh/restyle/renumber, bibliography, flatten, and a configurable server URL. (The raw Python
+macro is still installable by hand — see *Manual install* — for development.)
 
 ## Prerequisites
 - **LibreOffice** with its bundled Python (any recent 7.x/24.x/25.x).
 - **callosum running** locally: from the project root, `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080`.
-  (If you run callosum on a different port, edit `DEFAULT_BASE` near the top of `callosum_cite.py`.)
+  (Different port? Use the **Server URL…** menu item — no source edit needed.)
 
-## Install
-Copy `callosum_cite.py` into your LibreOffice user **Scripts/python** folder, creating it if needed:
+## Install (recommended)
+**From callosum:** Settings → **LibreOffice plugin** → **Install plugin**. LibreOffice's Extension Manager opens —
+click Install, then restart Writer. (Or **Download .oxt** and double-click it.) The `.oxt` is built by
+`tools/build_libreoffice_oxt.py` (the Settings button builds + opens it for you).
+
+A **Callosum** menu + toolbar then appear in Writer. (Run `python tools/build_libreoffice_oxt.py` to produce
+`dist/callosum.oxt` yourself; `unopkg add dist/callosum.oxt` installs it from the command line.)
+
+## Manual install (dev / no extension)
+Copy `callosum_cite.py` into your LibreOffice user **Scripts/python** folder (create it if needed):
 
 | OS | Folder |
 |---|---|
@@ -23,27 +33,31 @@ Copy `callosum_cite.py` into your LibreOffice user **Scripts/python** folder, cr
 | macOS | `~/Library/Application Support/LibreOffice/4/user/Scripts/python/` |
 | Linux | `~/.config/libreoffice/4/user/Scripts/python/` |
 
-Restart LibreOffice (or just reopen the macro dialog). The five macros then appear under
-**Tools → Macros → Organize Macros → Python → My Macros → callosum_cite**. For one-click use, bind them to toolbar
-buttons via **Tools → Customize → Toolbars**.
+Restart LibreOffice. The macros then appear under **Tools → Macros → Organize Macros → Python → My Macros →
+callosum_cite** (and can be bound to a toolbar via **Tools → Customize**). The extension above does this wiring for you.
 
 ## Use
-1. Start callosum and open (or create) a document in Writer.
-2. **CallosumInsertCitation** — enter a callosum **paper id** (the number in the library); a live citation field is
-   inserted at the cursor and rendered immediately.
-3. **CallosumSuggestCitations** — *don't know the id?* **Select (highlight)** the sentence you're writing (or just
-   place the cursor in it) and run this: callosum ranks **your library** by relevance to that sentence and shows a
-   pick-list — each row gives the paper's **stance** (supports / contrasts / mentions the claim), a **match**
-   score, and a **quote** preview (the evidence). Pick one and it's inserted as a live citation right after your
-   sentence. Ranked by relevance, not citation count; you decide the right citation — nothing is auto-inserted.
+Start callosum, open a document in Writer, and use the **Callosum** menu / toolbar:
+
+1. **Add citation…** — **search your library** (author / title / year), pick a paper from the list, and it's
+   inserted at the cursor as a live, formatted citation. The everyday cite action — no paper ids to remember.
+2. **Suggest citation** — **select (highlight)** the sentence you're writing (or place the cursor in it): callosum
+   ranks **your library** by relevance to that sentence and shows a pick-list — each row gives the paper's **stance**
+   (supports / contrasts / mentions the claim), a **match** score, and a **quote** preview (the evidence). Pick one
+   and it inserts right after your sentence. Ranked by relevance, not citation count; nothing auto-inserts.
    *(The first run loads the local relevance + stance models, so it can take a few seconds.)*
-4. **CallosumRefresh** — re-render every citation in the document and rebuild the bibliography (run after edits, or
-   after moving citations around — numeric styles renumber by position).
-5. **CallosumSetStyle** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
+3. **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (run after edits, or
+   after moving citations — numeric styles renumber by position).
+4. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
-   the whole document re-renders in the new style. The choice is saved in the document.
-6. **CallosumFlatten** — convert the live citation fields to plain static text for hand-off (e.g. journal
+   the whole document re-renders. The choice is saved in the document.
+5. **Flatten to static text** — convert the live citation fields to plain text for hand-off (e.g. journal
    submission). **One-way:** after flattening, the citations no longer update.
+6. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
+
+(The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
+`CallosumSetStyle`, `CallosumFlatten`, `CallosumInsertCitation` (by id), `CallosumSetServerUrl` — are also runnable
+from the Python macro dialog if you installed by hand.)
 
 The bibliography is a managed block at the **end** of the document (under a "References" heading); it is rebuilt on
 every refresh. Keep your citations above it.

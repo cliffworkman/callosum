@@ -29,6 +29,11 @@ __pycache__/
 # package-lock.json; the binaries are not code we ship. ---
 node_modules/
 
+# --- Build artifacts (generated; not committed) ---
+# the LibreOffice extension (inc 162) — built on demand by tools/build_libreoffice_oxt.py (the backend builds it
+# to serve/install); rebuild with `python tools/build_libreoffice_oxt.py`.
+adapters/libreoffice/dist/
+
 # --- Large local data (not code) ---
 library/
 

@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 161) — the duplicates help section gained a "Merging duplicates (keeps everything)" subsection + corrected the stale "does not merge" gotcha. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 162) — new "Citing in LibreOffice Writer" help section (install from Settings + the Callosum menu/toolbar; Add vs Suggest); the suggesting-citations "on the way" line corrected. -->
+## 2026-06-27 — Increment 162: LibreOffice adapter v2 — discoverable, installable cite flow
+- **Files:** `adapters/libreoffice/oxt/{description.xml,META-INF/manifest.xml,Addons.xcu}` (new — the extension),
+  `adapters/libreoffice/callosum_addon.py` (new — the XJobExecutor dispatcher), `adapters/libreoffice/callosum_cite.py`
+  (configurable server URL + Add-citation search + `_ACTIONS`/dispatch + `_DISPATCH_CTX`), `tools/build_libreoffice_oxt.py`
+  (new), `app/backend/api/routers/libreoffice.py` (new — install/download endpoints) + `app.py` (register),
+  `app/frontend/js/35_settings.jsx` (LibreOffice-plugin section) + `callosum-app.html`, `adapters/libreoffice/README.md`,
+  `tests/test_libreoffice_oxt.py` + `tests/test_libreoffice_install.py` (new, +10), `.claude/qa-routes/route_35_settings.md`,
+  `.claude/security-audits/2026-06-27_libreoffice-install.md`, help corpus, `.gitignore` (dist/), `INCREMENT-162-NOTES.md`.
+- **What:** Package the LibreOffice citation macro as a one-click extension (`.oxt`) that adds a **Callosum** menu +
+  toolbar to Writer (Add citation = search the library / Suggest from the sentence / Refresh / Style / Flatten /
+  Server URL), installable from **Settings → LibreOffice plugin** (or a double-clickable `.oxt`). Replaces the
+  buried "Organize Macros → Python" + insert-by-id flow with the Zotero/Mendeley-style toolbar + search-to-cite.
+- **Why:** the routing was unusable for a real end user — "no end user is going to find this intuitive."
+- **Revert:** revert the commit, or remove `adapters/libreoffice/{oxt,callosum_addon.py}` + `tools/build_libreoffice_oxt.py`
+  + `routers/libreoffice.py` (+ its app.py registration) + the 35_settings section + the new tests. (No schema change.)
+
 ## 2026-06-27 — Increment 161: non-destructive merge of duplicate papers
 - **Files:** `app/backend/metadata/paper_merge.py` (new engine), `app/backend/api/routers/duplicates.py`
   (+`POST /papers/merge`), `app/backend/metadata/enrichment.py` (+`MERGED_SOURCE`),

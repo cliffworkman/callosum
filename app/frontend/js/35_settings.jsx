@@ -256,6 +256,34 @@ function MetadataSettings() {
   );
 }
 
+function LibreOfficeSettings() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const install = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPost("/integrations/libreoffice/install", {});
+    setBusy(false);
+    setMsg(r.ok ? (r.data.detail || "Opening LibreOffice…") : ("Couldn't install: " + (r.error || "error")));
+  };
+  return (
+    <>
+      <p className="eyebrow">LibreOffice plugin</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Cite while you write in LibreOffice Writer
+          <span className="settings-sub">
+            Installs the Callosum extension — a <b>Callosum</b> menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it.
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <button className="btn btn-ghost" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install plugin"}</button>
+          <a className="btn-link" href={API_BASE + "/integrations/libreoffice/plugin.oxt"} download>Download .oxt</a>
+        </div>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
@@ -316,6 +344,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         </div>
 
         <MetadataSettings />
+
+        <LibreOfficeSettings />
 
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 

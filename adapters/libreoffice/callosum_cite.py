@@ -28,6 +28,8 @@ from __future__ import annotations
 import base64
 import functools
 import json
+import os
+import urllib.parse
 import urllib.request
 
 # ── constants ──────────────────────────────────────────────────────────────────────────────────────────
@@ -41,6 +43,38 @@ DEFAULT_BASE = "http://127.0.0.1:8080"
 HTTP_TIMEOUT = 20
 PLACEHOLDER = "{citation}"  # transient visible text before the first render
 BIB_HEADING = "References"
+# Where the extension persists the (optional) server URL — outside LibreOffice's read-only extension package, in the
+# OS user home (the same `~/.callosum/` callosum uses for app-settings). Lets the .oxt point at a non-default port
+# without editing source. Pure file I/O (no UNO), so it's unit-testable with a temp path.
+CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".callosum", "libreoffice.json")
+
+# Set by the .oxt dispatcher (callosum_addon.py) so the dialog helpers can find a component context when this code
+# runs inside a UNO component (where the macro-only `XSCRIPTCONTEXT` global does NOT exist). None ⇒ macro mode.
+_DISPATCH_CTX = None
+
+
+def get_server_url(path: str = CONFIG_PATH) -> str:
+    """The configured callosum server base URL (sidecar JSON), or DEFAULT_BASE. Pure — no UNO."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            url = json.load(f).get("base")
+        if isinstance(url, str) and url.strip():
+            return url.strip().rstrip("/")
+    except Exception:
+        pass
+    return DEFAULT_BASE
+
+
+def set_server_url(url: str, path: str = CONFIG_PATH) -> None:
+    """Persist the server base URL to the sidecar JSON (blank ⇒ reset to DEFAULT_BASE). Pure — no UNO."""
+    cleaned = (url or "").strip().rstrip("/") or DEFAULT_BASE
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"base": cleaned}, f)
+
+
+def _base() -> str:
+    return get_server_url()
 
 
 # ── pure helpers (no UNO — unit-tested) ──────────────────────────────────────────────────────────────────
@@ -187,6 +221,37 @@ def fetch_suggestions(base: str, text: str, top_k: int = 5) -> list[dict]:
     )
     suggestions = data.get("suggestions") if isinstance(data, dict) else None
     return suggestions if isinstance(suggestions, list) else []
+
+
+SEARCH_TITLE_MAX = 90  # truncate the title in a pick-list row
+
+
+def search_library(base: str, query: str, limit: int = 20) -> list[dict]:
+    """Search the library for papers matching `query` (author / title / year / venue …) via the inc-89 endpoint.
+    Returns a list of paper rows ({id, title, authors, year, venue, …}); [] on a blank query / malformed shape.
+    This is the familiar 'type to find a paper' cite path (vs suggest-from-the-sentence)."""
+    q = (query or "").strip()
+    if not q:
+        return []
+    url = f"{base}/papers?q={urllib.parse.quote(q)}&limit={int(limit)}"
+    data = _get_json(url)
+    return data if isinstance(data, list) else []
+
+
+def build_search_rows(papers: list[dict]) -> list[str]:
+    """One pick-list row per search hit: ``Author [et al.] Year — Title`` (title truncated). Pure (no UNO)."""
+    rows = []
+    for p in papers:
+        authors = p.get("authors") or []
+        who = authors[0] if authors else "—"
+        if len(authors) > 1:
+            who += " et al."
+        year = p.get("year") or "n.d."
+        title = (p.get("title") or "Untitled").strip()
+        if len(title) > SEARCH_TITLE_MAX:
+            title = title[:SEARCH_TITLE_MAX] + "…"
+        rows.append(f"{who} {year} — {title}")
+    return rows
 
 
 # ── UNO layer (lazy `import uno`; driven by the macro entry points + the headless self-test) ───────────────
@@ -470,17 +535,22 @@ def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
     return value
 
 
-def _suggest_listbox(doc, rows: list[str]) -> int | None:
-    """A modal pick-list of citation suggestions (mirrors _input_box, with a ListBox). Returns the chosen row
-    index, or None if cancelled / nothing selected. Each row shows stance + author/year + match + a quote
-    preview — the writer reads the evidence and picks; nothing auto-inserts."""
+_SUGGEST_CAVEAT = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
+
+
+def _suggest_listbox(
+    doc, rows: list[str], title: str = "Suggest citations", caveat: str = _SUGGEST_CAVEAT
+) -> int | None:
+    """A modal pick-list (mirrors _input_box, with a ListBox). Returns the chosen row index, or None if
+    cancelled / nothing selected. Shared by Suggest (stance + quote rows) and Add-citation (search rows);
+    the writer reads each row and picks — nothing auto-inserts."""
     smgr = _component_ctx().ServiceManager
     ctx = _component_ctx()
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
-    dm.Width, dm.Height, dm.Title = 320, 172, "Suggest citations"
+    dm.Width, dm.Height, dm.Title = 320, 172, title
     label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
     label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 308, 22
-    label.Label = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
+    label.Label = caveat
     label.MultiLine = True
     dm.insertByName("lbl", label)
     lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
@@ -515,6 +585,9 @@ def _suggest_listbox(doc, rows: list[str]) -> int | None:
 
 
 def _component_ctx():
+    # Component mode (.oxt dispatcher) sets _DISPATCH_CTX; macro mode uses the injected XSCRIPTCONTEXT global.
+    if _DISPATCH_CTX is not None:
+        return _DISPATCH_CTX
     return XSCRIPTCONTEXT.getComponentContext()  # noqa: F821
 
 
@@ -553,54 +626,120 @@ def suggest_and_insert(doc, base: str = DEFAULT_BASE) -> str | None:
     return insert_citation(doc, suggestions[idx].get("paper_id"), base, cursor=_insertion_cursor_at_end(doc))
 
 
-def CallosumInsertCitation(*_args):
-    doc = _current_doc()
+def add_citation_by_search(doc, base: str) -> str | None:
+    """Add a citation by SEARCHING the library: prompt for a query, show matching papers, insert the chosen one.
+    The familiar 'type to find a paper' cite flow (vs suggest-from-the-sentence). Returns the mark rnd or None."""
+    query = _input_box(doc, "Add citation", "Search your library (author / title / year):")
+    if not query or not query.strip():
+        return None
+    papers = search_library(base, query.strip())
+    if not papers:
+        _msgbox("No matching papers in your library.")
+        return None
+    idx = _suggest_listbox(doc, build_search_rows(papers), "Add citation", "Pick a paper from your library to cite.")
+    if idx is None:
+        return None
+    return insert_citation(doc, papers[idx]["id"], base, cursor=_insertion_cursor(doc))
+
+
+# ── interactive flows (the prompt+act bodies; shared by the macro entry points AND the .oxt dispatcher) ─────
+
+
+def insert_citation_interactive(doc, base: str) -> None:
+    """Prompt for a paper id and insert it (the by-id path; the search path is add_citation_by_search)."""
     paper_id = _input_box(doc, "Insert citation", "callosum paper id:")
     if not paper_id:
         return
-    try:
-        insert_citation(doc, paper_id.strip(), DEFAULT_BASE)
-    except Exception as exc:  # surface, never crash Writer
-        _msgbox(f"Insert failed: {exc}")
+    insert_citation(doc, paper_id.strip(), base)
 
 
-def CallosumSuggestCitations(*_args):
-    try:
-        suggest_and_insert(_current_doc(), DEFAULT_BASE)
-    except Exception as exc:  # surface, never crash Writer
-        _msgbox(f"Suggest failed: {exc}")
-
-
-def CallosumRefresh(*_args):
-    try:
-        refresh(_current_doc(), DEFAULT_BASE)
-    except Exception as exc:
-        _msgbox(f"Refresh failed: {exc}")
-
-
-def CallosumSetStyle(*_args):
-    doc = _current_doc()
+def set_style_interactive(doc, base: str) -> None:
     style, locale = _get_pref(doc)
     chosen = _input_box(doc, "Citation style", "CSL style id (e.g. apa, ieee, nature):", style)
     if not chosen:
         return
     loc = _input_box(doc, "Locale", "Locale (en-US / en-GB):", locale) or DEFAULT_LOCALE
-    try:
-        set_style(doc, chosen.strip(), loc.strip(), DEFAULT_BASE)
-    except Exception as exc:
-        _msgbox(f"Set style failed: {exc}")
+    set_style(doc, chosen.strip(), loc.strip(), base)
 
 
-def CallosumFlatten(*_args):
-    doc = _current_doc()
+def flatten_interactive(doc) -> None:
     n = flatten(doc)
     _msgbox(f"Flattened {n} citation(s) to static text. Live updating is now off for this document.")
 
 
+def set_server_url_interactive(doc) -> None:
+    url = _input_box(doc, "callosum server URL", "Server URL (e.g. http://127.0.0.1:8080):", get_server_url())
+    if url is None:
+        return
+    set_server_url(url.strip())
+    _msgbox(f"callosum server URL set to {get_server_url()}.")
+
+
+# Action registry — the single source of truth for what each Callosum command does. Keyed by the action name the
+# .oxt Addons.xcu menu/toolbar dispatches (`service:com.callosum.cite.Dispatcher?<action>`). Each value takes
+# (doc, base); flatten/setServerUrl ignore base. `add_citation_by_search` (search-to-cite) is added in SP2.
+_ACTIONS = {
+    "addCitation": add_citation_by_search,
+    "insert": insert_citation_interactive,
+    "suggest": suggest_and_insert,
+    "refresh": refresh,
+    "setStyle": set_style_interactive,
+    "flatten": lambda doc, base: flatten_interactive(doc),
+    "setServerUrl": lambda doc, base: set_server_url_interactive(doc),
+}
+
+
+def dispatch(action: str, doc, base: str) -> None:
+    """Run a named action against `doc`. Shared by the macro entry points (macro mode) and the .oxt dispatcher
+    (component mode); the caller resolves doc + base and wraps errors."""
+    _ACTIONS[action](doc, base)
+
+
+def _macro(action: str) -> None:
+    """Macro-mode entry point body: resolve the doc + base from the script context, run the action, surface errors."""
+    try:
+        dispatch(action, _current_doc(), _base())
+    except Exception as exc:  # surface, never crash Writer
+        _msgbox(f"{action}: {exc}")
+
+
+# ── macro entry points (Tools → Macros → Organize Macros → Python; also bundled in the .oxt) ───────────────
+
+
+def CallosumAddCitation(*_args):
+    _macro("addCitation")
+
+
+def CallosumInsertCitation(*_args):
+    _macro("insert")
+
+
+def CallosumSuggestCitations(*_args):
+    _macro("suggest")
+
+
+def CallosumRefresh(*_args):
+    _macro("refresh")
+
+
+def CallosumSetStyle(*_args):
+    _macro("setStyle")
+
+
+def CallosumFlatten(*_args):
+    _macro("flatten")
+
+
+def CallosumSetServerUrl(*_args):
+    _macro("setServerUrl")
+
+
 g_exportedScripts = (
+    CallosumAddCitation,
     CallosumInsertCitation,
     CallosumSuggestCitations,
     CallosumRefresh,
     CallosumSetStyle,
     CallosumFlatten,
+    CallosumSetServerUrl,
 )

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 161** (see Increment workflow) with **591 pytest tests
+It is currently at **Increment 162** (see Increment workflow) with **601 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -228,7 +228,7 @@ callosum/
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
 │   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
    │                          gaps [literature gap-finder, inc 135],settings [BYOK: Gemini key + egress
-   │                          consent, inc 146],help}.py [models + handlers])
+   │                          consent, inc 146],libreoffice [LO plugin install/download, inc 162],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables; re-exported from
 │   │   │                          schema — inc 137 split to keep schema.py < 600], gap_repo.py [gap_candidates
@@ -274,16 +274,22 @@ callosum/
 │   │                              (assembled by app/backend/api/frontend.py; build → callosum-app.html)
 │   └── desktop-shell/             (placeholder — Tauri, post-V1)
 ├── adapters/                      ← word-processor adapters (CLIENT code, ships into the word processor; NOT the
-│   └── libreoffice/               app, NOT a server integration). inc 108: callosum_cite.py [UNO cite-while-you-write
-│                                  macro: Insert/Refresh/SetStyle/Flatten + inc-157 SuggestCitations (highlight→suggest
-│                                  on /citations/suggest)], README.md, selftest_uno.py [headless round-trip harness]. Word/Docs next.
+│   └── libreoffice/               app, NOT a server integration). inc 108: callosum_cite.py [UNO macro: Insert/
+│                                  Refresh/SetStyle/Flatten + inc-157 Suggest + inc-162 AddCitation (search) /
+│                                  SetServerUrl + an _ACTIONS/dispatch registry + configurable base URL]. inc 162 (v2):
+│                                  oxt/ [description.xml, META-INF/manifest.xml, Addons.xcu = the Callosum menu/toolbar]
+│                                  + callosum_addon.py [XJobExecutor dispatcher] → a one-click `.oxt` (built by
+│                                  tools/build_libreoffice_oxt.py; installable from Settings, inc 162). README.md,
+│                                  selftest_uno.py [headless round-trip: unopkg-installs the .oxt + verifies the
+│                                  dispatcher]. Word/Docs next.
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
-│                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py; qa/ [inc 120:
+│                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py,
+│                                  build_libreoffice_oxt.py [the LO extension build, inc 162]; qa/ [inc 120:
 │                                  build_surface_map.py = surface-coverage gate, supervisor.py = Codex-exec
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
@@ -646,6 +652,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| LibreOffice adapter v2 = a one-click `.oxt` (Callosum menu/toolbar via an XJobExecutor dispatcher) + search-to-cite + install-from-Settings (inc 162) | The inc-108 adapter worked but the *routing* was unusable (macros buried in Organize Macros → Python; insert by numeric paper id). Research (Zotero/Mendeley/EndNote) = a toolbar that appears after install + an "Add Citation" search box. Built: a single **`.oxt`** (`adapters/libreoffice/oxt/` — `Addons.xcu` Callosum menu+toolbar; manifest registers `callosum_addon.py`, a UNO **`XJobExecutor`** dispatcher → `service:com.callosum.cite.Dispatcher?<action>`, **path-independent** vs the fragile `vnd.sun.star.script:` URIs). `callosum_cite.py` gained an `_ACTIONS`/`dispatch` registry shared by the macro entry points + the dispatcher, `_DISPATCH_CTX` (bridge the component context into the dialog helpers, which otherwise need the macro-only `XSCRIPTCONTEXT`), a configurable server URL (`~/.callosum/libreoffice.json`), and **`add_citation_by_search`** (GET `/papers?q=` → pick-list → insert — the everyday cite action, no ids; **Suggest** stays the relevance-from-the-sentence complement). `tools/build_libreoffice_oxt.py` (stdlib zip; importable). **One-click install from Settings:** `routers/libreoffice.py` `GET /integrations/libreoffice/plugin.oxt` (serve) + `POST …/install` (open the .oxt → LibreOffice Extension Manager; graceful `{opened:false}` fallback) + a `35_settings.jsx` LibreOffice-plugin section. **Gotchas (for Word/Docs):** a Python UNO component must import siblings **lazily** after `sys.path.insert(dirname(__file__))` (registration-time the ext dir isn't importable); the component needs `_DISPATCH_CTX` (no `XSCRIPTCONTEXT`). **No migration, no egress, no new dependency.** Audit `2026-06-27_libreoffice-install.md` PASS (fixed-artifact path; local-only → pre-hosted-deploy gate); Principles non-triggering (packaging/UX). Verified through real LibreOffice (`unopkg add` rc=0 + dispatcher resolves + search-to-cite, SELFTEST OK) + headed Settings drive. |
 | Non-destructive paper merge = re-point source rows onto a survivor + Trash the husks; never delete (inc 161) | The user's real workflow (a preprint + its published copy → *merge*, not delete; keep the preprint PDF + ensure the OSF link survives). Scales the long-deferred library merge into the dedup flow. `metadata/paper_merge.py::merge_papers`: re-point `attachments`/`chunks`/`annotations`/`notes`/`paper_external_identifiers` via `UPDATE paper_id` (no per-paper UNIQUE — verified; chunk embeddings follow via the unchanged `chunk.id`, so **no vector surgery**); union `paper_tags`/`collection_papers`/manual `cluster_node_papers` idempotently; **free the husk's UNIQUE id columns first** (`doi`/`openalex_work_id`/… → NULL; `csl_json` keeps them for audit) so the survivor can adopt them (soft-delete keeps the row, so the UNIQUE would otherwise block it); compose the survivor's metadata from the user's per-field picks via `paper_edits.build_paper_update` + a **"Merged from…" lineage note** in `csl_json["note"]` (so a link can never be silently lost) + `imported_source=MERGED_SOURCE` (kept out of the crossref-update allowlist like `user-edited`); set the chosen primary attachment (**both PDFs kept**); **soft-delete** the husks (restorable; FK rows already moved). `POST /papers/merge` in `routers/duplicates.py` (registered before `/papers/{paper_id}`; `MergeValidationError`→422, `MergeConflictError`→409 on a DOI clash with an outside paper; `conn.commit()` all-or-nothing). Frontend `38_merge.jsx` (survivor + per-conflict-field + primary-PDF picks), launched from the Duplicates modal + the library bulk bar (≥2). **No migration, no egress, no new dependency.** Derived signals/findings recompute (not migrated); the husk retains its copies. Audit `2026-06-27_paper-merge.md` PASS; Principles gate run (preserves provenance/inspectability — the aligned alternative to lossy delete). |
 | Highlight-to-suggest / evaluate = a local engine + the `POST /citations/suggest` contract + an in-app Cite pane (Track C SP1a, inc 156) | The highest-value novel capability (#30), built as engine-first (like inc-107→108): given a draft sentence, **suggest** library papers to cite (`retrieval.search_similar(target_types=("chunk",))` run against the span → best chunk per paper → rank by score; trashed excluded) and **evaluate** each candidate's stance via a new **local NLI stance scorer** (`summarization/verification.py::NLIStanceScorer` — the existing `cross-encoder/nli-MiniLM2-L6-H768` 3-way softmax: entailment→support, contradiction→contrast, neutral→mention; `_label_index` generalizes `_entailment_index`; any failure → `None`, never a guessed verdict). `app/backend/citations/suggest.py::suggest_citations` + `POST /citations/suggest {text≤4000, top_k≤20, evaluate}` → `{suggestions:[{paper_id,title,year,author,match_score,chunk_id,quote,page_start/end,coordinate_precision:"region",bbox_json,stance}]}`. **Fully local — no egress** (local embed + local NLI; the heavy models are cached on `app.state`, injected ones win for tests via `create_app(stance_scorer=…)`). In-app **Cite** pane (`js/37_cite.jsx`, THEORY accordion order 25): paste → cards (stance pill · match · verbatim quote · Open source region · Copy BibTeX). **Honesty (Principles gate run):** suggestions carry their quote+page+match-score as the **reason** (#8), are **candidates the author picks** — nothing auto-inserts (#3/#5); stance leads with the verbatim quote+confidence, a labeled signal not a bare verdict (#1/#4), local-NLI-only; evidence is **region** precision, never a fabricated exact rect (#2); `match_score` is one labeled similarity, **no opaque composite** (#7); ranked by sentence-match not citation count (bias is an SP3 concern); accuses no one (A-A veto). Audit `2026-06-27_citation-suggest.md` PASS; **no migration / no new dependency**. Experience pass (deadline-writer persona) → added the Copy-BibTeX extract + visible stance-unavailable + de-duped boilerplate in-increment. **NEXT: SP1b** — the LibreOffice "Suggest citations" UNO macro on this contract (insert via the inc-108 flow); then SP2 beyond-library discovery (OpenAlex/Semantic-Scholar) + Stage-4 section-scoping. |
 | THEORY/METHODS side panes = accordion on a module registry (inc 121, the "next major upgrade" UI-shell half) | Replaced the fixed left `Sidebar` (Axes+Tags) + right `RightPane` (inc-57 Synthesis/Details drag-split) with two **accordions** driven by an extensible **registry** (`05_panes.jsx`: `registerPaneSection({id,label,paneId,order,render})` + `<PaneAccordion>`). **Left = THEORY** (Axes/Synthesis/Tags, AXES default); **right = METHODS** (Details). Sections **self-register from their own chunks** (load order 05<10<15<20<25 ⇒ registry-first; `order` = display position; adding a section is one call, **zero `PaneAccordion` edits** — proven with a throwaway chunk). **Mount-but-hide** keeps an in-progress synthesis alive across a switch; open section persists (`callosum.theoryOpen`/`methodsOpen`). **Soft labels** (section headers only; `paneId` is the internal architecture + future rename). Behavior-preserving except **Tags now always shows** (empty-state hint) for discoverability. **(Superseded by inc 139: the registry gained tabs-within-a-section — Tags is now the second tab of the AXES section, not its own section; METHODS reordered Data-consistency before Statistics-check. See DESIGN.md §5.)** **esbuild DCEs unreferenced top-level functions** (a registered-but-unused component is stripped until used → wire the consumer in the same change; raw-assembly inclusion is the gate, not bundle-grep). `25_detail.jsx` was already 625 (>600) → the Details registration lives in `05_panes.jsx` to not worsen it; a split is queued (the statcheck→METHODS move relieves it). Frontend-only; Principles gate non-triggering. DESIGN.md §5 = the placement rubric + registry pattern + AI-usage principle. Verified headed (`:8097`, 0 console errors). **NEXT (user-queued):** statcheck Settings→a METHODS section (the first real METHODS module); investigate synthesis showing no text summary. |
@@ -780,7 +787,48 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 161 (non-destructive merge of duplicate papers): the user's real workflow —
+*Last updated: 2026-06-27 — increment 162 (LibreOffice adapter v2 — a discoverable, installable cite flow): the
+inc-108 adapter worked but the *routing* was unusable — macros buried in Tools → Macros → Organize Macros → Python,
+and insert-by-numeric-paper-id. The user: "no end user is going to find this intuitive"; asked to research how the
+ref managers do it. Research (Zotero/Mendeley/EndNote): a **toolbar/menu that appears after install** + an **"Add
+Citation" search-as-you-type** box over the library (our **Suggest** = relevance-from-the-sentence is a novel
+complement none of them have). **Built (3 phases): SP1** — a single **`.oxt`** (`adapters/libreoffice/oxt/`:
+`Addons.xcu` = a top-level **Callosum** menu + toolbar; `META-INF/manifest.xml` registers `callosum_addon.py`, a UNO
+**`XJobExecutor`** dispatcher whose menu URLs are `service:com.callosum.cite.Dispatcher?<action>` — **path-independent**
+vs the fragile `vnd.sun.star.script:` package-path URIs). `callosum_cite.py` gained an **`_ACTIONS`/`dispatch`**
+registry shared by the macro entry points (macro mode) + the dispatcher (component mode), **`_DISPATCH_CTX`** (bridges
+the component context into the dialog helpers, which otherwise use the macro-only `XSCRIPTCONTEXT`), and a
+**configurable server URL** (sidecar `~/.callosum/libreoffice.json`, pure I/O) + `CallosumSetServerUrl`. New
+`tools/build_libreoffice_oxt.py::build_oxt` (stdlib `zipfile`; importable so the backend builds on demand). **SP2** —
+**`add_citation_by_search`** (GET `/papers?q=` → a pick-list → `insert_citation`; the everyday cite action, no ids) +
+`CallosumAddCitation`, wired as the top menu item; `_suggest_listbox` parameterized so the search picker reuses it.
+**SP3** — install from callosum: `routers/libreoffice.py` `GET /integrations/libreoffice/plugin.oxt` (build+serve) +
+`POST …/install` (build + open with the OS handler → LibreOffice's Extension Manager; graceful `{opened:false}` +
+download fallback, never 500) + a `35_settings.jsx` **LibreOffice plugin** section (Install + Download .oxt). **No
+migration, no egress, no new dependency.** Audit `.claude/security-audits/2026-06-27_libreoffice-install.md` PASS
+(fixed-artifact path → no injection; local-only → flagged for the pre-hosted-deploy gate, like the folder-scan note);
+Principles non-triggering (packaging/UX; Add-Citation reuses the library search + the inc-108 insert; credit-the-lineage
+already satisfied for the Zotero `CSL_CITATION` field *pattern*). Rule #10: `route_35_settings.md` extended → surface
+**113/113 API + 597/597 FE, 0 uncovered**; help corpus gained a "Citing in LibreOffice Writer" section + the adapter
+README reworked to v2 (`HELP-DOCS-SYNCED` → 162). pytest **601** (+10 `test_libreoffice_oxt.py` + `test_libreoffice_install.py`;
+the suite is slow ~16min with model loading — run offline `HF_HUB_OFFLINE=1`); `ruff` clean; build + assembly green.
+**Verified through real LibreOffice** (`.local/lo_roundtrip/run_roundtrip.py`: builds the `.oxt`, **`unopkg add` rc=0**,
+SELFTEST OK = IEEE→APA→flatten→**suggest-insert**→**search-to-cite**→**dispatcher resolves** [`com.callosum.cite.Dispatcher`
+instantiates + exposes `trigger` ⟹ the menu URLs work]) + **headed Settings drive, no egress**
+(`.local/visual/drive_inc162_settings.py`, OS opener stubbed: Download .oxt href + Install POST + result; 0
+console/page/genai). **GOTCHAS for the Word/Docs adapters:** a Python UNO **component** must import siblings **lazily**
+after `sys.path.insert(dirname(__file__))` (at `unopkg add` registration the ext dir isn't importable → the first
+spike's `ModuleNotFoundError: callosum_cite`); the dialog/`_msgbox` helpers need `XSCRIPTCONTEXT` (macro-only) so a
+component injects `_DISPATCH_CTX`; the round-trip harness leaked its uvicorn when `start_stack()` raised before its
+try/finally (locked `roundtrip.sqlite` → next-run `PermissionError`) — now it tears down on any startup failure +
+cleans the LO profile + clears `unopkg`'s bootstrap soffice. **For the user (GUI eyeball):** Settings → LibreOffice
+plugin → Install → restart Writer → the **Callosum** menu/toolbar appear → **Add citation** searches + inserts;
+**Suggest** works from a highlighted sentence (the Addons.xcu *rendering* is GUI-only; the dispatch + actions are
+headless-verified). Notes: `INCREMENT-162-NOTES.md`. **NEXT:** the `40_app.jsx` 630/600 split (carried from inc 161);
+then live search-as-you-type Add-Citation (user-deferred) / the Word (Office.js) + Google Docs adapters / #30 SP2
+beyond-library discovery.
+
+Earlier — increment 161 (non-destructive merge of duplicate papers): the user's real workflow —
 a **preprint + its published copy**, *merge* not delete, **keep the preprint PDF + ensure the OSF link survives**,
 and never risk losing info by mis-identifying which line item to delete. Scales the long-deferred library merge into
 the dedup flow. New **`app/backend/metadata/paper_merge.py::merge_papers`**: re-points the merged copies' **source
