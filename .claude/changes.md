@@ -9,7 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 151) — help corpus current as of the help-assistant toggle + validation disclaimer -->
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 152) — help corpus current as of OS-keychain key storage -->
+## 2026-06-27 — Increment 152: OS-keychain key storage (optional keyring, file fallback)
+- **Files:** `app/backend/app_settings.py`, `integrations/gemini/generator.py`, `app/backend/api/routers/settings.py`,
+  `app/frontend/js/35_settings.jsx` + `callosum-app.html`, `requirements.txt`, `app/backend/help/help_content.md`,
+  `tests/test_settings.py`, `.claude/security-audits/2026-06-27_keychain-storage.md`, `INCREMENT-152-NOTES.md`.
+- **What:** BYOK provider keys can live in the **OS keychain** (`keyring`, optional) instead of the gitignored file.
+  `get/set_provider_key` are keychain-aware (keychain → file fallback; migrate-on-save; fail-closed to file). `GET
+  /settings` reports `key_storage` ("keychain"/"file"); the UI shows where keys live. No hard new dependency.
+- **Why:** the deferred #39 hardening — encrypted-at-rest key storage when available, with a graceful fallback.
+- **Revert:** restore the file-only `set/get_provider_key` + `_resolve_key`/`_stored_key`; from git.
+
 ## 2026-06-27 — Increment 151: validation-lock disclaimer + help-assistant toggle in Settings
 - **Files:** `app/backend/api/routers/settings.py`, `app/backend/app_settings.py`, `integrations/gemini/generator.py`,
   `app/frontend/js/35_settings.jsx` + `styles.css` + `callosum-app.html`, `app/backend/help/help_content.md`,

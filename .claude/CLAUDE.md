@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 151** (see Increment workflow) with **552 pytest tests
+It is currently at **Increment 152** (see Increment workflow) with **556 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -333,8 +333,9 @@ per-probe split). Tests are now per-resource (`tests/test_papers.py`, etc.) shar
 `GOOGLE_API_KEY` (Gemini) and `CALLOSUM_DB_URL` come from the environment. Never commit a key
 or hardcode one in a `.py` file. Non-secret constants (model names, thresholds, table names)
 are fine as literals. When a `.env` is introduced, it must be gitignored. **BYOK (inc 146):** a user can also
-set the Gemini key + egress consent from Settings; they persist in a local file at `~/.callosum/app-settings.json`
-(`app/backend/app_settings.py`; override `CALLOSUM_SETTINGS_PATH`) — outside the repo + the synced Dropbox folder.
+set the Gemini key + egress consent from Settings; they persist either in the **OS keychain** (inc 152, optional `keyring`) or in a local file at
+`~/.callosum/app-settings.json` (`app/backend/app_settings.py`; override `CALLOSUM_SETTINGS_PATH`) — outside the repo
++ the synced Dropbox folder; multi-provider (Gemini/OpenAI/Anthropic/local) since inc 149.
 The key is **write-only over the wire** (`GET /settings` returns a set/not-set status, never the value), never
 logged, and `GeminiConfig.from_environment()` overlays it over the env fallback. Egress stays default-off.
 
@@ -773,7 +774,29 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 151 (BYOK deferred items: validation-lock disclaimer + help-assistant toggle):
+*Last updated: 2026-06-27 — increment 152 (BYOK deferred item: OS-keychain key storage — optional `keyring`, file
+fallback): per-provider BYOK keys can live in the **OS keychain** (Windows Credential Manager / macOS Keychain /
+Linux Secret Service) instead of the gitignored file. `app_settings._keyring()` returns the `keyring` module iff
+importable with a usable backend (else None → file); `get_provider_key` reads keychain→file (a pre-keychain key is
+never lost), `set_provider_key` writes the vault + **removes any plaintext file copy** (migrate-on-save) when
+available, and **every keyring call is `try/except` → graceful file fallback** (never crashes). `set_api_key`/
+`stored_api_key` (inc-146 gemini entry points) route through the per-provider layer; `generator._resolve_key(provider)`
+reads via `get_provider_key` + the per-provider env fallback; `settings._stored_key` likewise. `SettingsStatus`
+gains **`key_storage`** ("keychain"|"file") + the UI shows where keys live. **`keyring` is OPTIONAL** (a commented
+`requirements.txt` entry; `pip install keyring` to enable) — **no new hard dependency**, the ethos holds; absent (the
+dev/CI default) → everything uses the file store exactly as before. Keys stay **write-only over the wire**. **Audit
+`.claude/security-audits/2026-06-27_keychain-storage.md` PASS** (strictly-stronger at-rest store + safe fallback; no
+key loss; no plaintext lingering post-migration; fail-closed; keys never logged/returned). pytest **556** (+4
+`test_settings.py`: in-memory fake keyring → vault-not-file, migrate-on-resave, backend-error→file, status reports
+`key_storage`); `ruff` clean; build + assembly green; QA surface **109/109 API + 561/561 FE, 0 uncovered** (no new
+surface); help corpus + privacy note the keychain option (`HELP-DOCS-SYNCED` → 152). **Verified headed, no egress**
+(`.local/visual/drive_inc152_keystorage.py` — the key-storage note renders [file branch; keyring not installed here],
+key not in DOM, 0 console/page/genai); **the real OS-vault round-trip is the user's spot-check** (needs `keyring`
+installed → writes the real Credential Manager). Notes: `INCREMENT-152-NOTES.md`. **This completes the BYOK deferred
+items (inc 151 + 152); the whole BYOK arc — #10 (146) + Test-key (147) + nudge (148) + #39 engine/UI (149/150) +
+disclaimer/help-toggle (151) + keychain (152) — is shipped.** **NEXT:** the open backlog is the user's pick.
+
+Earlier — increment 151 (BYOK deferred items: validation-lock disclaimer + help-assistant toggle):
 two small Settings → AI features additions. **(A)** A standing footer disclaimer (`.settings-ai-note`): *"Whichever
 provider you choose, every summary sentence is still verified locally against your PDFs — your model choice affects
 draft quality + coverage, never which citations are accepted."* — the validation-lock (local, provider-agnostic

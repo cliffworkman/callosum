@@ -167,8 +167,9 @@ function AiSettings() {
             <label className="settings-field-label">{meta.label} API key
               <span className="settings-sub">
                 {keySet
-                  ? (fromEnv ? "Set via an environment variable." : "A key is saved on this machine.")
-                  : "Not set. AI features need a key — stored locally, sent only to the provider."}
+                  ? (fromEnv ? "Set via an environment variable."
+                    : (status && status.key_storage === "keychain" ? "A key is saved in your OS keychain." : "A key is saved in a local file on this machine."))
+                  : "Not set. AI features need a key — stored locally (your OS keychain if available), sent only to the provider."}
                 {meta.keyUrl ? <>{" "}<a href={meta.keyUrl} target="_blank" rel="noopener noreferrer">Get a key →</a></> : null}
               </span>
             </label>

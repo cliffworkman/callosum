@@ -72,7 +72,7 @@ class LLMConfig:
         return cls(
             provider=provider,
             model=model,
-            api_key=_resolve_key(provider, stored),
+            api_key=_resolve_key(provider),
             base_url=base_url,
             data_egress_enabled=enabled,
             help_assistant_enabled=help_enabled,
@@ -84,17 +84,15 @@ class LLMConfig:
         return self.api_key or (os.getenv(self.api_key_env) if self.provider == "gemini" else None)
 
 
-def _resolve_key(provider: str, stored: dict) -> str | None:
-    def _s(v: object) -> str | None:
-        return v if isinstance(v, str) and v.strip() else None
+def _resolve_key(provider: str) -> str | None:
+    # The stored key comes from the OS keychain (if available) or the local file (inc 152); env is the fallback.
+    from app.backend.app_settings import get_provider_key
 
-    if provider == "gemini":
-        return _s(stored.get("api_key")) or os.getenv("GOOGLE_API_KEY")  # inc-146 key stored under "api_key"
-    if provider == "openai":
-        return _s(stored.get("openai_api_key")) or os.getenv("OPENAI_API_KEY")
-    if provider == "anthropic":
-        return _s(stored.get("anthropic_api_key")) or os.getenv("ANTHROPIC_API_KEY")
-    return _s(stored.get("local_api_key"))  # local: usually none (a loopback server)
+    key = get_provider_key(provider)
+    if key:
+        return key
+    env_var = {"gemini": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}.get(provider)
+    return os.getenv(env_var) if env_var else None
 
 
 # Back-compat alias: the config is multi-provider now, but ~12 call sites import ``GeminiConfig``.

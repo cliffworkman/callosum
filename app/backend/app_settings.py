@@ -54,14 +54,8 @@ def _write(data: dict) -> None:
 
 
 def set_api_key(key: str | None) -> None:
-    """Store the key (trimmed); empty/whitespace/None clears it."""
-    data = load_settings()
-    key = (key or "").strip()
-    if key:
-        data["api_key"] = key
-    else:
-        data.pop("api_key", None)
-    _write(data)
+    """Store the Gemini key (the inc-146 entry point) — routes through the per-provider keychain/file store."""
+    set_provider_key("gemini", key)
 
 
 def set_data_egress(enabled: bool) -> None:
@@ -79,9 +73,8 @@ def set_help_assistant_enabled(enabled: bool) -> None:
 
 
 def stored_api_key() -> str | None:
-    """The stored key, or None if unset/blank."""
-    key = load_settings().get("api_key")
-    return key if isinstance(key, str) and key.strip() else None
+    """The stored Gemini key (keychain or file), or None if unset/blank."""
+    return get_provider_key("gemini")
 
 
 def stored_egress() -> bool | None:
@@ -128,11 +121,70 @@ def set_local_base_url(url: str | None) -> None:
     _write(data)
 
 
-def set_provider_key(provider: str, key: str | None) -> None:
-    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field). Empty/whitespace clears it."""
+# --- OS-keychain storage (inc 152): optional `keyring`, file fallback ---
+# Per-provider keys go to the OS vault when `keyring` is installed with a working backend; otherwise they stay in
+# the gitignored settings file (the inc-146 behavior). `keyring` is an OPTIONAL dependency — the app + tests work
+# without it. Service name + usernames are constants (no request data reaches keyring).
+_KEYCHAIN_SERVICE = "callosum"
+
+
+def _keyring():
+    """Return the `keyring` module iff importable AND it has a usable backend, else None (→ file fallback)."""
+    try:
+        import keyring
+        from keyring.backends import fail
+
+        if isinstance(keyring.get_keyring(), fail.Keyring):
+            return None
+        return keyring
+    except Exception:
+        return None
+
+
+def keychain_available() -> bool:
+    return _keyring() is not None
+
+
+def get_provider_key(provider: str) -> str | None:
+    """The stored key for a provider — from the OS keychain if present, else the local file. Either place is
+    honored so a pre-keychain key is never lost (re-saving then migrates it to the keychain)."""
     field = _PROVIDER_KEY_FIELD.get(provider, "api_key")
-    data = load_settings()
+    kr = _keyring()
+    if kr is not None:
+        try:
+            v = kr.get_password(_KEYCHAIN_SERVICE, field)
+            if v and v.strip():
+                return v
+        except Exception:
+            pass  # backend error → fall through to the file
+    v = load_settings().get(field)
+    return v if isinstance(v, str) and v.strip() else None
+
+
+def set_provider_key(provider: str, key: str | None) -> None:
+    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field). Empty/whitespace clears it. Uses the
+    OS keychain when available (and removes any plaintext file copy — migration on save); else the file."""
+    field = _PROVIDER_KEY_FIELD.get(provider, "api_key")
     key = (key or "").strip()
+    kr = _keyring()
+    if kr is not None:
+        try:
+            if key:
+                kr.set_password(_KEYCHAIN_SERVICE, field, key)
+            else:
+                try:
+                    kr.delete_password(_KEYCHAIN_SERVICE, field)
+                except Exception:
+                    pass  # nothing stored to delete
+            # Drop any plaintext copy left in the file (migrate away from inc-146 file storage).
+            data = load_settings()
+            if field in data:
+                data.pop(field, None)
+                _write(data)
+            return
+        except Exception:
+            pass  # keychain write failed → fall through to the file store
+    data = load_settings()
     if key:
         data[field] = key
     else:

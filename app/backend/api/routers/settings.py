@@ -20,13 +20,7 @@ from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
 
-# Per-provider stored-key field + env fallback (gemini keeps the inc-146 "api_key" field).
-_KEY_FIELD = {
-    "gemini": "api_key",
-    "openai": "openai_api_key",
-    "anthropic": "anthropic_api_key",
-    "local": "local_api_key",
-}
+# Per-provider env-var fallback (gemini's is GOOGLE_API_KEY). Stored keys live in app_settings (keychain or file).
 _KEY_ENV = {"gemini": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
 
@@ -41,6 +35,7 @@ class SettingsStatus(BaseModel):
     provider_keys_set: dict[str, bool] = {}  # which cloud providers have a stored UI key
     help_assistant_enabled: bool = False  # the AI help assistant's OWN gate (independent of egress)
     help_source: str = "env"  # "ui" | "env"
+    key_storage: str = "file"  # "keychain" (OS vault, if `keyring` is available) | "file" (gitignored local store)
 
 
 class SettingsUpdate(BaseModel):
@@ -56,9 +51,8 @@ class SettingsUpdate(BaseModel):
     help_assistant_enabled: bool | None = None
 
 
-def _stored_key(stored: dict, provider: str) -> bool:
-    val = stored.get(_KEY_FIELD.get(provider, "api_key"))
-    return isinstance(val, str) and bool(val.strip())
+def _stored_key(provider: str) -> bool:
+    return app_settings.get_provider_key(provider) is not None  # keychain or file
 
 
 def _status() -> SettingsStatus:
@@ -66,7 +60,7 @@ def _status() -> SettingsStatus:
     provider = stored.get("provider")
     if provider not in ALL_PROVIDERS:
         provider = "gemini"
-    ui_key = _stored_key(stored, provider)
+    ui_key = _stored_key(provider)
     env_key = bool(os.getenv(_KEY_ENV[provider])) if provider in _KEY_ENV else False
     stored_egress = stored.get("data_egress_enabled")
     if isinstance(stored_egress, bool):
@@ -88,9 +82,10 @@ def _status() -> SettingsStatus:
         egress_source=egress_source,
         local_base_url=(stored.get("local_base_url") or None),
         model=(stored.get("model") or ""),
-        provider_keys_set={p: _stored_key(stored, p) for p in ("gemini", "openai", "anthropic")},
+        provider_keys_set={p: _stored_key(p) for p in ("gemini", "openai", "anthropic")},
         help_assistant_enabled=help_enabled,
         help_source=help_source,
+        key_storage="keychain" if app_settings.keychain_available() else "file",
     )
 
 

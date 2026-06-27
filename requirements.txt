@@ -13,3 +13,7 @@ numpy>=1.26,<3
 scipy>=1.11,<2  # statcheck p-value recomputation (inc 95); already present transitively via scikit-learn
 google-genai>=1,<2
 uvicorn[standard]>=0.30,<1
+
+# Optional (inc 152): `pip install keyring` to store BYOK provider API keys in your OS keychain
+# (Windows Credential Manager / macOS Keychain / Linux Secret Service) instead of the local settings file.
+# NOT a hard dependency — without it, keys fall back to the gitignored ~/.callosum/app-settings.json store.

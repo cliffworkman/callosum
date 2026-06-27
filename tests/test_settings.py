@@ -199,3 +199,76 @@ def test_test_key_local_works_without_egress(temp_db_url: str, monkeypatch: pyte
     )
     body = TestClient(create_app(db_url=temp_db_url)).post("/settings/test-key").json()
     assert body["ok"] is True  # not gated on egress — local makes no cloud call
+
+
+# --- inc 152: OS-keychain storage (optional keyring, file fallback) ---
+
+
+class _FakeKeyring:
+    """An in-memory stand-in for the `keyring` module (so the keychain path is tested without installing keyring)."""
+
+    def __init__(self):
+        self.store: dict[tuple, str] = {}
+
+    def set_password(self, service, user, pw):
+        self.store[(service, user)] = pw
+
+    def get_password(self, service, user):
+        return self.store.get((service, user))
+
+    def delete_password(self, service, user):
+        if (service, user) in self.store:
+            del self.store[(service, user)]
+        else:
+            raise RuntimeError("no such password")
+
+
+def test_keychain_stores_in_vault_not_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake = _FakeKeyring()
+    monkeypatch.setattr(app_settings, "_keyring", lambda: fake)
+    app_settings.set_provider_key("openai", "sk-vault")
+    assert app_settings.get_provider_key("openai") == "sk-vault"
+    assert fake.store[("callosum", "openai_api_key")] == "sk-vault"
+    assert "openai_api_key" not in app_settings.load_settings()  # never written to the plaintext file
+
+
+def test_keychain_migrates_file_key_on_resave(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A key written before keyring was available lands in the file.
+    monkeypatch.setattr(app_settings, "_keyring", lambda: None)
+    app_settings.set_provider_key("gemini", "sk-file")
+    assert app_settings.load_settings().get("api_key") == "sk-file"
+    # keyring now available → the file key is still found (fallback)…
+    fake = _FakeKeyring()
+    monkeypatch.setattr(app_settings, "_keyring", lambda: fake)
+    assert app_settings.get_provider_key("gemini") == "sk-file"
+    # …and re-saving migrates it to the vault + drops the plaintext file copy.
+    app_settings.set_provider_key("gemini", "sk-file2")
+    assert fake.store[("callosum", "api_key")] == "sk-file2"
+    assert "api_key" not in app_settings.load_settings()
+    assert app_settings.get_provider_key("gemini") == "sk-file2"
+
+
+def test_keychain_error_falls_back_to_file(monkeypatch: pytest.MonkeyPatch) -> None:
+    class _Boom:
+        def set_password(self, *a):
+            raise RuntimeError("vault locked")
+
+        def get_password(self, *a):
+            raise RuntimeError("vault locked")
+
+        def delete_password(self, *a):
+            raise RuntimeError("vault locked")
+
+    monkeypatch.setattr(app_settings, "_keyring", lambda: _Boom())
+    app_settings.set_provider_key("anthropic", "sk-fallback")  # set raises → file fallback
+    assert app_settings.load_settings().get("anthropic_api_key") == "sk-fallback"
+    assert app_settings.get_provider_key("anthropic") == "sk-fallback"  # get raises → file fallback
+
+
+def test_status_reports_keychain_storage(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(app_settings, "_keyring", lambda: _FakeKeyring())
+    body = TestClient(create_app(db_url=temp_db_url)).get("/settings").json()
+    assert body["key_storage"] == "keychain"
+    monkeypatch.setattr(app_settings, "_keyring", lambda: None)
+    body = TestClient(create_app(db_url=temp_db_url)).get("/settings").json()
+    assert body["key_storage"] == "file"

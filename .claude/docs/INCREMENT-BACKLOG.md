@@ -55,8 +55,9 @@ _Italic notes are light implementation pointers, not designs._
 > **★ DONE (Cliff, 2026-06-26):** the **build-and-test slate** (inc 142–145) **and the full BYOK arc** are shipped —
 > **#10** (inc 146 Gemini key in Settings), inc 147 Test-key, inc 148 synthesis "AI is off" nudge, and **#39**
 > (inc 149 engine + inc 150 Settings UI: Gemini/OpenAI/Anthropic/**local** via one httpx seam; a loopback local
-> provider runs with **zero egress**). _Deferred hardening:_ **OS-keychain** key storage (with Packaging **#21**);
-> a validation-lock/quality disclaimer; help-assistant per-provider. The open backlog below is the next pick.
+> provider runs with **zero egress**) — **and all the deferred follow-ons** (inc 151 validation disclaimer +
+> help-assistant Settings toggle; inc 152 OS-keychain storage, optional `keyring` + file fallback). **The whole
+> BYOK arc is done.** The open backlog below is the next pick.
 >
 > **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** keyboard zoom
 > (Ctrl +/−) + next/prev-mark hotkeys; a "noted-only" filter + a search box over note text in the Notes panel; a
@@ -356,9 +357,12 @@ registry; commons reciprocity; valence rule = *less* time-in-app is the win). Gr
 **Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint**, all via one `complete()` seam (httpx, no new
 dep); a **local loopback provider runs with zero egress** (`requires_egress("local")` is False, loopback-enforced at
 both the write boundary and `complete()`); per-provider keys are write-only; the egress gate is provider-aware;
-embeddings + verification stay local. Audit `2026-06-26_multi-provider-llm.md` PASS. _Deferred:_ **OS-keychain** key
-storage (the documented hardening, with Packaging **#21**); a "validation lock"/quality disclaimer surface; migrating
-the help-assistant to a per-provider model where useful. The Gemini-key field (#10, inc 146) was its precursor.
+embeddings + verification stay local. Audit `2026-06-26_multi-provider-llm.md` PASS. **Follow-ons all shipped:**
+inc 147 Test-key, 148 synthesis nudge, **151** validation-lock/quality disclaimer + help-assistant Settings toggle
+(it was already per-provider via the inc-149 seam), **152** OS-keychain key storage (optional `keyring`, file
+fallback; audit `2026-06-27_keychain-storage.md` PASS). The Gemini-key field (#10, inc 146) was its precursor.
+_Truly deferred:_ real cloud/Ollama/OS-vault round-trips (the user's manual spot-checks); a heavier "validation
+lock" UX beyond the disclaimer text isn't planned.
 
 **40. PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
 `…_publisherschoicegate.md`) — **[future track — DO NOT BUILD YET]** at submission time, surface **verifiable,
