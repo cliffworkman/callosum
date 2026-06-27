@@ -9,7 +9,6 @@ Polite-pool `mailto` comes from `CALLOSUM_OPENALEX_MAILTO` (env / gitignored `.e
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 from typing import Any, Protocol
 from urllib.parse import quote
@@ -18,6 +17,7 @@ import httpx
 from sqlalchemy import Connection, insert, select, update
 
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
+from app.backend.app_settings import resolved_mailto
 from app.backend.persistence.schema import external_api_cache
 
 OPENALEX_PROVIDER = "openalex"
@@ -59,7 +59,7 @@ class OpenAlexClient:
         timeout: float = 10.0,
     ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
-        self.mailto = mailto or os.environ.get("CALLOSUM_OPENALEX_MAILTO")
+        self.mailto = mailto or resolved_mailto("CALLOSUM_OPENALEX_MAILTO")  # UI contact email overlays the env var
         self.timeout = timeout
 
     def lookup_best_oa(self, conn: Connection, ref: PaperRef) -> OaLocation | None:

@@ -9,7 +9,6 @@ is **LLM-free**. Returns dataclasses or None; never raises to the caller.
 from __future__ import annotations
 
 import hashlib
-import os
 import re
 from dataclasses import asdict, dataclass
 from typing import Any, Protocol
@@ -17,6 +16,7 @@ from typing import Any, Protocol
 import httpx
 from sqlalchemy import Connection
 
+from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached
 
 OPENALEX_ROOT = "https://api.openalex.org"
@@ -79,7 +79,7 @@ class OpenAlexAuthorClient:
         self, *, fetcher: AuthorFetcher | None = None, mailto: str | None = None, timeout: float = 10.0
     ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
-        self.mailto = mailto or os.environ.get("CALLOSUM_OPENALEX_MAILTO")
+        self.mailto = mailto or resolved_mailto("CALLOSUM_OPENALEX_MAILTO")  # UI contact email overlays the env var
         self.timeout = timeout
 
     def resolve_author(

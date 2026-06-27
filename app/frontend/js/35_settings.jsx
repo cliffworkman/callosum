@@ -217,6 +217,45 @@ function AiSettings() {
   );
 }
 
+// Metadata access (inc 158) — ONE contact email for the public metadata APIs' polite pool (Crossref, OpenAlex,
+// Retraction Watch). Setting it here enables the Retraction Watch database download, instead of an env var. Not a
+// secret (it is sent to those services as the polite-pool contact, exactly as the env var was) → GET /settings
+// returns it, and it is stored in the local file (not the keychain).
+function MetadataSettings() {
+  const [status, setStatus] = useState(null);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  useEffect(() => { api("/settings").then(r => { if (r.ok) { setStatus(r.data); setEmail(r.data.contact_email || ""); } }); }, []);
+  const save = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPut("/settings", { set_contact_email: true, contact_email: email.trim() });
+    setBusy(false);
+    if (r.ok) { setStatus(r.data); setEmail(r.data.contact_email || ""); setMsg(email.trim() ? "Saved." : "Cleared."); }
+    else setMsg("Couldn't save: " + (r.error || "error"));
+  };
+  const fromEnv = status && status.contact_email_source === "env";
+  return (
+    <>
+      <p className="eyebrow">Metadata access</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Contact email
+          <span className="settings-sub">
+            Sent as the polite-pool contact for public metadata services (Crossref, OpenAlex, Retraction Watch) so they can reach you about heavy use. Setting it here enables the <b>Retraction Watch database</b> download (Methods → Data consistency). Not an AI feature — no library text is sent.
+            {fromEnv ? " Currently set by the CALLOSUM_CROSSREF_MAILTO environment variable." : ""}
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <input className="settings-input" type="email" autoComplete="off" placeholder="you@example.com"
+            value={email} onChange={e => setEmail(e.target.value)} />
+          <button className="btn btn-ghost" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+        </div>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
@@ -275,6 +314,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
             onClick={() => onAutoScanWatched(!autoScanWatched)}
           ><span className="settings-knob" /></button>
         </div>
+
+        <MetadataSettings />
 
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 

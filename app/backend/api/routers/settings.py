@@ -36,6 +36,8 @@ class SettingsStatus(BaseModel):
     help_assistant_enabled: bool = False  # the AI help assistant's OWN gate (independent of egress)
     help_source: str = "env"  # "ui" | "env"
     key_storage: str = "file"  # "keychain" (OS vault, if `keyring` is available) | "file" (gitignored local store)
+    contact_email: str = ""  # polite-pool contact for Crossref/OpenAlex/Retraction Watch (NOT a secret)
+    contact_email_source: str | None = None  # "ui" | "env" | None
 
 
 class SettingsUpdate(BaseModel):
@@ -49,6 +51,8 @@ class SettingsUpdate(BaseModel):
     model: str | None = Field(default=None, max_length=200)
     data_egress_enabled: bool | None = None
     help_assistant_enabled: bool | None = None
+    set_contact_email: bool = False
+    contact_email: str | None = Field(default=None, max_length=app_settings.CONTACT_EMAIL_MAX_LEN)
 
 
 def _stored_key(provider: str) -> bool:
@@ -74,6 +78,13 @@ def _status() -> SettingsStatus:
     else:
         help_enabled = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
         help_source = "env"
+    contact = app_settings.stored_contact_email()
+    if contact:
+        contact_source = "ui"
+    elif os.getenv("CALLOSUM_CROSSREF_MAILTO") or os.getenv("CALLOSUM_OPENALEX_MAILTO"):
+        contact_source = "env"
+    else:
+        contact_source = None
     return SettingsStatus(
         provider=provider,
         api_key_set=ui_key or env_key,
@@ -86,6 +97,8 @@ def _status() -> SettingsStatus:
         help_assistant_enabled=help_enabled,
         help_source=help_source,
         key_storage="keychain" if app_settings.keychain_available() else "file",
+        contact_email=contact or "",
+        contact_email_source=contact_source,
     )
 
 
@@ -119,6 +132,11 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         app_settings.set_data_egress(update.data_egress_enabled)
     if update.help_assistant_enabled is not None:
         app_settings.set_help_assistant_enabled(update.help_assistant_enabled)
+    if update.set_contact_email:
+        email = (update.contact_email or "").strip()
+        if email and "@" not in email:
+            raise HTTPException(status_code=422, detail="Contact email must be a valid email address.")
+        app_settings.set_contact_email(email)
     return _status()
 
 

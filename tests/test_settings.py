@@ -69,6 +69,69 @@ def test_put_oversized_key_is_rejected_and_nothing_written(temp_db_url: str) -> 
     assert app_settings.stored_api_key() is None  # nothing persisted
 
 
+# --- contact email / polite-pool mailto (inc 158) ---
+
+
+def test_contact_email_store_roundtrip_and_overlay(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CALLOSUM_CROSSREF_MAILTO", raising=False)
+    monkeypatch.delenv("CALLOSUM_OPENALEX_MAILTO", raising=False)
+    assert app_settings.stored_contact_email() is None
+    assert app_settings.resolved_mailto("CALLOSUM_CROSSREF_MAILTO") is None
+
+    app_settings.set_contact_email("  me@uni.edu  ")  # trimmed
+    assert app_settings.stored_contact_email() == "me@uni.edu"
+    # one stored email overlays BOTH polite-pool env vars
+    assert app_settings.resolved_mailto("CALLOSUM_CROSSREF_MAILTO") == "me@uni.edu"
+    assert app_settings.resolved_mailto("CALLOSUM_OPENALEX_MAILTO") == "me@uni.edu"
+
+    app_settings.set_contact_email("")  # clears
+    assert app_settings.stored_contact_email() is None
+
+
+def test_resolved_mailto_falls_back_to_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CALLOSUM_CROSSREF_MAILTO", "env@lab.org")
+    assert app_settings.stored_contact_email() is None
+    assert app_settings.resolved_mailto("CALLOSUM_CROSSREF_MAILTO") == "env@lab.org"
+    # the stored value wins over the env var when both are present
+    app_settings.set_contact_email("ui@lab.org")
+    assert app_settings.resolved_mailto("CALLOSUM_CROSSREF_MAILTO") == "ui@lab.org"
+
+
+def test_put_and_get_contact_email(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CALLOSUM_CROSSREF_MAILTO", raising=False)
+    monkeypatch.delenv("CALLOSUM_OPENALEX_MAILTO", raising=False)
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    body = client.put("/settings", json={"set_contact_email": True, "contact_email": "you@example.com"}).json()
+    assert body["contact_email"] == "you@example.com" and body["contact_email_source"] == "ui"
+    assert client.get("/settings").json()["contact_email"] == "you@example.com"
+
+    body = client.put("/settings", json={"set_contact_email": True, "contact_email": ""}).json()
+    assert body["contact_email"] == "" and body["contact_email_source"] is None
+
+
+def test_get_contact_email_reports_env_source(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CALLOSUM_CROSSREF_MAILTO", "env@lab.org")
+    body = TestClient(create_app(db_url=temp_db_url)).get("/settings").json()
+    # the input field stays empty (env isn't a UI value) but the source is reported so the UI can say so
+    assert body["contact_email"] == "" and body["contact_email_source"] == "env"
+
+
+def test_put_rejects_invalid_contact_email(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    resp = client.put("/settings", json={"set_contact_email": True, "contact_email": "not-an-email"})
+    assert resp.status_code == 422
+    assert app_settings.stored_contact_email() is None  # nothing persisted
+
+
+def test_retraction_watch_client_uses_stored_contact_email(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CALLOSUM_CROSSREF_MAILTO", raising=False)
+    from integrations.retraction_watch import RetractionWatchClient
+
+    app_settings.set_contact_email("rw@uni.edu")
+    assert RetractionWatchClient().mailto == "rw@uni.edu"  # picks up the UI contact email, no env var needed
+
+
 def test_status_reports_env_sources_when_nothing_stored(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("GOOGLE_API_KEY", "env-key")  # env fallback present, nothing stored
     client = TestClient(create_app(db_url=temp_db_url))

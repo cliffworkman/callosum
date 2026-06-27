@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 158) — Settings + Retraction Watch sections now point to Settings → Metadata access (contact email) instead of the env var. -->
+## 2026-06-27 — Increment 158: contact email (polite-pool mailto) in Settings
+- **Files:** `app/backend/app_settings.py` (`set_contact_email`/`stored_contact_email`/`resolved_mailto`),
+  `app/backend/api/routers/settings.py` (contact_email status + update), `integrations/{crossref,retraction_watch,
+  openalex}/adapter.py` + `openalex/author.py` (mailto via `resolved_mailto`), `app/frontend/js/35_settings.jsx`
+  (Metadata access section) + `callosum-app.html`, `tests/test_settings.py` (+6), `route_35_settings.md` +
+  `route_40_retraction_watch.md`, the BYOK audit (addendum), help corpus, `INCREMENT-158-NOTES.md`.
+- **What:** One **Contact email** in Settings → Metadata access overlays `CALLOSUM_CROSSREF_MAILTO` /
+  `CALLOSUM_OPENALEX_MAILTO` for Crossref, OpenAlex, and the **Retraction Watch download** — so the RW download
+  no longer needs an env var (the user's report).
+- **Why:** the RW download was env-only; everything else configurable lives in Settings (the BYOK pattern).
+- **Notes:** not a secret (sent to public metadata APIs; `GET /settings` returns it); no new egress vector,
+  endpoint, dependency, or migration; audit addendum PASS. pytest 578; surface 110/110 + 573/573, 0 uncovered.
+  Verified headed (`drive_inc158_contact_email.py`, isolated settings path): save → persists, 0 console/page/genai.
+- **Revert:** drop the contact_email setting + revert the 4 clients to `os.environ.get`; from git.
+
 ## 2026-06-27 — Increment 157: highlight-to-suggest, SP1b (LibreOffice "Suggest citations" macro)
 - **Files:** `adapters/libreoffice/callosum_cite.py` (new `CallosumSuggestCitations` macro + `fetch_suggestions`/
   `build_suggest_rows`/`current_query_text`/`_suggest_listbox`/`suggest_and_insert`), `adapters/libreoffice/README.md`,
@@ -26,7 +42,6 @@ are the design diary; this is the chronological "what & why" record.
   real NLI). The interactive dialog is the user's manual eyeball. pytest 572. No migration/surface/help change.
 - **Revert:** drop the suggest macro + helpers from `callosum_cite.py` + revert the harness/README; from git.
 
-<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 156) — added "Suggesting citations for a draft sentence"; fixed the stale "formatted styles not produced yet" line. -->
 ## 2026-06-27 — Increment 156: highlight-to-suggest / evaluate (Track C, SP1a)
 - **Files:** `app/backend/citations/suggest.py` (new), `app/backend/summarization/verification.py` (NLI stance),
   `app/backend/api/routers/citations.py` (`POST /citations/suggest`), `app/backend/api/app.py` (`stance_scorer`),

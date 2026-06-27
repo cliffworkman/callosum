@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 157** (see Increment workflow) with **572 pytest tests
+It is currently at **Increment 158** (see Increment workflow) with **578 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -777,7 +777,30 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 157 (highlight-to-suggest, SP1b — the LibreOffice "Suggest citations"
+*Last updated: 2026-06-27 — increment 158 (contact email / polite-pool mailto in Settings): a UX fix the user
+flagged — the Retraction Watch download (inc 132) hard-required the `CALLOSUM_CROSSREF_MAILTO` **env var**, while
+everything else configurable now lives in Settings (the inc-146 BYOK pattern). Now **one Contact email** in
+**Settings → Metadata access** supplies the polite-pool contact for **all** public metadata APIs (Crossref,
+OpenAlex, Retraction Watch), overlaying both `CALLOSUM_CROSSREF_MAILTO` + `CALLOSUM_OPENALEX_MAILTO`. New
+`app_settings.set_contact_email`/`stored_contact_email`/**`resolved_mailto(env_var)`** (= stored email or env);
+the **4 metadata clients** (`CrossrefClient`/`RetractionWatchClient`/`OpenAlexClient`/`OpenAlexAuthorClient`)
+resolve their mailto via `resolved_mailto(...)` (the unused `import os` was dropped from each). `routers/settings.py`:
+`contact_email` + `contact_email_source` on `GET /settings`, `set_contact_email`/`contact_email` (max_length 254 →
+422; non-empty must contain `@` → 422) on `PUT`. `35_settings.jsx`: a **Metadata access** section. The RW
+fail-closed message now points to Settings. **Not a secret** — the email is sent to public metadata APIs as the
+polite-pool contact (exactly as the env vars did), so it's file-stored (not the keychain) and **is** returned by
+`GET /settings` (unlike the API key). **No new egress vector** (the email was already transmitted when the env var
+was set), **no new endpoint/dependency/migration**. **Audit:** an **addendum** to `2026-06-26_byok-api-key.md` PASS.
+**Rule #10:** `route_35_settings.md` + `route_40_retraction_watch.md` updated → surface **110/110 API + 573/573 FE,
+0 uncovered**. help corpus's Settings + Retraction Watch sections point to Settings → Metadata access
+(`HELP-DOCS-SYNCED` → 158). pytest **578** (+6 `test_settings.py`); `ruff` clean. **Verified headed, no egress**
+(`.local/visual/drive_inc158_contact_email.py`, isolated `CALLOSUM_SETTINGS_PATH`): save → `GET /settings` returns
+it (source `ui`) → persists across reload; 0 console/page/genai. (The real RW CSV download with the UI-set email is
+the user's spot-check, as in inc 132.) Notes: `INCREMENT-158-NOTES.md`. **NEXT:** back to **#30** — a formatted
+"Cite as… (style)" copy in the in-app Cite pane (the deadline-writer persona's ask, via the inc-106 engine), then
+SP2 beyond-library discovery.
+
+Earlier — increment 157 (highlight-to-suggest, SP1b — the LibreOffice "Suggest citations"
 macro): surfaces the inc-156 `POST /citations/suggest` contract **inside LibreOffice**, where the writer already
 inserts citations (the inc-108 cite-while-you-write adapter). The inc-107→108 pattern: SP1a was the contract,
 SP1b is the adapter. **Client-side only** (`adapters/libreoffice/callosum_cite.py`) — talks only to 127.0.0.1,

@@ -15,8 +15,9 @@ retraction honesty invariants. Public bulk CC0 metadata; **never** the Gemini ga
 Clean seeded instance (`_TEMPLATE.md` → Environment). **Egress UNSET.** Register console/pageerror/request
 listeners before navigation.
 
-**Seed note:** `_seed_library` ships no RW data, and the **real download needs `CALLOSUM_CROSSREF_MAILTO` + a
-~tens-of-MB fetch** — so do NOT trigger the live download in an automated run. Instead seed the mirror + a
+**Seed note:** `_seed_library` ships no RW data, and the **real download needs a contact email (Settings →
+Metadata access, or the `CALLOSUM_CROSSREF_MAILTO` env var) + a ~tens-of-MB fetch** — so do NOT trigger the live
+download in an automated run. Instead seed the mirror + a
 matching paper's FACT directly (offline), mirroring `.local/visual/drive_inc132_retraction_watch.py`:
 
 ```python
@@ -40,8 +41,9 @@ RetractionWatchClient(fetcher=lambda url, **k: FAKE_CSV, mailto="x@y.z")` on the
 - **No uncompletable control.** Any visible control that can't be completed is a bug.
 - **Egress gate.** ANY request to a `generativelanguage`/Gemini/genai host is **Critical** (RW is public bulk
   metadata only).
-- **Fail-closed.** With no `CALLOSUM_CROSSREF_MAILTO`, a real Refresh reports a **clear error** ("set
-  CALLOSUM_CROSSREF_MAILTO …"), never a 500 or a silent hang.
+- **Fail-closed.** With no contact email (neither Settings → Metadata access nor `CALLOSUM_CROSSREF_MAILTO`), a
+  real Refresh reports a **clear error** ("Set a contact email in Settings → Metadata access …"), never a 500 or
+  a silent hang. Setting the contact email in Settings enables the download with no env var.
 - **No accusation / FACT not candidate / reinstatements not flagged.** RW only adds coverage + richer detail
   (reason/date/notice) to the SP1 producer; it never introduces an author signal, and a **Reinstatement** is
   never surfaced as a finding.

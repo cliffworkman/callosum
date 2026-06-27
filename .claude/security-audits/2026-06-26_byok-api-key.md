@@ -52,3 +52,31 @@ the egress toggle defaults OFF, an oversized key is 422'd with nothing written, 
 raises `DataEgressDisabledError` even with a key present. 532 pytest green; QA surface 108/108 API + 547/547 FE.
 (Pre-deploy: the new `PUT /settings` is a mutating route — re-review auth before any hosted deployment; added
 to the deployment-checklist class with the other server-side write paths.)
+
+---
+
+## Addendum — inc 158: Contact email (polite-pool mailto) in Settings
+
+**Date:** 2026-06-27. `PUT /settings` / `GET /settings` gained a **`contact_email`** field (+ `set_contact_email`):
+one UI-set email that overlays the `CALLOSUM_CROSSREF_MAILTO` / `CALLOSUM_OPENALEX_MAILTO` env vars for the
+polite-pool contact used by Crossref, OpenAlex, and the Retraction Watch download (`app_settings.resolved_mailto`,
+read in each client's `__init__`). This fixes the env-only requirement for the RW download (inc 132) — a user can
+now enable it from Settings.
+
+- **Not a secret.** Unlike the API key, the contact email is **sent to public metadata APIs** as the polite-pool
+  contact (exactly as the env vars did) — so it is stored in the local file (not the keychain) and **is** returned
+  by `GET /settings` (the input value + a `contact_email_source` of `ui`/`env`/null). No secret is exposed.
+- **No new egress vector.** The email was already transmitted to Crossref/OpenAlex/RW when the env var was set;
+  moving the config to the UI changes neither what is sent nor where. It is **not** the Gemini library-text gate
+  (no library text involved). The RW/Crossref/OpenAlex hosts are unchanged, constant https endpoints.
+- **Input validation (boundary).** `contact_email` is capped at `CONTACT_EMAIL_MAX_LEN = 254` (Pydantic `max_length`
+  → 422) and rejected if non-empty without an `@` (422); empty/whitespace clears it. Stored value is trimmed.
+- **No new dependency, no migration, no new endpoint** (reuses the existing `GET`/`PUT /settings`). The 4 clients'
+  `import os` became unused (the env read moved into `resolved_mailto`) and were removed.
+
+**Negative paths (recorded):** invalid email → 422, nothing written (test); set→`GET` returns it + source `ui`
+(test); env-only → input empty + source `env` (test); stored overlays env, env is the fallback (test);
+`RetractionWatchClient()` picks up the stored email with no env var (test).
+
+**Addendum result: PASS** — additive non-secret field, validated at the boundary, no new egress/host/dependency;
+the email reaches only the public metadata APIs it was always destined for.

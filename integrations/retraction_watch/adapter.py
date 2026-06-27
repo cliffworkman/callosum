@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import csv
 import io
-import os
 from datetime import datetime, timezone
 from typing import Any, Protocol
 from urllib.parse import quote
@@ -18,6 +17,7 @@ from urllib.parse import quote
 import httpx
 from sqlalchemy import Connection
 
+from app.backend.app_settings import resolved_mailto
 from app.backend.persistence.retraction_repo import replace_retraction_records
 
 RW_BASE_URL = "https://api.labs.crossref.org/data/retractionwatch"
@@ -53,12 +53,16 @@ class RetractionWatchClient:
         timeout: float = 60.0,
     ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
-        self.mailto = mailto if mailto is not None else os.environ.get("CALLOSUM_CROSSREF_MAILTO")
+        # UI contact email (Settings → Metadata access) overlays the CALLOSUM_CROSSREF_MAILTO env var (inc 158).
+        self.mailto = mailto if mailto is not None else resolved_mailto("CALLOSUM_CROSSREF_MAILTO")
         self.timeout = timeout
 
     def fetch_csv(self) -> str:
         if not self.mailto:
-            raise RetractionWatchUnavailable("Set CALLOSUM_CROSSREF_MAILTO to download the Retraction Watch database.")
+            raise RetractionWatchUnavailable(
+                "Set a contact email in Settings → Metadata access (or the CALLOSUM_CROSSREF_MAILTO env var) "
+                "to download the Retraction Watch database."
+            )
         url = f"{RW_BASE_URL}?{quote(self.mailto, safe='@.')}"
         return self.fetcher(url, timeout=self.timeout, max_bytes=MAX_RW_BYTES)
 

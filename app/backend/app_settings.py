@@ -20,6 +20,7 @@ from pathlib import Path
 
 # Generous cap — real Gemini keys are ~40 chars; the boundary validator (routers/settings.py) enforces it too.
 API_KEY_MAX_LEN = 512
+CONTACT_EMAIL_MAX_LEN = 254  # RFC-5321 max address length; the boundary validator enforces it too
 
 
 def settings_path() -> Path:
@@ -81,6 +82,34 @@ def stored_egress() -> bool | None:
     """The stored egress choice, or None if the user has never toggled it (→ fall back to env)."""
     val = load_settings().get("data_egress_enabled")
     return val if isinstance(val, bool) else None
+
+
+# --- Polite-pool contact email (inc 158): one UI-set email for Crossref / OpenAlex / Retraction Watch ---
+# NOT a secret (it's sent to public metadata APIs as the polite-pool contact, exactly as the env vars did) → it
+# is stored in the file (not the keychain) and may be returned by GET /settings, unlike the API key.
+
+
+def set_contact_email(email: str | None) -> None:
+    """Persist the polite-pool contact email. Empty/whitespace clears it (→ the per-source env-var fallback)."""
+    data = load_settings()
+    email = (email or "").strip()
+    if email:
+        data["contact_email"] = email
+    else:
+        data.pop("contact_email", None)
+    _write(data)
+
+
+def stored_contact_email() -> str | None:
+    """The UI-set contact email, or None if unset/blank."""
+    val = load_settings().get("contact_email")
+    return val if isinstance(val, str) and val.strip() else None
+
+
+def resolved_mailto(env_var: str) -> str | None:
+    """The polite-pool contact for an external metadata API: the UI-set contact email (overlays) if present, else
+    the given environment variable. One email in Settings serves Crossref / OpenAlex / Retraction Watch."""
+    return stored_contact_email() or os.environ.get(env_var)
 
 
 # --- Multi-provider (inc 149): provider selection + per-provider keys + the local endpoint ---

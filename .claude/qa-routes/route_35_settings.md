@@ -32,7 +32,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 ## Steps
 
-1. Open settings. Confirm all controls render: theme, AI features (key + egress toggle), default axis cutoff, hide uncertain, watched-folder auto-rescan, and help assistant section.
+1. Open settings. Confirm all controls render: theme, AI features (key + egress toggle), default axis cutoff, hide uncertain, watched-folder auto-rescan, help assistant section, and **Metadata access** (contact email).
 2. Toggle theme on/off. Confirm app chrome changes and PDF page rendering remains light/readable.
 3. Move the default-axis-cutoff slider through min/mid/max. Confirm labels/count previews stay signal-only.
 4. Toggle hide-uncertain and watched-folder auto-rescan. Reload and confirm intended persistence or documented session-only behavior.
@@ -40,7 +40,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 6. **AI features (BYOK).** Confirm the section renders: a (password-masked) Gemini API key input + Save, and an "Allow AI features" toggle that is **OFF** on the clean instance. Paste a fake key, Save; reload and confirm a "key saved" status with **no key value shown anywhere** (inspect `GET /settings` — body must not contain the pasted string). Toggle egress on then off; confirm no genai request fires (egress unset; this only writes the local store). Clear the key; confirm it reverts to "Not set".
 7. **Test key (egress-gated).** With a key saved and **egress OFF**, click **Test key** → the result reports "Turn on Allow AI features…" and **no genai/`generativelanguage` request fires** (the egress toggle's promise: off ⟹ no outbound call). `POST /settings/test-key` returns `{ok:false}`; the response/DOM never contains the key value.
 8. **Multi-provider (inc 149/150).** Use the **Model provider** dropdown. Selecting **OpenAI / Anthropic** shows that provider's key field + the egress toggle; selecting **Local model** shows a `base_url` field + a "nothing leaves your machine" note and **no egress toggle**. Save a loopback `base_url` (e.g. `http://127.0.0.1:11434`) → accepted; a non-loopback URL → **422**. With Local selected + loopback + egress off, **Test connection** must not hit any cloud LLM host.
-9. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
+9. **Metadata access (inc 158).** Under **Metadata access**, save a **Contact email** (e.g. `you@example.com`); `GET /settings` reports `contact_email` + `contact_email_source: "ui"`. Submit `not-an-email` → **422**, nothing persisted. The email is NOT a secret (it IS returned by `GET /settings` — it's the polite-pool contact for Crossref/OpenAlex/Retraction Watch), but saving it must fire **no genai request**. Clear it → reverts to empty.
+10. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
 
 ## Pass criteria
 

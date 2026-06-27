@@ -5736,6 +5736,43 @@
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
     )), /* @__PURE__ */ React.createElement("div", { className: "settings-ai-note" }, "Whichever provider you choose, every summary sentence is still ", /* @__PURE__ */ React.createElement("b", null, "verified locally"), " against your PDFs \u2014 your model choice affects draft quality + coverage, never which citations are accepted."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  function MetadataSettings() {
+    const [status, setStatus] = useState(null);
+    const [email, setEmail] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) {
+          setStatus(r.data);
+          setEmail(r.data.contact_email || "");
+        }
+      });
+    }, []);
+    const save = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/settings", { set_contact_email: true, contact_email: email.trim() });
+      setBusy(false);
+      if (r.ok) {
+        setStatus(r.data);
+        setEmail(r.data.contact_email || "");
+        setMsg(email.trim() ? "Saved." : "Cleared.");
+      } else setMsg("Couldn't save: " + (r.error || "error"));
+    };
+    const fromEnv = status && status.contact_email_source === "env";
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Metadata access"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Contact email", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Sent as the polite-pool contact for public metadata services (Crossref, OpenAlex, Retraction Watch) so they can reach you about heavy use. Setting it here enables the ", /* @__PURE__ */ React.createElement("b", null, "Retraction Watch database"), " download (Methods \u2192 Data consistency). Not an AI feature \u2014 no library text is sent.", fromEnv ? " Currently set by the CALLOSUM_CROSSREF_MAILTO environment variable." : "")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "email",
+        autoComplete: "off",
+        placeholder: "you@example.com",
+        value: email,
+        onChange: (e) => setEmail(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
   function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal settings-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Settings"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
@@ -5782,7 +5819,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");
