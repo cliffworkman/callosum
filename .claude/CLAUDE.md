@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 153** (see Increment workflow) with **556 pytest tests
+It is currently at **Increment 154** (see Increment workflow) with **556 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -774,7 +774,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 153 (synthesis coverage readout + top_k + answerability — backlog #7):
+*Last updated: 2026-06-27 — increment 154 (statcheck flagged-chip deep-link → the specific inconsistent test):
+the remaining autonomous part of the statcheck experience-pass finding (d). **Frontend-only** (`06_methods_statcheck.jsx`):
+when a per-paper statcheck run finishes, a `listRef` + a `state.status` effect scroll the **first inconsistent row
+into view + flash it** (the row is marked `.flagged-row` when `consistency !== "consistent"`) — so the "⚠ N flagged"
+chip path (inc 141) lands the deadline-citer on the specific result that doesn't recompute, not just the full list.
+CSS: `@keyframes statcheckflash` (flag-amber) + `.statcheck-item.flash` (reuses the helpflash pattern; tokens only).
+Coordinate honesty unchanged (rows still page-open at `precision:"region"`); **Principles non-triggering** (a
+navigation affordance over the existing signal). pytest **556** unchanged (frontend-only; statcheck data path covered
+by `test_statcheck`); `ruff` clean; build + assembly green; QA surface **109/109 API + 561/561 FE, 0 uncovered**; no
+migration. **Verified headed, no egress** (`.local/visual/drive_inc154_statcheck_flash.py` — seed a flagged paper →
+chip → Statistics check auto-runs → the inconsistent row is marked `.flagged-row` + flashes; 0 console/page/genai).
+Notes: `INCREMENT-154-NOTES.md`. **Remaining statcheck (b)/(e) are [design] — left for Cliff.** **NEXT (this run):**
+progress skipped/failed detail + filename (inc 155, the last cheap autonomous item).
+
+Earlier — increment 153 (synthesis coverage readout + top_k + answerability — backlog #7):
 the remaining autonomous part of the Skeptical-synthesizer follow-ups. **Frontend-only** (`20_synthesis.jsx`): a
 new `scopeMeta` state `{total, topK}` captured on a papers-scope launch → on done, a **coverage line** "Drew from
 **M** of N selected papers · top K chunks (· K contributed no cited passage)" computed from distinct `paper_id`

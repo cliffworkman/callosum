@@ -46,6 +46,7 @@ function StatcheckLibrary({ onShowFlagged, onRan }) {
 function StatcheckPaper({ paperId, onOpenPaper, active }) {
   const [meta, setMeta] = useState(null);          // { title, hasText } | null
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
+  const listRef = useRef(null);
   useEffect(() => {
     setState({ status: "idle" }); setMeta(null);
     if (paperId == null) return;
@@ -68,6 +69,17 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
     if (active && meta && meta.hasText && state.status === "idle") run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, meta]);
+  // inc 154: once a check finishes, scroll the FIRST inconsistent row into view + flash it — so the flagged-chip
+  // path (inc 141) lands the citer on the specific result that doesn't recompute, not just the list of all tests.
+  useEffect(() => {
+    if (state.status !== "done" || !listRef.current) return;
+    const row = listRef.current.querySelector(".statcheck-item.flagged-row");
+    if (!row) return;
+    row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    row.classList.add("flash");
+    const t = setTimeout(() => row.classList.remove("flash"), 1400);
+    return () => clearTimeout(t);
+  }, [state.status]);
   const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" }); };
   const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its statistical reporting.</div>;
@@ -89,9 +101,9 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
         ? <div className="tag-suggest-empty">No APA-format statistics found in the extracted text.</div>
         : <div className="statcheck-result">
             <div className="statcheck-summary">{d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}</div>
-            <div className="statcheck-list">
+            <div className="statcheck-list" ref={listRef}>
               {d.results.map((r, i) => (
-                <button key={i} className="statcheck-item" title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
+                <button key={i} className={"statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
                   <span className="statcheck-raw">{r.raw}</span>
                   <span className="statcheck-computed">computed p = {r.computed_p}</span>
                   <span className={"cite-status " + (r.consistency === "consistent" ? "verified" : "flagged")}>{label(r.consistency)}</span>

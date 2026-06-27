@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 154: statcheck flagged-chip deep-link flashes the specific inconsistent test
+- **Files:** `app/frontend/js/06_methods_statcheck.jsx` + `styles.css` + `callosum-app.html`, `INCREMENT-154-NOTES.md`.
+- **What:** When a per-paper statcheck run finishes, the first inconsistent row scrolls into view + flashes
+  (marked `.flagged-row`) — so the "⚠ flagged" chip path lands on the specific result that doesn't recompute.
+  Frontend-only.
+- **Why:** the statcheck experience-pass finding (d) — "flagged" → "the specific bad number."
+- **Revert:** restore `06_methods_statcheck.jsx` + `styles.css` from git + rebuild.
+
 ## 2026-06-27 — Increment 153: synthesis coverage readout + top_k + answerability (#7)
 - **Files:** `app/frontend/js/20_synthesis.jsx` + `styles.css` + `callosum-app.html`, `INCREMENT-153-NOTES.md`.
 - **What:** After a papers-scope synthesis, a coverage line — "Drew from M of N selected papers · top K chunks

@@ -875,6 +875,9 @@
     background: var(--panel); padding: 5px 8px; cursor: pointer;
   }
   .statcheck-item:hover { border-color: var(--accent); background: var(--hover); }
+  /* inc 154: flash the first inconsistent row when a check finishes (the flagged-chip deep-link lands here). */
+  @keyframes statcheckflash { 0% { background: var(--flag-soft); } 100% { background: transparent; } }
+  .statcheck-item.flash { animation: statcheckflash 1.4s ease; }
   .statcheck-raw { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
   .statcheck-computed { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   .statcheck-caveat { font-size: 11px; color: var(--ink-3); margin-top: 8px; line-height: 1.45; }
@@ -1833,6 +1836,7 @@
   function StatcheckPaper({ paperId, onOpenPaper, active }) {
     const [meta, setMeta] = useState(null);
     const [state, setState] = useState({ status: "idle" });
+    const listRef = useRef(null);
     useEffect(() => {
       setState({ status: "idle" });
       setMeta(null);
@@ -1854,6 +1858,15 @@
     useEffect(() => {
       if (active && meta && meta.hasText && state.status === "idle") run();
     }, [active, meta]);
+    useEffect(() => {
+      if (state.status !== "done" || !listRef.current) return;
+      const row = listRef.current.querySelector(".statcheck-item.flagged-row");
+      if (!row) return;
+      row.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      row.classList.add("flash");
+      const t = setTimeout(() => row.classList.remove("flash"), 1400);
+      return () => clearTimeout(t);
+    }, [state.status]);
     const open = (page) => {
       if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" });
     };
@@ -1861,7 +1874,7 @@
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to check its statistical reporting.");
     const hasText = meta ? meta.hasText : false;
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 statcheck reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from this paper's text \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No APA-format statistics found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list" }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item", title: r.page != null ? "Open page " + r.page : "", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "computed p = ", r.computed_p), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "consistent" ? "verified" : "flagged") }, label(r.consistency))))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "statcheck reads only inline APA-style tests and recomputes each p \u2014 it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) \u2014 a prompt to look, not a verdict."))));
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 statcheck reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from this paper's text \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No APA-format statistics found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list", ref: listRef }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : ""), title: r.page != null ? "Open page " + r.page : "", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "computed p = ", r.computed_p), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "consistent" ? "verified" : "flagged") }, label(r.consistency))))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "statcheck reads only inline APA-style tests and recomputes each p \u2014 it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) \u2014 a prompt to look, not a verdict."))));
   }
   function StatcheckSection({ ctx }) {
     return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(StatcheckLibrary, { onShowFlagged: ctx.onShowStatcheckFlagged, onRan: ctx.onStatcheckRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(StatcheckPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "statcheck" }));

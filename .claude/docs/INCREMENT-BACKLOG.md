@@ -64,14 +64,13 @@ _Italic notes are light implementation pointers, not designs._
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →
 per-test rows with reported-vs-recomputed *p* + page) exists and is good, but the path to it was hidden.
-**~~(a)~~ + ~~(c)~~ SHIPPED inc 141:** the "⚠ N flagged" chip now opens the **Statistics check** section, re-targets
-the top flagged paper (a deferred-select ref so it lands on the *filtered* list's top, not the stale one), and
-**auto-runs** the per-paper check when the section is the open one — so the inconsistent rows show with no manual
-click (headed-verified). **Remaining:** **(b)** a "Check statistics" entry point on the paper itself (card chip /
-Details button) — **[design]** (inc-122 deliberately moved statcheck *out* of Details, so weigh re-cluttering);
-**(d)** deep-link the flagged chip to the specific inconsistent test + its page, not just the filtered list;
-**(e)** **[design]** the "⚠ flagged" (signal) vs "📋 to review" (work-state) duality confuses a citer who just wants
-"what's wrong with these numbers" — clarify or collapse for this use case (inc-133 made them coexist on purpose).
+**~~(a)~~ ~~(c)~~ ~~(d)~~ SHIPPED (inc 141 + 154):** the "⚠ N flagged" chip opens the **Statistics check** section,
+re-targets the top flagged paper, **auto-runs** the per-paper check (a+c, inc 141), and **scrolls+flashes the first
+inconsistent row** so the citer lands on the specific result that doesn't recompute (d, inc 154). **Remaining
+([design] — needs Cliff):** **(b)** a "Check statistics" entry on the paper itself (card chip / Details button) —
+inc-122 deliberately moved statcheck *out* of Details, so weigh re-cluttering; **(e)** the "⚠ flagged" (signal) vs
+"📋 to review" (work-state) duality — clarify/collapse for the "what's wrong with these numbers" use case (inc-133
+made them coexist on purpose).
 
 *(#1 brand-assets investigation — ✅ resolved/non-issue: no `.webp` assets exist, and `inline_brand_assets.py` reads
 `.claude/media/` correctly [inc 109 moved the source]; the "silent no-op" was a stale pre-inc-109 sandbox note.

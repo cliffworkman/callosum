@@ -851,6 +851,9 @@
     background: var(--panel); padding: 5px 8px; cursor: pointer;
   }
   .statcheck-item:hover { border-color: var(--accent); background: var(--hover); }
+  /* inc 154: flash the first inconsistent row when a check finishes (the flagged-chip deep-link lands here). */
+  @keyframes statcheckflash { 0% { background: var(--flag-soft); } 100% { background: transparent; } }
+  .statcheck-item.flash { animation: statcheckflash 1.4s ease; }
   .statcheck-raw { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
   .statcheck-computed { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   .statcheck-caveat { font-size: 11px; color: var(--ink-3); margin-top: 8px; line-height: 1.45; }
