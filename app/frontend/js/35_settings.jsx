@@ -284,6 +284,37 @@ function LibreOfficeSettings() {
   );
 }
 
+// Microsoft Word add-in (inc 164, SP1). Architecture A: callosum serves the task pane over HTTPS, same-origin with
+// the API — desktop Word only, zero egress. "Install" can't auto-sideload on desktop, so it opens the add-in
+// folder; the manifest is also downloadable. The 3-step one-time setup (cert + HTTPS run + sideload) is spelled out.
+function WordSettings() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const openFolder = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPost("/integrations/word/install", {});
+    setBusy(false);
+    setMsg(r.ok ? (r.data.detail || "Opened the add-in folder.") : ("Couldn't open: " + (r.error || "error")));
+  };
+  return (
+    <>
+      <p className="eyebrow">Microsoft Word add-in (desktop)</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Cite while you write in Word
+          <span className="settings-sub">
+            A task pane in <b>desktop</b> Word (Windows/Mac) that searches your library and inserts citations — everything stays on your machine. One-time setup: <b>1)</b> trust a local certificate, run <code>npx office-addin-dev-certs install</code>; <b>2)</b> run Callosum over HTTPS, <code>python tools/run_https.py</code>, then open <code>https://localhost:8443</code>; <b>3)</b> download the manifest below and sideload it in Word (see the adapter README). Not supported in Word-on-the-web.
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <a className="btn-link" href={API_BASE + "/integrations/word/manifest.xml"} download>Download manifest</a>
+          <button className="btn btn-ghost" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open add-in folder"}</button>
+        </div>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
@@ -346,6 +377,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         <MetadataSettings />
 
         <LibreOfficeSettings />
+
+        <WordSettings />
 
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 

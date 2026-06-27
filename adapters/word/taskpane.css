@@ -1,0 +1,26 @@
+/* Callosum Word task pane — minimal self-contained styling (the React SPA's tokens are not loaded here). */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font: 14px/1.4 -apple-system, "Segoe UI", system-ui, sans-serif;
+  color: #1c1b22;
+  background: #fff;
+}
+#app { padding: 14px; }
+h1 { font-size: 16px; margin: 0 0 2px; }
+.hint { margin: 0 0 12px; color: #5c5a66; font-size: 12px; }
+.field { display: block; font-size: 12px; color: #5c5a66; margin-bottom: 10px; }
+.field select { display: block; width: 100%; margin-top: 4px; padding: 6px; font: inherit; }
+#q { width: 100%; padding: 8px; font: inherit; border: 1px solid #cdcbd6; border-radius: 6px; }
+.results { list-style: none; margin: 10px 0 0; padding: 0; }
+.results li { margin: 0 0 4px; }
+.results .row {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 8px; font: inherit; color: inherit;
+  border: 1px solid #e6e5ee; border-radius: 6px; background: #fafafe;
+}
+.results .row:hover { border-color: #4338ca; background: #f1f0fb; }
+.results .empty, .results .err { padding: 8px; color: #5c5a66; font-size: 12px; }
+.results .err { color: #b91c1c; }
+.status { margin-top: 12px; font-size: 12px; color: #15803d; min-height: 16px; word-break: break-word; }
+.status.err { color: #b91c1c; }

@@ -38,6 +38,7 @@ from app.backend.api.routers import (
     summaries,
     tags,
     wanted,
+    word,
 )
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
 from app.backend.embeddings.models import EmbeddingModel
@@ -180,6 +181,7 @@ def create_app(
     api.include_router(
         libreoffice.router
     )  # /integrations/libreoffice/* — install the LO plugin from Settings (inc 162)
+    api.include_router(word.router)  # /integrations/word/* — serve the Word add-in task pane + manifest (inc 164)
 
     return api
 

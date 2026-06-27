@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Callosum Citations</title>
+  <!-- office.js is Microsoft's Office platform SDK (required for any add-in); the rest is served by callosum same-origin -->
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="stylesheet" href="taskpane.css"/>
+  <script src="taskpane_core.js"></script>
+</head>
+<body>
+  <div id="app" style="display:none">
+    <h1>Callosum citations</h1>
+    <p class="hint">Search your library and insert a formatted citation at the cursor.</p>
+    <label class="field">Citation style
+      <select id="style" aria-label="Citation style"></select>
+    </label>
+    <input id="q" type="search" placeholder="Search author, title, year…" autocomplete="off" aria-label="Search your library"/>
+    <ul id="results" class="results"></ul>
+    <div id="status" class="status" role="status" aria-live="polite"></div>
+  </div>
+  <noscript>This add-in requires JavaScript.</noscript>
+  <script src="taskpane.js"></script>
+</body>
+</html>

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 163** (see Increment workflow) with **601 pytest tests
+It is currently at **Increment 164** (see Increment workflow) with **611 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -228,7 +228,8 @@ callosum/
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
 │   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
    │                          gaps [literature gap-finder, inc 135],settings [BYOK: Gemini key + egress
-   │                          consent, inc 146],libreoffice [LO plugin install/download, inc 162],help}.py [models + handlers])
+   │                          consent, inc 146],libreoffice [LO plugin install/download, inc 162],word [Word add-in
+   │                          task pane + manifest serving, inc 164],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables; re-exported from
 │   │   │                          schema — inc 137 split to keep schema.py < 600], gap_repo.py [gap_candidates
@@ -281,7 +282,10 @@ callosum/
 │                                  + callosum_addon.py [XJobExecutor dispatcher] → a one-click `.oxt` (built by
 │                                  tools/build_libreoffice_oxt.py; installable from Settings, inc 162). README.md,
 │                                  selftest_uno.py [headless round-trip: unopkg-installs the .oxt + verifies the
-│                                  dispatcher]. Word/Docs next.
+│   └── word/                       dispatcher]. inc 164 (Word add-in, Office.js, SP1): manifest.xml + taskpane.{html,js,css}
+│                                  + taskpane_core.js [pure logic, node --test] + icon.png + README.md — a desktop-Word
+│                                  task pane served by callosum over HTTPS (Architecture A: same-origin, zero egress).
+│                                  Google Docs next (via the future clffwrkmn.net relay).
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
@@ -289,7 +293,8 @@ callosum/
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py,
-│                                  build_libreoffice_oxt.py [the LO extension build, inc 162]; qa/ [inc 120:
+│                                  build_libreoffice_oxt.py [the LO extension build, inc 162],
+│                                  run_https.py [serve over HTTPS on :8443 for the Word add-in, inc 164]; qa/ [inc 120:
 │                                  build_surface_map.py = surface-coverage gate, supervisor.py = Codex-exec
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
@@ -652,6 +657,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Word add-in (Office.js) = a task pane served by callosum over **local HTTPS, same-origin** (Architecture A: desktop-only, zero egress); SP1 (inc 164) | The second word-processor adapter (after LibreOffice inc 108/162). A Word add-in is a **web task pane**, and Office requires it over **HTTPS** + **can't fetch `http://localhost`** (and Word-on-the-web can't reach localhost) → research forced an architecture decision the **user chose in plan mode: Architecture A** (local HTTPS, desktop-only, zero egress) over a clffwrkmn.net relay (deferred to the Google Docs increment). callosum serves the task pane at `https://localhost:8443` **same-origin** with its API, so the add-in reaches the library with **no CORS change and no egress** (CORSMiddleware only applies cross-origin; everything is loopback) — the cost is a one-time local-cert trust (`npx office-addin-dev-certs install` + `python tools/run_https.py`). New `adapters/word/` (manifest.xml + taskpane.{html,js,css} + `taskpane_core.js` [pure logic, `node --test`] + icon + README) — a **thin field-placer** reusing the audited cite contracts (`/papers?q=`, `/citations/render`); SP1 inserts a formatted citation as **static text** via `Word.run` (SP2 = live Content-Control fields + `/citations/render-document` renumber/bib; SP3 = suggest/style/flatten). `routers/word.py` serves the task pane + manifest via **explicit per-filename `FileResponse` routes** (no `{filename}` param → no traversal) + `POST …/install` (opens the add-in folder; graceful). **GOTCHAS (carry to SP2/Docs):** office.js **cannot take SRI** (MS updates it in place at the fixed URL); **no headless Word** → the in-Word round-trip is the user's MANUAL check (so the pure logic lives in `taskpane_core.js` to be unit-testable). **No migration, no egress, no new dependency** (office.js CDN-loaded by Word; `office-addin-dev-certs` via `npx`; `node --test` built-in). Audit `2026-06-27_word-addin.md` PASS; Principles non-triggering (packaging/field-placer); local-only → pre-hosted-deploy gate recorded. |
 | "Coming soon" accordion placeholders = honest, inert roadmap stubs (inc 163) | The user wanted the planned THEORY/METHODS sections + subsection tabs visible in-GUI "to keep me psyched." Built as honest scaffolds, not vaporware: `09_placeholders.jsx` (a `<ComingSoon title body builds/>` component + `.coming-soon*` tokens-only CSS) registers THEORY → **Discover** (tabs Beyond library/Feed/Search, #30/#28) + METHODS → Mixed-model/Bayesian/Meta-analysis/Citation-equity (#23/#24/#37/#25) + a **"More checks"** tab appended to the shipped statcheck section (#27) via `registerPaneTab` find-or-create (no edit to `06_methods_statcheck.jsx`). The convention (DESIGN §5): each stub (1) names a real backlog item, (2) is placed by cognitive task, (3) **bakes in its ship-time principle framing** (signal-not-verdict / never-accusation), (4) is **inert** ("silence is not a certificate"); **remove each stub in the increment its real feature lands**. Where-to-submit (#40) deliberately NOT stubbed (authoring-support ≠ method-evaluation → breaks the placement rubric). Frontend-only; Principles non-triggering; surface unchanged. |
 | LibreOffice adapter v2 = a one-click `.oxt` (Callosum menu/toolbar via an XJobExecutor dispatcher) + search-to-cite + install-from-Settings (inc 162) | The inc-108 adapter worked but the *routing* was unusable (macros buried in Organize Macros → Python; insert by numeric paper id). Research (Zotero/Mendeley/EndNote) = a toolbar that appears after install + an "Add Citation" search box. Built: a single **`.oxt`** (`adapters/libreoffice/oxt/` — `Addons.xcu` Callosum menu+toolbar; manifest registers `callosum_addon.py`, a UNO **`XJobExecutor`** dispatcher → `service:com.callosum.cite.Dispatcher?<action>`, **path-independent** vs the fragile `vnd.sun.star.script:` URIs). `callosum_cite.py` gained an `_ACTIONS`/`dispatch` registry shared by the macro entry points + the dispatcher, `_DISPATCH_CTX` (bridge the component context into the dialog helpers, which otherwise need the macro-only `XSCRIPTCONTEXT`), a configurable server URL (`~/.callosum/libreoffice.json`), and **`add_citation_by_search`** (GET `/papers?q=` → pick-list → insert — the everyday cite action, no ids; **Suggest** stays the relevance-from-the-sentence complement). `tools/build_libreoffice_oxt.py` (stdlib zip; importable). **One-click install from Settings:** `routers/libreoffice.py` `GET /integrations/libreoffice/plugin.oxt` (serve) + `POST …/install` (open the .oxt → LibreOffice Extension Manager; graceful `{opened:false}` fallback) + a `35_settings.jsx` LibreOffice-plugin section. **Gotchas (for Word/Docs):** a Python UNO component must import siblings **lazily** after `sys.path.insert(dirname(__file__))` (registration-time the ext dir isn't importable); the component needs `_DISPATCH_CTX` (no `XSCRIPTCONTEXT`). **No migration, no egress, no new dependency.** Audit `2026-06-27_libreoffice-install.md` PASS (fixed-artifact path; local-only → pre-hosted-deploy gate); Principles non-triggering (packaging/UX). Verified through real LibreOffice (`unopkg add` rc=0 + dispatcher resolves + search-to-cite, SELFTEST OK) + headed Settings drive. |
 | Non-destructive paper merge = re-point source rows onto a survivor + Trash the husks; never delete (inc 161) | The user's real workflow (a preprint + its published copy → *merge*, not delete; keep the preprint PDF + ensure the OSF link survives). Scales the long-deferred library merge into the dedup flow. `metadata/paper_merge.py::merge_papers`: re-point `attachments`/`chunks`/`annotations`/`notes`/`paper_external_identifiers` via `UPDATE paper_id` (no per-paper UNIQUE — verified; chunk embeddings follow via the unchanged `chunk.id`, so **no vector surgery**); union `paper_tags`/`collection_papers`/manual `cluster_node_papers` idempotently; **free the husk's UNIQUE id columns first** (`doi`/`openalex_work_id`/… → NULL; `csl_json` keeps them for audit) so the survivor can adopt them (soft-delete keeps the row, so the UNIQUE would otherwise block it); compose the survivor's metadata from the user's per-field picks via `paper_edits.build_paper_update` + a **"Merged from…" lineage note** in `csl_json["note"]` (so a link can never be silently lost) + `imported_source=MERGED_SOURCE` (kept out of the crossref-update allowlist like `user-edited`); set the chosen primary attachment (**both PDFs kept**); **soft-delete** the husks (restorable; FK rows already moved). `POST /papers/merge` in `routers/duplicates.py` (registered before `/papers/{paper_id}`; `MergeValidationError`→422, `MergeConflictError`→409 on a DOI clash with an outside paper; `conn.commit()` all-or-nothing). Frontend `38_merge.jsx` (survivor + per-conflict-field + primary-PDF picks), launched from the Duplicates modal + the library bulk bar (≥2). **No migration, no egress, no new dependency.** Derived signals/findings recompute (not migrated); the husk retains its copies. Audit `2026-06-27_paper-merge.md` PASS; Principles gate run (preserves provenance/inspectability — the aligned alternative to lossy delete). |
@@ -788,7 +794,44 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 163 ("Coming soon" accordion placeholders — a visible roadmap): the user
+*Last updated: 2026-06-27 — increment 164 (Microsoft Word add-in, Office.js — SP1: HTTPS spine + search-and-insert
+task pane): the second word-processor adapter (after LibreOffice). A Word add-in is a **web task pane**, and Office
+requires it over **HTTPS** + **can't fetch `http://localhost`** (Word-on-the-web can't reach localhost at all) — so
+the user chose **Architecture A** in plan mode: callosum serves the task pane over **local HTTPS, same-origin** with
+its API (`https://localhost:8443`), so the add-in reaches the library with **no CORS change and no egress** (it's all
+loopback); the one cost is a one-time local-cert trust. SP1 ships the spine that proves the platform end-to-end
+(read + write in real Word): **search the library → insert a formatted citation as static text** at the cursor. New
+**`adapters/word/`** (shipped client code) — `manifest.xml` (XML add-in-only; ribbon **Home → Callosum → Show
+Citations**; SourceLocation `https://localhost:8443/…/taskpane.html`), `taskpane.html`/`taskpane.js` (thin Office.js
+glue: `Office.onReady` → `fetch('/papers?q=')` → on pick `fetch('/citations/render')` → `Word.run` insert),
+**`taskpane_core.js`** (pure logic, no Office.js → `node --test`-able: `formatSearchRows`/`buildRenderRequest`/
+`inTextFromRender`), `taskpane.css`, `README.md`, `icon.png`. New **`routers/word.py`** (serve the task pane + manifest
+via **explicit per-filename `FileResponse` routes** — no `{filename}` param → no traversal — + `POST …/install` opens
+the add-in folder, graceful). **`tools/run_https.py`** (locate the `office-addin-dev-certs` cert + run uvicorn TLS on
+:8443). `35_settings.jsx` **WordSettings** section (Download manifest + Open add-in folder + the 3-step setup note +
+the desktop-only/HTTPS caveat). **Same-origin is the trick:** CORSMiddleware only applies cross-origin, so the
+existing GET-only allowlist is untouched AND nothing leaves the machine. **GOTCHAS (carry to SP2/Docs):** office.js
+**cannot take SRI** (MS updates it in place at the fixed URL — documented exception); **there is no headless Word**
+→ the in-Word round-trip is the **user's MANUAL check** (the pure logic lives in `taskpane_core.js` precisely so most
+of it IS testable). **No migration, no egress, no new dependency** (office.js CDN-loaded by Word; `office-addin-dev-certs`
+via `npx`; `node --test` built-in). **Principles non-triggering** (packaging + a thin field-placer reusing the audited
+citeproc render); audit `.claude/security-audits/2026-06-27_word-addin.md` PASS (no traversal; egress NONE; local-only
+→ pre-hosted-deploy gate recorded). **Rule #10:** `route_35_settings.md` extended with `/integrations/word/*` + a Word
+step + a local-only/no-egress standing assertion → surface **120/120 API + 599/599 FE, 0 uncovered**. help corpus
+gained a "Citing in Microsoft Word (desktop)" section (`HELP-DOCS-SYNCED` → 164). pytest **611** (+7
+`tests/test_word_addin.py`); `node --test "adapters/word/*.test.js"` 8/8; `ruff` clean; build + assembly green.
+**Verified headed, no egress** (`.local/visual/drive_inc164_word.py`: the WordSettings section renders, the served
+manifest's SourceLocation is `https://localhost:8443/…`, the task pane references office.js + **no** AI/library host,
+Open-add-in-folder posts a result [OS opener stubbed]; 0 console/page/genai). **The in-Word round-trip is the user's
+manual eyeball** (desktop Word only: `npx office-addin-dev-certs install` → `python tools/run_https.py` → sideload
+`adapters/word/manifest.xml` → Word → Callosum → Show Citations → search + insert). Notes: `INCREMENT-164-NOTES.md`.
+**NEXT:** **SP2 (inc 165)** — live cite-while-you-write (insert as Content Controls carrying CSL-JSON + a Refresh that
+renumbers the whole doc + bibliography via `/citations/render-document`); then **SP3 (inc 166)** — Suggest / style
+picker / Flatten. Word-on-the-web + **Google Docs** ride the future authenticated **clffwrkmn.net relay** (its own
+design-led increment: a tunnel + auth + rate-limiting, opt-in egress). Carried: the **`40_app.jsx` 630/600 split**
+(rule #1).
+
+Earlier — increment 163 ("Coming soon" accordion placeholders — a visible roadmap): the user
 asked to preemptively scaffold the planned THEORY/METHODS sections + subsection tabs into the GUI as placeholders,
 "to keep me psyched about all of the stuff we're gonna build." Built **honestly** (not vaporware) — new chunk
 `app/frontend/js/09_placeholders.jsx` (loads at 09, after the registry@05 + METHODS sections@06–08): a

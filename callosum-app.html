@@ -5940,6 +5940,18 @@
     };
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "LibreOffice plugin"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in LibreOffice Writer", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Installs the Callosum extension \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "Callosum"), " menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: install }, busy ? "Installing\u2026" : "Install plugin"), /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: API_BASE + "/integrations/libreoffice/plugin.oxt", download: true }, "Download .oxt"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  function WordSettings() {
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const openFolder = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPost("/integrations/word/install", {});
+      setBusy(false);
+      setMsg(r.ok ? r.data.detail || "Opened the add-in folder." : "Couldn't open: " + (r.error || "error"));
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (desktop)"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in Word", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "A task pane in ", /* @__PURE__ */ React.createElement("b", null, "desktop"), " Word (Windows/Mac) that searches your library and inserts citations \u2014 everything stays on your machine. One-time setup: ", /* @__PURE__ */ React.createElement("b", null, "1)"), " trust a local certificate, run ", /* @__PURE__ */ React.createElement("code", null, "npx office-addin-dev-certs install"), "; ", /* @__PURE__ */ React.createElement("b", null, "2)"), " run Callosum over HTTPS, ", /* @__PURE__ */ React.createElement("code", null, "python tools/run_https.py"), ", then open ", /* @__PURE__ */ React.createElement("code", null, "https://localhost:8443"), "; ", /* @__PURE__ */ React.createElement("b", null, "3)"), " download the manifest below and sideload it in Word (see the adapter README). Not supported in Word-on-the-web.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: API_BASE + "/integrations/word/manifest.xml", download: true }, "Download manifest"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openFolder }, busy ? "Opening\u2026" : "Open add-in folder"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
   function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal settings-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Settings"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
@@ -5986,7 +5998,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");

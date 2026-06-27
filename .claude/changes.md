@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 164) — new "Citing in Microsoft Word (desktop)" help section (the 3-step HTTPS/cert/sideload setup + Show Citations + the static-text-for-now caveat). -->
+## 2026-06-27 — Increment 164: Microsoft Word add-in (Office.js), SP1 — HTTPS spine + search-and-insert task pane
+- **Files:** `adapters/word/{manifest.xml,taskpane.html,taskpane.js,taskpane_core.js,taskpane.css,icon.png,README.md,taskpane_core.test.js}`
+  (new — the add-in, shipped client code), `app/backend/api/routers/word.py` (new — serve the task pane + manifest +
+  install) + `app/backend/api/app.py` (register), `tools/run_https.py` (new — HTTPS run-mode helper),
+  `app/frontend/js/35_settings.jsx` (`WordSettings` section) + `callosum-app.html`, `tests/test_word_addin.py` (new, +7),
+  `.claude/security-audits/2026-06-27_word-addin.md`, `.claude/qa-routes/route_35_settings.md`,
+  `app/backend/help/help_content.md` (cite-in-word), `INCREMENT-164-NOTES.md`.
+- **What:** the first Word adapter — a desktop-Word task pane (served by callosum over HTTPS, **same-origin** with the
+  API → **no egress, no CORS change**) that searches the library (`/papers?q=`) and inserts a formatted citation as
+  static text via `/citations/render` + `Word.run`. SP1 of a 3-SP arc (SP2 = live fields + renumber; SP3 = suggest/
+  style/flatten). Architecture A (user-chosen): zero-egress, desktop-only; one-time local-cert + sideload setup.
+- **Why:** the user's roadmap — the second word-processor adapter after LibreOffice (inc 108/162); honors local-first.
+- **Revert:** delete `adapters/word/`, `routers/word.py` (+ unregister in `app.py`), `tools/run_https.py`, the
+  `WordSettings` block, `tests/test_word_addin.py`; rebuild. No migration/schema; restore from a backups snapshot.
+
 ## 2026-06-27 — Increment 163: "Coming soon" accordion placeholders (a visible roadmap)
 - **Files:** `app/frontend/js/09_placeholders.jsx` (new), `app/frontend/styles.css` (`.coming-soon*`),
   `callosum-app.html`, `.claude/DESIGN.md` (§5 placeholder convention), `INCREMENT-163-NOTES.md`.
