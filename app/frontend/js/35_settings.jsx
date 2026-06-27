@@ -81,37 +81,54 @@ function MyPubsSettings({ onRefreshed }) {
   );
 }
 
-// AI features (inc 146 — BYOK). Set your Gemini API key + turn on data egress here, instead of env vars.
-// The key is write-only: GET /settings returns status only (never the value); egress is default-OFF.
+// AI features (inc 146/149/150 — multi-provider BYOK). Pick a provider, set its key (or a local endpoint) +
+// turn on data egress, instead of env vars. Keys are write-only: GET /settings returns status only (never the
+// value); egress is default-OFF. A LOCAL (loopback) provider needs no egress consent — nothing leaves the machine.
+const AI_PROVIDERS = [
+  { id: "gemini", label: "Google Gemini", keyUrl: "https://aistudio.google.com/apikey" },
+  { id: "openai", label: "OpenAI", keyUrl: "https://platform.openai.com/api-keys" },
+  { id: "anthropic", label: "Anthropic (Claude)", keyUrl: "https://console.anthropic.com/settings/keys" },
+  { id: "local", label: "Local model (no data leaves)", keyUrl: null },
+];
+
 function AiSettings() {
-  const [status, setStatus] = useState(null);  // {api_key_set, api_key_source, data_egress_enabled, egress_source}
+  const [status, setStatus] = useState(null);
   const [keyInput, setKeyInput] = useState("");
+  const [urlInput, setUrlInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [test, setTest] = useState(null);  // {ok, detail} from POST /settings/test-key
   const [testing, setTesting] = useState(false);
 
-  useEffect(() => { api("/settings").then(r => { if (r.ok) setStatus(r.data); }); }, []);
+  const refresh = (data) => { setStatus(data); setUrlInput(data.local_base_url || ""); };
+  useEffect(() => { api("/settings").then(r => { if (r.ok) refresh(r.data); }); }, []);
 
-  const testKey = async () => {
+  const provider = status ? status.provider : "gemini";
+  const meta = AI_PROVIDERS.find(p => p.id === provider) || AI_PROVIDERS[0];
+  const isLocal = provider === "local";
+
+  const put = async (body, doneMsg) => {
+    setBusy(true); setMsg(""); setTest(null);
+    const r = await apiPut("/settings", body);
+    setBusy(false);
+    if (r.ok) { refresh(r.data); if (doneMsg) setMsg(doneMsg); return true; }
+    setMsg("Couldn't save: " + (r.error || "error")); return false;
+  };
+
+  const changeProvider = async (p) => { setKeyInput(""); await put({ provider: p }); };
+  const saveKey = async () => {
+    const val = keyInput;
+    if (await put({ set_api_key: true, api_key: val, api_key_provider: provider }, val.trim() ? "Key saved." : "Key cleared.")) setKeyInput("");
+  };
+  const clearKey = () => put({ set_api_key: true, api_key: "", api_key_provider: provider }, "Key cleared.");
+  const saveUrl = () => put({ set_local_base_url: true, local_base_url: urlInput }, "Endpoint saved.");
+  const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
+
+  const testActive = async () => {
     setTesting(true); setTest(null);
     const r = await apiPost("/settings/test-key", {});
     setTesting(false);
     setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
-  };
-
-  const applyKey = async (value, doneMsg) => {
-    setBusy(true); setMsg("");
-    const r = await apiPut("/settings", { set_api_key: true, api_key: value });
-    setBusy(false);
-    if (r.ok) { setStatus(r.data); setKeyInput(""); setMsg(doneMsg); }
-    else setMsg("Couldn't save: " + (r.error || "error"));
-  };
-
-  const toggleEgress = async () => {
-    if (!status) return;
-    const r = await apiPut("/settings", { data_egress_enabled: !status.data_egress_enabled });
-    if (r.ok) setStatus(r.data);
   };
 
   const egressOn = !!(status && status.data_egress_enabled);
@@ -121,39 +138,65 @@ function AiSettings() {
     <>
       <p className="eyebrow">AI features</p>
       <div className="settings-field">
-        <label className="settings-field-label">Gemini API key
-          <span className="settings-sub">
-            {keySet
-              ? (fromEnv ? "Set via the GOOGLE_API_KEY environment variable." : "A key is saved on this machine.")
-              : "Not set. AI summaries need a key — stored locally, never sent anywhere but Google."}
-            {" "}<a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Get a key →</a>
-          </span>
-        </label>
-        <div className="settings-keyrow">
-          <input className="settings-input" type="password" autoComplete="off"
-            placeholder={keySet && !fromEnv ? "•••••••• (saved) — type to replace" : "Paste your key"}
-            value={keyInput} onChange={e => setKeyInput(e.target.value)} />
-          <button className="btn btn-ghost" disabled={busy || !keyInput.trim()} onClick={() => applyKey(keyInput, "Key saved.")}>{busy ? "Saving…" : "Save"}</button>
-          {keySet && !fromEnv &&
-            <button className="btn btn-ghost" disabled={busy} onClick={() => applyKey("", "Key cleared.")}>Clear</button>}
+        <label className="settings-field-label">Model provider</label>
+        <select className="settings-input" value={provider} disabled={busy} onChange={e => changeProvider(e.target.value)}>
+          {AI_PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+        </select>
+      </div>
+
+      {isLocal ? (
+        <div className="settings-field">
+          <label className="settings-field-label">Local endpoint (OpenAI-compatible)
+            <span className="settings-sub">e.g. Ollama / LM Studio at <code>http://127.0.0.1:11434</code>. Must be a loopback address — <b>nothing leaves your machine</b>, so no data-egress consent is needed.</span>
+          </label>
+          <div className="settings-keyrow">
+            <input className="settings-input" placeholder="http://127.0.0.1:11434" value={urlInput} onChange={e => setUrlInput(e.target.value)} />
+            <button className="btn btn-ghost" disabled={busy || !urlInput.trim()} onClick={saveUrl}>{busy ? "Saving…" : "Save"}</button>
+          </div>
+          {status && status.local_base_url &&
+            <div className="settings-keytest">
+              <button className="btn btn-ghost" disabled={testing} onClick={testActive}>{testing ? "Testing…" : "Test connection"}</button>
+              {test && <span className={"settings-keytest-result " + (test.ok ? "ok" : "err")}>{test.detail}</span>}
+            </div>}
         </div>
-        {keySet &&
-          <div className="settings-keytest">
-            <button className="btn btn-ghost" disabled={testing} onClick={testKey}>{testing ? "Testing…" : "Test key"}</button>
-            {test && <span className={"settings-keytest-result " + (test.ok ? "ok" : "err")}>{test.detail}</span>}
-          </div>}
-      </div>
-      <div className="settings-row">
-        <span className="settings-label">Allow AI features (sends text to Google)
-          <span className="settings-sub">
-            Off by default. When on, generating a summary sends the relevant library text to Google's Gemini API; every sentence is still verified locally against your PDFs.
-            {status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : ""}
-          </span>
-        </span>
-        <button type="button" className={"settings-switch" + (egressOn ? " on" : "")}
-          role="switch" aria-checked={egressOn} aria-label="Allow AI features"
-          onClick={toggleEgress}><span className="settings-knob" /></button>
-      </div>
+      ) : (
+        <>
+          <div className="settings-field">
+            <label className="settings-field-label">{meta.label} API key
+              <span className="settings-sub">
+                {keySet
+                  ? (fromEnv ? "Set via an environment variable." : "A key is saved on this machine.")
+                  : "Not set. AI features need a key — stored locally, sent only to the provider."}
+                {meta.keyUrl ? <>{" "}<a href={meta.keyUrl} target="_blank" rel="noopener noreferrer">Get a key →</a></> : null}
+              </span>
+            </label>
+            <div className="settings-keyrow">
+              <input className="settings-input" type="password" autoComplete="off"
+                placeholder={keySet && !fromEnv ? "•••••••• (saved) — type to replace" : "Paste your key"}
+                value={keyInput} onChange={e => setKeyInput(e.target.value)} />
+              <button className="btn btn-ghost" disabled={busy || !keyInput.trim()} onClick={saveKey}>{busy ? "Saving…" : "Save"}</button>
+              {keySet && !fromEnv &&
+                <button className="btn btn-ghost" disabled={busy} onClick={clearKey}>Clear</button>}
+            </div>
+            {keySet &&
+              <div className="settings-keytest">
+                <button className="btn btn-ghost" disabled={testing} onClick={testActive}>{testing ? "Testing…" : "Test key"}</button>
+                {test && <span className={"settings-keytest-result " + (test.ok ? "ok" : "err")}>{test.detail}</span>}
+              </div>}
+          </div>
+          <div className="settings-row">
+            <span className="settings-label">Allow AI features (sends text to {meta.label})
+              <span className="settings-sub">
+                Off by default. When on, generating a summary sends the relevant library text to {meta.label}; every sentence is still verified locally against your PDFs.
+                {status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : ""}
+              </span>
+            </span>
+            <button type="button" className={"settings-switch" + (egressOn ? " on" : "")}
+              role="switch" aria-checked={egressOn} aria-label="Allow AI features"
+              onClick={toggleEgress}><span className="settings-knob" /></button>
+          </div>
+        </>
+      )}
       {msg && <div className="settings-note">{msg}</div>}
     </>
   );

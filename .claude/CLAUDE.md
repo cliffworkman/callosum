@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 149** (see Increment workflow) with **546 pytest tests
+It is currently at **Increment 150** (see Increment workflow) with **550 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -773,7 +773,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-26 — increment 149 (multi-provider LLM engine — #39 part 1):
+*Last updated: 2026-06-26 — increment 150 (multi-provider Settings UI — #39 part 2; completes #39):
+the Settings → AI features section became **provider-aware**. **`PUT /settings`** extended — `provider` (allowlisted
+→ 422), per-provider `api_key` via `api_key_provider` (gemini stays the inc-146 `api_key` field), `local_base_url`
+(**loopback-validated → 422**), `model`; `SettingsStatus` gained `provider`/`local_base_url`/`model`/
+`provider_keys_set` (which cloud providers have a key — **never a value**). **`POST /settings/test-key` is now
+provider-aware** (validates the active provider via `complete()`; cloud egress-gated, local runs regardless +
+only hits the loopback endpoint; the gemini-only `_ping_gemini` was removed). Frontend (`35_settings.jsx`): a
+**Model provider** dropdown (Gemini/OpenAI/Anthropic/Local) — cloud shows a key field + the egress toggle; **Local**
+shows a loopback `base_url` field + a "nothing leaves your machine" note + **no egress toggle**; the Test button
+reads "Test key" (cloud) / "Test connection" (local). The **local-no-egress** claim is enforced in **two** places
+(the `PUT` write boundary + `complete()`), so a non-loopback "local" endpoint can never be stored. Per-provider keys
+stay **write-only over the wire**. **Audit addendum** to `2026-06-26_multi-provider-llm.md` **PASS** (PUT schema
+extension: provider allowlist, loopback-422, per-provider key isolation/write-only, provider-aware test-key). **Rule
+#10:** `route_35_settings.md` extended (provider picker + the local-no-egress step + a "non-loopback local = Critical"
+assertion) → surface **109/109 API + 559/559 FE, 0 uncovered**. help corpus AI/privacy sections rewritten for
+multi-provider + local (`HELP-DOCS-SYNCED` → 150). pytest **550** (+4 net: `test_settings.py` provider set/422,
+loopback-only, per-provider key isolation, local-test-without-egress; inc-147 test-key tests repointed to
+`providers.complete`; redaction moved to `test_providers.py`); `ruff` clean; build + assembly green; **no migration**.
+**Verified headed, no cloud egress** (`.local/visual/drive_inc150_provider_ui.py` — a fake loopback OpenAI-compatible
+server; provider=Local + egress OFF → base_url shown, no key/no egress toggle, **Test connection works against the
+loopback server with 0 cloud-host hits**; switch to OpenAI → key + egress toggle; 0 console/page errors). Notes:
+`INCREMENT-150-NOTES.md`. **This completes #39 (multi-provider BYOK): engine inc 149 + UI inc 150.** **The BYOK
+follow-on batch is done — inc 147 Test-key, 148 synthesis nudge, 149 engine, 150 UI.** **NEXT (deferred):**
+OS-keychain key storage (hardening / desktop-shell); real OpenAI/Anthropic/Ollama round-trips (user's manual check).
+
+Earlier — increment 149 (multi-provider LLM engine — #39 part 1):
 one provider-neutral **`complete(config, prompt)`** seam (`app/backend/llm/providers.py`) routes all six LLM
 generators to **Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint** — hand-rolled via **httpx (no new
 dependency)**. **The local provider is the flagship: summaries with zero egress.** `GeminiConfig` → **`LLMConfig`**

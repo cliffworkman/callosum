@@ -5587,45 +5587,68 @@
     const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID.` : "Done.";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your name"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "e.g. Ada Lovelace", value: name, onChange: (e) => setName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Other published names (one per line)"), /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 2, placeholder: "A. Lovelace\nAugusta Ada King", value: variants, onChange: (e) => setVariants(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (recommended \u2014 gives an exact match)"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : "Refresh my papers")), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Resolved via OpenAlex (public metadata \u2014 not the Gemini gate); never uses an LLM."));
   }
+  const AI_PROVIDERS = [
+    { id: "gemini", label: "Google Gemini", keyUrl: "https://aistudio.google.com/apikey" },
+    { id: "openai", label: "OpenAI", keyUrl: "https://platform.openai.com/api-keys" },
+    { id: "anthropic", label: "Anthropic (Claude)", keyUrl: "https://console.anthropic.com/settings/keys" },
+    { id: "local", label: "Local model (no data leaves)", keyUrl: null }
+  ];
   function AiSettings() {
     const [status, setStatus] = useState(null);
     const [keyInput, setKeyInput] = useState("");
+    const [urlInput, setUrlInput] = useState("");
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState("");
     const [test, setTest] = useState(null);
     const [testing, setTesting] = useState(false);
+    const refresh = (data) => {
+      setStatus(data);
+      setUrlInput(data.local_base_url || "");
+    };
     useEffect(() => {
       api("/settings").then((r) => {
-        if (r.ok) setStatus(r.data);
+        if (r.ok) refresh(r.data);
       });
     }, []);
-    const testKey = async () => {
+    const provider = status ? status.provider : "gemini";
+    const meta = AI_PROVIDERS.find((p) => p.id === provider) || AI_PROVIDERS[0];
+    const isLocal = provider === "local";
+    const put = async (body, doneMsg) => {
+      setBusy(true);
+      setMsg("");
+      setTest(null);
+      const r = await apiPut("/settings", body);
+      setBusy(false);
+      if (r.ok) {
+        refresh(r.data);
+        if (doneMsg) setMsg(doneMsg);
+        return true;
+      }
+      setMsg("Couldn't save: " + (r.error || "error"));
+      return false;
+    };
+    const changeProvider = async (p) => {
+      setKeyInput("");
+      await put({ provider: p });
+    };
+    const saveKey = async () => {
+      const val = keyInput;
+      if (await put({ set_api_key: true, api_key: val, api_key_provider: provider }, val.trim() ? "Key saved." : "Key cleared.")) setKeyInput("");
+    };
+    const clearKey = () => put({ set_api_key: true, api_key: "", api_key_provider: provider }, "Key cleared.");
+    const saveUrl = () => put({ set_local_base_url: true, local_base_url: urlInput }, "Endpoint saved.");
+    const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
+    const testActive = async () => {
       setTesting(true);
       setTest(null);
       const r = await apiPost("/settings/test-key", {});
       setTesting(false);
       setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
     };
-    const applyKey = async (value, doneMsg) => {
-      setBusy(true);
-      setMsg("");
-      const r = await apiPut("/settings", { set_api_key: true, api_key: value });
-      setBusy(false);
-      if (r.ok) {
-        setStatus(r.data);
-        setKeyInput("");
-        setMsg(doneMsg);
-      } else setMsg("Couldn't save: " + (r.error || "error"));
-    };
-    const toggleEgress = async () => {
-      if (!status) return;
-      const r = await apiPut("/settings", { data_egress_enabled: !status.data_egress_enabled });
-      if (r.ok) setStatus(r.data);
-    };
     const egressOn = !!(status && status.data_egress_enabled);
     const keySet = !!(status && status.api_key_set);
     const fromEnv = status && status.api_key_source === "env";
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI features"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Gemini API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via the GOOGLE_API_KEY environment variable." : "A key is saved on this machine." : "Not set. AI summaries need a key \u2014 stored locally, never sent anywhere but Google.", " ", /* @__PURE__ */ React.createElement("a", { href: "https://aistudio.google.com/apikey", target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192"))), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI features"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Model provider"), /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: provider, disabled: busy, onChange: (e) => changeProvider(e.target.value) }, AI_PROVIDERS.map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.label)))), isLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Local endpoint (OpenAI-compatible)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "e.g. Ollama / LM Studio at ", /* @__PURE__ */ React.createElement("code", null, "http://127.0.0.1:11434"), ". Must be a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ", so no data-egress consent is needed.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "http://127.0.0.1:11434", value: urlInput, onChange: (e) => setUrlInput(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !urlInput.trim(), onClick: saveUrl }, busy ? "Saving\u2026" : "Save")), status && status.local_base_url && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testActive }, testing ? "Testing\u2026" : "Test connection"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, meta.label, " API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via an environment variable." : "A key is saved on this machine." : "Not set. AI features need a key \u2014 stored locally, sent only to the provider.", meta.keyUrl ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { href: meta.keyUrl, target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192")) : null)), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "settings-input",
@@ -5635,7 +5658,7 @@
         value: keyInput,
         onChange: (e) => setKeyInput(e.target.value)
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: () => applyKey(keyInput, "Key saved.") }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => applyKey("", "Key cleared.") }, "Clear")), keySet && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testKey }, testing ? "Testing\u2026" : "Test key"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to Google)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to Google's Gemini API; every sentence is still verified locally against your PDFs.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: saveKey }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: clearKey }, "Clear")), keySet && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testActive }, testing ? "Testing\u2026" : "Test key"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to ", meta.label, ")", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to ", meta.label, "; every sentence is still verified locally against your PDFs.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -5646,7 +5669,7 @@
         onClick: toggleEgress
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+    ))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";

@@ -103,6 +103,20 @@ def test_complete_local_nonloopback_is_rejected():
         complete(cfg, "PROMPT", http_client=_FakeClient({}, {}))
 
 
+def test_complete_redacts_the_key_from_provider_errors(monkeypatch: pytest.MonkeyPatch):
+    """A provider error that echoes the key must be redacted before it surfaces in a ProviderError."""
+    key = "sk-leak-me-1234567890"
+    import google.genai as genai_mod
+
+    def _raise(**kw):
+        raise RuntimeError(f"401 invalid key {key} rejected")
+
+    monkeypatch.setattr(genai_mod, "Client", _raise)
+    with pytest.raises(ProviderError) as exc:
+        complete(_Cfg("gemini", api_key=key), "PROMPT")
+    assert key not in str(exc.value) and "***" in str(exc.value)
+
+
 # --- the gate: local skips egress; cloud still blocks ---
 
 

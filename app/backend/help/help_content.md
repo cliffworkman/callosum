@@ -712,7 +712,7 @@ Settings are intentionally small right now. Click the gear (`⚙`) in the sideba
 Available settings include:
 
 - **Dark mode:** switches the app chrome between light and dark themes. The PDF page itself stays light so paper rendering remains readable.
-- **AI features (bring your own key):** paste your **Gemini API key** and turn on **Allow AI features** here, instead of setting environment variables. The key is stored only on this machine (in a file in your home folder, outside the app and any synced folder) and is **never shown back to you** — Settings only reports whether a key is set. **Allow AI features** is **off by default**; turning it on lets summary generation send the relevant library text to Google's Gemini API (every sentence is still verified locally against your PDFs). Clearing the key or turning the toggle off stops all egress. If you'd rather use environment variables, `GOOGLE_API_KEY` and `CALLOSUM_ALLOW_DATA_EGRESS=1` still work and act as the fallback. Once a key is saved, a **Test key** button confirms it works — it only runs when **Allow AI features** is on (when AI is off, Callosum makes no outbound call at all), and it sends only a tiny test request, never your library.
+- **AI features (bring your own key):** choose a **model provider** — Google Gemini, OpenAI, Anthropic, or a **local model** — and set its key here, instead of editing environment variables. Keys are stored only on this machine (in a file in your home folder, outside the app and any synced folder) and are **never shown back to you** — Settings only reports whether a key is set, per provider. For a cloud provider, **Allow AI features** is **off by default**; turning it on lets summary generation send the relevant library text to that provider (every sentence is still verified locally against your PDFs). Clearing the key or turning the toggle off stops all egress. A **local model** (Ollama, LM Studio, or any OpenAI-compatible server at a loopback address like `http://127.0.0.1:11434`) is the privacy-maximal option: **nothing leaves your machine**, so no data-egress consent is needed — a non-loopback address is refused so that promise stays honest. Once a provider is configured, a **Test key / Test connection** button confirms it works (for a cloud provider it only runs when AI is on; it sends only a tiny test request, never your library). Environment variables (`GOOGLE_API_KEY` / `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, and `CALLOSUM_ALLOW_DATA_EGRESS=1`) still work as the fallback.
 
 The Callosum logo also carries connection status:
 
@@ -741,13 +741,13 @@ Callosum is local-first by design. Your PDFs, extracted text, chunks, embeddings
 
 The app remains useful offline after import and processing. You can browse, read PDFs, edit details, score axes, manage highlights, scan duplicates, and inspect saved syntheses without sending library text to a remote service.
 
-The features that can use Gemini are optional and off by default:
+The features that can use an LLM are optional and off by default:
 
 - **Synthesis generation:** sends selected source text needed to generate a draft answer.
-- **Search related terms:** sends axis text so Gemini can suggest possible terms.
+- **Search related terms:** sends axis text so the model can suggest possible terms.
 - **Suggested axis label polishing:** may send a small set of representative paper titles when egress is enabled; otherwise it falls back locally.
 
-To enable Gemini-backed features, either set them in **Settings → AI features** (paste your Gemini API key and turn on **Allow AI features** — the convenient path) or, equivalently, start Callosum with the environment variables `CALLOSUM_ALLOW_DATA_EGRESS=1` and `GOOGLE_API_KEY` configured. A value set in Settings is stored locally (in your home folder, outside the app and any synced folder) and overrides the environment fallback; either way, AI stays off until you explicitly turn it on.
+To enable AI features, pick a provider in **Settings → AI features** (Gemini / OpenAI / Anthropic / a local model) and set its key, then turn on **Allow AI features** — or, equivalently, start Callosum with the environment variables (`CALLOSUM_ALLOW_DATA_EGRESS=1` plus the provider's key env var). A value set in Settings is stored locally (in your home folder, outside the app and any synced folder) and overrides the environment fallback; for a **cloud** provider, AI stays off until you explicitly turn it on. A **local** model (a loopback OpenAI-compatible server) needs no egress consent at all — nothing leaves the machine — and a non-loopback "local" address is refused so that stays true.
 
 Important distinctions:
 

@@ -9,7 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 148) — help corpus current as of the synthesis egress-off nudge -->
+<!-- HELP-DOCS-SYNCED: 2026-06-26 (inc 150) — help corpus current as of multi-provider BYOK (provider picker + local) -->
+## 2026-06-26 — Increment 150: multi-provider Settings UI (#39 part 2 — completes #39)
+- **Files:** `app/backend/api/routers/settings.py`, `app/frontend/js/35_settings.jsx` + `callosum-app.html`,
+  `app/backend/help/help_content.md`, `tests/test_settings.py`, `tests/test_providers.py`,
+  `.claude/qa-routes/route_35_settings.md`, `.claude/security-audits/2026-06-26_multi-provider-llm.md` (addendum),
+  `INCREMENT-150-NOTES.md`.
+- **What:** A **Model provider** dropdown (Gemini / OpenAI / Anthropic / Local) in Settings → AI features. Cloud →
+  key field + egress toggle; Local → a loopback `base_url` + "nothing leaves your machine" (no egress toggle).
+  `PUT /settings` extended (provider allowlist, loopback-422, per-provider write-only keys); test-key is
+  provider-aware. Completes #39.
+- **Why:** Use OpenAI/Anthropic, or a local model for AI summaries with **zero egress**, all from the UI.
+- **Revert:** restore `35_settings.jsx` + the settings router from git; rebuild.
+
 ## 2026-06-26 — Increment 149: multi-provider LLM engine (#39 part 1)
 - **Files:** `app/backend/llm/providers.py` (new), `integrations/gemini/generator.py` (+ the 5 other
   `integrations/gemini/*.py` generators), `app/backend/llm/egress.py`, `app/backend/app_settings.py`,

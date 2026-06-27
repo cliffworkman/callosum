@@ -46,7 +46,24 @@ generators route through. `config.provider` ∈ `gemini` (google-genai SDK) / `o
 - a provider error containing the key → key redacted from the message. ✅ (`_redact`, exercised)
 - per-provider key resolution picks the active provider's key. ✅ (test)
 
+## Addendum — inc 150 (Settings provider UI + `PUT /settings` extension)
+
+The `PUT /settings` schema gained `provider` / per-provider `api_key` (+ `api_key_provider`) / `local_base_url` /
+`model` (a major request-schema change → re-audited here). Findings:
+- **Loopback enforced at the write boundary too.** `set_local_base_url` is rejected with **422** unless the URL is
+  loopback (`is_loopback_url`), so a non-loopback "local" endpoint can never be *stored* — `requires_egress("local")
+  == False` stays honest (defense-in-depth with the `complete()` check). Tested (`test_put_local_base_url_loopback_only`).
+- **Provider allowlisted.** An unknown `provider` → 422 (`test_put_sets_provider_and_rejects_unknown`).
+- **Per-provider key isolation.** Writing one provider's key leaves the others untouched
+  (`test_put_per_provider_key_isolated`); each key field is write-only — `GET /settings` reports only
+  `provider_keys_set` (which providers have a key), never a value (the inc-146 secrecy test still holds).
+- **Test-key is provider-aware.** `POST /settings/test-key` now validates the active provider via `complete()`;
+  cloud is still egress-gated, local works without egress (`test_test_key_local_works_without_egress`) — and a
+  local test only ever hits the loopback endpoint, never a cloud host.
+- No new endpoint path (PUT/GET/test-key already existed); no new dependency; no migration.
+
 ## Result
 
-**Security Audit: PASS.** (inc 150 adds the Settings provider UI + the settings-write loopback 422; this audit
-covers the engine + the loopback enforcement in `complete()`.)
+**Security Audit: PASS** (engine inc 149 + the Settings UI / write-boundary inc 150). The loopback rule is enforced
+in two places (write boundary + `complete()`), per-provider keys are write-only, and the local-no-egress claim is
+structurally honest.

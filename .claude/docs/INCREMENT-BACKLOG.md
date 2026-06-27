@@ -52,12 +52,11 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
-> **★ PRIORITIZED (Cliff, 2026-06-26):** the **build-and-test slate** (the experience-pass exercise — inc 142
-> Migrator/progress, 143 Librarian/protect-tags, 144 Close-reader/reading, 145 Synthesizer/focus-query) is **done
-> (4/4)**, and **BYOK shipped in inc 146 (#10 ✓)** — the Gemini API key + egress consent are now set from
-> Settings → AI features (a local `~/.callosum/app-settings.json` store overlaying the env fallback; key write-only
-> over the wire). **#39 (full multi-provider BYOK)** remains the larger follow-on (provider abstraction beyond
-> Gemini); the OS-keychain storage upgrade is the deferred hardening for it.
+> **★ DONE (Cliff, 2026-06-26):** the **build-and-test slate** (inc 142–145) **and the full BYOK arc** are shipped —
+> **#10** (inc 146 Gemini key in Settings), inc 147 Test-key, inc 148 synthesis "AI is off" nudge, and **#39**
+> (inc 149 engine + inc 150 Settings UI: Gemini/OpenAI/Anthropic/**local** via one httpx seam; a loopback local
+> provider runs with **zero egress**). _Deferred hardening:_ **OS-keychain** key storage (with Packaging **#21**);
+> a validation-lock/quality disclaimer; help-assistant per-provider. The open backlog below is the next pick.
 >
 > **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** keyboard zoom
 > (Ctrl +/−) + next/prev-mark hotkeys; a "noted-only" filter + a search box over note text in the Notes panel; a
@@ -353,11 +352,13 @@ only near-term, buildable-now parts) vs **B.** cross-user impact signal (far-fut
 Principles gate **and** the A-A values layer (default-deny; compute-locally / transmit-summaries-only; public field
 registry; commons reciprocity; valence rule = *less* time-in-app is the win). Graduation is my explicit call.
 
-**39. BYOK / multi-provider LLM** (`…_byokproviderkeys.md`, Settings) — **[security + future track — load-bearing for
-any shared release]** Callosum can't ship its own key once others run it: user-supplied keys +
-Gemini/OpenAI/Anthropic/OpenAI-compatible/**local**; a **validation lock** (quality-not-correctness disclaimer);
-keys in OS keychain; embeddings stay local; verification provider-agnostic. Extends the inc-58 egress-gate DI seam.
-The Gemini-key field (#10) is its precursor.
+**39. BYOK / multi-provider LLM** — ✅ **SHIPPED inc 149 (engine) + inc 150 (Settings UI).** User-supplied keys for
+**Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint**, all via one `complete()` seam (httpx, no new
+dep); a **local loopback provider runs with zero egress** (`requires_egress("local")` is False, loopback-enforced at
+both the write boundary and `complete()`); per-provider keys are write-only; the egress gate is provider-aware;
+embeddings + verification stay local. Audit `2026-06-26_multi-provider-llm.md` PASS. _Deferred:_ **OS-keychain** key
+storage (the documented hardening, with Packaging **#21**); a "validation lock"/quality disclaimer surface; migrating
+the help-assistant to a per-provider model where useful. The Gemini-key field (#10, inc 146) was its precursor.
 
 **40. PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
 `…_publisherschoicegate.md`) — **[future track — DO NOT BUILD YET]** at submission time, surface **verifiable,

@@ -18,6 +18,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **No uncompletable control.** Any visible control that cannot be completed through the UI is a bug.
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
 - **BYOK key secrecy (inc 146).** `GET /settings` must return STATUS ONLY — the response body containing the literal API-key value is **Critical**. The "Allow AI features" egress toggle must default to OFF on a clean instance; defaulting ON without an explicit toggle is **Critical** (invariant #3).
+- **Local = no egress, honestly (inc 149/150).** With provider = **Local** and a loopback `base_url`, no request to a cloud LLM host (`generativelanguage` / `api.openai.com` / `api.anthropic.com`) may fire — that is the whole point. A non-loopback local `base_url` accepted by `PUT /settings` (no 422) is **Critical** (it would let data leave under a "no egress" label).
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
 
@@ -38,7 +39,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 5. Open and close help-assistant settings. With egress unset, no genai request is allowed.
 6. **AI features (BYOK).** Confirm the section renders: a (password-masked) Gemini API key input + Save, and an "Allow AI features" toggle that is **OFF** on the clean instance. Paste a fake key, Save; reload and confirm a "key saved" status with **no key value shown anywhere** (inspect `GET /settings` — body must not contain the pasted string). Toggle egress on then off; confirm no genai request fires (egress unset; this only writes the local store). Clear the key; confirm it reverts to "Not set".
 7. **Test key (egress-gated).** With a key saved and **egress OFF**, click **Test key** → the result reports "Turn on Allow AI features…" and **no genai/`generativelanguage` request fires** (the egress toggle's promise: off ⟹ no outbound call). `POST /settings/test-key` returns `{ok:false}`; the response/DOM never contains the key value.
-8. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
+8. **Multi-provider (inc 149/150).** Use the **Model provider** dropdown. Selecting **OpenAI / Anthropic** shows that provider's key field + the egress toggle; selecting **Local model** shows a `base_url` field + a "nothing leaves your machine" note and **no egress toggle**. Save a loopback `base_url` (e.g. `http://127.0.0.1:11434`) → accepted; a non-loopback URL → **422**. With Local selected + loopback + egress off, **Test connection** must not hit any cloud LLM host.
+9. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
 
 ## Pass criteria
 
