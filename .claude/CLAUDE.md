@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 156** (see Increment workflow) with **568 pytest tests
+It is currently at **Increment 157** (see Increment workflow) with **572 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -274,7 +274,8 @@ callosum/
 │   └── desktop-shell/             (placeholder — Tauri, post-V1)
 ├── adapters/                      ← word-processor adapters (CLIENT code, ships into the word processor; NOT the
 │   └── libreoffice/               app, NOT a server integration). inc 108: callosum_cite.py [UNO cite-while-you-write
-│                                  macro], README.md, selftest_uno.py [headless round-trip harness]. Word/Docs next.
+│                                  macro: Insert/Refresh/SetStyle/Flatten + inc-157 SuggestCitations (highlight→suggest
+│                                  on /citations/suggest)], README.md, selftest_uno.py [headless round-trip harness]. Word/Docs next.
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
@@ -776,7 +777,38 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 156 (highlight-to-suggest / evaluate — Track C, SP1a): the first build of
+*Last updated: 2026-06-27 — increment 157 (highlight-to-suggest, SP1b — the LibreOffice "Suggest citations"
+macro): surfaces the inc-156 `POST /citations/suggest` contract **inside LibreOffice**, where the writer already
+inserts citations (the inc-108 cite-while-you-write adapter). The inc-107→108 pattern: SP1a was the contract,
+SP1b is the adapter. **Client-side only** (`adapters/libreoffice/callosum_cite.py`) — talks only to 127.0.0.1,
+reuses the SP1a endpoint + the inc-108 insert; **no server change, no new endpoint/egress/migration/dependency**
+(stdlib `urllib`). The writer **selects (highlights)** a sentence → `CallosumSuggestCitations` POSTs it to
+`/citations/suggest` (`current_query_text` = selection, else the paragraph) → a UNO **pick-list** (`_suggest_listbox`,
+each row from the pure `build_suggest_rows`: `[stance] Author Year · match N.NN — "quote…"` — the quote is the
+reason) → the chosen paper inserts as a live citation via the existing `insert_citation` (at the selection end).
+UNO-free helpers (`fetch_suggestions`/`build_suggest_rows`) are pytest-covered; `SUGGEST_TIMEOUT=90s` (the first
+call loads the embed+NLI models server-side; render/export keep 20s). **Honesty:** rows show stance+quote, the
+user **picks** (nothing auto-inserts), inserting reuses citeproc (no formatting in the adapter) — non-triggering
+beyond honoring the inc-156 posture. **Audit:** an **addendum** to `2026-06-21_libreoffice-adapter.md` PASS (same
+local-only/plain-text/no-egress; the one new flow = the highlighted **document text** → the local server, the
+feature's purpose, stays on 127.0.0.1). **No QA route** (a LO macro is outside the web-app surface map;
+`/citations/suggest` is covered by route_42) + **no help-corpus change** (the macro's doc is its README). pytest
+**572** (+4 `test_libreoffice_adapter.py`); `ruff` clean; no migration. **Verified — the headless UNO round-trip
+(`python .local/lo_roundtrip/run_roundtrip.py`) → SELFTEST OK**: the harness now seeds+embeds a chunk per paper so
+`/citations/suggest` returns results, and `selftest_uno.py` asserts the suggest→insert chain through **real
+LibreOffice** (got `[(1,'support'),(2,'support')]` — both seeded papers, **stance from the real NLI** — top one
+inserted). The interactive list-box dialog is the **user's manual eyeball** (it blocks on `execute()`; copy the
+macro into `%APPDATA%\LibreOffice\4\user\Scripts\python\`, select a sentence, run **Tools → Macros →
+CallosumSuggestCitations**). **Op gotchas (carry forward):** LibreOffice's Windows Python stdout is cp1252 — keep
+selftest `print()` strings ASCII (a `→` raised `UnicodeEncodeError`); a crashed prior round-trip can leave a
+**zombie TCP listener** (no owning process) on the port — the harness moved to :8100/:2003. **LibreOffice is
+installed** here (`C:\Program Files\LibreOffice\program\`). Notes: `INCREMENT-157-NOTES.md`; design spec
+`.claude/docs/specs/2026-06-27-highlight-suggest-design.md` (SP1a). **NEXT:** a formatted "Cite as… (style)" copy
+in the in-app Cite pane (the deadline-writer persona's ask, via the inc-106 engine); then **SP2 beyond-library
+discovery** (OpenAlex/Semantic-Scholar, explainable reasons — trips the audit + Principles gates) + Stage-4
+section-scoping; the Word (Office.js) + Google Docs adapters remain the broader word-processor track.
+
+Earlier — increment 156 (highlight-to-suggest / evaluate — Track C, SP1a): the first build of
 the highest-value novel capability (#30), and the start of a new design-led arc (brainstorm → Principles gate →
 plan → build). Given a draft sentence, **suggest** which library papers to cite (retrieval in reverse) and
 **evaluate** whether each candidate *supports / contrasts / mentions* the claim — evidence shown. **User-scoped:**

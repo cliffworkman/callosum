@@ -7,7 +7,7 @@ renumbering and author-date disambiguation). Everything is **local** — the mac
 server on `127.0.0.1`.
 
 This is **v1**: a drop-in Python macro (the `.oxt` extension with a toolbar comes later). It covers the core loop —
-insert, refresh/restyle/renumber, bibliography, and flatten.
+insert, **suggest-and-cite**, refresh/restyle/renumber, bibliography, and flatten.
 
 ## Prerequisites
 - **LibreOffice** with its bundled Python (any recent 7.x/24.x/25.x).
@@ -23,7 +23,7 @@ Copy `callosum_cite.py` into your LibreOffice user **Scripts/python** folder, cr
 | macOS | `~/Library/Application Support/LibreOffice/4/user/Scripts/python/` |
 | Linux | `~/.config/libreoffice/4/user/Scripts/python/` |
 
-Restart LibreOffice (or just reopen the macro dialog). The four macros then appear under
+Restart LibreOffice (or just reopen the macro dialog). The five macros then appear under
 **Tools → Macros → Organize Macros → Python → My Macros → callosum_cite**. For one-click use, bind them to toolbar
 buttons via **Tools → Customize → Toolbars**.
 
@@ -31,12 +31,18 @@ buttons via **Tools → Customize → Toolbars**.
 1. Start callosum and open (or create) a document in Writer.
 2. **CallosumInsertCitation** — enter a callosum **paper id** (the number in the library); a live citation field is
    inserted at the cursor and rendered immediately.
-3. **CallosumRefresh** — re-render every citation in the document and rebuild the bibliography (run after edits, or
+3. **CallosumSuggestCitations** — *don't know the id?* **Select (highlight)** the sentence you're writing (or just
+   place the cursor in it) and run this: callosum ranks **your library** by relevance to that sentence and shows a
+   pick-list — each row gives the paper's **stance** (supports / contrasts / mentions the claim), a **match**
+   score, and a **quote** preview (the evidence). Pick one and it's inserted as a live citation right after your
+   sentence. Ranked by relevance, not citation count; you decide the right citation — nothing is auto-inserted.
+   *(The first run loads the local relevance + stance models, so it can take a few seconds.)*
+4. **CallosumRefresh** — re-render every citation in the document and rebuild the bibliography (run after edits, or
    after moving citations around — numeric styles renumber by position).
-4. **CallosumSetStyle** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
+5. **CallosumSetStyle** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
    the whole document re-renders in the new style. The choice is saved in the document.
-5. **CallosumFlatten** — convert the live citation fields to plain static text for hand-off (e.g. journal
+6. **CallosumFlatten** — convert the live citation fields to plain static text for hand-off (e.g. journal
    submission). **One-way:** after flattening, the citations no longer update.
 
 The bibliography is a managed block at the **end** of the document (under a "References" heading); it is rebuilt on
@@ -55,6 +61,9 @@ the **Zotero `CSL_CITATION` field convention** (reused as a *pattern*, not code)
 built on **citeproc-js** and the **CSL** project; see the project's `THIRD-PARTY-NOTICES.md`.
 
 ## Limitations (v1)
-Insert is by paper id (a library-search picker comes later); single work per citation (no grouped cites or
-page-locators yet); the bibliography lives at the document end; in-text styles only (footnote/note styles later);
-no Track-Changes-corruption handling. Word (Office.js) and Google Docs are the next two adapters.
+Insert is by paper id, or by relevance via **Suggest** (a name/title search picker comes later); Suggest covers
+papers **already in your library** (finding relevant papers you don't yet have is the next stage), shows a
+truncated quote per row (read the full evidence in callosum's in-app **Cite** panel), and inserts a single work;
+single work per citation (no grouped cites or page-locators yet); the bibliography lives at the document end;
+in-text styles only (footnote/note styles later); no Track-Changes-corruption handling. Word (Office.js) and
+Google Docs are the next two adapters.

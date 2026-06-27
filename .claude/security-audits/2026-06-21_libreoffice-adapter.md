@@ -59,3 +59,34 @@ honored: the Zotero `CSL_CITATION` field convention is credited as a *pattern* i
 ## Result
 **Security Audit: PASS** — client-side, local-only, plain-text writes, defensive decode, no new server surface, no
 egress, no secrets, no file-path-from-input.
+
+---
+
+## Addendum — inc 157: the "Suggest citations" macro (`CallosumSuggestCitations`)
+
+**Date:** 2026-06-27. A new macro extends the adapter: read the current sentence (the selection, else the
+paragraph at the caret), POST it to `POST /citations/suggest` (the inc-156 contract), show a pick-list of library
+suggestions (stance + quote preview + match), and insert the chosen one via the existing audited `insert_citation`
+flow. **Same posture as inc 108 — no new server surface** (the endpoint was audited inc 156), no new dependency
+(stdlib `urllib`), no egress (127.0.0.1 only).
+
+- **New data leaving the macro:** the **document text** (the highlighted sentence / current paragraph) is POSTed
+  to the local server — analogous to the inc-108 macro sending CSL-JSON, and to the in-app Cite pane: it is the
+  user's own draft, sent to the user's own 127.0.0.1 server, **no egress**. The suggest engine is fully local
+  (local embeddings + local NLI; inc-156 audit `2026-06-26_citation-suggest.md`).
+- **Untrusted input (boundary):** the response is consumed defensively — `fetch_suggestions` returns `[]` on a
+  malformed/empty shape; `build_suggest_rows` tolerates missing stance/author/year/match and truncates the quote;
+  the chosen `paper_id` flows into `int()` via the audited `fetch_csl`/`insert_citation` path. No markup is
+  interpreted (the list rows are plain strings in a UNO ListBox; the inserted text is the plain-text render path).
+- **Resource / timeout:** the suggest call uses a longer timeout (`SUGGEST_TIMEOUT = 90s`) because the first call
+  loads the embed + NLI models server-side; a server-down case fails fast (connection refused, not a 90s hang).
+- **Honesty / Principles:** the dialog shows each candidate's stance + quote (the reason) and the user **picks**
+  — nothing auto-inserts; the suggestion/stance signal is the backend's (already gated), and inserting reuses
+  citeproc (no formatting in the adapter). Non-triggering beyond honoring this.
+- **Verification:** the pure logic (`build_suggest_rows`, `fetch_suggestions`) is pytest-covered; the
+  suggest→insert chain is exercised by the extended headless round-trip (`selftest_uno.py` → **SELFTEST OK**,
+  both seeded papers returned with a `support` stance from the real NLI, top one inserted). The interactive
+  list-box dialog is the user's manual eyeball.
+
+**Addendum result: PASS** — same local-only, plain-text, defensive, no-egress, no-new-dependency posture; the only
+new data flow (document text → local server) is the feature's purpose and stays on 127.0.0.1.

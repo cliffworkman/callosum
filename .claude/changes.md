@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-27 — Increment 157: highlight-to-suggest, SP1b (LibreOffice "Suggest citations" macro)
+- **Files:** `adapters/libreoffice/callosum_cite.py` (new `CallosumSuggestCitations` macro + `fetch_suggestions`/
+  `build_suggest_rows`/`current_query_text`/`_suggest_listbox`/`suggest_and_insert`), `adapters/libreoffice/README.md`,
+  `adapters/libreoffice/selftest_uno.py` (+ suggest→insert round-trip), `.local/lo_roundtrip/run_roundtrip.py`
+  (seed+embed chunks; gitignored), `tests/test_libreoffice_adapter.py` (+4), the inc-108 audit (addendum),
+  `INCREMENT-157-NOTES.md`.
+- **What:** A LibreOffice writer selects (highlights) a sentence → the macro POSTs it to the inc-156
+  `/citations/suggest` → a pick-list (stance + quote + match per row) → the chosen paper inserts as a live
+  citation via the existing inc-108 flow. Client-side only; no server change.
+- **Why:** #30 SP1b — surface the suggest+evaluate contract inside the word processor (the user's "from the
+  LibreOffice document" intent); the inc-107→108 pattern (contract → adapter).
+- **Notes:** addendum to the inc-108 adapter audit PASS (same local-only/no-egress posture; the new flow = doc
+  text → 127.0.0.1); `SUGGEST_TIMEOUT=90s` (first call loads the embed+NLI models). **Verified: headless UNO
+  round-trip SELFTEST OK** (suggest→insert through real LibreOffice; both seeded papers, `support` stance from the
+  real NLI). The interactive dialog is the user's manual eyeball. pytest 572. No migration/surface/help change.
+- **Revert:** drop the suggest macro + helpers from `callosum_cite.py` + revert the harness/README; from git.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 156) — added "Suggesting citations for a draft sentence"; fixed the stale "formatted styles not produced yet" line. -->
 ## 2026-06-27 — Increment 156: highlight-to-suggest / evaluate (Track C, SP1a)
 - **Files:** `app/backend/citations/suggest.py` (new), `app/backend/summarization/verification.py` (NLI stance),

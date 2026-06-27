@@ -60,3 +60,62 @@ def test_order_by_comparator_sorts_into_document_order() -> None:
     items = [{"id": "a", "pos": 2}, {"id": "b", "pos": 0}, {"id": "c", "pos": 1}]
     ordered = cc.order_by_comparator(items, lambda a, b: b["pos"] - a["pos"])
     assert [i["id"] for i in ordered] == ["b", "c", "a"]
+
+
+# ── inc 156/157: highlight-to-suggest (the LibreOffice "Suggest citations" macro) ──────────────────────────
+
+
+def test_build_suggest_rows_formats_stance_author_match_quote() -> None:
+    suggestions = [
+        {
+            "paper_id": 5,
+            "title": "Faces",
+            "author": "Lovelace",
+            "year": 2024,
+            "match_score": 0.6234,
+            "quote": "Facial anomalies influence social judgments in observers and beyond.",
+            "stance": {"label": "supports", "confidence": 0.9, "probs": {}},
+        },
+        {
+            "paper_id": 7,
+            "title": "Signals",
+            "author": None,
+            "year": None,
+            "match_score": 0.41,
+            "quote": "x" * 200,
+            "stance": None,
+        },
+    ]
+    rows = cc.build_suggest_rows(suggestions)
+    assert len(rows) == len(suggestions)  # parallel to suggestions (index → paper_id)
+    assert rows[0].startswith("[supports] Lovelace 2024 · match 0.62 — ")
+    assert "Facial anomalies" in rows[0]
+    # no stance → "no stance"; no author/year → falls back to the title; a long quote is truncated with …
+    assert rows[1].startswith("[no stance] Signals · match 0.41 — ")
+    assert rows[1].endswith('…"')
+
+
+def test_build_suggest_rows_match_fallbacks() -> None:
+    assert "match 0.00" in cc.build_suggest_rows([{"paper_id": 1, "title": "T", "quote": "q"}])[0]
+    assert "match ?" in cc.build_suggest_rows([{"paper_id": 1, "title": "T", "quote": "q", "match_score": "n/a"}])[0]
+
+
+def test_fetch_suggestions_posts_and_returns_list(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post(url, body, timeout=20):
+        captured["url"], captured["body"] = url, body
+        return {"suggestions": [{"paper_id": 3, "quote": "q"}]}
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    out = cc.fetch_suggestions("http://127.0.0.1:8080", "a draft sentence", top_k=4)
+    assert out == [{"paper_id": 3, "quote": "q"}]
+    assert captured["url"].endswith("/citations/suggest")
+    assert captured["body"] == {"text": "a draft sentence", "top_k": 4, "evaluate": True}
+
+
+def test_fetch_suggestions_defensive_on_bad_shape(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "_post_json", lambda *a, **k: {"oops": 1})
+    assert cc.fetch_suggestions("http://x", "s") == []
+    monkeypatch.setattr(cc, "_post_json", lambda *a, **k: ["not", "a", "dict"])
+    assert cc.fetch_suggestions("http://x", "s") == []

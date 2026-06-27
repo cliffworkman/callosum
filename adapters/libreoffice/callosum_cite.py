@@ -110,6 +110,36 @@ def order_by_comparator(items: list, compare) -> list:
     return sorted(items, key=functools.cmp_to_key(_cmp))
 
 
+SUGGEST_QUOTE_MAX = 90  # truncate the matched-passage preview in a pick-list row
+
+
+def build_suggest_rows(suggestions: list[dict]) -> list[str]:
+    """One display row per suggestion for the pick-list: stance + author/year + match + a quote preview.
+
+    The quote is the *reason* (the honesty surface) — a truncated preview so the writer can judge fit before
+    inserting. Pure (no UNO); parallel to `suggestions` (row index → suggestion → paper_id).
+    """
+    rows = []
+    for s in suggestions:
+        stance = s.get("stance")
+        label = stance.get("label") if isinstance(stance, dict) else None
+        tag = label or "no stance"
+        author = str(s.get("author") or "").strip()
+        year = s.get("year")
+        who = " ".join(p for p in (author, str(year) if year else "") if p)
+        if not who:
+            who = str(s.get("title") or f"paper {s.get('paper_id')}")
+        try:
+            match = f"{float(s.get('match_score', 0)):.2f}"
+        except (TypeError, ValueError):
+            match = "?"
+        quote = " ".join(str(s.get("quote") or "").split())
+        if len(quote) > SUGGEST_QUOTE_MAX:
+            quote = quote[:SUGGEST_QUOTE_MAX].rstrip() + "…"
+        rows.append(f'[{tag}] {who} · match {match} — "{quote}"')
+    return rows
+
+
 # ── HTTP (no UNO; stdlib only) ───────────────────────────────────────────────────────────────────────────
 
 
@@ -140,6 +170,23 @@ def render_document(base: str, request: dict) -> dict:
 def list_style_ids(base: str) -> set[str]:
     data = _get_json(f"{base}/citations/styles")
     return {s["id"] for s in data.get("styles", [])}
+
+
+SUGGEST_TIMEOUT = 90  # suggest does local ML work (embed + NLI); the first call loads the models — give it room
+
+
+def fetch_suggestions(base: str, text: str, top_k: int = 5) -> list[dict]:
+    """Citation suggestions for a draft sentence via the inc-156 endpoint; returns the suggestions list.
+
+    Local-only (127.0.0.1); the engine ranks the library by relevance + evaluates each candidate's stance. The
+    first call loads the embedding + NLI models server-side, so it uses a longer timeout than render/export.
+    Defensive on shape — a malformed/empty response yields [].
+    """
+    data = _post_json(
+        f"{base}/citations/suggest", {"text": text, "top_k": top_k, "evaluate": True}, timeout=SUGGEST_TIMEOUT
+    )
+    suggestions = data.get("suggestions") if isinstance(data, dict) else None
+    return suggestions if isinstance(suggestions, list) else []
 
 
 # ── UNO layer (lazy `import uno`; driven by the macro entry points + the headless self-test) ───────────────
@@ -178,6 +225,36 @@ def _insertion_cursor(doc):
         return text.createTextCursorByRange(view.getStart())
     except Exception:
         return text.createTextCursorByRange(text.getEnd())
+
+
+def _insertion_cursor_at_end(doc):
+    """A collapsed cursor at the END of the current selection — so a suggested cite lands AFTER the highlighted
+    sentence (for a collapsed caret, end == the caret). Falls back to the plain insertion point."""
+    text = doc.getText()
+    try:
+        view = doc.getCurrentController().getViewCursor()
+        return text.createTextCursorByRange(view.getEnd())
+    except Exception:
+        return _insertion_cursor(doc)
+
+
+def current_query_text(doc) -> str:
+    """The text to suggest citations for: the current SELECTION if non-empty (highlight-to-suggest), else the
+    paragraph around the caret. Returns "" if neither yields text."""
+    try:
+        view = doc.getCurrentController().getViewCursor()
+    except Exception:
+        return ""
+    selected = str(view.getString() or "").strip()
+    if selected:
+        return selected
+    try:
+        para = doc.getText().createTextCursorByRange(view.getStart())
+        para.gotoStartOfParagraph(False)
+        para.gotoEndOfParagraph(True)
+    except Exception:
+        return ""
+    return str(para.getString() or "").strip()
 
 
 def insert_citation(doc, paper_id, base: str = DEFAULT_BASE, cursor=None) -> str:
@@ -393,6 +470,50 @@ def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
     return value
 
 
+def _suggest_listbox(doc, rows: list[str]) -> int | None:
+    """A modal pick-list of citation suggestions (mirrors _input_box, with a ListBox). Returns the chosen row
+    index, or None if cancelled / nothing selected. Each row shows stance + author/year + match + a quote
+    preview — the writer reads the evidence and picks; nothing auto-inserts."""
+    smgr = _component_ctx().ServiceManager
+    ctx = _component_ctx()
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 320, 172, "Suggest citations"
+    label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+    label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 308, 22
+    label.Label = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
+    label.MultiLine = True
+    dm.insertByName("lbl", label)
+    lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 32, 308, 110
+    lst.Dropdown = False
+    lst.MultiSelection = False
+    lst.StringItemList = tuple(rows)
+    dm.insertByName("list", lst)
+    ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 222, 150, 44, 16, "Insert", 1
+    dm.insertByName("ok", ok)
+    cancel = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    cancel.PositionX, cancel.PositionY, cancel.Width, cancel.Height, cancel.Label, cancel.PushButtonType = (
+        270,
+        150,
+        44,
+        16,
+        "Cancel",
+        2,
+    )
+    dm.insertByName("cancel", cancel)
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+    result = dialog.execute()  # 1 == OK (Insert)
+    pos = dialog.getControl("list").getSelectedItemPos() if result == 1 else -1
+    dialog.dispose()
+    if result != 1 or pos is None or pos < 0 or pos >= len(rows):
+        return None
+    return int(pos)
+
+
 def _component_ctx():
     return XSCRIPTCONTEXT.getComponentContext()  # noqa: F821
 
@@ -411,6 +532,27 @@ def _msgbox(message: str, title: str = "callosum") -> None:
     box.dispose()
 
 
+def suggest_and_insert(doc, base: str = DEFAULT_BASE) -> str | None:
+    """Suggest library papers to cite for the current sentence, let the user pick one, and insert it.
+
+    Returns the new mark's `rnd` tag, or None if nothing was inserted (no text / no suggestions / cancelled).
+    The suggestion + stance signal is the backend's (inc 156); this only presents the evidence + inserts the
+    chosen cite via the existing insert_citation flow.
+    """
+    text = current_query_text(doc)
+    if not text:
+        _msgbox("Select a sentence (or place the cursor in one) to suggest citations for.")
+        return None
+    suggestions = fetch_suggestions(base, text)
+    if not suggestions:
+        _msgbox("No related papers in your library for that sentence.")
+        return None
+    idx = _suggest_listbox(doc, build_suggest_rows(suggestions))
+    if idx is None:
+        return None
+    return insert_citation(doc, suggestions[idx].get("paper_id"), base, cursor=_insertion_cursor_at_end(doc))
+
+
 def CallosumInsertCitation(*_args):
     doc = _current_doc()
     paper_id = _input_box(doc, "Insert citation", "callosum paper id:")
@@ -420,6 +562,13 @@ def CallosumInsertCitation(*_args):
         insert_citation(doc, paper_id.strip(), DEFAULT_BASE)
     except Exception as exc:  # surface, never crash Writer
         _msgbox(f"Insert failed: {exc}")
+
+
+def CallosumSuggestCitations(*_args):
+    try:
+        suggest_and_insert(_current_doc(), DEFAULT_BASE)
+    except Exception as exc:  # surface, never crash Writer
+        _msgbox(f"Suggest failed: {exc}")
 
 
 def CallosumRefresh(*_args):
@@ -448,4 +597,10 @@ def CallosumFlatten(*_args):
     _msgbox(f"Flattened {n} citation(s) to static text. Live updating is now off for this document.")
 
 
-g_exportedScripts = (CallosumInsertCitation, CallosumRefresh, CallosumSetStyle, CallosumFlatten)
+g_exportedScripts = (
+    CallosumInsertCitation,
+    CallosumSuggestCitations,
+    CallosumRefresh,
+    CallosumSetStyle,
+    CallosumFlatten,
+)

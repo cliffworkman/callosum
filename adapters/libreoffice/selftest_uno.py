@@ -147,6 +147,24 @@ def main():
         log(f"apa_text present in body = {apa_text in body2}")
         check(apa_text in body2, "flattened citation text was lost")
 
+        # 4) inc 157: the "Suggest citations" chain — fetch suggestions for a sentence + insert the top one,
+        # on a fresh doc (isolated from the AAA/BBB flow above). Proves suggest→insert end-to-end through real
+        # LibreOffice + a real server with an embedded library.
+        log("suggest: fresh doc")
+        doc2 = new_writer(ctx)
+        sugg = cc.fetch_suggestions(base, "attention mechanism transformer architecture")
+        log(f"suggestions = {[(s.get('paper_id'), (s.get('stance') or {}).get('label')) for s in sugg]}")
+        check(len(sugg) >= 1, "no suggestions returned for the query")
+        check(any(int(s["paper_id"]) in (int(p1), int(p2)) for s in sugg), "no seeded paper among suggestions")
+        rows = cc.build_suggest_rows(sugg)
+        check(len(rows) == len(sugg) and all(r.startswith("[") for r in rows), f"suggest rows malformed: {rows}")
+        text2 = doc2.getText()
+        text2.createTextCursorByRange(text2.getStart()).setString("We rely on attention mechanisms.\n")
+        cc.insert_citation(doc2, sugg[0]["paper_id"], base, cursor=text2.createTextCursorByRange(text2.getEnd()))
+        marks2 = [n for n in doc2.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+        check(len(marks2) == 1, f"suggest-insert produced {len(marks2)} marks, expected 1")
+        log("suggest-insert OK")
+
         print("SELFTEST OK", flush=True)
         return 0
     finally:

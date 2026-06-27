@@ -256,10 +256,12 @@ suggest papers to cite + evaluate support/contrast/mention via the NLI spine. Ne
 - **SP1a (inc 156) — DONE:** the local **in-library** suggest+evaluate engine + `POST /citations/suggest` contract
   + an in-app **Cite** pane (paste a sentence → ranked cards with stance pill + verbatim quote + match + Open
   source region + Copy BibTeX). Fully local, no egress. See `INCREMENT-156-NOTES.md`.
-- **SP1b (NEXT):** the **LibreOffice "Suggest citations" UNO macro** (`adapters/libreoffice/callosum_cite.py`) on
-  the SP1a contract — grab the current sentence → suggest → **Insert** the chosen cite via the inc-108 flow
-  (headless UNO round-trip; no server change). + a formatted **"Cite as… (style)"** copy in the Cite pane via the
-  inc-106 render engine (the persona's deadline-writer ask; v1 ships BibTeX copy).
+- **SP1b (inc 157) — DONE:** the **LibreOffice "Suggest citations" UNO macro** (`adapters/libreoffice/callosum_cite.py`
+  `CallosumSuggestCitations`) on the SP1a contract — select a sentence → suggest (pick-list: stance + quote +
+  match) → **Insert** the chosen cite via the inc-108 flow. Client-side only; verified by the headless UNO
+  round-trip (SELFTEST OK). See `INCREMENT-157-NOTES.md`.
+- **NEXT (small):** a formatted **"Cite as… (style)"** copy in the in-app Cite pane via the inc-106 render engine
+  (the persona's deadline-writer ask; SP1a ships a BibTeX copy).
 - **SP2 / Stage-3 — beyond-library suggest:** OpenAlex `related_works` / co-citation + Semantic-Scholar
   recommendations, each candidate carrying an **explainable reason** ("shares N refs", "co-cited with X"); this is
   where the bias-amplification mitigation lives (surface the reason; never rank by citation count). Trips the audit
