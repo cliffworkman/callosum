@@ -3,6 +3,25 @@
 // (StatcheckRow): a library-wide batch run + a per-paper check. Local, deterministic, NO AI (no egress).
 // Counts are a list to review, never a rank or verdict (Principles #2/#7 + the no-accusation A-A boundary).
 
+// inc 180 (credit-the-lineage): the source paper for statcheck, one-click added to the library via the inc-93
+// import path — matching the GRIM/p-curve credit blocks (now all on the shared .method-credit recipe).
+const STATCHECK_CSL = {
+  type: "article-journal",
+  title: "The prevalence of statistical reporting errors in psychology (1985–2013)",
+  author: [
+    { family: "Nuijten", given: "Michèle B." },
+    { family: "Hartgerink", given: "Chris H. J." },
+    { family: "van Assen", given: "Marcel A. L. M." },
+    { family: "Epskamp", given: "Sacha" },
+    { family: "Wicherts", given: "Jelte M." },
+  ],
+  "container-title": "Behavior Research Methods",
+  volume: "48",
+  page: "1205-1226",
+  issued: { "date-parts": [[2016]] },
+  DOI: "10.3758/s13428-015-0664-2",
+};
+
 // Library-wide batch (moved verbatim from StatcheckSettings, inc 97). On completion it calls ctx.onStatcheckRan()
 // so the App refreshes the header "N flagged" chip; ctx.onShowStatcheckFlagged jumps to the library filter.
 function StatcheckLibrary({ onShowFlagged, onRan }) {
@@ -118,6 +137,25 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
   );
 }
 
+// inc 180: credit the statcheck method in-context + offer its source paper to the library (credit-the-lineage).
+function StatcheckCredit() {
+  const [added, setAdded] = useState("idle");
+  const addCredit = async () => {
+    setAdded("adding");
+    const r = await apiPost("/library/import", { content: JSON.stringify([STATCHECK_CSL]), format: "csl-json" });
+    setAdded(r && r.ok ? "added" : "idle");
+  };
+  return (
+    <div className="method-credit">
+      <b>Method:</b> statcheck — Nuijten, Hartgerink, van Assen, Epskamp &amp; Wicherts (2016), <i>Behavior Research Methods</i> 48:1205–1226.{" "}
+      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
+        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
+      </button>
+      <div className="method-credit-sub">Re-implemented in Python (the <i>statcheck</i> R package is by Nuijten &amp; Epskamp) — credited, not reused. Surfaced via D. Lakens' automated-review catalog.</div>
+    </div>
+  );
+}
+
 function StatcheckSection({ ctx }) {
   return (
     <div className="statcheck-section">
@@ -125,6 +163,7 @@ function StatcheckSection({ ctx }) {
       <StatcheckLibrary onShowFlagged={ctx.onShowStatcheckFlagged} onRan={ctx.onStatcheckRan} />
       <p className="eyebrow">This paper</p>
       <StatcheckPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "statcheck"} />
+      <StatcheckCredit />
     </div>
   );
 }

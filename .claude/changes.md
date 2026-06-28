@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 180: credit-the-lineage for statcheck + shared .method-credit recipe (backlog #8)
+- **Files:** `app/frontend/js/06_methods_statcheck.jsx` (STATCHECK_CSL + StatcheckCredit), `app/frontend/js/07_methods_grim.jsx`
+  + `app/frontend/js/29_pcurve.jsx` (className repoint), `app/frontend/styles.css` (consolidate), `callosum-app.html`,
+  `INCREMENT-180-NOTES.md`.
+- **What:** gave statcheck the in-context credit block (Nuijten et al. 2016) + one-click "＋ add to library" that
+  GRIM/p-curve already had (credit-the-lineage). Consolidated the byte-identical `.grim-credit`/`.pcurve-credit`
+  into one canonical `.method-credit` (DESIGN Pass-2), repointing all three methods.
+- **Why:** honor the credit-the-lineage commitment for the one method that lacked it + kill a CSS duplicate.
+- **Gates:** frontend-only, reuses the inc-93 import (no new endpoint/migration/egress); Principles-aligned
+  (strengthens credit); QA surface 121/618; assembly 5/5; pytest 619. Headed-verified
+  (`.local/visual/drive_inc180_credit.py`: statcheck add-to-library → the paper lands; GRIM credit still styles).
+- **Revert:** drop StatcheckCredit + STATCHECK_CSL; revert the className/CSS consolidation.
+
 ## 2026-06-28 — Increment 179: mark-nav keyboard hotkeys (reading-pane)
 - **Files:** `app/frontend/js/30_viewer.jsx` (keydown effect + button tooltip hints), `callosum-app.html`,
   `INCREMENT-179-NOTES.md`.

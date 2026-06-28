@@ -66,12 +66,12 @@ function GrimSection() {
             </div>}
           <div className="grim-caveat">GRIM/GRIMMER assume integer-scale data — they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.</div>
         </div>}
-      <div className="grim-credit">
+      <div className="method-credit">
         <b>Method:</b> GRIM — Brown &amp; Heathers (2017); GRIMMER — Anaya (2016) / Allard (2018).{" "}
         <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
           {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
         </button>
-        <div className="grim-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.</div>
+        <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.</div>
       </div>
     </div>
   );

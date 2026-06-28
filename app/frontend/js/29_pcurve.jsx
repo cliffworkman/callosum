@@ -140,12 +140,12 @@ function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
             </div>
           </>}
 
-        <div className="pcurve-credit">
+        <div className="method-credit">
           <b>Method:</b> p-curve — Simonsohn, Nelson &amp; Simmons (2014), <i>J. Exp. Psychol. Gen.</i> 143(2):534–547.{" "}
           <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
             {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
           </button>
-          <div className="pcurve-credit-sub">
+          <div className="method-credit-sub">
             Re-implemented in Python; reference implementation: <i>scrutiny</i> (Lukas Jung). Surfaced via D. Lakens'
             automated-review catalog.
           </div>

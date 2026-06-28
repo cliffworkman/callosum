@@ -450,8 +450,7 @@
   .pcurve-test-raw { font-family: var(--mono); font-size: 11px; }
   .pcurve-test-p { font-family: var(--mono); font-size: 11px; color: var(--ink-3); white-space: nowrap; }
   .pcurve-coverage { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 8px 0; }
-  .pcurve-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
-  .pcurve-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  /* .pcurve-credit / .grim-credit consolidated → .method-credit (inc 180) */
   /* inc 127: GRIM calculator (METHODS). Tokens only. */
   .grim-section { font-size: 12px; }
   .grim-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; margin: 8px 0; }
@@ -462,8 +461,9 @@
   .grim-k { font-family: var(--mono); font-size: 11px; color: var(--ink-3); width: 64px; }
   .grim-near { font-family: var(--mono); font-size: 11px; color: var(--ink-2); }
   .grim-caveat { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin: 6px 0; }
-  .grim-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
-  .grim-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  /* inc 180: canonical credit-the-lineage block, shared by every METHODS module (statcheck / GRIM / p-curve). */
+  .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
+  .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
   /* inc 130: findings subsystem (FactMark + review cards + library badge). Tokens only. */
   .findings-section { font-size: 12px; }
   .findings-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }

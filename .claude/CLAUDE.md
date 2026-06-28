@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 179** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 180** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -829,7 +829,23 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 179 (mark-nav keyboard hotkeys — reading-pane): **`[`** / **`]`** step to the
+*Last updated: 2026-06-28 — increment 180 (credit-the-lineage: statcheck in-context credit + a shared .method-credit
+recipe — backlog #8): honors the credit-the-lineage values principle for the one method that lacked it. statcheck
+(inc 95) now has the in-context credit block + one-click **＋ add to library** (Nuijten, Hartgerink, van Assen,
+Epskamp & Wicherts 2016, *Behavior Research Methods* 48:1205–1226 — verbatim from THIRD-PARTY-NOTICES) that GRIM
+(127) + p-curve (126) already had, via a new `STATCHECK_CSL` + `StatcheckCredit` in `06_methods_statcheck.jsx`
+(reuses the inc-93 `/library/import`). **DESIGN Pass-2 consolidation:** the byte-identical `.grim-credit` +
+`.pcurve-credit` duplicates → one canonical **`.method-credit`**/`.method-credit-sub`; grim + p-curve repointed
+(className-only, no visual change). Frontend-only — no new endpoint/migration/egress; **Principles-aligned**
+(strengthens credit, the cautionary gate is non-triggering); QA surface **121/121 API + 618/618 FE** (statcheck's
+add-to-library button covered by route_33); assembly 5/5; pytest **619**. **Headed-verified, no egress**
+(`.local/visual/drive_inc180_credit.py`: statcheck ＋ add-to-library → the Nuijten paper lands in `/papers`; the
+repointed GRIM credit still styles; 0 console/page/genai). Notes: `INCREMENT-180-NOTES.md`. **Remaining on #8:**
+in-context credit for the retraction / gap-finder surfaces + the Lane-B dependency NOTICE pass. **NEXT:** the
+clean-autonomous queue stays thin (reading-pane is split-gated; #3/#5 + bigger tracks need the user's call; the
+Google Docs live test is the user's).
+
+Earlier — increment 179 (mark-nav keyboard hotkeys — reading-pane): **`[`** / **`]`** step to the
 prev/next highlight (the keyboard pairing for the inc-177 Mark buttons) — a `window` keydown effect gated to the
 **visible** viewer (`scrollRef.current.offsetParent !== null`, so a mounted-but-hidden tab doesn't respond) + not
 typing (`activeElement` not INPUT/TEXTAREA/contentEditable); button tooltips show the keys. Frontend-only — no

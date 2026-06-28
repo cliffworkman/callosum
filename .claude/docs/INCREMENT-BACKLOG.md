@@ -120,7 +120,11 @@ documented exceptions" ruling, which CC caught and escalated in the sandbox inst
 DONE. **Remaining only:** coverage *beyond* the 24/50-chunk cap (a real multi-pass / map-reduce synthesis change —
 its own design + a live eyeball; not autonomous-cheap).
 
-**8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **[your call: attributions]** the retroactive
+**8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **[your call: attributions]** **inc 180 shipped the
+statcheck slice** (in-context credit block + one-click "＋ add to library" for Nuijten et al. 2016, matching
+GRIM/p-curve; + consolidated the credit-block CSS into a shared `.method-credit`). **Remaining:** in-context credit
+for the **retraction** (Retraction Watch / Crossref) + **gap-finder** (OpenAlex) surfaces, the **Lane B**
+software-dependency NOTICE pass, and help-doc sync. The retroactive
 credit-help backfill: Lane A scholarly-method lineage (statcheck → Nuijten & Epskamp / Nuijten et al. 2016; etc.)
 + Lane B software-dependency NOTICE (AGPL-3.0) + help-doc sync. A near-term **maintenance pass**, not a
 longer-horizon track — but it spans the codebase and the attributions are a judgment call. *(Credit-the-lineage is
