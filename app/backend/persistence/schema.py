@@ -560,16 +560,15 @@ watched_folders = Table(
 # keep this file under the 600-line cap, rule #1). Re-exported here so existing
 # ``from app.backend.persistence.schema import paper_findings`` imports keep working, and so importing this module
 # registers those tables on the shared ``metadata`` (0001's ``metadata.create_all`` then includes them).
-from app.backend.persistence.schema_findings import (  # noqa: E402,F401
-    gap_candidates,
-    open_science_signals,
-    paper_findings,
-    retraction_records,
-)
-
 # Literature Feed tables (inc 187) — same split rationale; re-exported so existing import paths keep working and
 # importing this module registers them on the shared metadata.
 from app.backend.persistence.schema_feed import (  # noqa: E402,F401
     feed_items,
     feed_subscriptions,
+)
+from app.backend.persistence.schema_findings import (  # noqa: E402,F401
+    gap_candidates,
+    open_science_signals,
+    paper_findings,
+    retraction_records,
 )
