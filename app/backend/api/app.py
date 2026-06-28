@@ -24,6 +24,7 @@ from app.backend.api.routers import (
     annotations,
     axes,
     citations,
+    discovery,
     duplicates,
     findings,
     gaps,
@@ -42,6 +43,7 @@ from app.backend.api.routers import (
     word,
 )
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
+from app.backend.discovery.providers import SourceRegistry, build_default_registry
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
 from app.backend.help.assistant import HelpAssistant
@@ -81,6 +83,7 @@ def create_app(
     research_summary_generator: ResearchSummaryGenerator | None = None,
     overview_generator: OverviewGenerator | None = None,
     help_assistant: HelpAssistant | None = None,
+    discovery_registry: SourceRegistry | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
@@ -117,6 +120,7 @@ def create_app(
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
+    api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
@@ -175,6 +179,7 @@ def create_app(
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
+    api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
     api.include_router(annotations.router)
     api.include_router(tags.router)

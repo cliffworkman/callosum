@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 183: literature discovery SP1 (registry + Crossref search + save endpoints)
+- **Files:** `app/backend/discovery/{__init__,providers,crossref_provider,search}.py` (new),
+  `app/backend/api/routers/discovery.py` (new), `app/backend/api/app.py` (wire registry + router),
+  `tests/test_discovery.py` (new, +15), `.claude/qa-routes/route_43_discovery.md` (new),
+  `.claude/security-audits/2026-06-28_discovery-search.md`, `INCREMENT-183-NOTES.md`.
+- **What:** the discovery backend — a SourceProvider registry + a normalized `Item` (cross-provider dedup,
+  `in_library` marking), a Crossref search provider, and `GET /discovery/search` + `POST /discovery/save`
+  (metadata-only, deduped, **no PDF fetch**). AI augments-never-filters (complete list); the Search tab UI is inc 184.
+- **Why:** backlog #28 (Discover/Search), SP1 — engine-first (like inc-107→108) before the in-app tab.
+- **Gates:** pytest +15 (test_discovery); ruff check + format clean; QA surface 123/123 API + 618/618 FE, 0 uncovered
+  (route_43); audit PASS (constant Crossref host, query-as-param → no SSRF; bound-param persistence; public-metadata
+  egress, not the Gemini gate; no new dependency; no migration). Principles non-triggering (no claim/judgment).
+- **Revert:** remove `app/backend/discovery/`, `routers/discovery.py`, the 5 app.py wiring lines, the test + route +
+  audit; or restore from a `.claude/backups/` snapshot.
+
 ## 2026-06-28 — Increment 182: extract LibraryFrame from 30_viewer (discovery SP0 prereq)
 - **Files:** `app/frontend/js/30c_frame.jsx` (new — LibraryFrame), `app/frontend/js/30_viewer.jsx` (remove it),
   `.claude/qa-routes/route_00_smoke_readonly.md` (fe: repoint), `callosum-app.html`,
