@@ -9,6 +9,17 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 182: extract LibraryFrame from 30_viewer (discovery SP0 prereq)
+- **Files:** `app/frontend/js/30c_frame.jsx` (new — LibraryFrame), `app/frontend/js/30_viewer.jsx` (remove it),
+  `.claude/qa-routes/route_00_smoke_readonly.md` (fe: repoint), `callosum-app.html`,
+  `.claude/docs/specs/2026-06-28-discovery-search-design.md` (the design spec), `INCREMENT-182-NOTES.md`.
+- **What:** behavior-preserving split — LibraryFrame (the center tab shell) → its own chunk; 30_viewer 599→557
+  (clears the maxed cap) + gives the discovery Search tab a home. Wrote the discovery design spec.
+- **Why:** prerequisite for the literature-discovery track (#28, approved with Cliff) + relieves the rule-#1 cap.
+- **Gates:** frontend-only; QA surface 618/618 (route_00 claims the new chunk); assembly 5/5; pytest 619.
+  Behavior-preserving (inc-176 driver re-run: PDF tab opens via LibraryFrame, 0 errors).
+- **Revert:** inline LibraryFrame back into 30_viewer; revert the route fe:.
+
 ## 2026-06-28 — Increment 181: third-party software NOTICE pass (credit-the-lineage Lane B, backlog #8)
 - **Files:** `THIRD-PARTY-NOTICES.md`, `INCREMENT-181-NOTES.md`.
 - **What:** added a "Runtime & build dependencies" section crediting every shipped Python + JS dependency with its

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 181** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 182** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -343,10 +343,9 @@ and non-code (Markdown, SQL, config).
 **Standing split tasks:** none currently over the limit. **Inc 167** split `app/frontend/js/40_app.jsx` (630→551:
 the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
 **frontend chunks count too** (they're under `app/`). **Inc 176** extracted the Notes panel from `js/30_viewer.jsx`
-(595→573) into `js/30b_notes.jsx` (`AnnotationsPanel`); the reading-pane run (175–179) then re-grew it to
-**599/600 (MAXED, inc 179)** — **any further viewer feature needs another split first** (extract a cohesive
-low-coupling unit, per the inc-176 precedent). **Frontend watch:** `js/30_viewer.jsx` (**599**, MAXED),
-`js/25_detail.jsx` (584), `js/10_pdf_layer.jsx` (562). **Inc 137** split `schema.py` (611→558, over the cap
+(595→573) into `js/30b_notes.jsx` (`AnnotationsPanel`); the reading-pane run (175–179) re-grew it to 599/600, then **inc 182 extracted `LibraryFrame` → `js/30c_frame.jsx`**
+(30_viewer 599→**557**). **Frontend watch:** `js/25_detail.jsx` (**584**, closest), `js/10_pdf_layer.jsx` (562),
+`js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
@@ -829,7 +828,20 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 181 (third-party software NOTICE pass — credit-the-lineage Lane B, backlog #8):
+*Last updated: 2026-06-28 — increment 182 (extract LibraryFrame from 30_viewer — discovery SP0 prereq): the start of
+the **literature-discovery track (#28)**, approved with Cliff (Search-tab-first; all sources [Crossref leads,
+PubMed/bioRxiv as drop-ins]; axis-relevance highlight as SP1b; bioRxiv in the Feed). Design spec:
+`.claude/docs/specs/2026-06-28-discovery-search-design.md`. **This increment is the prerequisite split:**
+`LibraryFrame` (the center tab shell) moved from the maxed `30_viewer.jsx` (599/600) → new **`js/30c_frame.jsx`**
+(verbatim; hoists in the IIFE so it still renders PdfViewer/PaperList/MyPubsDashboard; App unchanged) → 30_viewer
+**599→557** (room for the Search-tab branch, which lands in 30c_frame). **QA:** `route_00` `fe:` repointed to claim
+30c_frame.jsx → surface **121/121 API + 618/618 FE, 0 uncovered**. Frontend-only — no backend/migration/egress;
+`test_frontend_assembly` 5/5; pytest **619**. **Behavior-preserving (headed)** — re-ran the inc-176 driver: a PDF
+tab opens via LibraryFrame + the notes filter works; 0 console/page/genai. Notes: `INCREMENT-182-NOTES.md`. **NEXT:
+SP1 (inc 183)** — the SourceProvider registry + Crossref provider + `GET /discovery/search` + `POST /discovery/save`
++ the Search tab (keyboard triage, one-click metadata save) in `30c_frame.jsx`; audit + a `route_43_discovery.md`.
+
+Earlier — increment 181 (third-party software NOTICE pass — credit-the-lineage Lane B, backlog #8):
 `THIRD-PARTY-NOTICES.md` credited citeproc/CSL/the methods but **no runtime/build dependencies** — a gap for a public
 AGPL repo. Added a **Runtime & build dependencies** section crediting every shipped Python (`requirements.txt`) + JS
 (`package.json` + CDN) dep with its license, grouped (MIT: FastAPI/SQLAlchemy/Alembic/esbuild/React; BSD-3-Clause:

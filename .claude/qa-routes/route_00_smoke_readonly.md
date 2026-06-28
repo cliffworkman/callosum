@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /health, GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, GET /tags, GET /axes, GET /help/corpus, GET /citations/styles, GET /summaries
-fe: 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
+fe: 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
 -->
 
 # ROUTE 00 — Read-only smoke (every surface renders, nothing errors)
