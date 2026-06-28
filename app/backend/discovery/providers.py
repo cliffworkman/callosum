@@ -103,7 +103,9 @@ class SourceRegistry:
 
 
 def build_default_registry() -> SourceRegistry:
-    """The shipped providers. SP1: Crossref (journals + preprints). PubMed/bioRxiv register here later."""
+    """The shipped providers. Crossref (journals + preprints) + PubMed (biomedical, SP1a). Adding a source is one
+    `register()` — no endpoint/UI edit (the registry test proves it). bioRxiv lands in the Feed (SP2)."""
     from app.backend.discovery.crossref_provider import CrossrefSearchProvider
+    from app.backend.discovery.pubmed_provider import PubMedSearchProvider
 
-    return SourceRegistry().register(CrossrefSearchProvider())
+    return SourceRegistry().register(CrossrefSearchProvider()).register(PubMedSearchProvider())

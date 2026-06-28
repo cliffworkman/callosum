@@ -743,7 +743,7 @@ After a Refresh it tells you how many papers it scanned ("scanned M of N — the
 
 <!-- section: discover-search -->
 ## Finding new papers (Discover)
-The **Discover** tab (beside **Library** in the center) searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata (Crossref now, which also covers bioRxiv/medRxiv preprints; more sources later), so the only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
+The **Discover** tab (beside **Library** in the center) searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
 
 Type a query and press **Enter** (or **Search**). Results come back as a dense list you can triage fast:
 

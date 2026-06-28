@@ -18,7 +18,11 @@ Public-metadata search (Crossref now) — **never** the Gemini library-text gate
 Clean seeded instance (`_TEMPLATE.md` → Environment). **Egress UNSET** (the library-text gate must never fire;
 Crossref metadata is fine). Register console/pageerror/request listeners before navigation.
 
-**Seed note:** the real Crossref search hits the network. To exercise the flow **offline + deterministically**,
+**Sources:** the default registry holds **Crossref** + **PubMed** (NCBI E-utilities, SP1a inc 186) — both fan out
+behind `/discovery/search` with no endpoint/UI change (the registry's promise). A result from both (same DOI) collapses
+to one row with both source pills.
+
+**Seed note:** the real Crossref/PubMed search hits the network. To exercise the flow **offline + deterministically**,
 inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake provider (mirror `tests/test_discovery.py`'s
 `_FakeProvider` → returns `Item(...)` rows with DOIs, one matching a seeded library paper so `in_library` is true). The
 `POST /discovery/save` path is fully local (no provider call) and can be driven directly.

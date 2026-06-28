@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 186) — the "Finding new papers (Discover)" section now says Crossref + PubMed (both sources, merged); covers inc 184 (Discover) + inc 185 (relevance badge) + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-28 — Increment 186: literature discovery SP1a — the PubMed source
+- **Files:** `app/backend/discovery/pubmed_provider.py` (new), `app/backend/discovery/providers.py` (register PubMed),
+  `tests/test_pubmed_provider.py` (new, +4), `tests/test_discovery.py` (registry test → crossref+pubmed),
+  `app/backend/help/help_content.md`, `.claude/qa-routes/route_43_discovery.md`,
+  `.claude/security-audits/2026-06-28_pubmed-provider.md`, `INCREMENT-186-NOTES.md`.
+- **What:** a PubMed Search source (NCBI E-utilities, esearch → esummary; injectable fetcher) registered into the
+  discovery registry — search now covers Crossref **+** PubMed with **no endpoint/UI change** (the registry promise);
+  a Crossref+PubMed overlap (same DOI) merges to one row with both source pills.
+- **Why:** backlog #28 SP1a (a second source; the registry was built for exactly this).
+- **Gates:** pytest 643 (+4); ruff clean; QA surface unchanged (124/124 API + 631/631 FE — a provider, not a new
+  surface); audit PASS (constant host + query-as-param → no SSRF; fail-closed; public-metadata, not the Gemini gate;
+  no new dependency). Principles non-triggering. Live schema spot-check (crispr query → 3 real records) confirms the
+  mapping. No migration/endpoint/frontend change.
+- **Revert:** delete `pubmed_provider.py` + `test_pubmed_provider.py`, revert the providers.py register line + the
+  registry test + help/route edits.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 185) — the "Finding new papers (Discover)" section now describes the axis-relevance highlight badge (hint, not a filter); covers inc 184 (Discover section) + the inc 175–179 reading-pane catch-up. -->
 ## 2026-06-28 — Increment 185: literature discovery SP1b — axis-relevance highlight
 - **Files:** `app/backend/discovery/relevance.py` (new), `app/backend/api/routers/discovery.py` (+ `/discovery/relevance`

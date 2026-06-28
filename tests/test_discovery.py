@@ -102,9 +102,9 @@ def test_registry_search_all_skips_a_failing_provider():
     assert [i.title for i in out] == ["Survivor"]  # the boom provider was swallowed
 
 
-def test_build_default_registry_registers_crossref():
+def test_build_default_registry_registers_crossref_and_pubmed():
     reg = build_default_registry()
-    assert [p.name for p in reg.providers] == ["crossref"]
+    assert [p.name for p in reg.providers] == ["crossref", "pubmed"]  # adding a source = one register() (SP1a)
 
 
 # ---- run_search: cross-provider dedup + in_library marking -----------------

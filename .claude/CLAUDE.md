@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 185** (see Increment workflow) with **639 pytest tests
+It is currently at **Increment 186** (see Increment workflow) with **643 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -256,9 +256,9 @@ callosum/
 │   │   ├── methods/               (statcheck.py [NHST p-value recomputation, inc 95], pcurve.py [inc 126], grim.py
    │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131])
 │   │   ├── discovery/             (providers.py [SourceProvider registry + normalized Item + cross-provider dedup],
-   │   │                          crossref_provider.py [Crossref /works keyword search], search.py [run_search +
-   │   │                          metadata-only save], relevance.py [axis-relevance highlight — local, SP1b inc 185];
-   │   │                          backlog #28 Search, inc 183)
+   │   │                          crossref_provider.py [Crossref /works keyword search], pubmed_provider.py [NCBI
+   │   │                          E-utilities esearch→esummary, SP1a inc 186], search.py [run_search + metadata-only
+   │   │                          save], relevance.py [axis-relevance highlight — local, SP1b inc 185]; #28 Search, inc 183)
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
@@ -833,7 +833,33 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 185 (literature discovery SP1b — the axis-relevance highlight): a **signal**
+*Last updated: 2026-06-28 — increment 186 (literature discovery SP1a — the PubMed source): a second Search source
+that drops into the discovery registry with **no endpoint/UI change** (the registry's promise: adding a source = one
+`register()`). New **`app/backend/discovery/pubmed_provider.py`** (`PubMedSearchProvider`, `name="pubmed"`): an
+injectable fetcher mirroring the Crossref one; `_eutils_search` = NCBI **esearch** (`term` → PMIDs) then **esummary**
+(PMIDs → records), both GET to the **constant** `https://eutils.ncbi.nlm.nih.gov/entrez/eutils` host with the query as
+a bound *param* (→ **no SSRF**), fail-closed (non-200/no-ids → `[]`); `summary_to_item` maps a record → a normalized
+`Item` (title, `pmid` from `uid`, `doi` from `articleids`/`elocationid` [strict DOI regex], authors, journal, year,
+the pubmed.ncbi.nlm.nih.gov URL; drops no-title-and-no-DOI; **v1 no abstract** — esummary doesn't carry it).
+`build_default_registry()` now registers Crossref **+** PubMed → `/discovery/search` fans out to both with the inc-183
+endpoint/UI/dedup/relevance **all unchanged**; a Crossref+PubMed overlap (same DOI) merges to one row, `sources=
+("crossref","pubmed")`, pmid filled from the PubMed copy. **Public-metadata egress** (the search terms → NCBI), **NOT**
+the Gemini gate; polite-pool `tool`+`email` (from Settings → Metadata access); **no new dependency** (httpx). **Audit
+`.claude/security-audits/2026-06-28_pubmed-provider.md` PASS** (constant host + query-as-param; defensive response
+parsing; fail-closed; no user-URL fetch; no new secret/endpoint/migration). **Principles non-triggering** (a search
+*source*; the complete deduped list is still returned — augment, never filter). **Rule #10:** no new API/FE surface (a
+provider behind `/discovery/search`) → surface map **unchanged 124/124 API + 631/631 FE, 0 uncovered**;
+`route_43_discovery.md` notes PubMed as a registered source. help corpus's Discover section now says "Crossref +
+PubMed" (`HELP-DOCS-SYNCED` → 186). pytest **643** (+4 `test_pubmed_provider.py`: summary→Item mapping,
+DOI-from-elocationid + drop-empty, injected-fetcher + blank-query, cross-provider DOI dedup; the inc-183 registry test
+updated to crossref+pubmed); `ruff` check + `format --check` clean; **no migration, no new dependency, no frontend
+rebuild**. **Live schema spot-check** (a `crispr gene editing` query → 3 real records mapped: title/PMID/DOI/year/
+`pubmed` source) confirms the live esearch→esummary schema the hermetic tests assume. Notes: `INCREMENT-186-NOTES.md`.
+**NEXT (remaining #28): SP2 — the Feed tab** (subscriptions [journals by ISSN / PubMed keyword / **bioRxiv by
+category**] + polling on a cadence + a read/unread/starred store; **needs a migration** — the larger, design-led one).
+(Optional later: PubMed abstracts via efetch; an NCBI api_key for higher rate limits.)
+
+Earlier — increment 185 (literature discovery SP1b — the axis-relevance highlight): a **signal**
 feature (the Principles gate was run before building). New **`app/backend/discovery/relevance.py::score_axis_relevance`**
 + **`POST /discovery/relevance`** score each search result's title+abstract against the user's **axis** embeddings and
 return the best-matching axis + similarity for items that clear that axis's cutoff; the Discover tab (`30d_discover.jsx`)
