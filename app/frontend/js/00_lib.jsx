@@ -180,6 +180,16 @@ async function downloadBibliography(ids, style) {
   _downloadBlob(new Blob([html], { type: "text/html" }), `callosum-bibliography-${style}.html`);
 }
 
+// inc-172: download a server asset (the LibreOffice .oxt / Word manifest) via a GET that goes through the auth
+// shim, so it carries the access token under Remote access — a plain <a download> navigation would NOT, and 401s.
+async function downloadAsset(path, filename) {
+  try {
+    const res = await fetch(API_BASE + path);
+    if (!res.ok) { console.warn("[callosum] download failed:", path, res.status); return; }
+    _downloadBlob(await res.blob(), filename);
+  } catch (e) { console.warn("[callosum] download error:", path, e); }
+}
+
 // ─────────────────────────────────────────────────────────────
 // PDF.js — loaded lazily from cdnjs, exactly once, the first time a
 // PDF tab is opened. UMD build (3.x) so it works with no build step.

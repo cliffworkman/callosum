@@ -276,7 +276,7 @@ function LibreOfficeSettings() {
         </label>
         <div className="settings-keyrow">
           <button className="btn btn-ghost" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install plugin"}</button>
-          <a className="btn-link" href={API_BASE + "/integrations/libreoffice/plugin.oxt"} download>Download .oxt</a>
+          <button className="btn-link" onClick={() => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt")}>Download .oxt</button>
         </div>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
@@ -306,7 +306,7 @@ function WordSettings() {
           </span>
         </label>
         <div className="settings-keyrow">
-          <a className="btn-link" href={API_BASE + "/integrations/word/manifest.xml"} download>Download manifest</a>
+          <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml")}>Download manifest</button>
           <button className="btn btn-ghost" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open add-in folder"}</button>
         </div>
       </div>

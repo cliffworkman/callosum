@@ -1588,6 +1588,18 @@
     const html = `<!doctype html><meta charset="utf-8"><title>Bibliography (${style})</title><body style="font-family:Georgia,'Times New Roman',serif;font-size:12pt;line-height:1.5;max-width:46em;margin:2em auto">${body}</body>`;
     _downloadBlob(new Blob([html], { type: "text/html" }), `callosum-bibliography-${style}.html`);
   }
+  async function downloadAsset(path, filename) {
+    try {
+      const res = await fetch(API_BASE + path);
+      if (!res.ok) {
+        console.warn("[callosum] download failed:", path, res.status);
+        return;
+      }
+      _downloadBlob(await res.blob(), filename);
+    } catch (e) {
+      console.warn("[callosum] download error:", path, e);
+    }
+  }
   const PDFJS_VERSION = "3.11.174";
   let pdfLibPromise = null;
   function loadPdfJs() {
@@ -6012,7 +6024,7 @@
       setBusy(false);
       setMsg(r.ok ? r.data.detail || "Opening LibreOffice\u2026" : "Couldn't install: " + (r.error || "error"));
     };
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "LibreOffice plugin"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in LibreOffice Writer", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Installs the Callosum extension \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "Callosum"), " menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: install }, busy ? "Installing\u2026" : "Install plugin"), /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: API_BASE + "/integrations/libreoffice/plugin.oxt", download: true }, "Download .oxt"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "LibreOffice plugin"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in LibreOffice Writer", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Installs the Callosum extension \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "Callosum"), " menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: install }, busy ? "Installing\u2026" : "Install plugin"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt") }, "Download .oxt"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function WordSettings() {
     const [busy, setBusy] = useState(false);
@@ -6024,7 +6036,7 @@
       setBusy(false);
       setMsg(r.ok ? r.data.detail || "Opened the add-in folder." : "Couldn't open: " + (r.error || "error"));
     };
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (desktop)"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in Word", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "A task pane in ", /* @__PURE__ */ React.createElement("b", null, "desktop"), " Word (Windows/Mac) that searches your library and inserts citations \u2014 everything stays on your machine. One-time setup: ", /* @__PURE__ */ React.createElement("b", null, "1)"), " trust a local certificate, run ", /* @__PURE__ */ React.createElement("code", null, "npx office-addin-dev-certs install"), "; ", /* @__PURE__ */ React.createElement("b", null, "2)"), " run Callosum over HTTPS, ", /* @__PURE__ */ React.createElement("code", null, "python tools/run_https.py"), ", then open ", /* @__PURE__ */ React.createElement("code", null, "https://localhost:8443"), "; ", /* @__PURE__ */ React.createElement("b", null, "3)"), " download the manifest below and sideload it in Word (see the adapter README). Not supported in Word-on-the-web.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: API_BASE + "/integrations/word/manifest.xml", download: true }, "Download manifest"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openFolder }, busy ? "Opening\u2026" : "Open add-in folder"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (desktop)"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in Word", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "A task pane in ", /* @__PURE__ */ React.createElement("b", null, "desktop"), " Word (Windows/Mac) that searches your library and inserts citations \u2014 everything stays on your machine. One-time setup: ", /* @__PURE__ */ React.createElement("b", null, "1)"), " trust a local certificate, run ", /* @__PURE__ */ React.createElement("code", null, "npx office-addin-dev-certs install"), "; ", /* @__PURE__ */ React.createElement("b", null, "2)"), " run Callosum over HTTPS, ", /* @__PURE__ */ React.createElement("code", null, "python tools/run_https.py"), ", then open ", /* @__PURE__ */ React.createElement("code", null, "https://localhost:8443"), "; ", /* @__PURE__ */ React.createElement("b", null, "3)"), " download the manifest below and sideload it in Word (see the adapter README). Not supported in Word-on-the-web.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml") }, "Download manifest"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openFolder }, busy ? "Opening\u2026" : "Open add-in folder"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function RemoteAccessSettings() {
     const [status, setStatus] = useState(null);

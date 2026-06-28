@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 172: download links carry the access token under Remote access (bug fix)
+- **Files:** `app/frontend/js/00_lib.jsx` (new `downloadAsset`), `app/frontend/js/35_settings.jsx` (the two
+  download links → buttons), `callosum-app.html` (rebuilt), `INCREMENT-172-NOTES.md`.
+- **What:** while debugging a user "Couldn't install: Not Found" on the LibreOffice plugin (root cause: a **stale
+  running uvicorn** predating the inc-162 routes → restart fixes it; current code serves them, confirmed via
+  TestClient), fixed a related latent bug: the **Download .oxt** + **Download manifest** plain `<a download>` links
+  bypassed the inc-168 auth shim → 401 under Remote access. They now fetch via the shim (`downloadAsset`) so they
+  carry the token.
+- **Why:** the user enabled Remote access for Google Docs; plain-anchor downloads silently broke under it.
+- **Gates:** frontend-only, no backend/migration/egress; QA surface covered (121/121 API + 608/608 FE);
+  `test_frontend_assembly` 5/5; pytest 619 unchanged. No audit/Principles trigger.
+- **Revert:** restore the two `<a … download>` links + drop `downloadAsset`.
+
 ## 2026-06-28 — Increment 171: Google Docs SP3 — Suggest-from-the-selection + Flatten
 <!-- HELP-DOCS-SYNCED: inc 171 — no corpus change needed; the Remote-access note's add-on pointer (inc 170) covers it. -->
 - **Files:** `adapters/googledocs/Code.gs` (suggestFromSelection + flattenCitations + selection→cursor-end helpers),

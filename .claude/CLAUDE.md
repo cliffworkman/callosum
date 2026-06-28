@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 171** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 172** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -825,7 +825,22 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 171 (Google Docs SP3 — Suggest-from-the-selection + Flatten): parity for the
+*Last updated: 2026-06-28 — increment 172 (download links carry the token under Remote access — bug fix): debugging
+a user "Couldn't install: Not Found" on Settings → LibreOffice plugin → Install. **Root cause: a stale running
+uvicorn** (predating the inc-162 `/integrations/libreoffice/*` routes) → 404; the current code serves them (200,
+confirmed via in-process TestClient with the OS-open stubbed) → **the fix is to restart uvicorn** (no code change
+for the 404). **Fixed a related latent bug found while debugging:** the **Download .oxt** + **Download manifest**
+plain `<a href={API_BASE+…} download>` links bypass the inc-168 auth fetch shim (it wraps `window.fetch`, not anchor
+navigations), so under **Remote access ON** they send no token → **401**. New `downloadAsset(path, filename)` in
+`00_lib.jsx` (GET `fetch` → blob → `_downloadBlob`, the inc-70 tokened pattern); both links in `35_settings.jsx`
+became `<button className="btn-link" onClick={downloadAsset(...)}>`. Frontend-only — no backend/migration/egress; QA
+surface covered (121/121 API + **608**/608 FE, the `<a>`→`<button>` claimed by `route_35_settings`); rebuilt
+`callosum-app.html`; `test_frontend_assembly` 5/5; pytest **619** unchanged; no audit/Principles trigger. **GOTCHA
+(carry forward): any plain `<a download>`/`<a href>` to a callosum endpoint breaks under Remote access — use a
+tokened `fetch` (e.g. `downloadAsset`).** Notes: `INCREMENT-172-NOTES.md`. **NEXT:** the user restarts uvicorn →
+Install works + the Download links work under Remote access → the live in-Docs Google Docs check.
+
+Earlier — increment 171 (Google Docs SP3 — Suggest-from-the-selection + Flatten): parity for the
 Google Docs add-on (mirrors Word SP3), all in `adapters/googledocs/`, **no callosum code change**. **Suggest:**
 `Code.gs::suggestFromSelection` reads the selected text (`_selectionText`, else the cursor's paragraph
 `_cursorParagraphText`) → `CallosumCore.pickQueryText` → POST **`/citations/suggest`** (inc 156,
