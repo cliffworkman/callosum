@@ -61,6 +61,18 @@ subdomain *zone* + two NS records at HostGator), leaving the rest of clffwrkmn.n
 ## Pytest
 **619** unchanged (config/docs/cloudflared — no Python app change; `ruff` clean on `tools/run_tunnel.py`).
 
+## Correction (post-build, same increment) — the DNS approach
+The user tried to add `callosum.clffwrkmn.net` to Cloudflare and hit: *"provide the root domain, not a subdomain."*
+**Cloudflare's free tier requires the root domain** — a subdomain-only zone ("subdomain setup") is a paid
+**Business** feature. My "subdomain delegation on free" was wrong. The user chose to proceed with a **careful
+whole-domain migration** of clffwrkmn.net to Cloudflare instead. To make it email-safe I enumerated the live DNS
+(read-only): A `@`/`www`/`mail`/`cpanel`/`ftp` → `50.87.149.75`; MX `@` → `mail.clffwrkmn.net` (0); SPF
+`v=spf1 +a +mx +ip4:50.87.144.47 +include:websitewelcome.com ~all`; **DKIM** `default._domainkey` (`v=DKIM1;…`);
+no DMARC. The migration runbook (`README.md`) now: add the **root** to Cloudflare → auto-import → **verify these
+records (esp. the full DKIM) + set existing ones "DNS only"/grey** (so the HostGator site + email are unchanged;
+`mail` must stay grey) → switch nameservers at the registrar → verify site+email → then `cloudflared route` for the
+proxied `callosum` subdomain. Reversible. **The cloudflared cite-only config + helper are unchanged** (same hostname).
+
 ## Next
 **SP2 — the Apps Script Google Docs add-on** (`adapters/googledocs/`: `appsscript.json` + `Code.gs` + `sidebar.html`):
 a sidebar; `UrlFetchApp` → `https://callosum.clffwrkmn.net` with the bearer token; citations as **NamedRange +

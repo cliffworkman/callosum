@@ -7,7 +7,7 @@ your computer, so a small bridge exposes **only the citation endpoints** of your
 Google Docs add-on (Google cloud)
    │  HTTPS + your access token
    ▼
-https://callosum.clffwrkmn.net   ← Cloudflare edge (a subdomain you delegate; the rest of clffwrkmn.net is untouched)
+https://callosum.clffwrkmn.net   ← Cloudflare edge (clffwrkmn.net's DNS on Cloudflare; existing records stay "DNS only" — site + email unchanged; only `callosum` is proxied to the tunnel)
    │  cloudflared tunnel (runs on YOUR pc, outbound only — no inbound port)
    ▼
 http://localhost:8080            ← your callosum, CITE-ONLY ingress + a bearer token
@@ -29,22 +29,31 @@ folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunn
 - Run callosum normally (`uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080`).
 - **Settings → Remote access (Google Docs) → toggle on.** Copy the **access token** (shown once).
 
-### 2. Cloudflare: add `callosum.clffwrkmn.net` as a delegated subdomain zone (free)
-- Create a free account at <https://dash.cloudflare.com>.
-- **Add a domain** → enter **`callosum.clffwrkmn.net`** (the subdomain, not `clffwrkmn.net`) → choose the **Free**
-  plan. Cloudflare creates a zone for just that subdomain and shows you **two nameservers**
-  (e.g. `xavier.ns.cloudflare.com`, `dana.ns.cloudflare.com`).
+### 2. Cloudflare: add the ROOT domain `clffwrkmn.net` (free)
+> Cloudflare's free tier manages a whole domain (a subdomain-only zone is a paid Business feature). Done carefully
+> this does **not** disrupt your HostGator website or email — Cloudflare just becomes the DNS host; existing records
+> stay "DNS only" so nothing about how they resolve changes. It's fully reversible (switch the nameservers back).
+- Create a free account at <https://dash.cloudflare.com> → **Add a domain** → enter **`clffwrkmn.net`** (the root) →
+  **Free** plan → **Import DNS records automatically**.
+- **Verify every record imported before continuing** (Cloudflare's scan occasionally misses TXT/DKIM). The current
+  set (confirm each is present, then set the existing ones to "DNS only" = **grey cloud**, NOT proxied):
+  - **A**: `@`, `www`, `mail`, `cpanel`, `ftp` → `50.87.149.75`
+  - **MX**: `@` → `mail.clffwrkmn.net` (priority 0) — **`mail` must be grey/DNS-only** (Cloudflare can't proxy email)
+  - **TXT** `@` (SPF): `v=spf1 +a +mx +ip4:50.87.144.47 +include:websitewelcome.com ~all`
+  - **TXT** `default._domainkey` (**DKIM**): `v=DKIM1; k=rsa; p=MIIBIjAN…` — **paste the FULL value if it didn't import**
+  - (no DMARC record currently — nothing to add)
+- Set `callosum` (added in step 4) to **proxied (orange)** — only that subdomain goes through Cloudflare.
 
-### 3. HostGator: delegate ONLY the subdomain (this is the only change to clffwrkmn.net)
-- HostGator cPanel → **Zone Editor** → manage `clffwrkmn.net` → **Add Record** ×2, type **NS**:
-  - Name `callosum` (→ `callosum.clffwrkmn.net`), NS = the **first** Cloudflare nameserver.
-  - Name `callosum`, NS = the **second** Cloudflare nameserver.
-- Nothing else in clffwrkmn.net changes; your website + email keep working.
-- Verify (wait a few minutes): `nslookup -type=ns callosum.clffwrkmn.net` → the Cloudflare nameservers.
+### 3. Switch nameservers (the actual cutover)
+- Cloudflare shows you **two nameservers** (e.g. `xxx.ns.cloudflare.com`, `yyy.ns.cloudflare.com`).
+- At your **registrar** (where clffwrkmn.net is registered — possibly HostGator's domain panel), replace the current
+  nameservers (`ns6051.hostgator.com`, `ns6052.hostgator.com`) with Cloudflare's two.
+- Wait for Cloudflare to email **"active"** (minutes to a few hours). Then **verify your site loads + send/receive a
+  test email** before relying on it. (Reversible: set the nameservers back to HostGator's.)
 
 ### 4. cloudflared: create the tunnel
 - Install (once): `winget install Cloudflare.cloudflared`
-- `cloudflared login` → a browser opens; **authorize the `callosum.clffwrkmn.net` zone**.
+- `cloudflared login` → a browser opens; **authorize the `clffwrkmn.net` zone**.
 - `cloudflared tunnel create callosum` → prints a **tunnel UUID** and a **credentials file path**
   (e.g. `C:\Users\<you>\.cloudflared\<UUID>.json`).
 - Open **`adapters/googledocs/cloudflared-config.yml`** and replace `<TUNNEL_ID>` (both places) + the

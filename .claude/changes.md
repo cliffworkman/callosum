@@ -22,6 +22,10 @@ are the design diary; this is the chronological "what & why" record.
   installed via the permitted winget.
 - **Revert:** delete `adapters/googledocs/` + `tools/run_tunnel.py`. No app/schema change. The live tunnel needs the
   user's Cloudflare account (manual); the cite-only ingress + the install were verified, not the live tunnel.
+- **Correction (post-build):** Cloudflare **free needs the ROOT domain** (subdomain-only zones are paid) — so the DNS
+  side is a careful **whole-domain clffwrkmn.net → Cloudflare migration** (keep existing A/MX/SPF/DKIM "DNS only" →
+  site+email unchanged; reversible), not subdomain delegation. `README.md` updated; current DNS enumerated (A→
+  50.87.149.75, MX→mail, SPF, DKIM `default._domainkey`) to make the migration email-safe. cloudflared config unchanged.
 
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 168) — privacy section gained a "Remote access (for the Google Docs add-on)" note (off by default; the access token; the recovery hatch). -->
 ## 2026-06-27 — Increment 168: Google Docs SP0 — remote-access security foundation (auth + rate-limiting)
