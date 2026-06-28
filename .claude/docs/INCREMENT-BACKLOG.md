@@ -78,10 +78,12 @@ made them coexist on purpose).
 
 **3. Protect imported/system tags from silent clobber** — **inc 143 (Librarian pass) shipped the core:** deleting
 an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
-backfill no longer silently re-adds a removed keyword; re-adding it clears the suppression). **Remaining (librarian
-pass findings):** a **confirm before 🔎 re-resolve overwrites hand-edited metadata** (`force=True` clobbers silently);
-a tag's **source as an always-on label/icon** (not only on hover); a "what re-resolve changed" **diff toast**; a
-**lock-this-tag** affordance. *(See **#9** for the full tag-provenance context.)*
+backfill no longer silently re-adds a removed keyword; re-adding it clears the suppression). **inc 174** shipped the
+**confirm before 🔎 re-resolve overwrites hand-edited metadata** (a `window.confirm` guard when
+`imported_source == "user-edited"`). **Remaining ([decision] — needs Cliff):** a tag's **source as an always-on
+label/icon** — *conflicts with the inc-100 decision* ("differentiate sources aesthetically, no Details labels"), so
+it's not autonomous; a "what re-resolve changed" **diff toast**; a **lock-this-tag** affordance. *(See **#9** for the
+full tag-provenance context.)*
 
 **4. Progress indication for long operations** — **[mostly shipped]** indeterminate bar (79) → DETERMINATE "X / N"
 progress for scan + import (142) + a "Review unsorted →" door + the **scan done-summary now lists which files

@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 174: confirm before re-resolve overwrites hand-edited metadata (backlog #3)
+- **Files:** `app/frontend/js/25_detail.jsx` (DoiRow re-resolve guard), `callosum-app.html`, `INCREMENT-174-NOTES.md`.
+- **What:** 🔎 re-resolve force-overwrites metadata from Crossref; for a hand-edited paper (`imported_source ==
+  "user-edited"`) it now requires a `window.confirm` first, so edits aren't lost on a misclick. Non-edited papers
+  are unaffected.
+- **Why:** librarian-pass finding (backlog #3) — silent data loss on hand-edited papers.
+- **Gates:** frontend-only, no backend/migration/egress; QA surface unchanged (121/608); assembly 5/5; pytest 619.
+- **Revert:** drop the confirm in `DoiRow.resolve`.
+
 ## 2026-06-28 — Increment 173: import reports parse-time skipped records (backlog #4)
 - **Files:** `app/backend/metadata/citation_import.py` (parsers → `(records, skipped)`), `app/backend/api/routers/library.py`
   (`ImportSummary.skipped`), `app/frontend/js/28_import.jsx` (show skipped; fix failed/skipped mislabel),

@@ -175,6 +175,11 @@ function DoiRow({ paper, onSave, onResolve, resolving }) {
     if (v.trim() !== current) await onSave("doi", v.trim() === "" ? null : v.trim());
   };
   const resolve = async () => {
+    // inc 174: re-resolve force-overwrites from Crossref. Guard hand-edited papers so edits aren't lost silently.
+    if (paper.imported_source === "user-edited" &&
+        !window.confirm("This paper has hand-edited metadata. Re-resolving from Crossref will overwrite your edits. Continue?")) {
+      return;
+    }
     await commit();
     onResolve();
   };

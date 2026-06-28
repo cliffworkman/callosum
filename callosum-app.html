@@ -4058,6 +4058,9 @@
       if (v.trim() !== current) await onSave("doi", v.trim() === "" ? null : v.trim());
     };
     const resolve = async () => {
+      if (paper.imported_source === "user-edited" && !window.confirm("This paper has hand-edited metadata. Re-resolving from Crossref will overwrite your edits. Continue?")) {
+        return;
+      }
       await commit();
       onResolve();
     };

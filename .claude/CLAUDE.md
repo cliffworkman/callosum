@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 173** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 174** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -825,7 +825,19 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 173 (import reports parse-time skipped records — autonomous backlog #4): the
+*Last updated: 2026-06-28 — increment 174 (confirm before re-resolve overwrites hand-edited metadata — autonomous
+backlog #3): 🔎 re-resolve passes `force=True` (inc 49) → silently overwrites a paper's metadata from Crossref,
+including hand-edited papers (`imported_source == "user-edited"`). `DoiRow.resolve()` in `25_detail.jsx` now requires
+a `window.confirm` (the established convention) before re-resolving a user-edited paper; non-edited papers are
+unaffected. Frontend-only — no backend/migration/egress; 25_detail 579→584 (under the 600 cap); QA surface unchanged
+(121/121 API + 608/608 FE); assembly 5/5; pytest **619**. **Remaining #3 (needs Cliff):** the **always-on tag-source
+label** would *reverse* the inc-100 decision ("differentiate sources aesthetically, no Details labels" — your
+explicit ask), so it's design-gated, not autonomous; plus a diff toast / lock-tag (design). Notes:
+`INCREMENT-174-NOTES.md`. **NEXT:** the remaining above-cut autonomous items are thin — #5 multiple-URLs needs a
+CSL storage convention (one `URL` field), and the reading-pane follow-ups need a delicate `30_viewer.jsx` (595/600)
+split before they fit — both want a Cliff steer.
+
+Earlier — increment 173 (import reports parse-time skipped records — autonomous backlog #4): the
 BibTeX/RIS/CSL-JSON import (inc 93) **silently dropped** entries with no title AND no DOI *at parse* (before any
 count), so a 50-entry `.bib` could quietly become 47 imported. Now the three parsers in `metadata/citation_import.py`
 return `(records, skipped)` (real entries whose `_*_to_csl` yielded None; CSL array items that are non-dict / lack
