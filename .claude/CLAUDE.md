@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 187** (see Increment workflow) with **650 pytest tests
+It is currently at **Increment 188** (see Increment workflow) with **650 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -836,7 +836,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 187 (literature Feed SP2a — engine + store + endpoints + the bioRxiv source):
+*Last updated: 2026-06-28 — increment 188 (literature Feed SP2b — the Feed tab UI): the frontend half of #28 SP2
+(backend = inc 187); **completes #28 (Search + Feed)**. New **`app/frontend/js/30e_feed.jsx`** (`FeedPane`): a
+persistent **Feed** center tab (beside Discover) — follow bioRxiv categories (chips with an unfollow ×; a `<datalist>`
+of common categories) → **Follow** (`POST /feed/subscriptions`) → **Refresh** (async poll) → triage the polled items:
+an unread dot + serif title (read rows dim), authors/posted-date/journal, a **★** star toggle, **Save** / **✓ in
+library**, an **Abstract** toggle; an **All / Unread (N) / Starred** filter + **Mark all read**. Clicking a row marks
+it read (optimistic + `POST /feed/items/{id}/state`); **Save** reuses `/discovery/save` (metadata-only, no PDF) +
+bumps the Library refresh. **The complete polled list is shown** — read/starred are the user's own state, never an AI
+filter (pull-only/opt-in posture from SP2a). Root class `discover feed` reuses the `.discover` layout; new `.feed-*`
+CSS = accent-chip subscriptions + unread-dot/read-dim/star, tokens only (DESIGN rule #8). Wired via a Feed tab +
+`frame-pane` in `30c_frame.jsx` (reuses `onDiscoverSaved` → `setLibRefresh`). **Frontend-only — no
+backend/endpoint/migration/egress/dependency** (reuses the inc-187 `/feed/*` endpoints, already audited).
+**Principles non-triggering** (a UI over the audited endpoints; pull-only/augment-never-filter unchanged). **Rule #10:**
+`route_44_feed.md` gained `fe: 30e_feed.jsx` + the UI flow → surface **132/132 API + 653/653 FE, 0 uncovered**. help
+corpus gained a "Following sources (Feed)" section (`HELP-DOCS-SYNCED` → 188; also covers the inc-186 PubMed line).
+pytest **650** unchanged (`test_frontend_assembly` 5/5 confirms 30e is in the build + in sync); build green. **Verified
+headed, no egress** (`.local/visual/drive_inc188_feed.py` — a fake FeedSource + a seeded library paper: empty state →
+Follow `neuroscience` → a chip → Refresh → **3 items** [1 ✓ in library + 2 Save, unread 3] → click a row marks it read
+→ ★ stars → **Save** flips a row + the paper appears in the Library tab; 0 console/page/genai). **GOTCHA (headed
+harness):** kill stray `uvicorn`/`inc18*` python between rapid re-runs — a lingering throwaway server holds the DB/port
+and makes the run flaky; the clean run is green. Notes: `INCREMENT-188-NOTES.md`. **This completes the literature
+discovery track #28 — Search (Crossref + PubMed + axis-relevance) + Feed (bioRxiv).** **NEXT (#28 optional/later, SP2c):**
+more Feed sources (journal-by-ISSN / PubMed-keyword — each a `register()` + its own audit), an optional auto-refresh
+cadence, PubMed abstracts via efetch.
+
+Earlier — increment 187 (literature Feed SP2a — engine + store + endpoints + the bioRxiv source):
 the **backend** of #28 SP2 (the design-led, migration-bearing one; the user greenlit **pull-only, no auto-subscribe**;
 the Feed tab UI is SP2b inc 188). **Pull-only, opt-in, no push** — you follow a source, then a refresh polls it. New
 **`schema_feed.py`** (`feed_subscriptions` + `feed_items`, **migration 0021** — the discovery track's first; additive +

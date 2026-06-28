@@ -9,7 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 186) — the "Finding new papers (Discover)" section now says Crossref + PubMed (both sources, merged); covers inc 184 (Discover) + inc 185 (relevance badge) + the inc 175–179 reading-pane catch-up. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 188) — added a "Following sources (Feed)" help section (follow bioRxiv categories, Refresh to poll, read/star/save, pull-only/opt-in); covers inc 186 (PubMed in Discover) + inc 184/185 + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-28 — Increment 188: literature Feed SP2b — the Feed tab UI
+- **Files:** `app/frontend/js/30e_feed.jsx` (new — FeedPane), `app/frontend/js/30c_frame.jsx` (Feed tab + pane),
+  `app/frontend/styles.css` (.feed-* recipe), `callosum-app.html`, `app/backend/help/help_content.md`,
+  `.claude/qa-routes/route_44_feed.md` (fe: + UI flow), `INCREMENT-188-NOTES.md`.
+- **What:** the Feed center tab — follow bioRxiv categories (chips), Refresh to poll, triage items (unread dot /
+  read-dim / ★ star / Save / ✓ in library / Abstract; All/Unread/Starred filter; Mark all read). Pull-only, opt-in;
+  the complete polled list is shown. Save reuses /discovery/save (metadata-only, no PDF) + refreshes the Library.
+- **Why:** backlog #28 SP2's frontend half (backend was inc 187); completes #28 (Search + Feed).
+- **Gates:** frontend-only; pytest 650 unchanged; test_frontend_assembly 5/5; QA route_44 fe-claimed → surface
+  132/132 API + 653/653 FE, 0 uncovered; Principles non-triggering. Headed-verified, no egress
+  (drive_inc188_feed.py: follow → refresh → 3 items → read/star → Save flips + lands in Library; 0 console/page/genai).
+- **Revert:** delete `30e_feed.jsx`, revert the 30c/styles/help/route edits, rebuild `callosum-app.html`.
+
 ## 2026-06-28 — Increment 187: literature Feed SP2a — engine + store + endpoints + bioRxiv source
 - **Files:** `app/backend/persistence/schema_feed.py` (new) + `alembic/versions/0021_feed.py` (new migration) +
   `schema.py` (re-export), `app/backend/persistence/feed_repo.py` (new), `app/backend/discovery/feed.py` (new),

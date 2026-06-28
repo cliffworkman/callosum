@@ -1119,6 +1119,23 @@
   .discover-inlib { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--verified); }
   .discover-abstract { margin-top: 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); font-family: var(--sans); }
 
+  /* ---- Feed tab (inc 188) — reuses the .discover-item row recipe; tokens only ---- */
+  .feed-subs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
+  .feed-sub {
+    display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11.5px;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 2px 4px 2px 9px;
+  }
+  .feed-sub-x { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
+  .feed-sub-x:hover { color: var(--flag-ink); }
+  .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+  .feed-row-top { display: flex; align-items: baseline; gap: 7px; }
+  .feed-unread-dot { flex: none; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--accent); margin-top: 5px; }
+  .feed-item.read .discover-title { color: var(--ink-2); font-weight: 400; }
+  .feed-star { border: none; background: none; cursor: pointer; font-size: 14px; line-height: 1; color: var(--ink-3); padding: 0; }
+  .feed-star.on { color: var(--flag); }
+  .feed-star:hover { color: var(--flag); }
+
   /* ---- PDF viewer tab ---- */
   .pdf-viewer { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .pdf-toolbar {

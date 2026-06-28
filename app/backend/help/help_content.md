@@ -752,6 +752,19 @@ Type a query and press **Enter** (or **Search**). Results come back as a dense l
 
 **The complete list is always shown — nothing is filtered or re-ordered by a relevance score.** If a result is a likely match to one of your **axes**, it gets a small **"likely: &lt;axis&gt; · match 0.NN"** badge (the same similarity number an axis card shows) — a *hint* drawn on top of the full list; a result with no badge isn't "irrelevant," just not a strong axis match, and it's shown and savable like any other. Saving a result adds its **metadata** to your library (deduped, so you can't create a duplicate) — it does **not** download a PDF (that stays the separate "Acquire OA copy" step). The saved paper appears in your Library immediately; tidy its metadata or run **Acquire OA copy** from there.
 
+<!-- section: following-sources-feed -->
+## Following sources (Feed)
+The **Feed** tab (beside Discover) is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
+
+To use it:
+
+- **Follow a bioRxiv category** — type a category (e.g. `neuroscience`, `bioinformatics`; the box suggests common ones) and click **Follow**. Each followed source shows as a chip you can remove with its **×**.
+- **Refresh** polls every followed source and adds any new items (re-polling never duplicates an item or resets what you've already read).
+- Filter by **All / Unread / Starred**; **Mark all read** clears the unread count.
+- Each item shows an unread dot, the title, authors, posted date, and journal. **Click a row to mark it read**; **★** stars it for later; **Save** adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked **✓ in library**. **Abstract** expands the summary.
+
+The complete polled list is shown — read/starred are your own state, never an AI judgment about what matters. (More sources — journals by ISSN, PubMed keyword searches — and an optional auto-refresh are planned.)
+
 <!-- section: trash-and-restore -->
 ## Trash and restore
 Trash is for reversible cleanup. Deleting a paper moves it out of the active Library, axes, and duplicate suggestions, but keeps it restorable.

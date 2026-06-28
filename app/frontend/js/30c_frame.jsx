@@ -14,6 +14,10 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
           className={"frame-tab" + (activeTab === "search" ? " active" : "")}
           onClick={() => onActivate("search")}
         >Discover</button>
+        <button
+          className={"frame-tab" + (activeTab === "feed" ? " active" : "")}
+          onClick={() => onActivate("feed")}
+        >Feed</button>
         {tabs.map(t => (
           <span
             key={t.key}
@@ -40,6 +44,9 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
       </div>
       <div className="frame-pane" style={{ display: activeTab === "search" ? "flex" : "none" }}>
         <DiscoverPane onSaved={onDiscoverSaved} />
+      </div>
+      <div className="frame-pane" style={{ display: activeTab === "feed" ? "flex" : "none" }}>
+        <FeedPane onSaved={onDiscoverSaved} />
       </div>
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
