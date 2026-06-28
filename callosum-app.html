@@ -5217,6 +5217,17 @@
       markCursorRef.current = ((markCursorRef.current + dir) % marks.length + marks.length) % marks.length;
       jumpToAnnotation(marks[markCursorRef.current]);
     }, [jumpToAnnotation]);
+    useEffect(() => {
+      const onKey = (e) => {
+        if (e.key !== "[" && e.key !== "]" || !scrollRef.current || scrollRef.current.offsetParent === null) return;
+        const t = document.activeElement;
+        if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+        e.preventDefault();
+        stepMark(e.key === "]" ? 1 : -1);
+      };
+      window.addEventListener("keydown", onKey);
+      return () => window.removeEventListener("keydown", onKey);
+    }, [stepMark]);
     return /* @__PURE__ */ React.createElement("div", { className: "pdf-viewer" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-toolbar" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-title", title }, title), /* @__PURE__ */ React.createElement("span", { className: "pdf-spacer" }), state.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom" }, /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(-0.2), title: "Zoom out" }, "\u2212"), /* @__PURE__ */ React.createElement("span", { className: "pdf-zoom-val" }, Math.round(scale * 100), "%"), /* @__PURE__ */ React.createElement("button", { onClick: () => zoom(0.2), title: "Zoom in" }, "+")), /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -5233,7 +5244,7 @@
         title: "Two pages side by side"
       },
       "Two-up"
-    ), /* @__PURE__ */ React.createElement("span", { className: "pdf-pageind" }, "Page ", page, " / ", state.numPages), annotations.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(-1), title: "Jump to the previous highlight" }, "\u25C2 Mark"), /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(1), title: "Jump to the next highlight" }, "Mark \u25B8")), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("span", { className: "pdf-pageind" }, "Page ", page, " / ", state.numPages), annotations.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(-1), title: "Jump to the previous highlight ( [ )" }, "\u25C2 Mark"), /* @__PURE__ */ React.createElement("button", { className: "pdf-annot-toggle", onClick: () => stepMark(1), title: "Jump to the next highlight ( ] )" }, "Mark \u25B8")), /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdf-annot-toggle" + (panelOpen ? " active" : ""),

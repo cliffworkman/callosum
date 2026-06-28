@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 178** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 179** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -343,8 +343,10 @@ and non-code (Markdown, SQL, config).
 **Standing split tasks:** none currently over the limit. **Inc 167** split `app/frontend/js/40_app.jsx` (630→551:
 the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
 **frontend chunks count too** (they're under `app/`). **Inc 176** extracted the Notes panel from `js/30_viewer.jsx`
-(595→**573**) into `js/30b_notes.jsx` (`AnnotationsPanel`), relieving the watch. **Frontend watch:** `js/25_detail.jsx`
-(**584**, closest), `js/30_viewer.jsx` (573), `js/10_pdf_layer.jsx` (562). **Inc 137** split `schema.py` (611→558, over the cap
+(595→573) into `js/30b_notes.jsx` (`AnnotationsPanel`); the reading-pane run (175–179) then re-grew it to
+**599/600 (MAXED, inc 179)** — **any further viewer feature needs another split first** (extract a cohesive
+low-coupling unit, per the inc-176 precedent). **Frontend watch:** `js/30_viewer.jsx` (**599**, MAXED),
+`js/25_detail.jsx` (584), `js/10_pdf_layer.jsx` (562). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
@@ -827,7 +829,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 178 (README front-door — backlog #11): rewrote the stale ("Increment 73")
+*Last updated: 2026-06-28 — increment 179 (mark-nav keyboard hotkeys — reading-pane): **`[`** / **`]`** step to the
+prev/next highlight (the keyboard pairing for the inc-177 Mark buttons) — a `window` keydown effect gated to the
+**visible** viewer (`scrollRef.current.offsetParent !== null`, so a mounted-but-hidden tab doesn't respond) + not
+typing (`activeElement` not INPUT/TEXTAREA/contentEditable); button tooltips show the keys. Frontend-only — no
+backend/migration/egress; QA surface **121/121 API + 616/616 FE** (a window listener, not a tracked element);
+assembly 5/5; pytest **619**. **Headed-verified** (`.local/visual/drive_inc179_markkeys.py`: `]`/`[` flash
+next/prev; 0 console/page/genai). **⚠ RULE-#1: `30_viewer.jsx` is now 599/600 — MAXED. Any further viewer feature
+MUST be preceded by another split** (extract a cohesive low-coupling unit, the inc-176 precedent). The reading-pane
+run (175 scroll · 176 split+filter+search · 177 mark buttons · 179 mark hotkeys) is **complete for now**. Notes:
+`INCREMENT-179-NOTES.md`. **NEXT — the clean-autonomous queue is genuinely dry:** further reading features are
+split-gated + diminishing; #3/#5 are decision-gated; the high-value **Google Docs live test** is the user's; bigger
+moves (discovery #28, credit-the-lineage backfill #8, statcheck test forms #27) are below-the-cut tracks needing a
+design pass + the user's go.
+
+Earlier — increment 178 (README front-door — backlog #11): rewrote the stale ("Increment 73")
 `README.md` into a current contributor front door. Brought the feature list current (LibreOffice/Word/Google Docs
 adapters, BYOK multi-provider AI incl. zero-egress local, retraction/p-curve/GRIM/statcheck, gap-finder, My
 Publications, OA acquisition, merge, reading-pane, import-beyond-Zotero) + added the missing onboarding essentials:

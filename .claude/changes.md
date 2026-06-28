@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 179: mark-nav keyboard hotkeys (reading-pane)
+- **Files:** `app/frontend/js/30_viewer.jsx` (keydown effect + button tooltip hints), `callosum-app.html`,
+  `INCREMENT-179-NOTES.md`.
+- **What:** `[` / `]` step to the prev/next highlight (gated to the visible viewer + not-while-typing) — the
+  keyboard pairing for the inc-177 Mark buttons; tooltips show the keys.
+- **Why:** complete the reading-pane mark-nav ("keep pushin").
+- **Gates:** frontend-only; QA surface 121/616; assembly 5/5; pytest 619; headed-verified (`[`/`]` flash prev/next).
+  **⚠ 30_viewer is now 599/600 — maxed; further viewer features need another split first.**
+- **Revert:** drop the keydown effect + the tooltip key hints.
+
 ## 2026-06-28 — Increment 178: README front-door (backlog #11)
 - **Files:** `README.md`, `INCREMENT-178-NOTES.md`.
 - **What:** rewrote the stale ("Increment 73") README into a current contributor front door — brought the feature

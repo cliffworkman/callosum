@@ -460,6 +460,19 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
     jumpToAnnotation(marks[markCursorRef.current]);
   }, [jumpToAnnotation]);
 
+  // inc 179: [ / ] step prev/next highlight (only when this viewer is visible + you're not typing in a field).
+  useEffect(() => {
+    const onKey = (e) => {
+      if ((e.key !== "[" && e.key !== "]") || !scrollRef.current || scrollRef.current.offsetParent === null) return;
+      const t = document.activeElement;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      e.preventDefault();
+      stepMark(e.key === "]" ? 1 : -1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [stepMark]);
+
   return (
     <div className="pdf-viewer">
       <div className="pdf-toolbar">
@@ -480,8 +493,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
                     title="Two pages side by side">Two-up</button>
             <span className="pdf-pageind">Page {page} / {state.numPages}</span>
             {annotations.length > 0 && <>
-              <button className="pdf-annot-toggle" onClick={() => stepMark(-1)} title="Jump to the previous highlight">◂ Mark</button>
-              <button className="pdf-annot-toggle" onClick={() => stepMark(1)} title="Jump to the next highlight">Mark ▸</button>
+              <button className="pdf-annot-toggle" onClick={() => stepMark(-1)} title="Jump to the previous highlight ( [ )">◂ Mark</button>
+              <button className="pdf-annot-toggle" onClick={() => stepMark(1)} title="Jump to the next highlight ( ] )">Mark ▸</button>
             </>}
             <button className={"pdf-annot-toggle" + (panelOpen ? " active" : "")}
                     onClick={() => setPanelOpen(o => !o)} title="Show annotations for this paper">
