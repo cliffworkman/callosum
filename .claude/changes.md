@@ -9,6 +9,32 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 170: Google Docs SP2 — the Apps Script add-on (+ the SP1 bridge live-verified)
+<!-- HELP-DOCS-SYNCED: inc 170 — Remote-access help note points to the Google Docs add-on (adapters/googledocs/). -->
+- **Files:** `adapters/googledocs/Code.gs` (new — sidebar glue), `adapters/googledocs/gdocs_core.js` (new — pure
+  mapping, node-tested + GAS-loaded), `adapters/googledocs/gdocs_core.test.js` (new — `node --test` 10/10),
+  `adapters/googledocs/sidebar.html` (new), `adapters/googledocs/appsscript.json` (new),
+  `adapters/googledocs/README.md` (§7 + status), `tools/run_tunnel.py` (SP1 refinement — prefer a gitignored local
+  config), `.gitignore` (+ `cloudflared-config.local.yml`), `app/backend/help/help_content.md` (Remote-access note),
+  `.claude/security-audits/2026-06-28_googledocs-addon.md`, `INCREMENT-170-NOTES.md`. (No callosum app code.)
+- **What:** (1) **Completed + live-verified the SP1 bridge** — the user migrated `clffwrkmn.net` to Cloudflare
+  (DKIM/SPF/MX verified by nslookup vs HostGator), then `cloudflared login`/`create`/`route dns`; I ran the tunnel +
+  an isolated throwaway callosum on :8080 and confirmed through `https://callosum.clffwrkmn.net`: no-token→401,
+  token→200, `/citations/styles`→200, `/settings` + `/`→404 (both boundaries hold live). `run_tunnel.py` now prefers
+  a gitignored `cloudflared-config.local.yml` so the tunnel id never gets committed. (2) **Built the Google Docs
+  add-on** — an Apps Script sidebar (search → insert → refresh+bibliography → style switch) reaching callosum over
+  the bridge with the bearer token; citations as NamedRange + DocumentProperties (the Zotero pattern); the pure
+  request/response mapping is in `gdocs_core.js` (node-tested + loaded by GAS as `CallosumCore` — no duplication).
+- **Why:** make the local library citable from Google Docs (the third word-processor surface, after LibreOffice +
+  Word) — the user's "keep pushing" through SP1 setup + SP2 build.
+- **Gates:** audit `2026-06-28_googledocs-addon.md` PASS; Principles non-triggering (field-placer); QA surface
+  unchanged (121/121 API + 604/604 FE — no new callosum endpoint); pytest 619 unchanged (adapter-only);
+  `node --test` 10/10; ruff clean.
+- **Revert:** delete the new `adapters/googledocs/{Code.gs,gdocs_core.js,gdocs_core.test.js,sidebar.html,appsscript.json}`;
+  revert `tools/run_tunnel.py` + `.gitignore` + the help note. The cloudflared tunnel/CNAME live in the user's
+  Cloudflare account (delete with `cloudflared tunnel delete callosum`). v1 limit: citations renumber in
+  insertion-order (cut/paste-reorder not reflected on Refresh); Suggest + Flatten are SP3.
+
 ## 2026-06-28 — Increment 169: Google Docs SP1 — cloudflared bridge (cite-only) for callosum.clffwrkmn.net
 - **Files:** `adapters/googledocs/cloudflared-config.yml` (new — the cite-only ingress), `adapters/googledocs/README.md`
   (new — the setup runbook), `tools/run_tunnel.py` (new — the runner), `.claude/security-audits/2026-06-28_googledocs-tunnel.md`,

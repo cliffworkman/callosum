@@ -46,9 +46,22 @@ subdomain *zone* + two NS records at HostGator), leaving the rest of clffwrkmn.n
 ## Manual verification
 - **Local (done):** cloudflared installed (2026.5.2); the cite-only ingress validated + per-URL routing proven
   (cite → localhost, everything else → 404), above.
-- **Live (the user's, per README §6):** stand up the tunnel (Cloudflare account + the 2 NS records + login/create/
-  route/run), then `curl https://callosum.clffwrkmn.net/papers?q=… -H "Authorization: Bearer <token>"` → JSON; no
-  token → 401; `/settings` → 404. (Needs the user's Cloudflare account — not CI-verifiable.)
+- **Live (DONE, 2026-06-28):** the whole-domain `clffwrkmn.net` migration to Cloudflare completed (records imported,
+  all set "DNS only"/grey, MX/SPF/**DKIM** verified by `nslookup` against Cloudflare's NS = exact match vs HostGator;
+  nameservers `veda`/`vin.ns.cloudflare.com` switched at the registrar + propagated). Then `cloudflared login`
+  (browser-authorized) → `tunnel create callosum` (id `653c4da3-…`) → `route dns` (CNAME → tunnel) → ran the tunnel
+  + an **isolated** throwaway callosum on :8080 (Remote access ON + a known token; empty library; file key-store
+  forced). **Through `https://callosum.clffwrkmn.net`:** `/papers?q=` no-token → **401**; with token → **200** `[]`;
+  `/citations/styles` with token → **200**; `/settings` + `/` (cite-only) → **404** even with a valid token. Both
+  boundaries (token gate + cite-only ingress) confirmed live; throwaway instances torn down. (Not CI-verifiable —
+  needs the Cloudflare account; this was a one-time live confirmation.)
+
+## Post-build refinement (same increment, 2026-06-28)
+The committed `cloudflared-config.yml` must stay a placeholder template ("no secret committed"), but `run_tunnel.py`
+required a *filled* config to run — a conflict. Resolved with a **gitignored local copy**: `run_tunnel.py` now prefers
+`adapters/googledocs/cloudflared-config.local.yml` (gitignored) over the committed template (`_config()` helper); the
+README + the runner docstring say to copy→fill the `.local.yml`. So the user's tunnel id + creds path never get
+committed, and the runner is usable. `.gitignore` covers `adapters/googledocs/cloudflared-config.local.yml`.
 
 ## Gates
 - **Audit `.claude/security-audits/2026-06-28_googledocs-tunnel.md` PASS** (outbound-only; two boundaries; one

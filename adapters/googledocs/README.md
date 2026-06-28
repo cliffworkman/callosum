@@ -18,8 +18,9 @@ every request; (2) the **cite-only ingress** — the tunnel forwards only `/pape
 `/citations/render-document`, `/citations/suggest`, `/citations/styles`; everything else (your app, `/settings`, the
 folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunnel. Both are verified below.
 
-> **Status:** SP1 (this) is the bridge. The actual Google Docs **add-on** is **SP2** (next) — until it ships you can
-> still stand up + verify the tunnel with `curl` (Step 6).
+> **Status:** SP1 (the bridge, steps 1–6) and SP2 (the Google Docs **add-on**, step 7) both ship. The bridge was
+> verified live end-to-end (token gate + cite-only ingress); the in-Docs add-on glue is your manual check (it runs
+> in Google's cloud).
 
 ---
 
@@ -56,8 +57,10 @@ folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunn
 - `cloudflared login` → a browser opens; **authorize the `clffwrkmn.net` zone**.
 - `cloudflared tunnel create callosum` → prints a **tunnel UUID** and a **credentials file path**
   (e.g. `C:\Users\<you>\.cloudflared\<UUID>.json`).
-- Open **`adapters/googledocs/cloudflared-config.yml`** and replace `<TUNNEL_ID>` (both places) + the
-  `credentials-file` path with those values.
+- **Copy** `adapters/googledocs/cloudflared-config.yml` → `adapters/googledocs/cloudflared-config.local.yml`
+  (this `.local.yml` copy is **gitignored** — it holds your tunnel id, so it never gets committed; the committed
+  `cloudflared-config.yml` stays a placeholder template). In the copy, replace `<TUNNEL_ID>` (both places) + the
+  `credentials-file` path with the values above. `run_tunnel.py` automatically prefers the `.local.yml` copy.
 - `cloudflared tunnel route dns callosum callosum.clffwrkmn.net` → points the hostname at the tunnel.
 
 ### 5. Run it
@@ -80,9 +83,33 @@ curl "https://callosum.clffwrkmn.net/papers?q=test"                             
 curl -H "Authorization: Bearer <YOUR_TOKEN>" "https://callosum.clffwrkmn.net/settings"           # → 404
 ```
 
-### 7. The add-on (SP2 — next)
-Install the Callosum Google Docs add-on, paste **`https://callosum.clffwrkmn.net`** + your **access token** once,
-then search your library and insert/refresh citations from the sidebar.
+### 7. The Google Docs add-on (SP2)
+The add-on lives in this folder: `Code.gs` + `gdocs_core.js` + `sidebar.html` + `appsscript.json`. It runs in
+**Google's cloud** and reaches your local callosum through the bridge above — so the tunnel + callosum must be
+running with **Remote access ON**.
+
+**Install (bound to a document — no publishing needed):**
+1. Open a Google Doc → **Extensions → Apps Script**.
+2. Add the files: paste `Code.gs` into the default `Code.gs`; **＋ → Script** named `gdocs_core` ← `gdocs_core.js`;
+   **＋ → HTML** named `sidebar` ← `sidebar.html`. (Or push all four with
+   [`clasp`](https://github.com/google/clasp): `clasp push` — `appsscript.json` carries the OAuth scopes.)
+3. Save → reload the Doc → **Extensions → Callosum → Open Callosum** (authorize on first run).
+
+**Use:**
+- In the sidebar's **Connection settings**, enter `https://callosum.clffwrkmn.net` + your access token → **Save**.
+- Pick a **citation style**.
+- **Search** your library → **Insert** at the cursor. **Refresh** renumbers every citation in document order and
+  rebuilds the **References** block; switching the style re-renders the whole document.
+
+**What it sends:** only your search text + the cited works' metadata, to your bridge with your token — the same
+cite endpoints the bridge allows (§6). Formatting happens server-side in citeproc; the add-on only places fields.
+
+> **Verification reality:** the in-Docs glue (`Code.gs`) runs only in Google's cloud, so it ships
+> best-effort-correct per the Apps Script docs; the request/response mapping it depends on lives in `gdocs_core.js`
+> and is unit-tested (`node --test "adapters/googledocs/*.test.js"`). The in-Docs round-trip is your manual check.
+>
+> **v1 limits (SP2):** citations renumber in **insertion order** (reordering them by cut/paste isn't yet reflected
+> on Refresh); **Suggest-from-the-selection** + **Flatten** (live → static) are SP3.
 
 ---
 

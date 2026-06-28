@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 169** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 170** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -289,9 +289,13 @@ callosum/
 │                                  same-origin, zero egress). Full parity: live citations (Content Controls carrying
 │                                  CSL-JSON) + Refresh/renumber + bibliography (/citations/render-document) + Suggest
 │                                  (/citations/suggest) + one-click style-switch + Flatten.
-│   └── googledocs/                inc 169 (Google Docs SP1 — the bridge): cloudflared-config.yml [CITE-ONLY ingress
-│                                  for callosum.clffwrkmn.net → localhost:8080; validated] + README.md [the setup
-│                                  runbook]. Run via tools/run_tunnel.py. The Apps Script add-on is SP2 (next).
+│   └── googledocs/                inc 169 (SP1 — the bridge): cloudflared-config.yml [CITE-ONLY ingress for
+│                                  callosum.clffwrkmn.net → localhost:8080; validated + LIVE-verified] (+ a gitignored
+│                                  cloudflared-config.local.yml filled copy) + tools/run_tunnel.py. inc 170 (SP2 — the
+│                                  Apps Script add-on): Code.gs [sidebar glue] + gdocs_core.js [pure mapping, node --test,
+│                                  also loaded by GAS as CallosumCore] + gdocs_core.test.js + sidebar.html + appsscript.json
+│                                  — citations as NamedRange + DocumentProperties (Zotero pattern); reuses the cite
+│                                  contracts; manual-test-only. README.md = the setup runbook.
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
@@ -677,6 +681,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Google Docs add-on = an Apps Script sidebar reusing the cite contracts; citations as NamedRange + DocumentProperties (inc 170, SP2) | The third word-processor adapter's add-on (after LibreOffice + Word), on the inc-169 bridge (which was **live-verified** end-to-end this session — token gate + cite-only). All in `adapters/googledocs/` (**no callosum code change**): `Code.gs` (sidebar glue: Settings [UserProperties URL+token, token write-only to the sidebar], search/insert/refresh/style) + `sidebar.html` + `appsscript.json` (V8; scopes `documents.currentonly`+`script.external_request`+`script.container.ui`). **Citation model = the Zotero pattern:** each citation a Google Docs **NamedRange** (`CALLOSUM_CITATION_<uuid>`) + its CSL-JSON in **DocumentProperties** (`cite:<uuid>`) + an insertion-order id list; **Refresh** renders the ordered set via `/citations/render-document` and writes each range's text back + rebuilds a managed **References** block (the LibreOffice setString-destroys-the-mark trap recurs → `_setRangeText` recreates the range). The add-on **never formats** (citeproc does → matches in-app "Cite as…"). **`gdocs_core.js` is BOTH `node --test`-ed AND loaded by GAS** (IIFE → `module.exports` in Node, `globalThis.CallosumCore` in Apps Script) → no duplication; the bug-prone mapping is covered (10/10). Reuses `/papers?q=`, `/papers/export`, `/citations/render-document`, `/citations/styles` (all audited/tested) → **no new endpoint/surface/migration/dependency**. **GOTCHAs:** order is **insertion-order v1** (cut/paste-reorder not reflected on Refresh — true doc-order is hard + untestable in GAS, deferred); the in-Docs glue runs only in Google's cloud (manual-test-only). Audit `2026-06-28_googledocs-addon.md` PASS (token also in Google UserProperties = the user's opt-in; least-privilege scopes; no new egress vector vs the bridge; cite-only ingress = the hard boundary). Principles non-triggering (field-placer). **SP3:** Suggest (`/citations/suggest`) + Flatten + true doc-order. |
 | Google Docs bridge = cloudflared (local) + Cloudflare **subdomain delegation** for callosum.clffwrkmn.net, cite-only ingress (inc 169, SP1) | The user wanted `callosum.clffwrkmn.net` but "only touch the callosum element" (not move the whole domain) — and granted SSH/winget. **Recon (read-only, via the granted SSH) killed the obvious path:** clffwrkmn.net is HostGator cPanel **shared hosting** (`gator3026`, jailshell) that **prohibits `ssh -R` remote forwarding** (tested: "remote port forwarding failed"), reaps long-running processes, no Node → it **cannot** be the relay. The fitting path: **Cloudflare subdomain delegation** — add ONLY `callosum.clffwrkmn.net` as a (free) Cloudflare zone + two NS records at HostGator (the rest of clffwrkmn.net untouched), then a **cloudflared** named tunnel (runs on the user's PC, **outbound-only, no inbound port**) serves it. **Cite-only at the tunnel:** `adapters/googledocs/cloudflared-config.yml` ingress forwards ONLY `/papers`, `/papers/export`, `/citations/{render-document,suggest,styles}` → localhost:8080; everything else (`/`, `/settings`, scan routes, `/papers/{id}` edit/delete) → 404 — **validated** with `cloudflared tunnel ingress validate` + per-URL `ingress rule`. Two boundaries: the inc-168 **token** (callosum's, since the app can't tell tunnel from local) + the **cite-only ingress** (the tunnel's). `tools/run_tunnel.py` runs it; `adapters/googledocs/README.md` is the setup runbook. **No callosum code/endpoint/dependency change** (cloudflared = winget binary; config+docs only); the live tunnel needs the user's Cloudflare account (manual). Audit `2026-06-28_googledocs-tunnel.md` PASS; egress is the user's opt-in (transits Cloudflare+Google). **GOTCHA:** the committed config has placeholders (`<TUNNEL_ID>`) — no secret committed; the cite-only guarantee depends on the ingress allowlist staying intact. **CORRECTION (post-build, same inc):** Cloudflare **free requires the *root* domain** — a subdomain-only zone is a paid (Business) feature, so the dashboard rejects `callosum.clffwrkmn.net`. The DNS approach is therefore a **careful whole-domain `clffwrkmn.net` → Cloudflare migration** (auto-import records; keep existing A/MX/SPF/**DKIM** as "DNS only"/grey so the HostGator site + email are unchanged; verify; switch nameservers at the registrar; reversible), **not** subdomain delegation. The cloudflared cite-only config + helper are unchanged (same `callosum.clffwrkmn.net` hostname). `adapters/googledocs/README.md` updated; current DNS enumerated (A→50.87.149.75; MX→mail; SPF; DKIM `default._domainkey`) so the migration preserves email. SP2 = the Apps Script add-on. |
 | Remote-access auth + rate-limiting = an opt-in, default-OFF bearer-token gate; the Google Docs SP0 security foundation (inc 168) | The Google Docs add-on runs in Google's cloud (`UrlFetchApp` can't reach localhost) → needs a public bridge (user chose **cloudflared on the local machine**). cloudflared forwards to `localhost`, so the app **can't distinguish a tunnel request from the local browser** (both loopback; `Host` is spoofable) → **the bearer token is the only safe boundary**, applied to every endpoint. callosum had no auth/rate-limiting (the Security baseline mandates both before exposure), so SP0 builds that foundation, fully in-codebase + pytest-verifiable, before the relay (SP1) or add-on (SP2). `AccessControlMiddleware` (`api/access_control.py`): OFF (default) → pure pass-through (**zero change** for current users + the suite); ON → require `Authorization: Bearer <token>` (constant-time `secrets.compare_digest`) except `GET /health` + `GET /` (no library data) + `OPTIONS` (preflight), + a hand-rolled in-memory sliding-window **RateLimiter** (429). Token stored like the BYOK key (the `_get_secret`/`_set_secret` refactor in `app_settings.py`; keychain/file, **write-only over the wire** — `POST /settings/access-token` returns it once, `GET /settings` reports only `access_token_set`). Frontend: a same-origin **fetch shim** in `00_lib.jsx` (token in localStorage, **never injected into HTML** → no leak path) covers the `api*` helpers + every raw fetch + the PDF bytes uniformly; a `RemoteAccessSettings` toggle (mint→save→enable). **Lockout-safe:** enabling requires a minted token (422 else); recovery via `CALLOSUM_DISABLE_REMOTE_ACCESS=1` (local-only) or editing the settings file. **REQUIRED SP1 control:** the cloudflared ingress allowlist must forward ONLY the cite endpoints (so `/`, `/settings`, scan routes are unreachable via the tunnel). Audit `2026-06-27_remote-access-auth.md` PASS; Principles → A-A consent value (explicit, opt-in, default-off egress). No new dependency, no migration. SP1 (the tunnel) + SP2 (the Apps Script add-on) follow. |
 | Split `40_app.jsx` 630→551 — `useFocusMode` hook + download helpers (inc 167) | A behavior-preserving refactor clearing the rule-#1 violation carried across six footers (the App god-component had crept to 630/600). The inc-128 precedent (extract a hook into an earlier chunk): the axis focus-mode subsystem → **`js/39_focus.jsx`**'s `useFocusMode({setActiveTab, onEnterClearFilters})` (returns the focus state + actions + `axisRefresh`/`setAxisRefresh`); the two big client-download helpers (`downloadCitationExport`/`downloadBibliography`) → **`js/00_lib.jsx`** (the utils home). App's `bulkExport`/`bulkBibliography` became 1-liners; the focus call-sites resolve from the hook destructure (no changes). **Chunk-order-safe** (00 < 39 < 40; esbuild DCE keeps all three). `useFocusMode` is called *after* the filter `useState`s (it closes over their setters). **Frontend-only — no backend/surface/migration/egress/dependency; no audit/Principles trigger.** Verified headed (render + bulk-export download + focus-mode enter/cancel + axis filter, 0 console/page/genai). **New rule-#1 watch: `js/30_viewer.jsx` 595/600.** |
@@ -819,7 +824,51 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 169 (Google Docs SP1 — the cloudflared bridge, cite-only): the user wanted
+*Last updated: 2026-06-28 — increment 170 (Google Docs SP2 — the Apps Script cite-while-you-write add-on, + the
+inc-169 bridge LIVE-verified): the third word-processor adapter's add-on (after LibreOffice + Word), riding the
+inc-169 cloudflared bridge. **First, the SP1 bridge was completed + verified LIVE end-to-end this session:** the
+user did the whole-domain `clffwrkmn.net` → Cloudflare migration (records imported, all set "DNS only"/grey,
+MX/SPF/**DKIM** confirmed by `nslookup` against Cloudflare's NS = exact match vs HostGator; nameservers
+`veda`/`vin.ns.cloudflare.com` switched + propagated), then `cloudflared login` → `tunnel create callosum`
+(id `653c4da3-…`) → `route dns` → ran the tunnel + an **isolated** throwaway callosum on :8080 (Remote access ON +
+a known token, empty library, file key-store forced). **Through `https://callosum.clffwrkmn.net`:** `/papers?q=`
+no-token → **401**; with token → **200**; `/citations/styles` → **200**; `/settings` + `/` → **404** even with a
+valid token — both boundaries (the inc-168 token + the cite-only ingress) confirmed live; throwaway instances torn
+down. Also (SP1 refinement): `tools/run_tunnel.py` now prefers a **gitignored** `cloudflared-config.local.yml`
+(the user's filled copy) over the committed placeholder template (`_config()`), so the tunnel id/creds path never
+get committed; `.gitignore` covers it. **Then SP2 — the add-on** (all in `adapters/googledocs/`, **no callosum
+code change**): `Code.gs` (the Apps Script glue — `onOpen`/`showSidebar`; Settings in UserProperties [bridge URL +
+token; **token never returned to the sidebar**]; `_fetch` via UrlFetchApp with `Authorization: Bearer` + friendly
+401/404/4xx; `searchPapers`/`insertCitation`/`refreshDocument`/`listStyles`/`setStyle`; DOM helpers
+`_wrapNamedRange`/`_setRangeText`[replace+recreate — the setString-destroys-the-mark trap]/`_rebuildBibliography`),
+`sidebar.html` (HtmlService UI, `google.script.run`), `appsscript.json` (V8; scopes `documents.currentonly` +
+`script.external_request` + `script.container.ui`), and **`gdocs_core.js`** — the pure mapping, **BOTH `node --test`-ed
+AND loaded by GAS** (IIFE → `module.exports` in Node / `globalThis.CallosumCore` in Apps Script → no duplication).
+**Citation model = the Zotero pattern:** each citation a **NamedRange** (`CALLOSUM_CITATION_<uuid>`) + its CSL-JSON
+in **DocumentProperties** (`cite:<uuid>`) + an insertion-order id list (`CALLOSUM_ORDER`); Refresh renders the
+ordered set via `/citations/render-document` → writes each range's text back + rebuilds a managed **References**
+block. The add-on **never formats** (citeproc does, server-side → matches the in-app "Cite as…"). **Reuses
+`/papers?q=` + `/papers/export` (csl-json) + `/citations/render-document` + `/citations/styles`** — all already
+audited/tested → **no new endpoint/surface/migration/dependency**. **Verification reality:** the in-Docs glue runs
+only in Google's cloud (exercised by no one in-repo); ships best-effort-correct per the Apps Script docs — the value
+is the pure mapping (`gdocs_core.test.js` **10/10**) + the proven contracts (the bridge live-verified above;
+`/citations/render-document` pytest-proven, inc 107). **GOTCHAs:** order is **insertion-order v1** (cut/paste-reorder
+not reflected on Refresh — reliable NamedRange document-order is hard + untestable in GAS, deferred); `gdocs_core.js`
+must be added to the GAS project alongside `Code.gs` (it sets `globalThis.CallosumCore`). **Audit
+`.claude/security-audits/2026-06-28_googledocs-addon.md` PASS** (token also in Google UserProperties = the user's
+opt-in, inherent to a cloud add-on, write-only to the sidebar + not logged + revocable; least-privilege scopes; no
+new egress vector beyond the audited bridge; cite-only ingress = the hard boundary). **Principles:** a field-placer
+reusing the audited citeproc render → non-triggering. **QA (rule #10):** no new callosum API/FE surface (an external
+add-on reusing existing endpoints) → surface map unchanged (**121/121 API + 604/604 FE, 0 uncovered**), no new route
+(like the inc-157 LO suggest macro). help corpus's Remote-access note now points to the add-on (`HELP-DOCS-SYNCED` →
+170). pytest **619** unchanged (SP2 touches no Python app code); `node --test` 10/10; `node --check` on
+`gdocs_core.js` + `Code.gs`; `appsscript.json` valid; `ruff` clean; no frontend rebuild. **This completes the
+cite-while-you-write surfaces: LibreOffice (108/162) + Word (164–166) + Google Docs bridge & add-on (168–170).**
+Notes: `INCREMENT-170-NOTES.md`. **NEXT (Google Docs SP3):** Suggest-from-the-selection (`/citations/suggest`,
+inc 156) + Flatten (live → static) + true document-order scanning; then the user's live in-Docs check (install per
+README §7 with the tunnel + callosum running).
+
+Earlier — increment 169 (Google Docs SP1 — the cloudflared bridge, cite-only): the user wanted
 `callosum.clffwrkmn.net` but "only touch the callosum element" + granted SSH/winget. **Read-only recon (via the
 granted, key-authed SSH) killed the reverse-tunnel path:** clffwrkmn.net is **HostGator cPanel shared hosting**
 (`gator3026`, jailshell) that **prohibits `ssh -R`** (tested: "remote port forwarding failed"), reaps long-running

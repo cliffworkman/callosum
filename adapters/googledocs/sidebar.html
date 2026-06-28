@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <style>
+      body { font: 13px/1.45 -apple-system, Segoe UI, Roboto, sans-serif; color: #1f2330; margin: 0; padding: 12px; }
+      h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: #6b7180; margin: 16px 0 6px; }
+      h2:first-child { margin-top: 0; }
+      input, select, button { font: inherit; box-sizing: border-box; }
+      input, select { width: 100%; padding: 6px 8px; border: 1px solid #cfd3dc; border-radius: 5px; margin: 3px 0; }
+      button { padding: 6px 10px; border: 1px solid #cfd3dc; border-radius: 5px; background: #fff; cursor: pointer; }
+      button.primary { background: #3b4cca; border-color: #3b4cca; color: #fff; }
+      button:disabled { opacity: .5; cursor: default; }
+      .row { display: flex; gap: 6px; }
+      .row > * { flex: 1; }
+      .muted { color: #6b7180; font-size: 12px; }
+      .result { border: 1px solid #e4e7ee; border-radius: 6px; padding: 7px 8px; margin: 6px 0; }
+      .result .label { display: block; margin-bottom: 5px; }
+      .status { margin-top: 10px; font-size: 12px; min-height: 16px; }
+      .status.err { color: #b23b3b; }
+      .status.ok { color: #2e7d4f; }
+      details { margin-bottom: 4px; }
+      summary { cursor: pointer; color: #3b4cca; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <details id="settings">
+      <summary>Connection settings</summary>
+      <input id="baseUrl" placeholder="https://callosum.clffwrkmn.net" />
+      <input id="token" type="password" placeholder="Access token (Settings → Remote access)" />
+      <div class="muted" id="tokenState"></div>
+      <button class="primary" onclick="saveSettings()">Save connection</button>
+    </details>
+
+    <h2>Citation style</h2>
+    <select id="style" onchange="onStyleChange()"></select>
+
+    <h2>Add a citation</h2>
+    <div class="row">
+      <input id="q" placeholder="Search your library…" onkeydown="if(event.key==='Enter')doSearch()" />
+      <button style="flex:0 0 auto" onclick="doSearch()">Search</button>
+    </div>
+    <div id="results"></div>
+
+    <h2>Document</h2>
+    <button onclick="refresh()">Refresh citations &amp; bibliography</button>
+
+    <div class="status" id="status"></div>
+
+    <script>
+      function setStatus(msg, kind) {
+        var el = document.getElementById("status");
+        el.textContent = msg || "";
+        el.className = "status" + (kind ? " " + kind : "");
+      }
+      function fail(e) { setStatus((e && e.message) || String(e), "err"); }
+
+      function loadSettings() {
+        google.script.run.withSuccessHandler(function (s) {
+          document.getElementById("baseUrl").value = s.baseUrl || "";
+          document.getElementById("tokenState").textContent = s.hasToken ? "Token is set." : "No token set yet.";
+          if (!s.hasToken) document.getElementById("settings").open = true;
+        }).withFailureHandler(fail).getSettings();
+      }
+      function saveSettings() {
+        var url = document.getElementById("baseUrl").value;
+        var tok = document.getElementById("token").value;
+        setStatus("Saving…");
+        google.script.run.withSuccessHandler(function (s) {
+          document.getElementById("token").value = "";
+          document.getElementById("tokenState").textContent = s.hasToken ? "Token is set." : "No token set yet.";
+          setStatus("Connection saved.", "ok");
+          loadStyles();
+        }).withFailureHandler(fail).saveSettings(url, tok);
+      }
+
+      function loadStyles() {
+        google.script.run.withSuccessHandler(function (data) {
+          var sel = document.getElementById("style");
+          sel.innerHTML = "";
+          (data.styles || []).forEach(function (st) {
+            var o = document.createElement("option");
+            o.value = st.id; o.textContent = st.title || st.id;
+            if (st.id === data.current) o.selected = true;
+            sel.appendChild(o);
+          });
+        }).withFailureHandler(fail).listStyles();
+      }
+      function onStyleChange() {
+        setStatus("Applying style…");
+        google.script.run.withSuccessHandler(function (r) {
+          setStatus("Style applied (" + r.count + " citation" + (r.count === 1 ? "" : "s") + ").", "ok");
+        }).withFailureHandler(fail).setStyle(document.getElementById("style").value);
+      }
+
+      function doSearch() {
+        var q = document.getElementById("q").value;
+        setStatus("Searching…");
+        google.script.run.withSuccessHandler(renderResults).withFailureHandler(fail).searchPapers(q);
+      }
+      function renderResults(rows) {
+        var box = document.getElementById("results");
+        box.innerHTML = "";
+        if (!rows.length) { setStatus("No matches.", null); return; }
+        setStatus("");
+        rows.forEach(function (r) {
+          var div = document.createElement("div");
+          div.className = "result";
+          var span = document.createElement("span");
+          span.className = "label"; span.textContent = r.label;
+          var btn = document.createElement("button");
+          btn.className = "primary"; btn.textContent = "Insert";
+          btn.onclick = function () { insert(r.id, btn); };
+          div.appendChild(span); div.appendChild(btn); box.appendChild(div);
+        });
+      }
+      function insert(id, btn) {
+        btn.disabled = true;
+        setStatus("Inserting…");
+        google.script.run.withSuccessHandler(function (r) {
+          btn.disabled = false;
+          setStatus("Inserted (" + r.count + " citation" + (r.count === 1 ? "" : "s") + " in the document).", "ok");
+        }).withFailureHandler(function (e) { btn.disabled = false; fail(e); }).insertCitation(id);
+      }
+      function refresh() {
+        setStatus("Refreshing…");
+        google.script.run.withSuccessHandler(function (r) {
+          setStatus("Refreshed " + r.count + " citation" + (r.count === 1 ? "" : "s") + ".", "ok");
+        }).withFailureHandler(fail).refreshDocument();
+      }
+
+      loadSettings();
+      loadStyles();
+    </script>
+  </body>
+</html>

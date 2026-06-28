@@ -6,10 +6,10 @@ Cloudflare's edge (no inbound port), and serves ``https://callosum.clffwrkmn.net
 access) is callosum's boundary; the ingress allowlist is the tunnel's.
 
 One-time setup (see ``adapters/googledocs/README.md``): a free Cloudflare account with ``callosum.clffwrkmn.net``
-added as a delegated subdomain zone (two NS records at HostGator), ``cloudflared login``, ``cloudflared tunnel
-create callosum`` (fill the printed tunnel id + credentials path into ``cloudflared-config.yml``), and
-``cloudflared tunnel route dns callosum callosum.clffwrkmn.net``. Then run this. callosum must be running locally
-(uvicorn on :8080) with **Remote access ON**.
+added (the root domain on a free plan), ``cloudflared login``, ``cloudflared tunnel create callosum`` (copy
+``cloudflared-config.yml`` → the gitignored ``cloudflared-config.local.yml`` and fill in the printed tunnel id +
+credentials path; this runner prefers the ``.local.yml`` copy), and ``cloudflared tunnel route dns callosum
+callosum.clffwrkmn.net``. Then run this. callosum must be running locally (uvicorn on :8080) with **Remote access ON**.
 """
 
 from __future__ import annotations
@@ -20,8 +20,15 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = ROOT / "adapters" / "googledocs" / "cloudflared-config.yml"
+# The committed config is a placeholder TEMPLATE (no secret committed). Your filled copy lives beside it as
+# cloudflared-config.local.yml (gitignored) and wins when present — so your tunnel id + creds path never get committed.
+CONFIG_TEMPLATE = ROOT / "adapters" / "googledocs" / "cloudflared-config.yml"
+CONFIG_LOCAL = ROOT / "adapters" / "googledocs" / "cloudflared-config.local.yml"
 _WIN_DEFAULT = r"C:\Program Files (x86)\cloudflared\cloudflared.exe"
+
+
+def _config() -> Path:
+    return CONFIG_LOCAL if CONFIG_LOCAL.is_file() else CONFIG_TEMPLATE
 
 
 def _cloudflared() -> str | None:
@@ -38,18 +45,20 @@ def main() -> int:
     if cf is None:
         print("cloudflared not found. Install it once:\n\n    winget install Cloudflare.cloudflared\n", file=sys.stderr)
         return 1
-    if not CONFIG.is_file():
-        print(f"Missing tunnel config: {CONFIG}", file=sys.stderr)
+    config = _config()
+    if not config.is_file():
+        print(f"Missing tunnel config: {config}", file=sys.stderr)
         return 1
-    if "<TUNNEL_ID>" in CONFIG.read_text(encoding="utf-8"):
+    if "<TUNNEL_ID>" in config.read_text(encoding="utf-8"):
         print(
-            f"Fill in your tunnel id + credentials path in:\n    {CONFIG}\n"
+            f"Fill in your tunnel id + credentials path in a local copy:\n"
+            f"    copy {CONFIG_TEMPLATE.name} -> {CONFIG_LOCAL.name}  (in adapters/googledocs/, gitignored)\n"
             "Run `cloudflared tunnel create callosum` first — see adapters/googledocs/README.md.",
             file=sys.stderr,
         )
         return 1
     print("Starting the cloudflared tunnel for callosum.clffwrkmn.net (cite-only). Ctrl-C to stop.")
-    return subprocess.call([cf, "tunnel", "--config", str(CONFIG), "run"])
+    return subprocess.call([cf, "tunnel", "--config", str(config), "run"])
 
 
 if __name__ == "__main__":
