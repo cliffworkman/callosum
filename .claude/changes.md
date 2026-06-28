@@ -10,6 +10,24 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 186) — the "Finding new papers (Discover)" section now says Crossref + PubMed (both sources, merged); covers inc 184 (Discover) + inc 185 (relevance badge) + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-28 — Increment 187: literature Feed SP2a — engine + store + endpoints + bioRxiv source
+- **Files:** `app/backend/persistence/schema_feed.py` (new) + `alembic/versions/0021_feed.py` (new migration) +
+  `schema.py` (re-export), `app/backend/persistence/feed_repo.py` (new), `app/backend/discovery/feed.py` (new),
+  `app/backend/discovery/biorxiv_source.py` (new), `app/backend/api/routers/feed.py` (new), `app/backend/api/app.py`
+  (wire feed registry + jobs + router), `tests/test_feed.py` (new, +7), `.claude/qa-routes/route_44_feed.md` (new),
+  `.claude/security-audits/2026-06-28_feed.md`, `INCREMENT-187-NOTES.md`.
+- **What:** the Feed backend — subscriptions (pull-only, opt-in; get-or-create), an async refresh that polls each
+  followed source, a read/starred item store (re-poll idempotent + non-destructive), and the flagship
+  **bioRxiv-by-category** source; 8 `/feed/*` endpoints. `in_library` computed at read time; save reuses
+  `/discovery/save` (metadata-only, no PDF). The Feed tab UI is SP2b.
+- **Why:** backlog #28 SP2 (user greenlit pull-only / no auto-subscribe).
+- **Gates:** pytest 650 (+7); ruff clean; QA route_44 → surface 132/132 API + 631/631 FE, 0 uncovered; audit PASS
+  (constant host + server-derived path + client-side category filter → no SSRF; bound-param; public-metadata, not the
+  Gemini gate; additive guarded migration 0021; no new dependency). Values aligned (pull-only/opt-in/augment-never-filter).
+  Live spot-check (neuroscience, 10-day window → 5 real preprints) confirms the mapping.
+- **Revert:** drop the new discovery/feed + persistence/feed + routers/feed files + migration 0021, revert the app.py
+  + schema.py re-export, delete the test + route + audit.
+
 ## 2026-06-28 — Increment 186: literature discovery SP1a — the PubMed source
 - **Files:** `app/backend/discovery/pubmed_provider.py` (new), `app/backend/discovery/providers.py` (register PubMed),
   `tests/test_pubmed_provider.py` (new, +4), `tests/test_discovery.py` (registry test → crossref+pubmed),

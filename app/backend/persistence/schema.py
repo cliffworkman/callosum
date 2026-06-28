@@ -566,3 +566,10 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     paper_findings,
     retraction_records,
 )
+
+# Literature Feed tables (inc 187) — same split rationale; re-exported so existing import paths keep working and
+# importing this module registers them on the shared metadata.
+from app.backend.persistence.schema_feed import (  # noqa: E402,F401
+    feed_items,
+    feed_subscriptions,
+)

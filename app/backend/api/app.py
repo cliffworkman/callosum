@@ -26,6 +26,7 @@ from app.backend.api.routers import (
     citations,
     discovery,
     duplicates,
+    feed,
     findings,
     gaps,
     health,
@@ -43,6 +44,7 @@ from app.backend.api.routers import (
     word,
 )
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
+from app.backend.discovery.feed import FeedRegistry, build_default_feed_registry
 from app.backend.discovery.providers import SourceRegistry, build_default_registry
 from app.backend.embeddings.models import EmbeddingModel
 from app.backend.embeddings.vector_store import VectorStore
@@ -84,6 +86,7 @@ def create_app(
     overview_generator: OverviewGenerator | None = None,
     help_assistant: HelpAssistant | None = None,
     discovery_registry: SourceRegistry | None = None,
+    feed_registry: FeedRegistry | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
@@ -121,6 +124,8 @@ def create_app(
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
+    api.state.feed_registry = feed_registry or build_default_feed_registry()  # inc 187: Feed sources (bioRxiv)
+    api.state.feed_jobs = JobStore()  # inc 187: async Feed refresh (poll subscriptions)
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
     api.state.summary_generator = summary_generator
     api.state.embedding_model = embedding_model
@@ -180,6 +185,7 @@ def create_app(
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)
+    api.include_router(feed.router)  # /feed/* — literature Feed: followed sources, polled (inc 187)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
     api.include_router(annotations.router)
     api.include_router(tags.router)

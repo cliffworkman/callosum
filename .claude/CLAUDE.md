@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 186** (see Increment workflow) with **643 pytest tests
+It is currently at **Increment 187** (see Increment workflow) with **650 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -233,9 +233,10 @@ callosum/
    │                          consent, inc 146],libreoffice [LO plugin install/download, inc 162],word [Word add-in
    │                          task pane + manifest serving, inc 164],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
-│   │   │                          schema_findings.py [findings/signals/retraction/gap tables; re-exported from
-│   │   │                          schema — inc 137 split to keep schema.py < 600], gap_repo.py [gap_candidates
-│   │   │                          cache, inc 137], database.py, repository.py,
+│   │   │                          schema_findings.py [findings/signals/retraction/gap tables] + schema_feed.py
+│   │   │                          [feed_subscriptions/feed_items, inc 187] [both re-exported from schema], gap_repo.py
+│   │   │                          [gap_candidates cache, inc 137], feed_repo.py [Feed data access, inc 187],
+│   │   │                          database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
 │   │   │                          tags_repo.py [tag data access, inc 71], acquisition_repo.py [OA attachment labels, inc 74],
 │   │   │                          wanted_repo.py [wanted-list data access, inc 76], profile_repo.py [My Publications profile + decisions, inc 78],
@@ -258,7 +259,9 @@ callosum/
 │   │   ├── discovery/             (providers.py [SourceProvider registry + normalized Item + cross-provider dedup],
    │   │                          crossref_provider.py [Crossref /works keyword search], pubmed_provider.py [NCBI
    │   │                          E-utilities esearch→esummary, SP1a inc 186], search.py [run_search + metadata-only
-   │   │                          save], relevance.py [axis-relevance highlight — local, SP1b inc 185]; #28 Search, inc 183)
+   │   │                          save], relevance.py [axis-relevance highlight — local, SP1b inc 185]; #28 Search, inc 183;
+   │   │                          feed.py [Feed engine: FeedSource registry + refresh + read view] + biorxiv_source.py
+   │   │                          [bioRxiv-by-category Feed source]; #28 Feed SP2a, inc 187)
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
@@ -316,7 +319,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0020_suppressed_paper_tags)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0021_feed)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -833,7 +836,36 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 186 (literature discovery SP1a — the PubMed source): a second Search source
+*Last updated: 2026-06-28 — increment 187 (literature Feed SP2a — engine + store + endpoints + the bioRxiv source):
+the **backend** of #28 SP2 (the design-led, migration-bearing one; the user greenlit **pull-only, no auto-subscribe**;
+the Feed tab UI is SP2b inc 188). **Pull-only, opt-in, no push** — you follow a source, then a refresh polls it. New
+**`schema_feed.py`** (`feed_subscriptions` + `feed_items`, **migration 0021** — the discovery track's first; additive +
+guarded; re-exported from `schema.py` like `schema_findings`), **`feed_repo.py`** (bound-param subscription CRUD +
+`upsert_items` [INSERT-OR-IGNORE → re-poll never duplicates **or** resets read state] + list/state/mark-read/unread-
+count), **`discovery/feed.py`** (a `FeedEntry` + a `FeedSource` Protocol + `FeedRegistry` + `build_default_feed_registry`
++ `refresh_subscriptions` [polls each subscription via its source; **a source that raises is skipped**] + `feed_view`
+[computes `in_library` at read time, like Search]), **`discovery/biorxiv_source.py`** (`BioRxivFeedSource`,
+`kind="biorxiv_category"`: pulls recent detail pages over a **server-derived date window** from the **constant**
+`https://api.biorxiv.org` host, **filters the subscribed category client-side** [never in the URL → no SSRF], maps +
+dedups; injectable fetcher), **`routers/feed.py`** (8 endpoints: subscription GET/POST[422 unknown kind]/DELETE,
+async `POST /feed/refresh` + `GET …/{job_id}` [JobStore + a worker connection, mirrors the gap-finder], `GET /feed`
+[items + unread_count], item `state`, `mark-read`), wired in `app.py` (`create_app(feed_registry=…)` +
+`api.state.feed_registry`/`feed_jobs`). **Public-metadata polling** (bioRxiv) — **NOT** the Gemini gate; save reuses
+`/discovery/save` (metadata-only, no PDF → no paywall circumvention). **Adding the next Feed source is one
+`register()`** (the FeedRegistry mirrors the Search SourceRegistry). **Audit `.claude/security-audits/2026-06-28_feed.md`
+PASS** (no SSRF; bound-param + non-destructive re-poll; additive guarded migration; no new dependency); **values
+aligned** (pull-only/opt-in/no-auto-subscribe/augment-never-filter). **Rule #10:** new `route_44_feed.md` (the 8
+endpoints) → surface **132/132 API + 631/631 FE, 0 uncovered**. pytest **650** (+7 `test_feed.py`: repo + cascade,
+bioRxiv mapping/filter/dedup, registry, refresh-upsert + in_library view + re-poll-idempotent + failing-source-skipped,
+the 8 endpoints); `ruff` check + `format --check` clean; migration head via `alembic_head()`. **help corpus deferred to
+SP2b** (no UI yet — the `HELP-DOCS-SYNCED` marker stays at 186). **Live spot-check** (`BioRxivFeedSource(window_days=10,
+max_pages=3).fetch("neuroscience", 5)` → 5 real preprints mapped end-to-end) confirms the live schema the hermetic
+tests assume. Notes: `INCREMENT-187-NOTES.md`. **NEXT — SP2b (inc 188): the Feed tab UI** (`30c_frame.jsx`: a
+subscription manager + the item list [unread/starred filters, mark-read/star, save-to-library, refresh] + an unread
+badge; headed verify; help-corpus "Following sources (Feed)" + a `fe:` claim on `route_44`). Then SP2c (journal-by-ISSN
++ PubMed-keyword Feed sources — each one `register()` + its own audit; an optional auto-refresh cadence).
+
+Earlier — increment 186 (literature discovery SP1a — the PubMed source): a second Search source
 that drops into the discovery registry with **no endpoint/UI change** (the registry's promise: adding a source = one
 `register()`). New **`app/backend/discovery/pubmed_provider.py`** (`PubMedSearchProvider`, `name="pubmed"`): an
 injectable fetcher mirroring the Crossref one; `_eutils_search` = NCBI **esearch** (`term` → PMIDs) then **esummary**
