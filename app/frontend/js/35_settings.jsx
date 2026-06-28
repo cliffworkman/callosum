@@ -315,6 +315,73 @@ function WordSettings() {
   );
 }
 
+// Remote access (inc 168) — the opt-in, default-OFF gate that lets the Google Docs add-on reach your library through
+// a tunnel you run. Enabling mints an access token (shown once → copy into the add-on) + saves it locally so the
+// local UI keeps working under the gate. Off by default; local-only use is unaffected.
+function RemoteAccessSettings() {
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [token, setToken] = useState("");  // shown once, right after minting
+  const [msg, setMsg] = useState("");
+  const refresh = () => api("/settings").then(r => { if (r.ok) setStatus(r.data); });
+  useEffect(() => { refresh(); }, []);
+  const on = !!(status && status.remote_access_enabled);
+
+  const enable = async () => {
+    setBusy(true); setMsg(""); setToken("");
+    const m = await apiPost("/settings/access-token", {});  // mint while still OFF (ungated)
+    if (!m.ok) { setBusy(false); setMsg("Couldn't generate a token: " + (m.error || "error")); return; }
+    setAccessToken(m.data.token);  // the local browser now authenticates to the gate
+    setToken(m.data.token);        // show once
+    const r = await apiPut("/settings", { remote_access_enabled: true });
+    setBusy(false);
+    if (r.ok) { setStatus(r.data); setMsg("Remote access is on. Copy the token into the add-on — it won't be shown again."); }
+    else setMsg("Couldn't enable: " + (r.error || "error"));
+  };
+  const disable = async () => {
+    setBusy(true); setMsg(""); setToken("");
+    const r = await apiPut("/settings", { remote_access_enabled: false });
+    setBusy(false);
+    if (r.ok) { setStatus(r.data); setMsg("Remote access is off."); }
+    else setMsg("Couldn't disable: " + (r.error || "error"));
+  };
+  const regenerate = async () => {
+    setBusy(true); setMsg(""); setToken("");
+    const m = await apiPost("/settings/access-token", {});
+    setBusy(false);
+    if (m.ok) { setAccessToken(m.data.token); setToken(m.data.token); setMsg("New token — update the add-on; the old one no longer works."); }
+    else setMsg("Couldn't regenerate: " + (m.error || "error"));
+  };
+
+  return (
+    <>
+      <p className="eyebrow">Remote access (Google Docs)</p>
+      <div className="settings-row">
+        <span className="settings-label">Allow citing from Google Docs
+          <span className="settings-sub">
+            <b>Off by default.</b> When on, your library is reachable through a tunnel you run (the next setup step) — protected by an access token only you hold. This is the opt-in that lets cited-paper metadata leave your machine; local use is unaffected.
+          </span>
+        </span>
+        <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
+          aria-label="Allow remote access" disabled={busy} onClick={on ? disable : enable}><span className="settings-knob" /></button>
+      </div>
+      {on &&
+        <div className="settings-keyrow">
+          <button className="btn btn-ghost" disabled={busy} onClick={regenerate}>Regenerate token</button>
+        </div>}
+      {token &&
+        <div className="settings-field">
+          <label className="settings-field-label">Access token — shown once; copy it into the add-on
+            <span className="settings-sub">Stored on this machine; sent to your tunnel as a Bearer token. It is never shown again or returned by the app.</span>
+          </label>
+          <input className="settings-input" readOnly value={token} onFocus={e => e.target.select()} />
+        </div>}
+      {msg && <div className="settings-note">{msg}</div>}
+      <div className="settings-sub">Locked out locally after losing the token? Set <code>CALLOSUM_DISABLE_REMOTE_ACCESS=1</code> and restart, or remove the token from <code>~/.callosum/app-settings.json</code>.</div>
+    </>
+  );
+}
+
 function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
@@ -379,6 +446,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         <LibreOfficeSettings />
 
         <WordSettings />
+
+        <RemoteAccessSettings />
 
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 

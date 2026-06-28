@@ -38,6 +38,8 @@ class SettingsStatus(BaseModel):
     key_storage: str = "file"  # "keychain" (OS vault, if `keyring` is available) | "file" (gitignored local store)
     contact_email: str = ""  # polite-pool contact for Crossref/OpenAlex/Retraction Watch (NOT a secret)
     contact_email_source: str | None = None  # "ui" | "env" | None
+    remote_access_enabled: bool = False  # inc 168: gate callosum behind a bearer token (for the Google Docs tunnel)
+    access_token_set: bool = False  # is a remote-access token stored? — NEVER the token value
 
 
 class SettingsUpdate(BaseModel):
@@ -53,6 +55,7 @@ class SettingsUpdate(BaseModel):
     help_assistant_enabled: bool | None = None
     set_contact_email: bool = False
     contact_email: str | None = Field(default=None, max_length=app_settings.CONTACT_EMAIL_MAX_LEN)
+    remote_access_enabled: bool | None = None
 
 
 def _stored_key(provider: str) -> bool:
@@ -99,6 +102,8 @@ def _status() -> SettingsStatus:
         key_storage="keychain" if app_settings.keychain_available() else "file",
         contact_email=contact or "",
         contact_email_source=contact_source,
+        remote_access_enabled=app_settings.stored_remote_access(),
+        access_token_set=app_settings.stored_access_token() is not None,
     )
 
 
@@ -137,7 +142,26 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         if email and "@" not in email:
             raise HTTPException(status_code=422, detail="Contact email must be a valid email address.")
         app_settings.set_contact_email(email)
+    if update.remote_access_enabled is not None:
+        # Enabling without a token would lock the local UI out (the gate would 401 every call, including the one
+        # that mints a token) — so require a token first (the UI mints one before flipping this on).
+        if update.remote_access_enabled and app_settings.stored_access_token() is None:
+            raise HTTPException(status_code=422, detail="Generate an access token before enabling remote access.")
+        app_settings.set_remote_access_enabled(update.remote_access_enabled)
     return _status()
+
+
+class AccessTokenResult(BaseModel):
+    token: str  # the new token — returned ONCE so the user can copy it into the add-on; never returned again
+
+
+@router.post("/settings/access-token", response_model=AccessTokenResult)
+def mint_access_token() -> AccessTokenResult:
+    """Generate + store a fresh remote-access token, returning the value ONCE (it's a secret thereafter — GET
+    /settings only ever reports access_token_set). Regenerating invalidates the previous token."""
+    token = app_settings.generate_access_token()
+    app_settings.set_access_token(token)
+    return AccessTokenResult(token=token)
 
 
 class KeyTestResult(BaseModel):

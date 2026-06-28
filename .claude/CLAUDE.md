@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 167** (see Increment workflow) with **611 pytest tests
+It is currently at **Increment 168** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -221,6 +221,7 @@ callosum/
 ├── app/
 │   ├── backend/                   ← all backend implementation
 │   │   ├── api/                   (app.py [thin create_app factory + lifespan + CORS + frontend route],
+│   │   │                          access_control.py [remote-access bearer-token gate + rate limiter, opt-in, inc 168],
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,paper_files [PDF
@@ -532,7 +533,17 @@ work is called done:
    risk blocks the change until the user signs off.
 
 **Before any public/internet-facing deployment** (not done today — track it):
-- There is **no authentication and no rate limiting.** Add both before exposing the app.
+- **Auth + rate-limiting now EXIST as an opt-in foundation (inc 168, default-OFF):** `AccessControlMiddleware`
+  (`app/backend/api/access_control.py`) — when **Remote access** is enabled (Settings, for the Google Docs add-on
+  via a cloudflared tunnel), a constant-time **bearer token** is required on every endpoint except `GET /health` +
+  `GET /` (the static shell), plus a hand-rolled sliding-window **rate limiter** (429). Default-off → a pure
+  pass-through (zero change for localhost-only users). The token is stored like the BYOK key (keychain/file,
+  write-only over the wire); the frontend sends it via a same-origin fetch shim (`00_lib.jsx`, token in
+  localStorage, never injected into HTML). Recovery hatch: `CALLOSUM_DISABLE_REMOTE_ACCESS=1`. **The cloudflared
+  ingress allowlist (forward ONLY the cite endpoints — `/papers`, `/papers/export`, `/citations/*`) is a REQUIRED
+  SP1 control** so the file-read/scan routes + `/` are unreachable via the tunnel (recorded in the inc-168 audit).
+  Re-audit before a *general* hosted deployment (this foundation targets the single-user add-on tunnel, not
+  multi-tenant hosting).
 - The localhost-only CORS + PDF/file-serving paths must be re-reviewed for a hosted context.
 - **`POST /library/scan` reads a user-supplied folder server-side** (inc 87), **watched folders (inc 98)
   persist those paths + auto-read them on launch** (`POST /library/watched/rescan`), and **the library folder
@@ -663,6 +674,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Remote-access auth + rate-limiting = an opt-in, default-OFF bearer-token gate; the Google Docs SP0 security foundation (inc 168) | The Google Docs add-on runs in Google's cloud (`UrlFetchApp` can't reach localhost) → needs a public bridge (user chose **cloudflared on the local machine**). cloudflared forwards to `localhost`, so the app **can't distinguish a tunnel request from the local browser** (both loopback; `Host` is spoofable) → **the bearer token is the only safe boundary**, applied to every endpoint. callosum had no auth/rate-limiting (the Security baseline mandates both before exposure), so SP0 builds that foundation, fully in-codebase + pytest-verifiable, before the relay (SP1) or add-on (SP2). `AccessControlMiddleware` (`api/access_control.py`): OFF (default) → pure pass-through (**zero change** for current users + the suite); ON → require `Authorization: Bearer <token>` (constant-time `secrets.compare_digest`) except `GET /health` + `GET /` (no library data) + `OPTIONS` (preflight), + a hand-rolled in-memory sliding-window **RateLimiter** (429). Token stored like the BYOK key (the `_get_secret`/`_set_secret` refactor in `app_settings.py`; keychain/file, **write-only over the wire** — `POST /settings/access-token` returns it once, `GET /settings` reports only `access_token_set`). Frontend: a same-origin **fetch shim** in `00_lib.jsx` (token in localStorage, **never injected into HTML** → no leak path) covers the `api*` helpers + every raw fetch + the PDF bytes uniformly; a `RemoteAccessSettings` toggle (mint→save→enable). **Lockout-safe:** enabling requires a minted token (422 else); recovery via `CALLOSUM_DISABLE_REMOTE_ACCESS=1` (local-only) or editing the settings file. **REQUIRED SP1 control:** the cloudflared ingress allowlist must forward ONLY the cite endpoints (so `/`, `/settings`, scan routes are unreachable via the tunnel). Audit `2026-06-27_remote-access-auth.md` PASS; Principles → A-A consent value (explicit, opt-in, default-off egress). No new dependency, no migration. SP1 (the tunnel) + SP2 (the Apps Script add-on) follow. |
 | Split `40_app.jsx` 630→551 — `useFocusMode` hook + download helpers (inc 167) | A behavior-preserving refactor clearing the rule-#1 violation carried across six footers (the App god-component had crept to 630/600). The inc-128 precedent (extract a hook into an earlier chunk): the axis focus-mode subsystem → **`js/39_focus.jsx`**'s `useFocusMode({setActiveTab, onEnterClearFilters})` (returns the focus state + actions + `axisRefresh`/`setAxisRefresh`); the two big client-download helpers (`downloadCitationExport`/`downloadBibliography`) → **`js/00_lib.jsx`** (the utils home). App's `bulkExport`/`bulkBibliography` became 1-liners; the focus call-sites resolve from the hook destructure (no changes). **Chunk-order-safe** (00 < 39 < 40; esbuild DCE keeps all three). `useFocusMode` is called *after* the filter `useState`s (it closes over their setters). **Frontend-only — no backend/surface/migration/egress/dependency; no audit/Principles trigger.** Verified headed (render + bulk-export download + focus-mode enter/cancel + axis filter, 0 console/page/genai). **New rule-#1 watch: `js/30_viewer.jsx` 595/600.** |
 | Word add-in SP3 = parity — Suggest (`/citations/suggest`) + one-click style-switch + Flatten (inc 166) | Completes the Word surface (mirrors LibreOffice). **Suggest:** read the sentence (selection, else the cursor's paragraph) → `POST /citations/suggest {text≤4000, top_k, evaluate}` (inc 156) → ranked candidates rendered `[stance] Author Year · match N.NN — "quote…"` (the quote IS the reason — signal not verdict) → pick → insert. **Insert now collapses to the selection END** (`getRange(RangeLocation.end)`), so Suggest inserts *after* the sentence instead of replacing it (a strict improvement for the search path too). **Style switch:** the dropdown's `change` re-renders the whole doc (`refreshDocument`) + persists per-document via `Office.context.document.settings` (loaded on `Office.onReady`). **Flatten:** two-click confirm (no dialog dependency) → `cc.delete(true)` on every citation + bibliography Content Control (keeps text, drops the live field; one-way). New pure helpers (`pickQueryText`, `buildSuggestRequest` [caps text 4000], `formatSuggestRows`) — `node --test` **11/11**. **No backend change** (reuses `/citations/suggest`, `/citations/styles`, `/citations/render-document`, `/papers/export` — all already audited/tested) → no new endpoint/surface/migration/egress/dependency/audit gate. **Verification reality unchanged:** the Office.js glue is untested-by-anyone (the user has no Word) — best-effort-correct per the docs; the pure logic + the called contracts are proven. **This completes the Word adapter (SP1 inc 164 + SP2 inc 165 + SP3 inc 166).** |
 | Word add-in SP2 = live cite-while-you-write via **Content Controls** carrying CSL-JSON + a Refresh on `/citations/render-document` (inc 165) | Upgrades the SP1 static-text insert to the Zotero-style loop. Each citation is a Word **Content Control** whose `.tag` carries the cluster's CSL-JSON (base64), `appearance:"Hidden"` (a live field, not a visible box) — the Office.js analogue of LibreOffice's ReferenceMark/CSL-JSON. **Insert** = `/papers/export` csl-json → wrap a CC around the inserted range → **Refresh**. **Refresh** scans citation CCs **in document order** (`body.contentControls`, filter by the `CALLOSUM_CITATION ` tag prefix), POSTs them to the inc-107 `/citations/render-document` (positional `citationID`s), writes each CC's text back via `cc.insertText(..,"Replace")` (Office.js keeps the CC — no LibreOffice setString-destroys-the-mark trap), and rebuilds a managed **References** CC (tag `CALLOSUM_BIBLIOGRAPHY`) at the body end. **Content Controls over ADDIN fields** (the plan's default — the more mature/robust Office.js primitive). **No backend change** (reuses `/papers/export` + `/citations/render-document`, both already audited/tested) → no new endpoint/surface/migration/egress/dependency; no new audit gate. **Verification reality (the user has no Word):** the in-Word Office.js glue (`taskpane.js`) is exercised by **no one** — it ships best-effort-correct per the Office.js docs; the **pure logic** (`taskpane_core.js`: tag encode/decode incl. unicode + malformed→null, the render-document request/response mapping) is `node --test`-covered (8/8) and the render-document contract is pytest-proven (inc 107). Principles non-triggering (field-placer; formatting stays in citeproc). |
@@ -803,7 +815,42 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-27 — increment 167 (split `40_app.jsx` 630→551 — clear the carried 600-line violation): a
+*Last updated: 2026-06-27 — increment 168 (Google Docs SP0 — the remote-access security foundation: auth +
+rate-limiting): the user approved the **Google Docs adapter** (the third word-processor adapter) and chose
+**cloudflared on the local machine** as the bridge (Google's cloud can't reach localhost). The make-or-break safety
+fact: cloudflared forwards to `localhost`, so the app **can't tell a tunnel request from the local browser** (both
+loopback; `Host` spoofable) → **a bearer token is the only safe boundary**. callosum had no auth/rate-limiting (the
+Security baseline mandates both before exposure), so SP0 builds that foundation first — **fully in-codebase +
+pytest-verifiable**; the tunnel (SP1) + the Apps Script add-on (SP2, manual-test-only) follow. **Default-OFF →
+zero change for every current user.** New **`app/backend/api/access_control.py`** (`AccessControlMiddleware`: ON →
+require `Authorization: Bearer <token>`, constant-time `secrets.compare_digest`, except `GET /health` + `GET /` +
+`OPTIONS`; OFF → pure pass-through; + a hand-rolled in-memory sliding-window **`RateLimiter`** → 429), wired in
+`app.py` after CORS. **`app_settings.py`** gained `remote_access_enabled` + `access_token` (the keychain/file secret
+store refactored to reusable `_get_secret`/`_set_secret`; provider keys now route through it, behavior-preserving) +
+`generate_access_token`/`stored_remote_access` (the latter honors the `CALLOSUM_DISABLE_REMOTE_ACCESS=1` recovery
+hatch). **`routers/settings.py`**: `remote_access_enabled` + `access_token_set` on `GET /settings` (**never the
+value**), the toggle on `PUT` (**422 if enabling with no token minted** — lockout-safe), + `POST /settings/access-token`
+(mint→return once). Frontend: a same-origin **fetch shim** in `00_lib.jsx` (token in localStorage, **never injected
+into HTML** → no leak path) so the `api*` helpers + every raw fetch + the PDF bytes carry the token uniformly; a
+`RemoteAccessSettings` section in `35_settings.jsx` (toggle: mint→save-locally→enable; regenerate; recovery note).
+**Audit `.claude/security-audits/2026-06-27_remote-access-auth.md` PASS** (token the sole constant-time boundary;
+default-off; secret never logged/returned/injected; local-only recovery; **the cloudflared ingress allowlist is a
+recorded REQUIRED SP1 control** so `/`, `/settings`, scan routes are unreachable via the tunnel). **Principles →
+the A-A consent value** (explicit, opt-in, default-off, user-controlled egress; not a claim/signal). **Rule #10:**
+`route_35_settings.md` extended (`/settings/access-token` + the off-by-default / token-never-returned / 401-when-on
+assertions) → surface **121/121 API + 604/604 FE, 0 uncovered**. help corpus's privacy section gained a "Remote
+access" note (`HELP-DOCS-SYNCED` → 168). pytest **619** (+8 `tests/test_access_control.py`: the limiter, gate
+off→no-op, on→401/200, health-exempt, disable-env-hatch, 429, enable-without-token-422, mint-once-then-status-only;
++ route-surface). **No new dependency** (hand-rolled limiter; `secrets`/`keyring` already present), **no migration**.
+`ruff` clean; build + assembly green. **Verified headed, no egress** (`.local/visual/drive_inc168_remote_access.py`:
+enable → token shown once → `GET /settings` has **no token value** → reload still loads the library under the gate
+[the shim works] → toggle off; 0 console/page/genai). **GOTCHA (carry to SP1):** cloudflared makes tunnel==local at
+the app, so the ingress allowlist (forward only the cite endpoints) is mandatory before pointing a tunnel at
+callosum. Notes: `INCREMENT-168-NOTES.md`. **NEXT: SP1** — the cloudflared bridge (a `tools/` helper + the ingress
+allowlist + a Settings field for the public URL; its own audit for the live egress) → then **SP2** — the Apps Script
+Google Docs add-on (`adapters/googledocs/`; NamedRange + DocumentProperties, the Zotero pattern; manual-test-only).
+
+Earlier — increment 167 (split `40_app.jsx` 630→551 — clear the carried 600-line violation): a
 **behavior-preserving** refactor (no feature change), done autonomously to clear the rule-#1 violation flagged as
 "the immediate next chore" across the last six footers (the App god-component had crept to 630/600). The inc-128
 precedent (extract a hook into an earlier-loading chunk): the **axis focus-mode subsystem** → new

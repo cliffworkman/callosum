@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /settings, /settings/test-key, /integrations/libreoffice/*, /integrations/word/*
+api: /settings, /settings/test-key, /settings/access-token, /integrations/libreoffice/*, /integrations/word/*
 fe: 35_settings.jsx
 -->
 
@@ -22,6 +22,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
 - **LibreOffice install is local-only (inc 162).** The plugin install/download builds + opens a FIXED bundled `.oxt`; it must fire **no egress** (no genai/external host) and must degrade gracefully (`{opened:false}` + a download fallback), never 500. A request to any external host from the install path is **Critical**.
+- **Remote access is OFF by default + token-gated (inc 168).** On a clean instance, `GET /settings` reports
+  `remote_access_enabled:false`; the gate is a no-op (the data API works with no token). Enabling without a token →
+  **422** (would lock the local UI out). `POST /settings/access-token` returns the token value **once**; `GET
+  /settings` must report `access_token_set` but **never the token value** (the value in the GET body is **Critical**).
+  With remote access ON, a data request with no/wrong bearer token → **401** (`GET /health` + `GET /` stay exempt).
+  The egress posture is unchanged for everyone who leaves it off.
 - **Word add-in is local-only + zero-egress (inc 164).** The `/integrations/word/*` routes serve FIXED bundled task-pane files + the manifest from `adapters/word/`; an undefined filename must be a plain 404 (no traversal). The served `taskpane.html`/`taskpane.js` may reference Microsoft's `appsforoffice.microsoft.com` office.js (the required Office SDK) but **must not** reference any AI/library host (`generativelanguage`/`openai`/`anthropic`/`clffwrkmn.net`) — such a reference is **Critical**. `POST /integrations/word/install` opens a local folder and degrades to `{opened:false}`, never 500. (The in-Word task-pane round-trip is desktop-Word-only and is the user's MANUAL check — not Playwright-drivable.)
 
 ## Adversarial checklist
@@ -45,7 +51,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 9. **Metadata access (inc 158).** Under **Metadata access**, save a **Contact email** (e.g. `you@example.com`); `GET /settings` reports `contact_email` + `contact_email_source: "ui"`. Submit `not-an-email` → **422**, nothing persisted. The email is NOT a secret (it IS returned by `GET /settings` — it's the polite-pool contact for Crossref/OpenAlex/Retraction Watch), but saving it must fire **no genai request**. Clear it → reverts to empty.
 10. **LibreOffice plugin (inc 162).** Under **LibreOffice plugin**, confirm the section renders (Install plugin button + Download .oxt link + the "restart Writer / app must be running" note). The **Download .oxt** link (`GET /integrations/libreoffice/plugin.oxt`) serves a non-empty `.oxt` (a zip). Clicking **Install** (`POST /integrations/libreoffice/install`) returns 200 with `{opened: …, detail}` and fires **no genai/external request** (it only opens a local file handler); on a headless runner where no handler exists it must report `opened:false` with a download fallback, not crash.
 11. **Microsoft Word add-in (inc 164).** Under **Microsoft Word add-in (desktop)**, confirm the section renders (the 3-step one-time setup note + a **Download manifest** link + an **Open add-in folder** button). The **Download manifest** link (`GET /integrations/word/manifest.xml`) serves a non-empty XML manifest whose SourceLocation is `https://localhost:8443/integrations/word/taskpane.html`. `GET /integrations/word/taskpane.html` serves the task pane (its only external reference is Microsoft's office.js — never an AI/library host). Clicking **Open add-in folder** (`POST /integrations/word/install`) returns 200 `{opened, detail}`, fires **no genai/external request**, and on a headless runner reports `opened:false` without crashing. `GET /integrations/word/secrets.txt` → 404 (no traversal). *(The actual in-Word task pane is desktop-Word-only — a documented MANUAL check, not driven here.)*
-12. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
+12. **Remote access (inc 168).** Under **Remote access (Google Docs)**, confirm the toggle is **OFF** on a clean
+   instance. Turn it ON → an access token is shown **once** (a readonly field); `GET /settings` now reports
+   `remote_access_enabled:true` + `access_token_set:true` with **no token value in the body**. Confirm the data API
+   still works in this browser (the token was saved to `localStorage`). Toggle OFF → back to frictionless. (Direct
+   API: `PUT /settings {remote_access_enabled:true}` with no token minted → 422; with remote ON, `GET /papers` with
+   no/`wrong` bearer → 401; `GET /health` → 200.) No genai/external request from any of this.
+13. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
 
 ## Pass criteria
 

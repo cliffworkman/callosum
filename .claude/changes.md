@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 168) — privacy section gained a "Remote access (for the Google Docs add-on)" note (off by default; the access token; the recovery hatch). -->
+## 2026-06-27 — Increment 168: Google Docs SP0 — remote-access security foundation (auth + rate-limiting)
+- **Files:** `app/backend/api/access_control.py` (new — `AccessControlMiddleware` + `RateLimiter`), `app/backend/api/app.py`
+  (wire after CORS), `app/backend/app_settings.py` (`remote_access_enabled` + `access_token`; `_get_secret`/`_set_secret`
+  refactor), `app/backend/api/routers/settings.py` (status/update + `POST /settings/access-token`),
+  `app/frontend/js/00_lib.jsx` (same-origin bearer fetch shim + token accessors), `app/frontend/js/35_settings.jsx`
+  (`RemoteAccessSettings`) + `callosum-app.html`, `tests/test_access_control.py` (new, +8), `tests/test_health.py`
+  (route-surface), `.claude/security-audits/2026-06-27_remote-access-auth.md`, `.claude/qa-routes/route_35_settings.md`,
+  `app/backend/help/help_content.md`, `INCREMENT-168-NOTES.md`.
+- **What:** an opt-in, **default-OFF** bearer-token gate + rate-limiting so callosum can be safely reached by the
+  Google Docs add-on via a (later) cloudflared tunnel. cloudflared forwards to localhost → the app can't distinguish
+  tunnel from local browser → the token is the only safe boundary, applied to every endpoint (except health/shell/
+  preflight). Token stored like the BYOK key (write-only over the wire); the frontend sends it via a same-origin
+  fetch shim. The Security-baseline prerequisite for exposure; SP1 (tunnel) + SP2 (add-on) follow.
+- **Why:** the user approved Google Docs ("build what's needed, be safe") + chose cloudflared-on-local.
+- **Revert:** remove `access_control.py` + unwire in `app.py`; revert the settings/app_settings/frontend additions;
+  rebuild. No migration. **Default-off means reverting is low-risk; the feature is inert until a user enables it.**
+
 ## 2026-06-27 — Increment 167: split 40_app.jsx (clear the carried 600-line violation)
 - **Files:** `app/frontend/js/39_focus.jsx` (new — `useFocusMode` hook), `app/frontend/js/00_lib.jsx`
   (+`downloadCitationExport`/`downloadBibliography`/`_downloadBlob`), `app/frontend/js/40_app.jsx`

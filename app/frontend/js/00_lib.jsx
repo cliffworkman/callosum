@@ -15,6 +15,36 @@ const API_BASE = (() => {
 })();
 const API_LABEL = API_BASE || "same-origin API";
 
+// Remote-access token (inc 168). When the user turns Remote access ON (Settings → for the Google Docs add-on via a
+// tunnel), the backend gates every data call behind a bearer token — and the LOCAL browser needs it too (the app
+// can't tell the local browser from the tunnel). We keep the token in localStorage (never injected into the served
+// HTML, so there is no leak path) and inject it on SAME-ORIGIN requests from ONE place — a fetch shim — so the api*
+// helpers AND every raw fetch (exports, PDF bytes) are covered uniformly. Harmless when remote access is off.
+const ACCESS_TOKEN_KEY = "callosum.accessToken";
+function getAccessToken() { try { return localStorage.getItem(ACCESS_TOKEN_KEY) || ""; } catch (e) { return ""; } }
+function setAccessToken(token) {
+  try { token ? localStorage.setItem(ACCESS_TOKEN_KEY, token) : localStorage.removeItem(ACCESS_TOKEN_KEY); } catch (e) { /* ignore */ }
+}
+(function _installAuthFetchShim() {
+  const orig = window.fetch.bind(window);
+  const sameOrigin = (url) => {
+    if (typeof url !== "string") return false;
+    return API_BASE ? url.startsWith(API_BASE) : (url.startsWith("/") || url.startsWith(window.location.origin));
+  };
+  window.fetch = function (input, init) {
+    const token = getAccessToken();
+    const url = typeof input === "string" ? input : (input && input.url);
+    if (token && sameOrigin(url)) {
+      const next = Object.assign({}, init);
+      const h = new Headers((next.headers) || (typeof input !== "string" && input && input.headers) || {});
+      if (!h.has("Authorization")) h.set("Authorization", "Bearer " + token);
+      next.headers = h;
+      return orig(input, next);
+    }
+    return orig(input, init);
+  };
+})();
+
 // inc-100: tag provenance. A tag carries an import_source; imported author/index keywords are styled distinctly
 // from tags you added (aesthetic only — no extra labels), with the specific source shown in the tooltip.
 function tagIsImported(source) { return !!source && source !== "user"; }

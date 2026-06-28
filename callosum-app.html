@@ -1425,6 +1425,39 @@
     return override.replace(/\/+$/, "");
   })();
   const API_LABEL = API_BASE || "same-origin API";
+  const ACCESS_TOKEN_KEY = "callosum.accessToken";
+  function getAccessToken() {
+    try {
+      return localStorage.getItem(ACCESS_TOKEN_KEY) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+  function setAccessToken(token) {
+    try {
+      token ? localStorage.setItem(ACCESS_TOKEN_KEY, token) : localStorage.removeItem(ACCESS_TOKEN_KEY);
+    } catch (e) {
+    }
+  }
+  (function _installAuthFetchShim() {
+    const orig = window.fetch.bind(window);
+    const sameOrigin = (url) => {
+      if (typeof url !== "string") return false;
+      return API_BASE ? url.startsWith(API_BASE) : url.startsWith("/") || url.startsWith(window.location.origin);
+    };
+    window.fetch = function(input, init) {
+      const token = getAccessToken();
+      const url = typeof input === "string" ? input : input && input.url;
+      if (token && sameOrigin(url)) {
+        const next = Object.assign({}, init);
+        const h = new Headers(next.headers || typeof input !== "string" && input && input.headers || {});
+        if (!h.has("Authorization")) h.set("Authorization", "Bearer " + token);
+        next.headers = h;
+        return orig(input, next);
+      }
+      return orig(input, init);
+    };
+  })();
   function tagIsImported(source) {
     return !!source && source !== "user";
   }
@@ -5993,6 +6026,74 @@
     };
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Microsoft Word add-in (desktop)"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Cite while you write in Word", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "A task pane in ", /* @__PURE__ */ React.createElement("b", null, "desktop"), " Word (Windows/Mac) that searches your library and inserts citations \u2014 everything stays on your machine. One-time setup: ", /* @__PURE__ */ React.createElement("b", null, "1)"), " trust a local certificate, run ", /* @__PURE__ */ React.createElement("code", null, "npx office-addin-dev-certs install"), "; ", /* @__PURE__ */ React.createElement("b", null, "2)"), " run Callosum over HTTPS, ", /* @__PURE__ */ React.createElement("code", null, "python tools/run_https.py"), ", then open ", /* @__PURE__ */ React.createElement("code", null, "https://localhost:8443"), "; ", /* @__PURE__ */ React.createElement("b", null, "3)"), " download the manifest below and sideload it in Word (see the adapter README). Not supported in Word-on-the-web.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("a", { className: "btn-link", href: API_BASE + "/integrations/word/manifest.xml", download: true }, "Download manifest"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: openFolder }, busy ? "Opening\u2026" : "Open add-in folder"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  function RemoteAccessSettings() {
+    const [status, setStatus] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [token, setToken] = useState("");
+    const [msg, setMsg] = useState("");
+    const refresh = () => api("/settings").then((r) => {
+      if (r.ok) setStatus(r.data);
+    });
+    useEffect(() => {
+      refresh();
+    }, []);
+    const on = !!(status && status.remote_access_enabled);
+    const enable = async () => {
+      setBusy(true);
+      setMsg("");
+      setToken("");
+      const m = await apiPost("/settings/access-token", {});
+      if (!m.ok) {
+        setBusy(false);
+        setMsg("Couldn't generate a token: " + (m.error || "error"));
+        return;
+      }
+      setAccessToken(m.data.token);
+      setToken(m.data.token);
+      const r = await apiPut("/settings", { remote_access_enabled: true });
+      setBusy(false);
+      if (r.ok) {
+        setStatus(r.data);
+        setMsg("Remote access is on. Copy the token into the add-on \u2014 it won't be shown again.");
+      } else setMsg("Couldn't enable: " + (r.error || "error"));
+    };
+    const disable = async () => {
+      setBusy(true);
+      setMsg("");
+      setToken("");
+      const r = await apiPut("/settings", { remote_access_enabled: false });
+      setBusy(false);
+      if (r.ok) {
+        setStatus(r.data);
+        setMsg("Remote access is off.");
+      } else setMsg("Couldn't disable: " + (r.error || "error"));
+    };
+    const regenerate = async () => {
+      setBusy(true);
+      setMsg("");
+      setToken("");
+      const m = await apiPost("/settings/access-token", {});
+      setBusy(false);
+      if (m.ok) {
+        setAccessToken(m.data.token);
+        setToken(m.data.token);
+        setMsg("New token \u2014 update the add-on; the old one no longer works.");
+      } else setMsg("Couldn't regenerate: " + (m.error || "error"));
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Remote access (Google Docs)"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow citing from Google Docs", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Off by default."), " When on, your library is reachable through a tunnel you run (the next setup step) \u2014 protected by an access token only you hold. This is the opt-in that lets cited-paper metadata leave your machine; local use is unaffected.")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (on ? " on" : ""),
+        role: "switch",
+        "aria-checked": on,
+        "aria-label": "Allow remote access",
+        disabled: busy,
+        onClick: on ? disable : enable
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), on && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: regenerate }, "Regenerate token")), token && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Access token \u2014 shown once; copy it into the add-on", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Stored on this machine; sent to your tunnel as a Bearer token. It is never shown again or returned by the app.")), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: token, onFocus: (e) => e.target.select() })), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Locked out locally after losing the token? Set ", /* @__PURE__ */ React.createElement("code", null, "CALLOSUM_DISABLE_REMOTE_ACCESS=1"), " and restart, or remove the token from ", /* @__PURE__ */ React.createElement("code", null, "~/.callosum/app-settings.json"), "."));
+  }
   function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
     const dark = theme === "dark";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal settings-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Settings"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
@@ -6039,7 +6140,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");

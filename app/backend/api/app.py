@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 
+from app.backend.api.access_control import AccessControlMiddleware
 from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers import (
@@ -139,6 +140,10 @@ def create_app(
         allow_methods=["GET"],
         allow_headers=["*"],
     )
+    # Remote-access gate (inc 168): when the user enables Remote access (for the Google Docs add-on via a
+    # cloudflared tunnel), require a bearer token + rate-limit. OFF by default → a pure pass-through (no change
+    # for localhost-only users). Added after CORS so CORS stays the outermost layer (preflight handled there).
+    api.add_middleware(AccessControlMiddleware)
 
     @api.get("/", response_model=None, include_in_schema=False)
     def frontend_shell() -> FileResponse | HTMLResponse:

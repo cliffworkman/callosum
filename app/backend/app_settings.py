@@ -15,12 +15,14 @@ from __future__ import annotations
 
 import json
 import os
+import secrets
 import stat
 from pathlib import Path
 
 # Generous cap — real Gemini keys are ~40 chars; the boundary validator (routers/settings.py) enforces it too.
 API_KEY_MAX_LEN = 512
 CONTACT_EMAIL_MAX_LEN = 254  # RFC-5321 max address length; the boundary validator enforces it too
+ACCESS_TOKEN_MAX_LEN = 256  # remote-access bearer token (inc 168); generated tokens are ~43 chars
 
 
 def settings_path() -> Path:
@@ -174,10 +176,9 @@ def keychain_available() -> bool:
     return _keyring() is not None
 
 
-def get_provider_key(provider: str) -> str | None:
-    """The stored key for a provider — from the OS keychain if present, else the local file. Either place is
-    honored so a pre-keychain key is never lost (re-saving then migrates it to the keychain)."""
-    field = _PROVIDER_KEY_FIELD.get(provider, "api_key")
+def _get_secret(field: str) -> str | None:
+    """A stored secret (`field`) — from the OS keychain if present, else the local file. Either place is honored so
+    a pre-keychain value is never lost (re-saving then migrates it to the keychain)."""
     kr = _keyring()
     if kr is not None:
         try:
@@ -190,22 +191,21 @@ def get_provider_key(provider: str) -> str | None:
     return v if isinstance(v, str) and v.strip() else None
 
 
-def set_provider_key(provider: str, key: str | None) -> None:
-    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field). Empty/whitespace clears it. Uses the
-    OS keychain when available (and removes any plaintext file copy — migration on save); else the file."""
-    field = _PROVIDER_KEY_FIELD.get(provider, "api_key")
-    key = (key or "").strip()
+def _set_secret(field: str, value: str | None) -> None:
+    """Store a secret (`field`). Empty/whitespace clears it. Uses the OS keychain when available (and removes any
+    plaintext file copy — migration on save); else the gitignored file."""
+    value = (value or "").strip()
     kr = _keyring()
     if kr is not None:
         try:
-            if key:
-                kr.set_password(_KEYCHAIN_SERVICE, field, key)
+            if value:
+                kr.set_password(_KEYCHAIN_SERVICE, field, value)
             else:
                 try:
                     kr.delete_password(_KEYCHAIN_SERVICE, field)
                 except Exception:
                     pass  # nothing stored to delete
-            # Drop any plaintext copy left in the file (migrate away from inc-146 file storage).
+            # Drop any plaintext copy left in the file (migrate away from file storage).
             data = load_settings()
             if field in data:
                 data.pop(field, None)
@@ -214,8 +214,52 @@ def set_provider_key(provider: str, key: str | None) -> None:
         except Exception:
             pass  # keychain write failed → fall through to the file store
     data = load_settings()
-    if key:
-        data[field] = key
+    if value:
+        data[field] = value
     else:
         data.pop(field, None)
     _write(data)
+
+
+def get_provider_key(provider: str) -> str | None:
+    """The stored key for a provider — keychain or file (inc 152)."""
+    return _get_secret(_PROVIDER_KEY_FIELD.get(provider, "api_key"))
+
+
+def set_provider_key(provider: str, key: str | None) -> None:
+    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field). Empty/whitespace clears it."""
+    _set_secret(_PROVIDER_KEY_FIELD.get(provider, "api_key"), key)
+
+
+# --- Remote access (inc 168): an opt-in, default-OFF bearer token gating callosum when reached via a tunnel ---
+# The token is a SECRET (keychain/file, write-only over the wire, never logged). `remote_access_enabled` is a
+# non-secret flag (file, like data_egress). Turning it ON is the explicit, default-off consent to expose the
+# library remotely. Recovery if the token is lost: set CALLOSUM_DISABLE_REMOTE_ACCESS=1, or edit the settings file.
+_ACCESS_TOKEN_FIELD = "access_token"
+
+
+def generate_access_token() -> str:
+    """A fresh URL-safe random token (~43 chars)."""
+    return secrets.token_urlsafe(32)
+
+
+def set_access_token(token: str | None) -> None:
+    _set_secret(_ACCESS_TOKEN_FIELD, token)
+
+
+def stored_access_token() -> str | None:
+    return _get_secret(_ACCESS_TOKEN_FIELD)
+
+
+def set_remote_access_enabled(enabled: bool) -> None:
+    data = load_settings()
+    data["remote_access_enabled"] = bool(enabled)
+    _write(data)
+
+
+def stored_remote_access() -> bool:
+    """Whether remote access is enabled. The CALLOSUM_DISABLE_REMOTE_ACCESS env var force-disables it (a local
+    recovery hatch if the access token is lost — a remote caller can't set env vars on the user's machine)."""
+    if os.getenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "").strip().lower() in {"1", "true", "yes"}:
+        return False
+    return bool(load_settings().get("remote_access_enabled", False))

@@ -1,0 +1,87 @@
+"""Remote-access gate (inc 168): a bearer-token requirement + rate-limiting, OFF by default.
+
+When the user enables **Remote access** (Settings) — so callosum can be reached via a cloudflared tunnel for the
+Google Docs add-on — every request must carry a valid ``Authorization: Bearer <token>``, EXCEPT ``GET /health``
+(liveness) and the static app shell (``GET /``, which carries no library data). cloudflared forwards to
+``localhost``, so the app **cannot** tell a tunnel request from the local browser (both are loopback, and the
+``Host`` header is attacker-controllable) — therefore the token is the **only** safe boundary, applied uniformly.
+
+When remote access is OFF (the default), the middleware is a pure pass-through: **zero change** for localhost-only
+users (and the whole existing test suite). The flag + token are read fresh per request from ``app_settings`` so the
+Settings toggle takes effect live. Recovery if the token is lost: ``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` (a local-only
+hatch) or edit the settings file.
+"""
+
+from __future__ import annotations
+
+import secrets
+import time
+from collections import deque
+from threading import Lock
+
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+from app.backend import app_settings
+
+# Reachable without a token even when remote access is on — neither exposes library data.
+_EXEMPT_PATHS = frozenset({"/", "/health"})
+
+RATE_LIMIT_WINDOW = 60.0  # seconds
+RATE_LIMIT_MAX = 120  # requests per window (generous; only active when remote access is on)
+
+
+class RateLimiter:
+    """A tiny in-memory sliding-window limiter — no dependency, thread-safe, bounded (one deque per key)."""
+
+    def __init__(self, max_requests: int | None = None, window: float | None = None) -> None:
+        # Resolve at construction (not def-time) so tests can monkeypatch the module limits before create_app.
+        self.max = RATE_LIMIT_MAX if max_requests is None else max_requests
+        self.window = RATE_LIMIT_WINDOW if window is None else window
+        self._hits: dict[str, deque[float]] = {}
+        self._lock = Lock()
+
+    def allow(self, key: str, now: float | None = None) -> bool:
+        now = time.monotonic() if now is None else now
+        cutoff = now - self.window
+        with self._lock:
+            dq = self._hits.setdefault(key, deque())
+            while dq and dq[0] < cutoff:
+                dq.popleft()
+            if len(dq) >= self.max:
+                return False
+            dq.append(now)
+            return True
+
+
+def _bearer(header: str | None) -> str | None:
+    if not header:
+        return None
+    parts = header.split(None, 1)
+    if len(parts) == 2 and parts[0].lower() == "bearer" and parts[1].strip():
+        return parts[1].strip()
+    return None
+
+
+class AccessControlMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, *, limiter: RateLimiter | None = None) -> None:
+        super().__init__(app)
+        self._limiter = limiter or RateLimiter()
+
+    async def dispatch(self, request: Request, call_next):
+        if not app_settings.stored_remote_access():
+            return await call_next(request)  # OFF (the default) → no-op
+        if request.method == "OPTIONS" or request.url.path in _EXEMPT_PATHS:
+            return await call_next(request)  # CORS preflight + the static shell / liveness
+        token = app_settings.stored_access_token()
+        provided = _bearer(request.headers.get("authorization"))
+        if not token or not provided or not secrets.compare_digest(provided, token):
+            return JSONResponse({"detail": "Remote access requires a valid access token."}, status_code=401)
+        if not self._limiter.allow("remote"):
+            return JSONResponse(
+                {"detail": "Rate limit exceeded — slow down."},
+                status_code=429,
+                headers={"Retry-After": str(int(RATE_LIMIT_WINDOW))},
+            )
+        return await call_next(request)

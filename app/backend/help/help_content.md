@@ -820,6 +820,9 @@ Important distinctions:
 - Axis term suggestions can send your axis wording, so they are also behind the egress gate.
 - Verification of citations runs locally after generation; Gemini is not treated as citation evidence.
 
+### Remote access (for the Google Docs add-on)
+**Off by default.** Citing from Google Docs requires your library to be reachable from the internet (a Google Docs add-on runs in Google's cloud and can't reach your computer directly). **Settings → Remote access** is the opt-in: turning it on generates an **access token** (shown once — copy it into the add-on) and requires that token on every request, so only you (and your add-on) can reach your library. You then run a tunnel (e.g. `cloudflared`) so the add-on can connect. While it's off, nothing is exposed and local use is unchanged. If you lose the token and get locked out locally, set `CALLOSUM_DISABLE_REMOTE_ACCESS=1` and restart, or remove the token from `~/.callosum/app-settings.json`.
+
 <!-- section: troubleshooting-and-faq -->
 ## Troubleshooting and FAQ
 ### Why is my axis empty?
