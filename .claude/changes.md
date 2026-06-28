@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 169: Google Docs SP1 — cloudflared bridge (cite-only) for callosum.clffwrkmn.net
+- **Files:** `adapters/googledocs/cloudflared-config.yml` (new — the cite-only ingress), `adapters/googledocs/README.md`
+  (new — the setup runbook), `tools/run_tunnel.py` (new — the runner), `.claude/security-audits/2026-06-28_googledocs-tunnel.md`,
+  `INCREMENT-169-NOTES.md`. (No callosum app code — cloudflared is an external binary.)
+- **What:** the bridge from Google's cloud → local callosum. Recon (via the user's granted SSH) confirmed
+  clffwrkmn.net (HostGator shared hosting) prohibits `ssh -R` → can't relay; chose **Cloudflare subdomain
+  delegation** (only `callosum.clffwrkmn.net` delegated via 2 NS records at HostGator) + a local **cloudflared**
+  tunnel with a **cite-only ingress** (only `/papers`, `/papers/export`, `/citations/{render-document,suggest,styles}`
+  → localhost:8080; else 404 — validated). Two boundaries: the inc-168 token + the cite-only ingress.
+- **Why:** the user chose Google Docs + callosum.clffwrkmn.net + "only touch the callosum element"; cloudflared
+  installed via the permitted winget.
+- **Revert:** delete `adapters/googledocs/` + `tools/run_tunnel.py`. No app/schema change. The live tunnel needs the
+  user's Cloudflare account (manual); the cite-only ingress + the install were verified, not the live tunnel.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-27 (inc 168) — privacy section gained a "Remote access (for the Google Docs add-on)" note (off by default; the access token; the recovery hatch). -->
 ## 2026-06-27 — Increment 168: Google Docs SP0 — remote-access security foundation (auth + rate-limiting)
 - **Files:** `app/backend/api/access_control.py` (new — `AccessControlMiddleware` + `RateLimiter`), `app/backend/api/app.py`
