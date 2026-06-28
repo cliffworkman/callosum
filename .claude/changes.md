@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 176: Notes-panel extraction + noted-only filter + note search (reading-pane)
+- **Files:** `app/frontend/js/30b_notes.jsx` (new — `AnnotationsPanel`), `app/frontend/js/30_viewer.jsx` (use it),
+  `app/frontend/styles.css` (filter-row CSS), `.claude/qa-routes/route_32_viewer_annotations.md` (fe: repoint),
+  `callosum-app.html`, `INCREMENT-176-NOTES.md`.
+- **What:** extracted the presentational Notes panel out of the viewer (30_viewer 595→573, clears the rule-#1
+  watch; behavior-preserving — verified via the inc-144 driver), then added a **noted-only** checkbox + a **note &
+  text search** box to it.
+- **Why:** "follow your heart" — relieve the cap + ship the first reading-pane filters the close-reader wanted.
+- **Gates:** frontend-only, no backend/migration/egress; QA surface 121/612 (route_32 repointed to claim the new
+  chunk); assembly 5/5; pytest 619. Headed-verified (`.local/visual/drive_inc176_notesfilter.py`:
+  search-by-text/by-note + noted-only each → 1 item; 0 console/page/genai).
+- **Revert:** inline `AnnotationsPanel` back into 30_viewer + drop the filter/search + CSS; revert the route fe:.
+
 ## 2026-06-28 — Increment 175: remembered scroll position per paper (reading-pane follow-up)
 - **Files:** `app/frontend/js/30_viewer.jsx` (save in onScroll + restore in the render block + 2 refs),
   `app/frontend/js/00_lib.jsx` (relocated `buildAnnotationDigest`), `callosum-app.html`, `INCREMENT-175-NOTES.md`.

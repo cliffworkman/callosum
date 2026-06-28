@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, POST /papers/{paper_id}/annotations, PATCH /annotations/{annotation_id}, DELETE /annotations/{annotation_id}
-fe: 30_viewer.jsx
+fe: 30_viewer.jsx, 30b_notes.jsx
 -->
 
 # ROUTE 32 - Viewer and annotations

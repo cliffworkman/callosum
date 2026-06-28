@@ -1128,6 +1128,14 @@
     margin-bottom: 8px; display: flex; gap: 6px; align-items: baseline;
   }
   .pdf-annot-export { margin-left: auto; display: flex; gap: 8px; text-transform: none; }  /* inc 144: copy/export marks */
+  .pdf-annot-filter { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }  /* inc 176: noted-only + note search */
+  .pdf-annot-search {
+    flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm); font-size: 12px; font-family: var(--sans);
+    background: var(--bg); color: var(--ink);
+  }
+  .pdf-annot-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .pdf-annot-notedonly { display: flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
   .pdf-annot-empty { font-size: 12px; color: var(--ink-3); line-height: 1.45; }
   .pdf-annot-item { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 8px; margin-bottom: 8px; }
   .pdf-annot-row { display: flex; gap: 6px; align-items: center; cursor: pointer; }

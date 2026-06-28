@@ -1152,6 +1152,14 @@
     margin-bottom: 8px; display: flex; gap: 6px; align-items: baseline;
   }
   .pdf-annot-export { margin-left: auto; display: flex; gap: 8px; text-transform: none; }  /* inc 144: copy/export marks */
+  .pdf-annot-filter { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; }  /* inc 176: noted-only + note search */
+  .pdf-annot-search {
+    flex: 1; min-width: 0; padding: 5px 8px; border: 1px solid var(--line-2);
+    border-radius: var(--radius-sm); font-size: 12px; font-family: var(--sans);
+    background: var(--bg); color: var(--ink);
+  }
+  .pdf-annot-search:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .pdf-annot-notedonly { display: flex; gap: 4px; align-items: center; font-size: 12px; color: var(--ink-2); white-space: nowrap; cursor: pointer; }
   .pdf-annot-empty { font-size: 12px; color: var(--ink-3); line-height: 1.45; }
   .pdf-annot-item { background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 8px; margin-bottom: 8px; }
   .pdf-annot-row { display: flex; gap: 6px; align-items: center; cursor: pointer; }
@@ -5235,7 +5243,17 @@
         ref: pagesRef,
         style: { display: state.status === "ready" ? "flex" : "none" }
       }
-    )), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-head" }, "Annotations ", /* @__PURE__ */ React.createElement("span", null, "\xB7 ", annotations.length), annotations.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-export" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: copyDigest, title: "Copy all highlights + notes as text" }, "Copy"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: exportDigest, title: "Download highlights + notes as a Markdown file" }, "Export .md"))), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => jumpToAnnotation(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => openEditor(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => deleteAnnotation(a.id) }, "Delete")))))), picker && /* @__PURE__ */ React.createElement("div", { className: "hl-picker", style: { left: picker.left, top: picker.top }, onMouseDown: (e) => e.preventDefault() }, HIGHLIGHT_COLORS.map((c) => /* @__PURE__ */ React.createElement(
+    )), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement(
+      AnnotationsPanel,
+      {
+        annotations,
+        onCopy: copyDigest,
+        onExport: exportDigest,
+        onJump: jumpToAnnotation,
+        onEdit: openEditor,
+        onDelete: deleteAnnotation
+      }
+    )), picker && /* @__PURE__ */ React.createElement("div", { className: "hl-picker", style: { left: picker.left, top: picker.top }, onMouseDown: (e) => e.preventDefault() }, HIGHLIGHT_COLORS.map((c) => /* @__PURE__ */ React.createElement(
       "span",
       {
         key: c,
@@ -5302,6 +5320,25 @@
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
     )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh }))));
+  }
+  function AnnotationsPanel({ annotations, onCopy, onExport, onJump, onEdit, onDelete }) {
+    const [notedOnly, setNotedOnly] = useState(false);
+    const [query, setQuery] = useState("");
+    const q = query.trim().toLowerCase();
+    const shown = annotations.filter((a) => {
+      if (notedOnly && !(a.note && a.note.trim())) return false;
+      if (q && !((a.note || "").toLowerCase().includes(q) || (a.anchor_text || "").toLowerCase().includes(q))) return false;
+      return true;
+    });
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-head" }, "Annotations ", /* @__PURE__ */ React.createElement("span", null, "\xB7 ", shown.length === annotations.length ? annotations.length : `${shown.length} / ${annotations.length}`), annotations.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-export" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onCopy, title: "Copy all highlights + notes as text" }, "Copy"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onExport, title: "Download highlights + notes as a Markdown file" }, "Export .md"))), annotations.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-filter" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "pdf-annot-search",
+        value: query,
+        placeholder: "Search notes & text\u2026",
+        onChange: (e) => setQuery(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));

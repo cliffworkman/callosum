@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 175** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 176** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -341,8 +341,9 @@ and non-code (Markdown, SQL, config).
 
 **Standing split tasks:** none currently over the limit. **Inc 167** split `app/frontend/js/40_app.jsx` (630→551:
 the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
-**frontend chunks count too** (they're under `app/`). **Frontend watch:** `js/30_viewer.jsx` (**595**, closest),
-`js/25_detail.jsx` (579), `js/10_pdf_layer.jsx` (562). **Inc 137** split `schema.py` (611→558, over the cap
+**frontend chunks count too** (they're under `app/`). **Inc 176** extracted the Notes panel from `js/30_viewer.jsx`
+(595→**573**) into `js/30b_notes.jsx` (`AnnotationsPanel`), relieving the watch. **Frontend watch:** `js/25_detail.jsx`
+(**584**, closest), `js/30_viewer.jsx` (573), `js/10_pdf_layer.jsx` (562). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
@@ -825,7 +826,23 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 175 (remembered scroll position per paper — reading-pane follow-up): reopening
+*Last updated: 2026-06-28 — increment 176 (Notes-panel extraction + noted-only filter + note search — reading-pane):
+unblocks the reading-pane follow-ups by relieving the `30_viewer.jsx` 595/600 cap, then ships the first two panel
+features. **Split:** new chunk **`30b_notes.jsx`** = a purely-presentational **`AnnotationsPanel`** (Copy/Export +
+the jump/edit/delete list); all state/handlers stay in `PdfViewer`, passed as props → 30_viewer **595→573**.
+Function declaration hoists in the shared IIFE (load order moot; raw-assembly inclusion + build is the gate).
+**Verified behavior-preserving** by re-running the inc-144 driver (Copy/Export digest identical). **Features (in the
+extracted panel):** a **Noted** checkbox (only highlights with a note) + a **search** box (matches note OR
+highlighted text, case-insensitive; head shows `shown/total`). CSS `.pdf-annot-filter`/`.pdf-annot-search`
+(conforms to `.searchbar input` + tokens, rule #8). **QA (rule #10):** the panel's elements moved chunks →
+`route_32_viewer_annotations.md` `fe:` repointed to `30_viewer.jsx, 30b_notes.jsx`; surface **121/121 API +
+612/612 FE, 0 uncovered**. Frontend-only — no backend/migration/egress; assembly 5/5; pytest **619**; no Python →
+ruff n/a. **Headed-verified, no egress** (`.local/visual/drive_inc176_notesfilter.py`: search 'positional'→1 [text]
+/ 'core'→1 [note] / Noted→1; 0 console/page/genai). **Watch (rule #1):** `25_detail.jsx` now the closest at
+**584/600**; 30_viewer relieved to 573. Notes: `INCREMENT-176-NOTES.md`. **NEXT:** more reading-pane (next/prev-mark
+hotkeys, fit-page, note colors, minimap) now fit in 30_viewer's headroom; or the design-gated #3/#5; or elsewhere.
+
+Earlier — increment 175 (remembered scroll position per paper — reading-pane follow-up): reopening
 a PDF now **resumes where you left off**. `PdfViewer.onScroll` persists the scroller's `scrollTop` to
 `localStorage["callosum.pdfScroll.<paperId>"]` (throttled ≤1/500ms); the render effect's post-render block restores
 it **once per paper-open** (`restoredPaperRef`) — a citation/annotation **`target` wins**, and never on a zoom

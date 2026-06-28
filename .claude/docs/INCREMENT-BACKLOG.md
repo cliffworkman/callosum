@@ -57,11 +57,10 @@ _Italic notes are light implementation pointers, not designs._
 > BYOK arc is done.** The open backlog below is the next pick.
 >
 > **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** ✅ **remembered
-> scroll position per paper — inc 175.** Remaining: keyboard zoom (Ctrl +/− — **conflicts with browser zoom, a UX
-> call**) + next/prev-mark hotkeys; a "noted-only" filter + a search box over note text in the Notes panel; a "fit
-> page"/fit-height option; free-form note colors/labels; a scrollbar/minimap marker. **`30_viewer.jsx` is at
-> 595/600 → a Notes-panel extraction is the prerequisite headroom move before more viewer features.** (See
-> `INCREMENT-144-NOTES.md` + `INCREMENT-175-NOTES.md`.)
+> scroll position per paper — inc 175**; ✅ **Notes-panel extraction (`30b_notes.jsx`, relieves the cap) + noted-only
+> filter + note/text search — inc 176.** Remaining: keyboard zoom (Ctrl +/− — **conflicts with browser zoom, a UX
+> call**) + next/prev-mark hotkeys; a "fit page"/fit-height option; free-form note colors/labels; a scrollbar/minimap
+> marker. `30_viewer.jsx` now has headroom (573) for these. (See `INCREMENT-144/175/176-NOTES.md`.)
 
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →

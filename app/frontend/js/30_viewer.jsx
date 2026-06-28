@@ -493,30 +493,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
                style={{ display: state.status === "ready" ? "flex" : "none" }}></div>
         </div>
         {panelOpen && state.status === "ready" &&
-          <div className="pdf-annot-panel">
-            <div className="pdf-annot-head">Annotations <span>· {annotations.length}</span>
-              {annotations.length > 0 &&
-                <span className="pdf-annot-export">
-                  <button className="btn-link" onClick={copyDigest} title="Copy all highlights + notes as text">Copy</button>
-                  <button className="btn-link" onClick={exportDigest} title="Download highlights + notes as a Markdown file">Export .md</button>
-                </span>}
-            </div>
-            {annotations.length === 0 &&
-              <div className="pdf-annot-empty">No highlights yet. Select text in the PDF to add one, then click it to add a note.</div>}
-            {annotations.map(a =>
-              <div key={a.id} className="pdf-annot-item">
-                <div className="pdf-annot-row" onClick={() => jumpToAnnotation(a)} title="Jump to this highlight">
-                  <span className="pdf-annot-chip" style={{ background: a.color }}></span>
-                  <span className="pdf-annot-page">p.{a.page}</span>
-                  <span className="pdf-annot-snip">{(a.anchor_text || "").slice(0, 90) || "(no text)"}</span>
-                </div>
-                {a.note && <div className="pdf-annot-note">{a.note}</div>}
-                <div className="pdf-annot-actions">
-                  <button onClick={(e) => openEditor(a, e.clientX - 250, e.clientY + 6)}>{a.note ? "Edit note" : "Add note"}</button>
-                  <button className="danger" onClick={() => deleteAnnotation(a.id)}>Delete</button>
-                </div>
-              </div>)}
-          </div>}
+          <AnnotationsPanel annotations={annotations} onCopy={copyDigest} onExport={exportDigest}
+            onJump={jumpToAnnotation} onEdit={openEditor} onDelete={deleteAnnotation} />}
       </div>
       {picker &&
         <div className="hl-picker" style={{ left: picker.left, top: picker.top }} onMouseDown={e => e.preventDefault()}>
