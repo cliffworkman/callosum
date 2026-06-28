@@ -23,6 +23,7 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
   const noticeTimer = useRef(null);
   const restoredPaperRef = useRef(null);  // inc 175: which paperId's remembered scroll has been restored (once per open)
   const lastScrollSaveRef = useRef(0);     // inc 175: throttle the per-paper scroll-position write
+  const markCursorRef = useRef(-1);        // inc 177: index into the page-ordered highlights for next/prev navigation
 
   // Surface a transient message (e.g. a failed save) so API errors aren't silent.
   const flashNotice = useCallback((msg) => {
@@ -451,6 +452,14 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
     });
   }, []);
 
+  // inc 177: step to the next/previous highlight in page order (wraps), flashing it — review marks without hunting.
+  const stepMark = useCallback((dir) => {
+    const marks = [...annotationsRef.current].sort((a, b) => (a.page - b.page) || (a.id - b.id));
+    if (!marks.length) return;
+    markCursorRef.current = (((markCursorRef.current + dir) % marks.length) + marks.length) % marks.length;
+    jumpToAnnotation(marks[markCursorRef.current]);
+  }, [jumpToAnnotation]);
+
   return (
     <div className="pdf-viewer">
       <div className="pdf-toolbar">
@@ -470,6 +479,10 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
                     onClick={() => changePageView(pageView === "two" ? "page" : "two")}
                     title="Two pages side by side">Two-up</button>
             <span className="pdf-pageind">Page {page} / {state.numPages}</span>
+            {annotations.length > 0 && <>
+              <button className="pdf-annot-toggle" onClick={() => stepMark(-1)} title="Jump to the previous highlight">◂ Mark</button>
+              <button className="pdf-annot-toggle" onClick={() => stepMark(1)} title="Jump to the next highlight">Mark ▸</button>
+            </>}
             <button className={"pdf-annot-toggle" + (panelOpen ? " active" : "")}
                     onClick={() => setPanelOpen(o => !o)} title="Show annotations for this paper">
               Notes ({annotations.length})

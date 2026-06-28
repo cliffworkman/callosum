@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 176** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 177** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -826,7 +826,19 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 176 (Notes-panel extraction + noted-only filter + note search — reading-pane):
+*Last updated: 2026-06-28 — increment 177 (next/prev-mark navigation — reading-pane): **◂ Mark** / **Mark ▸**
+toolbar buttons cycle through a paper's highlights in page order (wrapping), flashing each via `jumpToAnnotation` —
+review marks without hunting the Notes panel. `markCursorRef` + `stepMark(dir)` (sorts `annotations` by page then
+id; uses the always-fresh `annotationsRef`); buttons reuse `.pdf-annot-toggle` (no new CSS, rule #8). 30_viewer
+573→**586**. Frontend-only — no backend/migration/egress; QA surface **121/121 API + 616/616 FE** (buttons covered
+by route_32); assembly 5/5; pytest **619**. **Headed-verified, no egress** (`.local/visual/drive_inc177_marknav.py`:
+Mark ▸/◂ flash next/prev; 0 console/page/genai). **Reading-pane run (175–177) shipped:** remembered scroll · Notes
+extraction + noted-only filter + note/text search · next/prev-mark nav. Remaining (diminishing/nuanced): fit-page
+(cap-risky), mark-nav hotkeys (active-tab gating), note colors, minimap. Notes: `INCREMENT-177-NOTES.md`. **NEXT:**
+the high-value move is the **Google Docs add-on live test** (yours); autonomous remainder is design-gated (#3/#5) or
+diminishing. **Watch (rule #1):** `25_detail.jsx` 584/600 closest.
+
+Earlier — increment 176 (Notes-panel extraction + noted-only filter + note search — reading-pane):
 unblocks the reading-pane follow-ups by relieving the `30_viewer.jsx` 595/600 cap, then ships the first two panel
 features. **Split:** new chunk **`30b_notes.jsx`** = a purely-presentational **`AnnotationsPanel`** (Copy/Export +
 the jump/edit/delete list); all state/handlers stay in `PdfViewer`, passed as props → 30_viewer **595→573**.

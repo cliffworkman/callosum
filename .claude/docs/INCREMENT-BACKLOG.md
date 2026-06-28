@@ -58,9 +58,10 @@ _Italic notes are light implementation pointers, not designs._
 >
 > **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** ✅ **remembered
 > scroll position per paper — inc 175**; ✅ **Notes-panel extraction (`30b_notes.jsx`, relieves the cap) + noted-only
-> filter + note/text search — inc 176.** Remaining: keyboard zoom (Ctrl +/− — **conflicts with browser zoom, a UX
-> call**) + next/prev-mark hotkeys; a "fit page"/fit-height option; free-form note colors/labels; a scrollbar/minimap
-> marker. `30_viewer.jsx` now has headroom (573) for these. (See `INCREMENT-144/175/176-NOTES.md`.)
+> filter + note/text search — inc 176**; ✅ **next/prev-mark toolbar navigation — inc 177.** Remaining
+> (diminishing/nuanced): keyboard zoom (Ctrl +/− — **conflicts with browser zoom**) + mark-nav **hotkeys**
+> (active-tab + input gating); a "fit page"/fit-height option (touches the fit-mode logic — cap/render-risk);
+> free-form note colors/labels; a scrollbar/minimap marker. (See `INCREMENT-144/175/176/177-NOTES.md`.)
 
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →

@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 177: next/prev-mark navigation (reading-pane)
+- **Files:** `app/frontend/js/30_viewer.jsx` (markCursorRef + stepMark + 2 toolbar buttons), `callosum-app.html`,
+  `INCREMENT-177-NOTES.md`.
+- **What:** **◂ Mark** / **Mark ▸** toolbar buttons cycle through the paper's highlights in page order (wrapping),
+  flashing each via the existing `jumpToAnnotation`. Reuses `.pdf-annot-toggle` (no new CSS).
+- **Why:** review marks in sequence without hunting the Notes panel ("follow your heart" reading-pane run).
+- **Gates:** frontend-only; QA surface 121/616 (buttons covered by route_32); assembly 5/5; pytest 619.
+  Headed-verified (`.local/visual/drive_inc177_marknav.py`: Mark ▸/◂ flash the next/prev highlight; 0 console/page/genai).
+- **Revert:** drop stepMark/markCursorRef + the 2 buttons.
+
 ## 2026-06-28 — Increment 176: Notes-panel extraction + noted-only filter + note search (reading-pane)
 - **Files:** `app/frontend/js/30b_notes.jsx` (new — `AnnotationsPanel`), `app/frontend/js/30_viewer.jsx` (use it),
   `app/frontend/styles.css` (filter-row CSS), `.claude/qa-routes/route_32_viewer_annotations.md` (fe: repoint),
