@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 177** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 178** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -65,9 +65,10 @@ rather than this file's footer; the footer's detailed narrative resumes at incre
   `app/frontend/`.**
 - **HTTP client:** httpx (external metadata/discovery APIs).
 
-> **Gotcha:** `README.md` is **stale** — it still says "planning skeleton / planning mode."
-> It does not reflect the current implemented state. Trust this file and the code, not the
-> README (and fix the README opportunistically).
+> **README:** brought current in **inc 178** (the contributor front door — accurate feature list + the
+> `npm install`/`build_frontend` step + privacy/security notes). Shipped as a **draft pending the maintainer's
+> voice pass + a screenshot** (a `<!-- TODO(maintainer) -->` placeholder marks the screenshot). Still defer to this
+> file + the code for the authoritative current state; keep the README current opportunistically.
 
 ---
 
@@ -826,7 +827,23 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 177 (next/prev-mark navigation — reading-pane): **◂ Mark** / **Mark ▸**
+*Last updated: 2026-06-28 — increment 178 (README front-door — backlog #11): rewrote the stale ("Increment 73")
+`README.md` into a current contributor front door. Brought the feature list current (LibreOffice/Word/Google Docs
+adapters, BYOK multi-provider AI incl. zero-egress local, retraction/p-curve/GRIM/statcheck, gap-finder, My
+Publications, OA acquisition, merge, reading-pane, import-beyond-Zotero) + added the missing onboarding essentials:
+the **`npm install` + `python tools/build_frontend.py`** step (was absent — a real trap), venv + cross-platform
+commands, first-run model-download + auto-migrate notes, a **Configuration & privacy** table (both egress gates +
+BYOK + `CALLOSUM_DB_URL`/`CALLOSUM_LIBRARY_DIR`), a **Security note** (127.0.0.1 / no auth / opt-in cite-only Remote
+access), **Known limitations**, an honest **"Built with AI assistance"** note, and credit/license pointers (only
+files that exist: `THIRD-PARTY-NOTICES.md` / `CONTRIBUTING.md` / `LICENSE` — SECURITY/CITATION/.env.example are
+backlog #20, not linked). **Docs-only** — no app/migration/egress/surface change; pytest **619**. Per #11's "your
+voice — never auto-shipped": shipped as an **accurate draft** (replacing actively-stale public content, the
+CLAUDE "fix README opportunistically" directive) with the **voice pass + a screenshot left to the maintainer** (a
+`<!-- TODO(maintainer) -->` placeholder). Notes: `INCREMENT-178-NOTES.md`. **NEXT:** mark-nav hotkeys (the keyboard
+pairing for the inc-177 buttons), or — honestly — the clean-autonomous queue is dry (reading-pane remainder is
+cap-tight/diminishing; #3/#5 are decision-gated; the high-value Google Docs live test is the user's).
+
+Earlier — increment 177 (next/prev-mark navigation — reading-pane): **◂ Mark** / **Mark ▸**
 toolbar buttons cycle through a paper's highlights in page order (wrapping), flashing each via `jumpToAnnotation` —
 review marks without hunting the Notes panel. `markCursorRef` + `stepMark(dir)` (sorts `annotations` by page then
 id; uses the always-fresh `annotationsRef`); buttons reuse `.pdf-annot-toggle` (no new CSS, rule #8). 30_viewer

@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 178: README front-door (backlog #11)
+- **Files:** `README.md`, `INCREMENT-178-NOTES.md`.
+- **What:** rewrote the stale ("Increment 73") README into a current contributor front door — brought the feature
+  list current (word-processor adapters, BYOK, retraction/p-curve/GRIM, gap-finder, My Pubs, OA acquisition, merge,
+  reading-pane, import) + added the missing onboarding essentials (the `npm install` + `build_frontend` step, venv +
+  cross-platform commands, first-run model-download + auto-migrate notes, a Configuration & privacy table, a
+  Security note, Known limitations, an AI-assistance note, credit/license pointers).
+- **Why:** backlog #11 — the public repo's front door was ~100 increments stale + lacked the JS/build step.
+- **Gates:** docs-only; no app/migration/egress/surface change; pytest 619. Shipped as a draft per #11's "your
+  voice" boundary — **voice + a screenshot left to the maintainer** (a TODO placeholder marks the screenshot spot).
+- **Revert:** `git checkout <prev> -- README.md`.
+
 ## 2026-06-28 — Increment 177: next/prev-mark navigation (reading-pane)
 - **Files:** `app/frontend/js/30_viewer.jsx` (markCursorRef + stepMark + 2 toolbar buttons), `callosum-app.html`,
   `INCREMENT-177-NOTES.md`.

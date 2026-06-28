@@ -143,7 +143,10 @@ findings subsystem, projected as read-only system-tags.
 no auth/rate-limiting), **cross-platform** setup + venv/uv, dev-vs-user setup + the frontend build step, first-run
 model-download note, `.env.example` + **both** egress gates, pointers to CONTRIBUTING/SECURITY/CITATION, the
 auto-migrate note, an honest "built with AI assistance" note, a UI screenshot. (Status + license badges added
-2026-06-20.) CC can **draft** this for your review on request, but it speaks in your voice — never auto-shipped.
+2026-06-20.) **inc 178 shipped an accurate draft** (current feature list + the `npm install`/`build_frontend` step +
+the privacy/security/limitations/AI-assistance sections + credit/license pointers). **Remaining (the maintainer's):
+the voice pass + a UI screenshot** (a `<!-- TODO(maintainer) -->` placeholder marks the spot). Also still pending:
+`SECURITY.md` / `CITATION.cff` / `.env.example` (backlog #20) so the README can link them.
 
 **12. Critical-review supplement (multi-paper)** — **[gated]** a stronger, more opinionated generation mode (own
 endpoint/mode, egress gate, security audit) that critically reviews the selected paper(s). **Must meet the
