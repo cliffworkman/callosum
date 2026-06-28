@@ -1600,6 +1600,16 @@
       console.warn("[callosum] download error:", path, e);
     }
   }
+  function buildAnnotationDigest(title, annotations) {
+    const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
+    for (const a of annotations) {
+      const quote = (a.anchor_text || "").trim();
+      lines.push(`**p.${a.page}**${quote ? " \u2014 " + quote : ""}`);
+      if (a.note && a.note.trim()) lines.push(`> ${a.note.trim()}`);
+      lines.push("");
+    }
+    return lines.join("\n").trim() + "\n";
+  }
   const PDFJS_VERSION = "3.11.174";
   let pdfLibPromise = null;
   function loadPdfJs() {
@@ -4746,16 +4756,6 @@
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "p = ", t.p)
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: p-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal test, and conservatively drops results so significant their p rounds to \u22480. Run it on a small, curated set for the most meaningful curve.")), /* @__PURE__ */ React.createElement("div", { className: "pcurve-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " p-curve \u2014 Simonsohn, Nelson & Simmons (2014), ", /* @__PURE__ */ React.createElement("i", null, "J. Exp. Psychol. Gen."), " 143(2):534\u2013547.", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "pcurve-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " (Lukas Jung). Surfaced via D. Lakens' automated-review catalog."))));
   }
-  function buildAnnotationDigest(title, annotations) {
-    const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
-    for (const a of annotations) {
-      const quote = (a.anchor_text || "").trim();
-      lines.push(`**p.${a.page}**${quote ? " \u2014 " + quote : ""}`);
-      if (a.note && a.note.trim()) lines.push(`> ${a.note.trim()}`);
-      lines.push("");
-    }
-    return lines.join("\n").trim() + "\n";
-  }
   function PdfViewer({ paperId, title, target, annoRefresh }) {
     const [state, setState] = useState({ status: "loading" });
     const [scale, setScale] = useState(1.15);
@@ -4777,6 +4777,8 @@
     const tokenRef = useRef(0);
     const annotationsRef = useRef([]);
     const noticeTimer = useRef(null);
+    const restoredPaperRef = useRef(null);
+    const lastScrollSaveRef = useRef(0);
     const flashNotice = useCallback((msg) => {
       setNotice(msg);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -4956,6 +4958,11 @@
         if (!cancelled) {
           applyPdfCitationTarget(scrollRef.current, host, target);
           renderUserAnnotations(host, annotationsRef.current);
+          if (restoredPaperRef.current !== paperId) {
+            restoredPaperRef.current = paperId;
+            const saved = !target && scrollRef.current ? Number(localStorage.getItem("callosum.pdfScroll." + paperId)) : 0;
+            if (saved > 0) scrollRef.current.scrollTop = saved;
+          }
         }
       })();
       return () => {
@@ -4976,7 +4983,14 @@
         if (host.children[i].getBoundingClientRect().top - top <= 64) current = Number(host.children[i].dataset.page || i + 1);
       }
       setPage((p) => p === current ? p : current);
-    }, []);
+      if (paperId != null && Date.now() - lastScrollSaveRef.current > 500) {
+        lastScrollSaveRef.current = Date.now();
+        try {
+          localStorage.setItem("callosum.pdfScroll." + paperId, String(scroller.scrollTop));
+        } catch (e) {
+        }
+      }
+    }, [paperId]);
     const zoom = useCallback((delta) => {
       setPageView("page");
       _saveLayout("callosum.pageView", "page");

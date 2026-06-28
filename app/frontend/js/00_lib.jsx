@@ -190,6 +190,20 @@ async function downloadAsset(path, filename) {
   } catch (e) { console.warn("[callosum] download error:", path, e); }
 }
 
+// inc-144 (Close-reader): assemble a paper's highlights + notes into a copy/printable Markdown digest — pure,
+// from the already-loaded annotations ({page, anchor_text, note}), page-ordered like the panel. (Relocated from
+// 30_viewer.jsx in inc 175 for the rule-#1 cap; it's a pure util, the viewer's home for it.)
+function buildAnnotationDigest(title, annotations) {
+  const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
+  for (const a of annotations) {
+    const quote = (a.anchor_text || "").trim();
+    lines.push(`**p.${a.page}**${quote ? " — " + quote : ""}`);
+    if (a.note && a.note.trim()) lines.push(`> ${a.note.trim()}`);
+    lines.push("");
+  }
+  return lines.join("\n").trim() + "\n";
+}
+
 // ─────────────────────────────────────────────────────────────
 // PDF.js — loaded lazily from cdnjs, exactly once, the first time a
 // PDF tab is opened. UMD build (3.x) so it works with no build step.

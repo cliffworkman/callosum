@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 175: remembered scroll position per paper (reading-pane follow-up)
+- **Files:** `app/frontend/js/30_viewer.jsx` (save in onScroll + restore in the render block + 2 refs),
+  `app/frontend/js/00_lib.jsx` (relocated `buildAnnotationDigest`), `callosum-app.html`, `INCREMENT-175-NOTES.md`.
+- **What:** reopening a PDF resumes where you left off — `onScroll` persists `scrollTop` per paper (throttled) to
+  localStorage; the render block restores it once per open (a citation `target` wins; not on zoom re-renders).
+  Relocated the pure `buildAnnotationDigest` to 00_lib for the rule-#1 headroom (30_viewer 595→back to 595 with the
+  feature; was over at 602 before compacting).
+- **Why:** Close-reader quality-of-life; chosen over keyboard-zoom (which fights browser Ctrl+± zoom).
+- **Gates:** frontend-only, no backend/migration/egress; QA surface unchanged (121/608); assembly 5/5; pytest 619.
+  Headed-verified (`.local/visual/drive_inc175_scroll.py`): scroll→600, reload+reopen→restored 600, 0 console/page/genai.
+- **Revert:** drop the save/restore + the 2 refs in 30_viewer; move `buildAnnotationDigest` back (optional).
+
 ## 2026-06-28 — Increment 174: confirm before re-resolve overwrites hand-edited metadata (backlog #3)
 - **Files:** `app/frontend/js/25_detail.jsx` (DoiRow re-resolve guard), `callosum-app.html`, `INCREMENT-174-NOTES.md`.
 - **What:** 🔎 re-resolve force-overwrites metadata from Crossref; for a hand-edited paper (`imported_source ==

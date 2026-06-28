@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 174** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 175** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -825,7 +825,26 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 174 (confirm before re-resolve overwrites hand-edited metadata — autonomous
+*Last updated: 2026-06-28 — increment 175 (remembered scroll position per paper — reading-pane follow-up): reopening
+a PDF now **resumes where you left off**. `PdfViewer.onScroll` persists the scroller's `scrollTop` to
+`localStorage["callosum.pdfScroll.<paperId>"]` (throttled ≤1/500ms); the render effect's post-render block restores
+it **once per paper-open** (`restoredPaperRef`) — a citation/annotation **`target` wins**, and never on a zoom
+re-render. **Did NOT restructure the fragile render core** (the inc-34/35 alignment invariants) — only added a
+throttled save + a guarded restore. **Rule-#1 headroom:** 30_viewer was 595/600 → relocated the **pure**
+`buildAnnotationDigest` (inc-144 digest) to `00_lib.jsx` (its proper home; `copyDigest`/`exportDigest` still call it
+via the shared IIFE scope) → 30_viewer back to **595** with the feature (briefly hit 602, compacted the new blocks).
+"Follow your heart" pick over keyboard-zoom (Ctrl+± fights the browser's own zoom — a UX call left for Cliff).
+Frontend-only — no backend/migration/egress; QA surface unchanged (121/121 API + 608/608 FE); assembly 5/5; pytest
+**619**. **Headed-verified, no egress** (`.local/visual/drive_inc175_scroll.py`: tall 4-page PDF → scroll to 600 →
+saved 600 → **reload (new session) + reopen → restored 600**; PDF renders post-refactor; 0 console/page/genai).
+**WATCH (rule #1): `30_viewer.jsx` is again at 595/600 — a real Notes-panel extraction is the proper next headroom
+move before more viewer features.** Remaining reading-pane follow-ups (keyboard-zoom [browser-conflict], next/prev-mark
+hotkeys, noted-only filter + note search, free-form note colors, minimap marker) need that split / a decision.
+Notes: `INCREMENT-175-NOTES.md`. **NEXT:** the autonomous backlog above the cut is now down to design-gated items
+(#3 always-on label [reverses inc-100], #5 multiple-URLs [needs a CSL convention]) + the cap-blocked reading-pane
+remainder — a Cliff steer, or slide a below-cut item up.
+
+Earlier — increment 174 (confirm before re-resolve overwrites hand-edited metadata — autonomous
 backlog #3): 🔎 re-resolve passes `force=True` (inc 49) → silently overwrites a paper's metadata from Crossref,
 including hand-edited papers (`imported_source == "user-edited"`). `DoiRow.resolve()` in `25_detail.jsx` now requires
 a `window.confirm` (the established convention) before re-resolving a user-edited paper; non-edited papers are

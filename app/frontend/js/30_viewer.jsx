@@ -1,16 +1,4 @@
-// inc-144 (Close reader pass): assemble a paper's highlights + notes into a copy/printable Markdown digest — the
-// reader's payoff ("show me everything I marked, as a list I can take elsewhere"). Pure; built from the already-
-// loaded annotations ({page, anchor_text, note}), page-ordered like the panel.
-function buildAnnotationDigest(title, annotations) {
-  const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
-  for (const a of annotations) {
-    const quote = (a.anchor_text || "").trim();
-    lines.push(`**p.${a.page}**${quote ? " — " + quote : ""}`);
-    if (a.note && a.note.trim()) lines.push(`> ${a.note.trim()}`);
-    lines.push("");
-  }
-  return lines.join("\n").trim() + "\n";
-}
+// buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
 
 function PdfViewer({ paperId, title, target, annoRefresh }) {
   const [state, setState] = useState({ status: "loading" });
@@ -33,6 +21,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
   const tokenRef = useRef(0);
   const annotationsRef = useRef([]);
   const noticeTimer = useRef(null);
+  const restoredPaperRef = useRef(null);  // inc 175: which paperId's remembered scroll has been restored (once per open)
+  const lastScrollSaveRef = useRef(0);     // inc 175: throttle the per-paper scroll-position write
 
   // Surface a transient message (e.g. a failed save) so API errors aren't silent.
   const flashNotice = useCallback((msg) => {
@@ -213,6 +203,12 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
       if (!cancelled) {
         applyPdfCitationTarget(scrollRef.current, host, target);
         renderUserAnnotations(host, annotationsRef.current);
+        // inc 175: restore remembered scroll once per paper-open (a citation target wins; not on zoom re-renders).
+        if (restoredPaperRef.current !== paperId) {
+          restoredPaperRef.current = paperId;
+          const saved = !target && scrollRef.current ? Number(localStorage.getItem("callosum.pdfScroll." + paperId)) : 0;
+          if (saved > 0) scrollRef.current.scrollTop = saved;
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -234,7 +230,11 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
       if (host.children[i].getBoundingClientRect().top - top <= 64) current = Number(host.children[i].dataset.page || i + 1);
     }
     setPage(p => (p === current ? p : current));
-  }, []);
+    if (paperId != null && Date.now() - lastScrollSaveRef.current > 500) {  // inc 175: remember scroll per paper
+      lastScrollSaveRef.current = Date.now();
+      try { localStorage.setItem("callosum.pdfScroll." + paperId, String(scroller.scrollTop)); } catch (e) {}
+    }
+  }, [paperId]);
 
   // Manual zoom drops out of any fit mode (fit-width / two-up auto-compute the scale).
   const zoom = useCallback((delta) => {
