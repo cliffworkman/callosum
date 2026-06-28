@@ -122,9 +122,10 @@ its own design + a live eyeball; not autonomous-cheap).
 
 **8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **[your call: attributions]** **inc 180 shipped the
 statcheck slice** (in-context credit block + one-click "＋ add to library" for Nuijten et al. 2016, matching
-GRIM/p-curve; + consolidated the credit-block CSS into a shared `.method-credit`). **Remaining:** in-context credit
-for the **retraction** (Retraction Watch / Crossref) + **gap-finder** (OpenAlex) surfaces, the **Lane B**
-software-dependency NOTICE pass, and help-doc sync. The retroactive
+GRIM/p-curve; + consolidated the credit-block CSS into a shared `.method-credit`). **inc 181 shipped Lane B** (a
+Runtime & build dependencies section in `THIRD-PARTY-NOTICES.md` crediting every Python+JS dep with its license).
+**#8 effectively complete** — the retraction / gap-finder surfaces are data-source-driven (credited at the NOTICE
+level, not the add-a-paper pattern), so the Lane-A "add the source paper" doesn't apply there. The retroactive
 credit-help backfill: Lane A scholarly-method lineage (statcheck → Nuijten & Epskamp / Nuijten et al. 2016; etc.)
 + Lane B software-dependency NOTICE (AGPL-3.0) + help-doc sync. A near-term **maintenance pass**, not a
 longer-horizon track — but it spans the codebase and the attributions are a judgment call. *(Credit-the-lineage is

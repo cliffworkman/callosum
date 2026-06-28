@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 180** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 181** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -829,7 +829,20 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 180 (credit-the-lineage: statcheck in-context credit + a shared .method-credit
+*Last updated: 2026-06-28 — increment 181 (third-party software NOTICE pass — credit-the-lineage Lane B, backlog #8):
+`THIRD-PARTY-NOTICES.md` credited citeproc/CSL/the methods but **no runtime/build dependencies** — a gap for a public
+AGPL repo. Added a **Runtime & build dependencies** section crediting every shipped Python (`requirements.txt`) + JS
+(`package.json` + CDN) dep with its license, grouped (MIT: FastAPI/SQLAlchemy/Alembic/esbuild/React; BSD-3-Clause:
+Starlette/Uvicorn/httpx/scikit-learn/NumPy/SciPy; Apache-2.0: sentence-transformers/google-genai/pdf.js;
+Apache/MIT: sqlite-vec; AGPL-3.0: **PyMuPDF** [noted as reinforcing callosum's license] + citeproc-js) + a note that
+the first-run models are author-distributed (not redistributed). **Docs-only** — no app/migration/egress/surface
+change; pytest **619**. **#8 status:** Lane A (method credit + add-to-library across statcheck/p-curve/GRIM, inc 180)
++ Lane B (this) done → **#8 effectively complete** (retraction/gap-finder are data-source-driven, credited at the
+NOTICE level, not the add-a-paper pattern). Notes: `INCREMENT-181-NOTES.md`. **NEXT — the clean-autonomous queue is
+genuinely empty:** reading-pane is split-gated; the big tracks (#28 discovery, #23–25 auditors) need a brainstorm +
+the user's graduation call; #3/#5 need a decision; the Google Docs live test is the user's.
+
+Earlier — increment 180 (credit-the-lineage: statcheck in-context credit + a shared .method-credit
 recipe — backlog #8): honors the credit-the-lineage values principle for the one method that lacked it. statcheck
 (inc 95) now has the in-context credit block + one-click **＋ add to library** (Nuijten, Hartgerink, van Assen,
 Epskamp & Wicherts 2016, *Behavior Research Methods* 48:1205–1226 — verbatim from THIRD-PARTY-NOTICES) that GRIM

@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 181: third-party software NOTICE pass (credit-the-lineage Lane B, backlog #8)
+- **Files:** `THIRD-PARTY-NOTICES.md`, `INCREMENT-181-NOTES.md`.
+- **What:** added a "Runtime & build dependencies" section crediting every shipped Python + JS dependency with its
+  license (grouped by license; PyMuPDF=AGPL noted as reinforcing callosum's license; first-run models noted as
+  author-distributed). The NOTICE previously listed only citeproc/CSL/methods.
+- **Why:** AGPL compliance + credit-the-lineage Lane B (backlog #8).
+- **Gates:** docs-only; no app/migration/egress/surface change; pytest 619. Completes #8 (Lane A = inc 180).
+- **Revert:** remove the new section.
+
 ## 2026-06-28 — Increment 180: credit-the-lineage for statcheck + shared .method-credit recipe (backlog #8)
 - **Files:** `app/frontend/js/06_methods_statcheck.jsx` (STATCHECK_CSL + StatcheckCredit), `app/frontend/js/07_methods_grim.jsx`
   + `app/frontend/js/29_pcurve.jsx` (className repoint), `app/frontend/styles.css` (consolidate), `callosum-app.html`,

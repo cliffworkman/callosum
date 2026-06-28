@@ -85,6 +85,28 @@ The data-consistency calculator implements the **GRIM** and **GRIMMER** methods:
 
 ---
 
+## Runtime & build dependencies (inc 181)
+Callosum is built on the open-source projects below, each used under its own license (the authoritative text ships
+with each project). Grouped by license:
+
+**Python (backend, `requirements.txt`):**
+- **MIT** — FastAPI, SQLAlchemy, Alembic
+- **BSD-3-Clause** — Starlette, Uvicorn, httpx, scikit-learn, NumPy, SciPy
+- **Apache-2.0** — sentence-transformers; google-genai (the optional Gemini client)
+- **Apache-2.0 / MIT** (dual) — sqlite-vec
+- **AGPL-3.0** (open edition; also offered commercially by Artifex) — **PyMuPDF** (`fitz`). Its copyleft is one
+  reason Callosum itself is AGPL-3.0.
+
+**JavaScript:**
+- **MIT** — esbuild (build-time, `package.json`); React + ReactDOM (loaded at runtime from a CDN)
+- **Apache-2.0** — pdf.js (PDF rendering, CDN)
+- **AGPL-3.0** — citeproc-js (the citation engine; full credit in the *Citation & bibliography engine* section above)
+
+**Models** Callosum downloads at first run (`all-MiniLM-L6-v2`, `cross-encoder/nli-MiniLM2-L6-H768`) are
+distributed by their authors on the Hugging Face Hub under their own licenses; Callosum does not redistribute them.
+
+---
+
 ## Corresponding source (AGPL §13)
 Callosum is free software under the AGPL-3.0. The complete corresponding source is available at the project
 repository; you may obtain it under the terms of the AGPL-3.0 (see `LICENSE`).
