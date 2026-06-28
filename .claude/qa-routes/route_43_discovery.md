@@ -1,15 +1,17 @@
 <!-- qa-coverage
 api: /discovery/search, /discovery/save
+fe: 30d_discover.jsx
 -->
 
-# ROUTE 43 — Literature discovery (Search tab, SP1)
+# ROUTE 43 — Literature discovery (Search/Discover tab)
 
 **Tier:** 2 external (Crossref metadata)
-**Goal:** Exercise the discovery Search backend — `GET /discovery/search` fans out to the SourceProvider registry,
-dedups across sources, marks `in_library`, and returns the **complete** list (no AI filtering — that is SP1b); and
-`POST /discovery/save` creates a **metadata-only, deduped** library paper (**no PDF fetch** — acquisition stays the OA
-lane). Public-metadata search (Crossref now) — **never** the Gemini library-text gate. The in-app Search tab lands in
-inc 184; SP1 (inc 183) is the registry + Item dedup + the two endpoints + the save path.
+**Goal:** Exercise the discovery Search flow end to end — the **Discover** center tab's query box →
+`GET /discovery/search` (fans out to the SourceProvider registry, dedups across sources, marks `in_library`, returns
+the **complete** list — no AI filtering, that is SP1b) → keyboard-triage results → one-click **Save** →
+`POST /discovery/save` (a **metadata-only, deduped** library paper; **no PDF fetch** — acquisition stays the OA lane).
+Public-metadata search (Crossref now) — **never** the Gemini library-text gate. Backend = inc 183; the Discover tab UI
+(`30d_discover.jsx`) = inc 184.
 
 ## Environment
 
@@ -50,6 +52,15 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 - Save a result matching an existing paper → deduped onto it (`created:false`)
 - Blank `q` → 422; oversized `limit` → 422 (capped at 50)
 - **0** genai-host requests throughout
+
+## UI flow (the Discover tab, inc 184)
+
+- The center frame has a persistent **Discover** tab (beside Library). Opening it shows a query box + a "the complete
+  list is shown (nothing filtered)" hint + keyboard-triage hints (`j/k` move, `s` save, `Enter` abstract).
+- Searching renders dense result rows: serif title, authors/year/journal meta, **source pill(s)** (e.g. `crossref`),
+  and either a **Save** button or a green **✓ in library** marker. **j/k** move the cursor (`.discover-item.cur`
+  highlight), **s** saves the focused row, **Enter** toggles its abstract.
+- Save flips the row to **✓ in library** (no duplicate save) and refreshes the Library tab so the new paper appears.
 
 ## Steps
 

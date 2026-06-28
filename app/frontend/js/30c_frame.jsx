@@ -2,7 +2,7 @@
 // Extracted from 30_viewer.jsx (inc 182) to relieve the 600-line cap there and give the discovery Search tab (#28)
 // a home. PDF tabs stay mounted (hidden) so switching back doesn't re-stream them. Function declarations hoist
 // within the shared IIFE, so this references PdfViewer / PaperList / MyPubsDashboard regardless of chunk order.
-function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, annoRefresh, readingMode, onToggleReading }) {
+function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading }) {
   return (
     <div className="lib-frame">
       <div className="frame-tabs">
@@ -10,6 +10,10 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}
           onClick={() => onActivate("library")}
         >Library</button>
+        <button
+          className={"frame-tab" + (activeTab === "search" ? " active" : "")}
+          onClick={() => onActivate("search")}
+        >Discover</button>
         {tabs.map(t => (
           <span
             key={t.key}
@@ -33,6 +37,9 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
       </div>
       <div className="frame-pane" style={{ display: activeTab === "library" ? "flex" : "none" }}>
         <PaperList {...libraryProps} onOpenPdf={onOpenPdf} />
+      </div>
+      <div className="frame-pane" style={{ display: activeTab === "search" ? "flex" : "none" }}>
+        <DiscoverPane onSaved={onDiscoverSaved} />
       </div>
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>

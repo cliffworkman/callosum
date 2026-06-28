@@ -158,6 +158,9 @@ To manage highlights:
 
 - Click **Notes** in the PDF toolbar.
 - Use the annotation panel to jump to a highlight, add or edit a note, or delete a highlight.
+- **Search** the list (matches a note *or* the highlighted text) or tick **Noted** to show only highlights that carry a note.
+- **Copy** or **Export .md** turns all of a paper's highlights + notes into a page-ordered Markdown digest.
+- Step through marks in the page without the panel: **◂ Mark / Mark ▸** in the toolbar (or the **[** and **]** keys) jump to the previous/next highlight. The reader also remembers where you left off and reopens a PDF at that scroll position.
 
 Callosum uses a fixed set of highlight colors. Notes can be long, but they are capped to keep the library responsive.
 
@@ -737,6 +740,17 @@ You can scope the scan to a single **axis** (the dropdown), or leave it on **All
 Each candidate shows **"cited by N of your papers"** (backward) or **"cites N of your papers"** (forward) — that's simply how many of *your own* papers it relates to, **not** a measure of importance or quality, and never a ranking of what you "should" read. For each one you can **Add** it (imports the metadata into your library — the PDF stays the separate "Acquire OA copy" step) or **Dismiss** it (so it won't come back).
 
 After a Refresh it tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
+
+<!-- section: discover-search -->
+## Finding new papers (Discover)
+The **Discover** tab (beside **Library** in the center) searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata (Crossref now, which also covers bioRxiv/medRxiv preprints; more sources later), so the only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
+
+Type a query and press **Enter** (or **Search**). Results come back as a dense list you can triage fast:
+
+- **j / k** (or the arrow keys) move the highlight up and down; **s** saves the highlighted result; **Enter** toggles its abstract. You can also click **Save** / **Abstract** on any row.
+- Each row shows the title, authors, year, journal, and a **source** pill (e.g. `crossref`). A result you already have is marked **✓ in library** instead of a Save button.
+
+**The complete list is always shown — nothing is filtered or re-ordered by a relevance score.** (A future update will *highlight* likely matches to your axes without ever hiding the rest.) Saving a result adds its **metadata** to your library (deduped, so you can't create a duplicate) — it does **not** download a PDF (that stays the separate "Acquire OA copy" step). The saved paper appears in your Library immediately; tidy its metadata or run **Acquire OA copy** from there.
 
 <!-- section: trash-and-restore -->
 ## Trash and restore

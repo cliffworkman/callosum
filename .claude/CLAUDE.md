@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 183** (see Increment workflow) with **634 pytest tests
+It is currently at **Increment 184** (see Increment workflow) with **634 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -832,7 +832,30 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 183 (literature discovery SP1 — the SourceProvider registry + Crossref search +
+*Last updated: 2026-06-28 — increment 184 (literature discovery SP1 frontend — the Discover/Search tab): the frontend
+half of #28 SP1 (backend = inc 183). New **`app/frontend/js/30d_discover.jsx`** (`DiscoverPane`): a query box →
+`GET /discovery/search?q=&limit=25` → a dense, **keyboard-triage** results list — **j/k** move the cursor
+(`.discover-item.cur`, scrolled into view), **s** saves the focused row, **Enter** toggles its abstract (Enter *in the
+box* searches); each row shows a serif title + `.paper-meta` (authors≤3 + year + journal) + **source pill(s)** + either
+a **Save** `.btn-link` or a green **✓ in library** marker; **Save** → `POST /discovery/save` (metadata-only, deduped,
+**no PDF**) flips the row + bumps the Library refresh. **The complete deduped list is always rendered — no client
+filter/reorder** (augment-never-filter; SP1b's axis-relevance highlight will *mark*, never hide). Wired via a persistent
+**Discover** tab + a `frame-pane` in `30c_frame.jsx` (`onDiscoverSaved` → `setLibRefresh` in `40_app.jsx`). New
+`.discover-*` CSS = the `.paper` card recipe, **tokens only** (DESIGN rule #8). **Function-hoist across chunks**
+(30d's `DiscoverPane` referenced by 30c) — the inc-182 IIFE precedent. **Frontend-only — no backend/endpoint/migration/
+egress/dependency** (reuses the inc-183 endpoints, already audited). **Principles non-triggering** (the complete list;
+metadata-only save; the human decides). **Rule #10:** `route_43_discovery.md` gained `fe: 30d_discover.jsx` + the UI
+flow → surface **123/123 API + 631/631 FE, 0 uncovered**. help corpus gained a "Finding new papers (Discover)" section
++ brought "Highlights and notes" current for the inc 175–179 reading-pane run (`HELP-DOCS-SYNCED` → 184). pytest **634**
+unchanged (`test_frontend_assembly` 5/5 confirms 30d is in the build + in sync); build + assembly green. **Verified
+headed, no egress** (`.local/visual/drive_inc184_discover.py` — a fake registry of 3 items, one already in the library:
+3 rows shown, 1 ✓-in-library + 2 Save, **j** moves the cursor, **Save** flips row 0 + it appears in the Library tab; 0
+console/page/genai). Notes: `INCREMENT-184-NOTES.md`. **This completes #28 SP1 (the Search tab — backend inc 183 +
+frontend inc 184). NEXT:** SP1a (a PubMed provider — `register()` one provider, no UI edit, its own audit) / SP1b (the
+axis-relevance highlight — score items vs the user's axis embeddings, *mark* likely matches without hiding any) / SP2
+(the Feed tab — subscriptions + polling + a read/unread store; bioRxiv by category).
+
+Earlier — increment 183 (literature discovery SP1 — the SourceProvider registry + Crossref search +
 save endpoints): the backend of the **Discover/Search track (#28)** (the in-app Search tab is SP1's frontend half,
 inc 184), built engine-first like inc-107→108. New **`app/backend/discovery/`**: `providers.py` (a frozen normalized
 **`Item`** — `dedup_key` = DOI→PMID→normalized-title, `merged_with` unions `sources` + fills blank fields; a

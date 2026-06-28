@@ -1096,6 +1096,24 @@
   .pane-list-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--panel); }
   .pane-list-body .pane-head { background: var(--panel); }
 
+  /* ---- Discover (Search) tab (inc 184) — mirrors the .paper card recipe; tokens only ---- */
+  .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
+  .discover .pane-head { background: var(--panel); }
+  .discover-hint { margin-top: 8px; font-size: 11px; color: var(--ink-3); font-family: var(--sans); }
+  .discover-empty { padding: 28px 18px; color: var(--ink-3); font-size: 13px; font-family: var(--sans); }
+  .discover-item { padding: 13px 18px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .1s; }
+  .discover-item:hover { background: var(--hover); }
+  .discover-item.cur { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+  .discover-title { font-family: var(--serif); font-size: 15px; line-height: 1.32; color: var(--ink); margin: 0 0 4px; font-weight: 500; }
+  .discover-foot { display: flex; gap: 10px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
+  .discover-source {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius-pill); padding: 1px 7px;
+  }
+  .discover-inlib { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--verified); }
+  .discover-abstract { margin-top: 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); font-family: var(--sans); }
+
   /* ---- PDF viewer tab ---- */
   .pdf-viewer { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .pdf-toolbar {

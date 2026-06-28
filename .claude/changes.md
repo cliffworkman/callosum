@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 184) — added a "Finding new papers (Discover)" help section (the Search tab: keyword search of Crossref, keyboard triage, metadata-only save, complete-list-never-filtered); also brought "Highlights and notes" current for the reading-pane run (inc 175–179: Notes search/Noted filter, Copy/Export digest, ◂/▸ mark nav + [ / ] keys, remembered scroll). -->
+## 2026-06-28 — Increment 184: literature discovery SP1 frontend — the Discover (Search) tab
+- **Files:** `app/frontend/js/30d_discover.jsx` (new — DiscoverPane), `app/frontend/js/30c_frame.jsx` (Discover tab +
+  pane), `app/frontend/js/40_app.jsx` (onDiscoverSaved → libRefresh), `app/frontend/styles.css` (.discover-* recipe),
+  `callosum-app.html`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_43_discovery.md` (fe: + UI flow),
+  `INCREMENT-184-NOTES.md`.
+- **What:** the Discover center tab — a query box → `GET /discovery/search` → a dense keyboard-triage results list
+  (j/k move, s save, Enter abstract; source pills; ✓ in library marker) → one-click metadata-only **Save** →
+  `POST /discovery/save` (refreshes the Library). The complete deduped list is always shown (nothing filtered).
+- **Why:** backlog #28 SP1's frontend half (the backend was inc 183).
+- **Gates:** frontend-only; QA route_43 fe-claimed → surface 123/123 API + 631/631 FE, 0 uncovered; assembly 5/5;
+  pytest 634 unchanged. Headed-verified, no egress (drive_inc184_discover.py: 3 rows, in-library marker, j-nav, Save →
+  library; 0 console/page/genai). Principles non-triggering (augment-never-filter; metadata-only; human saves).
+- **Revert:** delete `30d_discover.jsx`, revert the 30c/40_app/styles/help/route edits, rebuild `callosum-app.html`.
+
 ## 2026-06-28 — Increment 183: literature discovery SP1 (registry + Crossref search + save endpoints)
 - **Files:** `app/backend/discovery/{__init__,providers,crossref_provider,search}.py` (new),
   `app/backend/api/routers/discovery.py` (new), `app/backend/api/app.py` (wire registry + router),

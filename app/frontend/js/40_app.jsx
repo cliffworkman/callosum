@@ -487,6 +487,7 @@ function App() {
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
         onSummarizePapers={summarizePaperIds} onSelectPaper={setSelected}
+        onDiscoverSaved={() => setLibRefresh(n => n + 1)}
         annoRefresh={annoRefresh}
         readingMode={readingMode} onToggleReading={toggleReading}
       />

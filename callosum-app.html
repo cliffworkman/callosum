@@ -1120,6 +1120,24 @@
   .pane-list-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--panel); }
   .pane-list-body .pane-head { background: var(--panel); }
 
+  /* ---- Discover (Search) tab (inc 184) — mirrors the .paper card recipe; tokens only ---- */
+  .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
+  .discover .pane-head { background: var(--panel); }
+  .discover-hint { margin-top: 8px; font-size: 11px; color: var(--ink-3); font-family: var(--sans); }
+  .discover-empty { padding: 28px 18px; color: var(--ink-3); font-size: 13px; font-family: var(--sans); }
+  .discover-item { padding: 13px 18px; border-bottom: 1px solid var(--line); cursor: pointer; transition: background .1s; }
+  .discover-item:hover { background: var(--hover); }
+  .discover-item.cur { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+  .discover-title { font-family: var(--serif); font-size: 15px; line-height: 1.32; color: var(--ink); margin: 0 0 4px; font-weight: 500; }
+  .discover-foot { display: flex; gap: 10px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
+  .discover-source {
+    font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
+    color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius-pill); padding: 1px 7px;
+  }
+  .discover-inlib { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--verified); }
+  .discover-abstract { margin-top: 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); font-family: var(--sans); }
+
   /* ---- PDF viewer tab ---- */
   .pdf-viewer { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel-2); }
   .pdf-toolbar {
@@ -5345,7 +5363,7 @@
       }
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
-  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, annoRefresh, readingMode, onToggleReading }) {
+  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading }) {
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -5353,6 +5371,13 @@
         onClick: () => onActivate("library")
       },
       "Library"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "frame-tab" + (activeTab === "search" ? " active" : ""),
+        onClick: () => onActivate("search")
+      },
+      "Discover"
     ), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "span",
       {
@@ -5381,7 +5406,126 @@
         onClick: onToggleReading
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
-    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh }))));
+    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "search" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: onDiscoverSaved })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh }))));
+  }
+  function DiscoverPane({ onSaved }) {
+    const [q, setQ] = useState("");
+    const [status, setStatus] = useState("idle");
+    const [items, setItems] = useState([]);
+    const [error, setError] = useState("");
+    const [cursor, setCursor] = useState(-1);
+    const [expanded, setExpanded] = useState(() => /* @__PURE__ */ new Set());
+    const [savingKey, setSavingKey] = useState(null);
+    const inputRef = useRef(null);
+    const listRef = useRef(null);
+    const runSearch = useCallback(async () => {
+      const query = q.trim();
+      if (!query) return;
+      setStatus("loading");
+      setError("");
+      setCursor(-1);
+      setExpanded(/* @__PURE__ */ new Set());
+      const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25`);
+      if (r.ok) {
+        const rows = (r.data.items || []).map((it) => ({ ...it, saved: !!it.in_library }));
+        setItems(rows);
+        setStatus("ready");
+        setCursor(rows.length ? 0 : -1);
+      } else {
+        setItems([]);
+        setError(r.error || "Search failed.");
+        setStatus("error");
+      }
+    }, [q]);
+    const save = useCallback(async (it) => {
+      if (!it || it.saved || savingKey) return;
+      setSavingKey(it.dedup_key);
+      const r = await apiPost("/discovery/save", {
+        title: it.title,
+        doi: it.doi || null,
+        abstract: it.abstract || null,
+        authors: it.authors || [],
+        journal: it.journal || null,
+        year: it.year || null,
+        url: it.url || null
+      });
+      setSavingKey(null);
+      if (r.ok) {
+        setItems((prev) => prev.map((p) => p.dedup_key === it.dedup_key ? { ...p, saved: true } : p));
+        onSaved && onSaved();
+      }
+    }, [savingKey, onSaved]);
+    const toggleExpand = useCallback((key) => {
+      setExpanded((prev) => {
+        const n = new Set(prev);
+        n.has(key) ? n.delete(key) : n.add(key);
+        return n;
+      });
+    }, []);
+    const onKeyDown = useCallback((e) => {
+      if (e.target === inputRef.current) {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          runSearch();
+        }
+        return;
+      }
+      if (!items.length) return;
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        setCursor((c) => Math.min(items.length - 1, c < 0 ? 0 : c + 1));
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        setCursor((c) => Math.max(0, c < 0 ? 0 : c - 1));
+      } else if (e.key === "s") {
+        e.preventDefault();
+        if (cursor >= 0) save(items[cursor]);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (cursor >= 0) toggleExpand(items[cursor].dedup_key);
+      }
+    }, [items, cursor, runSearch, save, toggleExpand]);
+    useEffect(() => {
+      if (cursor < 0 || !listRef.current) return;
+      const row = listRef.current.querySelector(`[data-row="${cursor}"]`);
+      if (row && row.scrollIntoView) row.scrollIntoView({ block: "nearest" });
+    }, [cursor]);
+    return /* @__PURE__ */ React.createElement("div", { className: "discover", onKeyDown }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        ref: inputRef,
+        value: q,
+        onChange: (e) => setQ(e.target.value),
+        autoFocus: true,
+        placeholder: "Search the literature (Crossref) \u2014 title, author, keywords\u2026"
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: runSearch, disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 the complete list is shown (nothing filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        key: it.dedup_key,
+        "data-row": i,
+        className: "discover-item" + (i === cursor ? " cur" : ""),
+        onClick: () => setCursor(i)
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title),
+      /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null),
+      /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "btn btn-link",
+          disabled: savingKey === it.dedup_key,
+          onClick: (e) => {
+            e.stopPropagation();
+            save(it);
+          }
+        },
+        savingKey === it.dedup_key ? "Saving\u2026" : "Save"
+      ), it.abstract ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: (e) => {
+        e.stopPropagation();
+        toggleExpand(it.dedup_key);
+      } }, expanded.has(it.dedup_key) ? "Hide abstract" : "Abstract") : null),
+      expanded.has(it.dedup_key) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null
+    ))));
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));
@@ -7211,6 +7355,7 @@
         onOpenPdf: openPdf,
         onSummarizePapers: summarizePaperIds,
         onSelectPaper: setSelected,
+        onDiscoverSaved: () => setLibRefresh((n) => n + 1),
         annoRefresh,
         readingMode,
         onToggleReading: toggleReading
