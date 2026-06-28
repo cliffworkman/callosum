@@ -111,6 +111,35 @@
     return JSON.stringify({ items: items || [] });
   }
 
+  // ---- Suggest-from-the-selection (SP3, the /citations/suggest contract — inc 156) ----
+  // The query text: the highlighted selection, else the paragraph the cursor sits in.
+  function pickQueryText(selectionText, paragraphText) {
+    var sel = (selectionText || "").trim();
+    return sel || (paragraphText || "").trim();
+  }
+  // POST /citations/suggest body (text capped at the endpoint's 4000-char limit; evaluate → stance per candidate).
+  function buildSuggestRequest(text, topK) {
+    return { text: String(text || "").slice(0, 4000), top_k: topK || 8, evaluate: true };
+  }
+  function _stanceTag(stance) {
+    return stance && stance.label ? "[" + stance.label + "]" : "[?]";
+  }
+  // Suggestion rows: '[stance] Author Year · match N.NN — "quote…"' — the quote IS the reason (signal not verdict).
+  function formatSuggestRows(suggestions) {
+    if (!Array.isArray(suggestions)) return [];
+    return suggestions
+      .map(function (s) {
+        var author = s && s.author ? s.author : "Unknown";
+        var year = s && s.year ? " " + s.year : "";
+        var match = s && typeof s.match_score === "number" ? " · match " + s.match_score.toFixed(2) : "";
+        var quote = s && s.quote ? ' — "' + String(s.quote).slice(0, 80).trim() + '…"' : "";
+        return { id: s && s.paper_id, label: _stanceTag(s && s.stance) + " " + author + year + match + quote };
+      })
+      .filter(function (r) {
+        return r.id != null;
+      });
+  }
+
   var api = {
     CITATION_PREFIX: CITATION_PREFIX,
     BIB_NAME: BIB_NAME,
@@ -128,6 +157,9 @@
     appendOrder: appendOrder,
     parseItems: parseItems,
     serializeItems: serializeItems,
+    pickQueryText: pickQueryText,
+    buildSuggestRequest: buildSuggestRequest,
+    formatSuggestRows: formatSuggestRows,
   };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.CallosumCore = api;

@@ -13,7 +13,8 @@
  * gdocs_core.js (loaded here as `CallosumCore`, unit-tested with `node --test`). Add BOTH files to the project.
  *
  * Scope (SP2): Settings (URL + token) · Search → Insert · Refresh (in-text + bibliography) · Style switch.
- * Deferred (SP3): Suggest-from-the-selection (/citations/suggest) · Flatten (live → static).
+ * Scope (SP3): Suggest-from-the-selection (/citations/suggest) · Flatten (live → static). Deferred: true
+ * document-order on Refresh (currently insertion-order; reliable NamedRange doc-order in Apps Script is hard).
  */
 
 function onOpen() {
@@ -86,9 +87,19 @@ function setStyle(style) {
   return refreshDocument();
 }
 
+// Suggest papers to cite for the selected sentence (else the cursor's paragraph). Local engine (inc 156): the
+// rows carry stance + a verbatim quote (the quote IS the reason — signal not verdict); the author picks + inserts.
+function suggestFromSelection() {
+  var doc = DocumentApp.getActiveDocument();
+  var query = CallosumCore.pickQueryText(_selectionText(doc), _cursorParagraphText(doc));
+  if (!query) throw new Error("Select a sentence (or place your cursor in one) to suggest citations for.");
+  var data = JSON.parse(_fetch("post", "/citations/suggest", CallosumCore.buildSuggestRequest(query, 8)));
+  return CallosumCore.formatSuggestRows(data.suggestions || []);
+}
+
 function insertCitation(paperId) {
   var doc = DocumentApp.getActiveDocument();
-  var cursor = doc.getCursor();
+  var cursor = _cursorOrSelectionEnd(doc); // a selection (from Suggest) collapses to its END → insert after it
   if (!cursor) throw new Error("Place your cursor in the body text where the citation should go.");
 
   // 1. the canonical CSL-JSON record for this paper
@@ -146,11 +157,82 @@ function refreshDocument() {
   return { count: ids.length };
 }
 
+// Flatten (live → static, one-way): drop every citation + bibliography NamedRange and clear the side-store. The
+// TEXT stays — Apps Script `NamedRange.remove()` keeps the underlying content (unlike the LibreOffice ReferenceMark,
+// which deleted it). After this, Refresh no longer manages the citations; they're plain text.
+function flattenCitations() {
+  var doc = DocumentApp.getActiveDocument();
+  var dp = PropertiesService.getDocumentProperties();
+  var order = CallosumCore.parseOrder(dp.getProperty(CallosumCore.ORDER_KEY));
+  var n = 0;
+  for (var i = 0; i < order.length; i++) {
+    var nrs = doc.getNamedRanges(CallosumCore.rangeName(order[i]));
+    for (var j = 0; j < nrs.length; j++) {
+      nrs[j].remove();
+      n++;
+    }
+    dp.deleteProperty("cite:" + order[i]);
+  }
+  var bibs = doc.getNamedRanges(CallosumCore.BIB_NAME);
+  for (var k = 0; k < bibs.length; k++) bibs[k].remove();
+  dp.deleteProperty(CallosumCore.ORDER_KEY);
+  return { flattened: n };
+}
+
 // ── DOM helpers (Apps Script DocumentApp; untestable outside Google's cloud) ─────────────────────────────────
 function _wrapNamedRange(doc, name, textEl, start, end) {
   var rb = doc.newRange();
   rb.addElement(textEl, start, end);
   doc.addNamedRange(name, rb.build());
+}
+
+// The cursor, or — if a selection is active (e.g. after Suggest) — a cursor collapsed to the selection's END, so an
+// inserted citation lands AFTER the selected sentence instead of replacing it (mirrors Word SP3's collapse-to-end).
+function _cursorOrSelectionEnd(doc) {
+  var cursor = doc.getCursor();
+  if (cursor) return cursor;
+  var sel = doc.getSelection();
+  if (!sel) return null;
+  var els = sel.getRangeElements();
+  if (!els.length) return null;
+  var last = els[els.length - 1];
+  var el = last.getElement();
+  var offset = last.isPartial() ? last.getEndOffsetInclusive() + 1 : el.editAsText ? el.asText().getText().length : 0;
+  try {
+    doc.setCursor(doc.newPosition(el, offset));
+  } catch (e) {
+    return null;
+  }
+  return doc.getCursor();
+}
+
+// The plain text of the active selection (concatenated across its range elements), or "".
+function _selectionText(doc) {
+  var sel = doc.getSelection();
+  if (!sel) return "";
+  var parts = [];
+  var els = sel.getRangeElements();
+  for (var i = 0; i < els.length; i++) {
+    var e = els[i];
+    var el = e.getElement();
+    if (!el.editAsText) continue;
+    var t = el.asText().getText();
+    parts.push(e.isPartial() ? t.substring(e.getStartOffset(), e.getEndOffsetInclusive() + 1) : t);
+  }
+  return parts.join(" ").trim();
+}
+
+// The text of the paragraph the cursor sits in, or "".
+function _cursorParagraphText(doc) {
+  var cur = doc.getCursor();
+  if (!cur) return "";
+  var el = cur.getElement();
+  while (el && el.getType && el.getType() !== DocumentApp.ElementType.PARAGRAPH && el.getParent) {
+    el = el.getParent();
+  }
+  if (!el) return "";
+  if (el.getText) return el.getText().trim();
+  return el.editAsText ? el.asText().getText().trim() : "";
 }
 
 // Replace a citation NamedRange's text with newText, then recreate the range (editing the text invalidates it —

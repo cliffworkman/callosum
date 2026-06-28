@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 171: Google Docs SP3 — Suggest-from-the-selection + Flatten
+<!-- HELP-DOCS-SYNCED: inc 171 — no corpus change needed; the Remote-access note's add-on pointer (inc 170) covers it. -->
+- **Files:** `adapters/googledocs/Code.gs` (suggestFromSelection + flattenCitations + selection→cursor-end helpers),
+  `adapters/googledocs/gdocs_core.js` (+ pickQueryText/buildSuggestRequest/formatSuggestRows — mirrors the Word core),
+  `adapters/googledocs/gdocs_core.test.js` (13/13), `adapters/googledocs/sidebar.html` (Suggest + Flatten buttons),
+  `adapters/googledocs/README.md` (§7), `INCREMENT-171-NOTES.md`. (No callosum app code.)
+- **What:** Google Docs add-on parity (mirrors Word SP3). **Suggest** — select a sentence → `/citations/suggest`
+  (inc 156) → ranked rows (stance + verbatim quote) → Insert (which now collapses a selection to its END so the cite
+  lands after the sentence). **Flatten** — drop all citation + bibliography NamedRanges (text stays; Apps Script
+  `remove()` keeps content) → plain text, one-way, two-click confirm.
+- **Why:** complete the cite-while-you-write loop in Google Docs ("carry on with the plugin").
+- **Gates:** no new audit (reuses `/citations/suggest` over the audited bridge); Principles non-triggering
+  (signal-not-verdict display, author picks); QA surface unchanged (121/121 API + 604/604 FE); pytest 619 unchanged
+  (no Python); node --test 13/13. **Deferred:** true document-order on Refresh (insertion-order v1).
+- **Revert:** revert the SP3 additions in `Code.gs` / `gdocs_core.js` / `sidebar.html` (the SP2 add-on stands
+  without them).
+
 ## 2026-06-28 — Increment 170: Google Docs SP2 — the Apps Script add-on (+ the SP1 bridge live-verified)
 <!-- HELP-DOCS-SYNCED: inc 170 — Remote-access help note points to the Google Docs add-on (adapters/googledocs/). -->
 - **Files:** `adapters/googledocs/Code.gs` (new — sidebar glue), `adapters/googledocs/gdocs_core.js` (new — pure

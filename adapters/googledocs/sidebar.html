@@ -41,10 +41,14 @@
       <input id="q" placeholder="Search your library…" onkeydown="if(event.key==='Enter')doSearch()" />
       <button style="flex:0 0 auto" onclick="doSearch()">Search</button>
     </div>
+    <button onclick="doSuggest()">Suggest from selection</button>
     <div id="results"></div>
 
     <h2>Document</h2>
-    <button onclick="refresh()">Refresh citations &amp; bibliography</button>
+    <div class="row">
+      <button onclick="refresh()">Refresh</button>
+      <button id="flattenBtn" onclick="flatten()">Flatten…</button>
+    </div>
 
     <div class="status" id="status"></div>
 
@@ -123,11 +127,32 @@
           setStatus("Inserted (" + r.count + " citation" + (r.count === 1 ? "" : "s") + " in the document).", "ok");
         }).withFailureHandler(function (e) { btn.disabled = false; fail(e); }).insertCitation(id);
       }
+      function doSuggest() {
+        setStatus("Finding citations for your selection…");
+        google.script.run.withSuccessHandler(renderResults).withFailureHandler(fail).suggestFromSelection();
+      }
       function refresh() {
         setStatus("Refreshing…");
         google.script.run.withSuccessHandler(function (r) {
           setStatus("Refreshed " + r.count + " citation" + (r.count === 1 ? "" : "s") + ".", "ok");
         }).withFailureHandler(fail).refreshDocument();
+      }
+      var _flattenArmed = false;
+      function flatten() {
+        var btn = document.getElementById("flattenBtn");
+        if (!_flattenArmed) {
+          _flattenArmed = true;
+          btn.textContent = "Click again to flatten";
+          setStatus("Flatten turns citations into plain text (one-way — Refresh won't manage them after). Click again to confirm.");
+          setTimeout(function () { _flattenArmed = false; btn.textContent = "Flatten…"; }, 4000);
+          return;
+        }
+        _flattenArmed = false;
+        btn.textContent = "Flatten…";
+        setStatus("Flattening…");
+        google.script.run.withSuccessHandler(function (r) {
+          setStatus("Flattened " + r.flattened + " citation" + (r.flattened === 1 ? "" : "s") + " to plain text.", "ok");
+        }).withFailureHandler(fail).flattenCitations();
       }
 
       loadSettings();

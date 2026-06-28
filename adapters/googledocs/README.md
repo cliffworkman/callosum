@@ -98,8 +98,11 @@ running with **Remote access ON**.
 **Use:**
 - In the sidebar's **Connection settings**, enter `https://callosum.clffwrkmn.net` + your access token → **Save**.
 - Pick a **citation style**.
-- **Search** your library → **Insert** at the cursor. **Refresh** renumbers every citation in document order and
-  rebuilds the **References** block; switching the style re-renders the whole document.
+- **Search** your library → **Insert** at the cursor. Or **select a sentence** and **Suggest from selection** —
+  the local engine ranks library papers to cite, each row showing its stance + a verbatim quote (the reason);
+  Insert drops it *after* the selected sentence.
+- **Refresh** renumbers every citation and rebuilds the **References** block; switching the style re-renders the
+  whole document. **Flatten** turns the live citations into plain text (one-way) when you're done.
 
 **What it sends:** only your search text + the cited works' metadata, to your bridge with your token — the same
 cite endpoints the bridge allows (§6). Formatting happens server-side in citeproc; the add-on only places fields.
@@ -108,8 +111,8 @@ cite endpoints the bridge allows (§6). Formatting happens server-side in citepr
 > best-effort-correct per the Apps Script docs; the request/response mapping it depends on lives in `gdocs_core.js`
 > and is unit-tested (`node --test "adapters/googledocs/*.test.js"`). The in-Docs round-trip is your manual check.
 >
-> **v1 limits (SP2):** citations renumber in **insertion order** (reordering them by cut/paste isn't yet reflected
-> on Refresh); **Suggest-from-the-selection** + **Flatten** (live → static) are SP3.
+> **v1 limit:** citations renumber in **insertion order** (reordering them by cut/paste isn't yet reflected on
+> Refresh) — true document-order scanning is the remaining follow-up.
 
 ---
 
