@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 185) — the "Finding new papers (Discover)" section now describes the axis-relevance highlight badge (hint, not a filter); covers inc 184 (Discover section) + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-28 — Increment 185: literature discovery SP1b — axis-relevance highlight
+- **Files:** `app/backend/discovery/relevance.py` (new), `app/backend/api/routers/discovery.py` (+ `/discovery/relevance`
+  + `_discovery_model`), `app/frontend/js/30d_discover.jsx` (relevance fetch + `.discover-relevance` badge),
+  `app/frontend/styles.css` (.discover-relevance), `callosum-app.html`, `app/backend/help/help_content.md`,
+  `tests/test_discovery_relevance.py` (new, +5), `.claude/qa-routes/route_43_discovery.md`,
+  `.claude/security-audits/2026-06-28_discovery-relevance.md`, `INCREMENT-185-NOTES.md`.
+- **What:** `POST /discovery/relevance` scores each search result's title+abstract against the user's axis embeddings
+  (local, no egress, no DB write) → the Discover tab **highlights** likely matches in place ("likely: &lt;axis&gt; ·
+  match 0.NN"). A hint, **never** a filter/reorder; below-cutoff = no badge (≠ irrelevant); my-publications excluded.
+- **Why:** backlog #28 SP1b (the design-blessed fast-follow; user-chosen).
+- **Gates:** pytest 639 (+5); ruff clean; QA surface 124/124 API + 631/631 FE, 0 uncovered; audit PASS + Principles
+  gate run (signal feature — augment-never-filter, single-similarity, silence-≠-certificate). Headed-verified, no
+  egress (drive_inc185_relevance.py: 3 rows shown, exactly 1 badge, 0 console/page/genai). No migration/dependency.
+- **Revert:** delete `relevance.py` + `test_discovery_relevance.py`, revert the discovery-router/30d/styles/help/route
+  edits, rebuild `callosum-app.html`.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 184) — added a "Finding new papers (Discover)" help section (the Search tab: keyword search of Crossref, keyboard triage, metadata-only save, complete-list-never-filtered); also brought "Highlights and notes" current for the reading-pane run (inc 175–179: Notes search/Noted filter, Copy/Export digest, ◂/▸ mark nav + [ / ] keys, remembered scroll). -->
 ## 2026-06-28 — Increment 184: literature discovery SP1 frontend — the Discover (Search) tab
 - **Files:** `app/frontend/js/30d_discover.jsx` (new — DiscoverPane), `app/frontend/js/30c_frame.jsx` (Discover tab +

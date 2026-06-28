@@ -1129,6 +1129,11 @@
   .discover-item:hover { background: var(--hover); }
   .discover-item.cur { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
   .discover-title { font-family: var(--serif); font-size: 15px; line-height: 1.32; color: var(--ink); margin: 0 0 4px; font-weight: 500; }
+  .discover-relevance {
+    display: inline-block; margin: 0 0 4px; font-family: var(--sans); font-size: 11px;
+    color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-pill); padding: 1px 8px;
+  }
   .discover-foot { display: flex; gap: 10px; align-items: center; margin-top: 7px; flex-wrap: wrap; }
   .discover-source {
     font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .04em;
@@ -5416,6 +5421,7 @@
     const [cursor, setCursor] = useState(-1);
     const [expanded, setExpanded] = useState(() => /* @__PURE__ */ new Set());
     const [savingKey, setSavingKey] = useState(null);
+    const [relevance, setRelevance] = useState({});
     const inputRef = useRef(null);
     const listRef = useRef(null);
     const runSearch = useCallback(async () => {
@@ -5425,12 +5431,19 @@
       setError("");
       setCursor(-1);
       setExpanded(/* @__PURE__ */ new Set());
+      setRelevance({});
       const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25`);
       if (r.ok) {
         const rows = (r.data.items || []).map((it) => ({ ...it, saved: !!it.in_library }));
         setItems(rows);
         setStatus("ready");
         setCursor(rows.length ? 0 : -1);
+        if (rows.length) {
+          const rr = await apiPost("/discovery/relevance", {
+            items: rows.map((it) => ({ dedup_key: it.dedup_key, title: it.title || "", abstract: it.abstract || null }))
+          });
+          if (rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
+        }
       } else {
         setItems([]);
         setError(r.error || "Search failed.");
@@ -5508,6 +5521,7 @@
         onClick: () => setCursor(i)
       },
       /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title),
+      relevance[it.dedup_key] ? /* @__PURE__ */ React.createElement("div", { className: "discover-relevance", title: "A likely match to one of your axes (a hint \u2014 the full list is never filtered)." }, "likely: ", relevance[it.dedup_key].axis_label, " \xB7 match ", relevance[it.dedup_key].similarity.toFixed(2)) : null,
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null),
       /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, (it.sources || []).map((s) => /* @__PURE__ */ React.createElement("span", { key: s, className: "discover-source" }, s)), it.saved ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement(
         "button",

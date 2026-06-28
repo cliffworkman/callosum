@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /discovery/search, /discovery/save
+api: /discovery/search, /discovery/save, /discovery/relevance
 fe: 30d_discover.jsx
 -->
 
@@ -32,7 +32,12 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 - **Egress gate.** ANY request to a `generativelanguage`/Gemini/genai host is **Critical** (discovery is public
   metadata only — Crossref, never the library-text gate).
 - **Complete list, AI augments-never-filters.** `GET /discovery/search` returns every deduped result; nothing is
-  hidden by a relevance score (axis-relevance highlight is SP1b, a hint not a gate).
+  hidden/reordered by a relevance score. **`POST /discovery/relevance` (SP1b)** is a *highlight* only — it returns
+  the best-matching axis + similarity for items that clear that axis's cutoff; a below-cutoff item is simply absent
+  from the map (**no badge ≠ "irrelevant"** — silence is not a certificate). The match is **one labeled cosine
+  similarity** (the same number an axis card shows), never an opaque composite; the My-Publications axis is excluded
+  (it's an authorship axis, not a topical lens). Local — embeddings over the user's own axes; **no egress**. The
+  highlight is best-effort: if it fails or there are no axes, the list still shows in full with no badges.
 - **Dedup honesty.** A result returned by two providers appears **once**, with both source labels unioned (`sources`);
   the `dedup_key` is DOI → PMID → normalized-title precedence.
 - **`in_library` truth.** A result whose DOI/identity matches a live library paper is flagged `in_library:true` (so

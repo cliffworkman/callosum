@@ -750,7 +750,7 @@ Type a query and press **Enter** (or **Search**). Results come back as a dense l
 - **j / k** (or the arrow keys) move the highlight up and down; **s** saves the highlighted result; **Enter** toggles its abstract. You can also click **Save** / **Abstract** on any row.
 - Each row shows the title, authors, year, journal, and a **source** pill (e.g. `crossref`). A result you already have is marked **✓ in library** instead of a Save button.
 
-**The complete list is always shown — nothing is filtered or re-ordered by a relevance score.** (A future update will *highlight* likely matches to your axes without ever hiding the rest.) Saving a result adds its **metadata** to your library (deduped, so you can't create a duplicate) — it does **not** download a PDF (that stays the separate "Acquire OA copy" step). The saved paper appears in your Library immediately; tidy its metadata or run **Acquire OA copy** from there.
+**The complete list is always shown — nothing is filtered or re-ordered by a relevance score.** If a result is a likely match to one of your **axes**, it gets a small **"likely: &lt;axis&gt; · match 0.NN"** badge (the same similarity number an axis card shows) — a *hint* drawn on top of the full list; a result with no badge isn't "irrelevant," just not a strong axis match, and it's shown and savable like any other. Saving a result adds its **metadata** to your library (deduped, so you can't create a duplicate) — it does **not** download a PDF (that stays the separate "Acquire OA copy" step). The saved paper appears in your Library immediately; tidy its metadata or run **Acquire OA copy** from there.
 
 <!-- section: trash-and-restore -->
 ## Trash and restore

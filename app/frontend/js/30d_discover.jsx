@@ -11,17 +11,26 @@ function DiscoverPane({ onSaved }) {
   const [cursor, setCursor] = useState(-1);
   const [expanded, setExpanded] = useState(() => new Set());
   const [savingKey, setSavingKey] = useState(null);
+  const [relevance, setRelevance] = useState({}); // dedup_key -> {axis_label, similarity} — a HINT, never a filter
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
   const runSearch = useCallback(async () => {
     const query = q.trim();
     if (!query) return;
-    setStatus("loading"); setError(""); setCursor(-1); setExpanded(new Set());
+    setStatus("loading"); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({});
     const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25`);
     if (r.ok) {
       const rows = (r.data.items || []).map(it => ({ ...it, saved: !!it.in_library }));
       setItems(rows); setStatus("ready"); setCursor(rows.length ? 0 : -1);
+      // SP1b: highlight likely axis matches WITHIN the complete list (best-effort; failure → no badges, never
+      // breaks the list). The list is never filtered/reordered by relevance.
+      if (rows.length) {
+        const rr = await apiPost("/discovery/relevance", {
+          items: rows.map(it => ({ dedup_key: it.dedup_key, title: it.title || "", abstract: it.abstract || null })),
+        });
+        if (rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
+      }
     } else {
       setItems([]); setError(r.error || "Search failed."); setStatus("error");
     }
@@ -93,6 +102,11 @@ function DiscoverPane({ onSaved }) {
             onClick={() => setCursor(i)}
           >
             <div className="discover-title">{it.title}</div>
+            {relevance[it.dedup_key]
+              ? <div className="discover-relevance" title="A likely match to one of your axes (a hint — the full list is never filtered).">
+                  likely: {relevance[it.dedup_key].axis_label} · match {relevance[it.dedup_key].similarity.toFixed(2)}
+                </div>
+              : null}
             <div className="paper-meta">
               {it.authors && it.authors.length
                 ? <span className="paper-authors">{it.authors.slice(0, 3).join("; ")}{it.authors.length > 3 ? " et al." : ""}</span>

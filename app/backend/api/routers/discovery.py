@@ -14,9 +14,35 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection
+from app.backend.discovery.relevance import score_axis_relevance
 from app.backend.discovery.search import run_search, save_item
+from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 
 router = APIRouter()
+
+
+# The embedding model is heavy to load; cache the default on app.state (a sync endpoint must not reload it per
+# request). An injected model (tests) always wins. Mirrors citations.py / summaries.py so the vectors match the
+# model the library + axes were embedded with — and so the relevance "match" agrees with the axis-card confidence.
+def _discovery_model(request: Request) -> EmbeddingModel:
+    injected = request.app.state.embedding_model
+    if injected is not None:
+        return injected
+    cached = getattr(request.app.state, "_discovery_model", None)
+    if cached is None:
+        cached = SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+        request.app.state._discovery_model = cached
+    return cached
+
+
+class RelevanceItem(BaseModel):
+    dedup_key: str = Field(min_length=1, max_length=400)
+    title: str = Field(default="", max_length=2000)
+    abstract: str | None = Field(default=None, max_length=20000)
+
+
+class RelevanceRequest(BaseModel):
+    items: list[RelevanceItem] = Field(min_length=1, max_length=50)
 
 
 class SaveRequest(BaseModel):
@@ -38,6 +64,20 @@ def discovery_search(
 ) -> dict[str, Any]:
     items = run_search(conn, request.app.state.discovery_registry, q.strip(), limit)
     return {"items": [item.to_dict() for item in items]}
+
+
+@router.post("/discovery/relevance")
+def discovery_relevance(
+    payload: RelevanceRequest,
+    request: Request,
+    conn: Connection = Depends(get_connection),
+) -> dict[str, Any]:
+    """SP1b: HIGHLIGHT likely axis matches WITHIN the complete list (never filter/reorder). Returns the
+    best-matching axis + similarity per item that clears that axis's cutoff; below-cutoff items are simply absent
+    (no badge ≠ "irrelevant"). Local — embeddings over the user's own axes; no egress."""
+    items = [{"dedup_key": it.dedup_key, "text": f"{it.title} {it.abstract or ''}".strip()} for it in payload.items]
+    relevance = score_axis_relevance(conn, items, embedding_model=_discovery_model(request))
+    return {"relevance": relevance}
 
 
 @router.post("/discovery/save")
