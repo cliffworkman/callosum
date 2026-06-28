@@ -9,6 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-28 — Increment 173: import reports parse-time skipped records (backlog #4)
+- **Files:** `app/backend/metadata/citation_import.py` (parsers → `(records, skipped)`), `app/backend/api/routers/library.py`
+  (`ImportSummary.skipped`), `app/frontend/js/28_import.jsx` (show skipped; fix failed/skipped mislabel),
+  `tests/test_citation_import.py`, `callosum-app.html`, `INCREMENT-173-NOTES.md`.
+- **What:** the BibTeX/RIS/CSL-JSON import silently dropped entries with no title AND no DOI at parse; now the
+  parsers count those drops (+ record-cap overflow) and the import summary reports "N skipped (no title or DOI)" —
+  symmetric with inc-155's scan "which files couldn't be read." `failed` (per-record errors) + `skipped` (parse
+  drops) are now distinct.
+- **Why:** "silence is not a certificate" — an import that drops 3 of 50 entries should say so (backlog #4).
+- **Gates:** backend-additive (one response field), no migration/egress/endpoint; QA surface unchanged (121/608);
+  `test_citation_import` 9/9; pytest 619; ruff clean.
+- **Revert:** restore the parsers' `list[dict]` returns + drop `ImportSummary.skipped` + the modal line.
+
 ## 2026-06-28 — Increment 172: download links carry the access token under Remote access (bug fix)
 - **Files:** `app/frontend/js/00_lib.jsx` (new `downloadAsset`), `app/frontend/js/35_settings.jsx` (the two
   download links → buttons), `callosum-app.html` (rebuilt), `INCREMENT-172-NOTES.md`.

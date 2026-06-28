@@ -318,6 +318,7 @@ class ImportSummary(BaseModel):
     imported: int = 0
     duplicate: int = 0
     failed: int = 0
+    skipped: int = 0  # entries dropped at parse (no title AND no DOI, or beyond the record cap) — inc 173
     format: str | None = None  # the resolved format (None when auto-detect couldn't recognise the file)
 
 
@@ -379,6 +380,7 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
                     imported=len(created),
                     duplicate=int(result["duplicate"]),
                     failed=int(result["failed"]),
+                    skipped=int(result["skipped"]),
                     format=result["format"],
                 ),
             ),

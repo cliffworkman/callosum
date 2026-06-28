@@ -60,7 +60,8 @@ function ImportModal({ onClose, onImported }) {
         {imp.status === "done" && s &&
           <div className="scan-summary">
             <b>{s.imported}</b> imported · {s.duplicate} already in library
-            {s.failed ? ` · ${s.failed} skipped` : ""}
+            {s.failed ? ` · ${s.failed} failed` : ""}
+            {s.skipped ? ` · ${s.skipped} skipped (no title or DOI)` : ""}
             {s.format == null
               ? <div className="axis-err">Couldn't recognise the file — is it BibTeX, RIS, or CSL-JSON?</div>
               : s.imported > 0

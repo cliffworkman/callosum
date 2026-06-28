@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 172** (see Increment workflow) with **619 pytest tests
+It is currently at **Increment 173** (see Increment workflow) with **619 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -825,7 +825,22 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 172 (download links carry the token under Remote access — bug fix): debugging
+*Last updated: 2026-06-28 — increment 173 (import reports parse-time skipped records — autonomous backlog #4): the
+BibTeX/RIS/CSL-JSON import (inc 93) **silently dropped** entries with no title AND no DOI *at parse* (before any
+count), so a 50-entry `.bib` could quietly become 47 imported. Now the three parsers in `metadata/citation_import.py`
+return `(records, skipped)` (real entries whose `_*_to_csl` yielded None; CSL array items that are non-dict / lack
+title+DOI), `parse_records` folds record-cap overflow into `skipped` too, `import_citations` returns `skipped`,
+`ImportSummary.skipped` (additive) carries it, and `28_import.jsx` shows "· N skipped (no title or DOI)" (fixing the
+old mislabel where `failed` was shown as "skipped" — `failed` [per-record create errors] and `skipped` [parse drops]
+are now distinct). Symmetric with inc-155's scan "which files couldn't be read." Backend-additive — no
+migration/egress/endpoint → no audit; Principles non-triggering ("silence is not a certificate"); QA surface
+unchanged (121/121 API + 608/608 FE). `test_citation_import` **9/9** (bibtex junk→skipped 1, ris→0, csl malformed
+array→2, import result skipped==1); frontend rebuilt; `test_frontend_assembly` 5/5; pytest **619**; ruff clean.
+**Remaining on #4 (not autonomous):** per-item filename + ETA in the progress label + a cancel button (needs
+cooperative job cancellation). Notes: `INCREMENT-173-NOTES.md`. **NEXT (autonomous backlog):** #5 multiple URLs
+(small frontend), #3 always-on tag-source label, the reading-pane follow-ups (#mind the `30_viewer.jsx` 595/600 cap).
+
+Earlier — increment 172 (download links carry the token under Remote access — bug fix): debugging
 a user "Couldn't install: Not Found" on Settings → LibreOffice plugin → Install. **Root cause: a stale running
 uvicorn** (predating the inc-162 `/integrations/libreoffice/*` routes) → 404; the current code serves them (200,
 confirmed via in-process TestClient with the OS-open stubbed) → **the fix is to restart uvicorn** (no code change

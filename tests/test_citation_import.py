@@ -66,8 +66,9 @@ _CSL_JSON = """[
 
 
 def test_parse_bibtex():
-    recs = parse_bibtex(_BIBTEX)
+    recs, skipped = parse_bibtex(_BIBTEX)
     assert len(recs) == 2  # @comment ignored; the title-less @article{junk2021} dropped
+    assert skipped == 1  # the dropped @article{junk2021} is now reported (inc 173), not silent
     first = recs[0]
     assert first["type"] == "article-journal"
     assert first["title"] == "A Grand Study"  # case-protection braces stripped
@@ -81,8 +82,8 @@ def test_parse_bibtex():
 
 
 def test_parse_ris():
-    recs = parse_ris(_RIS)
-    assert len(recs) == 2
+    recs, skipped = parse_ris(_RIS)
+    assert len(recs) == 2 and skipped == 0
     first = recs[0]
     assert first["type"] == "article-journal"
     assert [a["family"] for a in first["author"]] == ["Doe", "Smith"]
@@ -92,9 +93,12 @@ def test_parse_ris():
 
 
 def test_parse_csl_json():
-    recs = parse_csl_json(_CSL_JSON)
-    assert len(recs) == 2  # both have a title (or DOI)
+    recs, skipped = parse_csl_json(_CSL_JSON)
+    assert len(recs) == 2 and skipped == 0  # both have a title (or DOI)
     assert recs[0]["DOI"] == "10.1/abc"
+    # a malformed array (a non-dict + a dict with neither title nor DOI) is reported, not silently dropped
+    kept, dropped = parse_csl_json('[{"author":[]}, 42, {"title":"Keep me"}]')
+    assert len(kept) == 1 and dropped == 2
 
 
 def test_detect_format():
@@ -106,7 +110,8 @@ def test_detect_format():
 
 
 def test_csl_record_to_paper_fields():
-    fields = csl_record_to_paper_fields(parse_bibtex(_BIBTEX)[0])
+    recs, _ = parse_bibtex(_BIBTEX)
+    fields = csl_record_to_paper_fields(recs[0])
     assert fields["title"] == "A Grand Study"
     assert fields["year"] == 2020
     assert fields["doi"] == "10.1/abc"
@@ -121,6 +126,7 @@ def test_import_citations_creates_dedups_and_isolates(temp_db_url):
     with engine.begin() as conn:
         result = import_citations(conn, _BIBTEX, "bibtex")
     assert len(result["created"]) == 2 and result["duplicate"] == 0 and result["failed"] == 0
+    assert result["skipped"] == 1  # the title-less @article{junk2021} reported at parse, not silently dropped
     assert result["format"] == "bibtex"
     # re-importing the same file → both dedup (DOI for the article; title+year+author for the book)
     with engine.begin() as conn:

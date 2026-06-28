@@ -85,11 +85,11 @@ a tag's **source as an always-on label/icon** (not only on hover); a "what re-re
 
 **4. Progress indication for long operations** — **[mostly shipped]** indeterminate bar (79) → DETERMINATE "X / N"
 progress for scan + import (142) + a "Review unsorted →" door + the **scan done-summary now lists which files
-couldn't be read + why** (155). **Remaining:** the **import** path's skipped-record detail (the BibTeX/CSL/RIS
-parsers silently drop malformed/title-less entries *at parse* before any count — needs a parser-level change to
-report drops); the per-item **filename** in the progress label + a rough **ETA**; a **cancel** button (needs
-cooperative job cancellation). The filename/ETA/cancel are smaller-but-infra; the parser-drop reporting is the
-genuinely-useful import remainder.
+couldn't be read + why** (155) + the **import** path's **skipped-record reporting** (173 — the BibTeX/CSL/RIS
+parsers now report entries dropped at parse for no-title-and-no-DOI, plus record-cap overflow; the summary shows
+"N skipped (no title or DOI)", and `failed`/`skipped` are now distinct). **Remaining (smaller-but-infra):** the
+per-item **filename** in the progress label + a rough **ETA**; a **cancel** button (needs cooperative job
+cancellation).
 
 **5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** **Shipped:** the "More" add-arbitrary-field menu
 (inc 96 — an `AddFieldRow` reusing the validated `csl` patch) + **editable Translator(s)** (inc 111). **Remaining:**

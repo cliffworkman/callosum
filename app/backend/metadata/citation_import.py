@@ -188,8 +188,11 @@ def _bibtex_entry_to_csl(entry_type: str, body: str) -> dict | None:
     return rec if (rec.get("title") or rec.get("DOI")) else None
 
 
-def parse_bibtex(text: str) -> list[dict]:
+def parse_bibtex(text: str) -> tuple[list[dict], int]:
+    """→ (CSL records, count of entries dropped for having no title AND no DOI). The skip count lets the import
+    report which entries silently vanished at parse (inc 173), instead of only the survivors."""
     records: list[dict] = []
+    skipped = 0
     i, n = 0, len(text)
     while i < n:
         at = text.find("@", i)
@@ -221,7 +224,9 @@ def parse_bibtex(text: str) -> list[dict]:
             rec = None
         if rec:
             records.append(rec)
-    return records
+        else:
+            skipped += 1  # a real entry (not @comment/@preamble/@string) with no title and no DOI
+    return records, skipped
 
 
 # ── RIS ──────────────────────────────────────────────────────────────────────
@@ -256,8 +261,10 @@ def _ris_entry_to_csl(ty: str, authors: list[str], fields: dict[str, str]) -> di
     return rec if (rec.get("title") or rec.get("DOI")) else None
 
 
-def parse_ris(text: str) -> list[dict]:
+def parse_ris(text: str) -> tuple[list[dict], int]:
+    """→ (CSL records, count of ER-delimited entries dropped for having no title AND no DOI). See parse_bibtex."""
     records: list[dict] = []
+    skipped = 0
     ty: str | None = None
     authors: list[str] = []
     fields: dict[str, str] = {}
@@ -276,49 +283,55 @@ def parse_ris(text: str) -> list[dict]:
                     rec = None
                 if rec:
                     records.append(rec)
+                else:
+                    skipped += 1
             ty, authors, fields = None, [], {}
         elif ty is not None:
             if tag in ("AU", "A1", "A2", "A3"):
                 authors.append(value)
             else:
                 fields[tag] = value
-    return records
+    return records, skipped
 
 
 # ── CSL-JSON ───────────────────────────────────────────────────────────────────
 
 
-def parse_csl_json(text: str) -> list[dict]:
+def parse_csl_json(text: str) -> tuple[list[dict], int]:
+    """→ (CSL records, count of array entries dropped for being non-dict / having no title AND no DOI)."""
     data = json.loads(text)  # may raise — caught by parse_records
     if isinstance(data, dict):
         items = data.get("items")
         data = items if isinstance(items, list) else [data]
     if not isinstance(data, list):
-        return []
-    return [r for r in data if isinstance(r, dict) and (_norm(r.get("title")) or _norm(r.get("DOI")))]
+        return [], 0
+    records = [r for r in data if isinstance(r, dict) and (_norm(r.get("title")) or _norm(r.get("DOI")))]
+    return records, len(data) - len(records)
 
 
 # ── dispatch + mapping + orchestration ─────────────────────────────────────────
 
 
-def parse_records(content: str, fmt: str | None) -> tuple[list[dict], str | None]:
-    """Parse `content` (using `fmt`, or auto-detect when it isn't a known format) → (CSL records, resolved fmt).
-    Caps the byte size + record count; a parser that throws yields an empty list (reported, never fatal)."""
+def parse_records(content: str, fmt: str | None) -> tuple[list[dict], str | None, int]:
+    """Parse `content` (using `fmt`, or auto-detect when it isn't a known format) → (CSL records, resolved fmt,
+    skipped). `skipped` = entries dropped at parse for having no title AND no DOI, **plus** any beyond the
+    record cap. Caps the byte size + record count; a parser that throws yields an empty list (never fatal)."""
     if len(content.encode("utf-8", "ignore")) > MAX_IMPORT_BYTES:
         raise ValueError("Citation file too large to import.")
     resolved = fmt if fmt in IMPORT_FORMATS else detect_format(content)
     if resolved is None:
-        return [], None
+        return [], None, 0
     try:
         if resolved == "csl-json":
-            records = parse_csl_json(content)
+            records, skipped = parse_csl_json(content)
         elif resolved == "ris":
-            records = parse_ris(content)
+            records, skipped = parse_ris(content)
         else:
-            records = parse_bibtex(content)
+            records, skipped = parse_bibtex(content)
     except Exception:
-        records = []
-    return records[:MAX_IMPORT_RECORDS], resolved
+        records, skipped = [], 0
+    capped = records[:MAX_IMPORT_RECORDS]
+    return capped, resolved, skipped + (len(records) - len(capped))
 
 
 def csl_record_to_paper_fields(rec: dict) -> dict[str, Any]:
@@ -349,7 +362,7 @@ def import_citations(conn: Connection, content: str, fmt: str | None) -> dict[st
     """Parse → dedup → create. Each record runs in its own savepoint so a bad one is isolated, not fatal. Dedup
     reuses `find_existing_paper_by_identity` (DOI → title+year+author). No egress; no Crossref/My-Pubs hook (the
     file is authoritative — `<fmt>-import` is deliberately outside enrichment's update allowlist, like user-edits)."""
-    records, resolved = parse_records(content, fmt)
+    records, resolved, skipped = parse_records(content, fmt)
     source = f"{resolved}-import" if resolved else "citation-import"
     created: list[int] = []
     duplicate = 0
@@ -374,4 +387,4 @@ def import_citations(conn: Connection, content: str, fmt: str | None) -> dict[st
                 created.append(create_paper(conn, imported_source=source, **fields))
         except Exception:
             failed += 1
-    return {"created": created, "duplicate": duplicate, "failed": failed, "format": resolved}
+    return {"created": created, "duplicate": duplicate, "failed": failed, "skipped": skipped, "format": resolved}
