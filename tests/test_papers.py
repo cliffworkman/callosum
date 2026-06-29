@@ -18,7 +18,10 @@ from app.backend.persistence.repository import (
     soft_delete_paper,
 )
 from app.backend.persistence.schema import (
+    axes,
     chunks,
+    cluster_node_papers,
+    cluster_nodes,
     embeddings,
     papers,
 )
@@ -82,6 +85,35 @@ def test_papers_list_axis_filter(temp_db_url: str) -> None:
 
     client.delete(f"/papers/{seeded['facial_paper_id']}")  # soft-delete → trashed papers excluded
     assert client.get("/papers", params={"axis_id": axis_id}).json() == []
+
+
+def test_papers_list_axis_hide_uncertain(temp_db_url: str) -> None:
+    # A10: the axis_hide_uncertain filter must match the card's assigned-only view — assigned (confidence >=
+    # the axis cutoff) + manual (NULL) shown, uncertain (confidence < cutoff) hidden. Shown == summarized.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        assigned = create_paper(conn, title="Assigned", csl_json={"title": "Assigned"})  # >= cutoff
+        uncertain = create_paper(conn, title="Uncertain", csl_json={"title": "Uncertain"})  # < cutoff
+        manual = create_paper(conn, title="Manual", csl_json={"title": "Manual"})  # confidence NULL
+        axis_id = int(
+            conn.execute(insert(axes).values(label="A10 axis", description="d", scoring_gain=0.35)).inserted_primary_key[0]
+        )
+        node = int(
+            conn.execute(
+                insert(cluster_nodes).values(axis_id=axis_id, parent_id=None, label="n", description="d", confidence=0.8)
+            ).inserted_primary_key[0]
+        )
+        conn.execute(insert(cluster_node_papers).values(cluster_node_id=node, paper_id=assigned, confidence=0.6))
+        conn.execute(insert(cluster_node_papers).values(cluster_node_id=node, paper_id=uncertain, confidence=0.2))
+        conn.execute(insert(cluster_node_papers).values(cluster_node_id=node, paper_id=manual, confidence=None))
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    # default (no hide): every member shown — the inc-63 behavior is unchanged
+    assert {p["id"] for p in client.get("/papers", params={"axis_id": axis_id}).json()} == {assigned, uncertain, manual}
+    # hide-uncertain: only the assigned + manual papers — matching the card's assigned-only view
+    hidden = client.get("/papers", params={"axis_id": axis_id, "axis_hide_uncertain": "true"}).json()
+    assert {p["id"] for p in hidden} == {assigned, manual}
 
 
 def test_papers_list_needs_review_filter(temp_db_url: str) -> None:

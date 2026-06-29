@@ -424,14 +424,17 @@ citation-engine spine come first; differentiators after. The **Decisions already
 settled — don't re-litigate. Item codes (A1…D) match that doc.
 
 **A — build-now (autonomous-ish close-outs; ABOVE the cut). The bug/gap fixes here are the priority close-outs:**
-- **A9 — activate the dormant `contradicted` verification status** *(the highest-value gap)*. The schema already
-  defines it (`CITATION_MAPPING_STATUSES`) and the NLI CrossEncoder produces a contradiction probability, but
-  `verification.py` extracts only entailment and `_status()` never returns `contradicted` — so Callosum can flag
-  *not-supported* but **cannot surface that a source actively disagrees**. Scope narrowly: read the contradiction
-  prob, return `contradicted` when it dominates, render it as a **distinct visible state** with its quote/page.
-  **Signal, not verdict** (#2/#3) — "these passages contradict this claim, your call," never "this claim is false."
-- **A10 — [fix] carry "hide uncertain" through to the library-pane axis-contents** (badge says certain-only but the
-  shown list still includes uncertain → the 27-vs-6 disagreement). Make *shown = summarized* (so A8 is honest).
+- ✅ **A9 — DONE (inc 203): the dormant `contradicted` verification status is live.** The NLI softmax's contradiction
+  prob (previously discarded) now yields `contradicted` when it dominates support (≥0.55 & > support); rendered as a
+  distinct red "⚠ source disagrees" pill with its quote/page. Signal-not-verdict.
+- ✅ **A10 — DONE (inc 204): the axis count-badge filter carries the card's hide-uncertain state.** Clicking the badge
+  while 👁 hide is on filters the Library to the same assigned (≥ cutoff) + manual set the card shows (banner: "…·
+  assigned only"). *Shown = summarized*; default-off → inc-63 behavior unchanged.
+- **[Cliff, queued, non-urgent] Remove the redundant THEORY → Discover accordion placeholder.** The inc-163
+  "Coming soon" stub registered THEORY → **Discover** (tabs Beyond library/Feed/Search) in `09_placeholders.jsx`, but
+  the real Discover/Search (inc 184) + Feed (inc 188) shipped as **center-pane tabs in the library frame**
+  (`30c_frame.jsx`) — the placeholder is now stale/duplicative. Drop the Discover `<ComingSoon>` registration (per the
+  inc-163 convention: remove each stub in the increment its real feature lands); the library frame is the right home.
 - **A8 — synthesis scope label at summarize** ("summarizing N papers; uncertain excluded"). *Largely shipped by the
   inc-153 coverage readout* — verify + add the uncertain-inclusion statement if missing.
 - **A1 — saved searches** (persist a named combination of the existing `item_type`/axis/tag/needs-review/signal +

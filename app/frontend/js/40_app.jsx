@@ -209,7 +209,7 @@ function App() {
   // inc-63: filter the Library to one axis's papers (a view, exclusive with trash/focus/tag but compatible
   // with checkbox-select → the filter→select-all→summarize synergy). Select-all selects the current page.
   const filterToAxis = useCallback((axis) => {
-    setLibraryAxisFilter({ id: axis.id, label: axis.label });
+    setLibraryAxisFilter({ id: axis.id, label: axis.label, hideUncertain: !!axis.hideUncertain });
     setLibraryTagFilter(null);         // axis & tag filters are mutually exclusive
     setActiveTab("library");
     setPage(0);
@@ -370,7 +370,10 @@ function App() {
     if (debounced.trim()) qs.set("q", debounced.trim());
     if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
     if (trashView) qs.set("deleted", "true");
-    if (libraryAxisFilter) qs.set("axis_id", libraryAxisFilter.id);
+    if (libraryAxisFilter) {
+      qs.set("axis_id", libraryAxisFilter.id);
+      if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");  // A10: match the card view
+    }
     if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
     if (libraryItemType) qs.set("item_type", libraryItemType);
     if (libraryNeedsReview) qs.set("needs_review", "true");

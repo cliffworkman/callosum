@@ -134,7 +134,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
                 : (hideUncertain && (axis.uncertain_count || 0) > 0
                     ? `${badgeCount} assigned · ${axis.uncertain_count} uncertain hidden — click to show this axis in the library`
                     : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet"))}
-              onClick={stop(() => handlers.filterToAxis(axis))}
+              onClick={stop(() => handlers.filterToAxis(axis, hideUncertain))}
             >{badgeCount}</button>
           </span>
         </div>
@@ -365,8 +365,9 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     if (onEnterFocus) onEnterFocus({ id: axis.id, label: axis.label });
   }, [onEnterFocus]);
 
-  const filterToAxis = useCallback((axis) => {
-    if (onFilterToAxis) onFilterToAxis({ id: axis.id, label: axis.label });
+  const filterToAxis = useCallback((axis, hideUncertain) => {
+    // A10: carry the card's hide-uncertain state so the library view matches the card (shown == summarized).
+    if (onFilterToAxis) onFilterToAxis({ id: axis.id, label: axis.label, hideUncertain: !!hideUncertain });
   }, [onFilterToAxis]);
 
   const openMyPubsDashboard = useCallback((axis) => {

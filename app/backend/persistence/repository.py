@@ -135,6 +135,11 @@ SIGNAL_FILTERS = {
 # state* (papers with findings the user hasn't reviewed), never a quality rank. Allowlist (rule #3).
 FINDING_FILTERS = {"needs-review": "unreviewed"}
 
+# The default axis assignment cutoff (inc 45; mirrors routers/axes.py + discovery/relevance.py). A NULL
+# axes.scoring_gain means "use this default". Used by the axis_hide_uncertain library filter (A10) so the
+# library view matches the axis card's assigned-only view: shown in the card == filtered into the library.
+DEFAULT_AXIS_CUTOFF = 0.35
+
 
 def _search_clause(field: str, pattern: str):
     """A WHERE clause for the q search, scoped by ``field``. The full bibliographic record lives in
@@ -163,6 +168,7 @@ def list_papers(
     search_field: str = "all",
     only_deleted: bool = False,
     axis_id: int | None = None,
+    axis_hide_uncertain: bool = False,
     tag_id: int | None = None,
     item_type: str | None = None,
     needs_review: bool = False,
@@ -189,15 +195,23 @@ def list_papers(
     if axis_id is not None:
         # Filter to the papers assigned to this axis (across all its cluster nodes). Bound-param IN
         # subquery (rule #3); composes with the deleted/q filters above (trashed papers stay excluded).
-        stmt = stmt.where(
-            papers.c.id.in_(
-                select(cluster_node_papers.c.paper_id)
-                .select_from(
-                    cluster_node_papers.join(cluster_nodes, cluster_nodes.c.id == cluster_node_papers.c.cluster_node_id)
-                )
-                .where(cluster_nodes.c.axis_id == axis_id)
+        members = (
+            select(cluster_node_papers.c.paper_id)
+            .select_from(
+                cluster_node_papers.join(cluster_nodes, cluster_nodes.c.id == cluster_node_papers.c.cluster_node_id)
             )
+            .where(cluster_nodes.c.axis_id == axis_id)
         )
+        if axis_hide_uncertain:
+            # Match the axis card's hide-uncertain (assigned-only) view (inc 45/A10): assigned = manual
+            # (confidence NULL) OR confidence >= the axis's cutoff (axes.scoring_gain, else the default), so
+            # the count and contents shown on the card == what lands in the library — shown is summarized.
+            gain = conn.execute(select(axes.c.scoring_gain).where(axes.c.id == axis_id)).scalar()
+            cutoff = float(gain) if gain is not None else DEFAULT_AXIS_CUTOFF
+            members = members.where(
+                or_(cluster_node_papers.c.confidence.is_(None), cluster_node_papers.c.confidence >= cutoff)
+            )
+        stmt = stmt.where(papers.c.id.in_(members))
     if tag_id is not None:
         # Filter to the papers carrying this tag. Bound-param IN subquery (rule #3); composes with the
         # deleted/q/axis clauses above (trashed papers stay excluded).

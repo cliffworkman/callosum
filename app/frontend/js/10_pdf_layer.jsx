@@ -385,7 +385,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           </div>}
         {libraryAxisFilter &&
           <div className="focus-card">
-            <div className="focus-card-head">Filtered to axis <b>{libraryAxisFilter.label}</b></div>
+            <div className="focus-card-head">Filtered to axis <b>{libraryAxisFilter.label}</b>{libraryAxisFilter.hideUncertain ? " · assigned only" : ""}</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
               <button className="axis-link" onClick={onClearAxisFilter}>clear</button>

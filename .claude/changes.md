@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 203 — synthesis section + the evidence-workbench line now describe the `contradicted` citation state -->
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 204 — the axis count-badge bullet now states the badge filter matches the assigned-only card view -->
+## 2026-06-29 — Increment 204: carry "hide uncertain" through to the library-pane axis filter (backlog A10 close-out)
+- **Files:** `app/backend/persistence/repository.py` (`axis_hide_uncertain` param + `DEFAULT_AXIS_CUTOFF`),
+  `app/backend/api/routers/papers.py` (`GET /papers` query param), `app/frontend/js/15_axes.jsx` + `40_app.jsx` +
+  `10_pdf_layer.jsx` (thread the boolean + banner note) + `callosum-app.html` (rebuilt), `tests/test_papers.py` (+1),
+  `.claude/qa-routes/route_15_axes.md` (A10 step), `app/backend/help/help_content.md`, CLAUDE, `INCREMENT-204-NOTES.md`.
+- **What:** the axis count-badge filter returned **every** axis member even when the card's 👁 hide-uncertain view was
+  on, so *select-all → summarize* could include papers the card hid. The badge now carries the card's hide state →
+  `GET /papers?axis_id=&axis_hide_uncertain=true` filters to the same assigned (≥ cutoff) + manual (NULL) set the card
+  shows; the banner reads "… · assigned only". Cutoff = `axes.scoring_gain` (else 0.35), matching the card's tiering.
+- **Why:** *shown == summarized* — the filtered Library must match what the card displays (a straight consistency bug).
+- **Gates:** pytest **713 passed, 1 skipped** (+1); ruff clean; QA surface unchanged (136/136 API + 661/661 FE);
+  Principles non-triggering (filter-consistency, the inc-66 class); **no migration / endpoint / egress / dependency**.
+  Headed-verified (`.local/visual/drive_inc204_hide_uncertain.py`, 0 console/page/genai). Swept 4 stray
+  `app/frontend/js/*.tmp.*` orphans.
+- **Revert:** `git revert` the inc-204 commit (pure code/CSS; the badge filter reverts to all-members, inc-63 behavior).
+
 ## 2026-06-29 — Increment 203: activate the dormant `contradicted` verification status (backlog A9 close-out)
 - **Files:** `app/backend/summarization/verification.py` (contradiction read + `_status` contradicted + config),
   `app/frontend/js/20_synthesis.jsx` + `styles.css` (distinct `contradicted` pill) + `callosum-app.html` (rebuilt),

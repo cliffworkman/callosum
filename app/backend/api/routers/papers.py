@@ -172,6 +172,7 @@ def papers_index(
     search_field: str = Query(default="all"),  # search scope: all / title / author / journal (allowlisted in repo)
     deleted: bool = Query(default=False),  # true → the Trash listing (soft-deleted papers)
     axis_id: int | None = Query(default=None),  # filter the listing to the papers assigned to this axis
+    axis_hide_uncertain: bool = Query(default=False),  # with axis_id: match the card's assigned-only view (A10)
     tag_id: int | None = Query(default=None),  # filter the listing to the papers carrying this tag
     item_type: str | None = Query(default=None),  # filter to a single CSL item type (bound; see list_item_types)
     needs_review: bool = Query(default=False),  # the "Unsorted" view: scaffold / Crossref-unresolved / no source
@@ -190,6 +191,7 @@ def papers_index(
         search_field=search_field,
         only_deleted=deleted,
         axis_id=axis_id,
+        axis_hide_uncertain=axis_hide_uncertain,
         tag_id=tag_id,
         item_type=item_type,
         needs_review=needs_review,
