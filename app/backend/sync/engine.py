@@ -124,20 +124,32 @@ def _set_sync_state(conn: Connection, collection: str, record_id: str, version: 
     )
 
 
-def _apply_record(conn: Connection, c: SyncableCollection, r: RemoteRecord) -> None:
-    """Write a remote winner into the domain table, by sync_uid (UPDATE-in-place / INSERT-and-bind / DELETE)."""
+def _apply_record(conn: Connection, c: SyncableCollection, r: RemoteRecord, by_name: dict) -> bool:
+    """Write a remote winner into the domain table, by sync_uid (UPDATE-in-place / INSERT-and-bind / DELETE).
+    Returns False (skipped, retry later) iff an FK target isn't present locally yet — applied referenced-first, so
+    that's rare in practice."""
     local_id = local_id_for_uid(conn, c, r.record_id)
     if r.deleted:
         if local_id is not None:
             conn.execute(c.table.delete().where(c.table.c[c.pk] == _typed_pk(c, local_id)))
             forget_identity(conn, c, r.record_id)
-        return
+        return True
     values = _coerce_for_write(c.table, r.payload or {})
+    for col, ref in c.fks.items():  # referenced sync_uid → this device's local id
+        uid = values.get(col)
+        if uid is None:
+            continue
+        ref_c = by_name.get(ref)
+        ref_local = None if ref_c is None else local_id_for_uid(conn, ref_c, str(uid))
+        if ref_local is None:
+            return False  # FK target not synced here yet → skip this record (it retries when the target arrives)
+        values[col] = _typed_pk(ref_c, ref_local)
     if local_id is None:
         result = conn.execute(insert(c.table).values(**values))
         bind_identity(conn, c, str(result.inserted_primary_key[0]), r.record_id)
     else:
         conn.execute(update(c.table).where(c.table.c[c.pk] == _typed_pk(c, local_id)).values(**values))
+    return True
 
 
 def run_sync(
@@ -175,9 +187,13 @@ def run_sync(
         remote=remote,
     )
 
-    for r in merge.to_apply:
-        _apply_record(conn, by_name[r.collection], r)
-        _set_sync_state(conn, r.collection, r.record_id, r.version, None if r.deleted else r.payload, r.deleted)
+    # Apply referenced-collections-first (SYNCABLE order) so a record's FK targets exist before it is written.
+    rank = {c.name: i for i, c in enumerate(collections)}
+    applied = 0
+    for r in sorted(merge.to_apply, key=lambda r: rank.get(r.collection, len(rank))):
+        if _apply_record(conn, by_name[r.collection], r, by_name):
+            _set_sync_state(conn, r.collection, r.record_id, r.version, None if r.deleted else r.payload, r.deleted)
+            applied += 1
     for cf in merge.conflicts:
         conn.execute(
             insert(_sync_conflicts).values(
@@ -211,6 +227,6 @@ def run_sync(
     return SyncRunResult(
         new_cursor=pull.seq,
         pushed=len(blobs),
-        applied=len(merge.to_apply),
+        applied=applied,
         conflicts=len(merge.conflicts),
     )

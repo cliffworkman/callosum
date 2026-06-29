@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 199: accounts SP3b cont. — FK-translation layer + the child tables (notes, annotations)
+- **Files:** `app/backend/sync/changeset.py` (+`SyncableCollection.fks`/`.drop`; `collect_local` FK-translates +
+  drops; `SYNCABLE` += notes/annotations), `app/backend/sync/engine.py` (`_apply_record` FK-translates + skips
+  unresolved; apply referenced-first), `tests/test_sync_engine.py` (+1 child-FK test),
+  `.claude/security-audits/2026-06-29_sync-engine-sp3b.md` (addendum), CLAUDE (layout/decision-log/footer),
+  `INCREMENT-199-NOTES.md`.
+- **What:** extend the sync engine to the FK-bearing child tables **notes + annotations** — a row's `paper_id` FK
+  travels as the referenced paper's `sync_uid` and is translated back to each device's local id on apply (applied
+  referenced-first); `annotations.attachment_id` (a per-device PDF pointer) is dropped from the synced payload.
+- **Why:** SP3b cont. — sync the user's notes + highlights (the high-value relational data). The FK-translation layer
+  is the generic mechanism the remaining FK tables will reuse.
+- **Gates:** pytest **689 passed, 1 skipped** (+1); ruff clean; QA surface unchanged (132/132 API + 661/661 FE, no
+  new route); audit addendum PASS; **no migration, no new dependency, no egress, no UI**.
+- **Revert:** `git revert` the inc-199 commit (pure code; `SYNCABLE` reverts to papers/tags/axes; `sync_identity`
+  rows for notes/annotations are harmless if left).
+
 ## 2026-06-29 — Increment 198: accounts SP3b — the client sync engine + `sync_uid` identity (top-level collections)
 - **Files:** `app/backend/sync/engine.py` (new), `app/backend/sync/changeset.py` (revised → sync_uid keying),
   `app/backend/persistence/schema_sync.py` (+`sync_identity`) + re-export in `schema.py`,

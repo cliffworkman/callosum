@@ -43,14 +43,22 @@ class SyncableCollection:
     table: Table
     pk: str = "id"  # the single local-id column; the payload excludes it (it is device-specific)
     where: Any = None  # optional SQLAlchemy filter (e.g. manual-only); a follow-on uses it
+    fks: dict[str, str] = field(default_factory=dict)  # {fk_column: referenced collection} → translated local↔uid
+    drop: tuple[str, ...] = ()  # device-local columns omitted from the synced payload (e.g. a per-device attachment id)
 
 
-# The top-level, FK-free user-authored data. (paper_tags/notes/annotations/summaries/manual-cluster + profile come in
-# the FK-translation follow-on; PDFs/embeddings/signals are rebuilt locally, never synced.)
+# The user-authored data, in **referenced-first dependency order** (a row's FK targets sync before it). FK columns are
+# translated local-id ↔ a referenced row's sync_uid (changeset.collect_local / engine apply). Derived/un-synced
+# (rebuilt locally): PDFs, embeddings, signals, caches, cluster_nodes. Still a follow-on: paper_tags (a composite-PK
+# link table — a distinct identity model), summaries (JSON-embedded scope refs + version-keyed verification) and
+# manual cluster_node_papers (depends on un-synced cluster_nodes).
 SYNCABLE: tuple[SyncableCollection, ...] = (
     SyncableCollection("papers", schema.papers),
     SyncableCollection("tags", schema.tags),
     SyncableCollection("axes", schema.axes),
+    SyncableCollection("notes", schema.notes, fks={"paper_id": "papers"}),
+    # attachment_id is a per-device pointer (PDFs aren't synced) → dropped; the highlight re-associates by paper+page.
+    SyncableCollection("annotations", schema.annotations, fks={"paper_id": "papers"}, drop=("attachment_id",)),
 )
 
 
@@ -155,20 +163,33 @@ def ensure_identities(conn: Connection, collections: tuple[SyncableCollection, .
 
 def collect_local(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> dict[Key, dict]:
     """{(collection, sync_uid): payload} over the syncable tables, where payload is the row **minus its local PK**
-    (device-independent content). Rows without a ``sync_identity`` entry are skipped (``ensure_identities`` assigns
-    one first in the normal flow)."""
+    (and minus any ``drop`` columns), with **FK columns translated local-id → the referenced row's sync_uid** so the
+    content is device-independent. Rows without a ``sync_identity`` entry — or whose FK target has none — are skipped
+    (``ensure_identities`` assigns identities first in the normal flow)."""
+    maps = {c.name: uid_map(conn, c) for c in collections}
     out: dict[Key, dict] = {}
     for c in collections:
-        ids = uid_map(conn, c)
         stmt = select(c.table)
         if c.where is not None:
             stmt = stmt.where(c.where)
         for row in conn.execute(stmt).mappings():
             row_dict = dict(row)
-            sync_uid = ids.get(str(row_dict[c.pk]))
+            sync_uid = maps[c.name].get(str(row_dict[c.pk]))
             if sync_uid is None:
                 continue
-            out[(c.name, sync_uid)] = {k: v for k, v in row_dict.items() if k != c.pk}
+            payload = {k: v for k, v in row_dict.items() if k != c.pk and k not in c.drop}
+            skip = False
+            for col, ref in c.fks.items():  # local id → referenced sync_uid (device-independent)
+                val = payload.get(col)
+                if val is None:
+                    continue
+                ref_uid = maps.get(ref, {}).get(str(val))
+                if ref_uid is None:  # the FK target isn't synced/identified yet → can't represent this row portably
+                    skip = True
+                    break
+                payload[col] = ref_uid
+            if not skip:
+                out[(c.name, sync_uid)] = payload
     return out
 
 

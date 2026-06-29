@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, delete, select, update
+from sqlalchemy import create_engine, delete, insert, select, update
 
 from alembic import command
 from alembic.config import Config
@@ -56,6 +56,29 @@ def _add_paper(db_url: str, title: str, year: int) -> int:
         pid = create_paper(conn, title=title, year=year, csl_json={"title": title, "type": "article-journal"})
     eng.dispose()
     return pid
+
+
+def _add_note(db_url: str, paper_id: int, body: str) -> None:
+    eng = create_engine(db_url)
+    with eng.begin() as conn:
+        conn.execute(insert(schema.notes).values(paper_id=paper_id, body=body))
+    eng.dispose()
+
+
+def _add_annotation(db_url: str, paper_id: int, body: str, attachment_id: int | None = None) -> None:
+    eng = create_engine(db_url)
+    with eng.begin() as conn:
+        conn.execute(
+            insert(schema.annotations).values(
+                paper_id=paper_id,
+                attachment_id=attachment_id,
+                page=3,
+                body=body,
+                bboxes_json=[{"x": 0.1}],
+                source="user",
+            )
+        )
+    eng.dispose()
 
 
 def _sync(eng, dek, server, since: int):
@@ -123,6 +146,41 @@ def test_two_devices_converge_via_sync_uid(tmp_path: Path) -> None:
     again = _sync(eb, dek, server, cb)
     assert again.pushed == 0 and again.applied == 0 and again.conflicts == 0
 
+    ea.dispose()
+    eb.dispose()
+
+
+def test_child_tables_fk_translate_across_devices(tmp_path: Path) -> None:
+    """A note + an annotation on a paper sync to another device with their `paper_id` FK re-pointed to that device's
+    local paper id (via sync_uid) — and the per-device `attachment_id` is dropped."""
+    keyring, _ = create_keyring("pw")
+    dek = unlock_with_passphrase(keyring, "pw")
+    server = FakeTransport()
+    db_a, db_b = _fresh_db(tmp_path / "a.sqlite"), _fresh_db(tmp_path / "b.sqlite")
+    _add_paper(db_b, "B-unrelated", 2019)  # offsets B's local ids so a translated FK can't coincidentally match A's
+    pid_a = _add_paper(db_a, "Shared", 2020)
+    _add_note(db_a, pid_a, "a note body")
+    _add_annotation(db_a, pid_a, "a highlight", attachment_id=999)
+    ea, eb = create_engine(db_a), create_engine(db_b)
+    ca = cb = 0
+
+    ca = _sync(ea, dek, server, ca).new_cursor  # A pushes paper + note + annotation (FKs as sync_uids)
+    rb = _sync(eb, dek, server, cb)  # B pushes its own paper, pulls + applies A's paper/note/annotation
+    cb = rb.new_cursor
+
+    with eb.connect() as conn:
+        bpid = conn.execute(select(schema.papers.c.id).where(schema.papers.c.title == "Shared")).scalar()
+        assert bpid is not None and bpid != pid_a  # a different local id → the FK was genuinely translated
+        note = conn.execute(select(schema.notes.c.body, schema.notes.c.paper_id)).first()
+        assert note.body == "a note body" and note.paper_id == bpid  # re-pointed to B's local paper
+        ann = conn.execute(
+            select(schema.annotations.c.body, schema.annotations.c.paper_id, schema.annotations.c.attachment_id)
+        ).first()
+        assert ann.body == "a highlight" and ann.paper_id == bpid
+        assert ann.attachment_id is None  # the per-device attachment pointer was dropped
+
+    again = _sync(eb, dek, server, cb)  # the translated-FK payload round-trips → no phantom re-sync
+    assert again.pushed == 0 and again.applied == 0
     ea.dispose()
     eb.dispose()
 
