@@ -1,10 +1,12 @@
 # Increment backlog — OPEN (complexity-ordered for autonomous operation, 2026-06-21)
 
-> **Reconciled against inc 109–152 on 2026-06-27.** A lot that was listed open/partial actually shipped (inc 109–116
-> frontend/UX; 117–119 My-Pubs overhaul; 121 THEORY/METHODS accordion; 126–137 GRIM/p-curve/findings/gap-finder;
-> 146–152 the BYOK arc). Those were **relocated to `INCREMENT-BACKLOG-DONE.md`** and the partial items below tightened
-> to their *true remainder*. **Number gaps (#1, #2, #10, #39 …) = shipped + relocated** — numbers are kept stable for
-> the cross-references; see the Shipped breadcrumbs at the bottom + the DONE file.
+> **Reconciled against inc 109–152 on 2026-06-27, and again through inc 202 on 2026-06-29.** A lot that was listed
+> open/partial actually shipped (inc 109–116 frontend/UX; 117–119 My-Pubs overhaul; 121 THEORY/METHODS accordion;
+> 126–137 GRIM/p-curve/findings/gap-finder; 146–152 the BYOK arc; **156–159 Track C SP1; 161 merge; 162–171 the
+> Word/Google-Docs adapters; 175–181 reading-pane + credit + README; and the whole accounts+sync arc 194–202**).
+> Those were **relocated to `INCREMENT-BACKLOG-DONE.md`** (breadcrumbs at the bottom) and the partial items below
+> tightened to their *true remainder*. **Number gaps (#1, #2, #10, #39 …) = shipped + relocated** — numbers are kept
+> stable for the cross-references. **#15 is now "mostly shipped" (accounts/sync), not "not built."**
 >
 > **The cut point** (the `⛔ NEEDS CLIFF` line) separates what Claude Code may build unattended from what needs your
 > judgment. Slide it; items are numbered so "move #N above the cut" is unambiguous.
@@ -176,9 +178,18 @@ skip verification under time pressure). *Not a build — a decision from you tha
 **14. Permanent delete doesn't remove the on-disk PDF** (managed/linked) — **[destructive]** deferred from inc 65
 (deleting user files is riskier). See `INCREMENT-65-NOTES.md`.
 
-**15. Account creation / login + publishing name** — **[security]** a settings-level identity (the publishing name
-feeds **My Publications**). **Big + security-sensitive** — auth is absent by design today; needs its own design +
-audit. Likely post-V1 / tied to any hosted mode.
+**15. Optional account + login + cross-device sync** — **[mostly SHIPPED — accounts arc, incs 194–202]** the whole
+arc landed since the last reconcile: **SP1** "Sign in with ORCID" (inc 194 — OIDC + PKCE, identity-only, default-off,
+populates My-Pubs); the **superuser flag** (inc 195, capabilities still deferred — see the top item); **SP2**
+email/Google login (inc 196 — platform-config via Authentik, method-agnostic); and **SP3 opt-in, E2E-encrypted
+cross-device sync** (incs 197–202) — the crypto + change-tracking foundation (197), the `sync_uid` engine over
+top-level + FK + link collections (198–200), natural-key tag convergence (201), and the **reference sync-server +
+HttpSyncTransport + opt-in `/sync/*`** (202; `sync_server/`, FastAPI+Postgres, OIDC resource server, opaque-blob
+E2E). All audited; local-first stays the default. **Remaining:** **SP3c** — the Settings → Sync UI (set up / enable /
+run, passphrase prompt) + the **conflict-review screen** (read `sync_conflicts`, pick a side); the maintainer's
+**live deploy** (stand up `sync_server/` on Postgres + wire the Authentik audience); pre-public **server hardening**
+(per-user rate-limiting, retention, backup runbook, a migration tool); and **SP4 sharing** (= B2 collaboration). The
+superuser-*capabilities* decision is the separate top-of-list item.
 
 **16. Undo / soft-delete buffer (beyond Trash)** — **[proposal — pairs with #17]** merge (below) is destructive in
 an app with no git (only zip snapshots); a stronger undo buffer is worth a slot before/with merge. (Basic Trash +
@@ -257,10 +268,13 @@ chip (inc 95/97/100); the sibling producers **p-curve** (inc 126) + **GRIM/GRIMM
 **unified findings-subsystem "N to review" facet** (inc 133) — all shipped + relocated to DONE. **Remaining only:**
 more statcheck **test forms** (test-stat `<`/`>` comparisons, results in tables) — a regex-extension increment.
 
-**28. Literature discovery — Feed/Search tabs** (`…_librarypaneltabadditions.md`) — **[future track]** FEED + SEARCH
-center tabs over a `SourceProvider` layer (PubMed/Crossref/bioRxiv), Fraser-method triage, axis-relevance
-**highlight (augment, never filter)**; save→auto-axis (attach source keywords as tags). Foundational for discovery
-(unblocks #18's keyword sourcing).
+**28. Literature discovery — Feed/Search tabs** (`…_librarypaneltabadditions.md`) — **[SHIPPED inc 182–192 —
+relocated to DONE]** the **Search** tab (Crossref + PubMed providers over a `SourceProvider` registry + the
+axis-relevance **highlight**, augment-never-filter; metadata-only save) and the **Feed** tab (bioRxiv/medRxiv +
+PubMed-keyword + journal-by-ISSN sources, manual or opt-in staleness-gated auto-refresh, with abstracts) both
+shipped. **Remaining only:** more Feed sources are a `register()` each (no UI edit); a true background polling daemon
+is **deliberately not built** (pull-first). *(This unblocked #18's keyword sourcing on save — still gated on
+OpenAlex-concepts/PubMed-MeSH landing.)*
 
 **29. Literature gap-finder** (`…_gapfinder.md`) — **[v1+v2 SHIPPED inc 135/137 — relocated to DONE]** the
 **backward gap** (works cited by ≥N of your papers; Gaps button + Add/Dismiss; inc 135) and **v2** — the **forward
@@ -316,21 +330,20 @@ CSL-JSON, no library lookup); the contract every adapter calls. **The first adap
 inc 108** (`adapters/libreoffice/`): the target-agnostic field abstraction
 (`{itemKeys, cslJsonPayload, renderedText, orderIndex}`) realized as ReferenceMarks carrying CSL-JSON (Zotero
 `CSL_CITATION` pattern), full-document-order scan, and a flatten mode — the full live-field loop, headless-tested in
-a real LibreOffice. **Next (the remaining adapters, same engine):** **Word (Office.js)** — one Win+Mac+web add-in
-(needs the CORS/origin change; content-controls or ADDIN field codes) — then **Google Docs** (named ranges; the
-fenced cloud opt-in; built last). Deferred: `.oxt` packaging + toolbar, a library-search picker, grouped cites,
-note-style footnote management, locators/prefixes, fetch-on-demand long-tail styles (consent-gated), Vancouver +
-more bundled styles, rich-clipboard (italics) copy, a shared subprocess timeout.
+a real LibreOffice. **All three adapters now SHIPPED** (relocated to DONE): **LibreOffice .oxt v2** (inc 162 — a
+one-click installable extension with the Callosum menu/toolbar + search-to-cite + Suggest); the **Word add-in**
+(Office.js, SP1–3, inc 164–166 — live Content-Control fields + Refresh/renumber + Suggest + style-switch + Flatten,
+served over local HTTPS same-origin); and the **Google Docs add-on** (Apps Script, inc 168–171 + setup automation
+193 — NamedRange + DocumentProperties over a cloudflared bridge with bearer-auth + cite-only ingress). **Deferred
+only:** grouped cites / locators / prefixes, note-style footnote management, fetch-on-demand long-tail styles
+(consent-gated), Vancouver + more bundled styles, rich-clipboard (italics) copy, a shared subprocess timeout, and a
+true Marketplace one-click Docs install (#43).
 
-**34. Word + LibreOffice citation plugin** (Track B) — **[future track]** cite-while-you-write over the CSL-JSON + a
-CSL processor — the track-level framing of the engine in #33. **The backend CSL engine + per-item format endpoint
-shipped inc 106** (`POST /citations/render`); **the position-aware document-render contract shipped inc 107** (`POST
-/citations/render-document`); **the first adapter — LibreOffice (UNO) — shipped inc 108** (`adapters/libreoffice/`:
-a drop-in Writer macro with the full live-field loop insert → refresh/restyle/renumber → bibliography → flatten;
-headless-tested end-to-end). **Next: an Office.js (Word) add-in** (needs the CORS/origin change;
-content-controls/ADDIN fields; Win+Mac parity) over the same `render-document` engine, **then Google Docs** (named
-ranges; the fenced cloud opt-in; last). LibreOffice follow-ups: `.oxt` packaging + toolbar, a library-search picker,
-grouped cites/locators, note-style footnotes. **Never auto-inserts.**
+**34. Word + LibreOffice + Google Docs citation plugins** (Track B) — **[SHIPPED inc 106–108, 162–171 — relocated to
+DONE]** cite-while-you-write over CSL-JSON + citeproc, the track-level framing of #33. The CSL engine (106) +
+position-aware document render (107) + **all three adapters** shipped: **LibreOffice** (108 macro → 162 one-click
+.oxt), **Word** (Office.js SP1–3, 164–166), **Google Docs** (Apps Script + bridge, 168–171, + setup automation 193).
+**Never auto-inserts.** Deferred follow-ons under #33.
 
 **35. My Publications — Part 2: impact dashboard** (`…_mypublications.md`) — **[mostly SHIPPED — relocated to DONE]**
 Part 1 auto-axis (inc 78); Layer 1 dashboard tab (inc 81); Layer 2 Research domains (inc 83); **the full SP1–SP3
@@ -403,6 +416,81 @@ maintenance cost. *(inc 193 already shipped the lighter alternative: a Cloudflar
 
 ---
 
+## Competitive-benchmark revisions (folded 2026-06-29 from the inbox — full detail + the decided rationale in `future-tracks/opus4.8_future-tracks_benchmarkrevisions.md`)
+
+A competitive-benchmarking pass (Callosum vs Zotero/Mendeley/Paperpile/RefWorks/ReadCube/Citavi/EndNote + Elicit +
+the Zotero AI-plugin ecosystem) produced decided dispositions. *Museum before crown jewel:* table-stakes + the
+citation-engine spine come first; differentiators after. The **Decisions already made** lines in the source doc are
+settled — don't re-litigate. Item codes (A1…D) match that doc.
+
+**A — build-now (autonomous-ish close-outs; ABOVE the cut). The bug/gap fixes here are the priority close-outs:**
+- **A9 — activate the dormant `contradicted` verification status** *(the highest-value gap)*. The schema already
+  defines it (`CITATION_MAPPING_STATUSES`) and the NLI CrossEncoder produces a contradiction probability, but
+  `verification.py` extracts only entailment and `_status()` never returns `contradicted` — so Callosum can flag
+  *not-supported* but **cannot surface that a source actively disagrees**. Scope narrowly: read the contradiction
+  prob, return `contradicted` when it dominates, render it as a **distinct visible state** with its quote/page.
+  **Signal, not verdict** (#2/#3) — "these passages contradict this claim, your call," never "this claim is false."
+- **A10 — [fix] carry "hide uncertain" through to the library-pane axis-contents** (badge says certain-only but the
+  shown list still includes uncertain → the 27-vs-6 disagreement). Make *shown = summarized* (so A8 is honest).
+- **A8 — synthesis scope label at summarize** ("summarizing N papers; uncertain excluded"). *Largely shipped by the
+  inc-153 coverage readout* — verify + add the uncertain-inclusion statement if missing.
+- **A1 — saved searches** (persist a named combination of the existing `item_type`/axis/tag/needs-review/signal +
+  sort + search-scope params; recall from the library header). **Distinct from axes** — it persists a metadata/boolean
+  predicate, not a semantic lens. Reuses inc-89 search + existing facets; no new query semantics.
+- **A5 — color tags / ratings / flags** (a color attribute on tags + a simple user rating/flag on papers).
+  Organizational polish; tags stay provenance-stamped + become **pure labels** (the A7 division); a rating is a user
+  field, **never an AI score**.
+- **A6 — drag-and-drop a paper onto an axis to add it** (a faster input for the existing manual-add path; a
+  keyword-axis drop is a manual override, riding `restore_manual_assignments`).
+- **A2 — library-wide per-paper citation counts** (generalize My-Pubs Layer 3's OpenAlex counts to all cards/Details).
+  A **displayed metadata field with a visible source** — never a composite, never a silent rank (#7); shown honestly,
+  not zero-filled. *(Metadata egress, the inc-81 posture — not the Gemini gate.)*
+- **A3 — basic full-text PDF search box** (literal/lexical search over already-extracted `chunks` text — a SQLite
+  **FTS5** index surfaced as a search field with hit highlighting). **Complementary to**, not a replacement for, the
+  semantic retrieval (axes/synthesis stay the *semantic* surface; this is the *exact-string* lookup, "find 'ultimatum
+  game' verbatim"). **Security audit fires on the new query surface** (validate input). *(A4 — plain-Markdown
+  annotation export — already shipped inc 144: Copy / Export .md of a paper's highlights+notes.)*
+- **A7 — Curated Axis mode** *(build-now, medium; the biggest A item — design home: the benchmark-revisions doc §A7)*.
+  An axis populated **by hand** (the bounded home for an arbitrary working set, e.g. "the 12 papers for Aim 2 in
+  citation order"). **Settled:** umbrella term stays **"Axis"** (never "folder"); a **subtle aesthetic cue**, not a
+  loud type label (internally *Curated* vs *Keyword*); curated hides the scoring UI + orders members by drag;
+  **bidirectional switch** protected by manual-assignments-survive-rescore (Keyword→Curated = "freeze"; Curated→Keyword
+  = warned, members kept / order lost); **flat for now** (nesting deferred → recursive *semantic* sub-axes only, never
+  manual folder-trees); **tags demote to pure labels** app-wide (the coherence condition). Substantial UX → split a
+  per-item detail doc when it's picked up.
+
+**B — deferred (BELOW the cut; queued behind critical functionality):**
+- **B1 — read-first / write-gated MCP server** *(needs a detail doc; design home: §B1)* — expose Callosum's own MCP
+  server so external agents use the library *through* Callosum (keeping it the provenance authority) rather than
+  bypassing it. **Read-first** (search/metadata/full-text/**grounded passage retrieval with page anchors** free);
+  **all writes gated** (explicit confirmation + session undo + provenance/lineage-stamp every AI-originated write).
+  Security audit + egress gate. The one genuinely-new architectural item; the defensive moat.
+- **B2 — collaboration / shared libraries** — opt-in shared libraries on the **now-built account + sync** layer
+  (incs 194–202), under the same E2E/consent discipline. **Not declined** — a scope/architecture-weight question.
+  *(This is essentially SP4 of the accounts arc.)*
+- **B3 — OCR for scanned PDFs** (Tesseract fallback; also helps merge's preprint-vs-scanned case) — rides the
+  desktop-shell/packaging track (#21) for the bundling cost.
+- **B4 — library-level citation-context classifier (scite analogue)** *(needs a detail doc; design home: §B4)* —
+  classify whether a *citing* paper supports/contrasts/mentions a claim across the citation graph, locally + grounded
+  in retrieved passages. **Distinct from** the gap-finder (#29, discovery) and Track C (#30, the user's own draft).
+  Sequenced **after Track C + A9**. THEORY contract + Auditability gate (#13): signal not verdict, verbatim quotes +
+  confidence.
+- **B5 — mobile / tablet reading** — a read-only mobile companion built on inc-101 read mode; directional, post-V1.
+
+**C — reserved / declined (recorded; do NOT build or re-propose):** folders/collections hierarchy (**superseded by
+axes** — coherent set → axis, arbitrary flat set → tag, "read this week" → needs-review filter; the A7 Curated Axis is
+the manual-container path); arbitrary manual **nesting** (declined — when nesting lands it's recursive *semantic*
+sub-axes, the My-Pubs subheading prototype); **PDF translation** (out of scope); cloud multi-agent "write my review",
+website-bibliography publishing, mind-mapping/Alfred/Todoist, embedded closed models, casual data-from-charts. **(NB:
+the source doc's "optional E2E sync — reserved, not planned" line is now SUPERSEDED — opt-in E2E sync shipped incs
+197–202; see #15.)**
+
+**D — open proposal (decide later):** a **scratch / ephemeral axis** (non-persisting / auto-expiring) to absorb cheap
+throwaway intersection-axes — may already be covered by "just delete the throwaway axis" + the A3 full-text box.
+*(Fold into Open proposals; pairs with #16.)*
+
+---
+
 ## Shipped — breadcrumbs only (full detail in `INCREMENT-BACKLOG-DONE.md`)
 
 - ⭐ Star key publications + scope the AI summary to starred — inc 84
@@ -427,3 +515,10 @@ maintenance cost. *(inc 193 already shipped the lighter alternative: a Cloudflar
 - **Auto-select top library paper on load** (138); **accordion tabs-within-a-section** — Tags→AXES tab, METHODS reorder (139)
 - **End-user experience pass (rule #11 + EXPERIENCE-PASS.md)** + persona-agent mechanism (140); the build-and-test slate — statcheck path (141), determinate progress (142), durable keyword deletion (143), export highlights (144), discoverable focus query (145)
 - **BYOK arc — inc 146–152 (#10 + #39):** Gemini key in Settings (146); Test-key (147); synthesis "AI is off" nudge (148); multi-provider engine Gemini/OpenAI/Anthropic/local (149) + Settings provider UI (150); validation disclaimer + help-assistant toggle (151); OS-keychain storage (152)
+- **Track C SP1 (#30) — inc 156–159:** highlight-to-suggest/evaluate engine + `/citations/suggest` + Cite pane (156); LibreOffice Suggest macro (157); formatted "Cite as…" in the Cite pane (159) *(SP2 beyond-library still open)*
+- **Contact email / metadata-access in Settings** (158); **library folder watched-by-default** (160); **non-destructive paper merge** (161, part of #17)
+- **Word-processor adapters (#33/#34) — inc 162–171, 193:** LibreOffice one-click .oxt v2 (162); Word add-in Office.js SP1–3 (164–166); "Coming soon" placeholders (163); Google Docs SP0 remote-access auth (168) + cloudflared bridge (169) + Apps Script add-on SP2/SP3 (170–171) + setup automation (193)
+- **Reading-pane run (#4-adjacent) — inc 175–179:** remembered scroll (175); Notes-panel split + filter/search (176); next/prev-mark nav (177) + hotkeys (179)
+- **README front-door draft (#11)** (178); **credit-the-lineage — statcheck slice + shared `.method-credit`** (180, #8) + **dependency NOTICE pass** (181, #8 Lane B)
+- **Literature discovery (#28) — inc 182–192:** Search tab (Crossref + PubMed + axis-relevance highlight, 183–186) + Feed tab (bioRxiv/medRxiv + PubMed-keyword + journal-ISSN, 187–192)
+- **Accounts arc (#15) — inc 194–202:** Sign in with ORCID SP1 (194) + superuser flag & runbook (195) + email/Google SP2 (196); **opt-in E2E sync SP3** — crypto/changeset (197), `sync_uid` engine + FK + link + natural-key (198–201), reference sync-server + transport + opt-in `/sync/*` (202)
