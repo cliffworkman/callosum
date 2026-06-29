@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 188) — added a "Following sources (Feed)" help section (follow bioRxiv categories, Refresh to poll, read/star/save, pull-only/opt-in); covers inc 186 (PubMed in Discover) + inc 184/185 + the inc 175–179 reading-pane catch-up. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 189) — the "Following sources (Feed)" section now covers the source picker (bioRxiv category + PubMed search); covers inc 188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-28 — Increment 189: Feed SP2c-1 — PubMed-keyword source + data-driven Follow picker
+- **Files:** `app/backend/discovery/pubmed_provider.py` (+ PubMedKeywordFeedSource + record_to_feed_entry + sort param),
+  `app/backend/discovery/feed.py` (FeedSource metadata + source_meta + register PubMed), `app/backend/discovery/biorxiv_source.py`
+  (categories + metadata), `app/backend/api/routers/feed.py` (source_meta on GET), `app/frontend/js/30e_feed.jsx` +
+  `styles.css` (data-driven source picker), `callosum-app.html`, `app/backend/help/help_content.md`,
+  `tests/test_feed.py`, `.claude/security-audits/2026-06-28_feed.md` (addendum), `INCREMENT-189-NOTES.md`.
+- **What:** the Feed is now multi-source — a saved **PubMed query** joins bioRxiv (esearch sorted by date); the Follow
+  UI is a **data-driven** source picker (a `<select>` + per-kind placeholder/datalist from backend `source_meta`), so
+  the next source needs no frontend edit.
+- **Why:** backlog #28 SP2c — more Feed sources + the multi-kind UI the registry was built for.
+- **Gates:** pytest 651 (+1); ruff clean; QA surface 132/132 API + 655/655 FE, 0 uncovered; audit addendum PASS
+  (PubMed reuses the audited NCBI host; sort=date is a bound param; source_meta non-secret). Live spot-check (crispr
+  off-target → 3 recent) + headed-verified (2 fake sources: select shows both, switch updates placeholder, Follow →
+  PubMed-tagged sub, Refresh polls; 0 console/page/genai). No migration/dependency/endpoint.
+- **Revert:** drop PubMedKeywordFeedSource + the register line + the source_meta/metadata + the frontend picker rework.
+
 ## 2026-06-28 — Increment 188: literature Feed SP2b — the Feed tab UI
 - **Files:** `app/frontend/js/30e_feed.jsx` (new — FeedPane), `app/frontend/js/30c_frame.jsx` (Feed tab + pane),
   `app/frontend/styles.css` (.feed-* recipe), `callosum-app.html`, `app/backend/help/help_content.md`,

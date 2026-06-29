@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 188** (see Increment workflow) with **650 pytest tests
+It is currently at **Increment 189** (see Increment workflow) with **651 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -258,10 +258,11 @@ callosum/
    │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131])
 │   │   ├── discovery/             (providers.py [SourceProvider registry + normalized Item + cross-provider dedup],
    │   │                          crossref_provider.py [Crossref /works keyword search], pubmed_provider.py [NCBI
-   │   │                          E-utilities esearch→esummary, SP1a inc 186], search.py [run_search + metadata-only
-   │   │                          save], relevance.py [axis-relevance highlight — local, SP1b inc 185]; #28 Search, inc 183;
-   │   │                          feed.py [Feed engine: FeedSource registry + refresh + read view] + biorxiv_source.py
-   │   │                          [bioRxiv-by-category Feed source]; #28 Feed SP2a, inc 187)
+   │   │                          E-utilities esearch→esummary: PubMed Search provider (SP1a inc 186) + PubMedKeywordFeedSource
+   │   │                          (SP2c inc 189)], search.py [run_search + metadata-only save], relevance.py [axis-relevance
+   │   │                          highlight — local, SP1b inc 185]; #28 Search, inc 183; feed.py [Feed engine: FeedSource
+   │   │                          registry + source_meta + refresh + read view] + biorxiv_source.py [bioRxiv-by-category
+   │   │                          Feed source]; #28 Feed SP2a/2c, inc 187/189)
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
@@ -836,7 +837,34 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 188 (literature Feed SP2b — the Feed tab UI): the frontend half of #28 SP2
+*Last updated: 2026-06-28 — increment 189 (Feed SP2c-1 — the PubMed-keyword source + a data-driven Follow picker):
+makes the Feed **multi-source**. New **`PubMedKeywordFeedSource`** (`pubmed_provider.py`, `kind="pubmed_query"`): a
+saved PubMed query as a Feed source — polls **`esearch` sorted by date** (`_eutils_search` gained a `sort` param,
+default "relevance" for Search) → esummary → `record_to_feed_entry` (→ `FeedEntry`, posted_date from `sortpubdate`,
+drops no-title-and-no-DOI); reuses the **already-audited** NCBI host (constant host, query a bound param → no SSRF).
+`FeedSource` gained optional display metadata (`label`/`placeholder`/`suggestions`); **`FeedRegistry.source_meta`** +
+`GET /feed/subscriptions`'s new `source_meta` field drive a **data-driven Follow picker** (a source `<select>` +
+per-kind placeholder/datalist), so **adding the next Feed source is one backend `register()` — no frontend edit** (the
+registry promise extended to the UI; `BIORXIV_CATEGORIES` moved to the backend). `build_default_feed_registry` now
+registers bioRxiv + PubMed-keyword. `30e_feed.jsx`: the picker + a source tag on each subscription chip
+(`.feed-sub-kind`); bioRxiv categories lowercased, PubMed queries keep casing. **Public-metadata egress** (PubMed) —
+NOT the Gemini gate. **Audit:** addendum to `2026-06-28_feed.md` **PASS** (audited host; sort=date a bound param;
+`source_meta` non-secret display metadata; no new endpoint/migration/dependency). **Principles non-triggering** (a
+source + a picker; pull-only/augment-never-filter unchanged). **Rule #10:** no new API/FE surface beyond the existing
+`/feed/*` + `30e_feed.jsx` (the new `<select>`/datalist claimed by `route_44`) → surface **132/132 API + 655/655 FE, 0
+uncovered**. pytest **651** (+1 net: a PubMed-feed mapping/sort=date test; the default-registry test now asserts both
+sources + `source_meta`; the endpoint test asserts `source_meta`); `ruff` check + `format --check` clean; **no
+migration/dependency/endpoint**; help corpus's Feed section now covers the source picker (`HELP-DOCS-SYNCED` → 189).
+**Live spot-check** (`PubMedKeywordFeedSource.fetch("crispr off-target", limit=3)` → 3 recent date-sorted records) +
+**headed-verified, no egress** (`.local/visual/drive_inc189_feedsources.py` — two fake sources: the source `<select>`
+shows both labels, switching to PubMed updates the placeholder, **Follow** → a PubMed-tagged subscription, **Refresh** →
+1 polled item; 0 console/page/genai). **GOTCHA (headed harness):** kill stray `uvicorn`/`inc18*` python between rapid
+re-runs (a lingering server holds the throwaway DB/port → flaky). Notes: `INCREMENT-189-NOTES.md`. **NEXT (#28
+optional/later): SP2c-2** a journal-by-ISSN Feed source (Crossref `/works?filter=issn:…&sort=published`) — one
+`register()` + its metadata, the Follow picker already supports it, its own audit; **SP2c-3** an optional auto-refresh
+cadence + PubMed abstracts via efetch.
+
+Earlier — increment 188 (literature Feed SP2b — the Feed tab UI): the frontend half of #28 SP2
 (backend = inc 187); **completes #28 (Search + Feed)**. New **`app/frontend/js/30e_feed.jsx`** (`FeedPane`): a
 persistent **Feed** center tab (beside Discover) — follow bioRxiv categories (chips with an unfollow ×; a `<datalist>`
 of common categories) → **Follow** (`POST /feed/subscriptions`) → **Refresh** (async poll) → triage the polled items:

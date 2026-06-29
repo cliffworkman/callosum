@@ -15,6 +15,29 @@ from app.backend.discovery.providers import normalized_title
 
 BIORXIV = "https://api.biorxiv.org"
 
+# Common bioRxiv subject categories, surfaced to the Follow UI as a datalist (the value is free text, lowercased).
+BIORXIV_CATEGORIES = [
+    "neuroscience",
+    "bioinformatics",
+    "genetics",
+    "genomics",
+    "microbiology",
+    "cell biology",
+    "biophysics",
+    "evolutionary biology",
+    "ecology",
+    "bioengineering",
+    "developmental biology",
+    "immunology",
+    "molecular biology",
+    "cancer biology",
+    "plant biology",
+    "systems biology",
+    "synthetic biology",
+    "physiology",
+    "pharmacology and toxicology",
+]
+
 
 class CollectionFetcher(Protocol):
     def __call__(self, window_days: int, max_pages: int, *, timeout: float) -> list[dict[str, Any]]: ...
@@ -66,6 +89,9 @@ def record_to_entry(rec: dict[str, Any]) -> FeedEntry | None:
 
 class BioRxivFeedSource:
     kind = "biorxiv_category"
+    label = "bioRxiv category"
+    placeholder = "e.g. neuroscience"
+    suggestions = BIORXIV_CATEGORIES
 
     def __init__(
         self,

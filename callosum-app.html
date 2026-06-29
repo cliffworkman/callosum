@@ -1150,6 +1150,7 @@
     color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
     border-radius: var(--radius-pill); padding: 2px 4px 2px 9px;
   }
+  .feed-sub-kind { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .03em; opacity: .7; margin-right: 5px; }
   .feed-sub-x { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
   .feed-sub-x:hover { color: var(--flag-ink); }
   .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
@@ -5565,29 +5566,10 @@
       expanded.has(it.dedup_key) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null
     ))));
   }
-  const BIORXIV_CATEGORIES = [
-    "neuroscience",
-    "bioinformatics",
-    "genetics",
-    "genomics",
-    "microbiology",
-    "cell biology",
-    "biophysics",
-    "evolutionary biology",
-    "ecology",
-    "bioengineering",
-    "developmental biology",
-    "immunology",
-    "molecular biology",
-    "cancer biology",
-    "plant biology",
-    "systems biology",
-    "synthetic biology",
-    "physiology",
-    "pharmacology and toxicology"
-  ];
   function FeedPane({ onSaved }) {
     const [subs, setSubs] = useState([]);
+    const [sourceMeta, setSourceMeta] = useState([]);
+    const [selKind, setSelKind] = useState("");
     const [cat, setCat] = useState("");
     const [items, setItems] = useState([]);
     const [unread, setUnread] = useState(0);
@@ -5597,7 +5579,12 @@
     const [expanded, setExpanded] = useState(() => /* @__PURE__ */ new Set());
     const loadSubs = useCallback(async () => {
       const r = await api("/feed/subscriptions");
-      if (r.ok) setSubs(r.data.subscriptions || []);
+      if (r.ok) {
+        setSubs(r.data.subscriptions || []);
+        const meta = r.data.source_meta || [];
+        setSourceMeta(meta);
+        setSelKind((k) => k || (meta[0] ? meta[0].kind : ""));
+      }
     }, []);
     const loadItems = useCallback(async () => {
       const qs = filter === "unread" ? "?unread=true" : filter === "starred" ? "?starred=true" : "";
@@ -5614,14 +5601,14 @@
       loadItems();
     }, [loadItems]);
     const follow = useCallback(async () => {
-      const value = cat.trim().toLowerCase();
-      if (!value) return;
-      const r = await apiPost("/feed/subscriptions", { kind: "biorxiv_category", value, label: value });
+      const value = selKind === "biorxiv_category" ? cat.trim().toLowerCase() : cat.trim();
+      if (!value || !selKind) return;
+      const r = await apiPost("/feed/subscriptions", { kind: selKind, value, label: value });
       if (r.ok) {
         setCat("");
         loadSubs();
       }
-    }, [cat, loadSubs]);
+    }, [cat, selKind, loadSubs]);
     const unfollow = useCallback(async (id) => {
       await apiDelete(`/feed/subscriptions/${id}`);
       loadSubs();
@@ -5683,13 +5670,17 @@
         return n;
       });
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "discover feed" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, subs.map((s) => /* @__PURE__ */ React.createElement("span", { key: s.id, className: "feed-sub", title: `bioRxiv \xB7 ${s.value}` }, s.label || s.value, /* @__PURE__ */ React.createElement("button", { className: "feed-sub-x", title: "Unfollow", onClick: () => unfollow(s.id) }, "\xD7"))), !subs.length ? /* @__PURE__ */ React.createElement("span", { className: "discover-hint" }, "Follow a bioRxiv category to start your feed.") : null), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "discover feed" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, subs.map((s) => {
+      const meta = sourceMeta.find((m) => m.kind === s.kind);
+      const tag = (meta ? meta.label : s.kind).split(" ")[0];
+      return /* @__PURE__ */ React.createElement("span", { key: s.id, className: "feed-sub", title: `${meta ? meta.label : s.kind} \xB7 ${s.value}` }, /* @__PURE__ */ React.createElement("span", { className: "feed-sub-kind" }, tag), s.label || s.value, /* @__PURE__ */ React.createElement("button", { className: "feed-sub-x", title: "Unfollow", onClick: () => unfollow(s.id) }, "\xD7"));
+    }), !subs.length ? /* @__PURE__ */ React.createElement("span", { className: "discover-hint" }, "Follow a source to start your feed.") : null), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, sourceMeta.length > 1 ? /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: selKind, onChange: (e) => setSelKind(e.target.value) }, sourceMeta.map((m) => /* @__PURE__ */ React.createElement("option", { key: m.kind, value: m.kind }, m.label))) : null, /* @__PURE__ */ React.createElement(
       "input",
       {
         value: cat,
         onChange: (e) => setCat(e.target.value),
-        list: "biorxiv-cats",
-        placeholder: "Follow a bioRxiv category (e.g. neuroscience)\u2026",
+        list: "feed-source-suggestions",
+        placeholder: (sourceMeta.find((m) => m.kind === selKind) || {}).placeholder || "Follow a source\u2026",
         onKeyDown: (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -5697,7 +5688,7 @@
           }
         }
       }
-    ), /* @__PURE__ */ React.createElement("datalist", { id: "biorxiv-cats" }, BIORXIV_CATEGORIES.map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !cat.trim() }, "Follow"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: refresh, disabled: refreshing || !subs.length }, refreshing ? "Refreshing\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null)), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title)), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, ((sourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !cat.trim() }, "Follow"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: refresh, disabled: refreshing || !subs.length }, refreshing ? "Refreshing\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null)), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title)), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "feed-star" + (it.is_starred ? " on" : ""),

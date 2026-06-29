@@ -1126,6 +1126,7 @@
     color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line);
     border-radius: var(--radius-pill); padding: 2px 4px 2px 9px;
   }
+  .feed-sub-kind { font-family: var(--mono); font-size: 9px; text-transform: uppercase; letter-spacing: .03em; opacity: .7; margin-right: 5px; }
   .feed-sub-x { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
   .feed-sub-x:hover { color: var(--flag-ink); }
   .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }

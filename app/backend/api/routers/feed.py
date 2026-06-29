@@ -37,7 +37,8 @@ def list_subscriptions(request: Request, conn: Connection = Depends(get_connecti
         }
         for s in feed_repo.list_subscriptions(conn)
     ]
-    return {"subscriptions": subs, "kinds": request.app.state.feed_registry.kinds}
+    registry = request.app.state.feed_registry
+    return {"subscriptions": subs, "kinds": registry.kinds, "source_meta": registry.source_meta}
 
 
 @router.post("/feed/subscriptions")

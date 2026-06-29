@@ -3,15 +3,10 @@
 // AI never filters: the complete polled list is shown; read/starred are the user's own state. Save is metadata-only
 // (reuses /discovery/save; no PDF). Function declarations hoist in the IIFE, so 30c_frame references this.
 
-// A handful of common bioRxiv categories for the add-a-source datalist (the value is free text, lowercased).
-const BIORXIV_CATEGORIES = [
-  "neuroscience", "bioinformatics", "genetics", "genomics", "microbiology", "cell biology", "biophysics",
-  "evolutionary biology", "ecology", "bioengineering", "developmental biology", "immunology", "molecular biology",
-  "cancer biology", "plant biology", "systems biology", "synthetic biology", "physiology", "pharmacology and toxicology",
-];
-
 function FeedPane({ onSaved }) {
   const [subs, setSubs] = useState([]);
+  const [sourceMeta, setSourceMeta] = useState([]); // [{kind,label,placeholder,suggestions}] — drives the Follow picker
+  const [selKind, setSelKind] = useState("");
   const [cat, setCat] = useState("");
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
@@ -22,7 +17,12 @@ function FeedPane({ onSaved }) {
 
   const loadSubs = useCallback(async () => {
     const r = await api("/feed/subscriptions");
-    if (r.ok) setSubs(r.data.subscriptions || []);
+    if (r.ok) {
+      setSubs(r.data.subscriptions || []);
+      const meta = r.data.source_meta || [];
+      setSourceMeta(meta);
+      setSelKind(k => k || (meta[0] ? meta[0].kind : ""));
+    }
   }, []);
 
   const loadItems = useCallback(async () => {
@@ -35,11 +35,12 @@ function FeedPane({ onSaved }) {
   useEffect(() => { loadItems(); }, [loadItems]);
 
   const follow = useCallback(async () => {
-    const value = cat.trim().toLowerCase();
-    if (!value) return;
-    const r = await apiPost("/feed/subscriptions", { kind: "biorxiv_category", value, label: value });
+    // bioRxiv categories are lowercase in the API; PubMed queries keep the user's casing.
+    const value = selKind === "biorxiv_category" ? cat.trim().toLowerCase() : cat.trim();
+    if (!value || !selKind) return;
+    const r = await apiPost("/feed/subscriptions", { kind: selKind, value, label: value });
     if (r.ok) { setCat(""); loadSubs(); }
-  }, [cat, loadSubs]);
+  }, [cat, selKind, loadSubs]);
 
   const unfollow = useCallback(async (id) => {
     await apiDelete(`/feed/subscriptions/${id}`);
@@ -102,21 +103,32 @@ function FeedPane({ onSaved }) {
     <div className="discover feed">
       <div className="pane-head">
         <div className="feed-subs">
-          {subs.map(s => (
-            <span key={s.id} className="feed-sub" title={`bioRxiv · ${s.value}`}>
-              {s.label || s.value}
-              <button className="feed-sub-x" title="Unfollow" onClick={() => unfollow(s.id)}>×</button>
-            </span>
-          ))}
-          {!subs.length ? <span className="discover-hint">Follow a bioRxiv category to start your feed.</span> : null}
+          {subs.map(s => {
+            const meta = sourceMeta.find(m => m.kind === s.kind);
+            const tag = (meta ? meta.label : s.kind).split(" ")[0];
+            return (
+              <span key={s.id} className="feed-sub" title={`${meta ? meta.label : s.kind} · ${s.value}`}>
+                <span className="feed-sub-kind">{tag}</span>{s.label || s.value}
+                <button className="feed-sub-x" title="Unfollow" onClick={() => unfollow(s.id)}>×</button>
+              </span>
+            );
+          })}
+          {!subs.length ? <span className="discover-hint">Follow a source to start your feed.</span> : null}
         </div>
         <div className="searchbar">
+          {sourceMeta.length > 1 ? (
+            <select className="lib-sort" value={selKind} onChange={e => setSelKind(e.target.value)}>
+              {sourceMeta.map(m => <option key={m.kind} value={m.kind}>{m.label}</option>)}
+            </select>
+          ) : null}
           <input
-            value={cat} onChange={e => setCat(e.target.value)} list="biorxiv-cats"
-            placeholder="Follow a bioRxiv category (e.g. neuroscience)…"
+            value={cat} onChange={e => setCat(e.target.value)} list="feed-source-suggestions"
+            placeholder={(sourceMeta.find(m => m.kind === selKind) || {}).placeholder || "Follow a source…"}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); follow(); } }}
           />
-          <datalist id="biorxiv-cats">{BIORXIV_CATEGORIES.map(c => <option key={c} value={c} />)}</datalist>
+          <datalist id="feed-source-suggestions">
+            {((sourceMeta.find(m => m.kind === selKind) || {}).suggestions || []).map(c => <option key={c} value={c} />)}
+          </datalist>
           <button className="btn btn-ghost" onClick={follow} disabled={!cat.trim()}>Follow</button>
           <button className="btn btn-primary" onClick={refresh} disabled={refreshing || !subs.length}>
             {refreshing ? "Refreshing…" : "Refresh"}

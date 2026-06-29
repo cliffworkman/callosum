@@ -96,8 +96,43 @@ def test_biorxiv_fetch_filters_category_and_dedups():
     assert src.fetch("", limit=10) == []  # blank category → no fetch
 
 
-def test_default_feed_registry_registers_biorxiv():
-    assert build_default_feed_registry().kinds == ["biorxiv_category"]
+def test_default_feed_registry_registers_sources():
+    reg = build_default_feed_registry()
+    assert reg.kinds == ["biorxiv_category", "pubmed_query"]  # SP2c: PubMed-keyword joins bioRxiv
+    meta = {m["kind"]: m for m in reg.source_meta}
+    assert meta["biorxiv_category"]["label"] == "bioRxiv category" and meta["biorxiv_category"]["suggestions"]
+    assert meta["pubmed_query"]["label"] == "PubMed search"
+
+
+# ---- PubMed-keyword Feed source (SP2c, inc 189) ----------------------------
+
+
+def test_pubmed_feed_record_and_fetch_sorted_by_date():
+    from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource, record_to_feed_entry
+
+    rec = {
+        "uid": "42",
+        "title": "A Recent Paper.",
+        "fulljournalname": "J. Recent",
+        "sortpubdate": "2026/06/20 00:00",
+        "authors": [{"name": "Smith J"}],
+        "articleids": [{"idtype": "doi", "value": "10.1/x"}],
+    }
+    e = record_to_feed_entry(rec)
+    assert e.doi == "10.1/x" and e.posted_date == "2026/06/20" and e.dedup_key == "doi:10.1/x"
+    assert e.journal == "J. Recent" and e.url == "https://pubmed.ncbi.nlm.nih.gov/42/"
+    assert record_to_feed_entry({"uid": "1", "title": "", "articleids": []}) is None  # no title + no doi → dropped
+
+    captured = {}
+
+    def fake(query, retmax, *, email, timeout, sort):
+        captured["sort"] = sort
+        return [rec, {**rec, "uid": "43", "articleids": [{"idtype": "doi", "value": "10.1/y"}]}]
+
+    src = PubMedKeywordFeedSource(fetcher=fake)
+    items = src.fetch("crispr", limit=10)
+    assert [i.doi for i in items] == ["10.1/x", "10.1/y"] and captured["sort"] == "date"  # newest-first poll
+    assert src.fetch("   ", limit=10) == []  # blank query → no fetch
 
 
 # ---- the refresh + read service -------------------------------------------
@@ -151,7 +186,11 @@ def test_feed_endpoints(temp_db_url):
     r = client.post("/feed/subscriptions", json={"kind": "test_source", "value": "x", "label": "X"})
     assert r.status_code == 200
     sid = r.json()["id"]
-    assert client.get("/feed/subscriptions").json()["kinds"] == ["test_source"]
+    listing = client.get("/feed/subscriptions").json()
+    assert listing["kinds"] == ["test_source"]
+    assert listing["source_meta"] == [
+        {"kind": "test_source", "label": "test_source", "placeholder": "", "suggestions": []}
+    ]
 
     jid = client.post("/feed/refresh").json()["job_id"]
     data = {}

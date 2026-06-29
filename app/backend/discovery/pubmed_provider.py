@@ -12,7 +12,8 @@ from typing import Any, Protocol
 import httpx
 
 from app.backend.app_settings import resolved_mailto
-from app.backend.discovery.providers import Item
+from app.backend.discovery.feed import FeedEntry
+from app.backend.discovery.providers import Item, normalized_title
 
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 TOOL = "callosum"
@@ -23,12 +24,18 @@ class SearchFetcher(Protocol):
     def __call__(self, query: str, retmax: int, *, email: str | None, timeout: float) -> list[dict[str, Any]]: ...
 
 
-def _eutils_search(query: str, retmax: int, *, email: str | None, timeout: float) -> list[dict[str, Any]]:
-    """esearch (query → PMIDs) then esummary (PMIDs → records). Constant host; the query is a bound *param*."""
+def _eutils_search(
+    query: str, retmax: int, *, email: str | None, timeout: float, sort: str = "relevance"
+) -> list[dict[str, Any]]:
+    """esearch (query → PMIDs) then esummary (PMIDs → records). Constant host; the query is a bound *param*. The
+    Search provider sorts by relevance; the Feed source passes ``sort="date"`` for newest-first."""
     common: dict[str, Any] = {"db": "pubmed", "retmode": "json", "tool": TOOL}
     if email:
         common["email"] = email
-    es = httpx.get(f"{EUTILS}/esearch.fcgi", params={**common, "term": query, "retmax": retmax}, timeout=timeout)
+    es_params = {**common, "term": query, "retmax": retmax}
+    if sort:
+        es_params["sort"] = sort
+    es = httpx.get(f"{EUTILS}/esearch.fcgi", params=es_params, timeout=timeout)
     if es.status_code != 200:
         return []
     body = es.json() if es.headers.get("content-type", "").startswith("application/json") else {}
@@ -102,3 +109,55 @@ class PubMedSearchProvider:
         raw = self.fetcher(q, retmax, email=self.email, timeout=self.timeout) or []
         items = [it for it in (summary_to_item(r) for r in raw) if it is not None]
         return items[:retmax]
+
+
+def record_to_feed_entry(rec: dict[str, Any]) -> FeedEntry | None:
+    """Map one esummary record → a FeedEntry (the Feed's stored subset). Newest-first ordering uses posted_date."""
+    if not isinstance(rec, dict):
+        return None
+    title = (rec.get("title") or "").strip().rstrip(".")
+    pmid = str(rec.get("uid") or "").strip() or None
+    doi = _doi(rec)
+    if not title and not doi:
+        return None
+    dedup_key = f"doi:{doi}" if doi else (f"pmid:{pmid}" if pmid else f"title:{normalized_title(title)}")
+    pubdate = str(rec.get("sortpubdate") or rec.get("pubdate") or rec.get("epubdate") or "").strip()
+    return FeedEntry(
+        dedup_key=dedup_key,
+        title=title or str(doi or pmid),
+        doi=doi,
+        authors=_authors(rec),
+        journal=(rec.get("fulljournalname") or rec.get("source") or "").strip() or None,
+        year=_year(rec),
+        url=(f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else None),
+        posted_date=(pubdate.split(" ")[0] or None),  # sortpubdate is "YYYY/MM/DD HH:MM"
+    )
+
+
+class PubMedKeywordFeedSource:
+    """A saved PubMed query as a Feed source (SP2c, inc 189). Polls esearch sorted by date → recent matches."""
+
+    kind = "pubmed_query"
+    label = "PubMed search"
+    placeholder = "a PubMed query, e.g. CRISPR off-target"
+    suggestions: list[str] = []
+
+    def __init__(self, fetcher: SearchFetcher | None = None, email: str | None = None, timeout: float = 15.0) -> None:
+        self.fetcher = fetcher or _eutils_search
+        self.email = email if email is not None else resolved_mailto("CALLOSUM_CROSSREF_MAILTO")
+        self.timeout = timeout
+
+    def fetch(self, value: str, *, limit: int) -> list[FeedEntry]:
+        q = (value or "").strip()
+        if not q:
+            return []
+        retmax = min(max(limit, 1), 50)
+        raw = self.fetcher(q, retmax, email=self.email, timeout=self.timeout, sort="date") or []
+        seen: set[str] = set()
+        out: list[FeedEntry] = []
+        for entry in (record_to_feed_entry(r) for r in raw):
+            if entry is None or entry.dedup_key in seen:
+                continue
+            seen.add(entry.dedup_key)
+            out.append(entry)
+        return out[:retmax]

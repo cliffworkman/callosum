@@ -50,6 +50,10 @@ class FeedEntry:
 @runtime_checkable
 class FeedSource(Protocol):
     kind: str
+    # Optional display metadata the Follow UI renders (a data-driven picker → adding a source needs no frontend edit):
+    label: str  # e.g. "bioRxiv category"
+    placeholder: str  # e.g. "neuroscience"
+    suggestions: list[str]  # optional datalist values (e.g. the bioRxiv categories)
 
     def fetch(self, value: str, *, limit: int) -> list[FeedEntry]: ...
 
@@ -69,12 +73,27 @@ class FeedRegistry:
     def kinds(self) -> list[str]:
         return list(self._sources)
 
+    @property
+    def source_meta(self) -> list[dict[str, Any]]:
+        """Per-kind display metadata for the Follow UI (a source without metadata still works — defaults applied)."""
+        return [
+            {
+                "kind": s.kind,
+                "label": getattr(s, "label", s.kind),
+                "placeholder": getattr(s, "placeholder", ""),
+                "suggestions": list(getattr(s, "suggestions", []) or []),
+            }
+            for s in self._sources.values()
+        ]
+
 
 def build_default_feed_registry() -> FeedRegistry:
-    """The shipped feed sources. SP2: bioRxiv-by-category. Journal-by-ISSN / PubMed-keyword register here later."""
+    """The shipped feed sources. bioRxiv-by-category (SP2a) + PubMed-keyword (SP2c). Journal-by-ISSN registers here
+    later — adding a source is one `register()`, no endpoint/UI edit (the Follow picker is data-driven)."""
     from app.backend.discovery.biorxiv_source import BioRxivFeedSource
+    from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource
 
-    return FeedRegistry().register(BioRxivFeedSource())
+    return FeedRegistry().register(BioRxivFeedSource()).register(PubMedKeywordFeedSource())
 
 
 def refresh_subscriptions(conn: Connection, registry: FeedRegistry, *, limit_per: int = 40) -> dict[str, Any]:
