@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 198: accounts SP3b — the client sync engine + `sync_uid` identity (top-level collections)
+- **Files:** `app/backend/sync/engine.py` (new), `app/backend/sync/changeset.py` (revised → sync_uid keying),
+  `app/backend/persistence/schema_sync.py` (+`sync_identity`) + re-export in `schema.py`,
+  `alembic/versions/0023_sync_identity.py` (new), `tests/test_sync_engine.py` (new, +4),
+  `tests/test_sync_crypto.py` (the changeset test updated → sync_uid), `.claude/security-audits/2026-06-29_sync-engine-sp3b.md`
+  (new), CLAUDE (layout/decision-log/footer), `INCREMENT-198-NOTES.md`.
+- **What:** the **client sync engine** (pull → decrypt → merge → apply → push) over an injectable `SyncTransport`
+  (a fake in tests; **no live egress** — the reference server is the next slice), keyed on a global **`sync_uid`**
+  (UUID, the new `sync_identity` map) so two devices with independent local ids converge. Scope = the top-level,
+  FK-free collections (papers, tags, axes); apply is UPDATE-in-place/INSERT-and-bind/DELETE-and-forget by sync_uid,
+  conflicts surfaced into `sync_conflicts` (A4), failing closed on a foreign/tampered blob.
+- **Why:** SP3b — the maintainer chose "engine first, server next" + "top-level collections first". The cross-device
+  identity problem (local int ids aren't global) needed the `sync_uid` layer; the engine proves convergence locally
+  before any ciphertext leaves.
+- **Gates:** pytest **688 passed, 1 skipped** (+4 engine tests; SP3a changeset test repointed to sync_uid); ruff
+  clean; QA surface unchanged (132/132 API + 661/661 FE, no new route); audit PASS; migration 0023 (additive/guarded,
+  head via `alembic_head()`); no new dependency (`uuid`/`json`/`cryptography` already present); no egress, no UI.
+- **Revert:** `git revert` the inc-198 commit; the 0023 migration is additive (no down-migration; the table is
+  local-only + unused without the engine). `sync_identity` is harmless if left.
+
 ## 2026-06-29 — Increment 197: accounts SP3a — E2E sync crypto + local change-tracking foundation (no egress)
 - **Files:** `app/backend/sync/` (new: `__init__.py`, `crypto.py`, `changeset.py`), `app/backend/persistence/schema_sync.py`
   (new) + re-export in `schema.py`, `alembic/versions/0022_sync.py` (new), `tests/test_sync_crypto.py` (new, +14),

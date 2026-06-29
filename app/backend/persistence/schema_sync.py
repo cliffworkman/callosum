@@ -30,6 +30,19 @@ sync_state = sa.Table(
     sa.PrimaryKeyConstraint("collection", "record_id", name="pk_sync_state"),
 )
 
+# Local↔global identity map (SP3b): a stable `sync_uid` (UUID) per syncable row, so sync keys on a GLOBAL id instead
+# of the device-local auto-increment ``id`` (which differs across devices). Keeps the domain tables untouched + is
+# the layer FK-translation (the follow-on) reuses to resolve a referenced row's sync_uid → its local id. Local-only.
+sync_identity = sa.Table(
+    "sync_identity",
+    metadata,
+    sa.Column("collection", sa.String(length=60), nullable=False),
+    sa.Column("local_id", sa.String(length=120), nullable=False),
+    sa.Column("sync_uid", sa.String(length=64), nullable=False),
+    sa.PrimaryKeyConstraint("collection", "local_id", name="pk_sync_identity"),
+    sa.UniqueConstraint("collection", "sync_uid", name="uq_sync_identity_collection_uid"),
+)
+
 # The losing side of a last-write-wins merge — kept (local, plaintext, never synced) so the user can recover it; the
 # Conflicts review (SP3c) reads here. Surfacing-not-clobbering is the A4 alignment for multi-device editing.
 sync_conflicts = sa.Table(

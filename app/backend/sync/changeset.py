@@ -1,59 +1,62 @@
-"""SP3a — local change-tracking + the last-write-wins, conflict-surfacing merge core (pure of network/crypto).
+"""SP3a/SP3b — local change-tracking + the last-write-wins, conflict-surfacing merge core (pure of network/crypto),
+keyed on a device-independent ``sync_uid``.
+
+**Identity is global, not local (SP3b):** sync keys every record on a stable ``sync_uid`` (UUID) held in the
+``sync_identity`` map (collection, local_id ↔ sync_uid), NOT the device-local auto-increment ``id`` (which differs
+across devices). The payload that travels is the row **minus its local PK** — so the same logical record has the same
+content on every device. ``ensure_identities`` assigns a uid lazily to any current row lacking one.
 
 **Change-tracking is a hash-diff, not write-hooks:** at sync time, hash each syncable row's canonical payload and
-compare to ``sync_state`` — rows whose hash differs (or are new) are changes; rows gone from the domain table but
-present in ``sync_state`` are deletes (tombstones). No per-write instrumentation.
+compare to ``sync_state`` (keyed on sync_uid) — rows whose hash differs (or are new) are changes; rows gone from the
+domain table but present in ``sync_state`` are deletes (tombstones). No per-write instrumentation.
 
-**Merge is per-record last-write-wins, but conflicts are surfaced:** when a remote record is newer than local AND
-the same record was also changed locally since the last sync, remote (the higher version) wins **and** the local
-losing payload is returned as a ``Conflict`` so it can be kept + recovered (value A4) — never silently dropped.
+**Merge is per-record last-write-wins, but conflicts are surfaced:** when a remote record is newer than local AND the
+same record was also changed locally since the last sync, remote (the higher version) wins **and** the local losing
+payload is returned as a ``Conflict`` so it can be kept + recovered (value A4) — never silently dropped.
 
-The syncable *set* (``SYNCABLE``) is the user-authored + bibliographic data; derived data (embeddings, signals,
-caches) and PDF bytes are NOT here — they're rebuilt/re-linked locally. Manual axis assignments + the profile are
-finalized in SP3b (they need a filtered/field-selected collection).
+The syncable *set* (``SYNCABLE``) here is the **top-level, FK-free** user-authored data (papers, tags, axes); derived
+data (embeddings, signals, caches) and PDF bytes are NOT synced (rebuilt/re-linked locally). The FK-bearing tables
+(paper_tags, annotations, notes, summaries, manual cluster_node_papers) + an FK-translation layer (resolve a referenced
+row's sync_uid ↔ local id, also via ``sync_identity``) are a focused follow-on.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import Connection, Table, select
+from sqlalchemy import Connection, Table, insert, select
 
 from app.backend.persistence import schema
+from app.backend.persistence.schema import sync_identity as _sync_identity
 from app.backend.persistence.schema import sync_state as _sync_state
 
-Key = tuple[str, str]  # (collection, record_id)
+Key = tuple[str, str]  # (collection, sync_uid)
 
 
 @dataclass(frozen=True)
 class SyncableCollection:
     name: str
     table: Table
-    where: Any = None  # optional SQLAlchemy filter (e.g. manual-only); SP3b uses it
-
-    def record_id(self, row: dict) -> str:
-        # Composite-PK-safe (e.g. paper_tags) — join the primary-key columns.
-        return ":".join(str(row[c.name]) for c in self.table.primary_key.columns)
+    pk: str = "id"  # the single local-id column; the payload excludes it (it is device-specific)
+    where: Any = None  # optional SQLAlchemy filter (e.g. manual-only); a follow-on uses it
 
 
-# The user-authored + bibliographic data. (cluster_node_papers-manual + profile → SP3b; PDFs/embeddings/signals are
-# rebuilt locally, never synced.)
+# The top-level, FK-free user-authored data. (paper_tags/notes/annotations/summaries/manual-cluster + profile come in
+# the FK-translation follow-on; PDFs/embeddings/signals are rebuilt locally, never synced.)
 SYNCABLE: tuple[SyncableCollection, ...] = (
     SyncableCollection("papers", schema.papers),
     SyncableCollection("tags", schema.tags),
-    SyncableCollection("paper_tags", schema.paper_tags),
-    SyncableCollection("notes", schema.notes),
-    SyncableCollection("annotations", schema.annotations),
     SyncableCollection("axes", schema.axes),
-    SyncableCollection("summaries", schema.summaries),
 )
 
 
 def record_hash(payload: dict) -> str:
-    """sha256 of the canonical JSON of a payload (sorted keys; datetimes → str). Stable iff the content is stable."""
+    """sha256 of the canonical JSON of a payload (sorted keys; datetimes → str). Stable iff the content is stable
+    (a ``datetime`` and the string it round-trips to via ``default=str`` hash identically)."""
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
@@ -68,16 +71,16 @@ class SyncStateRow:
 @dataclass(frozen=True)
 class LocalChange:
     collection: str
-    record_id: str
+    record_id: str  # sync_uid
     deleted: bool
-    payload: dict | None  # None for a delete
+    payload: dict | None  # None for a delete; otherwise the row minus its local PK
     new_version: int
 
 
 @dataclass(frozen=True)
 class RemoteRecord:
     collection: str
-    record_id: str
+    record_id: str  # sync_uid
     version: int
     deleted: bool
     payload: dict | None
@@ -93,21 +96,79 @@ class Conflict:
 
 @dataclass
 class MergeResult:
-    to_apply: list[RemoteRecord] = field(default_factory=list)  # remote wins → write locally (SP3b)
+    to_apply: list[RemoteRecord] = field(default_factory=list)  # remote wins → write locally
     conflicts: list[Conflict] = field(default_factory=list)
 
 
+# --- the local↔global identity map (sync_identity) ---
+
+
+def _new_uid() -> str:
+    return uuid.uuid4().hex
+
+
+def uid_map(conn: Connection, collection: SyncableCollection) -> dict[str, str]:
+    """{local_id(str): sync_uid} for a collection, from the identity map."""
+    rows = conn.execute(
+        select(_sync_identity.c.local_id, _sync_identity.c.sync_uid).where(
+            _sync_identity.c.collection == collection.name
+        )
+    ).all()
+    return {str(local_id): sync_uid for local_id, sync_uid in rows}
+
+
+def local_id_for_uid(conn: Connection, collection: SyncableCollection, sync_uid: str) -> str | None:
+    """The device-local id a sync_uid currently maps to in this collection, or None (a new record to insert)."""
+    row = conn.execute(
+        select(_sync_identity.c.local_id).where(
+            _sync_identity.c.collection == collection.name, _sync_identity.c.sync_uid == sync_uid
+        )
+    ).first()
+    return None if row is None else str(row[0])
+
+
+def bind_identity(conn: Connection, collection: SyncableCollection, local_id: str, sync_uid: str) -> None:
+    conn.execute(insert(_sync_identity).values(collection=collection.name, local_id=str(local_id), sync_uid=sync_uid))
+
+
+def forget_identity(conn: Connection, collection: SyncableCollection, sync_uid: str) -> None:
+    """Drop a sync_uid's mapping (on a tombstone), so a later re-create of the same uid is treated as an insert."""
+    conn.execute(
+        _sync_identity.delete().where(
+            _sync_identity.c.collection == collection.name, _sync_identity.c.sync_uid == sync_uid
+        )
+    )
+
+
+def ensure_identities(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> None:
+    """Assign a fresh ``sync_uid`` to any current row that lacks a ``sync_identity`` entry. Idempotent; the canonical
+    point where a device-local row gains its global id. Table/column names come from the registry (rule #3)."""
+    for c in collections:
+        known = set(uid_map(conn, c))
+        stmt = select(c.table.c[c.pk])
+        if c.where is not None:
+            stmt = stmt.where(c.where)
+        for (local_id,) in conn.execute(stmt):
+            if str(local_id) not in known:
+                bind_identity(conn, c, str(local_id), _new_uid())
+
+
 def collect_local(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> dict[Key, dict]:
-    """{(collection, record_id): payload} over the syncable tables. Table/column names come from the registry
-    (constants → rule #3), never request data."""
+    """{(collection, sync_uid): payload} over the syncable tables, where payload is the row **minus its local PK**
+    (device-independent content). Rows without a ``sync_identity`` entry are skipped (``ensure_identities`` assigns
+    one first in the normal flow)."""
     out: dict[Key, dict] = {}
     for c in collections:
+        ids = uid_map(conn, c)
         stmt = select(c.table)
         if c.where is not None:
             stmt = stmt.where(c.where)
         for row in conn.execute(stmt).mappings():
             row_dict = dict(row)
-            out[(c.name, c.record_id(row_dict))] = row_dict
+            sync_uid = ids.get(str(row_dict[c.pk]))
+            if sync_uid is None:
+                continue
+            out[(c.name, sync_uid)] = {k: v for k, v in row_dict.items() if k != c.pk}
     return out
 
 
@@ -123,7 +184,9 @@ def read_sync_state(conn: Connection) -> dict[Key, SyncStateRow]:
 
 
 def local_changeset(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> list[LocalChange]:
-    """The rows changed/added/deleted locally since the last recorded ``sync_state`` (a hash-diff)."""
+    """The rows changed/added/deleted locally since the last recorded ``sync_state`` (a hash-diff, keyed on sync_uid).
+    Ensures identities first so every current row is tracked."""
+    ensure_identities(conn, collections)
     current = collect_local(conn, collections)
     state = read_sync_state(conn)
     changes: list[LocalChange] = []
@@ -151,7 +214,7 @@ def merge_remote(
 ) -> MergeResult:
     """Per-record last-write-wins by version, surfacing conflicts. Remote wins when strictly newer; if the record
     was ALSO changed locally since the last sync, the overwritten local payload is returned as a ``Conflict`` (kept
-    + recoverable), never silently dropped (A4). A local record that is newer/equal is skipped (it pushes in SP3b)."""
+    + recoverable), never silently dropped (A4). A local record that is newer/equal is skipped (it pushes instead)."""
     result = MergeResult()
     for r in remote:
         key = (r.collection, r.record_id)

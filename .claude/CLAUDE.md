@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 197** (see Increment workflow) with **684 pytest tests
+It is currently at **Increment 198** (see Increment workflow) with **688 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -235,8 +235,8 @@ callosum/
    │                          task pane + manifest serving, inc 164],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables] + schema_feed.py
-│   │   │                          [feed_subscriptions/feed_items, inc 187] + schema_sync.py [sync_state/sync_conflicts,
-│   │   │                          local-only, SP3a inc 197] [all re-exported from schema], gap_repo.py
+│   │   │                          [feed_subscriptions/feed_items, inc 187] + schema_sync.py [sync_state/sync_conflicts/
+│   │   │                          sync_identity, local-only, SP3a/3b inc 197/198] [all re-exported from schema], gap_repo.py
 │   │   │                          [gap_candidates cache, inc 137], feed_repo.py [Feed data access, inc 187],
 │   │   │                          database.py, repository.py,
 │   │   │                          dedup_repo.py [dismissed-duplicate-pairs data access, inc 67],
@@ -277,8 +277,10 @@ callosum/
 │   │   │                          md→html], assistant.py [HelpAssistant Protocol + dataclasses, inc 60])
 │   │   ├── importers/             (zotero.py)
 │   │   ├── sync/                  (crypto.py [E2E: passphrase/recovery → scrypt → AES-GCM record encryption] +
-│   │   │                          changeset.py [hash-diff change-tracking + LWW conflict-surfacing merge]; accounts
-│   │   │                          SP3a, local/no-egress; SP3b adds the endpoint + push/pull engine)
+│   │   │                          changeset.py [sync_uid-keyed hash-diff change-tracking + LWW conflict-surfacing
+│   │   │                          merge + the sync_identity map helpers] + engine.py [pull→decrypt→merge→apply→push
+│   │   │                          over a SyncTransport Protocol; SP3b inc 198]; accounts SP3a/3b, local/no-egress;
+│   │   │                          the FK-translation tables + the reference sync-server are follow-ons)
 │   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py, paper_edits.py,
 │   │   │                          paper_merge.py [non-destructive duplicate merge, inc 161],
 │   │   │                          citation_export.py [→BibTeX/RIS/CSL-JSON, inc 70],
@@ -709,6 +711,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Accounts SP3b = the client sync engine + a `sync_uid` global-identity layer (top-level collections; no egress; inc 198) | The pull→decrypt→merge→**apply**→push loop over an injectable **`SyncTransport`** (a fake in tests; **no live server this slice** — the maintainer chose "engine first, server next"), scoped to the top-level, FK-free collections **papers/tags/axes** ("top-level first"). **The crux is cross-device identity:** device-local auto-increment `id`s differ across devices, so sync keys every record on a global **`sync_uid`** (UUID) held in a new **`sync_identity`** map (collection, local_id ↔ sync_uid; **migration 0023**, additive/guarded, local-only) and transports the row **minus its local PK** (device-independent content). `changeset.py` revised → keys on `(collection, sync_uid)`, `SYNCABLE` narrowed to papers/tags/axes, `ensure_identities` lazily assigns uids. `engine.py::run_sync(conn, dek, transport, *, since)`: decrypt (fail-closed) → `merge_remote` → **apply** (`_apply_record`: UPDATE-in-place / INSERT-and-bind / DELETE-and-`forget_identity` **by sync_uid** — never INSERT-OR-REPLACE; `_coerce_for_write` writes only known columns [rule #4] + parses ISO→datetime; `_typed_pk` int-compares) → record conflicts in `sync_conflicts` (A4) → push the post-apply changeset. **Cursor-store-agnostic** (`since` in / `new_cursor` out) + **transport-agnostic** + holds only the unsealed **DEK** (the transport sees only opaque AES-GCM blobs). The **content-hash round-trip is stable** (encrypt + hash both `default=str`; coerce ISO→datetime on apply) → a converged pair re-syncs to 0 pushes/0 applies. Audit `2026-06-29_sync-engine-sp3b.md` **PASS** (sync_uid identity, fail-closed decrypt, column-validated apply, surfaced conflicts, no egress). No new dependency; no endpoint/UI/QA-surface change this slice. **NEXT:** the FK-bearing collections + an FK-translation layer (resolve a referenced row's sync_uid ↔ local id via `sync_identity`), then the **reference sync-server** (where ciphertext leaves → its own audit) + the cursor wiring, then SP3c (the Settings → Sync UI + conflict review). |
 | Accounts SP3a = the E2E sync crypto + local change-tracking foundation (no egress; inc 197) | The first slice of **opt-in, E2E-encrypted, multi-device, metadata-first sync** (design spec `…/specs/2026-06-29-accounts-sync-design.md`; the invariant-touching feature — the **Principles/A-A gate was run**: A5 sovereignty honored by E2E+opt-in, A4 by conflict-surfacing-not-clobber; three non-negotiables = real-E2E / opt-in-default-off / conflicts-surfaced). SP3a ships the **local, hermetically-testable, no-egress** core: `app/backend/sync/crypto.py` — a random **DEK** encrypts records (**AES-256-GCM**, fresh per-record nonce), the DEK **sealed** under a **passphrase** KEK *and* a **recovery-code** KEK (both via **`scrypt`**, `cryptography.hazmat` — **no new dependency**); the keyring persists only the sealed DEK+salts (no key/passphrase/plaintext); wrong key → fails closed; passphrase rotation re-wraps without re-encrypting; **no server-side reset** (recovery code is the only non-passphrase path). `app/backend/sync/changeset.py` — change-tracking is a **hash-diff** vs `sync_state` (no write-hooks), and the merge is **per-record LWW that surfaces conflicts** (the overwritten local payload kept in `sync_conflicts`, recoverable — A4), pure of network/crypto. New `schema_sync.py` (`sync_state` + `sync_conflicts`, **migration 0022**, additive/guarded, **local-only — never synced**) re-exported from `schema.py`. The syncable set (`SYNCABLE`) = user-authored + bibliographic data; **derived data (embeddings/signals/caches) + PDF bytes are NOT synced** (rebuilt/re-linked locally). Audit `2026-06-29_sync-crypto-sp3a.md` PASS; no endpoint/egress/UI/surface change this slice. **NEXT: SP3b** (the account-authenticated sync endpoint + push/pull engine — where ciphertext leaves; its own audit) → SP3c (the opt-in Settings UI + conflict review). |
 | Optional account = local-first + an opt-in, identity-only OIDC "Sign in with ORCID" (accounts SP1, inc 194) | Backlog #15, reframed via brainstorm (design spec `…/specs/2026-06-29-accounts-optional-identity-design.md`): the user wants a **callosum account** created several ways (ORCID/Google/email), and **local-first + optional account** (the Zotero shape) was chosen over full hosted multi-tenant (rejected — reverses invariant #3) or identity-only-forever. **The app stays fully local/offline with no account by default; an account is opt-in + additive.** Build-vs-buy → **use a proven self-hostable auth platform** (eval `…/research/2026-06-29-oidc-platform-eval.md` → **Authentik**, the user's pick), **don't hand-roll** the security core. **The key architecture:** callosum is **one OIDC client of the callosum account platform** (not ORCID directly) — the platform brokers ORCID and passes the **verified ORCID iD as a claim**, so login methods (Google/email = SP2) are **platform-config, no app change**. **SP1 (this inc) = ORCID sign-in, identity-only — NO library data on the server** (the egress invariant is untouched; the ORCID handshake sends no library text). New `app/backend/api/auth/` (`oidc.py` — authorization-code + **PKCE**, loopback redirect, JWKS id-token verify via lazy `PyJWT[crypto]`, injectable for tests; `router.py` — `GET /auth/login` → authorize URL, `GET /oauth/callback` → exchange+verify+store+`profile_repo.upsert_profile` [the payoff: verified ORCID populates My-Pubs], `POST /auth/logout`). **Loopback redirect:** uvicorn binds the port so the app doesn't know it → the redirect URI = the **browser's own loopback origin** + `/oauth/callback`, **validated loopback-only** (no open-redirect). **Callback is a browser navigation** (no bearer — the inc-172 gotcha) → `/oauth/callback` is **exempt** from the inc-168 gate (carries only an opaque code+state). Tokens stored via the inc-152 `_set_secret` (keychain/file, **write-only** — `GET /settings`'s `account` block reports only the verified identity, never tokens). Default-OFF: no issuer/client_id env → no client → `/auth/login` 503. **The live ORCID round-trip is the maintainer's MANUAL check** (needs a stood-up platform); the flow + pure helpers are pytest-covered (`tests/test_auth_oidc.py`). New dep `PyJWT[crypto]` (justified — JWT verification must not be hand-rolled; lazy-imported). Audit `2026-06-29_orcid-account.md` PASS; Principles → A-A consent value (emergent value, adopted deliberately). **NEXT:** superuser role (verified-ORCID allowlist; backlog), then SP2 (email/Google = platform-config) → SP3 opt-in **sync** (the library-egress step — its own design + heavy A-A pass) → SP4 sharing. |
 | Literature discovery (Search) = a SourceProvider registry + a normalized dedup'd Item + 2 endpoints; backend SP1 (inc 183) | Backlog #28 (Discover/Search), engine-first like inc-107→108 (the UI Search tab is inc 184). `app/backend/discovery/`: `Item` (frozen; `dedup_key` = DOI→PMID→normalized-title; `merged_with` unions `sources` + fills blanks), a `SourceProvider` Protocol + `SourceRegistry` (`search_all` **skips a provider that raises** — one bad source never sinks the search; adding a source = `register()` one provider, **no endpoint/UI edit**, mirrors the acquisition-resolver + pane registries), and `build_default_registry()` (Crossref now; PubMed/bioRxiv drop in later). `crossref_provider.py` = a keyword search over the **constant** `https://api.crossref.org/works` (injectable fetcher; query as a bound *param*, not the host → **no SSRF**; JATS stripped; drops no-title-no-DOI). `search.py`: `run_search` fans out → dedups → marks `in_library` (`find_existing_paper_by_identity`); `save_item` is **metadata-only + dedup-aware** (`imported_source="discovery-import"`, kept out of the crossref-update allowlist; re-save → same id, `created:False`) and **fetches no PDF** (the OA-acquire lane is untouched → no paywall circumvention). `GET /discovery/search` + `POST /discovery/save` (registry on `app.state.discovery_registry`, injectable via `create_app(discovery_registry=…)`). **AI augments, never filters** — the complete deduped list is returned; the **axis-relevance highlight (SP1b, inc 185: `POST /discovery/relevance` → a "likely: <axis> · match 0.NN" badge)** marks likely matches *within* that list, never hiding/reordering (below-cutoff = no badge ≠ irrelevant; one labeled cosine, local, no egress/DB-write; Principles-gated). Public-metadata egress, **NOT** the Gemini gate. Audits `2026-06-28_discovery-search.md` + `…_discovery-relevance.md` PASS. **No migration, no new dependency** (httpx + numpy already present). |
@@ -855,7 +858,38 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 197 (accounts SP3a — E2E sync crypto + local change-tracking foundation, no egress):
+*Last updated: 2026-06-29 — increment 198 (accounts SP3b — the client sync engine + `sync_uid` identity, top-level
+collections, no egress): the engine half of E2E multi-device sync (the maintainer chose **engine first, server next** +
+**top-level collections first**). **No live egress this slice** — a fake in-memory transport drives the tests; the
+reference sync-server (where ciphertext actually leaves) is the next slice. **The crux is cross-device identity:**
+device-local auto-increment `id`s differ across devices, so sync keys every record on a global **`sync_uid`** (UUID) in
+a new **`sync_identity`** map (collection, local_id ↔ sync_uid; **migration 0023**, additive/guarded, **local-only**)
+and transports the row **minus its local PK** (device-independent content). **`changeset.py` revised** → keys on
+`(collection, sync_uid)`; `SYNCABLE` narrowed to **papers/tags/axes**; new helpers `uid_map`/`local_id_for_uid`/
+`bind_identity`/`forget_identity`/`ensure_identities` (lazily assigns a `uuid4` to any current row lacking a mapping).
+**`engine.py` (new)** — `SyncBlob` + `PullResult` + a **`SyncTransport` Protocol** (`pull(since)→{records,seq}` /
+`push(records)→seq`) + `run_sync(conn, dek, transport, *, since=0)`: pull → **decrypt** each non-tombstone blob
+(`decrypt_payload`, **fails closed**) → `merge_remote` → **apply** (`_apply_record`: UPDATE-in-place / INSERT-and-bind /
+DELETE-and-`forget_identity` **by sync_uid** — never INSERT-OR-REPLACE; `_coerce_for_write` writes only known columns
+[rule #4] + parses decrypted ISO strings back to datetimes; `_typed_pk` int-compares an integer PK) → record conflicts
+in `sync_conflicts` (`_json_safe`-normalized, A4) → push the post-apply changeset. **Cursor-store-agnostic** (`since`
+in / `new_cursor` out — the caller persists; the endpoint/SP3c wires it) + **transport-agnostic** + holds only the
+unsealed **DEK** (the transport sees only opaque AES-GCM blobs — the E2E boundary is intact). The **content-hash
+round-trip is stable** (encrypt + hash both `default=str`; coerce ISO→datetime on apply), so a converged pair re-syncs
+to **0 pushes / 0 applies**. **Audit `2026-06-29_sync-engine-sp3b.md` PASS** (sync_uid identity proven by a
+two-device convergence test where the uid→local_id maps differ; fail-closed on a foreign blob; column-validated apply;
+surfaced conflict recoverable; no egress). **Principles/A-A:** the SP3 gate ran in SP3a (A5 sovereignty via E2E+opt-in;
+A4 via conflict-surfacing) → this slice non-triggering beyond honoring those. pytest **688 passed, 1 skipped** (+4
+`tests/test_sync_engine.py` — converge-via-sync_uid + 0-push re-sync; concurrent-edit conflict surfaced + recoverable;
+tombstone propagates + idempotent; foreign blob fails closed; the SP3a changeset test repointed to sync_uid); `ruff`
+clean; migration head **0023** via `alembic_head()`; **QA surface unchanged** (132/132 API + 661/661 FE, 0 uncovered —
+engine-only, no new route); **no new dependency, no egress, no UI.** Notes: `INCREMENT-198-NOTES.md`. **NEXT:** the
+**FK-bearing collections** (paper_tags/notes/annotations/summaries/manual-cluster) + an **FK-translation layer**
+(resolve a referenced row's sync_uid ↔ local id via `sync_identity`) — a focused follow-on; then the **reference
+sync-server** (the slice where ciphertext leaves → its own audit) + the `app_settings` cursor wiring; then **SP3c**
+(the opt-in Settings → Sync UI + conflict review). PDF-file sync / real-time / CRDTs deferred.
+
+Earlier — increment 197 (accounts SP3a — E2E sync crypto + local change-tracking foundation, no egress):
 the first slice of **opt-in, end-to-end-encrypted, multi-device, metadata-first sync** (the invariant-touching
 feature → design spec `…/specs/2026-06-29-accounts-sync-design.md`; the **Principles/A-A gate was run** — A5
 sovereignty honored by E2E+opt-in, A4 by conflict-surfacing; three non-negotiables = real-E2E / opt-in-default-off /

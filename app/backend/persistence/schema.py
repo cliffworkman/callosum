@@ -573,8 +573,9 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     retraction_records,
 )
 
-# Sync bookkeeping tables (accounts SP3a) — same split rationale; local-only change-tracking + surfaced conflicts.
+# Sync bookkeeping tables (accounts SP3a/SP3b) — same split rationale; local-only change-tracking + identity + conflicts.
 from app.backend.persistence.schema_sync import (  # noqa: E402,F401
     sync_conflicts,
+    sync_identity,
     sync_state,
 )

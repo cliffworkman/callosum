@@ -1,0 +1,56 @@
+# Security audit — accounts SP3b: the sync engine (client) + sync_uid identity (top-level collections)
+
+**Date:** 2026-06-29
+**Feature:** The client **sync engine** — pull→decrypt→merge→**apply (write decrypted remote rows into the local
+DB)**→push — over an injectable `SyncTransport` (a fake in tests; **no live server / no egress this slice**, per the
+maintainer's "engine first, server next"). Plus the **`sync_uid` global identity** (a UUID per syncable row, held in
+the new `sync_identity` map) that makes cross-device sync correct (local auto-increment ids differ across devices).
+Scope: the **top-level, FK-free collections — papers, tags, axes**. Files: `app/backend/sync/engine.py` (new),
+`app/backend/sync/changeset.py` (revised to key on sync_uid), `app/backend/persistence/schema_sync.py` +
+`schema.py` (+`sync_identity`), `alembic/versions/0023_sync_identity.py`. Design spec
+`…/specs/2026-06-29-accounts-sync-design.md`; builds on SP3a (`crypto.py`).
+**Audit triggers:** a new write path (decrypted remote data → the local DB); a schema migration; the egress contract.
+
+## Threat review
+- **Cross-device identity — PASS.** Sync keys every record on a `sync_uid` (UUID, `sync_identity` map), never the
+  device-local int `id`. The transported payload is the row **minus its local PK** (`collect_local` excludes
+  `c.pk`), so a record's content is device-independent and device B's rows can't be conflated with A's. **Proven:**
+  `test_two_devices_converge_via_sync_uid` — two DBs with independent local ids converge to the same content per uid
+  while the uid→local_id maps differ (`assert _uid_to_localid(ea) != _uid_to_localid(eb)`).
+- **Apply write-back safety — PASS.** Decrypted remote rows are upserted **by sync_uid** (`_apply_record`:
+  find-local-id-for-uid → UPDATE in place, else INSERT + bind a new identity) — **not** INSERT-OR-REPLACE, so no
+  FK-cascade surprise. A tombstone DELETEs the mapped row + `forget_identity` (so a later re-create is a clean
+  insert, not a stale-id UPDATE-of-nothing). `_coerce_for_write` writes **only columns the table actually has**
+  (`k in table.c`) — a decrypted payload cannot inject columns (rule #4). Table/columns come from the constant
+  `SYNCABLE` registry, never request data (rule #3); all SQL is bound-param SQLAlchemy Core. Integer PKs are
+  compared as ints (`_typed_pk`) so SQLite affinity can't silently mismatch.
+- **Crypto boundary / E2E — PASS.** `run_sync` takes the already-unsealed **DEK**; it never sees a passphrase or
+  recovery code, and the transport only ever receives **opaque AES-GCM blobs** (`encrypt_payload`) — the DEK never
+  crosses the `SyncTransport`. A decrypt failure **fails closed**: a foreign/tampered blob raises `SyncCryptoError`
+  and **nothing is written** (`test_foreign_remote_blob_fails_closed` asserts the run raises AND the DB stays empty).
+- **Conflict surfacing (A4) — PASS.** A remote winner that was also changed locally records the **losing local
+  payload** into `sync_conflicts` (JSON-normalized via `_json_safe`), recoverable — never silently dropped
+  (`test_concurrent_edit_surfaces_conflict`: remote wins the live row, B's edit is preserved in `sync_conflicts`).
+- **No egress this slice — PASS.** The transport is injected; there is **no in-repo default** and no endpoint wires
+  it (the reference server is the next slice). The tests use an in-memory `FakeTransport`; nothing leaves the
+  machine. The egress invariant (#3, Gemini gate) is untouched.
+- **Idempotence / no data loss — PASS.** Re-sync after convergence pushes/applies nothing
+  (`test_two_devices_converge` second round: `pushed == 0 and applied == 0`) — the content-hash round-trip through
+  encrypt/decrypt + datetime coercion is stable, so no phantom re-sync. A propagated delete is idempotent
+  (`test_tombstone_propagates_and_resync_is_idempotent`: no resurrection, no duplicate).
+- **Migration — PASS.** `0023_sync_identity` creates `sync_identity` (additive + guarded `if not in table_names`,
+  revises `0022_sync`); no backfill (the engine assigns uids lazily via `ensure_identities`). Head asserted via
+  `alembic_head()` (no hardcoded revision). `sync_identity`/`sync_state`/`sync_conflicts` are **local-only** — never
+  in `SYNCABLE`, never synced. No new dependency (`uuid`, `json`, `cryptography` all already present).
+
+## Negative-path checks (concrete results)
+- Two devices, independent local ids → converge via sync_uid; uid→local_id maps differ. **PASS.**
+- Foreign-DEK remote blob → `run_sync` raises `SyncCryptoError`, DB unchanged. **PASS.**
+- Concurrent edit → exactly 1 surfaced conflict, remote wins the live row, local loser recoverable. **PASS.**
+- Tombstone → delete propagates; re-sync applies/pushes nothing, no resurrection. **PASS.**
+- `ruff check` clean; the full pytest suite green (see increment notes).
+
+## Result
+**Security Audit: PASS.** Local, no-egress, fail-closed, bound-param; cross-device identity + apply are
+sync_uid-keyed and column-validated; conflicts surfaced (A4); E2E DEK boundary intact. The **live egress** boundary
+(where ciphertext actually leaves) is the next slice (the reference sync-server) and gets its own audit.

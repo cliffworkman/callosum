@@ -129,15 +129,18 @@ def test_local_changeset_tracks_add_edit_delete(temp_db_url: str) -> None:
     with engine.begin() as conn:
         assert changeset.local_changeset(conn) == [], "nothing changed since the recorded state"
 
-    # edit one paper → exactly that record is a change, version bumped to 2
+    # edit one paper → exactly that record is a change (keyed on its sync_uid), version bumped to 2
     with engine.begin() as conn:
         pid = conn.execute(select(schema.papers.c.id)).scalars().first()
         conn.execute(update(schema.papers).where(schema.papers.c.id == pid).values(abstract="changed abstract"))
     with engine.begin() as conn:
+        puid = conn.execute(
+            select(schema.sync_identity.c.sync_uid).where(
+                schema.sync_identity.c.collection == "papers", schema.sync_identity.c.local_id == str(pid)
+            )
+        ).scalar_one()
         changes = changeset.local_changeset(conn)
-        assert [(c.collection, c.record_id, c.new_version, c.deleted) for c in changes] == [
-            ("papers", str(pid), 2, False)
-        ]
+        assert [(c.collection, c.record_id, c.new_version, c.deleted) for c in changes] == [("papers", puid, 2, False)]
 
     # delete the seeded tag (+ its link) → tombstones for the now-missing rows
     with engine.begin() as conn:
