@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 200: accounts SP3b cont. — the link-table model (paper_tags)
+- **Files:** `app/backend/sync/changeset.py` (`SyncableCollection.pk` → `str|None`; `_outbound` helper; `SYNCABLE`
+  += paper_tags `pk=None`; ensure_identities skips links), `app/backend/sync/engine.py` (`_apply_link`; dispatch;
+  guard push-tombstone forget_identity), `tests/test_sync_engine.py` (+1 link test),
+  `.claude/security-audits/2026-06-29_sync-engine-sp3b.md` (addendum 2), CLAUDE (layout/decision-log/footer),
+  `INCREMENT-200-NOTES.md`.
+- **What:** sync the composite-PK link table **paper_tags** (tag assignments). A link has no own id → its identity is
+  **derived from its endpoints** (record_id = the joined `paper_uid|tag_uid`, identical on every device); apply
+  resolves the endpoints → local ids → INSERT-OR-IGNORE / DELETE. Also recorded `summaries` as **not synced**
+  (derived) + manual `cluster_node_papers` as deferred.
+- **Why:** completes the engine's user-authored relational coverage (papers · tags · axes · notes · annotations ·
+  tag assignments) before the reference sync-server.
+- **Gates:** pytest **690 passed, 1 skipped** (+1); ruff clean; QA surface unchanged; audit addendum 2 PASS; **no
+  migration / endpoint / egress / UI**. Known limitation: `tags.name` UNIQUE → cross-device same-name-tag collision
+  (a pre-existing inc-198 concern; natural-key reconciliation is a follow-on).
+- **Revert:** `git revert` the inc-200 commit (pure code; `SYNCABLE` drops paper_tags; link path is additive).
+
 ## 2026-06-29 — Increment 199: accounts SP3b cont. — FK-translation layer + the child tables (notes, annotations)
 - **Files:** `app/backend/sync/changeset.py` (+`SyncableCollection.fks`/`.drop`; `collect_local` FK-translates +
   drops; `SYNCABLE` += notes/annotations), `app/backend/sync/engine.py` (`_apply_record` FK-translates + skips

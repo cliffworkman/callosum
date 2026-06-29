@@ -41,17 +41,20 @@ Key = tuple[str, str]  # (collection, sync_uid)
 class SyncableCollection:
     name: str
     table: Table
-    pk: str = "id"  # the single local-id column; the payload excludes it (it is device-specific)
+    pk: str | None = (
+        "id"  # the single local-id column → an own sync_uid. None = a LINK table (identity = its endpoints)
+    )
     where: Any = None  # optional SQLAlchemy filter (e.g. manual-only); a follow-on uses it
     fks: dict[str, str] = field(default_factory=dict)  # {fk_column: referenced collection} → translated local↔uid
     drop: tuple[str, ...] = ()  # device-local columns omitted from the synced payload (e.g. a per-device attachment id)
 
 
 # The user-authored data, in **referenced-first dependency order** (a row's FK targets sync before it). FK columns are
-# translated local-id ↔ a referenced row's sync_uid (changeset.collect_local / engine apply). Derived/un-synced
-# (rebuilt locally): PDFs, embeddings, signals, caches, cluster_nodes. Still a follow-on: paper_tags (a composite-PK
-# link table — a distinct identity model), summaries (JSON-embedded scope refs + version-keyed verification) and
-# manual cluster_node_papers (depends on un-synced cluster_nodes).
+# translated local-id ↔ a referenced row's sync_uid (changeset.collect_local / engine apply). A LINK table (pk=None,
+# e.g. paper_tags) has no own id — its identity is its translated endpoint uids. Derived/un-synced (rebuilt locally):
+# PDFs, embeddings, signals, caches, cluster_nodes, AND summaries (a regeneratable synthesis whose verification is
+# keyed to device-local chunk/embedding versions). Still a follow-on: manual cluster_node_papers (needs an
+# axis-membership identity, since cluster_nodes are derived).
 SYNCABLE: tuple[SyncableCollection, ...] = (
     SyncableCollection("papers", schema.papers),
     SyncableCollection("tags", schema.tags),
@@ -59,6 +62,8 @@ SYNCABLE: tuple[SyncableCollection, ...] = (
     SyncableCollection("notes", schema.notes, fks={"paper_id": "papers"}),
     # attachment_id is a per-device pointer (PDFs aren't synced) → dropped; the highlight re-associates by paper+page.
     SyncableCollection("annotations", schema.annotations, fks={"paper_id": "papers"}, drop=("attachment_id",)),
+    # a link table: no own id; its sync key is the (paper sync_uid | tag sync_uid) pair → device-independent.
+    SyncableCollection("paper_tags", schema.paper_tags, pk=None, fks={"paper_id": "papers", "tag_id": "tags"}),
 )
 
 
@@ -150,8 +155,11 @@ def forget_identity(conn: Connection, collection: SyncableCollection, sync_uid: 
 
 def ensure_identities(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> None:
     """Assign a fresh ``sync_uid`` to any current row that lacks a ``sync_identity`` entry. Idempotent; the canonical
-    point where a device-local row gains its global id. Table/column names come from the registry (rule #3)."""
+    point where a device-local row gains its global id. Link tables (``pk is None``) are skipped — their identity is
+    derived from their endpoints, not assigned. Table/column names come from the registry (rule #3)."""
     for c in collections:
+        if c.pk is None:
+            continue
         known = set(uid_map(conn, c))
         stmt = select(c.table.c[c.pk])
         if c.where is not None:
@@ -161,11 +169,32 @@ def ensure_identities(conn: Connection, collections: tuple[SyncableCollection, .
                 bind_identity(conn, c, str(local_id), _new_uid())
 
 
+def _outbound(c: SyncableCollection, row_dict: dict, maps: dict[str, dict[str, str]]) -> tuple[str, dict] | None:
+    """(record_id, device-independent payload) for one row, or None to skip. Drops the local PK + ``drop`` columns;
+    translates FK columns local-id → the referenced row's sync_uid. record_id = the row's own sync_uid (normal) or
+    the joined endpoint uids (a link table, ``pk is None``)."""
+    payload = {k: v for k, v in row_dict.items() if k not in c.drop and (c.pk is None or k != c.pk)}
+    for col, ref in c.fks.items():
+        val = payload.get(col)
+        if val is None:
+            continue
+        ref_uid = maps.get(ref, {}).get(str(val))
+        if ref_uid is None:  # the FK target isn't synced/identified yet → can't represent this row portably
+            return None
+        payload[col] = ref_uid
+    if c.pk is None:  # a link table — identity is its (translated) endpoint uids, in fks-declaration order
+        if any(payload.get(col) is None for col in c.fks):
+            return None
+        return "|".join(str(payload[col]) for col in c.fks), payload
+    sync_uid = maps[c.name].get(str(row_dict[c.pk]))
+    return None if sync_uid is None else (sync_uid, payload)
+
+
 def collect_local(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> dict[Key, dict]:
-    """{(collection, sync_uid): payload} over the syncable tables, where payload is the row **minus its local PK**
-    (and minus any ``drop`` columns), with **FK columns translated local-id → the referenced row's sync_uid** so the
-    content is device-independent. Rows without a ``sync_identity`` entry — or whose FK target has none — are skipped
-    (``ensure_identities`` assigns identities first in the normal flow)."""
+    """{(collection, record_id): payload} over the syncable tables — payload device-independent (FK columns →
+    referenced sync_uids; local PK + ``drop`` columns removed). record_id is the row's own sync_uid, or for a link
+    table the joined endpoint uids. Rows whose own/FK identity isn't assigned yet are skipped (``ensure_identities``
+    runs first in the normal flow)."""
     maps = {c.name: uid_map(conn, c) for c in collections}
     out: dict[Key, dict] = {}
     for c in collections:
@@ -173,23 +202,9 @@ def collect_local(conn: Connection, collections: tuple[SyncableCollection, ...] 
         if c.where is not None:
             stmt = stmt.where(c.where)
         for row in conn.execute(stmt).mappings():
-            row_dict = dict(row)
-            sync_uid = maps[c.name].get(str(row_dict[c.pk]))
-            if sync_uid is None:
-                continue
-            payload = {k: v for k, v in row_dict.items() if k != c.pk and k not in c.drop}
-            skip = False
-            for col, ref in c.fks.items():  # local id → referenced sync_uid (device-independent)
-                val = payload.get(col)
-                if val is None:
-                    continue
-                ref_uid = maps.get(ref, {}).get(str(val))
-                if ref_uid is None:  # the FK target isn't synced/identified yet → can't represent this row portably
-                    skip = True
-                    break
-                payload[col] = ref_uid
-            if not skip:
-                out[(c.name, sync_uid)] = payload
+            entry = _outbound(c, dict(row), maps)
+            if entry is not None:
+                out[(c.name, entry[0])] = entry[1]
     return out
 
 

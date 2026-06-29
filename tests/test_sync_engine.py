@@ -81,6 +81,21 @@ def _add_annotation(db_url: str, paper_id: int, body: str, attachment_id: int | 
     eng.dispose()
 
 
+def _add_tag(db_url: str, name: str) -> int:
+    eng = create_engine(db_url)
+    with eng.begin() as conn:
+        tid = conn.execute(insert(schema.tags).values(name=name)).inserted_primary_key[0]
+    eng.dispose()
+    return tid
+
+
+def _link_tag(db_url: str, paper_id: int, tag_id: int) -> None:
+    eng = create_engine(db_url)
+    with eng.begin() as conn:
+        conn.execute(insert(schema.paper_tags).values(paper_id=paper_id, tag_id=tag_id))
+    eng.dispose()
+
+
 def _sync(eng, dek, server, since: int):
     with eng.begin() as conn:
         return run_sync(conn, dek, server, since=since)
@@ -181,6 +196,47 @@ def test_child_tables_fk_translate_across_devices(tmp_path: Path) -> None:
 
     again = _sync(eb, dek, server, cb)  # the translated-FK payload round-trips → no phantom re-sync
     assert again.pushed == 0 and again.applied == 0
+    ea.dispose()
+    eb.dispose()
+
+
+def test_link_table_paper_tags_sync(tmp_path: Path) -> None:
+    """A paper↔tag link (composite-PK, no own id) syncs by its endpoint uids: it lands on the far device's local
+    (paper, tag) ids, and a later un-tag propagates as a tombstone — leaving the paper + tag intact."""
+    keyring, _ = create_keyring("pw")
+    dek = unlock_with_passphrase(keyring, "pw")
+    server = FakeTransport()
+    db_a, db_b = _fresh_db(tmp_path / "a.sqlite"), _fresh_db(tmp_path / "b.sqlite")
+    _add_paper(db_b, "B-unrelated", 2019)  # offsets B's local ids
+    pid = _add_paper(db_a, "P", 2020)
+    tid = _add_tag(db_a, "topic")
+    _link_tag(db_a, pid, tid)
+    ea, eb = create_engine(db_a), create_engine(db_b)
+    ca = cb = 0
+
+    ca = _sync(ea, dek, server, ca).new_cursor  # A pushes paper + tag + link (link keyed by endpoint uids)
+    cb = _sync(eb, dek, server, cb).new_cursor  # B pulls + applies all three
+
+    with eb.connect() as conn:
+        bpid = conn.execute(select(schema.papers.c.id).where(schema.papers.c.title == "P")).scalar()
+        btid = conn.execute(select(schema.tags.c.id).where(schema.tags.c.name == "topic")).scalar()
+        link = conn.execute(select(schema.paper_tags.c.paper_id, schema.paper_tags.c.tag_id)).first()
+        assert link is not None and (link.paper_id, link.tag_id) == (bpid, btid)  # endpoints translated to B's ids
+        assert bpid != pid  # B's local paper id differs → the link's endpoints were genuinely translated
+
+    again = _sync(eb, dek, server, cb)  # the link round-trips by its endpoint uids → no phantom re-sync
+    cb = again.new_cursor
+    assert again.applied == 0 and again.pushed == 0
+
+    with ea.begin() as conn:  # un-tag on A → the link is removed → a tombstone propagates
+        conn.execute(delete(schema.paper_tags))
+    ca = _sync(ea, dek, server, ca).new_cursor
+    rb = _sync(eb, dek, server, cb)
+    assert rb.applied >= 1
+    with eb.connect() as conn:
+        assert conn.execute(select(schema.paper_tags)).first() is None  # link gone
+        assert conn.execute(select(schema.papers.c.id).where(schema.papers.c.title == "P")).scalar() is not None
+        assert conn.execute(select(schema.tags.c.id).where(schema.tags.c.name == "topic")).scalar() is not None
     ea.dispose()
     eb.dispose()
 

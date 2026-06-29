@@ -90,3 +90,40 @@ un-synced `cluster_nodes`).
   decrypt unchanged; no new dependency/endpoint/migration. QA surface unchanged (engine-only).
 
 **Addendum result: PASS.**
+
+---
+
+## Addendum 2 — inc 200: the link-table model (paper_tags)
+
+**Feature:** extend the engine to the **composite-PK link table** `paper_tags` (a tag-on-paper assignment; no own
+`id` — PK is `(paper_id, tag_id)`, both FKs to already-synced collections). A link can't use the per-row `sync_uid`
+model (it has no own id, and a random per-device uid wouldn't converge), so its **identity is derived from its
+endpoints**: the sync key (`record_id`) is the joined endpoint uids (`"<paper sync_uid>|<tag sync_uid>"`), computed
+identically on every device. `SyncableCollection.pk` is now `str | None`; `pk=None` selects the link path in
+`ensure_identities` (skip — no own identity), `changeset._outbound` (derive record_id from the translated endpoints;
+payload = the translated endpoints) and `engine._apply_link` (resolve both endpoint uids → local ids → INSERT-OR-IGNORE
+/ DELETE). Same engine, **no new endpoint / migration / egress / dependency**; `summaries` is now explicitly **not
+synced** (a regeneratable synthesis keyed to device-local chunk/embedding versions), manual `cluster_node_papers`
+stays deferred.
+
+- **Link identity is device-independent — PASS.** The record_id is the **endpoint uids** (global), so both devices
+  key the same logical link identically → it converges (no random per-device id → no duplicate link). No
+  `sync_identity` row is created for the link itself (only its endpoints have identities). **Proven:**
+  `test_link_table_paper_tags_sync` — a paper↔tag link syncs to a device with offset ids and lands on that device's
+  local `(paper_id, tag_id)` (`bpid != pid`); a converged re-sync is a no-op.
+- **Apply safety — PASS.** `_apply_link` resolves each endpoint uid → this device's local id (`local_id_for_uid`);
+  if an endpoint isn't local yet it **returns False (skip, retry)** — never a dangling/wrong link. INSERT is
+  idempotent (existence-checked on the composite PK); a tombstone DELETEs by the resolved composite key. record_id is
+  split on `|` (uuid4 hex contains no `|` → unambiguous); the table/columns come from the constant registry (rule #3);
+  bound params throughout. Applied **referenced-first** (paper_tags is last in `SYNCABLE`), so its endpoints exist
+  before it. A link tombstone forgets no identity (it has none — guarded at the push site).
+- **Un-tag propagates — PASS.** Removing the link locally → a tombstone → the far device deletes its link, leaving the
+  paper + tag intact (test asserts the link is gone and both endpoints remain).
+- **Known limitation (pre-existing, recorded):** `tags.name` is UNIQUE, so two devices that *independently* create a
+  same-named tag (different uids) before first sync would collide on apply (an inc-198 tags concern, not introduced by
+  the link table; the fix is natural-key reconciliation on apply, a follow-on before the live server). The link path
+  itself is unaffected.
+- **Unchanged posture — PASS.** No egress (fake transport), fail-closed decrypt unchanged, no new dependency/endpoint/
+  migration, QA surface unchanged.
+
+**Addendum 2 result: PASS.**

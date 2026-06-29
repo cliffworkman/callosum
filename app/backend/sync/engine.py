@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from sqlalchemy import Connection, DateTime, Integer, insert, update
+from sqlalchemy import Connection, DateTime, Integer, and_, insert, select, update
 
 from app.backend.persistence.schema import sync_conflicts as _sync_conflicts
 from app.backend.persistence.schema import sync_state as _sync_state
@@ -124,10 +124,40 @@ def _set_sync_state(conn: Connection, collection: str, record_id: str, version: 
     )
 
 
+def _apply_link(conn: Connection, c: SyncableCollection, r: RemoteRecord, by_name: dict) -> bool:
+    """Apply a link-table (composite-PK, ``pk is None``) record: its identity is its endpoint uids
+    (``record_id`` = the joined uids). Resolve each endpoint uid → this device's local id, then INSERT-OR-IGNORE the
+    link / DELETE it (tombstone). Returns False (skip, retry later) iff an endpoint isn't present locally yet."""
+    cols = list(c.fks)
+    parts = r.record_id.split("|")
+    if len(parts) != len(cols):
+        return False
+    resolved: dict = {}
+    for col, uid in zip(cols, parts, strict=False):
+        ref_c = by_name.get(c.fks[col])
+        local = None if ref_c is None else local_id_for_uid(conn, ref_c, uid)
+        if local is None:
+            return False  # an endpoint isn't synced here yet
+        resolved[col] = _typed_pk(ref_c, local)
+    cond = and_(*[c.table.c[col] == v for col, v in resolved.items()])
+    if r.deleted:
+        conn.execute(c.table.delete().where(cond))
+        return True
+    if conn.execute(select(c.table).where(cond)).first() is None:  # idempotent (composite PK)
+        values = dict(resolved)
+        for k, v in _coerce_for_write(c.table, r.payload or {}).items():
+            if k not in c.fks:  # any non-FK metadata column (none for paper_tags today)
+                values[k] = v
+        conn.execute(insert(c.table).values(**values))
+    return True
+
+
 def _apply_record(conn: Connection, c: SyncableCollection, r: RemoteRecord, by_name: dict) -> bool:
     """Write a remote winner into the domain table, by sync_uid (UPDATE-in-place / INSERT-and-bind / DELETE).
     Returns False (skipped, retry later) iff an FK target isn't present locally yet — applied referenced-first, so
     that's rare in practice."""
+    if c.pk is None:
+        return _apply_link(conn, c, r, by_name)
     local_id = local_id_for_uid(conn, c, r.record_id)
     if r.deleted:
         if local_id is not None:
@@ -221,7 +251,7 @@ def run_sync(
         transport.push(blobs)
         for ch in push_changes:
             _set_sync_state(conn, ch.collection, ch.record_id, ch.new_version, ch.payload, ch.deleted)
-            if ch.deleted:
+            if ch.deleted and by_name[ch.collection].pk is not None:  # a link table has no own identity to forget
                 forget_identity(conn, by_name[ch.collection], ch.record_id)
 
     return SyncRunResult(

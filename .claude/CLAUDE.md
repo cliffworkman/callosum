@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 199** (see Increment workflow) with **689 pytest tests
+It is currently at **Increment 200** (see Increment workflow) with **690 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -279,10 +279,11 @@ callosum/
 │   │   ├── sync/                  (crypto.py [E2E: passphrase/recovery → scrypt → AES-GCM record encryption] +
 │   │   │                          changeset.py [sync_uid-keyed hash-diff change-tracking + LWW conflict-surfacing
 │   │   │                          merge + the sync_identity map helpers + FK-translation: collect/apply translate a
-│   │   │                          row's FK local-id ↔ the referenced row's sync_uid; SYNCABLE = papers/tags/axes +
-│   │   │                          notes/annotations] + engine.py [pull→decrypt→merge→apply (referenced-first)→push
-│   │   │                          over a SyncTransport Protocol; SP3b inc 198/199]; accounts SP3a/3b, local/no-egress;
-│   │   │                          paper_tags/summaries/manual-cluster + the reference sync-server are follow-ons)
+│   │   │                          row's FK local-id ↔ the referenced row's sync_uid; a LINK table (pk=None, paper_tags)
+│   │   │                          keys on its endpoint uids; SYNCABLE = papers/tags/axes/notes/annotations/paper_tags]
+│   │   │                          + engine.py [pull→decrypt→merge→apply (referenced-first; link path)→push over a
+│   │   │                          SyncTransport Protocol; SP3b inc 198/199/200]; accounts SP3a/3b, local/no-egress;
+│   │   │                          summaries=not-synced; manual-cluster + the reference sync-server are follow-ons)
 │   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py, paper_edits.py,
 │   │   │                          paper_merge.py [non-destructive duplicate merge, inc 161],
 │   │   │                          citation_export.py [→BibTeX/RIS/CSL-JSON, inc 70],
@@ -713,6 +714,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Accounts SP3b cont. = the link-table model — paper_tags (no egress; inc 200) | Syncs the composite-PK link table **paper_tags** (tag assignments) — completing the engine's user-authored relational coverage (papers · tags · axes · notes · annotations · tag-assignments). A link has **no own id**, so its identity is **derived from its endpoints**: `record_id = "<paper sync_uid>|<tag sync_uid>"`, computed identically on every device (a random per-device uid wouldn't converge). `SyncableCollection.pk` → `str | None`; `pk=None` selects the link path in `ensure_identities` (skip — no own identity), `changeset._outbound` (derive record_id from the translated endpoints; payload = the endpoints) and `engine._apply_link` (split record_id on `\|` → resolve each endpoint uid → local id → INSERT-OR-IGNORE / DELETE; skip-not-dangling if an endpoint isn't local yet; applied referenced-first). Also decided: **`summaries` is NOT synced** (a regeneratable synthesis keyed to device-local chunk/embedding versions — like embeddings/signals); manual `cluster_node_papers` stays deferred (needs an axis-membership identity since `cluster_nodes` are derived). **Known limitation (pre-existing inc-198):** `tags.name` is UNIQUE → two devices independently creating a same-named tag (different uids) would collide on apply — natural-key reconciliation is a follow-on (the link path is unaffected). **No migration / endpoint / egress / dependency / UI.** Audit **addendum 2** to `2026-06-29_sync-engine-sp3b.md` **PASS**. **NEXT:** the **reference sync-server** (where ciphertext leaves → its own audit) + the `app_settings` cursor wiring + natural-key tag reconciliation; then SP3c (Settings → Sync UI + conflict review). |
 | Accounts SP3b cont. = FK-translation + the child collections notes/annotations (no egress; inc 199) | Extends the inc-198 engine to the **FK-bearing child tables** notes + annotations (own `id` + a `paper_id` FK to the already-synced papers). A generic **FK-translation layer**: `SyncableCollection` gains `fks` (`{column: referenced collection}`) + `drop` (device-local columns); `collect_local` carries each FK column as the **referenced row's `sync_uid`** (device-independent) + drops `pk`/`drop` cols; `engine._apply_record` translates that uid back to **this device's** local id (`local_id_for_uid`) and applies winners **referenced-first** (sorted by `SYNCABLE` rank, so a row's FK targets exist before it; an unresolved FK → skip-and-retry, never a dangling write). `SYNCABLE` += notes (`fks={"paper_id":"papers"}`) + annotations (`fks={"paper_id":"papers"}`, `drop=("attachment_id",)` — the per-device PDF pointer is omitted entirely, applied NULL; the highlight re-associates by paper+page+bboxes). The uid-form FK payload round-trips stably → a converged pair re-syncs to 0 push/0 apply. **No migration / endpoint / egress / dependency / UI** (sync_identity + the engine already exist). Audit **addendum** to `2026-06-29_sync-engine-sp3b.md` **PASS**. **NEXT:** `paper_tags` (a composite-PK **link table** — identity = its endpoint-uid pair, no own id), then `summaries` (JSON-embedded scope refs + version-keyed verification) + manual `cluster_node_papers` (depends on un-synced `cluster_nodes`); then the reference sync-server + the cursor wiring; then SP3c (Settings → Sync UI + conflict review). |
 | Accounts SP3b = the client sync engine + a `sync_uid` global-identity layer (top-level collections; no egress; inc 198) | The pull→decrypt→merge→**apply**→push loop over an injectable **`SyncTransport`** (a fake in tests; **no live server this slice** — the maintainer chose "engine first, server next"), scoped to the top-level, FK-free collections **papers/tags/axes** ("top-level first"). **The crux is cross-device identity:** device-local auto-increment `id`s differ across devices, so sync keys every record on a global **`sync_uid`** (UUID) held in a new **`sync_identity`** map (collection, local_id ↔ sync_uid; **migration 0023**, additive/guarded, local-only) and transports the row **minus its local PK** (device-independent content). `changeset.py` revised → keys on `(collection, sync_uid)`, `SYNCABLE` narrowed to papers/tags/axes, `ensure_identities` lazily assigns uids. `engine.py::run_sync(conn, dek, transport, *, since)`: decrypt (fail-closed) → `merge_remote` → **apply** (`_apply_record`: UPDATE-in-place / INSERT-and-bind / DELETE-and-`forget_identity` **by sync_uid** — never INSERT-OR-REPLACE; `_coerce_for_write` writes only known columns [rule #4] + parses ISO→datetime; `_typed_pk` int-compares) → record conflicts in `sync_conflicts` (A4) → push the post-apply changeset. **Cursor-store-agnostic** (`since` in / `new_cursor` out) + **transport-agnostic** + holds only the unsealed **DEK** (the transport sees only opaque AES-GCM blobs). The **content-hash round-trip is stable** (encrypt + hash both `default=str`; coerce ISO→datetime on apply) → a converged pair re-syncs to 0 pushes/0 applies. Audit `2026-06-29_sync-engine-sp3b.md` **PASS** (sync_uid identity, fail-closed decrypt, column-validated apply, surfaced conflicts, no egress). No new dependency; no endpoint/UI/QA-surface change this slice. **NEXT:** the FK-bearing collections + an FK-translation layer (resolve a referenced row's sync_uid ↔ local id via `sync_identity`), then the **reference sync-server** (where ciphertext leaves → its own audit) + the cursor wiring, then SP3c (the Settings → Sync UI + conflict review). |
 | Accounts SP3a = the E2E sync crypto + local change-tracking foundation (no egress; inc 197) | The first slice of **opt-in, E2E-encrypted, multi-device, metadata-first sync** (design spec `…/specs/2026-06-29-accounts-sync-design.md`; the invariant-touching feature — the **Principles/A-A gate was run**: A5 sovereignty honored by E2E+opt-in, A4 by conflict-surfacing-not-clobber; three non-negotiables = real-E2E / opt-in-default-off / conflicts-surfaced). SP3a ships the **local, hermetically-testable, no-egress** core: `app/backend/sync/crypto.py` — a random **DEK** encrypts records (**AES-256-GCM**, fresh per-record nonce), the DEK **sealed** under a **passphrase** KEK *and* a **recovery-code** KEK (both via **`scrypt`**, `cryptography.hazmat` — **no new dependency**); the keyring persists only the sealed DEK+salts (no key/passphrase/plaintext); wrong key → fails closed; passphrase rotation re-wraps without re-encrypting; **no server-side reset** (recovery code is the only non-passphrase path). `app/backend/sync/changeset.py` — change-tracking is a **hash-diff** vs `sync_state` (no write-hooks), and the merge is **per-record LWW that surfaces conflicts** (the overwritten local payload kept in `sync_conflicts`, recoverable — A4), pure of network/crypto. New `schema_sync.py` (`sync_state` + `sync_conflicts`, **migration 0022**, additive/guarded, **local-only — never synced**) re-exported from `schema.py`. The syncable set (`SYNCABLE`) = user-authored + bibliographic data; **derived data (embeddings/signals/caches) + PDF bytes are NOT synced** (rebuilt/re-linked locally). Audit `2026-06-29_sync-crypto-sp3a.md` PASS; no endpoint/egress/UI/surface change this slice. **NEXT: SP3b** (the account-authenticated sync endpoint + push/pull engine — where ciphertext leaves; its own audit) → SP3c (the opt-in Settings UI + conflict review). |
@@ -861,7 +863,36 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 199 (accounts SP3b cont. — the FK-translation layer + the child tables notes/
+*Last updated: 2026-06-29 — increment 200 (accounts SP3b cont. — the link-table model, paper_tags, no egress):
+syncs the composite-PK **link table `paper_tags`** (tag assignments) — completing the engine's user-authored
+relational coverage (papers · tags · axes · notes · annotations · **tag assignments**). A link has **no own id**, so a
+per-row `sync_uid` (and a random one would never converge) is wrong — its identity is **derived from its endpoints**:
+`record_id = "<paper sync_uid>|<tag sync_uid>"`, computed identically on every device. **`changeset.py`:**
+`SyncableCollection.pk` → **`str | None`** (`pk=None` = a LINK table); a shared **`_outbound(c, row, maps)`** helper
+returns `(record_id, payload)` — own sync_uid for a normal collection, the **joined endpoint uids** for a link (payload
+= the translated endpoints); `ensure_identities` skips link tables; `SYNCABLE` += **paper_tags** (`pk=None`,
+`fks={"paper_id":"papers","tag_id":"tags"}`, last → referenced-first). **`engine.py`:** **`_apply_link`** splits
+`record_id` on `|` → resolves each endpoint uid → this device's local id (`local_id_for_uid`) → **INSERT-OR-IGNORE**
+(existence-checked composite PK) / **DELETE** (tombstone); returns **False (skip, retry)** if an endpoint isn't local
+yet (never a dangling link); the push-tombstone `forget_identity` is guarded (a link has no own identity).
+**Also decided:** **`summaries` is NOT synced** (a regeneratable synthesis whose verification is keyed to device-local
+chunk/embedding versions — like embeddings/signals); manual `cluster_node_papers` stays deferred (needs an
+axis-membership identity, since `cluster_nodes` are derived). **Known limitation (pre-existing inc-198):** `tags.name`
+is UNIQUE → two devices independently creating a same-named tag (different uids) would collide on apply — natural-key
+reconciliation is a follow-on before the live server (the link path is unaffected). **Audit addendum 2** to
+`2026-06-29_sync-engine-sp3b.md` **PASS** (device-independent link identity; skip-not-dangling apply; idempotent
+insert / tombstone delete; referenced-first ordering). **Principles/A-A:** the SP3 gate ran in SP3a → non-triggering
+beyond honoring it (no egress; conflicts surfaced). pytest **690 passed, 1 skipped** (+1
+`tests/test_sync_engine.py::test_link_table_paper_tags_sync` — a paper↔tag link syncs to a device with offset ids and
+lands on its local `(paper_id, tag_id)` [`bpid != pid`]; converged re-sync is a no-op; un-tag propagates as a
+tombstone that removes the link while leaving the paper + tag); `ruff` clean; **no migration / endpoint / egress /
+dependency / UI**; QA surface unchanged (132/132 API + 661/661 FE, 0 uncovered). Notes: `INCREMENT-200-NOTES.md`.
+**NEXT:** the **reference sync-server** (the slice where ciphertext actually leaves the machine → its own audit) + the
+`app_settings` cursor wiring + natural-key tag reconciliation; then **SP3c** (the opt-in Settings → Sync UI + conflict
+review). The engine's collection coverage is complete (summaries deferred-as-not-synced; manual cluster membership a
+later redesign).
+
+Earlier — increment 199 (accounts SP3b cont. — the FK-translation layer + the child tables notes/
 annotations, no egress): extends the inc-198 engine to the **FK-bearing child tables** — **notes** + **annotations**
 (the user's notes + highlights, the high-value relational data) — via a generic **FK-translation layer**. A row's
 foreign-key columns travel as the *referenced row's* **`sync_uid`** (device-independent) and are translated back to
