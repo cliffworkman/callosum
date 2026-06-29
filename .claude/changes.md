@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 203 — synthesis section + the evidence-workbench line now describe the `contradicted` citation state -->
+## 2026-06-29 — Increment 203: activate the dormant `contradicted` verification status (backlog A9 close-out)
+- **Files:** `app/backend/summarization/verification.py` (contradiction read + `_status` contradicted + config),
+  `app/frontend/js/20_synthesis.jsx` + `styles.css` (distinct `contradicted` pill) + `callosum-app.html` (rebuilt),
+  `.claude/DESIGN.md` (red-on-one-status-pill exception), `app/backend/help/help_content.md` (synthesis status),
+  `.claude/qa-routes/route_55_synthesis_verification.md` (assertion), `tests/test_nli_support.py` (+3), CLAUDE,
+  `INCREMENT-203-NOTES.md`.
+- **What:** the verifier could flag *not-supported* but couldn't surface that a cited source **actively disagrees**.
+  Now the NLI softmax's contradiction probability (already computed, previously discarded) yields a `contradicted`
+  status when it dominates support — rendered as a distinct red "⚠ source disagrees" pill with its quote/page intact.
+  **Signal, not verdict** — never "this claim is false."
+- **Why:** the single most consequential citation error a verify-everything tool exists to catch — a completeness gap
+  in the existing verification spine (the schema + NLI already supported it).
+- **Gates:** pytest **712 passed, 1 skipped** (+3); ruff clean; QA surface unchanged (132/132 + 661/661); Principles
+  gate aligned (signal-not-verdict, evidence shown); **no migration / endpoint / egress / dependency**. Swept 2 stray
+  `tests/*.tmp.*` orphans.
+- **Revert:** `git revert` the inc-203 commit (pure code/CSS; `contradicted` reverts to the amber "flagged" lump).
+
 ## 2026-06-29 — Increment 202: accounts SP3b — the reference sync-server + client transport + opt-in (the egress slice)
 - **Files:** new `sync_server/` (`__init__`, `schema`, `auth`, `store`, `app`, `requirements.txt`, `README.md`),
   `app/backend/sync/transport.py` (new), `app/backend/api/routers/sync.py` (new) + wired in `app.py`

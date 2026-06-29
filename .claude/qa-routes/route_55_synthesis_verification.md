@@ -20,6 +20,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
+- **Contradicted = signal, not a "false" verdict (inc 203, A9).** A citation whose source actively disagrees shows
+  the distinct `contradicted` pill ("⚠ source disagrees", red `.cite-status.contradicted`) **with** its quote/page/
+  confidence like any other evidence — never a pronouncement that the claim is false. A contradicted citation
+  presented WITHOUT its evidence, or as a true/false verdict, is **High**. (Hermetically: a `support_scorer` exposing
+  `support_and_contradiction()` with contradiction > support ≥ 0.55 → the cited sentence's status is `contradicted`.)
 
 ## Adversarial checklist
 

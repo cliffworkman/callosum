@@ -28,6 +28,9 @@ class VerificationConfig:
     quote_threshold: float = 1.0
     # Calibrated on the real library's NLI support-score valley: rejects <=0.420, keeps >=0.632.
     support_threshold: float = DEFAULT_SUPPORT_THRESHOLD
+    # A confident NLI *contradiction* probability (from the same softmax) → the `contradicted` status. Conservative:
+    # also requires contradiction to exceed support, so a middling claim isn't flagged as actively disputed.
+    contradiction_threshold: float = 0.55
 
 
 @dataclass(frozen=True)
@@ -45,6 +48,8 @@ class VerificationResult:
     chunk_version_verified_against: str
     embedding_version_verified_against: str
     verification_version: str = VERIFICATION_VERSION
+    # The NLI contradiction probability when available (None for the embedding-only fallback — silence, not a guess).
+    contradiction_confidence: float | None = None
 
     @property
     def verified(self) -> bool:
@@ -80,14 +85,20 @@ class NLISupportScorer:
     _loader: Callable[[], object] | None = field(default=None, repr=False)
 
     def score(self, *, sentence: str, passage: str) -> float:
+        return self.support_and_contradiction(sentence=sentence, passage=passage)[0]
+
+    def support_and_contradiction(self, *, sentence: str, passage: str) -> tuple[float, float | None]:
+        """Both probabilities from ONE NLI softmax: (entailment→support, contradiction). On failure → the fallback
+        scorer's support + None contradiction (the embedding fallback has no contradiction signal — silence, not a
+        guessed verdict). Used by the verifier to surface the `contradicted` status (the source actively disagrees)."""
         try:
             model = self._load_model()
             scores = model.predict([(passage, sentence)], apply_softmax=True)  # type: ignore[attr-defined]
-            return _entailment_confidence(scores, model=model)
+            return _support_and_contradiction(scores, model=model)
         except Exception:
             if self.fallback_scorer is None:
                 raise
-            return self.fallback_scorer.score(sentence=sentence, passage=passage)
+            return self.fallback_scorer.score(sentence=sentence, passage=passage), None
 
     def _load_model(self) -> object:
         if self._model is None:
@@ -191,11 +202,14 @@ class LocalCitationVerifier:
             citation=citation,
             cited_chunk=cited_chunk,
         )
-        support_confidence = self.support_scorer.score(sentence=sentence, passage=cited_chunk.text)
+        support_confidence, contradiction_confidence = self._support_and_contradiction(
+            sentence=sentence, passage=cited_chunk.text
+        )
         status = self._status(
             retrieval_confidence=retrieval_confidence,
             quote_confidence=quote_confidence,
             support_confidence=support_confidence,
+            contradiction_confidence=contradiction_confidence,
         )
         return VerificationResult(
             chunk_id=citation.chunk_id,
@@ -204,6 +218,7 @@ class LocalCitationVerifier:
             retrieval_confidence=retrieval_confidence,
             quote_confidence=quote_confidence,
             support_confidence=support_confidence,
+            contradiction_confidence=contradiction_confidence,
             page_start=page_start,
             page_end=page_end,
             bbox_json=bbox_json,
@@ -211,6 +226,14 @@ class LocalCitationVerifier:
             chunk_version_verified_against=cited_chunk.chunk_version,
             embedding_version_verified_against=_embedding_version(self.model),
         )
+
+    def _support_and_contradiction(self, *, sentence: str, passage: str) -> tuple[float, float | None]:
+        """Support + (when the scorer exposes it) contradiction, in one call. A scorer that only implements the
+        ``SupportScorer`` Protocol (`.score`) — the embedding fallback, or a test double — yields no contradiction."""
+        both = getattr(self.support_scorer, "support_and_contradiction", None)
+        if callable(both):
+            return both(sentence=sentence, passage=passage)
+        return self.support_scorer.score(sentence=sentence, passage=passage), None
 
     def _retrieval_confidence(
         self,
@@ -270,7 +293,16 @@ class LocalCitationVerifier:
         retrieval_confidence: float,
         quote_confidence: float,
         support_confidence: float,
+        contradiction_confidence: float | None = None,
     ) -> str:
+        # The cited source actively DISAGREES — the most consequential citation error, checked first. Conservative:
+        # a confident contradiction that also exceeds support. Signal, not verdict (the user sees the quote + decides).
+        if (
+            contradiction_confidence is not None
+            and contradiction_confidence >= self.config.contradiction_threshold
+            and contradiction_confidence > support_confidence
+        ):
+            return "contradicted"
         if (
             retrieval_confidence >= self.config.retrieval_threshold
             and quote_confidence >= self.config.quote_threshold
@@ -360,6 +392,18 @@ def _entailment_confidence(scores, *, model: object) -> float:  # type: ignore[n
     return max(0.0, min(1.0, values[index]))
 
 
+def _support_and_contradiction(scores, *, model: object) -> tuple[float, float | None]:  # type: ignore[no-untyped-def]
+    """(entailment, contradiction) from one NLI softmax row. A single-value (regression) head has no contradiction."""
+    row = scores[0] if hasattr(scores, "__len__") and len(scores) else scores
+    values = [float(value) for value in row]
+    if len(values) <= 1:
+        return (max(0.0, min(1.0, values[0])) if values else 0.0), None
+    ent = max(0.0, min(1.0, values[_entailment_index(model=model, count=len(values))]))
+    con_idx = _contradiction_index(model=model, count=len(values))
+    contradiction = max(0.0, min(1.0, values[con_idx])) if 0 <= con_idx < len(values) else None
+    return ent, contradiction
+
+
 # NLI label → stance label (inc 156). Standard 3-class NLI cross-encoders order [contradiction, entailment, neutral].
 _STANCE_BY_NLI = {"entailment": "support", "contradiction": "contrast", "neutral": "mention"}
 _DEFAULT_STANCE_INDEX = {"support": 1, "contrast": 0, "mention": 2}
@@ -377,6 +421,11 @@ def _label_index(*, model: object, count: int, label: str, default: int) -> int:
 
 def _entailment_index(*, model: object, count: int) -> int:
     return _label_index(model=model, count=count, label="entailment", default=1 if count > 1 else 0)
+
+
+def _contradiction_index(*, model: object, count: int) -> int:
+    # Standard 3-class NLI cross-encoders order [contradiction, entailment, neutral] → contradiction at 0.
+    return _label_index(model=model, count=count, label="contradiction", default=0)
 
 
 def _stance_from_scores(scores, *, model: object) -> Stance:  # type: ignore[no-untyped-def]

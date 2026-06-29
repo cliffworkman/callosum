@@ -997,6 +997,9 @@
   }
   .sent-badge.verified, .cite-status.verified, .coord.exact { background: var(--verified-soft); color: var(--verified); }
   .sent-badge.flagged, .cite-status.flagged, .coord.region { background: var(--flag-soft); color: var(--flag); }
+  /* inc 203 (A9): a cited source ACTIVELY DISAGREES — the strongest negative verifier signal, distinct from amber
+     "uncertain/weak". Red --danger as an ALARM (a non-interactive status pill, not a destructive action; see DESIGN §4). */
+  .cite-status.contradicted { background: var(--danger-line); color: var(--danger); font-weight: 600; }
   .coord.none { background: var(--line); color: var(--ink-2); }
   /* inc 156: stance pills — support=verified-green, contrast=flag-amber (warrants attention), mention/unknown=muted. */
   .cite-stance.support { background: var(--verified-soft); color: var(--verified); }

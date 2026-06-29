@@ -2,7 +2,7 @@
 ## Getting started
 Callosum is for working through a scholarly PDF library on your own machine. Use it to browse papers, open PDFs, add highlights and notes, organize the library with axes, and ask synthesis questions that come back with evidence you can inspect.
 
-The most important habit is to treat Callosum as an evidence workbench, not a magic answer box. When it writes a synthesis, the answer is AI-proposed, but each cited sentence is independently checked against the source PDFs. You see the supporting quote, page, confidence scores, and whether the sentence is verified or flagged.
+The most important habit is to treat Callosum as an evidence workbench, not a magic answer box. When it writes a synthesis, the answer is AI-proposed, but each cited sentence is independently checked against the source PDFs. You see the supporting quote, page, confidence scores, and whether the sentence is verified, flagged, or **contradicted** (a cited source actively disagrees).
 
 The app is local-first. After your library has been imported and processed, extraction, search, embeddings, axis scoring, duplicate scanning, and verification run locally. The app remains useful offline. The optional Gemini features are off by default and only run when you explicitly enable data egress.
 
@@ -564,6 +564,8 @@ There are two ways to run a synthesis:
 
 - **Ask a question.** Type a question in **Ask a synthesis question about the library...**, click **Synthesize**, and Callosum retrieves the most relevant chunks across your library, generates an answer, and verifies each citation. Read the result under **Verified** and **Flagged · needs review**.
 - **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum generates a verified synthesis of just those papers (the Synthesis pane shows a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
+
+Each cited sentence carries a status pill: **verified** (green — the source supports it), **flagged** (amber — it could not be fully verified), or **contradicted** (red, "⚠ source disagrees") — the most consequential case, where the cited passage *actively disagrees* with the claim. A contradicted citation still shows its quote, page, and confidence like any other evidence — it is a **signal to look, not a verdict** that the claim is false. Read the quote and decide.
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
 

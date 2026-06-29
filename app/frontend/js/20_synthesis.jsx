@@ -1,3 +1,9 @@
+// inc 203 (A9): the citation-status pill class. `contradicted` (the source actively disagrees) is its own distinct
+// state — not lumped into amber "flagged" with weak/unverified. verified → green, contradicted → red alarm, else amber.
+function citeStatusClass(status) {
+  return status === "verified" ? "verified" : status === "contradicted" ? "contradicted" : "flagged";
+}
+
 // inc 124: scroll to + briefly flash the verified claim(s) an Overview sentence traces to (by ordinal).
 function flashClaims(ordinals) {
   (ordinals || []).forEach((ord, idx) => {
@@ -266,7 +272,7 @@ function SummaryHistory({ state, activeSummaryId, onLoad, onDelete }) {
                 <span className="history-meta" style={{ color: "var(--accent)" }}>current</span>}
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span className={"cite-status " + (verified ? "verified" : "flagged")}>{item.status}</span>
+              <span className={"cite-status " + citeStatusClass(item.status)}>{item.status}</span>
               <span className="history-delete" onClick={(event) => onDelete(item.summary_id, event)}>Delete</span>
             </span>
           </button>
@@ -350,7 +356,9 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
     <details className="citation">
       <summary>
         <span>{citation.paper_title || `Paper ${citation.paper_id}`} · {pageLabel(citation)}</span>
-        <span className={"cite-status " + (verified ? "verified" : "flagged")}>{citation.status}</span>
+        <span className={"cite-status " + citeStatusClass(citation.status)}>
+          {citation.status === "contradicted" ? "⚠ source disagrees" : citation.status}
+        </span>
       </summary>
       <div className="citation-card">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>

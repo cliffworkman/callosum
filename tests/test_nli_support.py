@@ -54,6 +54,21 @@ class ConstantSupportScorer:
         return self.value
 
 
+@dataclass(frozen=True)
+class FakeContradictionScorer:
+    """Exposes both `.score` (the Protocol) AND `.support_and_contradiction` (the inc-203 dual read), so the verifier
+    can surface the `contradicted` status."""
+
+    support: float
+    contradiction: float
+
+    def score(self, *, sentence: str, passage: str) -> float:
+        return self.support
+
+    def support_and_contradiction(self, *, sentence: str, passage: str) -> tuple[float, float | None]:
+        return self.support, self.contradiction
+
+
 class UnavailableNLIModel:
     def __call__(self):
         raise OSError("model is not cached")
@@ -238,6 +253,73 @@ def test_default_support_threshold_boundary_is_inclusive(tmp_path: Path) -> None
     assert pass_result.sentences[0].citations[0].status == "verified"
     assert fail_result.sentences[0].citations[0].support_confidence == 0.54
     assert fail_result.sentences[0].citations[0].status == "weak"
+
+
+# --- inc 203 (A9): the dormant `contradicted` status — the source actively disagrees ---
+
+
+def test_nli_scorer_reads_both_entailment_and_contradiction_from_one_softmax() -> None:
+    # standard NLI order [contradiction, entailment, neutral]: this row says contradiction 0.85, entailment 0.10
+    scorer = NLISupportScorer(_loader=lambda: _StubCrossEncoder([[0.85, 0.10, 0.05]]))
+    support, contradiction = scorer.support_and_contradiction(sentence="X.", passage="not X.")
+    assert support == pytest.approx(0.10) and contradiction == pytest.approx(0.85)
+    assert scorer.score(sentence="X.", passage="not X.") == pytest.approx(0.10)  # .score() still = entailment
+
+
+def test_status_contradicted_only_when_a_confident_contradiction_dominates_support() -> None:
+    v = LocalCitationVerifier(model=TopicalFakeEmbeddingModel(), vector_store=InMemoryVectorStore())
+    # a confident contradiction that exceeds support → contradicted, even with high retrieval+quote (overrides verified)
+    assert (
+        v._status(retrieval_confidence=0.9, quote_confidence=1.0, support_confidence=0.1, contradiction_confidence=0.85)
+        == "contradicted"
+    )
+    # contradiction present but NOT exceeding support → not contradicted (here: verified)
+    assert (
+        v._status(retrieval_confidence=0.9, quote_confidence=1.0, support_confidence=0.9, contradiction_confidence=0.85)
+        == "verified"
+    )
+    # contradiction below the threshold → not contradicted
+    assert (
+        v._status(retrieval_confidence=0.2, quote_confidence=0.0, support_confidence=0.1, contradiction_confidence=0.40)
+        == "unverified"
+    )
+    # no contradiction signal (embedding fallback) → never contradicted
+    assert (
+        v._status(retrieval_confidence=0.9, quote_confidence=1.0, support_confidence=0.1, contradiction_confidence=None)
+        == "weak"
+    )
+
+
+def test_contradicting_source_resolves_to_contradicted_and_persists(tmp_path: Path) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = TopicalFakeEmbeddingModel()
+    vector_store = InMemoryVectorStore()
+    sentence = "Criterion shifts can occur in signal detection tasks."
+    quote = "Criterion shifts can occur in signal detection tasks."  # quote matches + topically retrieved
+    with engine.begin() as conn:
+        fixture = _ingest_nli_fixture(conn, tmp_path)
+        generator = FakeSummaryGenerator(
+            sentences=[
+                CandidateSummarySentence(
+                    text=sentence,
+                    citations=[CandidateCitation(chunk_id=fixture["criterion_chunk_id"], quote=quote)],
+                )
+            ]
+        )
+        result = summarize_scope(
+            conn,
+            scope=SummaryScope(scope_type="papers", paper_ids=[fixture["paper_id"]]),
+            generator=generator,
+            model=model,
+            vector_store=vector_store,
+            support_scorer=FakeContradictionScorer(support=0.1, contradiction=0.85),
+        )
+        mapping_rows = list(conn.execute(select(citation_mappings).order_by(citation_mappings.c.id)).mappings())
+
+    # the cited source contradicts the claim → contradicted (overriding what would otherwise be verified), flagged, persisted
+    assert result.sentences[0].citations[0].status == "contradicted"
+    assert result.sentences[0].flagged is True
+    assert [row["status"] for row in mapping_rows] == ["contradicted"]
 
 
 def _migrated_engine(tmp_path: Path):
