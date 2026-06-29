@@ -1094,6 +1094,12 @@
   .cite-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
   .cite-conf { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .cite-conf-warn { color: var(--flag); }
+  /* inc-209 (A3): full-text PDF search results — reuses the .cite-card / .quote / .cite-* recipes (inc 156). */
+  .fulltext-results { padding: 4px 2px; }
+  .fulltext-hint { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; padding: 2px 2px 8px; }
+  .fulltext-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); padding: 2px 2px 4px; }
+  .ft-mark { color: var(--accent); font-weight: 600; }   /* the matched term, in the search/provenance accent */
+  .ft-page { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .history { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
   .history-row {
     width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 8px;
@@ -2704,6 +2710,7 @@
     const pendingRemove = pendingOps.filter((o) => o === "remove").length;
     const selecting = !focusAxis && !trashView;
     const selCount = selectedLibraryIds ? selectedLibraryIds.size : 0;
+    const fulltextMode = librarySearchField === "fulltext" && !!(query || "").trim();
     const [citeStyles, setCiteStyles] = useState([]);
     useEffect(() => {
       api("/citations/styles").then((r) => {
@@ -2759,12 +2766,12 @@
     ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label), libraryAxisFilter.hideUncertain ? " \xB7 assigned only" : ""), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "needs-review" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "To review \u2014 papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
       "input",
       {
-        placeholder: "Search title, author, journal\u2026",
+        placeholder: fulltextMode || librarySearchField === "fulltext" ? "search inside your PDFs\u2026" : "Search title, author, journal\u2026",
         value: query,
         onChange: (e) => onQuery(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "bulk-focus",
@@ -2860,7 +2867,7 @@
           footExtra
         }
       );
-    }), state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: state.papers.length < PAGE_SIZE, onClick: () => onPage(page + 1) }, "Next \u2192")));
+    }), state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: state.papers.length < PAGE_SIZE, onClick: () => onPage(page + 1) }, "Next \u2192"))));
   }
   function AddMenu({ onScan, onImport }) {
     const [open, setOpen] = useState(false);
@@ -2907,6 +2914,54 @@
       },
       s.name
     ), /* @__PURE__ */ React.createElement("button", { className: "saved-search-del", title: "Delete this saved search", onClick: () => onDelete(s.id) }, "\xD7")))));
+  }
+  function renderFtSnippet(snippet) {
+    const OPEN = "\uE000";
+    const CLOSE = "\uE001";
+    const segments = String(snippet || "").split(OPEN);
+    const out = [segments[0]];
+    for (let i = 1; i < segments.length; i++) {
+      const [matched, ...rest] = segments[i].split(CLOSE);
+      out.push(/* @__PURE__ */ React.createElement("b", { className: "ft-mark", key: i }, matched));
+      out.push(rest.join(CLOSE));
+    }
+    return out;
+  }
+  function FulltextResults({ query, onOpenPdf }) {
+    const [state, setState] = useState({ status: "idle", hits: [] });
+    useEffect(() => {
+      const q = (query || "").trim();
+      if (!q) {
+        setState({ status: "idle", hits: [] });
+        return;
+      }
+      let live = true;
+      setState((s) => ({ ...s, status: "loading" }));
+      const t = setTimeout(() => {
+        api("/papers/fulltext?q=" + encodeURIComponent(q)).then((r) => {
+          if (!live) return;
+          if (r.ok) setState({ status: "ready", hits: r.data || [] });
+          else setState({ status: "error", hits: [], error: r.error });
+        });
+      }, 280);
+      return () => {
+        live = false;
+        clearTimeout(t);
+      };
+    }, [query]);
+    const hits = state.hits;
+    const paperCount = new Set(hits.map((h) => h.paper_id)).size;
+    const openHit = (h) => onOpenPdf(
+      { id: h.paper_id, title: h.title },
+      citationTarget({
+        paper_id: h.paper_id,
+        paper_title: h.title,
+        page_start: h.page_start,
+        page_end: h.page_end,
+        coordinate_precision: h.coordinate_precision
+      })
+    );
+    return /* @__PURE__ */ React.createElement("div", { className: "fulltext-results" }, /* @__PURE__ */ React.createElement("div", { className: "fulltext-hint" }, "Searching ", /* @__PURE__ */ React.createElement("b", null, "inside your PDFs"), " \u2014 exact wording, not meaning. (For meaning-based search, use an Axis or a Synthesis.)"), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Searching\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, "Couldn't search: ", state.error), state.status === "ready" && hits.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No matches in your PDFs."), "Try different wording. Only papers with extracted text are searched."), state.status === "ready" && hits.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "fulltext-meta" }, hits.length, " match", hits.length === 1 ? "" : "es", " in ", paperCount, " paper", paperCount === 1 ? "" : "s"), hits.map((h, i) => /* @__PURE__ */ React.createElement("div", { className: "cite-card fulltext-hit", key: h.chunk_id || i }, /* @__PURE__ */ React.createElement("div", { className: "cite-card-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "cite-title" }, h.title || "Paper " + h.paper_id), (h.author || h.year) && /* @__PURE__ */ React.createElement("div", { className: "cite-meta" }, [h.author, h.year].filter(Boolean).join(" \xB7 ")))), /* @__PURE__ */ React.createElement("div", { className: "quote" }, "\u2026", renderFtSnippet(h.snippet), "\u2026"), /* @__PURE__ */ React.createElement("div", { className: "cite-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "ft-page" }, pageLabel(h)), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => openHit(h) }, "Open at page")))));
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");

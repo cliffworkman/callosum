@@ -1070,6 +1070,12 @@
   .cite-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
   .cite-conf { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .cite-conf-warn { color: var(--flag); }
+  /* inc-209 (A3): full-text PDF search results — reuses the .cite-card / .quote / .cite-* recipes (inc 156). */
+  .fulltext-results { padding: 4px 2px; }
+  .fulltext-hint { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; padding: 2px 2px 8px; }
+  .fulltext-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); padding: 2px 2px 4px; }
+  .ft-mark { color: var(--accent); font-weight: 600; }   /* the matched term, in the search/provenance accent */
+  .ft-page { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .history { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 12px; }
   .history-row {
     width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 8px;

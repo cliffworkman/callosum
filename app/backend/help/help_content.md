@@ -86,6 +86,8 @@ Use the **Sort** dropdown to order the library by date added (oldest or most rec
 
 **Saved searches.** Once you've set up a combination you return to — a search term, a scope, a sort, an axis or tag filter, the Unsorted view — open the **Saved ▾** menu in the Library header and choose **Save current search…** to name it. Pick it from that menu any time to re-apply the whole combination at once, or **×** to delete it. A saved search just remembers your existing filters; it's distinct from an **axis** (a semantic lens that scores papers by meaning) — and Callosum never reduces a paper to a rating or score, so saved searches and tags stay the flexible, multi-dimensional way you organize.
 
+**Searching inside your PDFs (full text).** Set the search scope to **Full text (PDFs)** to search the extracted text *inside* your papers — the exact-wording complement to axes and synthesis. Type a phrase and you get a list of matches: each result shows the paper, a snippet with your terms **highlighted**, and the page, with **Open at page** to jump straight to it in the PDF. This is a literal/verbatim search ("find the exact phrase"), not a meaning-based one — for concepts and themes, use an **Axis** or a **Synthesis** instead. Only papers whose text has been extracted are searched, and Callosum computes no relevance score you'd cite — the ordering just surfaces the strongest verbatim matches first.
+
 Use the **Type** dropdown (shown when your library has typed papers) to narrow the list to one document type — journal article, book, conference paper, preprint, and so on. It only offers types that are actually present, each with a count, and composes with search and sort.
 
 Common Library actions:

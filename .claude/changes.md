@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 208 — browsing section: a "Saved searches" paragraph (Saved ▾ menu) -->
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 209 — browsing section: a "Searching inside your PDFs (full text)" paragraph -->
+## 2026-06-29 — Increment 209: A3 — full-text PDF search (SQLite FTS5)
+- **Files:** `alembic/versions/0026_chunks_fts.py` (NEW — external-content FTS5 + sync triggers + backfill),
+  `persistence/fulltext_repo.py` (NEW — sanitize + MATCH query), `api/routers/fulltext.py` (NEW — GET /papers/fulltext)
+  + `app.py` (register before papers), `app/frontend/js/10c_fulltext.jsx` (NEW — FulltextResults) + `10_pdf_layer.jsx`
+  (scope option + swap the list when active) + `styles.css` (`.fulltext-*`/`.ft-mark`) + `callosum-app.html` (rebuilt),
+  `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_22_fulltext.md` (NEW),
+  `.claude/security-audits/2026-06-29_fulltext-search.md` (NEW), `tests/test_fulltext.py` (NEW),
+  `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-209-NOTES.md`.
+- **What:** verbatim search over the extracted PDF chunk text (FTS5 `MATCH`) — the exact-string complement to the
+  semantic axes. A **"Full text (PDFs)"** search scope swaps the library list for per-occurrence snippet hits (matched
+  terms bolded, page, **Open at page** → region-precision scroll). External-content FTS5 + a sync trigger trio (the
+  AFTER DELETE trigger catches the inc-65 FK CASCADE purge). The query is sanitized (token-quoted → no FTS5 syntax
+  error/injection) + bound + try/except (never 500). No claim/rank/score (bm25 = internal ordering).
+- **Why:** A3 — find an exact phrase inside papers (axes/synthesis remain the meaning surface).
+- **Gates:** pytest **719 passed, 1 skipped** (+4); ruff clean; migration head **0026**; QA surface **142/142 API**
+  (+1) **+ 677/677 FE, 0 uncovered**; **audit `2026-06-29_fulltext-search.md` PASS**; **no new dependency** (FTS5 is
+  core SQLite). Headed-verified (`.local/visual/drive_inc209_fulltext.py` — search → hit p.2 → Open at page; malformed
+  `"` → 0 hits no error; 0 console/page/genai). `40_app.jsx` untouched (self-contained component); `10_pdf_layer.jsx` 555.
+- **Revert:** `git revert` the inc-209 commit + `alembic downgrade -1` (drops chunks_fts + triggers).
+
 ## 2026-06-29 — Increment 208: A1 — saved searches + split the library-header menus → 10b_libmenus.jsx
 - **Files:** `alembic/versions/0025_saved_searches.py` (+ `schema.py` saved_searches table), `persistence/saved_search_repo.py`
   (NEW), `api/routers/saved_searches.py` (NEW) + `app.py` (register), `app/frontend/js/10b_libmenus.jsx` (NEW — AddMenu +

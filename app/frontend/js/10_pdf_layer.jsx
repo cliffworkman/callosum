@@ -320,6 +320,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
   const selecting = !focusAxis && !trashView;            // checkbox multi-select mode (inc 54)
   const selCount = selectedLibraryIds ? selectedLibraryIds.size : 0;
+  // inc-209 (A3): full-text PDF search mode — the "Full text" scope + a query swaps the library list for a
+  // self-contained snippet-hit list (FulltextResults does its own fetch; 40_app is untouched).
+  const fulltextMode = librarySearchField === "fulltext" && !!(query || "").trim();
   const [citeStyles, setCiteStyles] = useState([]);  // inc-106: bundled CSL styles for the bulk "bibliography…" picker
   useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setCiteStyles(r.data.styles || []); }); }, []);
   return (
@@ -418,7 +421,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           </div>}
         <div className="searchbar">
           <input
-            placeholder="Search title, author, journal…"
+            placeholder={fulltextMode || librarySearchField === "fulltext" ? "search inside your PDFs…" : "Search title, author, journal…"}
             value={query}
             onChange={e => onQuery(e.target.value)}
             spellCheck={false}
@@ -428,6 +431,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <option value="title">Title</option>
             <option value="author">Author</option>
             <option value="journal">Journal</option>
+            <option value="fulltext">Full text (PDFs)</option>
           </select>
           {itemTypes && itemTypes.length > 0 &&
             <select className="lib-sort" value={libraryItemType} onChange={e => onItemTypeChange(e.target.value)} title="Filter by type">
@@ -446,7 +450,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <option value="author_desc">Author (Z–A)</option>
           </select>
         </div>
-        {state.status === "ready" &&
+        {state.status === "ready" && !fulltextMode &&
           <div className="list-meta">
             {total != null ? `${total} shown` : `${state.papers.length} shown`}
             {query ? ` · filtered by “${query}”` : ""}
@@ -455,6 +459,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <button className="lib-select-all" onClick={() => onSelectAll(state.papers.map(p => p.id))}>select all</button>}
           </div>}
       </div>
+
+      {fulltextMode && <FulltextResults query={query} onOpenPdf={onOpenPdf} />}
+      {!fulltextMode && <>
 
       {selecting && selCount > 0 &&
         <div className="axis-bulk-bar">
@@ -541,6 +548,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           <button disabled={page === 0} onClick={() => onPage(page - 1)}>← Prev</button>
           <button disabled={state.papers.length < PAGE_SIZE} onClick={() => onPage(page + 1)}>Next →</button>
         </div>}
+      </>}
     </div>
   );
 }

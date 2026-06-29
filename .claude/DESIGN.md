@@ -155,6 +155,12 @@ color-mix(in srgb, var(--tag-c) 16%, var(--panel)); … }`. A colored chip **ove
 (an uncolored tag keeps it). **No rating/score color** — ratings were deliberately declined (a star reduces a paper to
 one dimension; tags stay orthogonal). Reuse `--tag-c` + `color-mix` for any future per-entity color.
 
+### Full-text search results (inc 209, A3)
+The full-text hit list **reuses the `.cite-card` / `.quote` / `.cite-title` / `.cite-meta` / `.cite-card-foot`
+recipe** (inc 156) — a hit is just another evidence card. New only: `.ft-mark` = the matched term, rendered **bold in
+`--accent`** (search = the provenance/primary color), and the quiet `.fulltext-hint` / `.fulltext-meta` / `.ft-page`
+mono-meta lines. Reuse `.ft-mark` for any future search-match highlight.
+
 ### Status / provenance accents
 Connection LED, synthesis "running" pulse, the provenance box (`.prov`: `--accent-soft` bg + accent border
 + accent bold) — indigo = provenance. Verified green / flagged amber on summary sentences (left border 3px).

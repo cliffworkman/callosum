@@ -454,11 +454,11 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
 - **A2 — library-wide per-paper citation counts** (generalize My-Pubs Layer 3's OpenAlex counts to all cards/Details).
   A **displayed metadata field with a visible source** — never a composite, never a silent rank (#7); shown honestly,
   not zero-filled. *(Metadata egress, the inc-81 posture — not the Gemini gate.)*
-- **A3 — basic full-text PDF search box** (literal/lexical search over already-extracted `chunks` text — a SQLite
-  **FTS5** index surfaced as a search field with hit highlighting). **Complementary to**, not a replacement for, the
-  semantic retrieval (axes/synthesis stay the *semantic* surface; this is the *exact-string* lookup, "find 'ultimatum
-  game' verbatim"). **Security audit fires on the new query surface** (validate input). *(A4 — plain-Markdown
-  annotation export — already shipped inc 144: Copy / Export .md of a paper's highlights+notes.)*
+- ✅ **A3 — DONE (inc 209): full-text PDF search.** A SQLite **FTS5** index (`chunks_fts`, external-content + sync
+  triggers, migration 0026) over the extracted `chunks.text`, surfaced as a **"Full text (PDFs)"** search scope →
+  per-occurrence snippet hits (bolded matches + page + Open-at-page, region precision). `GET /papers/fulltext`;
+  sanitized + bound + fail-closed (audit PASS). The exact-string complement to axes/synthesis; no claim/rank/score.
+  *(A4 — plain-Markdown annotation export — already shipped inc 144.)*
 - **A7 — Curated Axis mode** *(build-now, medium; the biggest A item — design home: the benchmark-revisions doc §A7)*.
   An axis populated **by hand** (the bounded home for an arbitrary working set, e.g. "the 12 papers for Aim 2 in
   citation order"). **Settled:** umbrella term stays **"Axis"** (never "folder"); a **subtle aesthetic cue**, not a

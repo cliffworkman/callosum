@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 208** (see Increment workflow) with **715 pytest tests
+It is currently at **Increment 209** (see Increment workflow) with **719 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -379,6 +379,8 @@ the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-do
 (30_viewer 599→**557**). **Inc 207** split `js/25_detail.jsx` (609→**522**): `TagsRow` → new `js/25b_tags.jsx`. **Inc 208** split
 `js/10_pdf_layer.jsx` (602→**547**, over the cap when the SavedSearchMenu landed): both library-header dropdowns
 (`AddMenu` + `SavedSearchMenu`) → new `js/10b_libmenus.jsx` (62) — called via the shared-IIFE function hoist.
+**Inc 209** kept the full-text mode self-contained (`js/10c_fulltext.jsx`'s `FulltextResults` does its own fetch) so
+`js/40_app.jsx` stayed at 599 + `js/10_pdf_layer.jsx` rose only to **555** (the scope option + the swap branch).
 **Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
 `routers/papers.py` (570), `js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
@@ -732,6 +734,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Full-text PDF search via SQLite FTS5 (backlog A3 close-out; inc 209) | Verbatim/lexical search over the extracted `chunks.text` — the exact-string complement to the semantic axes/synthesis ("find 'ultimatum game' verbatim"). **Migration 0026** creates an **external-content** FTS5 index `chunks_fts` (no text duplication) + a **sync trigger trio** on `chunks`; the AFTER DELETE trigger is the crux — it catches the **FK CASCADE** from `purge_paper` (inc 65) that bypasses Python (a Python hook would miss it). `metadata.create_all` can't express FTS5, so the migration is the source of truth + has a **real guarded downgrade** (drops the FTS table + triggers; 0001's metadata-loop can't, so no double-drop — the inc-208 0025 lesson in reverse). `persistence/fulltext_repo.py`: `_safe_match` token-quotes the query (neutralizes every FTS5 operator → no syntax error / no query-lang injection) + bound param (rule #3) + `try/except → []` (never 500). `routers/fulltext.py` `GET /papers/fulltext` (registered **before** papers.router). Frontend: a **"Full text"** search scope → a self-contained `FulltextResults` (`js/10c_fulltext.jsx`) that does its own fetch → per-occurrence snippet hits (bolded matches via the U+E000/E001 markers split into React `<b>` nodes — no `dangerouslySetInnerHTML`) + Open-at-page (region precision, no fabricated rect). **`40_app.jsx` untouched** (self-contained component avoids its 599/600 cap). **Principles non-triggering** (no claim/rank/score; bm25 is an internal ordering, never a displayed verdict). Audit `2026-06-29_fulltext-search.md` PASS; **no new dependency** (FTS5 is core SQLite). pytest **719** (+4); QA surface **142/142 API + 677/677 FE, 0 uncovered** (`route_22_fulltext.md`); help corpus + DESIGN updated; headed-verified. |
 | Saved searches — a named facet bundle, distinct from an axis (backlog A1 close-out; inc 208) | A **saved search** persists a named combination of the existing library facets (q / search_field / item_type / axis / tag / needs_review / signal / sort) and recalls it from a **Saved ▾** header menu (apply / save-current / delete). New `saved_searches` table (**migration 0025**; `params` a JSON blob validated by a typed `extra="forbid"` model → unknown key 422, so only known facet keys are stored — rule #4). `persistence/saved_search_repo.py` (new; upsert-by-name = re-saving a name never duplicates) + `routers/saved_searches.py` (new; `GET`/`POST`/`DELETE /saved-searches`). Frontend: `currentSearchParams`/`applySavedSearch` in `40_app.jsx` + a `SavedSearchMenu`. **Distinct from an axis** (a semantic lens that *scores* papers): a saved search just replays the GET /papers filters — no new query semantics, no claim/rank/score → **Principles non-triggering** (reinforced in the copy: tags + saved searches stay the multi-dimensional, score-free organization). **Rule-#1 split:** SavedSearchMenu pushed `10_pdf_layer.jsx` to 602/600 → both header dropdowns extracted → `js/10b_libmenus.jsx` (547). No audit (local table + 3 local endpoints; no egress/fetch/dependency). pytest **715** (+1 `test_saved_searches.py`); QA surface **141/141 API + 675/675 FE, 0 uncovered** (`route_21_saved_searches.md`); help corpus updated; headed-verified 4/4. |
 | Color tags — and **decline ratings** (backlog A5 close-out; inc 207) | A5 was "color tags / ratings / flags"; **ratings/flags are declined** (Cliff): a unidimensional star reduces a paper to one number, erasing the multi-dimensionality tags capture ("I'd give bad science 5 stars for teachability") — which *is* the charter's own logic (#7 no opaque composite, inspectability over authority). So A5 = **color tags only.** A tag carries an optional `color` (**migration 0024**, nullable; a fixed 8-key palette stored as a **key**, never arbitrary hex — allowlist-validated at the write boundary, rule #3/#4). New `GET /tags/colors` + `POST /tags/{id}/color` (422 off-palette, 404 no-tag); `color` on `TagRef`/`TagSummary`/`PaperTagRef`. Frontend: theme-aware `--tag-<key>` tokens + a `color-mix(var(--tag-c) 16%, var(--panel))` chip recipe (a colored chip overrides the inc-100 provenance styling; uncolored keeps it); a swatch popover off each chip's color dot + a sidebar color dot. **Principles:** the declined-ratings call IS the principle pass — a color is a user label, never a score; tags stay the orthogonal, inspectable judgment. **Rule-#1 split:** the picker pushed `25_detail.jsx` to 609/600 → `TagsRow` extracted → `js/25b_tags.jsx` (522). No audit (color column + 2 local endpoints; no egress/fetch/dependency). pytest **714** (+1 `test_tags.py`); QA surface **138/138 API + 667/667 FE, 0 uncovered**; DESIGN + help corpus + `route_20` updated; headed-verified. |
 | Drag-and-drop a library paper onto an axis to add it (backlog A6 close-out; inc 206) | A faster input for the existing manual-axis-add path, **frontend-only** — rides the inc-50 `POST /axes/{id}/papers` manual-override endpoint (no backend/migration/endpoint/audit). `PaperCard` is `draggable` + writes the paper id to a custom MIME `application/x-callosum-paper`; the `.axis` header is a drop target **for non-My-Pubs axes only** (`canDrop = !isMyPubs`), accepting the drag iff that MIME is present → `AxesPanel.dropPaper` posts the manual add + `loadDetail`/`loadAxes` + a flash. The payload rides the native `dataTransfer`, so a center-pane card drops on a left-pane axis card with **no React state plumbing across panes**. `.axis.drag-over` = a dashed-`--accent` drop-invite (DESIGN recipe). **My-Pubs is not a drop target** — authorship is resolved (✓/✕), so a drag gesture must not mint an own-paper claim. **Principles non-triggering** (a manual human choice, not a scorer/AI decision). pytest **713** (unchanged — the endpoint is tested; DnD is headed-verified via a shared-DataTransfer dispatch); QA surface unchanged (handlers ride existing elements); help corpus + DESIGN + `route_15` updated. |
@@ -889,7 +892,46 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 208 (A1 — saved searches; the sixth cheapest-first close-out). A **saved
+*Last updated: 2026-06-29 — increment 209 (A3 — full-text PDF search via SQLite FTS5; the seventh cheapest-first
+close-out, the second migration-bearing one). Verbatim/lexical search over the already-extracted PDF chunk text — the
+**exact-string complement** to the semantic axes/synthesis ("find 'ultimatum game' verbatim"). **Backend:** **migration
+0026** creates an **external-content** FTS5 index `chunks_fts` over `chunks.text` (`content='chunks',
+content_rowid='id'` — no text duplication; `snippet()`/`bm25()` available) + a **sync trigger trio** on `chunks`
+(AFTER INSERT / DELETE / UPDATE) + a backfill. The **AFTER DELETE trigger is the crux** — it catches the **FK CASCADE**
+from `purge_paper` (inc 65) that bypasses Python (a Python write-hook would miss it). `metadata.create_all` can't
+express FTS5, so the migration is the source of truth + has a **real guarded `downgrade()`** (drops the triggers + FTS
+table; 0001's metadata-loop can't drop an FTS5 vtable → no double-drop, the inc-208 0025 lesson applied in reverse).
+New `persistence/fulltext_repo.py`: `_safe_match` token-quotes the raw query (each whitespace token → a double-quoted
+phrase, AND-ed → neutralizes every FTS5 operator so it can't be a syntax error or inject the query language) + bound
+`MATCH :q` (rule #3) + `snippet()` with U+E000/E001 markers + `ORDER BY bm25 LIMIT 50` + `try/except OperationalError →
+[]` (never 500); excludes trashed papers (`deleted_at IS NULL`). `routers/fulltext.py` `GET /papers/fulltext?q=&limit=`
+→ per-occurrence `FulltextHit`s (`coordinate_precision="region"`), registered in `app.py` **before** `papers.router`
+(so `/papers/fulltext` isn't captured by `/papers/{paper_id}` — the duplicates.py precedent). **Frontend:** a **"Full
+text (PDFs)"** option in the search-scope dropdown swaps `PaperList`'s body for a self-contained **`FulltextResults`**
+(new chunk `js/10c_fulltext.jsx`) that does its own debounced `GET /papers/fulltext` fetch — so **`40_app.jsx` is
+untouched** (it already threads `query`/`librarySearchField`/`onOpenPdf`, dodging its 599/600 cap). Per-occurrence
+cards (reuse `.cite-card`/`.quote`): title + author·year, the snippet with matched terms **bolded** (split on the
+U+E000/E001 markers → React `<b className="ft-mark">` nodes, **no `dangerouslySetInnerHTML`**), the page, and **Open
+at page** → `citationTarget` → region-precision scroll (no fabricated exact rect). **Principles non-triggering** — a
+verbatim lexical lookup, no claim/rank/score (bm25 is an internal ordering, never a displayed verdict);
+coordinate-honest region open. **Audit `2026-06-29_fulltext-search.md` PASS** (sanitized + bound + fail-closed input;
+escaped output, no XSS; local-only no egress/SSRF; bounded; trashed-excluded; trigger-synced incl. CASCADE; **no new
+dependency** — FTS5 is core SQLite). pytest **719 passed, 1 skipped** (+4 `tests/test_fulltext.py`: `_safe_match`
+sanitization; a hit returns snippet+page + trashed-excluded; malformed/empty queries → 200 `[]` never 500; the FTS
+triggers stay in sync across a chunk insert **and a paper-delete CASCADE**); `ruff` clean; frontend rebuilt; migration
+head **0026** via `alembic_head()`; **QA surface 142/142 API** (+1 `/papers/fulltext`) **+ 677/677 FE, 0 uncovered**
+(new `route_22_fulltext.md` + the FE hit list); DESIGN.md records the result-card recipe (rule #8); help corpus gained
+a "Searching inside your PDFs (full text)" paragraph (`HELP-DOCS-SYNCED` → 209). **Headed-verified, no egress**
+(`.local/visual/drive_inc209_fulltext.py` — scope → Full text → "signal detection" → 1 hit, 2 bolded matches, p. 2 →
+malformed `"` → 0 hits no error → Open at page → the PDF renders scrolled to page 2; 0 console/page/genai). **Rule-#1
+watch:** `js/40_app.jsx` stays the closest at **599/600** (untouched); `js/10_pdf_layer.jsx` ends at **555**. Notes:
+`INCREMENT-209-NOTES.md`. **NEXT (continuing the cheapest-first close-out):** **A2** — library-wide per-paper citation
+counts (generalize the My-Pubs Layer-3 OpenAlex cited-by counts to all library cards — metadata egress, shown
+verbatim-with-source, **never a silent rank**; trips the audit + Principles gates), and **A7 Curated Axis** (the
+largest A item — its own design pass). The deferred **B-items** (MCP server, citation-context classifier) are larger,
+own design passes.
+
+Earlier — increment 208 (A1 — saved searches; the sixth cheapest-first close-out). A **saved
 search** persists a named bundle of the existing library facets (q / search_field / item_type / axis / tag /
 needs_review / signal / sort) and recalls it from a **Saved ▾** header menu (apply / save-current / delete) — a
 metadata predicate over the existing `GET /papers` filters, **distinct from an axis** (a semantic lens that scores
