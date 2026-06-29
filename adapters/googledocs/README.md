@@ -24,7 +24,27 @@ folder-scan routes, `/papers/{id}` edit/delete) returns **404** through the tunn
 
 ---
 
-## One-time setup
+## Easiest setup (Quick Tunnel — no Cloudflare account, no domain) — inc 193
+
+If you just want to cite from Docs without the domain migration below, use a **Cloudflare Quick Tunnel** + the
+**one-file add-on bundle**. Four steps:
+
+1. **callosum:** run it, then **Settings → Remote access → ON**, copy the **token**.
+2. **Tunnel:** `python tools/run_tunnel.py --quick --port 8888` (use your port). cloudflared prints a
+   `https://<random>.trycloudflare.com` URL — copy it. (Leave it running; the URL changes each launch.)
+3. **Add-on (one paste):** `python tools/build_gdocs_addon.py` writes **`adapters/googledocs/callosum-gdocs.gs`**.
+   In a Google Doc → **Extensions → Apps Script** → select-all in `Code.gs` and **replace it with that one file** →
+   Save → reload the Doc → **Extensions → Callosum → Open Callosum**.
+4. **Connect:** in the sidebar's Connection settings paste the **trycloudflare URL** + your **token** → Save. Cite.
+
+**Tradeoff vs. the named tunnel below:** the URL is throwaway (re-paste each session), and a quick tunnel can't
+enforce the cite-only ingress allowlist — your **bearer token is the only boundary** (it already is the primary one;
+keep it secret, turn Remote access off when done). For a **stable URL + cite-only ingress**, do the one-time setup
+below instead. Either way, the one-file bundle (step 3) replaces the three-file paste in step 7.
+
+---
+
+## One-time setup (named tunnel — stable URL + cite-only ingress)
 
 ### 1. callosum: turn on Remote access + get your token
 - Run callosum normally (`uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080`).
@@ -89,6 +109,12 @@ The add-on lives in this folder: `Code.gs` + `gdocs_core.js` + `sidebar.html` + 
 running with **Remote access ON**.
 
 **Install (bound to a document — no publishing needed):**
+
+*Recommended (one paste):* `python tools/build_gdocs_addon.py` → bundles the three sources into
+**`callosum-gdocs.gs`**. Open a Google Doc → **Extensions → Apps Script** → select-all in `Code.gs`, replace it with
+that one file → Save → reload → **Extensions → Callosum → Open Callosum** (authorize on first run).
+
+*Or, by hand (three files):*
 1. Open a Google Doc → **Extensions → Apps Script**.
 2. Add the files: paste `Code.gs` into the default `Code.gs`; **＋ → Script** named `gdocs_core` ← `gdocs_core.js`;
    **＋ → HTML** named `sidebar` ← `sidebar.html`. (Or push all four with

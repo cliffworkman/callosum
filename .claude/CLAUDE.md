@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 192** (see Increment workflow) with **654 pytest tests
+It is currently at **Increment 193** (see Increment workflow) with **656 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -306,7 +306,9 @@ callosum/
 │                                  also loaded by GAS as CallosumCore] + gdocs_core.test.js + sidebar.html + appsscript.json
 │                                  — citations as NamedRange + DocumentProperties (Zotero pattern); reuses the cite
 │                                  contracts; manual-test-only. inc 171 (SP3): Suggest-from-the-selection
-│                                  (/citations/suggest) + Flatten (live→static). README.md = the setup runbook.
+│                                  (/citations/suggest) + Flatten (live→static). inc 193: callosum-gdocs.gs [the 3 sources
+│                                  bundled to one paste, built by tools/build_gdocs_addon.py] + a --quick Quick-Tunnel path.
+│                                  README.md = the setup runbook (leads with the easy path).
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
@@ -316,7 +318,9 @@ callosum/
 │                                  enrich_metadata.py, inline_brand_assets.py, build_frontend.py,
 │                                  build_libreoffice_oxt.py [the LO extension build, inc 162],
 │                                  run_https.py [serve over HTTPS on :8443 for the Word add-in, inc 164],
-│                                  run_tunnel.py [run the cloudflared cite-only tunnel for callosum.clffwrkmn.net, inc 169]; qa/ [inc 120:
+│                                  run_tunnel.py [cloudflared tunnel for the Google Docs add-on: named cite-only (inc 169)
+│                                  or --quick zero-setup Quick Tunnel (inc 193)], build_gdocs_addon.py [bundle the 3 Apps
+│                                  Script sources → one paste-able callosum-gdocs.gs, inc 193]; qa/ [inc 120:
 │                                  build_surface_map.py = surface-coverage gate, supervisor.py = Codex-exec
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
@@ -838,7 +842,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 192 (Feed SP2c-3 part 2 — auto-refresh cadence; **#28 COMPLETE**): an opt-in,
+*Last updated: 2026-06-29 — increment 193 (Google Docs setup automation — Quick Tunnel + one-file add-on bundle):
+the user flagged the Google Docs install ("migrate a domain + paste 3 files") as too much for an end user. Two of
+the steps are Google's platform constraints (a cloud add-on can't reach localhost → a bridge must exist; no
+"install a local add-on" button short of Marketplace publishing); the rest was setup tax, now cut (user-approved
+scope = both). **`tools/run_tunnel.py --quick [--port N]`**: a **Cloudflare Quick Tunnel** (`cloudflared tunnel
+--url http://localhost:<port>`) — **zero setup** (no account/domain/nameservers/`tunnel create`/config), prints a
+throwaway `trycloudflare.com` URL to paste into the add-on; the named-tunnel (stable URL + cite-only ingress) stays
+the default no-flag path. **`tools/build_gdocs_addon.py`** → committed **`adapters/googledocs/callosum-gdocs.gs`**:
+concatenates `gdocs_core.js` + `Code.gs` + `sidebar.html` (inlined as a JSON string via
+`HtmlService.createHtmlOutput(_callosumSidebarHtml())`, replacing `createHtmlOutputFromFile`) into **one** paste-able
+file (Apps Script's single global scope makes `gdocs_core`'s `globalThis.CallosumCore` visible). README leads with an
+"Easiest setup (Quick Tunnel — no account)" 4-step path. **Audit:** addendum to `2026-06-28_googledocs-tunnel.md`
+**PASS** — `--quick` is opt-in/non-default/token-gated/**informed** (the runner prints the tradeoff) but drops the
+cite-only ingress allowlist → the bearer token is the sole boundary (A-A consent value; the named cite-only path
+remains for hardening); the bundle is not a security change. **Principles non-triggering** (tooling/packaging, not a
+claim/signal). pytest **656** (+2 `tests/test_gdocs_bundle.py`: bundle-in-sync + inlines-core-and-sidebar — drift-safe
+like `test_frontend_assembly`); `ruff` clean; `node --check` on the bundle (valid JS); **no app code / frontend /
+migration / dependency change** (cloudflared already required), QA surface unchanged (132 API / 657 FE), no
+help-corpus change (setup tooling, not in-app behavior). **The real quick-tunnel + in-Docs round-trip is the user's
+manual check** (live cloudflared egress + Google's cloud — un-automatable from the repo). Also this turn: pointed the
+user's gitignored `cloudflared-config.local.yml` cite rule at `localhost:8888` (their port). True one-click
+"install from the Workspace Marketplace" remains the only thing not replaced (a GCP project + OAuth verification +
+review — deliberately not taken for a local-first tool). Notes: `INCREMENT-193-NOTES.md`. **NEXT:** the user's pick —
+their live Google Docs test (now ~4 steps) or a fresh track.
+
+Earlier — increment 192 (Feed SP2c-3 part 2 — auto-refresh cadence; **#28 COMPLETE**): an opt-in,
 staleness-gated auto-refresh-on-open, the last open item on the discovery track. **Frontend-only.** `FeedPane`
 (`30e_feed.jsx`) gains an **"Auto-refresh on open"** checkbox (`localStorage["callosum.feedAutoRefresh"]`, **default
 off**) + an `active` prop + an effect: when the Feed tab is open **&& autoRefresh && a source is stale** (newest

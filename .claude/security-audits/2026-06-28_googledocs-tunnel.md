@@ -63,3 +63,37 @@ the inc-168 audit (the ingress allowlist) is now **shipped + validated**.
 ingress), minimal blast radius (one delegated subdomain), no secret committed, no new code/dependency in callosum.
 The egress is the user's explicit opt-in; trusting Cloudflare + Google for transit is inherent to the chosen bridge
 and documented.
+
+---
+
+## Addendum (inc 193) — the Quick-Tunnel convenience mode (`run_tunnel.py --quick`)
+
+To spare a new user the whole Cloudflare-account + domain-migration + named-tunnel setup, `tools/run_tunnel.py
+--quick --port <p>` runs a **Cloudflare Quick Tunnel** (`cloudflared tunnel --url http://localhost:<p>`) — zero
+account/domain/config; it prints a throwaway `https://<random>.trycloudflare.com` URL.
+
+**The one real posture change — call it out:** a quick tunnel takes **no ingress config**, so it **cannot enforce
+the cite-only allowlist**. Through a quick tunnel, *every* endpoint is reachable (gated only by the bearer token),
+including the file-read/scan routes (`/library/scan`, watched-folder rescan) and `/papers/{id}` edit/delete — not
+just the five cite paths. So in `--quick` mode the **constant-time bearer token is the SOLE boundary** (it is already
+the *primary* one — see the inc-168 remote-access audit — but the cite-only ingress's defense-in-depth is gone).
+
+**Why this is acceptable as an explicit, opt-in mode (A-A consent value):**
+- It is **opt-in + non-default**: the named tunnel (cite-only) remains the documented stable path; `--quick` is a
+  separate flag a user runs knowingly. Remote access itself is still default-OFF + requires a minted token (inc 168).
+- The token is a `secrets.token_urlsafe(32)`, constant-time-compared, never returned by the API; a quick-tunnel URL
+  is an unguessable random `trycloudflare.com` host that changes each launch and exists only while the process runs.
+  The runner **prints the tradeoff** ("your bearer token is the only boundary — keep it secret + turn Remote access
+  off when done") so the consent is informed.
+- **No new code path in callosum** — the app + its token gate are unchanged; this is a `tools/` launcher option +
+  docs. No new dependency (cloudflared already required by the named path). The README leads with this as the "try
+  it fast" path and keeps the named-tunnel (cite-only) path for a stable/hardened setup.
+
+**Addendum decision: PASS** (opt-in, token-gated, informed-consent convenience mode; the cite-only-ingress reduction
+is documented + the named path remains). A future hardening idea (not built): an app-level "cite-only when remote"
+mode — deferred because the app can't distinguish tunnel vs. local requests (the inc-168 loopback-indistinguishability),
+so it would also restrict the local browser.
+
+(The single-file add-on bundle — `tools/build_gdocs_addon.py` → `callosum-gdocs.gs` — is **not** a security change:
+it concatenates the existing three Apps Script sources [inlining the sidebar HTML as a string served via
+`HtmlService.createHtmlOutput`] into one paste; same code, same cite contracts, no new endpoint/egress.)

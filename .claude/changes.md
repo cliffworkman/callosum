@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 193: Google Docs setup automation — Quick Tunnel + one-file add-on bundle
+- **Files:** `tools/run_tunnel.py` (--quick/--port), `tools/build_gdocs_addon.py` (new), `adapters/googledocs/callosum-gdocs.gs`
+  (new generated bundle), `adapters/googledocs/README.md` (easiest-setup section), `tests/test_gdocs_bundle.py` (new, +2),
+  `.claude/security-audits/2026-06-28_googledocs-tunnel.md` (addendum), `INCREMENT-193-NOTES.md`.
+- **What:** cut the Google Docs install from "migrate a domain + paste 3 files" to "run a quick tunnel + paste 1 file."
+  `run_tunnel.py --quick` = a zero-setup Cloudflare Quick Tunnel (throwaway URL, no account/domain/config);
+  `build_gdocs_addon.py` bundles the 3 Apps Script sources (sidebar inlined) into one paste-able `callosum-gdocs.gs`.
+- **Why:** the user flagged the setup as too much for an end user; user-approved scope = both.
+- **Gates:** pytest 656 (+2 bundle sync/inline tests); ruff clean; QA surface unchanged (no API/FE surface — tools +
+  adapter file); audit addendum PASS (the --quick mode drops cite-only ingress → token-only, opt-in + informed +
+  non-default; named cite-only path remains; bundle is not a security change). node --check on the bundle. No app
+  code/frontend/migration/dependency change. **The real quick-tunnel + in-Docs round-trip is the user's manual check.**
+- **Also (this turn):** pointed the user's gitignored `cloudflared-config.local.yml` cite rule at `localhost:8888`
+  (their port; was 8080).
+- **Revert:** drop build_gdocs_addon.py + callosum-gdocs.gs + the test, revert the run_tunnel --quick block + README.
+
 <!-- HELP-DOCS-SYNCED: 2026-06-29 (inc 192) — the "Following sources (Feed)" section now covers all four source types + the Auto-refresh-on-open toggle; covers inc 191/190/189/188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
 ## 2026-06-29 — Increment 192: Feed SP2c-3 (part 2) — auto-refresh cadence (#28 complete)
 - **Files:** `app/frontend/js/30e_feed.jsx` (auto-refresh toggle + staleness-gated effect), `app/frontend/js/30c_frame.jsx`
