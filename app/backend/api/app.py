@@ -41,6 +41,7 @@ from app.backend.api.routers import (
     papers,
     settings,
     summaries,
+    sync,
     tags,
     wanted,
     word,
@@ -90,6 +91,7 @@ def create_app(
     discovery_registry: SourceRegistry | None = None,
     feed_registry: FeedRegistry | None = None,
     oidc_client: OidcClient | None = None,
+    sync_transport: object | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
@@ -147,6 +149,9 @@ def create_app(
     # Optional account (SP1): the OIDC "Sign in with ORCID" client. None unless configured (issuer/client_id env) or
     # injected by a test. Identity-only — no library egress. Default-off: with no client, /auth/login → 503.
     api.state.oidc_client = oidc_client or build_oidc_client_from_env()
+    api.state.sync_transport = (
+        sync_transport  # SP3b: a test injects one bound to the in-process server; else built per-run
+    )
 
     api.add_middleware(
         CORSMiddleware,
@@ -200,6 +205,7 @@ def create_app(
     api.include_router(summaries.router)
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
+    api.include_router(sync.router)  # /sync/* — opt-in E2E sync: setup/settings/status/run (SP3b, inc 202)
     api.include_router(auth_router)  # /auth/* + /oauth/callback — optional account: Sign in with ORCID (SP1)
     api.include_router(
         libreoffice.router

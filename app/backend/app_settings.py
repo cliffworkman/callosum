@@ -114,6 +114,62 @@ def resolved_mailto(env_var: str) -> str | None:
     return stored_contact_email() or os.environ.get(env_var)
 
 
+# --- Sync (accounts SP3b): opt-in (default OFF) config + the sealed keyring + the per-device cursor ---
+
+
+def stored_sync_settings() -> dict:
+    """``{enabled: bool, server_url: str | None}`` — opt-in egress, default OFF."""
+    data = load_settings()
+    return {
+        "enabled": bool(data.get("sync_enabled", False)),
+        "server_url": (data.get("sync_server_url") or None),
+    }
+
+
+def set_sync_settings(*, enabled: bool, server_url: str | None) -> None:
+    data = load_settings()
+    data["sync_enabled"] = bool(enabled)
+    if (server_url or "").strip():
+        data["sync_server_url"] = server_url.strip()
+    else:
+        data.pop("sync_server_url", None)
+    _write(data)
+
+
+def stored_sync_cursor() -> int:
+    """The per-device pull high-water mark (the inc-198 cursor; the engine returns the new one each run)."""
+    val = load_settings().get("sync_cursor", 0)
+    return int(val) if isinstance(val, int) else 0
+
+
+def set_sync_cursor(seq: int) -> None:
+    data = load_settings()
+    data["sync_cursor"] = int(seq)
+    _write(data)
+
+
+def set_sync_keyring(keyring: dict | None) -> None:
+    """Store the SEALED sync keyring (SP3a: no plaintext / passphrase / DEK — safe at rest). Treated as a secret
+    (keychain where available, else the local file), never returned over the wire."""
+    _set_secret("sync_keyring", json.dumps(keyring) if keyring is not None else None)
+
+
+def stored_sync_keyring() -> dict | None:
+    raw = _get_secret("sync_keyring")
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def sync_configured() -> bool:
+    """True once a keyring exists (the user ran sync setup)."""
+    return stored_sync_keyring() is not None
+
+
 # --- Multi-provider (inc 149): provider selection + per-provider keys + the local endpoint ---
 
 # The gemini key stays under "api_key" (the inc-146 field) for back-compat; other providers get their own field.

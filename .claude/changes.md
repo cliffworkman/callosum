@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 202: accounts SP3b — the reference sync-server + client transport + opt-in (the egress slice)
+- **Files:** new `sync_server/` (`__init__`, `schema`, `auth`, `store`, `app`, `requirements.txt`, `README.md`),
+  `app/backend/sync/transport.py` (new), `app/backend/api/routers/sync.py` (new) + wired in `app.py`
+  (`include_router` + `create_app(sync_transport=…)`), `app/backend/app_settings.py` (sync config + sealed keyring +
+  cursor), `tests/test_sync_server.py` (+9), `tests/test_sync_endpoints.py` (+8), `.claude/qa-routes/route_46_sync.md`
+  (new), `.claude/security-audits/2026-06-29_sync-server.md` (PASS), `.claude/docs/specs/2026-06-29-sync-server-design.md`
+  (the design), CLAUDE (layout/decision-log/footer), `INCREMENT-202-NOTES.md`.
+- **What:** the first path where data leaves the machine — a self-hostable **sync-server** (`sync_server/`, FastAPI +
+  Postgres-in-prod / SQLite-in-tests, an OIDC resource server storing **opaque AES-GCM blobs** per user), a client
+  **`HttpSyncTransport`** (httpx), and the **opt-in** local `/sync/{status,settings,setup,run}` endpoints that drive
+  `run_sync` over the transport. Default-off, E2E (the DEK never leaves), fully gated.
+- **Why:** SP3b's server slice (the maintainer's chosen scope: server + transport + opt-in together) — the engine
+  (incs 197–201) now has a real backend to sync against.
+- **Gates:** pytest **709 passed, 1 skipped** (+17); ruff clean; QA surface **136/136 API + 661/661 FE, 0 uncovered**
+  (new `route_46_sync.md`); audit PASS; **no migration; no new dependency in the local app** (server-only deps in
+  `sync_server/requirements.txt`). The live deploy + live-Authentik token validation is the maintainer's manual step.
+- **Revert:** `git revert` the inc-202 commit (removes `sync_server/` + the transport/router/settings additions; the
+  inc-197–201 engine + the local sync tables are untouched).
+
 ## 2026-06-29 — Increment 201: accounts SP3b cont. — natural-key identity for tags (cross-device collision fix)
 - **Files:** `app/backend/sync/changeset.py` (`SyncableCollection.natural_key`; `_natural_uid` helper;
   `ensure_identities` deterministic uid; tags `natural_key="name"`), `tests/test_sync_engine.py` (+2),

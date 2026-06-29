@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 201** (see Increment workflow) with **692 pytest tests
+It is currently at **Increment 202** (see Increment workflow) with **709 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -232,7 +232,8 @@ callosum/
 │   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
    │                          gaps [literature gap-finder, inc 135],discovery [Search providers, inc 183],settings [BYOK: Gemini key + egress
    │                          consent, inc 146],libreoffice [LO plugin install/download, inc 162],word [Word add-in
-   │                          task pane + manifest serving, inc 164],help}.py [models + handlers])
+   │                          task pane + manifest serving, inc 164],sync [opt-in E2E sync: setup/settings/status/run,
+   │                          inc 202],help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables] + schema_feed.py
 │   │   │                          [feed_subscriptions/feed_items, inc 187] + schema_sync.py [sync_state/sync_conflicts/
@@ -282,10 +283,10 @@ callosum/
 │   │   │                          row's FK local-id ↔ the referenced row's sync_uid; a LINK table (pk=None, paper_tags)
 │   │   │                          keys on its endpoint uids; a natural_key collection (tags=name) gets a deterministic
 │   │   │                          name-derived uid → cross-device convergence; SYNCABLE = papers/tags/axes/notes/
-│   │   │                          annotations/paper_tags]
-│   │   │                          + engine.py [pull→decrypt→merge→apply (referenced-first; link path)→push over a
-│   │   │                          SyncTransport Protocol; SP3b inc 198/199/200]; accounts SP3a/3b, local/no-egress;
-│   │   │                          summaries=not-synced; manual-cluster + the reference sync-server are follow-ons)
+│   │   │                          annotations/paper_tags] + engine.py [pull→decrypt→merge→apply (referenced-first;
+│   │   │                          link path)→push over a SyncTransport Protocol] + transport.py [HttpSyncTransport:
+│   │   │                          the Protocol over httpx → the reference server, fail-closed; SP3b inc 202]; accounts
+│   │   │                          SP3a/3b, local; egress only via the opt-in /sync/* + sync_server/; summaries=not-synced)
 │   │   ├── metadata/              (doi.py, enrichment.py, abstract_display.py, paper_edits.py,
 │   │   │                          paper_merge.py [non-destructive duplicate merge, inc 161],
 │   │   │                          citation_export.py [→BibTeX/RIS/CSL-JSON, inc 70],
@@ -324,6 +325,12 @@ callosum/
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132] [impl];
 │                                  api_cache.py [shared cache helper]; semantic-scholar, grobid, mendeley [planned])
+├── sync_server/                   ← the reference E2E **sync-server** (accounts SP3b, inc 202): a SEPARATE deployable
+│                                  (its own requirements.txt; the local app never imports it), FastAPI + SQLAlchemy
+│                                  Core (Postgres in prod / SQLite in tests). schema.py [sync_records + sync_cursor,
+│                                  per-user], auth.py [TokenVerifier Protocol + JwksVerifier — an OIDC resource server],
+│                                  store.py [push LWW-by-version + per-user seq / pull since-delta], app.py
+│                                  [GET/POST /sync/records + /health], README.md. Stores only OPAQUE AES-GCM blobs.
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
@@ -551,8 +558,14 @@ be made public later — so the discipline below is enforced now, not retrofitte
   (`app/backend/api/auth/`, OIDC + PKCE) is **default-OFF** (no issuer/client_id env → no sign-in) and sends **no
   library text** — it verifies identity + populates My-Pubs only. Tokens are write-only (keychain/file, never in
   `GET /settings`); the redirect is loopback-validated; the `/oauth/callback` navigation is the only new gate
-  exemption (opaque code+state). Cross-device **sync** (the library-egress step) is **not built** — its own
-  design + a heavier Principles/A-A pass first.
+  exemption (opaque code+state).
+- **Opt-in, E2E-encrypted cross-device sync (accounts SP3, incs 197–202).** The crypto + engine are local/no-egress
+  (197–201); the **egress channel** is the opt-in `/sync/*` endpoints + the self-hostable **`sync_server/`** (inc 202):
+  **default-off**, runs only when enabled + configured + signed-in, and **only opaque AES-GCM ciphertext** leaves (the
+  DEK never does — E2E; the server can't read it). The Gemini library-text gate (#3) is a *separate* channel, untouched.
+  Audits `2026-06-29_sync-crypto-sp3a.md` + `…_sync-engine-sp3b.md` + `…_sync-server.md` (PASS). Follow-ons: **SP3c**
+  (the Sync UI + conflict review), the live deploy (Postgres + Authentik), + per-user rate-limiting/retention on the
+  server (recorded for the pre-public pass).
 - SQLAlchemy bound parameters (rule #3); PDF + external-input validation at the boundary
   (rule #4).
 
@@ -716,6 +729,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Accounts SP3b = the reference sync-server + client transport + opt-in (the egress slice; inc 202) | The first path where data **leaves the machine** — built as the maintainer chose: **server + transport + opt-in together**, **FastAPI + Postgres** (SQLAlchemy Core → SQLite-in-tests / Postgres-in-prod), in-repo under **`sync_server/`** (a separate deployable; **the local app gains no dependency** — only an httpx transport). What leaves is **opaque AES-GCM ciphertext** the server can't read (E2E; the DEK never leaves), so it's **opt-in, default-off**. **`sync_server/`** = an OIDC **resource server** (validates an Authentik bearer via JWKS, scopes rows to `sub`; an injectable `TokenVerifier` → fake in tests) storing `sync_records` per user with a per-user `seq` (the cursor; assigned from a locked `sync_cursor` row) over `GET/POST /sync/records` (LWW-by-version, ≤1000 records/≤2 MB caps, never decodes a blob). **`HttpSyncTransport`** (`app/backend/sync/transport.py`) implements the inc-198 Protocol over httpx, fail-closed. The opt-in vertical (`routers/sync.py`): `GET /sync/status`, `PUT /sync/settings` (lockout-safe enable: 422 unless configured + signed-in + URL), `POST /sync/setup` (create keyring → recovery code **once**), `POST /sync/run` (unlock DEK from the passphrase → `run_sync` over the transport → persist the cursor; 409 if any precondition unmet, 401 + **no egress** on a wrong passphrase). `app_settings` gained the sync config + the sealed keyring (secret store) + the cursor (the inc-198 deferral resolved). `create_app(sync_transport=…)` injects a transport bound to the in-process server, so **the whole stack is pytest-tested** (server contract + tenant isolation + a two-device convergence over the real HTTP transport + the opt-in gate). **No migration** (local sync tables exist; the server creates its own on start). Audit `2026-06-29_sync-server.md` **PASS** (default-off egress; per-user isolation; bounded inputs; fail-closed; no local-app dependency). The **live deploy + live-Authentik token validation** is the maintainer's manual step. **NEXT:** SP3c (the Settings → Sync UI + conflict-review screen) + the live deploy + pre-public server hardening (per-user rate-limiting/retention). |
 | Accounts SP3b cont. = natural-key identity for tags — the cross-device-collision fix (no egress; inc 201) | Closes the one real correctness gap left in the engine: `tags.name` is UNIQUE, so two devices that *independently* created a same-named tag (a `to-read`, a `review`) would crash with an `IntegrityError` on the first sync (apply INSERTs a duplicate-named tag). Fix: a tag *is* its (UNIQUE) name, so its `sync_uid` is now **deterministic from the name** (`_natural_uid("tags", name)` = `sha256("tags\0name")` hex) instead of a random uuid — both devices independently pick the **same** uid for `"topic"`, so apply finds the existing local tag by that uid and **UPDATEs** it (no INSERT, no UNIQUE violation, automatic convergence). The whole fix is in `ensure_identities` (a new `natural_key` on `SyncableCollection`); collect/apply/merge are untouched, and paper_tags links converge for free (both reference the same tag uid). Only `tags` declares a natural key (papers/axes titles/labels aren't UNIQUE); tag rename isn't an app flow so the rename-changes-uid edge doesn't arise. **No migration / endpoint / egress / dependency / UI.** Audit **addendum 3** to `2026-06-29_sync-engine-sp3b.md` **PASS** (resolves the addendum-2 known limitation). This leaves the client engine **robust + collection-complete**; **NEXT** is the reference sync-server (where ciphertext leaves → its own audit + the maintainer's infra) + the `app_settings` cursor wiring, then SP3c (Settings → Sync UI + conflict review). |
 | Accounts SP3b cont. = the link-table model — paper_tags (no egress; inc 200) | Syncs the composite-PK link table **paper_tags** (tag assignments) — completing the engine's user-authored relational coverage (papers · tags · axes · notes · annotations · tag-assignments). A link has **no own id**, so its identity is **derived from its endpoints**: `record_id = "<paper sync_uid>|<tag sync_uid>"`, computed identically on every device (a random per-device uid wouldn't converge). `SyncableCollection.pk` → `str | None`; `pk=None` selects the link path in `ensure_identities` (skip — no own identity), `changeset._outbound` (derive record_id from the translated endpoints; payload = the endpoints) and `engine._apply_link` (split record_id on `\|` → resolve each endpoint uid → local id → INSERT-OR-IGNORE / DELETE; skip-not-dangling if an endpoint isn't local yet; applied referenced-first). Also decided: **`summaries` is NOT synced** (a regeneratable synthesis keyed to device-local chunk/embedding versions — like embeddings/signals); manual `cluster_node_papers` stays deferred (needs an axis-membership identity since `cluster_nodes` are derived). **Known limitation (pre-existing inc-198):** `tags.name` is UNIQUE → two devices independently creating a same-named tag (different uids) would collide on apply — natural-key reconciliation is a follow-on (the link path is unaffected). **No migration / endpoint / egress / dependency / UI.** Audit **addendum 2** to `2026-06-29_sync-engine-sp3b.md` **PASS**. **NEXT:** the **reference sync-server** (where ciphertext leaves → its own audit) + the `app_settings` cursor wiring + natural-key tag reconciliation; then SP3c (Settings → Sync UI + conflict review). |
 | Accounts SP3b cont. = FK-translation + the child collections notes/annotations (no egress; inc 199) | Extends the inc-198 engine to the **FK-bearing child tables** notes + annotations (own `id` + a `paper_id` FK to the already-synced papers). A generic **FK-translation layer**: `SyncableCollection` gains `fks` (`{column: referenced collection}`) + `drop` (device-local columns); `collect_local` carries each FK column as the **referenced row's `sync_uid`** (device-independent) + drops `pk`/`drop` cols; `engine._apply_record` translates that uid back to **this device's** local id (`local_id_for_uid`) and applies winners **referenced-first** (sorted by `SYNCABLE` rank, so a row's FK targets exist before it; an unresolved FK → skip-and-retry, never a dangling write). `SYNCABLE` += notes (`fks={"paper_id":"papers"}`) + annotations (`fks={"paper_id":"papers"}`, `drop=("attachment_id",)` — the per-device PDF pointer is omitted entirely, applied NULL; the highlight re-associates by paper+page+bboxes). The uid-form FK payload round-trips stably → a converged pair re-syncs to 0 push/0 apply. **No migration / endpoint / egress / dependency / UI** (sync_identity + the engine already exist). Audit **addendum** to `2026-06-29_sync-engine-sp3b.md` **PASS**. **NEXT:** `paper_tags` (a composite-PK **link table** — identity = its endpoint-uid pair, no own id), then `summaries` (JSON-embedded scope refs + version-keyed verification) + manual `cluster_node_papers` (depends on un-synced `cluster_nodes`); then the reference sync-server + the cursor wiring; then SP3c (Settings → Sync UI + conflict review). |
@@ -866,7 +880,37 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 201 (accounts SP3b cont. — natural-key identity for tags, the cross-device
+*Last updated: 2026-06-29 — increment 202 (accounts SP3b — the reference sync-server + client transport + opt-in: the
+egress slice): the first path where data **leaves the machine**, built as the maintainer chose — **server + transport
++ opt-in together**, **FastAPI + Postgres** (SQLAlchemy Core, so SQLite-in-tests / Postgres-in-prod), in-repo under
+**`sync_server/`** (a separate deployable; **the local app gains no dependency** — only an httpx transport). What
+leaves is **opaque AES-GCM ciphertext** the server can't read (E2E; the DEK never leaves), so it's **opt-in,
+default-off**. **`sync_server/`** is an OIDC **resource server** (validates an Authentik bearer via JWKS, scopes every
+row to `sub`; an injectable `TokenVerifier` = a fake `sub` in tests) storing `sync_records` per user with a per-user
+`seq` (the cursor, assigned from a locked `sync_cursor` row) over `GET/POST /sync/records` — LWW-by-version, ≤1000
+records / ≤2 MB caps, never decodes a blob. **`HttpSyncTransport`** (`app/backend/sync/transport.py`) implements the
+inc-198 Protocol over httpx, **fail-closed**. The opt-in vertical (`app/backend/api/routers/sync.py`): `GET
+/sync/status`, `PUT /sync/settings` (lockout-safe enable — 422 unless configured + signed-in + URL), `POST /sync/setup`
+(create keyring → the recovery code **once**, never in `/status`), `POST /sync/run` (unlock the DEK from the per-run
+passphrase → `run_sync` over the transport → persist the cursor; **409** if any precondition unmet, **401** + **no
+egress** on a wrong passphrase). `app_settings` gained the sync config + the sealed keyring (secret store) + the cursor
+(the inc-198 deferral resolved). `create_app(sync_transport=…)` injects a transport bound to the in-process server →
+**the whole stack is pytest-tested** (server round-trip / LWW / per-user tenant isolation / cursor / 401 / caps; a
+**two-device convergence over the real HTTP transport**; the opt-in gate incl. wrong-passphrase-no-egress). **Audit
+`2026-06-29_sync-server.md` PASS** (default-off egress of opaque E2E ciphertext only; per-user isolation behind
+Authentik token validation; bounded inputs; fail-closed; no local-app dependency; server fenced from `app/`).
+**Principles/A-A:** the SP3 gate ran in SP3a (A5 sovereignty via E2E + opt-in; A4 conflict-surfacing) — this realizes
+that egress channel exactly as gated. pytest **709 passed, 1 skipped** (+17: `tests/test_sync_server.py` 9 +
+`tests/test_sync_endpoints.py` 8); `ruff` clean; QA surface **136/136 API** (+4 `/sync/*`; new `route_46_sync.md`) **+
+661/661 FE, 0 uncovered**; **no migration**; **no new dependency in the local app** (server-only deps in
+`sync_server/requirements.txt`). Notes: `INCREMENT-202-NOTES.md`; design spec `…/specs/2026-06-29-sync-server-design.md`.
+**The live deploy + live-Authentik token validation is the maintainer's MANUAL step** (the flow + contracts are
+pytest-proven). **NEXT:** **SP3c** — the Settings → Sync UI (set up / enable / run, passphrase prompt) + the
+**conflict-review screen** (read `sync_conflicts`, pick a side); then the live deploy + pre-public server hardening
+(per-user rate-limiting, retention, a backup runbook, a migration tool). PDF-file sync / real-time / CRDTs / multi-user
+sharing (SP4) deferred.
+
+Earlier — increment 201 (accounts SP3b cont. — natural-key identity for tags, the cross-device
 collision fix, no egress): closes the one real correctness gap left in the engine. `tags.name` is **UNIQUE**, so two
 devices that *independently* created a same-named tag (a `to-read`, a `review`) would crash with an `IntegrityError`
 on the **first** real sync — apply would INSERT a duplicate-named tag. Fix: a tag *is* its (UNIQUE) name, so its
