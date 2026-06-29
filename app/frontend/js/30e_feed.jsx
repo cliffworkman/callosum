@@ -3,7 +3,7 @@
 // AI never filters: the complete polled list is shown; read/starred are the user's own state. Save is metadata-only
 // (reuses /discovery/save; no PDF). Function declarations hoist in the IIFE, so 30c_frame references this.
 
-function FeedPane({ onSaved }) {
+function FeedPane({ onSaved, active }) {
   const [subs, setSubs] = useState([]);
   const [sourceMeta, setSourceMeta] = useState([]); // [{kind,label,placeholder,suggestions}] — drives the Follow picker
   const [selKind, setSelKind] = useState("");
@@ -14,6 +14,9 @@ function FeedPane({ onSaved }) {
   const [refreshing, setRefreshing] = useState(false);
   const [savingKey, setSavingKey] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
+  // SP2c-3: opt-in auto-refresh when the Feed is opened + a source is stale (pull-first; default off).
+  const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("callosum.feedAutoRefresh") === "1");
+  const autoRanRef = useRef(0);
 
   const loadSubs = useCallback(async () => {
     const r = await api("/feed/subscriptions");
@@ -61,6 +64,26 @@ function FeedPane({ onSaved }) {
     setRefreshing(false);
     loadSubs(); loadItems();
   }, [loadSubs, loadItems]);
+
+  const toggleAuto = useCallback(() => {
+    setAutoRefresh(v => { const n = !v; localStorage.setItem("callosum.feedAutoRefresh", n ? "1" : "0"); return n; });
+  }, []);
+
+  // Auto-refresh on opening the Feed: opt-in, staleness-gated (newest poll > 6h ago, or never), throttled to ≤1/min.
+  // Mirrors the watched-folders on-open rescan (inc 98/136) — pull-first, never a background daemon. The naive UTC
+  // last_polled_at is treated as UTC (append Z) so the staleness compare isn't skewed by the local timezone.
+  useEffect(() => {
+    if (!active || !autoRefresh || refreshing || !subs.length) return;
+    if (Date.now() - autoRanRef.current < 60000) return;
+    const newest = subs.reduce((mx, s) => {
+      if (!s.last_polled_at) return mx;
+      const iso = /[Z+]/.test(s.last_polled_at) ? s.last_polled_at : s.last_polled_at + "Z";
+      return Math.max(mx, Date.parse(iso) || 0);
+    }, 0);
+    if (newest && Date.now() - newest < 6 * 3600 * 1000) return; // fresh enough
+    autoRanRef.current = Date.now();
+    refresh();
+  }, [active, autoRefresh, subs, refreshing, refresh]);
 
   const setRead = useCallback(async (item, isRead) => {
     if (item.is_read === isRead) return;
@@ -142,7 +165,12 @@ function FeedPane({ onSaved }) {
               </button>
             ))}
           </div>
-          {unread ? <button className="btn btn-link" onClick={markAllRead}>Mark all read</button> : null}
+          <div className="feed-controls-right">
+            <label className="feed-autorefresh" title="When you open the Feed and a source is stale (>6h), refresh it automatically">
+              <input type="checkbox" checked={autoRefresh} onChange={toggleAuto} /> Auto-refresh on open
+            </label>
+            {unread ? <button className="btn btn-link" onClick={markAllRead}>Mark all read</button> : null}
+          </div>
         </div>
       </div>
       <div className="pane-list-body">

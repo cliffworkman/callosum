@@ -46,7 +46,7 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
         <DiscoverPane onSaved={onDiscoverSaved} />
       </div>
       <div className="frame-pane" style={{ display: activeTab === "feed" ? "flex" : "none" }}>
-        <FeedPane onSaved={onDiscoverSaved} />
+        <FeedPane onSaved={onDiscoverSaved} active={activeTab === "feed"} />
       </div>
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>

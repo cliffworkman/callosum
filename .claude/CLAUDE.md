@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 191** (see Increment workflow) with **654 pytest tests
+It is currently at **Increment 192** (see Increment workflow) with **654 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -838,7 +838,26 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 191 (Feed SP2c-3 part 1 — medRxiv source + PubMed abstracts via efetch): two
+*Last updated: 2026-06-29 — increment 192 (Feed SP2c-3 part 2 — auto-refresh cadence; **#28 COMPLETE**): an opt-in,
+staleness-gated auto-refresh-on-open, the last open item on the discovery track. **Frontend-only.** `FeedPane`
+(`30e_feed.jsx`) gains an **"Auto-refresh on open"** checkbox (`localStorage["callosum.feedAutoRefresh"]`, **default
+off**) + an `active` prop + an effect: when the Feed tab is open **&& autoRefresh && a source is stale** (newest
+`last_polled_at` > 6h ago, or never polled), it fires the existing `refresh()`; **throttled ≤1/min**, skipped while
+refreshing, self-quiescing after a poll (the naive-UTC timestamp is treated as UTC so the compare isn't tz-skewed).
+`30c_frame.jsx` passes `active={activeTab==="feed"}`. **Pull-first, no background daemon** — the refresh fires only on
+*your* open, only if opted in, only if stale (mirrors the inc-98/136 watched-folders rescan); default-off → zero change
+for anyone who doesn't want it. **No backend change** (drives the audited `/feed/refresh` on a condition → no audit
+gate); **Principles non-triggering** (a UI convenience; pull-only/opt-in posture preserved). `.feed-autorefresh` CSS,
+tokens only. pytest **654** unchanged (`test_frontend_assembly` 5/5); QA surface **132/132 API + 657/657 FE, 0
+uncovered** (the checkbox claimed by `route_44`); help corpus's Feed section documents the toggle (`HELP-DOCS-SYNCED`
+→ 192). **Verified headed, no egress** (`.local/visual/drive_inc192_autorefresh.py` — a stale subscription: toggle off
+→ 0 items, tick **Auto-refresh on open** → the stale source auto-polls with no manual Refresh → the item appears; 0
+console/page/genai). Notes: `INCREMENT-192-NOTES.md`. **This COMPLETES the literature discovery track #28** — Search
+(Crossref + PubMed + axis-relevance) + Feed (bioRxiv + medRxiv + PubMed-keyword + journal-ISSN, manual or opt-in
+auto-refresh, with abstracts). No open #28 sub-tasks remain (a true background polling daemon is deliberately NOT built
+— pull-first by design). **NEXT:** the user's pick — the live Google Docs add-on test (theirs) or a fresh track.
+
+Earlier — increment 191 (Feed SP2c-3 part 1 — medRxiv source + PubMed abstracts via efetch): two
 backend Feed enrichments, **no frontend change**. **medRxiv:** `BioRxivFeedSource` is now **server-configurable**
 (`server="biorxiv"|"medrxiv"` → kinds `biorxiv_category`/`medrxiv_category`; one class, `kind`/`label`/`suggestions`
 became instance attrs; the default fetcher bakes in the server; `_biorxiv_fetch` takes a `server` param — a **fixed

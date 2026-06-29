@@ -763,7 +763,9 @@ To use it:
 - Filter by **All / Unread / Starred**; **Mark all read** clears the unread count.
 - Each item shows an unread dot, the title, authors, posted date, and journal. **Click a row to mark it read**; **★** stars it for later; **Save** adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked **✓ in library**. **Abstract** expands the summary.
 
-The complete polled list is shown — read/starred are your own state, never an AI judgment about what matters. (An optional auto-refresh on a schedule is planned.)
+The complete polled list is shown — read/starred are your own state, never an AI judgment about what matters.
+
+**Auto-refresh (optional).** Tick **Auto-refresh on open** to have Callosum refresh your feed automatically when you open the Feed tab and a source hasn't been polled in a while (about 6 hours). It's off by default and stays pull-first — there's no background polling and nothing leaves your machine except the on-demand source lookups.
 
 <!-- section: trash-and-restore -->
 ## Trash and restore

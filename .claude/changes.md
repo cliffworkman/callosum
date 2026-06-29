@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-29 (inc 191) — the "Following sources (Feed)" section now lists all four source types (bioRxiv + medRxiv + PubMed + Journal ISSN); covers inc 190/189/188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-29 (inc 192) — the "Following sources (Feed)" section now covers all four source types + the Auto-refresh-on-open toggle; covers inc 191/190/189/188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-29 — Increment 192: Feed SP2c-3 (part 2) — auto-refresh cadence (#28 complete)
+- **Files:** `app/frontend/js/30e_feed.jsx` (auto-refresh toggle + staleness-gated effect), `app/frontend/js/30c_frame.jsx`
+  (pass `active`), `app/frontend/styles.css` (.feed-autorefresh), `callosum-app.html`, `app/backend/help/help_content.md`,
+  `INCREMENT-192-NOTES.md`.
+- **What:** an opt-in **"Auto-refresh on open"** toggle (default off, localStorage) — when the Feed tab is opened and a
+  source is stale (newest poll >6h ago, or never), it fires the existing refresh; throttled ≤1/min, self-quiescing.
+  Pull-first, no background daemon. **Closes #28 entirely.**
+- **Why:** backlog #28 SP2c-3 (the last open item).
+- **Gates:** frontend-only; pytest 654 unchanged; test_frontend_assembly 5/5; QA surface 132/132 API + 657/657 FE, 0
+  uncovered; Principles non-triggering (UI convenience over the audited /feed/refresh; no audit gate). Headed-verified,
+  no egress (drive_inc192_autorefresh.py: toggle off → 0 items; tick → stale sub auto-polls → 1 item; 0
+  console/page/genai). No backend/migration/endpoint/dependency change.
+- **Revert:** revert the autoRefresh state/effect/toggle in 30e_feed.jsx + the `active` prop + the CSS; rebuild.
+
 ## 2026-06-29 — Increment 191: Feed SP2c-3 (part 1) — medRxiv source + PubMed abstracts (efetch)
 - **Files:** `app/backend/discovery/biorxiv_source.py` (server-configurable + medRxiv), `app/backend/discovery/pubmed_provider.py`
   (efetch abstracts), `app/backend/discovery/feed.py` (register medRxiv), `app/backend/help/help_content.md`,

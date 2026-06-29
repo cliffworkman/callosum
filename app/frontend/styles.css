@@ -1130,6 +1130,8 @@
   .feed-sub-x { border: none; background: none; color: var(--accent); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; }
   .feed-sub-x:hover { color: var(--flag-ink); }
   .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
+  .feed-controls-right { display: flex; align-items: center; gap: 12px; }
+  .feed-autorefresh { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11px; color: var(--ink-3); cursor: pointer; }
   .feed-row-top { display: flex; align-items: baseline; gap: 7px; }
   .feed-unread-dot { flex: none; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--accent); margin-top: 5px; }
   .feed-item.read .discover-title { color: var(--ink-2); font-weight: 400; }
