@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 207 — tags section: a "Coloring a tag" paragraph (+ the no-rating framing) -->
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 208 — browsing section: a "Saved searches" paragraph (Saved ▾ menu) -->
+## 2026-06-29 — Increment 208: A1 — saved searches + split the library-header menus → 10b_libmenus.jsx
+- **Files:** `alembic/versions/0025_saved_searches.py` (+ `schema.py` saved_searches table), `persistence/saved_search_repo.py`
+  (NEW), `api/routers/saved_searches.py` (NEW) + `app.py` (register), `app/frontend/js/10b_libmenus.jsx` (NEW — AddMenu +
+  SavedSearchMenu extracted) + `10_pdf_layer.jsx` (split + SavedSearchMenu render) + `40_app.jsx` (gather/apply/save/delete)
+  + `styles.css` (`.saved-search-*`) + `callosum-app.html` (rebuilt), `app/backend/help/help_content.md`,
+  `.claude/qa-routes/route_21_saved_searches.md` (NEW) + `route_00` (claim 10b), `tests/test_saved_searches.py` (NEW),
+  `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-208-NOTES.md`.
+- **What:** a **saved search** persists a named bundle of the existing library facets (q/search_field/item_type/axis/tag/
+  needs_review/signal/sort) — recalled from a **Saved ▾** header menu (apply / save current / delete). A `saved_searches`
+  table (params a JSON blob, validated by a typed `extra="forbid"` model → unknown key 422). **Distinct from an axis**
+  (a semantic lens); it replays the GET /papers filters, computes no claim/score. **Rule-#1 split:** SavedSearchMenu
+  pushed `10_pdf_layer.jsx` to 602/600 → both header dropdowns extracted → **10b_libmenus.jsx** (→ 547).
+- **Why:** A1 — recall a working view in one click (the metadata-predicate complement to axes/tags).
+- **Gates:** pytest **715 passed, 1 skipped** (+1); ruff clean; migration head **0025**; QA surface **141/141 API**
+  (+3) **+ 675/675 FE, 0 uncovered**; **no audit** (local table + 3 local endpoints, no egress/fetch/dependency).
+  Headed-verified 4/4 (`.local/visual/drive_inc208_saved_search.py` — save → apply restores → delete; 0 console/page/genai).
+- **Revert:** `git revert` the inc-208 commit + `alembic downgrade -1` (drops `saved_searches`).
+
 ## 2026-06-29 — Increment 207: A5 — color tags (no ratings) + split TagsRow → 25b_tags.jsx
 - **Files:** `alembic/versions/0024_tag_color.py` (+ `schema.py` color column), `persistence/tags_repo.py` (TAG_COLORS +
   `set_tag_color` + color in reads), `api/routers/tags.py` (GET /tags/colors + POST /tags/{id}/color + color in models),

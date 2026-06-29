@@ -39,6 +39,7 @@ from app.backend.api.routers import (
     my_publications,
     paper_files,
     papers,
+    saved_searches,
     settings,
     summaries,
     sync,
@@ -200,6 +201,7 @@ def create_app(
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
     api.include_router(annotations.router)
     api.include_router(tags.router)
+    api.include_router(saved_searches.router)
     api.include_router(library.router)
     api.include_router(axes.router)
     api.include_router(summaries.router)

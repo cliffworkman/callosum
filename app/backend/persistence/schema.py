@@ -168,6 +168,19 @@ suppressed_paper_tags = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
 
+# Saved searches (inc 208, A1): a named bundle of the existing library facets (q / search_field / item_type / axis /
+# tag / needs_review / signal / sort), stored as a JSON `params` blob and recalled from the library header. A metadata
+# predicate over the existing GET /papers filters — NOT a semantic lens (that's an axis). Local; name is UNIQUE.
+saved_searches = Table(
+    "saved_searches",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("name", Text, nullable=False),
+    Column("params", JSON, nullable=False),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("name", name="uq_saved_searches_name"),
+)
+
 notes = Table(
     "notes",
     metadata,

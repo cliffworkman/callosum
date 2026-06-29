@@ -84,6 +84,8 @@ Use the search box to filter the library. By default it searches across **all** 
 
 Use the **Sort** dropdown to order the library by date added (oldest or most recent), title (A–Z or Z–A), publication year (newest or oldest), or first author (A–Z or Z–A). Papers without a year or author sort to the end. Your sort choice is remembered across sessions, and sorting works alongside search, the Trash view, and an axis filter.
 
+**Saved searches.** Once you've set up a combination you return to — a search term, a scope, a sort, an axis or tag filter, the Unsorted view — open the **Saved ▾** menu in the Library header and choose **Save current search…** to name it. Pick it from that menu any time to re-apply the whole combination at once, or **×** to delete it. A saved search just remembers your existing filters; it's distinct from an **axis** (a semantic lens that scores papers by meaning) — and Callosum never reduces a paper to a rating or score, so saved searches and tags stay the flexible, multi-dimensional way you organize.
+
 Use the **Type** dropdown (shown when your library has typed papers) to narrow the list to one document type — journal article, book, conference paper, preprint, and so on. It only offers types that are actually present, each with a count, and composes with search and sort.
 
 Common Library actions:

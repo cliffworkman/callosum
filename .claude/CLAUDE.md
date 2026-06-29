@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 207** (see Increment workflow) with **714 pytest tests
+It is currently at **Increment 208** (see Increment workflow) with **715 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -376,10 +376,11 @@ and non-code (Markdown, SQL, config).
 the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
 **frontend chunks count too** (they're under `app/`). **Inc 176** extracted the Notes panel from `js/30_viewer.jsx`
 (595→573) into `js/30b_notes.jsx` (`AnnotationsPanel`); the reading-pane run (175–179) re-grew it to 599/600, then **inc 182 extracted `LibraryFrame` → `js/30c_frame.jsx`**
-(30_viewer 599→**557**). **Inc 207** split `js/25_detail.jsx` (609→**522**, over the cap when the tag-color picker landed):
-`TagsRow` → new `js/25b_tags.jsx` (95) — called via the shared-IIFE function hoist. **Watch (re-measure):**
-`routers/papers.py` (**568**, closest after the inc-207 PaperTagRef edit), `js/10_pdf_layer.jsx` (565),
-`js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
+(30_viewer 599→**557**). **Inc 207** split `js/25_detail.jsx` (609→**522**): `TagsRow` → new `js/25b_tags.jsx`. **Inc 208** split
+`js/10_pdf_layer.jsx` (602→**547**, over the cap when the SavedSearchMenu landed): both library-header dropdowns
+(`AddMenu` + `SavedSearchMenu`) → new `js/10b_libmenus.jsx` (62) — called via the shared-IIFE function hoist.
+**Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
+`routers/papers.py` (570), `js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
@@ -731,6 +732,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Saved searches — a named facet bundle, distinct from an axis (backlog A1 close-out; inc 208) | A **saved search** persists a named combination of the existing library facets (q / search_field / item_type / axis / tag / needs_review / signal / sort) and recalls it from a **Saved ▾** header menu (apply / save-current / delete). New `saved_searches` table (**migration 0025**; `params` a JSON blob validated by a typed `extra="forbid"` model → unknown key 422, so only known facet keys are stored — rule #4). `persistence/saved_search_repo.py` (new; upsert-by-name = re-saving a name never duplicates) + `routers/saved_searches.py` (new; `GET`/`POST`/`DELETE /saved-searches`). Frontend: `currentSearchParams`/`applySavedSearch` in `40_app.jsx` + a `SavedSearchMenu`. **Distinct from an axis** (a semantic lens that *scores* papers): a saved search just replays the GET /papers filters — no new query semantics, no claim/rank/score → **Principles non-triggering** (reinforced in the copy: tags + saved searches stay the multi-dimensional, score-free organization). **Rule-#1 split:** SavedSearchMenu pushed `10_pdf_layer.jsx` to 602/600 → both header dropdowns extracted → `js/10b_libmenus.jsx` (547). No audit (local table + 3 local endpoints; no egress/fetch/dependency). pytest **715** (+1 `test_saved_searches.py`); QA surface **141/141 API + 675/675 FE, 0 uncovered** (`route_21_saved_searches.md`); help corpus updated; headed-verified 4/4. |
 | Color tags — and **decline ratings** (backlog A5 close-out; inc 207) | A5 was "color tags / ratings / flags"; **ratings/flags are declined** (Cliff): a unidimensional star reduces a paper to one number, erasing the multi-dimensionality tags capture ("I'd give bad science 5 stars for teachability") — which *is* the charter's own logic (#7 no opaque composite, inspectability over authority). So A5 = **color tags only.** A tag carries an optional `color` (**migration 0024**, nullable; a fixed 8-key palette stored as a **key**, never arbitrary hex — allowlist-validated at the write boundary, rule #3/#4). New `GET /tags/colors` + `POST /tags/{id}/color` (422 off-palette, 404 no-tag); `color` on `TagRef`/`TagSummary`/`PaperTagRef`. Frontend: theme-aware `--tag-<key>` tokens + a `color-mix(var(--tag-c) 16%, var(--panel))` chip recipe (a colored chip overrides the inc-100 provenance styling; uncolored keeps it); a swatch popover off each chip's color dot + a sidebar color dot. **Principles:** the declined-ratings call IS the principle pass — a color is a user label, never a score; tags stay the orthogonal, inspectable judgment. **Rule-#1 split:** the picker pushed `25_detail.jsx` to 609/600 → `TagsRow` extracted → `js/25b_tags.jsx` (522). No audit (color column + 2 local endpoints; no egress/fetch/dependency). pytest **714** (+1 `test_tags.py`); QA surface **138/138 API + 667/667 FE, 0 uncovered**; DESIGN + help corpus + `route_20` updated; headed-verified. |
 | Drag-and-drop a library paper onto an axis to add it (backlog A6 close-out; inc 206) | A faster input for the existing manual-axis-add path, **frontend-only** — rides the inc-50 `POST /axes/{id}/papers` manual-override endpoint (no backend/migration/endpoint/audit). `PaperCard` is `draggable` + writes the paper id to a custom MIME `application/x-callosum-paper`; the `.axis` header is a drop target **for non-My-Pubs axes only** (`canDrop = !isMyPubs`), accepting the drag iff that MIME is present → `AxesPanel.dropPaper` posts the manual add + `loadDetail`/`loadAxes` + a flash. The payload rides the native `dataTransfer`, so a center-pane card drops on a left-pane axis card with **no React state plumbing across panes**. `.axis.drag-over` = a dashed-`--accent` drop-invite (DESIGN recipe). **My-Pubs is not a drop target** — authorship is resolved (✓/✕), so a drag gesture must not mint an own-paper claim. **Principles non-triggering** (a manual human choice, not a scorer/AI decision). pytest **713** (unchanged — the endpoint is tested; DnD is headed-verified via a shared-DataTransfer dispatch); QA surface unchanged (handlers ride existing elements); help corpus + DESIGN + `route_15` updated. |
 | Close A8 as covered (honesty) + remove the redundant THEORY → Discover placeholder (inc 205) | Two cheapest-first close-outs. **A8 (synthesis scope label):** closed-as-covered, **not built** — the pre-run scope note ("N selected papers …", inc 145) + the inc-153 post-run coverage readout already give the honest scope; the literal "uncertain excluded" wording is **declined on honesty grounds** because `summarize_scope` summarizes the *exact* `paper_ids` selected regardless of certainty (it has no axis-cutoff notion, and a selection can come from an unfiltered view) — and **A10 (inc 204) already enforces the certainty boundary upstream at selection time**, where the user sees it. **Discover placeholder:** the inc-163 THEORY → Discover `<ComingSoon>` stub (Beyond library/Feed/Search) was removed — the real Discover/Search (inc 184) + Feed (inc 188) ship as center-pane library-frame tabs (`30c_frame.jsx`), so the stub was stale (inc-163 convention: drop a stub in the increment its real feature lands). The METHODS stubs + the statcheck "More checks" tab + the `ComingSoon` component stay. Frontend-only; the inert stubs claimed no QA surface (136/136 + 661/661 unchanged). Also folded in a ruff-format fix for the inc-204 `test_papers.py` (CI's `ruff format --check` caught an unwrapped insert — the suite was green; **gotcha: run `ruff format` not just `ruff check` before pushing**). **Principles non-triggering** (an honesty-preserving no-op-close + inert-UI removal). No migration/endpoint/egress/dependency. pytest **713** (unchanged); headed-verified. |
@@ -887,7 +889,39 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 207 (A5 — color tags, with **ratings deliberately declined**; the fifth
+*Last updated: 2026-06-29 — increment 208 (A1 — saved searches; the sixth cheapest-first close-out). A **saved
+search** persists a named bundle of the existing library facets (q / search_field / item_type / axis / tag /
+needs_review / signal / sort) and recalls it from a **Saved ▾** header menu (apply / save-current / delete) — a
+metadata predicate over the existing `GET /papers` filters, **distinct from an axis** (a semantic lens that scores
+papers; a saved search computes no claim/rank/score). **Backend:** **migration 0025** adds a `saved_searches` table
+(`name` UNIQUE, `params` JSON, `created_at`); the `params` are validated at the write boundary by a typed
+**`extra="forbid"`** model (`SavedSearchParams`) so only known facet keys are stored (unknown key → 422, blank name →
+422 — rule #4). New `persistence/saved_search_repo.py` (`list`/`upsert_saved_search` [overwrite-by-name → re-saving a
+name never duplicates]/`delete`) + `routers/saved_searches.py` (`GET`/`POST`/`DELETE /saved-searches`), registered in
+`app.py`. **Frontend:** `40_app.jsx` gains `savedSearches` + `currentSearchParams()` (gather the live facets) +
+`applySavedSearch(p)` (set search box + scope + sort + axis/tag/needs-review/signal at once; sets `query` AND
+`debounced` → no 280ms double-fetch) + save/delete; a **`SavedSearchMenu`** ("Saved ▾", mirroring `AddMenu`) — a
+popover with **Save current search…** + a row per search (apply / × delete). **Rule-#1 split (forced):**
+`SavedSearchMenu` pushed `js/10_pdf_layer.jsx` to **602/600** → both header dropdowns (`AddMenu` + `SavedSearchMenu`)
+extracted → new **`js/10b_libmenus.jsx`** (10_pdf_layer.jsx → **547**; referenced via the shared-IIFE function hoist).
+`js/40_app.jsx` is now the closest at **599/600** (split before the next addition there). **Principles non-triggering**
+(a saved facet-bundle, not a claim/signal; the copy reinforces "no score"). **No audit** (a local table + 3 local
+endpoints; no egress/fetch/dependency). pytest **715 passed, 1 skipped** (+1 `tests/test_saved_searches.py`:
+create / list / **upsert-by-name** [no duplicate] / unknown-key → 422 / blank name → 422 / delete 204 then 404);
+`ruff` clean; frontend rebuilt; migration head **0025** via `alembic_head()`; **QA surface 141/141 API** (+3:
+`/saved-searches` GET/POST/DELETE) **+ 675/675 FE, 0 uncovered** (new `route_21_saved_searches.md` + `10b_libmenus.jsx`
+claimed by `route_00` [AddMenu] + `route_21` [SavedSearchMenu]); help corpus gained a "Saved searches" paragraph
+(`HELP-DOCS-SYNCED` → 208). **Headed-verified, no egress** (`.local/visual/drive_inc208_saved_search.py` — type a
+query → **Saved ▾ → Save current search…** → it lists with `q="memory"` → clear → **apply** → the search box restores
+to "memory" → **×** delete → gone; **4/4 deterministic runs**, 0 console/page/genai. Harness notes: a real click→
+`window.prompt` is racy under Playwright so the driver stubs `window.prompt`, and the debounced `/papers` refetch
+re-renders `PaperList` so it settles on `networkidle` before menu clicks — both test-only). Notes:
+`INCREMENT-208-NOTES.md`. **NEXT (continuing the cheapest-first close-out):** **A3** — basic full-text PDF search
+(a SQLite **FTS5** index over the already-extracted `chunks` text, surfaced as a search field with hit highlighting;
+the exact-string complement to the semantic axes) — **migration + a security audit** (a new query surface; validate
+input); then **A2** library-wide citation counts, and **A7 Curated Axis** (its own design pass).
+
+Earlier — increment 207 (A5 — color tags, with **ratings deliberately declined**; the fifth
 cheapest-first close-out, the first migration-bearing one). The maintainer rejected ratings/flags: a unidimensional
 star reduces a paper to one number, erasing the multi-dimensionality tags capture ("I'd give bad science 5 stars for
 teachability") — which *is* the charter's logic (#7 no opaque composite, inspectability over authority). So A5 =

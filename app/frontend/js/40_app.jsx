@@ -274,6 +274,48 @@ function App() {
   }, [cancelFocus, setMethodsOpen]);
   const clearSignalFilter = useCallback(() => { setLibrarySignalFilter(null); setPage(0); }, []);
 
+  // inc-208 (A1): saved searches — a named bundle of the existing library facets, recalled from the header.
+  // Distinct from an axis (a semantic lens): this just persists + replays the GET /papers filter params.
+  const [savedSearches, setSavedSearches] = useState([]);
+  const loadSavedSearches = useCallback(() => {
+    api("/saved-searches").then(r => { if (r.ok) setSavedSearches(r.data || []); });
+  }, []);
+  useEffect(() => { loadSavedSearches(); }, [loadSavedSearches]);
+  const currentSearchParams = useCallback(() => ({
+    q: query,
+    search_field: librarySearchField,
+    item_type: libraryItemType,
+    axis: libraryAxisFilter
+      ? { id: libraryAxisFilter.id, label: libraryAxisFilter.label || "", hideUncertain: !!libraryAxisFilter.hideUncertain }
+      : null,
+    tag: libraryTagFilter ? { id: libraryTagFilter.id, name: libraryTagFilter.name || "" } : null,
+    needs_review: libraryNeedsReview,
+    signal: librarySignalFilter,
+    sort: librarySort,
+  }), [query, librarySearchField, libraryItemType, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
+  const applySavedSearch = useCallback((p) => {
+    setQuery(p.q || ""); setDebounced(p.q || "");   // set both → no 280ms double-fetch lag
+    setLibrarySearchField(p.search_field || "all");
+    setLibraryItemType(p.item_type || "");
+    setLibraryAxisFilter(p.axis ? { id: p.axis.id, label: p.axis.label, hideUncertain: !!p.axis.hideUncertain } : null);
+    setLibraryTagFilter(p.tag ? { id: p.tag.id, name: p.tag.name } : null);
+    setLibraryNeedsReview(!!p.needs_review);
+    setLibrarySignalFilter(p.signal || null);
+    setLibrarySort(p.sort || "added");
+    try { localStorage.setItem("callosum.librarySort", p.sort || "added"); } catch (e) { /* ignore */ }
+    setTrashView(false); setActiveTab("library"); setPage(0); setSelectedLibraryIds(new Set());
+    cancelFocus();
+  }, [cancelFocus]);
+  const saveCurrentSearch = useCallback((name) => {
+    if (!name || !name.trim()) return;
+    apiPost("/saved-searches", { name: name.trim(), params: currentSearchParams() }).then(r => {
+      if (r.ok) loadSavedSearches();
+    });
+  }, [currentSearchParams, loadSavedSearches]);
+  const deleteSavedSearch = useCallback((id) => {
+    apiDelete(`/saved-searches/${id}`).then(r => { if (r.ok) loadSavedSearches(); });
+  }, [loadSavedSearches]);
+
   // inc-122: refresh the header "N flagged" chip from the persisted statcheck summary (cache-only count). Called
   // on mount and by the METHODS "Statistics check" section after a batch run (ctx.onStatcheckRan).
   const refreshStatcheckChip = useCallback(() => {
@@ -486,6 +528,7 @@ function App() {
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
+          savedSearches, onApplySavedSearch: applySavedSearch, onSaveSearch: saveCurrentSearch, onDeleteSavedSearch: deleteSavedSearch,
         }}
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}

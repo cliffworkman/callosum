@@ -11,29 +11,9 @@ function _typeLabel(t) {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : String(t);
 }
 
-// inc-93→94: the "bring papers in" actions (Scan folder + Import) folded into one "+ Add ▾" menu to declutter
-// the library header. Closes on outside-click. The trigger styles as a .trash-toggle so it blends with the row.
-function AddMenu({ onScan, onImport }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [open]);
-  const pick = (fn) => { setOpen(false); fn(); };
-  return (
-    <span className="add-menu" ref={ref}>
-      <button className="trash-toggle add" onClick={() => setOpen(o => !o)} title="Add papers to the library">+ Add ▾</button>
-      {open &&
-        <div className="add-menu-pop">
-          <button onClick={() => pick(onScan)} title="Add &amp; watch folders of PDFs — new files are picked up automatically">Watched folders…</button>
-          <button onClick={() => pick(onImport)} title="Import a BibTeX, RIS, or CSL-JSON citation file">Import file…</button>
-        </div>}
-    </span>
-  );
-}
+// AddMenu (inc 93/94) + SavedSearchMenu (inc 208) were extracted to js/10b_libmenus.jsx in inc 208 — the
+// saved-search menu pushed this file over the 600-line cap (rule #1). Both are used by PaperList below via the
+// shared-IIFE function hoist.
 
 function clearUserAnnotations(host) {
   if (!host) return;
@@ -332,7 +312,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport }) {
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport,
+                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -348,6 +329,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           <span className="lib-head-actions">
             {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} />}
+            {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
             {!trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" &&
               <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
                 title="Papers with a reporting inconsistency from the last statistics check — usually innocent; a list to review">⚠ {statcheckFlagged} flagged</button>}

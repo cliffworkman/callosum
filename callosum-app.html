@@ -755,6 +755,15 @@
     font-family: var(--sans); font-size: 12px; color: var(--ink-2); white-space: nowrap;
   }
   .add-menu-pop button:hover { background: var(--hover); color: var(--accent); }
+  /* inc-208 (A1): saved-search menu. Reuses .add-menu-pop; a row = name (applies) + × (deletes). */
+  .saved-search-pop { min-width: 180px; max-width: 280px; }
+  .saved-search-save { border-bottom: 1px solid var(--line) !important; }
+  .saved-search-empty { padding: 7px 12px; font-size: 11.5px; color: var(--ink-3); font-style: italic; }
+  .saved-search-row { display: flex; align-items: center; }
+  .saved-search-name { flex: 1; text-align: left; padding: 7px 4px 7px 12px; border: none; background: none; cursor: pointer; font-family: var(--sans); font-size: 12px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .saved-search-name:hover { background: var(--hover); color: var(--accent); }
+  .saved-search-del { border: none; background: none; cursor: pointer; color: var(--ink-3); font-size: 14px; line-height: 1; padding: 0 10px 0 4px; opacity: .55; }
+  .saved-search-del:hover { opacity: 1; color: var(--danger); }
   .paper-select { position: absolute; top: 13px; right: 14px; margin: 0; cursor: pointer; accent-color: var(--accent); }
   /* inc-103: per-card copy-BibTeX icon button, just left of the checkbox (same vertical position). */
   .paper-copy {
@@ -2399,23 +2408,6 @@
     const s = String(t || "").replace(/[-_]+/g, " ").trim();
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : String(t);
   }
-  function AddMenu({ onScan, onImport }) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef(null);
-    useEffect(() => {
-      if (!open) return;
-      const onDoc = (e) => {
-        if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-      };
-      document.addEventListener("mousedown", onDoc);
-      return () => document.removeEventListener("mousedown", onDoc);
-    }, [open]);
-    const pick = (fn) => {
-      setOpen(false);
-      fn();
-    };
-    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026")));
-  }
   function clearUserAnnotations(host) {
     if (!host) return;
     host.querySelectorAll(".pdf-user-highlight-group, .pdf-user-highlight, .pdf-synthesis-outline").forEach((node) => node.remove());
@@ -2700,7 +2692,11 @@
     onOpenWanted,
     onOpenGaps,
     onOpenScan,
-    onOpenImport
+    onOpenImport,
+    savedSearches,
+    onApplySavedSearch,
+    onSaveSearch,
+    onDeleteSavedSearch
   }) {
     const [bulkFocus, setBulkFocus] = useState("");
     const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
@@ -2714,7 +2710,7 @@
         if (r.ok) setCiteStyles(r.data.styles || []);
       });
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -2865,6 +2861,52 @@
         }
       );
     }), state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: state.papers.length < PAGE_SIZE, onClick: () => onPage(page + 1) }, "Next \u2192")));
+  }
+  function AddMenu({ onScan, onImport }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e) => {
+        if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open]);
+    const pick = (fn) => {
+      setOpen(false);
+      fn();
+    };
+    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026")));
+  }
+  function SavedSearchMenu({ searches, onApply, onSave, onDelete }) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef(null);
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e) => {
+        if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open]);
+    const saveNew = () => {
+      const name = window.prompt("Name this search (saves the current filters, sort, and search box):");
+      setOpen(false);
+      if (name && name.trim()) onSave(name.trim());
+    };
+    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: () => setOpen((o) => !o), title: "Saved searches \u2014 recall a named set of filters + sort" }, "Saved \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop saved-search-pop" }, /* @__PURE__ */ React.createElement("button", { className: "saved-search-save", onClick: saveNew, title: "Save the current filters, sort, and search box as a named search" }, "+ Save current search\u2026"), (searches || []).length === 0 ? /* @__PURE__ */ React.createElement("span", { className: "saved-search-empty" }, "No saved searches yet.") : (searches || []).map((s) => /* @__PURE__ */ React.createElement("div", { key: s.id, className: "saved-search-row" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "saved-search-name",
+        title: "Apply this saved search",
+        onClick: () => {
+          setOpen(false);
+          onApply(s.params);
+        }
+      },
+      s.name
+    ), /* @__PURE__ */ React.createElement("button", { className: "saved-search-del", title: "Delete this saved search", onClick: () => onDelete(s.id) }, "\xD7")))));
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");
@@ -7394,6 +7436,56 @@
       setLibrarySignalFilter(null);
       setPage(0);
     }, []);
+    const [savedSearches, setSavedSearches] = useState([]);
+    const loadSavedSearches = useCallback(() => {
+      api("/saved-searches").then((r) => {
+        if (r.ok) setSavedSearches(r.data || []);
+      });
+    }, []);
+    useEffect(() => {
+      loadSavedSearches();
+    }, [loadSavedSearches]);
+    const currentSearchParams = useCallback(() => ({
+      q: query,
+      search_field: librarySearchField,
+      item_type: libraryItemType,
+      axis: libraryAxisFilter ? { id: libraryAxisFilter.id, label: libraryAxisFilter.label || "", hideUncertain: !!libraryAxisFilter.hideUncertain } : null,
+      tag: libraryTagFilter ? { id: libraryTagFilter.id, name: libraryTagFilter.name || "" } : null,
+      needs_review: libraryNeedsReview,
+      signal: librarySignalFilter,
+      sort: librarySort
+    }), [query, librarySearchField, libraryItemType, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
+    const applySavedSearch = useCallback((p) => {
+      setQuery(p.q || "");
+      setDebounced(p.q || "");
+      setLibrarySearchField(p.search_field || "all");
+      setLibraryItemType(p.item_type || "");
+      setLibraryAxisFilter(p.axis ? { id: p.axis.id, label: p.axis.label, hideUncertain: !!p.axis.hideUncertain } : null);
+      setLibraryTagFilter(p.tag ? { id: p.tag.id, name: p.tag.name } : null);
+      setLibraryNeedsReview(!!p.needs_review);
+      setLibrarySignalFilter(p.signal || null);
+      setLibrarySort(p.sort || "added");
+      try {
+        localStorage.setItem("callosum.librarySort", p.sort || "added");
+      } catch (e) {
+      }
+      setTrashView(false);
+      setActiveTab("library");
+      setPage(0);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      cancelFocus();
+    }, [cancelFocus]);
+    const saveCurrentSearch = useCallback((name) => {
+      if (!name || !name.trim()) return;
+      apiPost("/saved-searches", { name: name.trim(), params: currentSearchParams() }).then((r) => {
+        if (r.ok) loadSavedSearches();
+      });
+    }, [currentSearchParams, loadSavedSearches]);
+    const deleteSavedSearch = useCallback((id) => {
+      apiDelete(`/saved-searches/${id}`).then((r) => {
+        if (r.ok) loadSavedSearches();
+      });
+    }, [loadSavedSearches]);
     const refreshStatcheckChip = useCallback(() => {
       api("/methods/statcheck/summary").then((r) => {
         if (r.ok) setStatcheckFlagged(r.data.flagged || 0);
@@ -7669,7 +7761,11 @@
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),
-          onOpenImport: () => setImportOpen(true)
+          onOpenImport: () => setImportOpen(true),
+          savedSearches,
+          onApplySavedSearch: applySavedSearch,
+          onSaveSearch: saveCurrentSearch,
+          onDeleteSavedSearch: deleteSavedSearch
         },
         tabs,
         activeTab,

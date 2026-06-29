@@ -437,9 +437,10 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   inc-163 convention: remove each stub in the increment its real feature lands); the library frame is the right home.
 - **A8 — synthesis scope label at summarize** ("summarizing N papers; uncertain excluded"). *Largely shipped by the
   inc-153 coverage readout* — verify + add the uncertain-inclusion statement if missing.
-- **A1 — saved searches** (persist a named combination of the existing `item_type`/axis/tag/needs-review/signal +
-  sort + search-scope params; recall from the library header). **Distinct from axes** — it persists a metadata/boolean
-  predicate, not a semantic lens. Reuses inc-89 search + existing facets; no new query semantics.
+- ✅ **A1 — DONE (inc 208): saved searches.** A named bundle of the existing facets (q/search_field/item_type/axis/
+  tag/needs-review/signal/sort), stored in a `saved_searches` table (JSON params, `extra="forbid"`) + recalled from a
+  **Saved ▾** header menu (apply / save current / delete). Distinct from an axis (replays GET /papers filters, no new
+  query semantics, no score).
 - **A5 — color tags ONLY** (a color attribute on tags). **Ratings/flags are declined** (Cliff, 2026-06-29): a
   unidimensional star/rating reduces a paper to one number, erasing the multi-dimensionality that tags capture —
   "I'd give bad science 5 stars for teachability." This coheres with the charter (#7 no opaque composite,
