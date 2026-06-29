@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 197: accounts SP3a — E2E sync crypto + local change-tracking foundation (no egress)
+- **Files:** `app/backend/sync/` (new: `__init__.py`, `crypto.py`, `changeset.py`), `app/backend/persistence/schema_sync.py`
+  (new) + re-export in `schema.py`, `alembic/versions/0022_sync.py` (new), `tests/test_sync_crypto.py` (new, +14),
+  `.claude/security-audits/2026-06-29_sync-crypto-sp3a.md` (new), `.claude/docs/specs/2026-06-29-accounts-sync-design.md`
+  (new, the SP3 design), CLAUDE (layout/decision-log), `INCREMENT-197-NOTES.md`.
+- **What:** the local, no-egress foundation for opt-in **E2E-encrypted multi-device sync**: `crypto.py` (random DEK →
+  AES-256-GCM records; DEK sealed under a passphrase KEK + a recovery-code KEK via scrypt; fail-closed; no
+  server-side reset), `changeset.py` (hash-diff change-tracking + per-record LWW that **surfaces conflicts**, not
+  clobbers — A4), `sync_state`/`sync_conflicts` tables (local-only, migration 0022).
+- **Why:** SP3 (the invariant-touching feature) — design-first, Principles/A-A gate run (E2E + opt-in honors A5;
+  conflict-surfacing honors A4). SP3a is the security-critical core, proven locally before any data leaves (SP3b).
+- **Gates:** pytest **684 passed, 1 skipped** (+14); ruff clean; QA surface unchanged (132/132 + 661/661, no new
+  route); audit PASS; migration 0022 (additive/guarded); no new dependency (`cryptography` via `PyJWT[crypto]`).
+- **Revert:** `git revert` the inc-197 commit; the 0022 migration is additive (no down-migration; tables are
+  local-only + unused if reverted).
+
 <!-- HELP-DOCS-SYNCED 2026-06-29 inc 196 -->
 ## 2026-06-29 — Increment 196: accounts SP2 — more login methods (email/password + Google), method-agnostic
 - **Files:** `ops/accounts-authentik-setup.md` (SP2 connectors section), `app/backend/api/auth/oidc.py` +
