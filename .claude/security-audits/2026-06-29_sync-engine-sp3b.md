@@ -127,3 +127,29 @@ stays deferred.
   migration, QA surface unchanged.
 
 **Addendum 2 result: PASS.**
+
+---
+
+## Addendum 3 — inc 201: natural-key identity for tags (closes the addendum-2 known limitation)
+
+**Feature:** resolve the recorded limitation (two devices independently creating a same-named tag would collide on
+the `tags.name` UNIQUE constraint when one is applied onto the other). A tag *is* its (UNIQUE) name, so its
+`sync_uid` is now **deterministic from the name** (`_natural_uid("tags", name)` = `sha256("tags\0name")` hex) instead
+of a random uuid. Both devices independently assign the **same** uid to `"topic"`, so on apply the engine finds the
+existing local tag by that uid and **UPDATEs** it — no INSERT, no UNIQUE violation, automatic convergence. The fix
+lives entirely in `ensure_identities` (a `natural_key` on `SyncableCollection`); collect/apply/merge are unchanged.
+
+- **Convergence-not-collision — PASS.** `test_tags_converge_by_name_not_collide` — two devices each independently
+  create tag `"topic"`; after sync each has **exactly one** `"topic"` row and **the same** tag sync_uid
+  (`_natural_uid("tags","topic")`); a re-sync is a no-op. No IntegrityError.
+- **Determinism + scoping — PASS.** `test_natural_uid_is_deterministic_and_scoped` — same (collection,value) → same
+  uid; value-sensitive; collection-scoped (so a tag and an axis named the same don't collide). No new dependency
+  (`hashlib` already imported).
+- **Scope of the natural key — PASS.** Only `tags` declares one (its name is its app-level identity — the inc-71
+  get-or-create-by-UNIQUE-name model). papers/axes/notes/annotations keep random uids (their titles/labels aren't
+  UNIQUE). Tag **rename** isn't an app flow (tags are add/remove, not rename), so the "rename changes the uid" edge
+  doesn't arise; if it ever did it would read as delete+add, surfaced not silent.
+- **Unchanged posture — PASS.** No egress, no migration, no new endpoint/dependency/UI; the only behavioral change is
+  which uid a tag gets at `ensure_identities` time (deterministic). QA surface unchanged.
+
+**Addendum 3 result: PASS — the addendum-2 known limitation is resolved.**

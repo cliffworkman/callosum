@@ -47,6 +47,9 @@ class SyncableCollection:
     where: Any = None  # optional SQLAlchemy filter (e.g. manual-only); a follow-on uses it
     fks: dict[str, str] = field(default_factory=dict)  # {fk_column: referenced collection} → translated local↔uid
     drop: tuple[str, ...] = ()  # device-local columns omitted from the synced payload (e.g. a per-device attachment id)
+    natural_key: str | None = (
+        None  # a UNIQUE column whose value derives a DETERMINISTIC sync_uid → cross-device convergence
+    )
 
 
 # The user-authored data, in **referenced-first dependency order** (a row's FK targets sync before it). FK columns are
@@ -57,7 +60,8 @@ class SyncableCollection:
 # axis-membership identity, since cluster_nodes are derived).
 SYNCABLE: tuple[SyncableCollection, ...] = (
     SyncableCollection("papers", schema.papers),
-    SyncableCollection("tags", schema.tags),
+    # a tag IS its (UNIQUE) name — a deterministic name-derived uid lets two devices' identically-named tags converge.
+    SyncableCollection("tags", schema.tags, natural_key="name"),
     SyncableCollection("axes", schema.axes),
     SyncableCollection("notes", schema.notes, fks={"paper_id": "papers"}),
     # attachment_id is a per-device pointer (PDFs aren't synced) → dropped; the highlight re-associates by paper+page.
@@ -120,6 +124,12 @@ def _new_uid() -> str:
     return uuid.uuid4().hex
 
 
+def _natural_uid(collection: str, value) -> str:
+    """A deterministic sync_uid from a natural key — the SAME on every device, so identically-keyed rows (e.g. two
+    devices' tag named "topic") converge instead of colliding. sha256(collection\\0value), hex (fits String(64))."""
+    return hashlib.sha256(f"{collection}\x00{value}".encode()).hexdigest()
+
+
 def uid_map(conn: Connection, collection: SyncableCollection) -> dict[str, str]:
     """{local_id(str): sync_uid} for a collection, from the identity map."""
     rows = conn.execute(
@@ -154,19 +164,25 @@ def forget_identity(conn: Connection, collection: SyncableCollection, sync_uid: 
 
 
 def ensure_identities(conn: Connection, collections: tuple[SyncableCollection, ...] = SYNCABLE) -> None:
-    """Assign a fresh ``sync_uid`` to any current row that lacks a ``sync_identity`` entry. Idempotent; the canonical
-    point where a device-local row gains its global id. Link tables (``pk is None``) are skipped — their identity is
-    derived from their endpoints, not assigned. Table/column names come from the registry (rule #3)."""
+    """Assign a ``sync_uid`` to any current row that lacks a ``sync_identity`` entry. Idempotent; the canonical point
+    where a device-local row gains its global id. A collection with a ``natural_key`` gets a **deterministic** uid
+    derived from that key's value (so two devices independently holding the same logical row — e.g. a tag named
+    "topic" — pick the SAME uid and converge instead of colliding on a UNIQUE constraint); others get a random uid.
+    Link tables (``pk is None``) are skipped — their identity is their endpoints. Names come from the registry (#3)."""
     for c in collections:
         if c.pk is None:
             continue
         known = set(uid_map(conn, c))
-        stmt = select(c.table.c[c.pk])
+        cols = [c.table.c[c.pk]] + ([c.table.c[c.natural_key]] if c.natural_key else [])
+        stmt = select(*cols)
         if c.where is not None:
             stmt = stmt.where(c.where)
-        for (local_id,) in conn.execute(stmt):
-            if str(local_id) not in known:
-                bind_identity(conn, c, str(local_id), _new_uid())
+        for row in conn.execute(stmt):
+            local_id = row[0]
+            if str(local_id) in known:
+                continue
+            uid = _natural_uid(c.name, row[1]) if c.natural_key else _new_uid()
+            bind_identity(conn, c, str(local_id), uid)
 
 
 def _outbound(c: SyncableCollection, row_dict: dict, maps: dict[str, dict[str, str]]) -> tuple[str, dict] | None:

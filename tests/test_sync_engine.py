@@ -241,6 +241,49 @@ def test_link_table_paper_tags_sync(tmp_path: Path) -> None:
     eb.dispose()
 
 
+def test_tags_converge_by_name_not_collide(tmp_path: Path) -> None:
+    """Two devices that INDEPENDENTLY created a same-named tag converge to one (a deterministic name-derived uid) —
+    instead of colliding on the UNIQUE(name) constraint when one is applied onto the other."""
+    from app.backend.persistence import schema as s
+    from app.backend.sync.changeset import _natural_uid
+
+    keyring, _ = create_keyring("pw")
+    dek = unlock_with_passphrase(keyring, "pw")
+    server = FakeTransport()
+    db_a, db_b = _fresh_db(tmp_path / "a.sqlite"), _fresh_db(tmp_path / "b.sqlite")
+    _add_paper(db_b, "B-unrelated", 2019)  # offset B's local ids
+    _add_tag(db_a, "topic")  # created independently on each device — different local ids, same name
+    _add_tag(db_b, "topic")
+    ea, eb = create_engine(db_a), create_engine(db_b)
+    ca = cb = 0
+
+    ca = _sync(ea, dek, server, ca).new_cursor  # A pushes its "topic"
+    cb = _sync(eb, dek, server, cb).new_cursor  # B applies A's "topic" — must NOT crash, NOT duplicate
+
+    def _tag_uids(eng):
+        with eng.connect() as conn:
+            return set(
+                conn.execute(select(s.sync_identity.c.sync_uid).where(s.sync_identity.c.collection == "tags")).scalars()
+            )
+
+    with eb.connect() as conn:
+        names = conn.execute(select(s.tags.c.name)).scalars().all()
+        assert names.count("topic") == 1  # exactly one row — applied by UPDATE on the shared uid, no duplicate
+    assert _tag_uids(ea) == _tag_uids(eb) == {_natural_uid("tags", "topic")}  # same global identity on both
+    again = _sync(eb, dek, server, cb)  # converged → no phantom re-sync
+    assert again.pushed == 0 and again.applied == 0
+    ea.dispose()
+    eb.dispose()
+
+
+def test_natural_uid_is_deterministic_and_scoped() -> None:
+    from app.backend.sync.changeset import _natural_uid
+
+    assert _natural_uid("tags", "topic") == _natural_uid("tags", "topic")  # deterministic
+    assert _natural_uid("tags", "topic") != _natural_uid("tags", "other")  # value-sensitive
+    assert _natural_uid("tags", "topic") != _natural_uid("axes", "topic")  # collection-scoped
+
+
 def test_concurrent_edit_surfaces_conflict(tmp_path: Path) -> None:
     keyring, _ = create_keyring("pw")
     dek = unlock_with_passphrase(keyring, "pw")

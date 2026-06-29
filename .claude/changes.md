@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 201: accounts SP3b cont. — natural-key identity for tags (cross-device collision fix)
+- **Files:** `app/backend/sync/changeset.py` (`SyncableCollection.natural_key`; `_natural_uid` helper;
+  `ensure_identities` deterministic uid; tags `natural_key="name"`), `tests/test_sync_engine.py` (+2),
+  `.claude/security-audits/2026-06-29_sync-engine-sp3b.md` (addendum 3), CLAUDE (layout/decision-log/footer),
+  `INCREMENT-201-NOTES.md`.
+- **What:** a tag's `sync_uid` is now **deterministic from its (UNIQUE) name** instead of random — so two devices that
+  independently created a same-named tag pick the same uid and **converge** on apply (UPDATE), instead of colliding on
+  the `tags.name` UNIQUE constraint (an `IntegrityError` on first sync). The fix lives in `ensure_identities`;
+  collect/apply/merge are untouched.
+- **Why:** closes the one real correctness gap flagged in inc 200 (the addendum-2 known limitation) — robustness
+  before any live sync.
+- **Gates:** pytest **692 passed, 1 skipped** (+2); ruff clean; QA surface unchanged; audit addendum 3 PASS; **no
+  migration / endpoint / egress / dependency / UI**.
+- **Revert:** `git revert` the inc-201 commit (pure code; tags fall back to random uids — the pre-inc-201 behavior).
+
 ## 2026-06-29 — Increment 200: accounts SP3b cont. — the link-table model (paper_tags)
 - **Files:** `app/backend/sync/changeset.py` (`SyncableCollection.pk` → `str|None`; `_outbound` helper; `SYNCABLE`
   += paper_tags `pk=None`; ensure_identities skips links), `app/backend/sync/engine.py` (`_apply_link`; dispatch;
