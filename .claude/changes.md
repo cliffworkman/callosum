@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 194 -->
+## 2026-06-29 — Increment 194: accounts SP1 — optional "Sign in with ORCID" (OIDC, identity-only)
+- **Files:** `app/backend/api/auth/` (new: `__init__.py`, `oidc.py`, `router.py`), `app/backend/app_settings.py`
+  (OIDC config + flow/session storage), `app/backend/api/access_control.py` (exempt `/oauth/callback`),
+  `app/backend/api/routers/settings.py` (`account` status block), `app/backend/api/app.py` (wire + `oidc_client`
+  injectable), `app/frontend/js/35_settings.jsx` (Account section) → `callosum-app.html`, `requirements.txt`
+  (`PyJWT[crypto]`), `tests/test_auth_oidc.py` (new, +12), `.claude/qa-routes/route_45_account.md` (new),
+  `.claude/security-audits/2026-06-29_orcid-account.md`, help corpus + README + CLAUDE + the design spec/eval/notes.
+- **What:** an opt-in, default-off, **identity-only** OIDC sign-in (authorization-code + PKCE, loopback redirect,
+  JWKS id-token verify) to the callosum account platform (Authentik), which brokers ORCID; a successful sign-in's
+  **verified ORCID + name populate My Publications**. Tokens are write-only (never in `GET /settings`); the callback
+  is exempt from the inc-168 gate (a navigation); **no library data leaves the machine**.
+- **Why:** backlog #15 — the maintainer wants a callosum account created several ways (ORCID/Google/email), with
+  ORCID populating My Pubs. Local-first stays the default; the account is additive. SP1 = the de-risked first slice.
+- **Gates:** pytest **666 passed, 1 skipped**; ruff clean; QA surface 132/132 API + 661/661 FE, 0 uncovered; audit
+  PASS; Principles → A-A consent value. No migration. The live ORCID round-trip is the maintainer's manual check
+  (platform standup, host-agnostic); the flow + pure helpers are pytest-covered + the unconfigured UI headed-verified.
+- **Revert:** restore the files above from git (`git revert` the inc-194 commit); no migration to undo. The 204
+  logout-route bug fix + the superuser ▲ NEXT-UP backlog entry (ORCID `0000-0002-2206-0325`) are part of this.
+
 ## 2026-06-29 — Increment 193: Google Docs setup automation — Quick Tunnel + one-file add-on bundle
 - **Files:** `tools/run_tunnel.py` (--quick/--port), `tools/build_gdocs_addon.py` (new), `adapters/googledocs/callosum-gdocs.gs`
   (new generated bundle), `adapters/googledocs/README.md` (easiest-setup section), `tests/test_gdocs_bundle.py` (new, +2),

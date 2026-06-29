@@ -64,6 +64,15 @@ _Italic notes are light implementation pointers, not designs._
 > page"/fit-height option (touches the fit-mode logic — render-risk); free-form note colors/labels; a
 > scrollbar/minimap marker. (See `INCREMENT-144/175/176/177/179-NOTES.md`.)
 
+**▲ NEXT UP — Superuser role (accounts arc; builds on the SP1 ORCID account)** — **[decision — capabilities TBD]**
+the maintainer asked to register their ORCID **`0000-0002-2206-0325`** as a **superuser** ("we can build out what that
+means later"). The aligned shape (verified, never self-asserted): a **`CALLOSUM_SUPERUSER_ORCIDS`** env allowlist →
+`app_settings.is_superuser_orcid(orcid)` → an **`is_superuser`** flag derived from the **verified ORCID claim** on the
+signed-in account (SP1, `…/specs/2026-06-29-accounts-optional-identity-design.md`). Configured via the gitignored
+`.env` — **not hardcoded in the public repo**. v1 = just the flag (+ a small "superuser" indicator in Account
+settings); the *capabilities* it gates are a later design. **Depends on SP1** (the verified-ORCID account) landing —
+build it right after.
+
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →
 per-test rows with reported-vs-recomputed *p* + page) exists and is good, but the path to it was hidden.
@@ -379,6 +388,20 @@ the extension-point idea + open questions; do NOT build a plugin system until a 
 action]** they live in **Dropbox version history** / chat history; `.gitignore` keeps all key material out of GitHub
 (proven via `git check-ignore`), so this is **not blocking** — but rotation (revoke + reissue, then update `.env`)
 is the only way to neutralize copies that exist *outside* git. Deferred by me.
+
+---
+
+**43. Google Workspace Marketplace publishing — true one-click Google Docs add-on install** (`adapters/googledocs/`)
+— **[future track — outward-facing; deferred, likely overkill]** the one piece of the Google Docs install that inc
+193's quick-tunnel + one-file bundle (`tools/build_gdocs_addon.py` → `callosum-gdocs.gs`) **couldn't** remove: a real
+**"Install from the Marketplace"** button, replacing the paste-a-script / authorize-each-doc flow with a published
+listing. Requires its own project: a **GCP project**, an **OAuth consent screen + Google verification** (the add-on
+already declares its scopes in `appsscript.json`), a **privacy policy** (public URL), and Google's **app review**
+(slow turnaround). Big + outward-facing + ongoing-maintenance, and **likely overkill for a local-first single-user
+tool** — the add-on still talks only to the user's own cloudflared bridge, so a Marketplace listing buys
+*convenience*, not capability. Build only if a true one-click install becomes worth the publishing + review +
+maintenance cost. *(inc 193 already shipped the lighter alternative: a Cloudflare Quick Tunnel + a single-paste
+`callosum-gdocs.gs` bundle, so the non-Marketplace install is now ~4 steps — see `INCREMENT-193-NOTES.md`.)*
 
 ---
 

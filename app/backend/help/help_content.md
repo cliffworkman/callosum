@@ -533,7 +533,7 @@ Gotchas:
 ## My Publications
 Callosum can gather your own papers into a pinned **My Publications** axis at the top of the Axes panel.
 
-Set it up in Settings (⚙) → **My Publications**: enter your name, any other published-name variants (initials, maiden name), and — recommended — your **ORCID** (which gives an exact match). Then click **Refresh my papers**.
+Set it up in Settings (⚙) → **My Publications**: enter your name, any other published-name variants (initials, maiden name), and — recommended — your **ORCID** (which gives an exact match). Then click **Refresh my papers**. (If the optional account is configured on your instance, **Settings → Account → Sign in with ORCID** fills in your verified ORCID + name for you — see "Optional account" under Privacy.)
 
 Callosum resolves your identity against **OpenAlex** (a public scholarly database) and matches its record of your works against your library:
 
@@ -851,6 +851,9 @@ Important distinctions:
 
 ### Remote access (for the Google Docs add-on)
 **Off by default.** Citing from Google Docs requires your library to be reachable from the internet (a Google Docs add-on runs in Google's cloud and can't reach your computer directly). **Settings → Remote access** is the opt-in: turning it on generates an **access token** (shown once — copy it into the add-on) and requires that token on every request, so only you (and your add-on) can reach your library. You then run a tunnel (`python tools/run_tunnel.py`, which runs `cloudflared`) so the add-on can connect — and the tunnel is **cite-only**, forwarding just the citation endpoints (everything else returns 404 over the tunnel). The **Google Docs add-on itself** lives in `adapters/googledocs/` (a sidebar you add to a Doc via Apps Script); see `adapters/googledocs/README.md` for the full setup. While Remote access is off, nothing is exposed and local use is unchanged. If you lose the token and get locked out locally, set `CALLOSUM_DISABLE_REMOTE_ACCESS=1` and restart, or remove the token from `~/.callosum/app-settings.json`.
+
+### Optional account — "Sign in with ORCID"
+**Opt-in and additive — Callosum needs no account.** **Settings → Account** offers an optional **Sign in with ORCID** (via a callosum account service the maintainer configures). It is **identity-only**: signing in verifies who you are and pre-fills **My Publications** with your authoritative author record — it does **not** send your library, PDFs, notes, or any text anywhere. The app works fully offline with no account, and signing out clears only the session (your data is untouched). On an instance where the account service hasn't been set up, the Account section simply says so and nothing changes. (Cross-device **sync** — the only thing that *would* move library data off your machine — is a separate, future, explicitly-consented step; it does not exist yet.)
 
 <!-- section: troubleshooting-and-faq -->
 ## Troubleshooting and FAQ

@@ -24,6 +24,16 @@ router = APIRouter()
 _KEY_ENV = {"gemini": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
 
+class AccountStatus(BaseModel):
+    """SP1 optional-account status — the VERIFIED identity only, never the tokens."""
+
+    configured: bool  # is OIDC sign-in configured on this Callosum (issuer + client_id present)?
+    signed_in: bool
+    display_name: str | None = None
+    orcid: str | None = None
+    expires_at: int | None = None
+
+
 class SettingsStatus(BaseModel):
     provider: str
     api_key_set: bool  # is a key available for the ACTIVE provider (UI store OR env)? (local needs none)
@@ -40,6 +50,7 @@ class SettingsStatus(BaseModel):
     contact_email_source: str | None = None  # "ui" | "env" | None
     remote_access_enabled: bool = False  # inc 168: gate callosum behind a bearer token (for the Google Docs tunnel)
     access_token_set: bool = False  # is a remote-access token stored? — NEVER the token value
+    account: AccountStatus  # SP1: optional "Sign in with ORCID" status — the verified identity, never tokens
 
 
 class SettingsUpdate(BaseModel):
@@ -104,6 +115,7 @@ def _status() -> SettingsStatus:
         contact_email_source=contact_source,
         remote_access_enabled=app_settings.stored_remote_access(),
         access_token_set=app_settings.stored_access_token() is not None,
+        account=AccountStatus(configured=app_settings.oidc_configured(), **app_settings.oauth_account_status()),
     )
 
 

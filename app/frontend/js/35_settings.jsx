@@ -382,6 +382,55 @@ function RemoteAccessSettings() {
   );
 }
 
+// Optional account (SP1) — "Sign in with ORCID" via the callosum account platform (OIDC). Opt-in + additive: the app
+// works fully offline with no account. Signing in verifies your identity and populates My Publications; identity
+// only — the library never leaves the machine. The Sign-in button shows only when the account service is configured
+// (account.configured); the callback redirect (/oauth/callback) reloads the app, so signed-in state re-fetches then.
+function AccountSettings() {
+  const [acct, setAcct] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const load = () => api("/settings").then(r => { if (r.ok) setAcct(r.data.account); });
+  useEffect(() => { load(); }, []);
+
+  const signIn = async () => {
+    setBusy(true); setMsg("");
+    const r = await api("/auth/login?origin=" + encodeURIComponent(window.location.origin));
+    setBusy(false);
+    if (r.ok && r.data && r.data.authorize_url) window.location.href = r.data.authorize_url;  // navigate to the IdP
+    else setMsg("Couldn't start sign-in: " + (r.error || "error"));
+  };
+  const signOut = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPost("/auth/logout", {});
+    setBusy(false);
+    if (r.ok) { await load(); setMsg("Signed out."); } else setMsg("Couldn't sign out: " + (r.error || "error"));
+  };
+
+  const signedIn = !!(acct && acct.signed_in);
+  return (
+    <>
+      <p className="eyebrow">Account</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Optional account — Sign in with ORCID
+          <span className="settings-sub">
+            Callosum works fully offline with <b>no account</b>. Signing in verifies your identity via ORCID and populates <b>My Publications</b> with your authoritative author record. <b>Identity only</b> — your library, PDFs, and notes never leave your machine.
+          </span>
+        </label>
+        {signedIn
+          ? <>
+              <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : ""}{acct.orcid ? " · ORCID " + acct.orcid : ""}.</div>
+              <div className="settings-keyrow"><button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign out"}</button></div>
+            </>
+          : acct && acct.configured
+            ? <div className="settings-keyrow"><button className="btn btn-primary" disabled={busy} onClick={signIn}>{busy ? "Starting…" : "Sign in with ORCID"}</button></div>
+            : <div className="settings-sub">Sign-in isn't set up on this Callosum yet — the account service is configured by whoever runs this instance.</div>}
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
   const dark = theme === "dark";
   return (
@@ -448,6 +497,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         <WordSettings />
 
         <RemoteAccessSettings />
+
+        <AccountSettings />
 
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 

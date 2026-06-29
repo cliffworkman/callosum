@@ -25,8 +25,11 @@ from starlette.responses import JSONResponse
 
 from app.backend import app_settings
 
-# Reachable without a token even when remote access is on — neither exposes library data.
-_EXEMPT_PATHS = frozenset({"/", "/health"})
+# Reachable without a token even when remote access is on — none exposes library data.
+# `/oauth/callback` (SP1) is a browser navigation back from the sign-in provider, so it carries no Authorization
+# header (the inc-172 navigation gotcha); it carries only an opaque code+state validated against the stored PKCE
+# verifier (app/backend/api/auth/router.py), so exempting it is safe.
+_EXEMPT_PATHS = frozenset({"/", "/health", "/oauth/callback"})
 
 RATE_LIMIT_WINDOW = 60.0  # seconds
 RATE_LIMIT_MAX = 120  # requests per window (generous; only active when remote access is on)

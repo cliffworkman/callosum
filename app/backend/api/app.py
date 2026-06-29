@@ -17,6 +17,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
 
 from app.backend.api.access_control import AccessControlMiddleware
+from app.backend.api.auth.oidc import OidcClient, build_oidc_client_from_env
+from app.backend.api.auth.router import router as auth_router
 from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, frontend_sources_available
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers import (
@@ -87,6 +89,7 @@ def create_app(
     help_assistant: HelpAssistant | None = None,
     discovery_registry: SourceRegistry | None = None,
     feed_registry: FeedRegistry | None = None,
+    oidc_client: OidcClient | None = None,
 ) -> FastAPI:
     resolved_db_url = db_url or os.environ.get("CALLOSUM_DB_URL", DEFAULT_DB_URL)
     resolved_frontend_path = _resolve_frontend_path(frontend_path)
@@ -141,6 +144,9 @@ def create_app(
     api.state.research_summary_generator = research_summary_generator
     api.state.overview_generator = overview_generator
     api.state.help_assistant = help_assistant
+    # Optional account (SP1): the OIDC "Sign in with ORCID" client. None unless configured (issuer/client_id env) or
+    # injected by a test. Identity-only — no library egress. Default-off: with no client, /auth/login → 503.
+    api.state.oidc_client = oidc_client or build_oidc_client_from_env()
 
     api.add_middleware(
         CORSMiddleware,
@@ -194,6 +200,7 @@ def create_app(
     api.include_router(summaries.router)
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
+    api.include_router(auth_router)  # /auth/* + /oauth/callback — optional account: Sign in with ORCID (SP1)
     api.include_router(
         libreoffice.router
     )  # /integrations/libreoffice/* — install the LO plugin from Settings (inc 162)

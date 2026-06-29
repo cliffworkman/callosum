@@ -263,3 +263,85 @@ def stored_remote_access() -> bool:
     if os.getenv("CALLOSUM_DISABLE_REMOTE_ACCESS", "").strip().lower() in {"1", "true", "yes"}:
         return False
     return bool(load_settings().get("remote_access_enabled", False))
+
+
+# --- Optional account (SP1): "Sign in with ORCID" via OIDC to the callosum account platform (Authentik) ---
+# Sign-in is OFF until an issuer + client_id are configured (env, set by the maintainer at standup). Tokens are
+# SECRETS (keychain/file via _set_secret, write-only over the wire); GET /settings reports only a non-secret status.
+# Identity-only — no library data is ever sent on sign-in (the egress gate is untouched). The in-flight PKCE flow
+# (state + code_verifier) is stored the same way and is single-use (popped on the callback). A public/native client
+# (PKCE, no client secret — RFC 8252).
+_OAUTH_SESSION_FIELD = "oauth_session"
+_OAUTH_FLOW_FIELD = "oauth_flow"
+
+
+def oidc_config() -> dict | None:
+    """The OIDC client config from the environment, or None if sign-in isn't configured (no issuer/client_id)."""
+    issuer = (os.getenv("CALLOSUM_OIDC_ISSUER") or "").strip().rstrip("/")
+    client_id = (os.getenv("CALLOSUM_OIDC_CLIENT_ID") or "").strip()
+    if not issuer or not client_id:
+        return None
+    return {
+        "issuer": issuer,
+        "client_id": client_id,
+        "scopes": (os.getenv("CALLOSUM_OIDC_SCOPES") or "openid profile").strip(),
+        "orcid_claim": (os.getenv("CALLOSUM_OIDC_CLAIM_ORCID") or "orcid").strip(),
+        "redirect_override": (os.getenv("CALLOSUM_OAUTH_REDIRECT") or "").strip() or None,
+    }
+
+
+def oidc_configured() -> bool:
+    return oidc_config() is not None
+
+
+def set_oauth_flow(*, state: str, code_verifier: str, redirect_uri: str) -> None:
+    """Persist the single-use, in-flight PKCE flow (popped on the callback)."""
+    _set_secret(
+        _OAUTH_FLOW_FIELD, json.dumps({"state": state, "code_verifier": code_verifier, "redirect_uri": redirect_uri})
+    )
+
+
+def pop_oauth_flow() -> dict | None:
+    """Return + clear the stored flow (single-use → no replay). None if absent/malformed."""
+    raw = _get_secret(_OAUTH_FLOW_FIELD)
+    _set_secret(_OAUTH_FLOW_FIELD, None)
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def set_oauth_session(session: dict) -> None:
+    """Store the signed-in session (tokens + the verified identity). Tokens are secrets — never returned by the API."""
+    _set_secret(_OAUTH_SESSION_FIELD, json.dumps(session))
+
+
+def stored_oauth_session() -> dict | None:
+    raw = _get_secret(_OAUTH_SESSION_FIELD)
+    if not raw:
+        return None
+    try:
+        data = json.loads(raw)
+    except (json.JSONDecodeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def clear_oauth_session() -> None:
+    _set_secret(_OAUTH_SESSION_FIELD, None)
+
+
+def oauth_account_status() -> dict:
+    """The NON-secret signed-in status for GET /settings — the verified identity, NEVER the tokens."""
+    s = stored_oauth_session()
+    if not s:
+        return {"signed_in": False, "display_name": None, "orcid": None, "expires_at": None}
+    return {
+        "signed_in": True,
+        "display_name": s.get("display_name"),
+        "orcid": s.get("orcid"),
+        "expires_at": s.get("expires_at"),
+    }

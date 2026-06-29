@@ -107,6 +107,12 @@ Docs bridge via a local [cloudflared](https://github.com/cloudflare/cloudflared)
 ingress; it is *not* a hardened multi-tenant deployment. Don't expose Callosum to a network without reviewing the
 threat model (the folder-scan / file-serving routes read local files server-side).
 
+There is also an **optional account** (Settings → Account → *Sign in with ORCID*, default-off): it's **opt-in and
+identity-only** — signing in verifies who you are (and pre-fills *My Publications*), but sends **no** library text,
+PDFs, or notes anywhere; the app works fully offline with no account. (It activates only on an instance where the
+account service has been configured.) Cross-device sync — the only thing that *would* move library data
+off-machine — is a separate, future, explicitly-consented step that does not exist yet.
+
 ## Development
 
 ```bash
