@@ -334,14 +334,52 @@ def clear_oauth_session() -> None:
     _set_secret(_OAUTH_SESSION_FIELD, None)
 
 
+# --- Superuser (accounts SP1 follow-on, inc 195): a verified-ORCID allowlist ---
+# A superuser is identified by their VERIFIED ORCID claim (from the signed-in session), matched against the
+# `CALLOSUM_SUPERUSER_ORCIDS` env allowlist (comma/semicolon-separated bare iDs). Configured via the gitignored
+# `.env` — never hardcoded in the public repo. It is NOT self-asserted (you can't claim it via the API). What being
+# a superuser GATES is deferred — for now it's just an honest, verified flag.
+
+
+def _normalize_orcid(value: str | None) -> str | None:
+    """A bare ORCID iD (``0000-0002-2206-0325``) from a value that may be a full ``https://orcid.org/…`` URL.
+    Uppercases the checksum X; returns None for blanks."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    if "orcid.org/" in v:
+        v = v.rsplit("orcid.org/", 1)[1]
+    v = v.strip().strip("/").upper()
+    return v or None
+
+
+def superuser_orcids() -> set[str]:
+    """The normalized superuser-ORCID allowlist from ``CALLOSUM_SUPERUSER_ORCIDS`` (comma/semicolon-separated)."""
+    raw = os.getenv("CALLOSUM_SUPERUSER_ORCIDS", "")
+    out: set[str] = set()
+    for part in raw.replace(";", ",").split(","):
+        n = _normalize_orcid(part)
+        if n:
+            out.add(n)
+    return out
+
+
+def is_superuser_orcid(orcid: str | None) -> bool:
+    """True iff the (verified) ORCID iD is in the allowlist. Match is normalization-insensitive (URL vs bare; X case)."""
+    n = _normalize_orcid(orcid)
+    return bool(n and n in superuser_orcids())
+
+
 def oauth_account_status() -> dict:
-    """The NON-secret signed-in status for GET /settings — the verified identity, NEVER the tokens."""
+    """The NON-secret signed-in status for GET /settings — the verified identity (+ a derived superuser flag),
+    NEVER the tokens."""
     s = stored_oauth_session()
     if not s:
-        return {"signed_in": False, "display_name": None, "orcid": None, "expires_at": None}
+        return {"signed_in": False, "display_name": None, "orcid": None, "expires_at": None, "is_superuser": False}
     return {
         "signed_in": True,
         "display_name": s.get("display_name"),
         "orcid": s.get("orcid"),
         "expires_at": s.get("expires_at"),
+        "is_superuser": is_superuser_orcid(s.get("orcid")),
     }

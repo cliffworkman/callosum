@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 194** (see Increment workflow) with **666 pytest tests
+It is currently at **Increment 195** (see Increment workflow) with **669 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -850,7 +850,28 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 194 (accounts SP1 — optional "Sign in with ORCID", OIDC, identity-only):
+*Last updated: 2026-06-29 — increment 195 (superuser role + the Authentik standup runbook — accounts SP1 follow-ons):
+two approved follow-ons to inc 194, in sequence. **(A) Runbook:** new **`ops/accounts-authentik-setup.md`** — the
+step-by-step for the maintainer to stand up the account platform (Authentik) + wire ORCID so the **live** sign-in
+works (host behind TLS → register an ORCID API client → add ORCID as an OIDC source → **emit the ORCID iD as an
+`orcid` claim** → create the callosum **public/PKCE** provider with the loopback redirect → set `CALLOSUM_OIDC_*`
+in `.env` → live-verify); referenced from the README + the design spec. **(B) Superuser role:** an **`is_superuser`**
+flag keyed off the **verified ORCID claim** on the signed-in session, matched against a **`CALLOSUM_SUPERUSER_ORCIDS`**
+env allowlist (`app_settings.py`: `_normalize_orcid`/`superuser_orcids`/`is_superuser_orcid`; surfaced in
+`GET /settings`'s `account` block + a "· superuser" indicator in `35_settings.jsx`). **Verified, not self-asserted**
+(keys off the id-token claim, not request data → can't be claimed via the API); **env-config, not hardcoded** — the
+maintainer's ORCID `0000-0002-2206-0325` lives in the gitignored `.env`; *capabilities deferred* (the flag gates
+nothing yet — a later decision, backlog). **No new endpoint/surface/egress/migration** (additive field + FE text in
+the already-claimed `35_settings.jsx`). **Audit addendum** to `2026-06-29_orcid-account.md` **PASS** (verified-keyed,
+env-config); **Principles → A-A** aligned (an authorization flag from a verified identity — non-accusatory, no opaque
+score). pytest **669 passed, 1 skipped** (+3 superuser tests in `tests/test_auth_oidc.py`, now 13); `ruff` clean; QA
+surface **132/132 API + 661/661 FE, 0 uncovered**; headed driver re-verified (no unconfigured-UI regression). (Also
+corrected inc-194's "+12" test-count references to the actual **+10**.) Notes: `INCREMENT-195-NOTES.md`. **NEXT:** the
+maintainer's live sign-in via the runbook (stand up Authentik) → then SP2 (email/Google = platform-config) → SP3
+opt-in **sync** (the library-egress step — its own design + heavy A-A pass) → SP4 sharing; superuser *capabilities*
+when a concrete need arises.
+
+Earlier — increment 194 (accounts SP1 — optional "Sign in with ORCID", OIDC, identity-only):
 the first slice of the optional-account arc (backlog #15), reframed via brainstorm into **local-first + an opt-in
 account** (the Zotero shape; design spec `…/specs/2026-06-29-accounts-optional-identity-design.md`, platform eval
 `…/research/2026-06-29-oidc-platform-eval.md` → **Authentik**, the maintainer's pick). The app stays fully
@@ -869,7 +890,7 @@ section (Sign in / Sign out / honest "not set up" note; no new CSS). **Audit `20
 config-derived endpoints, safe callback exemption); **Principles → A-A consent value** (an emergent value adopted
 deliberately; opt-in, default-off, identity-only — the egress invariant untouched). New dep **`PyJWT[crypto]`**
 (justified — JWT verification must not be hand-rolled; lazy-imported); **no migration** (`profile.orcid` existed).
-pytest **666 passed, 1 skipped** (+12 `tests/test_auth_oidc.py`); `ruff` clean; QA surface **132/132 API + 661/661 FE,
+pytest **666 passed, 1 skipped** (+10 `tests/test_auth_oidc.py`); `ruff` clean; QA surface **132/132 API + 661/661 FE,
 0 uncovered** (`route_45_account.md`); help corpus + README + CLAUDE updated (`HELP-DOCS-SYNCED` → 194). **The live
 ORCID round-trip is the maintainer's MANUAL check** (stand up Authentik + the ORCID connector + the loopback redirect,
 host-agnostic; set `CALLOSUM_OIDC_ISSUER`/`CLIENT_ID`); the flow + pure helpers are pytest-covered + the unconfigured

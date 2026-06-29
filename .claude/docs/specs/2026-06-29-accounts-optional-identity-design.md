@@ -130,6 +130,11 @@ with **a real, shippable payoff** — and **zero library data on the server**.
 - Add **ORCID** as the first social connector (verify ORCID's OIDC discovery for the chosen platform).
 - A **privacy policy** URL (the service holds PII).
 
+> **Runbook (shipped inc 195):** `ops/accounts-authentik-setup.md` — the concrete step-by-step for Authentik (the
+> chosen platform): host it behind TLS → register an ORCID API client → add ORCID as an OIDC source → **emit the
+> ORCID iD as an `orcid` claim** → create the callosum public/PKCE provider with the loopback redirect → set
+> `CALLOSUM_OIDC_*` env → live-verify the sign-in.
+
 ### Verification (SP1)
 - Hermetic app-side tests against the **OIDC contract** with an injected fake provider (the inc-149/183 injectable
   pattern) — PKCE built right, callback exchanges the code, token stored write-only, refresh, sign-out, signed-out

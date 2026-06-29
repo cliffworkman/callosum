@@ -32,6 +32,7 @@ class AccountStatus(BaseModel):
     display_name: str | None = None
     orcid: str | None = None
     expires_at: int | None = None
+    is_superuser: bool = False  # verified-ORCID superuser (CALLOSUM_SUPERUSER_ORCIDS allowlist); capabilities TBD
 
 
 class SettingsStatus(BaseModel):

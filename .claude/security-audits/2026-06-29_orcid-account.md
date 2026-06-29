@@ -49,7 +49,7 @@ data leaves the machine.** Design spec `…/specs/2026-06-29-accounts-optional-i
 - **Resource caps / negative paths — PASS.** Malformed callbacks (missing code/state, bad state) → graceful error
   redirect, never 500; the OIDC client wraps all network/verify failures in `OidcError` → the router catches them.
 
-## Negative-path checks (all verified by `tests/test_auth_oidc.py`, 12 tests)
+## Negative-path checks (all verified by `tests/test_auth_oidc.py`, 10 tests at SP1)
 - no/expired/mismatched state → 303 `/?signin=error`, no exchange, stays signed-out. ✔
 - tokens absent from `GET /settings` (searched the response body for both fake token values). ✔
 - non-loopback origin → 422; missing origin + no override → 422. ✔
@@ -64,3 +64,23 @@ id-token verification; tokens write-only and never returned; SSRF-safe (config-d
 exemption carries no library data. No library text leaves the machine on sign-in. The inc-168 remote-access gate is
 reused, not re-rolled. Future cross-device sync (SP3) — the only step that would move library data off-machine — gets
 its own design + a heavier Principles/A-A pass before it is built.
+
+---
+
+## Addendum (inc 195) — superuser role (a verified-ORCID allowlist)
+
+A **superuser** is identified by their **verified ORCID claim** (from the signed-in session) matched against the
+`CALLOSUM_SUPERUSER_ORCIDS` env allowlist (`app/backend/app_settings.py`: `superuser_orcids`/`is_superuser_orcid`,
+normalization-insensitive). `oauth_account_status()` derives an **`is_superuser`** flag (signed-in AND verified orcid
+∈ allowlist); `GET /settings`'s `account.is_superuser` surfaces it; `35_settings.jsx` shows "· superuser".
+
+- **Not self-asserted — PASS.** The flag keys off the **verified** `orcid` id-token claim, not request data; a caller
+  cannot claim superuser via the API. The allowlist is **env config** (the maintainer's ORCID in the gitignored
+  `.env`, `git check-ignore .env` ✔), **never hardcoded** in the public repo.
+- **No new surface — PASS.** Additive boolean on the existing `account` block + one FE text span in the already-QA-
+  claimed `35_settings.jsx`; no new endpoint, no egress, no migration. QA surface unchanged (132/132 + 661/661).
+- **Principles / A-A — aligned.** An authorization flag derived from a verified identity — non-accusatory, no opaque
+  score; *capabilities deferred* (the flag gates nothing yet). Verified by `tests/test_auth_oidc.py` (now 13 tests:
+  signed-in-allowlisted → true, non-allowlisted → false, unset env → false, normalization both directions).
+
+**Addendum decision: PASS** (verified-identity-keyed, env-config, no new surface/egress).

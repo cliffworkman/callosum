@@ -9,13 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 195: superuser role (verified-ORCID flag) + Authentik standup runbook
+- **Files:** `ops/accounts-authentik-setup.md` (new runbook), `app/backend/app_settings.py` (superuser allowlist +
+  `is_superuser`), `app/backend/api/routers/settings.py` (`AccountStatus.is_superuser`), `app/frontend/js/35_settings.jsx`
+  (+ `callosum-app.html`), `.env` (gitignored: `CALLOSUM_SUPERUSER_ORCIDS`), `tests/test_auth_oidc.py` (+3),
+  `.claude/security-audits/2026-06-29_orcid-account.md` (addendum), README + design spec (runbook refs), backlog,
+  `INCREMENT-195-NOTES.md`. Also corrected inc-194's "+12"→"+10" test-count references.
+- **What:** (A) a maintainer runbook to stand up Authentik + wire ORCID so live sign-in works; (B) a **superuser**
+  flag keyed off the **verified ORCID claim** (`CALLOSUM_SUPERUSER_ORCIDS` env allowlist → `account.is_superuser` +
+  a "· superuser" indicator). Verified, not self-asserted; env-config, not hardcoded; capabilities deferred.
+- **Why:** the maintainer asked to register their ORCID (`0000-0002-2206-0325`) as a superuser + needed a way to
+  light up the live ORCID sign-in. Both approved ("both in sequence").
+- **Gates:** pytest **669 passed, 1 skipped** (+3); ruff clean; QA surface unchanged (132/132 + 661/661, no new
+  route); audit addendum PASS; no migration; headed driver re-verified (no regression).
+- **Revert:** `git revert` the inc-195 commit; remove `CALLOSUM_SUPERUSER_ORCIDS` from `.env` (not committed).
+
 <!-- HELP-DOCS-SYNCED 2026-06-29 inc 194 -->
 ## 2026-06-29 — Increment 194: accounts SP1 — optional "Sign in with ORCID" (OIDC, identity-only)
 - **Files:** `app/backend/api/auth/` (new: `__init__.py`, `oidc.py`, `router.py`), `app/backend/app_settings.py`
   (OIDC config + flow/session storage), `app/backend/api/access_control.py` (exempt `/oauth/callback`),
   `app/backend/api/routers/settings.py` (`account` status block), `app/backend/api/app.py` (wire + `oidc_client`
   injectable), `app/frontend/js/35_settings.jsx` (Account section) → `callosum-app.html`, `requirements.txt`
-  (`PyJWT[crypto]`), `tests/test_auth_oidc.py` (new, +12), `.claude/qa-routes/route_45_account.md` (new),
+  (`PyJWT[crypto]`), `tests/test_auth_oidc.py` (new, +10), `.claude/qa-routes/route_45_account.md` (new),
   `.claude/security-audits/2026-06-29_orcid-account.md`, help corpus + README + CLAUDE + the design spec/eval/notes.
 - **What:** an opt-in, default-off, **identity-only** OIDC sign-in (authorization-code + PKCE, loopback redirect,
   JWKS id-token verify) to the callosum account platform (Authentik), which brokers ORCID; a successful sign-in's

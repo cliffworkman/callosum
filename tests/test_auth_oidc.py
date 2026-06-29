@@ -176,3 +176,38 @@ def test_oidc_config_present_only_when_issuer_and_client(monkeypatch: pytest.Mon
     assert cfg is not None
     assert cfg["issuer"] == "https://idp.example" and cfg["client_id"] == "cid"
     assert cfg["scopes"] == "openid profile" and cfg["orcid_claim"] == "orcid"
+
+
+# --- superuser (inc 195): a verified-ORCID allowlist → an is_superuser flag ---
+
+
+def test_superuser_flag_from_verified_orcid(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    _configured(monkeypatch)
+    monkeypatch.setenv("CALLOSUM_SUPERUSER_ORCIDS", "0000-0002-1825-0097")  # the fake's verified ORCID
+    client = TestClient(create_app(db_url=temp_db_url, oidc_client=FakeOidcClient()))
+    _sign_in(client)
+    assert client.get("/settings").json()["account"]["is_superuser"] is True
+
+
+def test_non_allowlisted_orcid_is_not_superuser(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    _configured(monkeypatch)
+    monkeypatch.setenv("CALLOSUM_SUPERUSER_ORCIDS", "0000-0009-9999-9999")  # someone else
+    client = TestClient(create_app(db_url=temp_db_url, oidc_client=FakeOidcClient()))
+    _sign_in(client)
+    acct = client.get("/settings").json()["account"]
+    assert acct["signed_in"] is True and acct["is_superuser"] is False
+
+
+def test_superuser_orcid_normalization(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("CALLOSUM_SUPERUSER_ORCIDS", raising=False)
+    assert app_settings.superuser_orcids() == set()
+    assert app_settings.is_superuser_orcid("0000-0002-2206-0325") is False  # empty allowlist → no superuser
+    monkeypatch.setenv("CALLOSUM_SUPERUSER_ORCIDS", "https://orcid.org/0000-0002-2206-0325 , 0000-0001-2345-6789x")
+    su = app_settings.superuser_orcids()
+    assert "0000-0002-2206-0325" in su and "0000-0001-2345-6789X" in su  # URL stripped; checksum X uppercased
+    # match is normalization-insensitive in both directions
+    assert app_settings.is_superuser_orcid("https://orcid.org/0000-0002-2206-0325") is True
+    assert app_settings.is_superuser_orcid("0000-0002-2206-0325") is True
+    assert app_settings.is_superuser_orcid("0000-0001-2345-6789X") is True
+    assert app_settings.is_superuser_orcid("0000-0000-0000-0000") is False
+    assert app_settings.is_superuser_orcid(None) is False

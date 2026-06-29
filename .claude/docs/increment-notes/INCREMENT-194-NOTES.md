@@ -45,13 +45,13 @@ The **live ORCID round-trip is the maintainer's manual check** (needs a stood-up
 the LibreOffice/Word/Docs adapters): stand up Authentik, add ORCID as a generic OIDC source + map the iD to an
 `orcid` claim, register the callosum client with the loopback redirect, set `CALLOSUM_OIDC_ISSUER`/`CLIENT_ID`,
 restart, then Settings → Account → Sign in with ORCID → consent → land back signed-in with My Publications pre-filled.
-The flow + pure helpers are pytest-covered (`tests/test_auth_oidc.py`, 12 tests); the unconfigured UI was headed-
+The flow + pure helpers are pytest-covered (`tests/test_auth_oidc.py`, 10 tests); the unconfigured UI was headed-
 verified (`.local/visual/drive_inc194_account.py` — renders the not-set-up note, no Sign-in button, no token in
 `/settings`, 0 console/page/genai).
 
 ## Gates
 
-- **pytest 666 passed, 1 skipped** (+12 `tests/test_auth_oidc.py`: not-configured/503, login→callback signs in +
+- **pytest 666 passed, 1 skipped** (+10 `tests/test_auth_oidc.py`: not-configured/503, login→callback signs in +
   populates the profile, bad-state→no-exchange, logout, non-loopback→422, callback-exempt-under-remote-access, +
   PKCE/authorize-URL/claim-mapping/config units). `ruff check .` + `ruff format` clean.
 - **QA (rule #10):** new `route_45_account.md` (the 3 endpoints + the Account FE flow) → surface **132/132 API +

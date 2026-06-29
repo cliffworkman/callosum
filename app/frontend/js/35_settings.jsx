@@ -419,7 +419,7 @@ function AccountSettings() {
         </label>
         {signedIn
           ? <>
-              <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : ""}{acct.orcid ? " · ORCID " + acct.orcid : ""}.</div>
+              <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : ""}{acct.orcid ? " · ORCID " + acct.orcid : ""}{acct.is_superuser ? " · superuser" : ""}.</div>
               <div className="settings-keyrow"><button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign out"}</button></div>
             </>
           : acct && acct.configured

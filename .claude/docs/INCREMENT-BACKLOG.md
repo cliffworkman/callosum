@@ -64,14 +64,12 @@ _Italic notes are light implementation pointers, not designs._
 > page"/fit-height option (touches the fit-mode logic — render-risk); free-form note colors/labels; a
 > scrollbar/minimap marker. (See `INCREMENT-144/175/176/177/179-NOTES.md`.)
 
-**▲ NEXT UP — Superuser role (accounts arc; builds on the SP1 ORCID account)** — **[decision — capabilities TBD]**
-the maintainer asked to register their ORCID **`0000-0002-2206-0325`** as a **superuser** ("we can build out what that
-means later"). The aligned shape (verified, never self-asserted): a **`CALLOSUM_SUPERUSER_ORCIDS`** env allowlist →
-`app_settings.is_superuser_orcid(orcid)` → an **`is_superuser`** flag derived from the **verified ORCID claim** on the
-signed-in account (SP1, `…/specs/2026-06-29-accounts-optional-identity-design.md`). Configured via the gitignored
-`.env` — **not hardcoded in the public repo**. v1 = just the flag (+ a small "superuser" indicator in Account
-settings); the *capabilities* it gates are a later design. **Depends on SP1** (the verified-ORCID account) landing —
-build it right after.
+**Superuser *capabilities* — what the flag gates** — **[decision — deferred by the maintainer]** the **flag shipped
+inc 195**: a `CALLOSUM_SUPERUSER_ORCIDS` env allowlist → `app_settings.is_superuser_orcid` → an `is_superuser` flag
+derived from the **verified ORCID claim** on the signed-in account, surfaced in `GET /settings`'s `account` block + a
+"· superuser" indicator in Account settings (the maintainer's ORCID `0000-0002-2206-0325` is set in the gitignored
+`.env`). **Still open:** *what being a superuser actually gates* — no capability is wired yet ("build out what that
+means later"). A design decision when a concrete superuser-only capability is wanted.
 
 **statcheck: connect "this paper is flagged" → "the specific result that doesn't recompute"** *(experience-pass
 finding, inc 140; persona: the **deadline citer**.)* The per-paper drill-down (METHODS → **Statistics check** →
