@@ -98,10 +98,42 @@ def test_biorxiv_fetch_filters_category_and_dedups():
 
 def test_default_feed_registry_registers_sources():
     reg = build_default_feed_registry()
-    assert reg.kinds == ["biorxiv_category", "pubmed_query"]  # SP2c: PubMed-keyword joins bioRxiv
+    assert reg.kinds == ["biorxiv_category", "pubmed_query", "journal_issn"]  # SP2c: PubMed + journal join bioRxiv
     meta = {m["kind"]: m for m in reg.source_meta}
     assert meta["biorxiv_category"]["label"] == "bioRxiv category" and meta["biorxiv_category"]["suggestions"]
     assert meta["pubmed_query"]["label"] == "PubMed search"
+    assert meta["journal_issn"]["label"] == "Journal (ISSN)"
+
+
+# ---- journal-by-ISSN Feed source (SP2c-2, inc 190) -------------------------
+
+
+def test_journal_issn_record_and_fetch():
+    from app.backend.discovery.journal_issn_source import JournalIssnFeedSource, record_to_feed_entry
+
+    msg = {
+        "DOI": "10.1038/AbC",
+        "title": ["A Nature Paper"],
+        "container-title": ["Nature"],
+        "author": [{"family": "Curie", "given": "Marie"}],
+        "issued": {"date-parts": [[2026, 6, 7]]},
+        "published": {"date-parts": [[2026, 6, 9]]},
+        "URL": "https://doi.org/10.1038/abc",
+    }
+    e = record_to_feed_entry(msg)
+    assert e is not None and e.doi == "10.1038/abc" and e.journal == "Nature" and e.posted_date == "2026-06-09"
+    assert e.dedup_key == "doi:10.1038/abc"
+
+    captured = {}
+
+    def fake(issn, rows, *, mailto, timeout):
+        captured["issn"] = issn
+        return [msg, {**msg, "DOI": "10.1038/b", "title": ["Second"]}]
+
+    src = JournalIssnFeedSource(fetcher=fake, mailto="x@example.com")
+    items = src.fetch("1476-4687", limit=10)
+    assert [i.doi for i in items] == ["10.1038/abc", "10.1038/b"] and captured["issn"] == "1476-4687"
+    assert src.fetch("not-an-issn", limit=10) == []  # invalid ISSN → no fetch (validated before the request)
 
 
 # ---- PubMed-keyword Feed source (SP2c, inc 189) ----------------------------

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 189** (see Increment workflow) with **651 pytest tests
+It is currently at **Increment 190** (see Increment workflow) with **652 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -261,8 +261,9 @@ callosum/
    │   │                          E-utilities esearch→esummary: PubMed Search provider (SP1a inc 186) + PubMedKeywordFeedSource
    │   │                          (SP2c inc 189)], search.py [run_search + metadata-only save], relevance.py [axis-relevance
    │   │                          highlight — local, SP1b inc 185]; #28 Search, inc 183; feed.py [Feed engine: FeedSource
-   │   │                          registry + source_meta + refresh + read view] + biorxiv_source.py [bioRxiv-by-category
-   │   │                          Feed source]; #28 Feed SP2a/2c, inc 187/189)
+   │   │                          registry + source_meta + refresh + read view] + biorxiv_source.py + journal_issn_source.py
+   │   │                          [Feed sources: bioRxiv-category / journal-by-ISSN; + PubMed-keyword in pubmed_provider];
+   │   │                          #28 Feed SP2a/2c, inc 187/189/190)
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
@@ -837,7 +838,28 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-28 — increment 189 (Feed SP2c-1 — the PubMed-keyword source + a data-driven Follow picker):
+*Last updated: 2026-06-29 — increment 190 (Feed SP2c-2 — the journal-by-ISSN source): a third Feed source —
+**follow a journal by its ISSN** → its recent articles — that drops in with **no frontend/endpoint/surface change**
+(the inc-189 data-driven Follow picker rendered the new option automatically; the QA surface map is **unchanged** at
+132 API / 655 FE — the registry promise proven backend→UI). New **`journal_issn_source.py`** (`JournalIssnFeedSource`,
+`kind="journal_issn"`, label "Journal (ISSN)"): polls Crossref `/works?filter=issn:<issn>&sort=published&order=desc`
+(the **already-audited** Crossref host); the ISSN is **validated** (`^\d{4}-\d{3}[\dX]$`) before any request, then
+passed only as a bound `filter` param (**no SSRF**); `record_to_feed_entry` reuses the audited
+`crossref_provider.message_to_item` + `_published_date` (date-parts → `YYYY-MM-DD`); injectable fetcher.
+`build_default_feed_registry` now registers bioRxiv + PubMed-keyword + journal-by-ISSN. **Public-metadata egress** —
+NOT the Gemini gate. **Audit:** addendum 2 to `2026-06-28_feed.md` **PASS** (audited host; ISSN validated + bound
+filter; no new dependency/endpoint/migration/surface). **Principles non-triggering** (a source; pull-only/augment-never
+-filter unchanged). pytest **652** (+1: journal mapping/validation; the default-registry test asserts all three
+sources); `ruff` check + `format --check` clean; **no migration/dependency/endpoint/frontend change**; help corpus's
+Feed section lists all three source types (`HELP-DOCS-SYNCED` → 190). **Live spot-check** (`JournalIssnFeedSource.fetch(
+"1476-4687", limit=3)` → 3 recent Nature articles) + **headed-verified, no egress** (`.local/visual/drive_inc190_journal.py`
+— the REAL source with a fake fetcher: the `<select>` shows "Journal (ISSN)", the placeholder updates, **Follow**
+`1476-4687` → a Journal-tagged subscription, **Refresh** → the polled article; 0 console/page/genai). Notes:
+`INCREMENT-190-NOTES.md`. **This makes the literature discovery track #28 feature-complete — Search (Crossref + PubMed
++ axis-relevance) + Feed (bioRxiv + PubMed-keyword + journal-by-ISSN).** **NEXT (#28 optional/later, SP2c-3):** an
+auto-refresh cadence; PubMed abstracts via efetch; medRxiv as a bioRxiv server option.
+
+Earlier — increment 189 (Feed SP2c-1 — the PubMed-keyword source + a data-driven Follow picker):
 makes the Feed **multi-source**. New **`PubMedKeywordFeedSource`** (`pubmed_provider.py`, `kind="pubmed_query"`): a
 saved PubMed query as a Feed source — polls **`esearch` sorted by date** (`_eutils_search` gained a `sort` param,
 default "relevance" for Search) → esummary → `record_to_feed_entry` (→ `FeedEntry`, posted_date from `sortpubdate`,

@@ -88,12 +88,18 @@ class FeedRegistry:
 
 
 def build_default_feed_registry() -> FeedRegistry:
-    """The shipped feed sources. bioRxiv-by-category (SP2a) + PubMed-keyword (SP2c). Journal-by-ISSN registers here
-    later — adding a source is one `register()`, no endpoint/UI edit (the Follow picker is data-driven)."""
+    """The shipped feed sources: bioRxiv-by-category (SP2a) + PubMed-keyword + journal-by-ISSN (SP2c). Adding a source
+    is one `register()`, no endpoint/UI edit (the Follow picker is data-driven from `source_meta`)."""
     from app.backend.discovery.biorxiv_source import BioRxivFeedSource
+    from app.backend.discovery.journal_issn_source import JournalIssnFeedSource
     from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource
 
-    return FeedRegistry().register(BioRxivFeedSource()).register(PubMedKeywordFeedSource())
+    return (
+        FeedRegistry()
+        .register(BioRxivFeedSource())
+        .register(PubMedKeywordFeedSource())
+        .register(JournalIssnFeedSource())
+    )
 
 
 def refresh_subscriptions(conn: Connection, registry: FeedRegistry, *, limit_per: int = 40) -> dict[str, Any]:

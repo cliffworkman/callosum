@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-28 (inc 189) — the "Following sources (Feed)" section now covers the source picker (bioRxiv category + PubMed search); covers inc 188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-29 (inc 190) — the "Following sources (Feed)" section now lists all three source types (bioRxiv category + PubMed search + Journal ISSN); covers inc 189/188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-29 — Increment 190: Feed SP2c-2 — the journal-by-ISSN source
+- **Files:** `app/backend/discovery/journal_issn_source.py` (new), `app/backend/discovery/feed.py` (register),
+  `app/backend/help/help_content.md`, `tests/test_feed.py`, `.claude/security-audits/2026-06-28_feed.md` (addendum 2),
+  `INCREMENT-190-NOTES.md`.
+- **What:** a third Feed source — follow a journal by its ISSN → its recent articles (Crossref
+  `filter=issn:…&sort=published`); ISSN validated before the fetch. **No frontend/endpoint/surface change** (the
+  data-driven Follow picker rendered the new option automatically — the registry promise, proven backend→UI).
+- **Why:** backlog #28 SP2c-2; rounds out the Feed sources.
+- **Gates:** pytest 652 (+1); ruff clean; QA surface unchanged 132/132 API + 655/655 FE; audit addendum 2 PASS
+  (Crossref host already audited; ISSN validated + bound filter → no SSRF). Live spot-check (Nature 1476-4687 → 3) +
+  headed-verified (real source + fake fetcher: "Journal (ISSN)" option, follow → Journal-tagged sub, Refresh polls;
+  0 console/page/genai). No migration/dependency/endpoint/frontend change.
+- **Revert:** delete `journal_issn_source.py` + the register line + the test; revert the help/audit edits.
+
 ## 2026-06-28 — Increment 189: Feed SP2c-1 — PubMed-keyword source + data-driven Follow picker
 - **Files:** `app/backend/discovery/pubmed_provider.py` (+ PubMedKeywordFeedSource + record_to_feed_entry + sort param),
   `app/backend/discovery/feed.py` (FeedSource metadata + source_meta + register PubMed), `app/backend/discovery/biorxiv_source.py`
