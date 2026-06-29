@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-29 — Increment 205: close A8 (covered) + remove the redundant THEORY → Discover placeholder
+- **Files:** `app/frontend/js/09_placeholders.jsx` (drop the 3 Discover `registerPaneTab` blocks) + `callosum-app.html`
+  (rebuilt), `tests/test_papers.py` (ruff-format the inc-204 A10 test — CI lint fix), `.claude/docs/INCREMENT-BACKLOG.md`
+  (A8 closed-as-covered + A9/A10 marked done + the Discover item), CLAUDE, `INCREMENT-205-NOTES.md`.
+- **What:** (1) **A8** — the synthesis scope label is **already covered**: the pre-run scope note ("N selected papers
+  …", inc 145) + the inc-153 post-run coverage readout. A literal "uncertain excluded" claim would be **dishonest**
+  (synthesis summarizes the *exact* selection regardless of certainty; A10 already enforces the boundary at selection
+  time) → closed, not built. (2) **Removed the THEORY → Discover `<ComingSoon>` placeholder** (Cliff's queued request)
+  — the real Discover/Search (inc 184) + Feed (inc 188) ship as center-pane library-frame tabs, so the stub was stale
+  (inc-163 convention: drop a stub when its feature lands). (3) **Folded in:** ruff-format `tests/test_papers.py` (the
+  inc-204 push went red on `ruff format --check` only — the suite was green; the A10 test's insert needed wrapping).
+- **Why:** *shown = summarized* honesty (A8) + a clean THEORY accordion (no duplicative placeholder) + green CI.
+- **Gates:** pytest **713 passed, 1 skipped** (unchanged); ruff check + format clean; QA surface unchanged (136/136 API
+  + 661/661 FE — inert stubs, no route claimed them); **no migration / endpoint / egress / dependency**. Headed-verified
+  (`.local/visual/drive_inc205_no_discover.py` — no "Discover" header, METHODS stubs survive; 0 console/page/genai).
+- **Revert:** `git revert` the inc-205 commit (restores the Discover placeholder + the unwrapped test line).
+
 <!-- HELP-DOCS-SYNCED 2026-06-29 inc 204 — the axis count-badge bullet now states the badge filter matches the assigned-only card view -->
 ## 2026-06-29 — Increment 204: carry "hide uncertain" through to the library-pane axis filter (backlog A10 close-out)
 - **Files:** `app/backend/persistence/repository.py` (`axis_hide_uncertain` param + `DEFAULT_AXIS_CUTOFF`),

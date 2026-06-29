@@ -2283,54 +2283,6 @@
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
-  registerPaneTab(
-    { id: "discover", label: "Discover", paneId: "theory", order: 30 },
-    {
-      id: "discover-beyond",
-      label: "Beyond library",
-      order: 10,
-      render: () => /* @__PURE__ */ React.createElement(
-        ComingSoon,
-        {
-          title: "Find papers beyond your library",
-          body: "Surface work your collection cites or is cited by, and topically related papers (OpenAlex / Semantic Scholar) \u2014 each with an explainable reason. Ranked by relevance to your work, never by raw citation count.",
-          builds: "Builds on the gap-finder + the citation engine. (Backlog #30 SP2)"
-        }
-      )
-    }
-  );
-  registerPaneTab(
-    { id: "discover", label: "Discover", paneId: "theory", order: 30 },
-    {
-      id: "discover-feed",
-      label: "Feed",
-      order: 20,
-      render: () => /* @__PURE__ */ React.createElement(
-        ComingSoon,
-        {
-          title: "A feed of new work in your topics",
-          body: "A running feed of recent papers in your library's topics and from authors you follow \u2014 surfaced to skim and save, never auto-added to your library.",
-          builds: "Part of the Feed/Search track. (Backlog #28)"
-        }
-      )
-    }
-  );
-  registerPaneTab(
-    { id: "discover", label: "Discover", paneId: "theory", order: 30 },
-    {
-      id: "discover-search",
-      label: "Search",
-      order: 30,
-      render: () => /* @__PURE__ */ React.createElement(
-        ComingSoon,
-        {
-          title: "Search beyond your library",
-          body: "Search open scholarly indexes from inside callosum; save a hit to import it (its keywords ride along as tags).",
-          builds: "Part of the Feed/Search track. (Backlog #28)"
-        }
-      )
-    }
-  );
   registerPaneSection({
     id: "lmm",
     label: "Mixed-model reporting",

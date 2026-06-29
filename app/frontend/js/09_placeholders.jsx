@@ -18,37 +18,9 @@ function ComingSoon({ title, body, builds }) {
   );
 }
 
-// ── THEORY: Discover (beyond-library) — a new section showcasing subsection tabs (Beyond library / Feed / Search)
-registerPaneTab(
-  { id: "discover", label: "Discover", paneId: "theory", order: 30 },
-  {
-    id: "discover-beyond", label: "Beyond library", order: 10,
-    render: () => <ComingSoon
-      title="Find papers beyond your library"
-      body="Surface work your collection cites or is cited by, and topically related papers (OpenAlex / Semantic Scholar) — each with an explainable reason. Ranked by relevance to your work, never by raw citation count."
-      builds="Builds on the gap-finder + the citation engine. (Backlog #30 SP2)" />,
-  },
-);
-registerPaneTab(
-  { id: "discover", label: "Discover", paneId: "theory", order: 30 },
-  {
-    id: "discover-feed", label: "Feed", order: 20,
-    render: () => <ComingSoon
-      title="A feed of new work in your topics"
-      body="A running feed of recent papers in your library's topics and from authors you follow — surfaced to skim and save, never auto-added to your library."
-      builds="Part of the Feed/Search track. (Backlog #28)" />,
-  },
-);
-registerPaneTab(
-  { id: "discover", label: "Discover", paneId: "theory", order: 30 },
-  {
-    id: "discover-search", label: "Search", order: 30,
-    render: () => <ComingSoon
-      title="Search beyond your library"
-      body="Search open scholarly indexes from inside callosum; save a hit to import it (its keywords ride along as tags)."
-      builds="Part of the Feed/Search track. (Backlog #28)" />,
-  },
-);
+// NB: the THEORY → Discover placeholder (Beyond library / Feed / Search tabs) was removed in inc 205 — the real
+// Discover/Search (inc 184) + Feed (inc 188) shipped as center-pane tabs in the library frame (30c_frame.jsx), which
+// is their home; per the inc-163 convention, a stub is dropped in the increment its real feature lands.
 
 // ── METHODS: future evaluation modules (after Review @40), ordered by cognitive task (DESIGN.md §5).
 registerPaneSection({

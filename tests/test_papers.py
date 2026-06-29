@@ -96,11 +96,15 @@ def test_papers_list_axis_hide_uncertain(temp_db_url: str) -> None:
         uncertain = create_paper(conn, title="Uncertain", csl_json={"title": "Uncertain"})  # < cutoff
         manual = create_paper(conn, title="Manual", csl_json={"title": "Manual"})  # confidence NULL
         axis_id = int(
-            conn.execute(insert(axes).values(label="A10 axis", description="d", scoring_gain=0.35)).inserted_primary_key[0]
+            conn.execute(
+                insert(axes).values(label="A10 axis", description="d", scoring_gain=0.35)
+            ).inserted_primary_key[0]
         )
         node = int(
             conn.execute(
-                insert(cluster_nodes).values(axis_id=axis_id, parent_id=None, label="n", description="d", confidence=0.8)
+                insert(cluster_nodes).values(
+                    axis_id=axis_id, parent_id=None, label="n", description="d", confidence=0.8
+                )
             ).inserted_primary_key[0]
         )
         conn.execute(insert(cluster_node_papers).values(cluster_node_id=node, paper_id=assigned, confidence=0.6))
