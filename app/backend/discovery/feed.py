@@ -96,7 +96,8 @@ def build_default_feed_registry() -> FeedRegistry:
 
     return (
         FeedRegistry()
-        .register(BioRxivFeedSource())
+        .register(BioRxivFeedSource(server="biorxiv"))
+        .register(BioRxivFeedSource(server="medrxiv"))
         .register(PubMedKeywordFeedSource())
         .register(JournalIssnFeedSource())
     )

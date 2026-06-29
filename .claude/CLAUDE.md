@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 190** (see Increment workflow) with **652 pytest tests
+It is currently at **Increment 191** (see Increment workflow) with **654 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -261,9 +261,9 @@ callosum/
    │   │                          E-utilities esearch→esummary: PubMed Search provider (SP1a inc 186) + PubMedKeywordFeedSource
    │   │                          (SP2c inc 189)], search.py [run_search + metadata-only save], relevance.py [axis-relevance
    │   │                          highlight — local, SP1b inc 185]; #28 Search, inc 183; feed.py [Feed engine: FeedSource
-   │   │                          registry + source_meta + refresh + read view] + biorxiv_source.py + journal_issn_source.py
-   │   │                          [Feed sources: bioRxiv-category / journal-by-ISSN; + PubMed-keyword in pubmed_provider];
-   │   │                          #28 Feed SP2a/2c, inc 187/189/190)
+   │   │                          registry + source_meta + refresh + read view] + biorxiv_source.py [bioRxiv +
+   │   │                          medRxiv, server-configurable] + journal_issn_source.py [Feed sources; + PubMed-keyword
+   │   │                          (esearch sort=date) + efetch abstracts in pubmed_provider]; #28 Feed SP2a/2c, inc 187/189-191)
 │   │   ├── citations/             (render.py [citeproc-js sidecar wrapper: render_papers (per-item, inc 106) +
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
@@ -838,7 +838,31 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 190 (Feed SP2c-2 — the journal-by-ISSN source): a third Feed source —
+*Last updated: 2026-06-29 — increment 191 (Feed SP2c-3 part 1 — medRxiv source + PubMed abstracts via efetch): two
+backend Feed enrichments, **no frontend change**. **medRxiv:** `BioRxivFeedSource` is now **server-configurable**
+(`server="biorxiv"|"medrxiv"` → kinds `biorxiv_category`/`medrxiv_category`; one class, `kind`/`label`/`suggestions`
+became instance attrs; the default fetcher bakes in the server; `_biorxiv_fetch` takes a `server` param — a **fixed
+literal** in the URL path → no SSRF; `record_to_entry` derives the journal label + content-URL host from each record's
+own `server` field; new `MEDRXIV_CATEGORIES`); `build_default_feed_registry` registers both servers → the data-driven
+Follow picker shows both with **no frontend edit**. **PubMed abstracts:** `fetch_abstracts` (NCBI **efetch**
+`rettype=abstract&retmode=xml`) + `_parse_abstracts` (a **targeted regex** — split on `<PubmedArticle>`, per-PMID
+`<AbstractText>`, strip tags, `html.unescape` — **not an XML parser → no XXE**, rule #4 / the inc-75 pattern);
+`PubMedKeywordFeedSource` gained an injectable `abstract_fetcher` (default `fetch_abstracts`) + enriches each entry's
+abstract (fail-closed — a failed efetch never sinks the poll; abstracts fill the existing FeedPane Abstract toggle).
+**Public-metadata egress** — NOT the Gemini gate. **Audit:** addendum 3 to `2026-06-28_feed.md` **PASS** (both on the
+already-audited hosts; medRxiv server = fixed literal; efetch ids = digit-validated bound param + regex parse,
+fail-closed). **Principles non-triggering**; pull-only/augment-never-filter unchanged. pytest **654** (+2: medRxiv
+server config + server-aware label/URL; efetch parse/enrich/fail-closed; the default-registry test asserts 4 kinds);
+`ruff` check + `format --check` clean; QA surface **132/132 API + 655/655 FE, 0 uncovered** (no new surface);
+help corpus's Feed section lists all four source types (`HELP-DOCS-SYNCED` → 191). **Live spot-checks**
+(`BioRxivFeedSource(server="medrxiv").fetch("epidemiology")` → 3 real medRxiv preprints; `PubMedKeywordFeedSource.fetch(
+"crispr gene therapy")` → 3/4 entries enriched with real abstracts). **No headed run** (backend-only — medRxiv via the
+data-driven picker [proven inc 189/190]; abstracts fill an existing UI element). **No migration/dependency/endpoint/
+frontend change.** Notes: `INCREMENT-191-NOTES.md`. **NEXT — SP2c-3 part 2 (inc 192): the auto-refresh cadence** (a
+frontend "auto-refresh on open" toggle, staleness-gated, mirroring the watched-folders on-launch rescan — pull-first,
+opt-in) — closes #28 entirely.
+
+Earlier — increment 190 (Feed SP2c-2 — the journal-by-ISSN source): a third Feed source —
 **follow a journal by its ISSN** → its recent articles — that drops in with **no frontend/endpoint/surface change**
 (the inc-189 data-driven Follow picker rendered the new option automatically; the QA surface map is **unchanged** at
 132 API / 655 FE — the registry promise proven backend→UI). New **`journal_issn_source.py`** (`JournalIssnFeedSource`,

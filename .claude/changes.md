@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-06-29 (inc 190) — the "Following sources (Feed)" section now lists all three source types (bioRxiv category + PubMed search + Journal ISSN); covers inc 189/188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+<!-- HELP-DOCS-SYNCED: 2026-06-29 (inc 191) — the "Following sources (Feed)" section now lists all four source types (bioRxiv + medRxiv + PubMed + Journal ISSN); covers inc 190/189/188 (Feed) + 186 (PubMed in Discover) + 184/185 + the inc 175–179 reading-pane catch-up. -->
+## 2026-06-29 — Increment 191: Feed SP2c-3 (part 1) — medRxiv source + PubMed abstracts (efetch)
+- **Files:** `app/backend/discovery/biorxiv_source.py` (server-configurable + medRxiv), `app/backend/discovery/pubmed_provider.py`
+  (efetch abstracts), `app/backend/discovery/feed.py` (register medRxiv), `app/backend/help/help_content.md`,
+  `tests/test_feed.py`, `.claude/security-audits/2026-06-28_feed.md` (addendum 3), `INCREMENT-191-NOTES.md`.
+- **What:** two backend Feed enrichments — **medRxiv** (the preprint source is now server-configurable → kinds
+  biorxiv_category + medrxiv_category; the data-driven picker shows both) + **PubMed abstracts** via NCBI efetch
+  (targeted-regex parse, no XML parser → no XXE; injectable + fail-closed). No frontend change.
+- **Why:** backlog #28 SP2c-3 (round out the Feed's sources + content).
+- **Gates:** pytest 654 (+2); ruff clean; QA surface unchanged 132/132 API + 655/655 FE; audit addendum 3 PASS
+  (medRxiv = audited host + fixed-literal server segment; efetch = audited host + digit-validated ids + regex parse,
+  fail-closed). Live spot-checks (medRxiv epidemiology → 3; PubMed crispr → 3/4 abstracts). No migration/dependency/
+  endpoint/frontend change.
+- **Revert:** revert the biorxiv_source server param + the medRxiv register line + the efetch additions + the tests.
+
 ## 2026-06-29 — Increment 190: Feed SP2c-2 — the journal-by-ISSN source
 - **Files:** `app/backend/discovery/journal_issn_source.py` (new), `app/backend/discovery/feed.py` (register),
   `app/backend/help/help_content.md`, `tests/test_feed.py`, `.claude/security-audits/2026-06-28_feed.md` (addendum 2),

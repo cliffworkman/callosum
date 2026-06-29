@@ -6,7 +6,9 @@ like Crossref) — NOT the Gemini gate. v1 has no abstract (esummary doesn't car
 
 from __future__ import annotations
 
+import html
 import re
+from dataclasses import replace
 from typing import Any, Protocol
 
 import httpx
@@ -18,6 +20,9 @@ from app.backend.discovery.providers import Item, normalized_title
 EUTILS = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 TOOL = "callosum"
 _DOI_RE = re.compile(r"10\.\d{4,9}/\S+")
+_PMID_RE = re.compile(r"<PMID[^>]*>(\d+)</PMID>")
+_ABSTRACT_RE = re.compile(r"<AbstractText[^>]*>(.*?)</AbstractText>", re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]+>")
 
 
 class SearchFetcher(Protocol):
@@ -69,6 +74,46 @@ def _year(rec: dict[str, Any]) -> int | None:
 
 def _authors(rec: dict[str, Any]) -> tuple[str, ...]:
     return tuple(str(a["name"]).strip() for a in (rec.get("authors") or []) if isinstance(a, dict) and a.get("name"))
+
+
+def _parse_abstracts(xml: str) -> dict[str, str]:
+    """Parse efetch PubMed XML → {pmid: abstract}. Targeted regex (NOT an XML parser) → no XXE/entity surface on
+    the response (rule #4, the inc-75 arXiv pattern). Joins structured AbstractText sections; strips inline tags."""
+    out: dict[str, str] = {}
+    for article in xml.split("<PubmedArticle>")[1:]:
+        pmid_m = _PMID_RE.search(article)
+        chunks = _ABSTRACT_RE.findall(article)
+        if not pmid_m or not chunks:
+            continue
+        text = html.unescape(_TAG_RE.sub("", " ".join(chunks))).strip()
+        if text:
+            out[pmid_m.group(1)] = text
+    return out
+
+
+class AbstractFetcher(Protocol):
+    def __call__(self, pmids: list[str], *, email: str | None, timeout: float) -> dict[str, str]: ...
+
+
+def fetch_abstracts(pmids: list[str], *, email: str | None, timeout: float) -> dict[str, str]:
+    """efetch the abstracts for a set of PMIDs (one batched call). Constant host; ids are digit-validated PMIDs as a
+    bound param → no SSRF. Fail-closed (non-200 → {}); abstracts are a nicety, never load-bearing."""
+    ids = [p for p in pmids if isinstance(p, str) and p.isdigit()]
+    if not ids:
+        return {}
+    params: dict[str, Any] = {
+        "db": "pubmed",
+        "id": ",".join(ids),
+        "rettype": "abstract",
+        "retmode": "xml",
+        "tool": TOOL,
+    }
+    if email:
+        params["email"] = email
+    resp = httpx.get(f"{EUTILS}/efetch.fcgi", params=params, timeout=timeout)
+    if resp.status_code != 200 or not resp.text:
+        return {}
+    return _parse_abstracts(resp.text)
 
 
 def summary_to_item(rec: dict[str, Any]) -> Item | None:
@@ -142,8 +187,15 @@ class PubMedKeywordFeedSource:
     placeholder = "a PubMed query, e.g. CRISPR off-target"
     suggestions: list[str] = []
 
-    def __init__(self, fetcher: SearchFetcher | None = None, email: str | None = None, timeout: float = 15.0) -> None:
+    def __init__(
+        self,
+        fetcher: SearchFetcher | None = None,
+        email: str | None = None,
+        timeout: float = 15.0,
+        abstract_fetcher: AbstractFetcher | None = None,
+    ) -> None:
         self.fetcher = fetcher or _eutils_search
+        self.abstract_fetcher = abstract_fetcher or fetch_abstracts  # efetch enrichment (SP2c-3); injectable for tests
         self.email = email if email is not None else resolved_mailto("CALLOSUM_CROSSREF_MAILTO")
         self.timeout = timeout
 
@@ -153,11 +205,20 @@ class PubMedKeywordFeedSource:
             return []
         retmax = min(max(limit, 1), 50)
         raw = self.fetcher(q, retmax, email=self.email, timeout=self.timeout, sort="date") or []
+        pmids = [str(r.get("uid")) for r in raw if r.get("uid")]
+        try:
+            abstracts = self.abstract_fetcher(pmids, email=self.email, timeout=self.timeout) if pmids else {}
+        except Exception:  # noqa: BLE001 — abstracts are a nicety; a failed efetch never sinks the poll
+            abstracts = {}
         seen: set[str] = set()
         out: list[FeedEntry] = []
-        for entry in (record_to_feed_entry(r) for r in raw):
+        for rec in raw:
+            entry = record_to_feed_entry(rec)
             if entry is None or entry.dedup_key in seen:
                 continue
             seen.add(entry.dedup_key)
+            uid = str(rec.get("uid") or "")
+            if uid in abstracts and not entry.abstract:
+                entry = replace(entry, abstract=abstracts[uid])
             out.append(entry)
         return out[:retmax]

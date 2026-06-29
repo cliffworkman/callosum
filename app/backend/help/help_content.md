@@ -758,7 +758,7 @@ The **Feed** tab (beside Discover) is for *keeping up* rather than searching: yo
 
 To use it:
 
-- **Follow a source** — pick the **source type** (**bioRxiv category**, **PubMed search**, or **Journal (ISSN)**) and enter a value: a bioRxiv category like `neuroscience` (the box suggests common ones), a PubMed query like `CRISPR off-target`, or a journal's ISSN like `1476-4687`. Click **Follow**. Each followed source shows as a chip (with its source tag) you can remove with its **×**.
+- **Follow a source** — pick the **source type** (**bioRxiv category**, **medRxiv category**, **PubMed search**, or **Journal (ISSN)**) and enter a value: a bioRxiv/medRxiv subject like `neuroscience` or `epidemiology` (the box suggests common ones), a PubMed query like `CRISPR off-target`, or a journal's ISSN like `1476-4687`. Click **Follow**. Each followed source shows as a chip (with its source tag) you can remove with its **×**.
 - **Refresh** polls every followed source and adds any new items (re-polling never duplicates an item or resets what you've already read).
 - Filter by **All / Unread / Starred**; **Mark all read** clears the unread count.
 - Each item shows an unread dot, the title, authors, posted date, and journal. **Click a row to mark it read**; **★** stars it for later; **Save** adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked **✓ in library**. **Abstract** expands the summary.

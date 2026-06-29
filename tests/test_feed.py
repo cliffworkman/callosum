@@ -98,11 +98,36 @@ def test_biorxiv_fetch_filters_category_and_dedups():
 
 def test_default_feed_registry_registers_sources():
     reg = build_default_feed_registry()
-    assert reg.kinds == ["biorxiv_category", "pubmed_query", "journal_issn"]  # SP2c: PubMed + journal join bioRxiv
+    assert reg.kinds == ["biorxiv_category", "medrxiv_category", "pubmed_query", "journal_issn"]  # SP2c-3: + medRxiv
     meta = {m["kind"]: m for m in reg.source_meta}
     assert meta["biorxiv_category"]["label"] == "bioRxiv category" and meta["biorxiv_category"]["suggestions"]
+    assert meta["medrxiv_category"]["label"] == "medRxiv category" and meta["medrxiv_category"]["suggestions"]
     assert meta["pubmed_query"]["label"] == "PubMed search"
     assert meta["journal_issn"]["label"] == "Journal (ISSN)"
+
+
+def test_medrxiv_source_uses_the_medrxiv_server():
+    from app.backend.discovery.biorxiv_source import BioRxivFeedSource
+
+    captured = {}
+
+    def fake(window_days, max_pages, *, timeout):
+        captured["called"] = True
+        return [
+            {
+                "doi": "10.1101/m",
+                "title": "A medRxiv preprint",
+                "date": "2026-06-20",
+                "category": "epidemiology",
+                "server": "medrxiv",
+            }
+        ]
+
+    src = BioRxivFeedSource(server="medrxiv", fetcher=fake)
+    assert src.kind == "medrxiv_category" and src.label == "medRxiv category" and src.server == "medrxiv"
+    items = src.fetch("epidemiology", limit=10)
+    assert [i.doi for i in items] == ["10.1101/m"] and captured["called"]
+    assert items[0].journal == "medRxiv" and "medrxiv.org" in items[0].url  # server-aware label + URL
 
 
 # ---- journal-by-ISSN Feed source (SP2c-2, inc 190) -------------------------
@@ -161,10 +186,41 @@ def test_pubmed_feed_record_and_fetch_sorted_by_date():
         captured["sort"] = sort
         return [rec, {**rec, "uid": "43", "articleids": [{"idtype": "doi", "value": "10.1/y"}]}]
 
-    src = PubMedKeywordFeedSource(fetcher=fake)
+    src = PubMedKeywordFeedSource(fetcher=fake, abstract_fetcher=lambda pmids, *, email, timeout: {})
     items = src.fetch("crispr", limit=10)
     assert [i.doi for i in items] == ["10.1/x", "10.1/y"] and captured["sort"] == "date"  # newest-first poll
     assert src.fetch("   ", limit=10) == []  # blank query → no fetch
+
+
+def test_pubmed_efetch_abstracts_parse_and_enrich():
+    from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource, _parse_abstracts
+
+    xml = (
+        "<x><PubmedArticle><MedlineCitation><PMID Version='1'>42</PMID>"
+        "<Abstract><AbstractText Label='BACKGROUND'>First &amp; <i>part</i>.</AbstractText>"
+        "<AbstractText Label='RESULTS'>Second part.</AbstractText></Abstract></MedlineCitation></PubmedArticle>"
+        "<PubmedArticle><MedlineCitation><PMID>43</PMID></MedlineCitation></PubmedArticle></x>"  # no abstract
+    )
+    parsed = _parse_abstracts(xml)
+    assert parsed == {"42": "First & part. Second part."}  # joined, entity-unescaped, inline tags stripped; 43 absent
+
+    rec = {"uid": "42", "title": "Has Abstract", "articleids": [{"idtype": "doi", "value": "10.1/a"}]}
+
+    def fake(query, retmax, *, email, timeout, sort):
+        return [rec]
+
+    src = PubMedKeywordFeedSource(
+        fetcher=fake, abstract_fetcher=lambda pmids, *, email, timeout: {"42": "The fetched abstract."}
+    )
+    items = src.fetch("q", limit=10)
+    assert items[0].abstract == "The fetched abstract."  # efetch enriched the entry
+
+    # a failing efetch never sinks the poll (abstracts are a nicety)
+    def boom(pmids, *, email, timeout):
+        raise RuntimeError("efetch down")
+
+    src2 = PubMedKeywordFeedSource(fetcher=fake, abstract_fetcher=boom)
+    assert src2.fetch("q", limit=10)[0].doi == "10.1/a"
 
 
 # ---- the refresh + read service -------------------------------------------
