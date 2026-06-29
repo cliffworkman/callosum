@@ -65,6 +65,10 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
   // inc 118 (SP2 #16): My Publications card — collapsible research-domain subheadings.
   const [collapsedDomains, setCollapsedDomains] = useState(() => new Set());
+  // A6 (inc 206): a library card dragged onto a (non-My-Pubs) axis card manually adds it. My-Pubs is authorship-
+  // resolved (✓/✕ only), so it's never a drop target. The drag payload rides the native dataTransfer (cross-pane).
+  const [dragOver, setDragOver] = useState(false);
+  const canDrop = !isMyPubs;
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
@@ -110,7 +114,14 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   };
   return (
     <div className={"axis-item" + (isMyPubs ? " axis-mypubs" : "")}>
-      <div className={"axis" + (expanded ? " active" : "")} onClick={() => handlers.toggle(axis.id)}>
+      <div className={"axis" + (expanded ? " active" : "") + (dragOver ? " drag-over" : "")} onClick={() => handlers.toggle(axis.id)}
+        onDragOver={canDrop ? (e => { if (e.dataTransfer.types.includes("application/x-callosum-paper")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setDragOver(true); } }) : undefined}
+        onDragLeave={canDrop ? (() => setDragOver(false)) : undefined}
+        onDrop={canDrop ? (e => {
+          setDragOver(false);
+          const pid = parseInt(e.dataTransfer.getData("application/x-callosum-paper"), 10);
+          if (pid) { e.preventDefault(); handlers.dropPaper(axis.id, pid); }
+        }) : undefined}>
         <div className="axis-row-head">
           {!isMyPubs &&
             <input
@@ -328,6 +339,18 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     });
   }, [axes, loadDetail, loadAxes, flash]);
 
+  // A6 (inc 206): drag-and-drop a library paper onto a (non-My-Pubs) axis card → a manual override (the same
+  // POST /axes/{id}/papers the ✓-confirm uses). Refreshes the open card + the badge counts; flashes on success.
+  const dropPaper = useCallback((axisId, paperId) => {
+    apiPost(`/axes/${axisId}/papers`, { paper_id: paperId }).then(r => {
+      if (!r.ok) { flash(r.error); return; }
+      const ax = (axes || []).find(a => a.id === axisId);
+      flash(`Added to ${ax ? ax.label : "axis"}`);
+      loadDetail(axisId);
+      loadAxes();
+    });
+  }, [axes, loadDetail, loadAxes, flash]);
+
   // 🗑 on the My Publications card dismisses it (keeps the profile + decisions); Refresh rebuilds it.
   const dismissMyPubs = useCallback(() => {
     if (!window.confirm("Dismiss the My Publications card? Your profile and confirm/reject choices are kept — Refresh in Settings rebuilds it.")) return;
@@ -381,7 +404,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   }, [loadDetail]);
 
   const handlers = {
-    toggle, score, remove, removePaper, confirmPaper, dismissMyPubs, enterFocus, filterToAxis,
+    toggle, score, remove, removePaper, confirmPaper, dropPaper, dismissMyPubs, enterFocus, filterToAxis,
     openMyPubsDashboard, starPaper, toggleSelect, openEdit, openPaper,
   };
 

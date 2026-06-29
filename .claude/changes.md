@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 206 — axes section: a "drag a paper onto an axis to add it" line -->
+## 2026-06-29 — Increment 206: A6 — drag-and-drop a library paper onto an axis to add it
+- **Files:** `app/frontend/js/10_pdf_layer.jsx` (PaperCard `draggable` + `onDragStart`), `app/frontend/js/15_axes.jsx`
+  (AxisItem drop target + `dropPaper` handler), `app/frontend/styles.css` (`.axis.drag-over`) + `callosum-app.html`
+  (rebuilt), `.claude/DESIGN.md` (drop-invite recipe), `app/backend/help/help_content.md`, `.claude/qa-routes/route_15_axes.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-206-NOTES.md`.
+- **What:** drag a library card onto a (non-My-Pubs) axis card → a manual override via the existing
+  `POST /axes/{id}/papers` (`status:"manual"`); the axis card shows a dashed-accent `.drag-over` invite; the badge
+  count + open card refresh. The drag payload rides the native `dataTransfer` (custom MIME `application/x-callosum-paper`),
+  so it works cross-pane with no React state plumbing. **My-Pubs is not a drop target** (authorship is resolved, ✓/✕).
+- **Why:** A6 — a faster input for the existing manual-add path (no focus-mode round-trip).
+- **Gates:** pytest **713** (unchanged — frontend-only; the endpoint is already tested, DnD is headed-verified); ruff
+  clean; QA surface unchanged (136/136 API + 661/661 FE — handlers ride existing claimed elements); **no backend /
+  migration / endpoint / egress / dependency**. Headed-verified (`.local/visual/drive_inc206_drag_axis.py` — drag a
+  card onto an axis → badge 0→1; 0 console/page/genai).
+- **Revert:** `git revert` the inc-206 commit (removes the drag affordance; the ＋ focus-mode add path is unchanged).
+
 ## 2026-06-29 — Increment 205: close A8 (covered) + remove the redundant THEORY → Discover placeholder
 - **Files:** `app/frontend/js/09_placeholders.jsx` (drop the 3 Discover `registerPaneTab` blocks) + `callosum-app.html`
   (rebuilt), `tests/test_papers.py` (ruff-format the inc-204 A10 test — CI lint fix), `.claude/docs/INCREMENT-BACKLOG.md`
@@ -26,7 +43,6 @@ are the design diary; this is the chronological "what & why" record.
   (`.local/visual/drive_inc205_no_discover.py` — no "Discover" header, METHODS stubs survive; 0 console/page/genai).
 - **Revert:** `git revert` the inc-205 commit (restores the Discover placeholder + the unwrapped test line).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 204 — the axis count-badge bullet now states the badge filter matches the assigned-only card view -->
 ## 2026-06-29 — Increment 204: carry "hide uncertain" through to the library-pane axis filter (backlog A10 close-out)
 - **Files:** `app/backend/persistence/repository.py` (`axis_hide_uncertain` param + `DEFAULT_AXIS_CUTOFF`),
   `app/backend/api/routers/papers.py` (`GET /papers` query param), `app/frontend/js/15_axes.jsx` + `40_app.jsx` +

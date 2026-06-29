@@ -320,6 +320,8 @@
   }
   .axis:hover { background: var(--hover); }
   .axis.active { background: var(--accent-soft); border-color: var(--accent-line); }
+  /* A6 (inc 206): drop-target invite when a library card is dragged over — dashed accent (transient/pending) + soft fill. */
+  .axis.drag-over { background: var(--accent-soft); border: 1px dashed var(--accent); }
   .axis-label { font-weight: 550; font-size: 13px; color: var(--ink); }
   .cluster {
     margin: 3px 0 3px 12px; padding: 6px 10px;
@@ -2581,7 +2583,12 @@
         className: "paper" + (isSelected ? " sel" : ""),
         onClick: () => onSelect && onSelect(p.id),
         onDoubleClick: () => onOpen && onOpen(p),
-        title: "Double-click to open the PDF"
+        title: "Double-click to open the PDF \xB7 drag onto an axis to add it",
+        draggable: true,
+        onDragStart: (e) => {
+          e.dataTransfer.setData("application/x-callosum-paper", String(p.id));
+          e.dataTransfer.effectAllowed = "copy";
+        }
       },
       selecting && /* @__PURE__ */ React.createElement(PaperCopyButton, { paperId: p.id }),
       selecting && /* @__PURE__ */ React.createElement(
@@ -2962,6 +2969,8 @@
     const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
     const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
     const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
+    const [dragOver, setDragOver] = useState(false);
+    const canDrop = !isMyPubs;
     const stop = (fn) => (e) => {
       e.stopPropagation();
       fn();
@@ -3002,33 +3011,56 @@
       );
       return ordered.map(([label, rows]) => /* @__PURE__ */ React.createElement("div", { key: label, className: "axis-domain-group" }, /* @__PURE__ */ React.createElement("button", { className: "axis-domain-subhead", onClick: () => toggleCollapse(label) }, collapsedDomains.has(label) ? "\u25B8" : "\u25BE", " ", label, " ", /* @__PURE__ */ React.createElement("span", { className: "axis-domain-count" }, rows.length)), !collapsedDomains.has(label) && rows.map(renderRow)));
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-item" + (isMyPubs ? " axis-mypubs" : "") }, /* @__PURE__ */ React.createElement("div", { className: "axis" + (expanded ? " active" : ""), onClick: () => handlers.toggle(axis.id) }, /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !isMyPubs && /* @__PURE__ */ React.createElement(
-      "input",
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-item" + (isMyPubs ? " axis-mypubs" : "") }, /* @__PURE__ */ React.createElement(
+      "div",
       {
-        type: "checkbox",
-        className: "axis-select",
-        checked: selected,
-        title: "Select for bulk delete / merge",
-        onClick: (e) => e.stopPropagation(),
-        onChange: () => handlers.toggleSelect(axis.id)
-      }
-    ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-icon-btn axis-icon-danger",
-        title: isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis",
-        onClick: stop(() => isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id))
+        className: "axis" + (expanded ? " active" : "") + (dragOver ? " drag-over" : ""),
+        onClick: () => handlers.toggle(axis.id),
+        onDragOver: canDrop ? ((e) => {
+          if (e.dataTransfer.types.includes("application/x-callosum-paper")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setDragOver(true);
+          }
+        }) : void 0,
+        onDragLeave: canDrop ? (() => setDragOver(false)) : void 0,
+        onDrop: canDrop ? ((e) => {
+          setDragOver(false);
+          const pid = parseInt(e.dataTransfer.getData("application/x-callosum-paper"), 10);
+          if (pid) {
+            e.preventDefault();
+            handlers.dropPaper(axis.id, pid);
+          }
+        }) : void 0
       },
-      "\u{1F5D1}"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-count-badge" + (isMyPubs ? " is-scored" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
-        title: isMyPubs ? `Show your ${axis.assignment_count || 0} papers in the library` : hideUncertain && (axis.uncertain_count || 0) > 0 ? `${badgeCount} assigned \xB7 ${axis.uncertain_count} uncertain hidden \u2014 click to show this axis in the library` : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? axis.stale ? " \xB7 edited since scoring" : " \xB7 scored & up to date" : " \xB7 not scored yet"),
-        onClick: stop(() => handlers.filterToAxis(axis, hideUncertain))
-      },
-      badgeCount
-    )))), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, !isMyPubs && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !isMyPubs && /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "checkbox",
+          className: "axis-select",
+          checked: selected,
+          title: "Select for bulk delete / merge",
+          onClick: (e) => e.stopPropagation(),
+          onChange: () => handlers.toggleSelect(axis.id)
+        }
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-icon-btn axis-icon-danger",
+          title: isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis",
+          onClick: stop(() => isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id))
+        },
+        "\u{1F5D1}"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-count-badge" + (isMyPubs ? " is-scored" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
+          title: isMyPubs ? `Show your ${axis.assignment_count || 0} papers in the library` : hideUncertain && (axis.uncertain_count || 0) > 0 ? `${badgeCount} assigned \xB7 ${axis.uncertain_count} uncertain hidden \u2014 click to show this axis in the library` : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? axis.stale ? " \xB7 edited since scoring" : " \xB7 scored & up to date" : " \xB7 not scored yet"),
+          onClick: stop(() => handlers.filterToAxis(axis, hideUncertain))
+        },
+        badgeCount
+      )))
+    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, !isMyPubs && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-icon-btn axis-eye" + (hideUncertain ? " off" : ""),
@@ -3185,6 +3217,18 @@
         loadAxes();
       });
     }, [axes, loadDetail, loadAxes, flash]);
+    const dropPaper = useCallback((axisId, paperId) => {
+      apiPost(`/axes/${axisId}/papers`, { paper_id: paperId }).then((r) => {
+        if (!r.ok) {
+          flash(r.error);
+          return;
+        }
+        const ax = (axes || []).find((a) => a.id === axisId);
+        flash(`Added to ${ax ? ax.label : "axis"}`);
+        loadDetail(axisId);
+        loadAxes();
+      });
+    }, [axes, loadDetail, loadAxes, flash]);
     const dismissMyPubs = useCallback(() => {
       if (!window.confirm("Dismiss the My Publications card? Your profile and confirm/reject choices are kept \u2014 Refresh in Settings rebuilds it.")) return;
       apiDelete("/my-publications").then((r) => {
@@ -3235,6 +3279,7 @@
       remove,
       removePaper,
       confirmPaper,
+      dropPaper,
       dismissMyPubs,
       enterFocus,
       filterToAxis,

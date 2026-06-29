@@ -443,8 +443,9 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
 - **A5 — color tags / ratings / flags** (a color attribute on tags + a simple user rating/flag on papers).
   Organizational polish; tags stay provenance-stamped + become **pure labels** (the A7 division); a rating is a user
   field, **never an AI score**.
-- **A6 — drag-and-drop a paper onto an axis to add it** (a faster input for the existing manual-add path; a
-  keyword-axis drop is a manual override, riding `restore_manual_assignments`).
+- ✅ **A6 — DONE (inc 206): drag a library card onto a (non-My-Pubs) axis card to add it.** A manual override via
+  `POST /axes/{id}/papers`; the axis card shows a dashed-accent drop-invite; My-Pubs (authorship-resolved) is not a
+  drop target. Frontend-only (rides the existing endpoint).
 - **A2 — library-wide per-paper citation counts** (generalize My-Pubs Layer 3's OpenAlex counts to all cards/Details).
   A **displayed metadata field with a visible source** — never a composite, never a silent rank (#7); shown honestly,
   not zero-filled. *(Metadata egress, the inc-81 posture — not the Gemini gate.)*

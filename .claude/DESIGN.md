@@ -141,6 +141,11 @@ red to any other status.
 `--term-chip`: dashed `--line-2` border + `--panel` bg when off; solid `--accent` border + `--accent-soft`
 bg + `--accent` text when **on**. Radius 999px.
 
+### Drop-target invite (drag-and-drop, inc 206)
+A valid drag-over target shows a **dashed `--accent` border + `--accent-soft` fill** (`.axis.drag-over`) — dashed =
+*transient/pending* (the drop hasn't happened), accent = the pane's primary color. Distinct from the solid-`--accent-line`
+`.active` state. Reuse this recipe for any future drag-to-add affordance.
+
 ### Status / provenance accents
 Connection LED, synthesis "running" pulse, the provenance box (`.prov`: `--accent-soft` bg + accent border
 + accent bold) — indigo = provenance. Verified green / flagged amber on summary sentences (left border 3px).

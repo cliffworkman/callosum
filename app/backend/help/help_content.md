@@ -475,6 +475,7 @@ Useful controls:
 - Click `×` to remove a paper from the axis.
 - Click `👁` to hide uncertain papers and see only assigned/manual papers. (To start every axis card in this hidden view, turn on **Hide uncertain papers by default** in ⚙ Settings → Axes.)
 - Click `＋` on an axis to add or remove papers from the main Library list.
+- **Drag a paper** from the Library onto an axis card to add it (a quick manual override — the axis card highlights as you drag over it). The My Publications card is the exception: it's resolved from authorship (use `✓`/`✕`), so it isn't a drop target.
 - Click an axis's **count badge** (the number on the right of the axis) to **filter the Library to just that axis's papers**. A "Filtered to axis …" banner appears; click **clear** to return to the full library. From a filtered view you can **select all → summarize** to get a verified synthesis of the whole cluster in a few clicks. When uncertain papers are hidden, the count badge shows the visible (assigned + manual) total, and clicking it filters the Library to that same assigned-only set (the banner reads "… · assigned only") — so what you see on the card is exactly what you summarize.
 
 When you click `＋`, Callosum enters a Library focus mode for that axis. Each Library row gets a button such as **+ add**, **✓ in axis**, **✓ staged**, or **- staged**. Changes are staged until you click **Save**. Use **Cancel** to leave focus mode without applying staged changes.

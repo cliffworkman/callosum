@@ -296,6 +296,8 @@
   }
   .axis:hover { background: var(--hover); }
   .axis.active { background: var(--accent-soft); border-color: var(--accent-line); }
+  /* A6 (inc 206): drop-target invite when a library card is dragged over — dashed accent (transient/pending) + soft fill. */
+  .axis.drag-over { background: var(--accent-soft); border: 1px dashed var(--accent); }
   .axis-label { font-weight: 550; font-size: 13px; color: var(--ink); }
   .cluster {
     margin: 3px 0 3px 12px; padding: 6px 10px;

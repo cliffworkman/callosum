@@ -280,7 +280,9 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
       className={"paper" + (isSelected ? " sel" : "")}
       onClick={() => onSelect && onSelect(p.id)}
       onDoubleClick={() => onOpen && onOpen(p)}  // inc-98: always open; .paper has user-select:none (copy from Details)
-      title="Double-click to open the PDF"
+      title="Double-click to open the PDF · drag onto an axis to add it"
+      draggable  // A6 (inc 206): drag a card onto an axis card (in the AXES pane) to manually add it
+      onDragStart={e => { e.dataTransfer.setData("application/x-callosum-paper", String(p.id)); e.dataTransfer.effectAllowed = "copy"; }}
     >
       {selecting && <PaperCopyButton paperId={p.id} />}
       {selecting &&
