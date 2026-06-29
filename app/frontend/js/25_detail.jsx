@@ -286,70 +286,8 @@ function CiteRow({ paperId }) {
   );
 }
 
-// inc-71: lightweight free-form tags. Local state seeded from the paper detail (the parent keys this by
-// paper id so it remounts on paper switch); add via POST, remove via DELETE, datalist suggests existing
-// tags. Clicking a chip's name filters the library to that tag.
-function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
-  const [tags, setTags] = useState(initialTags || []);
-  const [all, setAll] = useState([]);
-  const [input, setInput] = useState("");
-  const [suggestions, setSuggestions] = useState([]);   // inc-72: c-TF-IDF candidates
-  const [suggested, setSuggested] = useState(false);    // have we fetched candidates at least once?
-  const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
-  const refreshSuggestions = () => api("/tags").then(r => { if (r.ok) setAll(r.data); });
-  useEffect(() => { refreshSuggestions(); }, []);
-  // Re-sync to server truth when the parent refetches the detail (e.g. 🔎 re-resolve adds keyword tags for
-  // the SAME paper id, so the key={p.id} remount doesn't fire). initialTags identity only changes on a real
-  // detail refetch, so optimistic add/remove between refetches is preserved.
-  useEffect(() => { setTags(initialTags || []); }, [initialTags]);
-  const add = async (nameArg) => {
-    const name = (nameArg != null ? nameArg : input).trim();
-    if (!name) return;
-    if (nameArg == null) setInput("");
-    const r = await apiPost(`/papers/${paperId}/tags`, { name });
-    if (r.ok) {
-      setTags(ts => ts.some(t => t.id === r.data.id) ? ts : sortByName([...ts, r.data]));
-      setSuggestions(s => s.filter(x => x.toLowerCase() !== name.toLowerCase()));  // drop the accepted candidate
-      refreshSuggestions();
-      if (onTagsChanged) onTagsChanged();  // refresh the sidebar Tags browser (inc 96)
-    }
-  };
-  const remove = async (tagId) => {
-    const r = await apiDelete(`/papers/${paperId}/tags/${tagId}`);
-    if (r.ok) { setTags(ts => ts.filter(t => t.id !== tagId)); refreshSuggestions(); if (onTagsChanged) onTagsChanged(); }
-  };
-  const suggest = async () => {   // inc-72: local c-TF-IDF — propose distinctive terms, the user opts in
-    const r = await api(`/papers/${paperId}/suggested-tags`);
-    setSuggested(true);
-    if (r.ok) setSuggestions(r.data.suggestions || []);
-  };
-  return (
-    <div className="detail-tags">
-      <span className="detail-cite-label">Tags</span>
-      <div className="detail-tags-chips">
-        {tags.map(t => (
-          <span key={t.id} className={"tag-chip" + (tagIsImported(t.source) ? " tag-chip-imported" : "")}>
-            <button className="tag-chip-name" title={tagSourceLabel(t.source) + " · click to filter the library"}
-              onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>{t.name}</button>
-            <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>
-          </span>
-        ))}
-        <input className="tag-add" list="tag-suggestions" placeholder="add tag…" value={input} spellCheck={false}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          onBlur={() => add()} />
-        <datalist id="tag-suggestions">{all.map(t => <option key={t.id} value={t.name} />)}</datalist>
-        <button className="btn-link" title="Suggest tags from this paper's text (local, no AI sent off-device)"
-          onClick={suggest}>✨ Suggest</button>
-        {suggestions.map(name => (
-          <button key={"sug-" + name} className="term-chip tag-suggest-chip" title="Add this suggested tag"
-            onClick={() => add(name)}>+ {name}</button>
-        ))}
-        {suggested && suggestions.length === 0 && <span className="tag-suggest-empty">no new suggestions</span>}
-      </div>
-    </div>
-  );
-}
+// TagsRow (inc-71 + inc-207 color picker) was extracted to js/25b_tags.jsx in inc 207 — it pushed this file over
+// the 600-line cap (rule #1). It's called by DetailContent below via the shared-IIFE function hoist.
 
 // Acquisition clean lane (Increment A): fetch a free, rights-holder-authorized open-access copy via OpenAlex
 // and import it into the local library. Shown only when a paper has no available PDF. Async job → poll →

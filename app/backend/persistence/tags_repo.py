@@ -8,11 +8,15 @@ carry tags. Extracted to its own module (mirroring `dedup_repo.py`) to keep `rep
 
 from __future__ import annotations
 
-from sqlalchemy import Connection, RowMapping, delete, func, insert, select
+from sqlalchemy import Connection, RowMapping, delete, func, insert, select, update
 
 from app.backend.persistence.schema import paper_tags, suppressed_paper_tags, tags
 
 TAG_NAME_MAX = 100
+
+# inc 207 (A5): the fixed tag-color palette. A tag stores a palette KEY (not arbitrary hex) — the frontend maps the
+# key to a theme-aware token, so colors stay legible in light + dark. An allowlist (rule #3/#4); NULL = uncolored.
+TAG_COLORS = ("red", "orange", "amber", "green", "teal", "blue", "purple", "gray")
 
 
 def suppress_paper_tag(conn: Connection, paper_id: int, name: str) -> None:
@@ -43,10 +47,11 @@ def suppressed_tag_names(conn: Connection, paper_id: int) -> set[str]:
 
 
 def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
-    """The paper's tags as ``{id, name, import_source}``, ordered case-insensitively by name. `import_source`
-    (inc 100) lets the UI distinguish imported author/index keywords from tags you added."""
+    """The paper's tags as ``{id, name, import_source, color}``, ordered case-insensitively by name.
+    `import_source` (inc 100) distinguishes imported keywords from your tags; `color` (inc 207) is the optional
+    user-chosen palette key (NULL = uncolored)."""
     stmt = (
-        select(tags.c.id, tags.c.name, tags.c.import_source)
+        select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color)
         .select_from(paper_tags.join(tags, tags.c.id == paper_tags.c.tag_id))
         .where(paper_tags.c.paper_id == paper_id)
         .order_by(func.lower(tags.c.name))
@@ -55,14 +60,34 @@ def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
 
 
 def list_tags(conn: Connection) -> list[RowMapping]:
-    """Every tag as ``{id, name, import_source, paper_count}`` (counts via LEFT JOIN), ordered by name."""
+    """Every tag as ``{id, name, import_source, color, paper_count}`` (counts via LEFT JOIN), ordered by name."""
     stmt = (
-        select(tags.c.id, tags.c.name, tags.c.import_source, func.count(paper_tags.c.paper_id).label("paper_count"))
+        select(
+            tags.c.id,
+            tags.c.name,
+            tags.c.import_source,
+            tags.c.color,
+            func.count(paper_tags.c.paper_id).label("paper_count"),
+        )
         .select_from(tags.outerjoin(paper_tags, paper_tags.c.tag_id == tags.c.id))
-        .group_by(tags.c.id, tags.c.name, tags.c.import_source)
+        .group_by(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color)
         .order_by(func.lower(tags.c.name))
     )
     return list(conn.execute(stmt).mappings())
+
+
+def set_tag_color(conn: Connection, tag_id: int, color: str | None) -> RowMapping | None:
+    """Set (or clear, with ``color=None``) a tag's palette color. `color` must be a key in ``TAG_COLORS`` or None
+    (validated at the router boundary). Returns the updated ``{id, name, import_source, color}`` or None if no such
+    tag. Caller commits."""
+    result = conn.execute(update(tags).where(tags.c.id == tag_id).values(color=color))
+    if not result.rowcount:
+        return None
+    return (
+        conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color).where(tags.c.id == tag_id))
+        .mappings()
+        .one()
+    )
 
 
 def add_tag_to_paper(conn: Connection, paper_id: int, name: str, *, import_source: str = "user") -> RowMapping:
@@ -71,14 +96,14 @@ def add_tag_to_paper(conn: Connection, paper_id: int, name: str, *, import_sourc
     source (so a user-named tag is never relabeled by a later keyword import). Returns ``{id, name}``."""
     clean = name.strip()[:TAG_NAME_MAX]
     row = (
-        conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source).where(tags.c.name == clean))
+        conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color).where(tags.c.name == clean))
         .mappings()
         .first()
     )
     if row is None:
         tag_id = int(conn.execute(insert(tags).values(name=clean, import_source=import_source)).inserted_primary_key[0])
         row = (
-            conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source).where(tags.c.id == tag_id))
+            conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color).where(tags.c.id == tag_id))
             .mappings()
             .one()
         )

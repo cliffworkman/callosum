@@ -144,6 +144,9 @@ tags = Table(
     Column("name", Text, nullable=False),
     Column("import_source", String(100)),
     Column("external_id", String(255)),
+    # inc 207 (A5): an optional user-chosen color, stored as a fixed-palette KEY (e.g. "blue"), never arbitrary hex
+    # — the frontend maps the key to a theme-aware token. NULL = uncolored (keeps the inc-100 provenance styling).
+    Column("color", String(20)),
     UniqueConstraint("name", name="uq_tags_name"),
 )
 

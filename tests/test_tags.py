@@ -170,3 +170,32 @@ def test_removing_a_user_tag_does_not_suppress(temp_db_url: str) -> None:
         remove_tag_from_paper(conn, pid, int(row["id"]))
         assert suppressed_tag_names(conn, pid) == set()
     engine.dispose()
+
+
+def test_set_tag_color_endpoint_and_responses(temp_db_url: str) -> None:
+    # inc 207 (A5): a tag carries an optional palette color; set/clear via POST /tags/{id}/color, validated to the
+    # allowlist; the color rides the tag responses + the paper detail.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        tid = int(add_tag_to_paper(conn, pid, "method")["id"])
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    # the palette is exposed; a fresh tag is uncolored
+    assert "blue" in client.get("/tags/colors").json()
+    assert {t["id"]: t["color"] for t in client.get("/tags").json()}[tid] is None
+
+    # set a valid color → reflected in /tags, the paper detail, and a re-add
+    assert client.post(f"/tags/{tid}/color", json={"color": "blue"}).status_code == 200
+    assert {t["id"]: t["color"] for t in client.get("/tags").json()}[tid] == "blue"
+    detail_tags = client.get(f"/papers/{pid}").json()["tags"]
+    assert [t for t in detail_tags if t["id"] == tid][0]["color"] == "blue"
+
+    # an invalid color → 422 (allowlist, rule #4); the stored color is unchanged
+    assert client.post(f"/tags/{tid}/color", json={"color": "#ff0000"}).status_code == 422
+    assert {t["id"]: t["color"] for t in client.get("/tags").json()}[tid] == "blue"
+
+    # clear with null; unknown tag → 404
+    assert client.post(f"/tags/{tid}/color", json={"color": None}).json()["color"] is None
+    assert client.post("/tags/999999/color", json={"color": "blue"}).status_code == 404

@@ -440,9 +440,13 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
 - **A1 — saved searches** (persist a named combination of the existing `item_type`/axis/tag/needs-review/signal +
   sort + search-scope params; recall from the library header). **Distinct from axes** — it persists a metadata/boolean
   predicate, not a semantic lens. Reuses inc-89 search + existing facets; no new query semantics.
-- **A5 — color tags / ratings / flags** (a color attribute on tags + a simple user rating/flag on papers).
-  Organizational polish; tags stay provenance-stamped + become **pure labels** (the A7 division); a rating is a user
-  field, **never an AI score**.
+- **A5 — color tags ONLY** (a color attribute on tags). **Ratings/flags are declined** (Cliff, 2026-06-29): a
+  unidimensional star/rating reduces a paper to one number, erasing the multi-dimensionality that tags capture —
+  "I'd give bad science 5 stars for teachability." This coheres with the charter (#7 no opaque composite,
+  inspectability over authority): tags are the flexible, orthogonal, inspectable way to judge a paper; a star is a
+  reduction. So A5 = **color tags only** — a color attribute on tags (a small fixed, theme-aware palette stored as a
+  palette *key*, not arbitrary hex), an uncolored tag keeps its inc-100 provenance style; tags stay provenance-stamped
+  + are pure labels (the A7 division). No rating field, ever.
 - ✅ **A6 — DONE (inc 206): drag a library card onto a (non-My-Pubs) axis card to add it.** A manual override via
   `POST /axes/{id}/papers`; the axis card shows a dashed-accent drop-invite; My-Pubs (authorship-resolved) is not a
   drop target. Frontend-only (rides the existing endpoint).

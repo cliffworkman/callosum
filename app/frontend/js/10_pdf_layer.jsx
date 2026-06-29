@@ -189,10 +189,11 @@ function TagsPanel({ onFilterToTag, tagRefresh }) {
         {tags.length === 0
           ? <span className="tag-suggest-empty">No tags yet — add tags from a paper's Details pane.</span>
           : shown.map(t => (
-              <button key={t.id} className={"tags-panel-item" + (tagIsImported(t.source) ? " tags-panel-item-imported" : "")}
+              <button key={t.id} className={"tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : "")}
                 title={tagSourceLabel(t.source) + " · filter the library to “" + t.name + "”"}
                 onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>
-                <span className="tags-panel-name">{t.name}</span>
+                <span className="tags-panel-name">
+                  {t.color && <span className={"tags-panel-dot tag-color-" + t.color} />}{t.name}</span>
                 <span className="tags-panel-count">{t.paper_count}</span>
               </button>))}
         {tags.length > 0 && shown.length === 0 && <span className="tag-suggest-empty">no matching tags</span>}

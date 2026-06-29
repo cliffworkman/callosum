@@ -56,6 +56,11 @@
     --flag-ink: #6e4421;     /* text on --flag-soft (error text) */
     --danger: #b3261e;       /* red — destructive actions (delete) only */
     --danger-line: #e3b1ac;  /* destructive button border */
+    /* inc 207 (A5): the tag-color palette — one ink per key; the colored-chip recipe mixes it with --panel for the
+       bg (so it auto-adapts to the theme). Light inks here; the dark block overrides them lighter. NOT semantic
+       (these are user-chosen labels, distinct from the indigo/green/amber/red status colors above). */
+    --tag-red: #c0392b;    --tag-orange: #c0631f;  --tag-amber: #9a7d12;  --tag-green: #2f8a4e;
+    --tag-teal: #1f8a82;   --tag-blue: #3a5fc4;    --tag-purple: #6f47c0; --tag-gray: #6b6457;
     --accent-overlay: #5c55b0; /* on-page indigo (PDF highlight / synthesis outline) — CONSTANT (white page) */
     --on-fill: #ffffff;      /* text on a filled semantic color (primary button, status badge) */
     /* brand logo states (inc 47): base64 inlined here by inline_brand_assets.py — kept OUT of the Babel
@@ -97,6 +102,9 @@
     --flag-line: #5a4530;
     --flag-ink: #e0b483;
     --danger: #e8786c;
+    /* inc 207: tag-color palette — lighter inks so they read on the dark soft-bg (color-mix with the dark --panel). */
+    --tag-red: #ef8a82;    --tag-orange: #e6a463;  --tag-amber: #d8c060;  --tag-green: #79c98f;
+    --tag-teal: #5fc2ba;   --tag-blue: #8aa2ee;    --tag-purple: #b196ec; --tag-gray: #b8b1a3;
     --danger-line: #6e3b36;
     --sel: #2a2740;
     --hover: #2f2a22;
@@ -650,7 +658,7 @@
   .detail-tags { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 4px; }
   .detail-tags .detail-cite-label { margin-top: 4px; }
   .detail-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; align-items: center; }
-  .tag-chip { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 1px 4px 1px 9px; }
+  .tag-chip { position: relative; display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 1px 4px 1px 4px; }
   .tag-chip-name { background: none; border: none; color: var(--accent); font-family: var(--sans); font-size: 11.5px; cursor: pointer; padding: 0; }
   .tag-chip-name:hover { text-decoration: underline; }
   .tag-chip-x { background: none; border: none; color: var(--accent); font-size: 13px; line-height: 1; cursor: pointer; padding: 0 2px; opacity: .55; }
@@ -660,6 +668,21 @@
   .tag-chip-imported { border-color: var(--line-2); background: var(--bg); }
   .tag-chip-imported .tag-chip-name, .tag-chip-imported .tag-chip-x { color: var(--ink-2); }
   .tags-panel-item-imported .tags-panel-name { color: var(--ink-3); }
+  /* inc 207 (A5): tag colors. Each .tag-color-<key> sets --tag-c; the colored chip mixes it with --panel for a
+     theme-aware soft fill + uses the ink for text/border (overrides the provenance styling once a color is set). */
+  .tag-color-red { --tag-c: var(--tag-red); } .tag-color-orange { --tag-c: var(--tag-orange); }
+  .tag-color-amber { --tag-c: var(--tag-amber); } .tag-color-green { --tag-c: var(--tag-green); }
+  .tag-color-teal { --tag-c: var(--tag-teal); } .tag-color-blue { --tag-c: var(--tag-blue); }
+  .tag-color-purple { --tag-c: var(--tag-purple); } .tag-color-gray { --tag-c: var(--tag-gray); }
+  .tag-chip.tag-colored { background: color-mix(in srgb, var(--tag-c) 16%, var(--panel)); border-color: color-mix(in srgb, var(--tag-c) 42%, transparent); }
+  .tag-chip.tag-colored .tag-chip-name, .tag-chip.tag-colored .tag-chip-x, .tag-chip.tag-colored .tag-chip-dot { color: var(--tag-c); }
+  .tag-chip-dot { background: none; border: none; cursor: pointer; padding: 0 1px 0 0; font-size: 9px; line-height: 1; color: var(--ink-3); opacity: .55; }
+  .tag-chip-dot:hover { opacity: 1; }
+  .tag-swatches { position: absolute; z-index: 30; margin-top: 20px; display: flex; gap: 4px; padding: 5px 6px; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+  .tag-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--tag-c, var(--ink-3)) 50%, transparent); background: var(--tag-c, var(--panel)); cursor: pointer; padding: 0; }
+  .tag-swatch.on { outline: 2px solid var(--ink-2); outline-offset: 1px; }
+  .tag-swatch-none { background: var(--panel); color: var(--ink-3); font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .tags-panel-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tag-c); margin-right: 6px; vertical-align: baseline; }
   .tag-add { border: 1px solid transparent; background: none; color: var(--ink); font-family: var(--sans); font-size: 11.5px; padding: 2px 4px; min-width: 90px; }
   .tag-add:hover { border-color: var(--line-2); border-radius: var(--radius-sm); }
   .tag-add:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); border-radius: var(--radius-sm); }
@@ -2517,11 +2540,11 @@
       "button",
       {
         key: t.id,
-        className: "tags-panel-item" + (tagIsImported(t.source) ? " tags-panel-item-imported" : ""),
+        className: "tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : ""),
         title: tagSourceLabel(t.source) + " \xB7 filter the library to \u201C" + t.name + "\u201D",
         onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
       },
-      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.name),
+      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.color && /* @__PURE__ */ React.createElement("span", { className: "tags-panel-dot tag-color-" + t.color }), t.name),
       /* @__PURE__ */ React.createElement("span", { className: "tags-panel-count" }, t.paper_count)
     )), tags.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no matching tags")));
   }
@@ -4233,92 +4256,6 @@
     };
     return /* @__PURE__ */ React.createElement("div", { className: "detail-cite" }, /* @__PURE__ */ React.createElement("div", { className: "detail-cite-row" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Cite as"), /* @__PURE__ */ React.createElement("select", { className: "detail-cite-style", value: style, onChange: (e) => setStyle(e.target.value), title: "Citation style" }, styles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: copyFormatted, disabled: !rendered, title: "Copy the formatted citation" }, fmtCopied ? "Copied \u2713" : "Copy")), rendered && rendered.reference_html && /* @__PURE__ */ React.createElement("div", { className: "detail-cite-preview", dangerouslySetInnerHTML: { __html: rendered.reference_html } }), /* @__PURE__ */ React.createElement("div", { className: "detail-cite-row" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Export"), [["bibtex", "BibTeX"], ["ris", "RIS"], ["csl-json", "CSL-JSON"]].map(([f, lbl]) => /* @__PURE__ */ React.createElement("button", { key: f, className: "btn-link", onClick: () => copyExport(f), title: `Copy ${lbl} to clipboard` }, copied === f ? "Copied \u2713" : lbl))));
   }
-  function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
-    const [tags, setTags] = useState(initialTags || []);
-    const [all, setAll] = useState([]);
-    const [input, setInput] = useState("");
-    const [suggestions, setSuggestions] = useState([]);
-    const [suggested, setSuggested] = useState(false);
-    const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
-    const refreshSuggestions = () => api("/tags").then((r) => {
-      if (r.ok) setAll(r.data);
-    });
-    useEffect(() => {
-      refreshSuggestions();
-    }, []);
-    useEffect(() => {
-      setTags(initialTags || []);
-    }, [initialTags]);
-    const add = async (nameArg) => {
-      const name = (nameArg != null ? nameArg : input).trim();
-      if (!name) return;
-      if (nameArg == null) setInput("");
-      const r = await apiPost(`/papers/${paperId}/tags`, { name });
-      if (r.ok) {
-        setTags((ts) => ts.some((t) => t.id === r.data.id) ? ts : sortByName([...ts, r.data]));
-        setSuggestions((s) => s.filter((x) => x.toLowerCase() !== name.toLowerCase()));
-        refreshSuggestions();
-        if (onTagsChanged) onTagsChanged();
-      }
-    };
-    const remove = async (tagId) => {
-      const r = await apiDelete(`/papers/${paperId}/tags/${tagId}`);
-      if (r.ok) {
-        setTags((ts) => ts.filter((t) => t.id !== tagId));
-        refreshSuggestions();
-        if (onTagsChanged) onTagsChanged();
-      }
-    };
-    const suggest = async () => {
-      const r = await api(`/papers/${paperId}/suggested-tags`);
-      setSuggested(true);
-      if (r.ok) setSuggestions(r.data.suggestions || []);
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-tags" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Tags"), /* @__PURE__ */ React.createElement("div", { className: "detail-tags-chips" }, tags.map((t) => /* @__PURE__ */ React.createElement("span", { key: t.id, className: "tag-chip" + (tagIsImported(t.source) ? " tag-chip-imported" : "") }, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "tag-chip-name",
-        title: tagSourceLabel(t.source) + " \xB7 click to filter the library",
-        onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
-      },
-      t.name
-    ), /* @__PURE__ */ React.createElement("button", { className: "tag-chip-x", title: "Remove this tag", onClick: () => remove(t.id) }, "\xD7"))), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "tag-add",
-        list: "tag-suggestions",
-        placeholder: "add tag\u2026",
-        value: input,
-        spellCheck: false,
-        onChange: (e) => setInput(e.target.value),
-        onKeyDown: (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            add();
-          }
-        },
-        onBlur: () => add()
-      }
-    ), /* @__PURE__ */ React.createElement("datalist", { id: "tag-suggestions" }, all.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.name }))), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "btn-link",
-        title: "Suggest tags from this paper's text (local, no AI sent off-device)",
-        onClick: suggest
-      },
-      "\u2728 Suggest"
-    ), suggestions.map((name) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: "sug-" + name,
-        className: "term-chip tag-suggest-chip",
-        title: "Add this suggested tag",
-        onClick: () => add(name)
-      },
-      "+ ",
-      name
-    )), suggested && suggestions.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no new suggestions")));
-  }
   function AcquireOaRow({ paperId, onAcquired }) {
     const [status, setStatus] = useState("idle");
     const [msg, setMsg] = useState(null);
@@ -4535,6 +4472,144 @@
       ) : null,
       a.oa_version ? /* @__PURE__ */ React.createElement("span", { className: "oa-meta" }, a.oa_version, a.oa_source ? " \xB7 " + a.oa_source : "") : null
     )))), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier))));
+  }
+  function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
+    const [tags, setTags] = useState(initialTags || []);
+    const [all, setAll] = useState([]);
+    const [input, setInput] = useState("");
+    const [suggestions, setSuggestions] = useState([]);
+    const [suggested, setSuggested] = useState(false);
+    const [palette, setPalette] = useState([]);
+    const [picking, setPicking] = useState(null);
+    const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
+    const refreshSuggestions = () => api("/tags").then((r) => {
+      if (r.ok) setAll(r.data);
+    });
+    useEffect(() => {
+      refreshSuggestions();
+    }, []);
+    useEffect(() => {
+      api("/tags/colors").then((r) => {
+        if (r.ok) setPalette(r.data || []);
+      });
+    }, []);
+    const setColor = async (tagId, color) => {
+      setPicking(null);
+      const r = await apiPost(`/tags/${tagId}/color`, { color });
+      if (r.ok) {
+        setTags((ts) => ts.map((t) => t.id === tagId ? { ...t, color } : t));
+        refreshSuggestions();
+        if (onTagsChanged) onTagsChanged();
+      }
+    };
+    useEffect(() => {
+      setTags(initialTags || []);
+    }, [initialTags]);
+    const add = async (nameArg) => {
+      const name = (nameArg != null ? nameArg : input).trim();
+      if (!name) return;
+      if (nameArg == null) setInput("");
+      const r = await apiPost(`/papers/${paperId}/tags`, { name });
+      if (r.ok) {
+        setTags((ts) => ts.some((t) => t.id === r.data.id) ? ts : sortByName([...ts, r.data]));
+        setSuggestions((s) => s.filter((x) => x.toLowerCase() !== name.toLowerCase()));
+        refreshSuggestions();
+        if (onTagsChanged) onTagsChanged();
+      }
+    };
+    const remove = async (tagId) => {
+      const r = await apiDelete(`/papers/${paperId}/tags/${tagId}`);
+      if (r.ok) {
+        setTags((ts) => ts.filter((t) => t.id !== tagId));
+        refreshSuggestions();
+        if (onTagsChanged) onTagsChanged();
+      }
+    };
+    const suggest = async () => {
+      const r = await api(`/papers/${paperId}/suggested-tags`);
+      setSuggested(true);
+      if (r.ok) setSuggestions(r.data.suggestions || []);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-tags" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, "Tags"), /* @__PURE__ */ React.createElement("div", { className: "detail-tags-chips" }, tags.map((t) => /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        key: t.id,
+        className: "tag-chip" + (t.color ? " tag-colored tag-color-" + t.color : tagIsImported(t.source) ? " tag-chip-imported" : "")
+      },
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "tag-chip-dot",
+          title: "Set a color for this tag",
+          onClick: () => setPicking((p) => p === t.id ? null : t.id)
+        },
+        "\u25CF"
+      ),
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "tag-chip-name",
+          title: tagSourceLabel(t.source) + " \xB7 click to filter the library",
+          onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
+        },
+        t.name
+      ),
+      /* @__PURE__ */ React.createElement("button", { className: "tag-chip-x", title: "Remove this tag", onClick: () => remove(t.id) }, "\xD7"),
+      picking === t.id && /* @__PURE__ */ React.createElement("span", { className: "tag-swatches", role: "listbox", "aria-label": "Tag color" }, palette.map((c) => /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: c,
+          className: "tag-swatch tag-color-" + c + (t.color === c ? " on" : ""),
+          title: c,
+          "aria-label": c,
+          onClick: () => setColor(t.id, c)
+        }
+      )), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "tag-swatch tag-swatch-none",
+          title: "No color",
+          "aria-label": "No color",
+          onClick: () => setColor(t.id, null)
+        },
+        "\xD7"
+      ))
+    )), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "tag-add",
+        list: "tag-suggestions",
+        placeholder: "add tag\u2026",
+        value: input,
+        spellCheck: false,
+        onChange: (e) => setInput(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            add();
+          }
+        },
+        onBlur: () => add()
+      }
+    ), /* @__PURE__ */ React.createElement("datalist", { id: "tag-suggestions" }, all.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.id, value: t.name }))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link",
+        title: "Suggest tags from this paper's text (local, no AI sent off-device)",
+        onClick: suggest
+      },
+      "\u2728 Suggest"
+    ), suggestions.map((name) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: "sug-" + name,
+        className: "term-chip tag-suggest-chip",
+        title: "Add this suggested tag",
+        onClick: () => add(name)
+      },
+      "+ ",
+      name
+    )), suggested && suggestions.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no new suggestions")));
   }
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";

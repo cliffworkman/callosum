@@ -1,6 +1,6 @@
 <!-- qa-coverage
-api: GET /tags, GET /papers/{paper_id}/suggested-tags, POST /papers/{paper_id}/tags, DELETE /papers/{paper_id}/tags/{tag_id}
-fe: 10_pdf_layer.jsx, 25_detail.jsx
+api: GET /tags, GET /tags/colors, POST /tags/{tag_id}/color, GET /papers/{paper_id}/suggested-tags, POST /papers/{paper_id}/tags, DELETE /papers/{paper_id}/tags/{tag_id}
+fe: 10_pdf_layer.jsx, 25_detail.jsx, 25b_tags.jsx
 -->
 
 # ROUTE 20 - Tags and tag filters
@@ -37,6 +37,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 4. Add the same tag again by rapid double-submit. Confirm idempotent behavior or a clean duplicate message, never duplicate chips.
 5. Request suggested tags (`GET /papers/{paper_id}/suggested-tags`). Confirm suggestions are local, exclude existing tags, and accepting one creates exactly one chip.
 6. Remove a tag (`DELETE /papers/{paper_id}/tags/{tag_id}`). Confirm the chip disappears and orphaned tags are pruned from the global list. **inc 143 (Librarian):** removing an **imported keyword** tag (`keyword:*`, the muted chips) is **durable** — it is recorded as suppressed, so a later **🔎 re-resolve** / batch enrich does **not** silently re-add it (re-adding it by name clears the suppression). Removing a **user** tag does not suppress.
+7. **Tag colors (inc 207, A5):** click a chip's color dot in the Details Tags row → a swatch popover (the palette from `GET /tags/colors`). Pick a color → `POST /tags/{tag_id}/color` sets it; the chip recolors and the sidebar Tags-tab row shows a color dot. Clearing (the × swatch) sends `color:null`. An invalid color → **422** (allowlist). **A color is a user label, NOT a rating/score** — there is no per-paper rating field anywhere (ratings were deliberately declined: a star reduces a paper to one dimension; tags stay orthogonal + inspectable). Confirm no UI presents a numeric paper rating.
 
 ## Pass criteria
 

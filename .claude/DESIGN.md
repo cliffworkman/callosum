@@ -146,6 +146,15 @@ A valid drag-over target shows a **dashed `--accent` border + `--accent-soft` fi
 *transient/pending* (the drop hasn't happened), accent = the pane's primary color. Distinct from the solid-`--accent-line`
 `.active` state. Reuse this recipe for any future drag-to-add affordance.
 
+### Tag colors (inc 207, A5)
+**Non-semantic** user labels (distinct from the indigo/green/amber/red status colors — these are organizational, the
+user's choice). A fixed 8-key palette (`--tag-red … --tag-gray`), one **ink** token per key (light in `:root`,
+lighter overrides in the dark block so it reads on the dark soft-bg). The colored chip recipe sets `--tag-c` via
+`.tag-color-<key>` and mixes it with `--panel` for a theme-aware soft fill: `.tag-chip.tag-colored { background:
+color-mix(in srgb, var(--tag-c) 16%, var(--panel)); … }`. A colored chip **overrides** the inc-100 provenance styling
+(an uncolored tag keeps it). **No rating/score color** — ratings were deliberately declined (a star reduces a paper to
+one dimension; tags stay orthogonal). Reuse `--tag-c` + `color-mix` for any future per-entity color.
+
 ### Status / provenance accents
 Connection LED, synthesis "running" pulse, the provenance box (`.prov`: `--accent-soft` bg + accent border
 + accent bold) — indigo = provenance. Verified green / flagged amber on summary sentences (left border 3px).

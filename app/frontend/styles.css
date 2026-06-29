@@ -32,6 +32,11 @@
     --flag-ink: #6e4421;     /* text on --flag-soft (error text) */
     --danger: #b3261e;       /* red — destructive actions (delete) only */
     --danger-line: #e3b1ac;  /* destructive button border */
+    /* inc 207 (A5): the tag-color palette — one ink per key; the colored-chip recipe mixes it with --panel for the
+       bg (so it auto-adapts to the theme). Light inks here; the dark block overrides them lighter. NOT semantic
+       (these are user-chosen labels, distinct from the indigo/green/amber/red status colors above). */
+    --tag-red: #c0392b;    --tag-orange: #c0631f;  --tag-amber: #9a7d12;  --tag-green: #2f8a4e;
+    --tag-teal: #1f8a82;   --tag-blue: #3a5fc4;    --tag-purple: #6f47c0; --tag-gray: #6b6457;
     --accent-overlay: #5c55b0; /* on-page indigo (PDF highlight / synthesis outline) — CONSTANT (white page) */
     --on-fill: #ffffff;      /* text on a filled semantic color (primary button, status badge) */
     /* brand logo states (inc 47): base64 inlined here by inline_brand_assets.py — kept OUT of the Babel
@@ -73,6 +78,9 @@
     --flag-line: #5a4530;
     --flag-ink: #e0b483;
     --danger: #e8786c;
+    /* inc 207: tag-color palette — lighter inks so they read on the dark soft-bg (color-mix with the dark --panel). */
+    --tag-red: #ef8a82;    --tag-orange: #e6a463;  --tag-amber: #d8c060;  --tag-green: #79c98f;
+    --tag-teal: #5fc2ba;   --tag-blue: #8aa2ee;    --tag-purple: #b196ec; --tag-gray: #b8b1a3;
     --danger-line: #6e3b36;
     --sel: #2a2740;
     --hover: #2f2a22;
@@ -626,7 +634,7 @@
   .detail-tags { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 4px; }
   .detail-tags .detail-cite-label { margin-top: 4px; }
   .detail-tags-chips { display: flex; flex-wrap: wrap; gap: 6px; flex: 1; align-items: center; }
-  .tag-chip { display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 1px 4px 1px 9px; }
+  .tag-chip { position: relative; display: inline-flex; align-items: center; gap: 2px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 1px 4px 1px 4px; }
   .tag-chip-name { background: none; border: none; color: var(--accent); font-family: var(--sans); font-size: 11.5px; cursor: pointer; padding: 0; }
   .tag-chip-name:hover { text-decoration: underline; }
   .tag-chip-x { background: none; border: none; color: var(--accent); font-size: 13px; line-height: 1; cursor: pointer; padding: 0 2px; opacity: .55; }
@@ -636,6 +644,21 @@
   .tag-chip-imported { border-color: var(--line-2); background: var(--bg); }
   .tag-chip-imported .tag-chip-name, .tag-chip-imported .tag-chip-x { color: var(--ink-2); }
   .tags-panel-item-imported .tags-panel-name { color: var(--ink-3); }
+  /* inc 207 (A5): tag colors. Each .tag-color-<key> sets --tag-c; the colored chip mixes it with --panel for a
+     theme-aware soft fill + uses the ink for text/border (overrides the provenance styling once a color is set). */
+  .tag-color-red { --tag-c: var(--tag-red); } .tag-color-orange { --tag-c: var(--tag-orange); }
+  .tag-color-amber { --tag-c: var(--tag-amber); } .tag-color-green { --tag-c: var(--tag-green); }
+  .tag-color-teal { --tag-c: var(--tag-teal); } .tag-color-blue { --tag-c: var(--tag-blue); }
+  .tag-color-purple { --tag-c: var(--tag-purple); } .tag-color-gray { --tag-c: var(--tag-gray); }
+  .tag-chip.tag-colored { background: color-mix(in srgb, var(--tag-c) 16%, var(--panel)); border-color: color-mix(in srgb, var(--tag-c) 42%, transparent); }
+  .tag-chip.tag-colored .tag-chip-name, .tag-chip.tag-colored .tag-chip-x, .tag-chip.tag-colored .tag-chip-dot { color: var(--tag-c); }
+  .tag-chip-dot { background: none; border: none; cursor: pointer; padding: 0 1px 0 0; font-size: 9px; line-height: 1; color: var(--ink-3); opacity: .55; }
+  .tag-chip-dot:hover { opacity: 1; }
+  .tag-swatches { position: absolute; z-index: 30; margin-top: 20px; display: flex; gap: 4px; padding: 5px 6px; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 3px 10px rgba(0,0,0,.16); }
+  .tag-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--tag-c, var(--ink-3)) 50%, transparent); background: var(--tag-c, var(--panel)); cursor: pointer; padding: 0; }
+  .tag-swatch.on { outline: 2px solid var(--ink-2); outline-offset: 1px; }
+  .tag-swatch-none { background: var(--panel); color: var(--ink-3); font-size: 11px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .tags-panel-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--tag-c); margin-right: 6px; vertical-align: baseline; }
   .tag-add { border: 1px solid transparent; background: none; color: var(--ink); font-family: var(--sans); font-size: 11.5px; padding: 2px 4px; min-width: 90px; }
   .tag-add:hover { border-color: var(--line-2); border-radius: var(--radius-sm); }
   .tag-add:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); border-radius: var(--radius-sm); }

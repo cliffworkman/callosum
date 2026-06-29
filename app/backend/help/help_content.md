@@ -301,6 +301,8 @@ The **✨ Suggest** pass then fills gaps the authors' keywords missed (it skips 
 
 Tags you added and tags that were **imported** (Zotero tags, Crossref subject keywords) are distinguished by a subtle visual difference rather than an extra label — imported keyword tags appear in a quieter, muted style, while the ones you typed keep the accent color. Hover any tag to see exactly where it came from. They all behave the same — click to filter, **×** to remove.
 
+**Coloring a tag.** Click the small dot at the left of any tag chip (in a paper's Details) to pick a color from a fixed palette — or clear it with **×**. A colored tag stands out across the library (the sidebar Tags tab shows a matching dot). Colors are just a visual aid you choose; Callosum never rates or scores a paper itself — tags (with or without color) are the flexible, multi-dimensional way to judge papers, and there is no single star rating that would flatten a paper to one number.
+
 To browse and remove:
 
 - The left pane's **Tags** tab (the second tab of the **Axes** section) lists every tag with its paper count (it's always available — when you have no tags yet it shows a hint pointing you to add them from a paper's Details). Click a tag to **filter the library** to it — a quick way to navigate by tag without opening a paper first. When your library has both imported keyword tags and tags you typed, an **All / Yours / Keywords** filter appears at the top of the section to narrow the list by source.

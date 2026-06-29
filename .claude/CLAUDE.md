@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 206** (see Increment workflow) with **713 pytest tests
+It is currently at **Increment 207** (see Increment workflow) with **714 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -376,7 +376,9 @@ and non-code (Markdown, SQL, config).
 the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
 **frontend chunks count too** (they're under `app/`). **Inc 176** extracted the Notes panel from `js/30_viewer.jsx`
 (595→573) into `js/30b_notes.jsx` (`AnnotationsPanel`); the reading-pane run (175–179) re-grew it to 599/600, then **inc 182 extracted `LibraryFrame` → `js/30c_frame.jsx`**
-(30_viewer 599→**557**). **Frontend watch:** `js/25_detail.jsx` (**584**, closest), `js/10_pdf_layer.jsx` (562),
+(30_viewer 599→**557**). **Inc 207** split `js/25_detail.jsx` (609→**522**, over the cap when the tag-color picker landed):
+`TagsRow` → new `js/25b_tags.jsx` (95) — called via the shared-IIFE function hoist. **Watch (re-measure):**
+`routers/papers.py` (**568**, closest after the inc-207 PaperTagRef edit), `js/10_pdf_layer.jsx` (565),
 `js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
@@ -729,6 +731,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Color tags — and **decline ratings** (backlog A5 close-out; inc 207) | A5 was "color tags / ratings / flags"; **ratings/flags are declined** (Cliff): a unidimensional star reduces a paper to one number, erasing the multi-dimensionality tags capture ("I'd give bad science 5 stars for teachability") — which *is* the charter's own logic (#7 no opaque composite, inspectability over authority). So A5 = **color tags only.** A tag carries an optional `color` (**migration 0024**, nullable; a fixed 8-key palette stored as a **key**, never arbitrary hex — allowlist-validated at the write boundary, rule #3/#4). New `GET /tags/colors` + `POST /tags/{id}/color` (422 off-palette, 404 no-tag); `color` on `TagRef`/`TagSummary`/`PaperTagRef`. Frontend: theme-aware `--tag-<key>` tokens + a `color-mix(var(--tag-c) 16%, var(--panel))` chip recipe (a colored chip overrides the inc-100 provenance styling; uncolored keeps it); a swatch popover off each chip's color dot + a sidebar color dot. **Principles:** the declined-ratings call IS the principle pass — a color is a user label, never a score; tags stay the orthogonal, inspectable judgment. **Rule-#1 split:** the picker pushed `25_detail.jsx` to 609/600 → `TagsRow` extracted → `js/25b_tags.jsx` (522). No audit (color column + 2 local endpoints; no egress/fetch/dependency). pytest **714** (+1 `test_tags.py`); QA surface **138/138 API + 667/667 FE, 0 uncovered**; DESIGN + help corpus + `route_20` updated; headed-verified. |
 | Drag-and-drop a library paper onto an axis to add it (backlog A6 close-out; inc 206) | A faster input for the existing manual-axis-add path, **frontend-only** — rides the inc-50 `POST /axes/{id}/papers` manual-override endpoint (no backend/migration/endpoint/audit). `PaperCard` is `draggable` + writes the paper id to a custom MIME `application/x-callosum-paper`; the `.axis` header is a drop target **for non-My-Pubs axes only** (`canDrop = !isMyPubs`), accepting the drag iff that MIME is present → `AxesPanel.dropPaper` posts the manual add + `loadDetail`/`loadAxes` + a flash. The payload rides the native `dataTransfer`, so a center-pane card drops on a left-pane axis card with **no React state plumbing across panes**. `.axis.drag-over` = a dashed-`--accent` drop-invite (DESIGN recipe). **My-Pubs is not a drop target** — authorship is resolved (✓/✕), so a drag gesture must not mint an own-paper claim. **Principles non-triggering** (a manual human choice, not a scorer/AI decision). pytest **713** (unchanged — the endpoint is tested; DnD is headed-verified via a shared-DataTransfer dispatch); QA surface unchanged (handlers ride existing elements); help corpus + DESIGN + `route_15` updated. |
 | Close A8 as covered (honesty) + remove the redundant THEORY → Discover placeholder (inc 205) | Two cheapest-first close-outs. **A8 (synthesis scope label):** closed-as-covered, **not built** — the pre-run scope note ("N selected papers …", inc 145) + the inc-153 post-run coverage readout already give the honest scope; the literal "uncertain excluded" wording is **declined on honesty grounds** because `summarize_scope` summarizes the *exact* `paper_ids` selected regardless of certainty (it has no axis-cutoff notion, and a selection can come from an unfiltered view) — and **A10 (inc 204) already enforces the certainty boundary upstream at selection time**, where the user sees it. **Discover placeholder:** the inc-163 THEORY → Discover `<ComingSoon>` stub (Beyond library/Feed/Search) was removed — the real Discover/Search (inc 184) + Feed (inc 188) ship as center-pane library-frame tabs (`30c_frame.jsx`), so the stub was stale (inc-163 convention: drop a stub in the increment its real feature lands). The METHODS stubs + the statcheck "More checks" tab + the `ComingSoon` component stay. Frontend-only; the inert stubs claimed no QA surface (136/136 + 661/661 unchanged). Also folded in a ruff-format fix for the inc-204 `test_papers.py` (CI's `ruff format --check` caught an unwrapped insert — the suite was green; **gotcha: run `ruff format` not just `ruff check` before pushing**). **Principles non-triggering** (an honesty-preserving no-op-close + inert-UI removal). No migration/endpoint/egress/dependency. pytest **713** (unchanged); headed-verified. |
 | Carry "hide uncertain" through to the library-pane axis filter (backlog A10 close-out; inc 204) | The axis count-badge filter (inc 63) returned **every** axis member even when the card's 👁 hide-uncertain view (inc 51) was on — so *select-all → summarize* from a filtered view could include papers the card had hidden (*shown ≠ summarized*). Fix: the badge now carries the card's hide state. `list_papers(..., axis_hide_uncertain=False)` + a `GET /papers?axis_hide_uncertain=` query param; when set, the axis-member subquery gains `WHERE (confidence IS NULL OR confidence >= cutoff)`, `cutoff = axes.scoring_gain` for that axis (queried inline) else **`DEFAULT_AXIS_CUTOFF` (0.35)** — the **exact** tiering `routers/axes.py` uses, so the SQL set == the card's "assigned + manual" set. Frontend threads one boolean (badge `onClick` → `filterToAxis(axis, hideUncertain)` → `libraryAxisFilter.hideUncertain` → `axis_hide_uncertain=true`); the banner reads "… · assigned only". Default false → the inc-63 all-members behavior is byte-for-byte unchanged. **Principles non-triggering** (a filter-consistency fix, the inc-66 class — no new claim/signal, egress/provenance untouched). No endpoint added (a query param), no migration/egress/dependency → no audit trigger. pytest +1 (`test_papers.py`); headed-verified; QA surface unchanged; help corpus + `route_15` updated. Pre-decided with the maintainer (benchmark-revisions §A10). |
@@ -884,7 +887,38 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 206 (A6 — drag-and-drop a library paper onto an axis to add it; the fourth
+*Last updated: 2026-06-29 — increment 207 (A5 — color tags, with **ratings deliberately declined**; the fifth
+cheapest-first close-out, the first migration-bearing one). The maintainer rejected ratings/flags: a unidimensional
+star reduces a paper to one number, erasing the multi-dimensionality tags capture ("I'd give bad science 5 stars for
+teachability") — which *is* the charter's logic (#7 no opaque composite, inspectability over authority). So A5 =
+**color tags only.** **Backend:** **migration 0024** adds a nullable `tags.color`; a tag stores a fixed-palette **key**
+(`red/orange/amber/green/teal/blue/purple/gray`), never arbitrary hex — allowlist-validated at the write boundary
+(rule #3/#4). `tags_repo` gains `TAG_COLORS` + `set_tag_color` + `color` in the reads; `routers/tags.py` adds
+**`GET /tags/colors`** (the palette) + **`POST /tags/{tag_id}/color`** `{color}` (422 off-palette / 404 no-tag) +
+`color` on `TagRef`/`TagSummary`; `PaperTagRef` (papers.py) + `_paper_detail` carry it too. **Frontend:** theme-aware
+`--tag-<key>` ink tokens (light in `:root` + lighter dark overrides) + a `.tag-chip.tag-colored` recipe using
+**`color-mix(in srgb, var(--tag-c) 16%, var(--panel))`** for the fill (auto-adapts to light/dark; a colored chip
+**overrides** the inc-100 provenance styling, uncolored keeps it); a **swatch popover** off each chip's color dot in the
+Details Tags row (8 swatches + a "none" ×) + a matching color dot in the sidebar Tags tab. **Principles:** the
+declined-ratings decision *is* the principle pass — a color is a user label, never an AI score; tags stay the
+orthogonal, inspectable judgment. **Rule-#1 split (forced):** the picker pushed `js/25_detail.jsx` to **609/600** (the
+watched closest at 584) → **`TagsRow` extracted verbatim → `js/25b_tags.jsx`** (25_detail.jsx → **522**, 25b 95;
+`DetailContent` calls it via the shared-IIFE function hoist). **No audit** (a color column + 2 local endpoints; no
+egress/fetch/dependency). pytest **714 passed, 1 skipped** (+1 `tests/test_tags.py`: palette exposed; set valid →
+reflected in `/tags` + the paper detail + a re-add; invalid hex → 422, stored color unchanged; clear via null; unknown
+tag → 404); `ruff` clean; frontend rebuilt; migration head **0024** via `alembic_head()`; **QA surface 138/138 API**
+(+2: `/tags/colors`, `/tags/{id}/color`) **+ 667/667 FE, 0 uncovered** (`route_20_tags.md` claims the endpoints +
+`25b_tags.jsx` + a color step + the **no-rating** assertion); DESIGN.md records the palette + recipe (rule #8); help
+corpus gained a "Coloring a tag" paragraph + the no-rating framing (`HELP-DOCS-SYNCED` → 207). **Headed-verified, no
+egress** (`.local/visual/drive_inc207_tag_color.py` — open Details → click a chip's color dot → swatch popover → pick
+blue → the chip recolors + `GET /tags` shows blue; re-run after the TagsRow extraction confirms it's behavior-
+preserving; 0 console/page/genai). Notes: `INCREMENT-207-NOTES.md`. **NEXT (continuing the cheapest-first close-out):**
+**inc 208 — A1** saved searches (persist a named bundle of the existing facets — item_type/axis/tag/needs-review/signal
++ sort + search-scope — recalled from the library header; a `saved_searches` table; **distinct from axes** — a metadata
+predicate, not a semantic lens); then **A3** full-text FTS5 search (migration + a security audit), **A2** library-wide
+citation counts, and **A7 Curated Axis** (its own design pass).
+
+Earlier — increment 206 (A6 — drag-and-drop a library paper onto an axis to add it; the fourth
 cheapest-first close-out). A faster input for the existing manual-axis-add path, **frontend-only** — rides the inc-50
 `POST /axes/{axis_id}/papers` manual-override endpoint (no backend/migration/endpoint/egress/dependency/audit).
 **`10_pdf_layer.jsx`** — `PaperCard` is `draggable`; `onDragStart` writes the paper id to a custom MIME

@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 206 — axes section: a "drag a paper onto an axis to add it" line -->
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 207 — tags section: a "Coloring a tag" paragraph (+ the no-rating framing) -->
+## 2026-06-29 — Increment 207: A5 — color tags (no ratings) + split TagsRow → 25b_tags.jsx
+- **Files:** `alembic/versions/0024_tag_color.py` (+ `schema.py` color column), `persistence/tags_repo.py` (TAG_COLORS +
+  `set_tag_color` + color in reads), `api/routers/tags.py` (GET /tags/colors + POST /tags/{id}/color + color in models),
+  `api/routers/papers.py` (PaperTagRef.color), `app/frontend/js/25b_tags.jsx` (NEW — TagsRow extracted) + `25_detail.jsx`
+  (split) + `10_pdf_layer.jsx` (sidebar dot) + `styles.css` (palette + recipes) + `callosum-app.html` (rebuilt),
+  `.claude/DESIGN.md`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_20_tags.md`, `tests/test_tags.py` (+1),
+  `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-207-NOTES.md`.
+- **What:** tags carry an optional **color** (a fixed 8-key palette, stored as a key not hex; theme-aware via
+  `color-mix`). A swatch popover off each chip's color dot (Details) sets/clears it (`POST /tags/{id}/color`, allowlisted
+  → 422); colored chips override the inc-100 provenance styling; the sidebar Tags tab shows a color dot. **Ratings were
+  declined** (Cliff): a star flattens a paper to one dimension; tags stay orthogonal/inspectable (#7). **Rule-#1 split:**
+  the picker pushed `25_detail.jsx` to 609/600 → extracted **TagsRow → 25b_tags.jsx** (→ 522).
+- **Why:** A5 organizational polish, charter-aligned (color = a user label, never an AI score).
+- **Gates:** pytest **714 passed, 1 skipped** (+1); ruff clean; migration head **0024**; QA surface **138/138 API**
+  (+2) **+ 667/667 FE, 0 uncovered**; **no audit** (color column + 2 local endpoints, no egress/fetch/dependency).
+  Headed-verified (`.local/visual/drive_inc207_tag_color.py` — pick blue → chip recolors + persists; 0 console/page/genai).
+- **Revert:** `git revert` the inc-207 commit + `alembic downgrade -1` (drops `tags.color`).
+
 ## 2026-06-29 — Increment 206: A6 — drag-and-drop a library paper onto an axis to add it
 - **Files:** `app/frontend/js/10_pdf_layer.jsx` (PaperCard `draggable` + `onDragStart`), `app/frontend/js/15_axes.jsx`
   (AxisItem drop target + `dropPaper` handler), `app/frontend/styles.css` (`.axis.drag-over`) + `callosum-app.html`

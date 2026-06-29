@@ -77,6 +77,7 @@ class PaperTagRef(BaseModel):
     id: int
     name: str
     source: str | None = None  # tag provenance (user / zotero / keyword:crossref / …) — the UI styles by it
+    color: str | None = None  # inc 207: optional user-chosen palette key (NULL = uncolored)
 
 
 class PaperDetailResponse(BaseModel):
@@ -486,7 +487,10 @@ def _paper_detail(
         attachment_count=attachment_count,
         chunk_count=chunk_count,
         attachments=[_attachment_response(item) for item in attachments],
-        tags=[PaperTagRef(id=int(t["id"]), name=t["name"], source=t["import_source"]) for t in (tags or [])],
+        tags=[
+            PaperTagRef(id=int(t["id"]), name=t["name"], source=t["import_source"], color=t["color"])
+            for t in (tags or [])
+        ],
     )
 
 
