@@ -30,7 +30,8 @@ class AccountStatus(BaseModel):
     configured: bool  # is OIDC sign-in configured on this Callosum (issuer + client_id present)?
     signed_in: bool
     display_name: str | None = None
-    orcid: str | None = None
+    orcid: str | None = None  # present for an ORCID login; None for email/Google (SP2)
+    email: str | None = None  # present for email/Google logins (SP2); the user's own identity, never a token
     expires_at: int | None = None
     is_superuser: bool = False  # verified-ORCID superuser (CALLOSUM_SUPERUSER_ORCIDS allowlist); capabilities TBD
 

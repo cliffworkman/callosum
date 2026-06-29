@@ -412,18 +412,18 @@ function AccountSettings() {
     <>
       <p className="eyebrow">Account</p>
       <div className="settings-field">
-        <label className="settings-field-label">Optional account — Sign in with ORCID
+        <label className="settings-field-label">Optional account — sign in
           <span className="settings-sub">
-            Callosum works fully offline with <b>no account</b>. Signing in verifies your identity via ORCID and populates <b>My Publications</b> with your authoritative author record. <b>Identity only</b> — your library, PDFs, and notes never leave your machine.
+            Callosum works fully offline with <b>no account</b>. Signing in verifies your identity (<b>ORCID, Google, or email</b> — you pick on the next page); signing in with <b>ORCID</b> also pre-fills <b>My Publications</b> with your authoritative author record. <b>Identity only</b> — your library, PDFs, and notes never leave your machine.
           </span>
         </label>
         {signedIn
           ? <>
-              <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : ""}{acct.orcid ? " · ORCID " + acct.orcid : ""}{acct.is_superuser ? " · superuser" : ""}.</div>
+              <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : (acct.email ? " as " + acct.email : "")}{acct.orcid ? " · ORCID " + acct.orcid : ""}{acct.is_superuser ? " · superuser" : ""}.</div>
               <div className="settings-keyrow"><button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign out"}</button></div>
             </>
           : acct && acct.configured
-            ? <div className="settings-keyrow"><button className="btn btn-primary" disabled={busy} onClick={signIn}>{busy ? "Starting…" : "Sign in with ORCID"}</button></div>
+            ? <div className="settings-keyrow"><button className="btn btn-primary" disabled={busy} onClick={signIn}>{busy ? "Starting…" : "Sign in"}</button></div>
             : <div className="settings-sub">Sign-in isn't set up on this Callosum yet — the account service is configured by whoever runs this instance.</div>}
       </div>
       {msg && <div className="settings-note">{msg}</div>}

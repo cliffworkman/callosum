@@ -89,20 +89,23 @@ def oauth_callback(request: Request, code: str | None = None, state: str | None 
             "sub": identity.sub,
             "display_name": identity.display_name,
             "orcid": identity.orcid,
+            "email": identity.email,  # SP2: email/Google logins; None for an ORCID-only token
             "expires_at": identity.expires_at,
         }
     )
 
-    # The SP1 payoff: the VERIFIED ORCID + name populate the My-Pubs profile (reusing profile_repo.upsert_profile),
-    # so authorship resolution is authoritative. Manual name-variants are preserved; existing values are the fallback.
-    if identity.orcid or identity.display_name:
+    # The SP1 payoff: a VERIFIED ORCID populates the My-Pubs profile (reusing profile_repo.upsert_profile), so
+    # authorship resolution is authoritative. SP2: only an ORCID login does this — a Google/email login sets the
+    # account identity but must NOT overwrite the My-Pubs profile from a non-authoritative display name. Manual
+    # name-variants are preserved; the existing display name is the fallback.
+    if identity.orcid:
         with request.app.state.engine.begin() as conn:
             existing = profile_repo.get_profile(conn) or {}
             profile_repo.upsert_profile(
                 conn,
                 display_name=identity.display_name or existing.get("display_name"),
                 name_variants=existing.get("name_variants") or [],
-                orcid=identity.orcid or existing.get("orcid"),
+                orcid=identity.orcid,
             )
 
     return RedirectResponse(url="/?signin=ok", status_code=303)

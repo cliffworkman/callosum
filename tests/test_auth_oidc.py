@@ -41,6 +41,19 @@ class FakeOidcClient:
         return Identity(sub="u-123", display_name="Ada Lovelace", orcid="0000-0002-1825-0097", expires_at=9999999999)
 
 
+class FakeGoogleClient:
+    """SP2: a non-ORCID login (Google / email) — a name + email, NO orcid claim."""
+
+    def build_authorize_url(self, *, redirect_uri: str, state: str, code_challenge: str) -> str:
+        return f"https://idp.example/authorize?state={state}"
+
+    def exchange_code(self, *, code: str, code_verifier: str, redirect_uri: str) -> dict:
+        return {"access_token": "g-access", "id_token": "g.jwt"}
+
+    def identity_from_tokens(self, tokens: dict) -> Identity:
+        return Identity(sub="g-1", display_name="Ada G", orcid=None, email="ada@example.org", expires_at=9999999999)
+
+
 def _configured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("CALLOSUM_OIDC_ISSUER", "https://idp.example")
     monkeypatch.setenv("CALLOSUM_OIDC_CLIENT_ID", "callosum")
@@ -102,6 +115,28 @@ def test_callback_rejects_bad_state_no_exchange(temp_db_url: str, monkeypatch: p
     assert cb.status_code == 303 and cb.headers["location"] == "/?signin=error"
     assert fake.exchanged == []  # CSRF/code-injection guard: no exchange on a bad state
     assert client.get("/settings").json()["account"]["signed_in"] is False
+
+
+def test_non_orcid_login_signs_in_without_touching_my_pubs(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    # SP2: a Google/email login (no orcid claim) signs in + shows the email, but must NOT overwrite My-Pubs.
+    _configured(monkeypatch)
+    client = TestClient(create_app(db_url=temp_db_url, oidc_client=FakeGoogleClient()))
+    # pre-set a My-Pubs profile with a known ORCID the login must not clobber
+    client.put(
+        "/my-publications/profile",
+        json={"display_name": "Manual Name", "name_variants": [], "orcid": "0000-0000-0000-0001"},
+    )
+    url = client.get("/auth/login", params={"origin": "http://127.0.0.1:8080"}).json()["authorize_url"]
+    state = parse_qs(urlparse(url).query)["state"][0]
+    cb = client.get("/oauth/callback", params={"code": "c", "state": state}, follow_redirects=False)
+    assert cb.status_code == 303 and cb.headers["location"] == "/?signin=ok"
+
+    acct = client.get("/settings").json()["account"]
+    assert acct["signed_in"] is True and acct["display_name"] == "Ada G"
+    assert acct["orcid"] is None and acct["email"] == "ada@example.org" and acct["is_superuser"] is False
+
+    prof = client.get("/my-publications/profile").json()  # untouched by the non-ORCID login
+    assert prof["orcid"] == "0000-0000-0000-0001" and prof["display_name"] == "Manual Name"
 
 
 def test_logout_clears_session(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:

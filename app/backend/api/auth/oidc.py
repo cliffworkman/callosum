@@ -42,6 +42,7 @@ class Identity:
     display_name: str | None
     orcid: str | None
     expires_at: int | None
+    email: str | None = None  # SP2: present for email/Google logins; None for an ORCID-only token
 
 
 def generate_pkce() -> tuple[str, str]:
@@ -116,6 +117,7 @@ class OidcClient:
             display_name=claims.get("name") or claims.get("preferred_username") or None,
             orcid=claims.get(self.config.orcid_claim) or None,
             expires_at=int(exp) if exp else None,
+            email=claims.get("email") or None,  # SP2: present for email/Google logins
         )
 
     # --- live (manual-check) ---

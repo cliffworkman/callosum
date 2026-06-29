@@ -100,6 +100,26 @@ redirect URI (step 5) exactly matches callosum's loopback origin + `/oauth/callb
 
 ---
 
+## Adding more login methods — Google + email/password (SP2)
+
+Because callosum is one OIDC client of Authentik, **more login methods are pure Authentik config — no callosum
+change**. They appear on Authentik's own sign-in page; callosum's single **"Sign in"** entry sends the user there, and
+gets a token back whichever method they used. (Only an **ORCID** login carries the `orcid` claim → only it pre-fills
+My Publications; a Google/email login just sets your account identity, shown as your name or email.)
+
+- **Google:** in Google Cloud Console → APIs & Services → **OAuth consent screen** + **Credentials → OAuth client ID
+  (Web application)**; set the authorized redirect URI to Authentik's Google-source callback (Authentik shows it).
+  Then in Authentik → **Directory → Federation & Social login → Create → Google source**, paste the Google client
+  ID/secret.
+- **Email/password:** use Authentik's built-in identity — either create users in **Directory → Users**, or enable a
+  self-service **enrollment/registration flow** (Flows & Stages) so people can register with an email + password.
+- **Make sure Authentik emits the identity claims** callosum displays: the callosum provider (step 5) should include
+  the `profile` + `email` scopes so the token carries `name` / `email` (callosum shows "Signed in as <name or
+  email>"). The `orcid` claim mapping from step 4 stays as-is — it's only populated when the user chose ORCID.
+
+No callosum change is required for these; the single "Sign in" button + the OIDC flow already handle whatever method
+Authentik offers.
+
 ## Security notes (recap)
 
 - **PKCE public client** — no client secret embedded in callosum.

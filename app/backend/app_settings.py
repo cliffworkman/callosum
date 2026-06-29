@@ -375,11 +375,19 @@ def oauth_account_status() -> dict:
     NEVER the tokens."""
     s = stored_oauth_session()
     if not s:
-        return {"signed_in": False, "display_name": None, "orcid": None, "expires_at": None, "is_superuser": False}
+        return {
+            "signed_in": False,
+            "display_name": None,
+            "orcid": None,
+            "email": None,
+            "expires_at": None,
+            "is_superuser": False,
+        }
     return {
         "signed_in": True,
         "display_name": s.get("display_name"),
         "orcid": s.get("orcid"),
+        "email": s.get("email"),
         "expires_at": s.get("expires_at"),
         "is_superuser": is_superuser_orcid(s.get("orcid")),
     }

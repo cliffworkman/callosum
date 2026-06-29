@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 195** (see Increment workflow) with **669 pytest tests
+It is currently at **Increment 196** (see Increment workflow) with **670 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -850,7 +850,27 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 195 (superuser role + the Authentik standup runbook — accounts SP1 follow-ons):
+*Last updated: 2026-06-29 — increment 196 (accounts SP2 — more login methods: email/password + Google, method-agnostic):
+adds **email/password + Google** sign-in to the optional account. Because callosum is **one OIDC client of the account
+platform (Authentik)**, the login *methods* are **Authentik connectors** → the **functional** part is platform config
+(the runbook `ops/accounts-authentik-setup.md` gained an "Adding more login methods" section: a Google social source +
+email/password enrollment); callosum needed only a **small refinement** on the SP1 seam: the sign-in button is now
+**"Sign in"** (method-agnostic, was "Sign in with ORCID"; per-method buttons in callosum were **rejected** — they'd
+couple callosum to Authentik connector slugs), it captures the **`email`** claim for display (`Identity.email` →
+session → `account.email` on `GET /settings` — the signed-in user's own identity shown locally, never a token), and it
+**populates My-Pubs only on an ORCID login** (`router.py`: `if identity.orcid:` — a Google/email login sets the
+account identity but must not overwrite the My-Pubs profile from a non-authoritative display name; the signed-in line
+shows name **or** email). **No new endpoint/surface/egress/migration** (relabel = text in the already-claimed
+`35_settings.jsx`; `account.email` additive). **Audit addendum** to `2026-06-29_orcid-account.md` **PASS** (still
+identity-only); **Principles non-triggering** (more login methods, same posture). pytest **670 passed, 1 skipped**
+(+1 non-ORCID-login test in `tests/test_auth_oidc.py`, now 15: signs in, `orcid` None, `email` shown, not superuser,
+**My-Pubs untouched**); `ruff` clean; QA surface **132/132 API + 661/661 FE, 0 uncovered**; help corpus updated
+(`HELP-DOCS-SYNCED` → 196); headed driver re-verified (no unconfigured-UI regression). Notes:
+`INCREMENT-196-NOTES.md`. **NEXT:** the maintainer's live Google/email standup (Authentik connectors) → **SP3 opt-in
+sync** (the only step that moves library data off-machine — its own design + heavy A-A pass) → **SP4 sharing**;
+superuser *capabilities* remain parked (backlog).
+
+Earlier — increment 195 (superuser role + the Authentik standup runbook — accounts SP1 follow-ons):
 two approved follow-ons to inc 194, in sequence. **(A) Runbook:** new **`ops/accounts-authentik-setup.md`** — the
 step-by-step for the maintainer to stand up the account platform (Authentik) + wire ORCID so the **live** sign-in
 works (host behind TLS → register an ORCID API client → add ORCID as an OIDC source → **emit the ORCID iD as an

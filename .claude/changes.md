@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 196 -->
+## 2026-06-29 — Increment 196: accounts SP2 — more login methods (email/password + Google), method-agnostic
+- **Files:** `ops/accounts-authentik-setup.md` (SP2 connectors section), `app/backend/api/auth/oidc.py` +
+  `router.py` (email claim; My-Pubs only on ORCID login), `app/backend/app_settings.py` + `routers/settings.py`
+  (`account.email`), `app/frontend/js/35_settings.jsx` (+ `callosum-app.html`: "Sign in" + method-agnostic copy),
+  `app/backend/help/help_content.md`, `tests/test_auth_oidc.py` (+1), `.claude/security-audits/2026-06-29_orcid-account.md`
+  (addendum), `INCREMENT-196-NOTES.md`.
+- **What:** add **email/password + Google** sign-in. The methods are **Authentik connectors** (runbook) — callosum is
+  unchanged functionally; its refinement is a **method-agnostic "Sign in"** entry, capturing `email` for display, and
+  populating My-Pubs **only on an ORCID login** (a Google/email login sets the account identity, leaves My-Pubs alone).
+- **Why:** the maintainer asked to get SP2 underway (parking superuser capabilities). Approved single-entry design.
+- **Gates:** pytest **670 passed, 1 skipped** (+1); ruff clean; QA surface unchanged (132/132 + 661/661, no new
+  route); audit addendum PASS; no migration; headed driver re-verified.
+- **Revert:** `git revert` the inc-196 commit; no migration.
+
 ## 2026-06-29 — Increment 195: superuser role (verified-ORCID flag) + Authentik standup runbook
 - **Files:** `ops/accounts-authentik-setup.md` (new runbook), `app/backend/app_settings.py` (superuser allowlist +
   `is_superuser`), `app/backend/api/routers/settings.py` (`AccountStatus.is_superuser`), `app/frontend/js/35_settings.jsx`
@@ -24,7 +39,6 @@ are the design diary; this is the chronological "what & why" record.
   route); audit addendum PASS; no migration; headed driver re-verified (no regression).
 - **Revert:** `git revert` the inc-195 commit; remove `CALLOSUM_SUPERUSER_ORCIDS` from `.env` (not committed).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 194 -->
 ## 2026-06-29 — Increment 194: accounts SP1 — optional "Sign in with ORCID" (OIDC, identity-only)
 - **Files:** `app/backend/api/auth/` (new: `__init__.py`, `oidc.py`, `router.py`), `app/backend/app_settings.py`
   (OIDC config + flow/session storage), `app/backend/api/access_control.py` (exempt `/oauth/callback`),

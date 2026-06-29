@@ -84,3 +84,25 @@ normalization-insensitive). `oauth_account_status()` derives an **`is_superuser`
   signed-in-allowlisted → true, non-allowlisted → false, unset env → false, normalization both directions).
 
 **Addendum decision: PASS** (verified-identity-keyed, env-config, no new surface/egress).
+
+---
+
+## Addendum (inc 196) — SP2: more login methods (email/password + Google)
+
+callosum is one OIDC client of the account platform, so the **login methods are Authentik connectors** (runbook
+`ops/accounts-authentik-setup.md` §"Adding more login methods") — **no callosum endpoint change**. callosum's
+refinement: a **method-agnostic** sign-in entry (the button is now "Sign in", not "Sign in with ORCID"), it captures
+the **`email`** claim for display, and it **populates My-Pubs only on an ORCID login** (`router.py`: `if
+identity.orcid:` — a Google/email login sets the account identity but never overwrites the profile from a
+non-authoritative display name).
+
+- **Still identity-only — PASS.** A non-ORCID login carries `name`/`email` (the user's own identity, shown locally),
+  no `orcid`, no library text. `account.email` is an additive non-secret status field (the signed-in user's own
+  email — like `display_name`); tokens remain write-only and absent from `GET /settings`.
+- **No new surface — PASS.** The button relabel is text in the already-QA-claimed `35_settings.jsx`; `account.email`
+  is an additive field. No new endpoint/egress/migration. QA surface unchanged (132/132 + 661/661).
+- **Principles — non-triggering** (more login methods, same posture; no claim/signal/judgment). Verified by a new
+  `tests/test_auth_oidc.py` non-ORCID-login test (signs in, `orcid` None, `email` shown, not superuser, **My-Pubs
+  profile untouched**).
+
+**Addendum decision: PASS** (platform-config login methods + an identity-only `email` field; no new surface/egress).
