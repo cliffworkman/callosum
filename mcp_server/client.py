@@ -42,6 +42,14 @@ class CallosumClient:
             raise CallosumUnavailable(f"callosum returned {r.status_code}: {r.text[:200]}")
         return r
 
+    def _post(self, path: str, body: dict) -> httpx.Response:
+        try:
+            return self._http.post(path, json=body)
+        except httpx.HTTPError as exc:
+            raise CallosumUnavailable(
+                f"callosum isn't reachable at {self.base_url} — is it running? ({exc})"
+            ) from exc
+
     def search(self, query: str, limit: int = 20) -> list[dict]:
         r = self._ok(self._get("/papers", {"q": query, "limit": limit}))
         return [
@@ -55,6 +63,60 @@ class CallosumClient:
             }
             for p in r.json()
         ]
+
+    def get_paper(self, paper_id: int) -> dict:
+        r = self._get(f"/papers/{int(paper_id)}")
+        if r.status_code == 404:
+            raise CallosumUnavailable(f"paper {paper_id} not found")
+        p = self._ok(r).json()
+        return {
+            "id": p["id"],
+            "title": p["title"],
+            "authors": p.get("authors") or [],
+            "year": p.get("year"),
+            "doi": p.get("doi"),
+            "venue": p.get("venue"),
+            "item_type": p.get("item_type"),
+            "abstract": p.get("abstract_text"),
+            "citation_key": p.get("citation_key"),
+            "tags": [t["name"] for t in (p.get("tags") or [])],
+        }
+
+    def fulltext(self, query: str, limit: int = 20) -> list[dict]:
+        r = self._ok(self._get("/papers/fulltext", {"q": query, "limit": limit}))
+        out = []
+        for h in r.json():
+            # Drop the U+E000/U+E001 bold markers callosum wraps matched terms in (see fulltext_repo).
+            snippet = (h.get("snippet") or "").replace("", "").replace("", "")
+            out.append(
+                {
+                    "paper_id": h["paper_id"],
+                    "title": h.get("title"),
+                    "page_start": h.get("page_start"),
+                    "page_end": h.get("page_end"),
+                    "snippet": snippet,
+                }
+            )
+        return out
+
+    def find_passages(self, query: str, top_k: int = 5) -> list[dict]:
+        r = self._ok(self._post("/citations/suggest", {"text": query, "top_k": top_k, "evaluate": False}))
+        return [
+            {
+                "paper_id": s["paper_id"],
+                "title": s.get("title"),
+                "quote": s.get("quote"),
+                "page_start": s.get("page_start"),
+                "page_end": s.get("page_end"),
+                "coordinate_precision": s.get("coordinate_precision"),
+                "match_score": s.get("match_score"),
+            }
+            for s in (r.json().get("suggestions") or [])
+        ]
+
+    def format_citation(self, paper_ids: list[int], fmt: str = "bibtex") -> str:
+        r = self._ok(self._post("/papers/export", {"paper_ids": [int(i) for i in paper_ids], "format": fmt}))
+        return r.text
 
 
 def default_client() -> CallosumClient:
