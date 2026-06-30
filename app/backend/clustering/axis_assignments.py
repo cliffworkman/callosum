@@ -80,6 +80,31 @@ def append_member_position(conn: Connection, *, axis_id: int, paper_id: int) -> 
     )
 
 
+def set_member_order(conn: Connection, *, axis_id: int, paper_ids: list[int]) -> None:
+    """Write the manual member order of a curated axis: position = index in ``paper_ids`` (A7, inc 211).
+    ``paper_ids`` must be EXACTLY the axis's current members (no partial / foreign ids), else ValueError."""
+    node_id = ensure_axis_node(conn, axis_id)
+    current = {
+        int(r[0])
+        for r in conn.execute(
+            select(cluster_node_papers.c.paper_id).where(cluster_node_papers.c.cluster_node_id == node_id)
+        )
+    }
+    if len(paper_ids) != len(current) or set(int(p) for p in paper_ids) != current:
+        raise ValueError("paper_ids must be exactly the axis's current members")
+    for index, pid in enumerate(paper_ids):
+        conn.execute(
+            update(cluster_node_papers)
+            .where(
+                and_(
+                    cluster_node_papers.c.cluster_node_id == node_id,
+                    cluster_node_papers.c.paper_id == int(pid),
+                )
+            )
+            .values(position=index)
+        )
+
+
 def remove_assignment(conn: Connection, *, axis_id: int, paper_id: int) -> bool:
     """Remove a paper's assignment (scored or manual) from an axis. Returns True if a row was
     deleted, False if the axis had no node or no such assignment."""

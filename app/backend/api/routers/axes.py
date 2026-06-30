@@ -31,11 +31,14 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.axis_assignments import (
+    CURATED_KIND,
     add_manual_assignment,
+    append_member_position,
     axis_score_state,
     manual_assignment_paper_ids,
     remove_assignment,
     restore_manual_assignments,
+    set_member_order,
 )
 from app.backend.clustering.axis_operations import merge_axes
 from app.backend.clustering.axis_scoring import (
@@ -386,13 +389,16 @@ def axis_clusters(axis_id: int, conn: Connection = Depends(get_connection)) -> l
 def add_axis_paper(
     axis_id: int, request: ManualAssignmentRequest, conn: Connection = Depends(get_connection)
 ) -> ClusterPaperResponse:
-    if get_axis(conn, axis_id) is None:
+    axis = get_axis(conn, axis_id)
+    if axis is None:
         raise HTTPException(status_code=404, detail="Axis not found")
     try:
         paper = get_paper(conn, request.paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
     add_manual_assignment(conn, axis_id=axis_id, paper_id=request.paper_id)
+    if axis["kind"] == CURATED_KIND:  # A7: a curated axis appends new members at the end of the manual order
+        append_member_position(conn, axis_id=axis_id, paper_id=request.paper_id)
     conn.commit()
     return ClusterPaperResponse(
         id=int(paper["id"]), title=paper["title"], confidence=None, status="manual", manual=True
@@ -405,6 +411,28 @@ def remove_axis_paper(axis_id: int, paper_id: int, conn: Connection = Depends(ge
         raise HTTPException(status_code=404, detail="Axis not found")
     if not remove_assignment(conn, axis_id=axis_id, paper_id=paper_id):
         raise HTTPException(status_code=404, detail="Assignment not found")
+    conn.commit()
+    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+class AxisOrderRequest(BaseModel):
+    paper_ids: list[int]
+
+
+@router.put("/axes/{axis_id}/order", status_code=http_status.HTTP_204_NO_CONTENT)
+def set_axis_order(
+    axis_id: int, request: AxisOrderRequest, conn: Connection = Depends(get_connection)
+) -> Response:
+    # A7 (inc 211): set the manual member order of a CURATED axis. The SP2 drag-reorder reuses this verbatim.
+    axis = get_axis(conn, axis_id)
+    if axis is None:
+        raise HTTPException(status_code=404, detail="Axis not found")
+    if axis["kind"] != CURATED_KIND:
+        raise HTTPException(status_code=422, detail="Order applies only to a curated axis")
+    try:
+        set_member_order(conn, axis_id=axis_id, paper_ids=request.paper_ids)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
