@@ -19,6 +19,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
+- **Curated axis is an Axis, never a "folder" (A7).** A curated axis is the umbrella "Axis" with a subtle cue (a 📌 by the label), never labeled "folder". It hides ALL scoring UI (no cutoff flipper / Score / 👁) and has no score/verdict — a hand-picked, hand-ordered set (manual members only). The keyword↔curated switch never loses members.
 
 ## Adversarial checklist
 
@@ -41,6 +42,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 7. Open merge view (`16_axes_merge.jsx`). Merge two disposable axes (`POST /axes/merge`) and confirm the survivor has the combined label/description and assignments.
 8. Open suggestion UI (`17_axes_suggest.jsx`). With egress unset, term suggestions and optimal-axis suggestions (`POST /axes/suggest-terms`, `POST /axes/suggest`, `GET /axes/suggest/{job_id}`) must fail closed with a clear egress-disabled message and no genai request.
 9. Delete a disposable axis (`DELETE /axes/{axis_id}`). Confirm the UI removes it and a direct deep link to it handles 404 cleanly.
+10. **Curated axis (A7, inc 211).** Create a curated axis via the **📌** toolbar button (`POST /axes {kind:"curated"}`) — confirm the card hides the scoring UI (no cutoff/Score/👁), shows the 📌 cue + a neutral count badge, and is never labeled "folder". Drag a Library `.paper` onto it (drop-to-add appends at the end). Reorder members with the per-row **↑/↓** (`PUT /axes/{axis_id}/order` — order persists across reload; out-of-range/foreign-id sets → 422). **Freeze** a keyword axis (the **❄** action → `PATCH {kind:"curated"}`): its assigned + manual members are kept + ordered, uncertain ones dropped, scoring UI disappears — **no membership loss**. **Convert** back (the **↩** action → `PATCH {kind:"standard"}`, warned): members are kept, manual order lost, axis goes stale. A switch to/from `my_publications`, or a bad `kind`, → 422.
 
 ## Pass criteria
 

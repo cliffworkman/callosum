@@ -461,14 +461,13 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   per-occurrence snippet hits (bolded matches + page + Open-at-page, region precision). `GET /papers/fulltext`;
   sanitized + bound + fail-closed (audit PASS). The exact-string complement to axes/synthesis; no claim/rank/score.
   *(A4 — plain-Markdown annotation export — already shipped inc 144.)*
-- **A7 — Curated Axis mode** *(build-now, medium; the biggest A item — design home: the benchmark-revisions doc §A7)*.
-  An axis populated **by hand** (the bounded home for an arbitrary working set, e.g. "the 12 papers for Aim 2 in
-  citation order"). **Settled:** umbrella term stays **"Axis"** (never "folder"); a **subtle aesthetic cue**, not a
-  loud type label (internally *Curated* vs *Keyword*); curated hides the scoring UI + orders members by drag;
-  **bidirectional switch** protected by manual-assignments-survive-rescore (Keyword→Curated = "freeze"; Curated→Keyword
-  = warned, members kept / order lost); **flat for now** (nesting deferred → recursive *semantic* sub-axes only, never
-  manual folder-trees); **tags demote to pure labels** app-wide (the coherence condition). Substantial UX → split a
-  per-item detail doc when it's picked up.
+- 🟡 **A7 — Curated Axis mode — SP1 DONE (inc 211); SP2 remaining.** An axis populated **by hand** (`kind="curated"`
+  + a `cluster_node_papers.position` column, migration 0028): hidden scoring UI, a 📌 cue, hand-ordering, and the
+  bidirectional **freeze** (❄, keyword→curated — snapshot shown members, drop uncertain) / warned **convert** (↩,
+  curated→keyword — members kept, order lost). Design spec `…/specs/2026-06-30-curated-axis-design.md`. **SP1 (inc 211)**
+  shipped the primitive with **↑/↓** ordering; **SP2 (remaining)** = swap ↑/↓ for **drag-to-reorder** (frontend-only,
+  reuses `PUT /axes/{id}/order`). Settled (all honored): umbrella stays "Axis" (never "folder"); manual-survives-switch;
+  flat (no nesting); tags already pure labels (no change needed).
 
 **B — deferred (BELOW the cut; queued behind critical functionality):**
 - **B1 — read-first / write-gated MCP server** *(needs a detail doc; design home: §B1)* — expose Callosum's own MCP

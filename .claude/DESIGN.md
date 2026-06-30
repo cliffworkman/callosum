@@ -173,6 +173,14 @@ re-score) — with the status in its `title` tooltip. There is **no separate sta
 states. Prefer this pattern (color + tooltip on an existing element) over a dedicated text line when space
 is at a premium.
 
+**Axis-kind cue (A7, inc 211) — a small icon, never a "folder" label.** A *curated* axis (hand-picked,
+hand-ordered; `kind="curated"`) is distinguished by a **📌 prefix on the label** (the established cue
+pattern — My-Pubs uses 📄), plus `.axis-count-badge.is-curated` = a **quiet `--accent-soft` tint** (a
+deliberate hand-built set — distinct from the neutral unscored grey and the green-scored / amber-stale of a
+keyword axis; it has no scoring state). Per-row reorder arrows reuse `.axis-icon-btn` inside `.axis-reorder`
+(compact). The cue is deliberately *subtle* (per §A7); the curated axis is the umbrella "Axis", never a
+"folder".
+
 ### Hover (rows/cards)
 List rows + cards darken to a warm neutral on hover (`.axis:hover`, `.cluster:hover`, `.frame-tab:hover`,
 `.history-row:hover` → `#ece9e0`; `.paper:hover` → `#faf8f3` — *two different hovers, see Pass-2*).

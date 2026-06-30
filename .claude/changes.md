@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-06-30 inc 211 — axes section: a "Curated axes (hand-picked, hand-ordered)" paragraph -->
+## 2026-06-30 — Increment 211: A7 SP1 — the Curated Axis primitive
+- **Files:** `alembic/versions/0028_cluster_node_paper_position.py` (NEW) + `persistence/schema.py` (the column),
+  `clustering/axis_assignments.py` (`CURATED_KIND`/`CREATABLE_KINDS`, `append_member_position`, `set_member_order`,
+  `freeze_to_curated`, `revert_to_keyword`, curated short-circuit), `clustering/axis_scoring.py` (`create_axis(kind=)`),
+  `persistence/repository.py` (ordered reads), `api/routers/axes.py` (`kind` on create/patch + `PUT /axes/{id}/order`
+  + position-append + `ClusterPaperResponse.position`), `discovery/relevance.py` (exclude curated),
+  `app/frontend/js/15_axes.jsx` + `styles.css` + `callosum-app.html` (rebuilt), `app/backend/help/help_content.md`,
+  `.claude/DESIGN.md`, `.claude/qa-routes/route_15_axes.md`, `tests/test_curated_axis.py` (NEW), `tests/test_axes.py`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-211-NOTES.md`; spec `…/specs/2026-06-30-curated-axis-design.md`.
+- **What:** a hand-populated, hand-ordered axis (`kind="curated"`) — hidden scoring UI, a 📌 cue, ↑/↓ ordering,
+  drag-to-add, and the bidirectional **freeze** (❄) / warned **convert** (↩) switch. Membership stays in
+  `cluster_node_papers` (a new `position` column) so synthesis/A6/merge keep working unchanged.
+- **Why:** A7 — the bounded "manual container" path the axis model needs, without becoming a folder.
+- **Gates:** pytest **733 passed, 1 skipped** (+9); ruff clean; migration head **0028**; QA surface **145/145 API**
+  (+1) **+ 689/689 FE, 0 uncovered**; **no audit / no new dependency**. Headed-verified
+  (`.local/visual/drive_inc211_curated.py` — freeze drops uncertain + 📌 + neutral badge + no scoring UI; ↓ reorder
+  persists; create-by-name; convert restores; 0 console/page/genai). `15_axes.jsx` 551; `40_app.jsx` untouched (599).
+- **Revert:** `git revert` the inc-211 commits + `alembic downgrade -1` (no-op; the column drops on a base downgrade).
+
 <!-- HELP-DOCS-SYNCED 2026-06-29 inc 210 — browsing section: a "Citation counts" paragraph (Citations ↻ + Most cited) -->
 ## 2026-06-29 — Increment 210: A2 — library-wide per-paper citation counts
 - **Files:** `alembic/versions/0027_paper_citation_counts.py` (NEW), `persistence/schema_findings.py` +

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 210** (see Increment workflow) with **724 pytest tests
+It is currently at **Increment 211** (see Increment workflow) with **733 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -383,7 +383,8 @@ the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-do
 `js/40_app.jsx` stayed at 599 + `js/10_pdf_layer.jsx` rose only to **555** (the scope option + the swap branch).
 **Inc 210** (A2 citation counts): `CitationCountsButton` → `js/10b_libmenus.jsx` (**93**); `js/10_pdf_layer.jsx`
 **562** (chip + Most-cited option + control); `js/40_app.jsx` held at **599/600** (the new prop folded onto an
-existing line — split before the next addition there).
+existing line — split before the next addition there). **Inc 211** (A7 SP1 curated axis): `js/15_axes.jsx` grew to
+**551** (the `isCurated` branch + freeze/convert/reorder) — comfortably under; `js/40_app.jsx` untouched.
 **Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
 `routers/papers.py` (570), `js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
@@ -737,6 +738,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Curated Axis — a hand-populated `kind` on the axis primitive (backlog A7 SP1; inc 211) | An axis populated **by hand** rather than by keyword scoring — the bounded "manual container" the axis model needed, **without becoming a folder**. A curated axis is a normal `axes` row with a third **`kind="curated"`**; its members are the existing **all-`confidence IS NULL` (manual)** rows on its single cluster node, ordered by a new nullable **`cluster_node_papers.position`** (migration 0028). **Reusing `cluster_node_papers` is the load-bearing choice:** membership stays there, so the inc-63 synthesis filter, the A6 drop-to-add, and axis merge all keep working unchanged (vs the rejected separate-table / JSON-order forks). The "manual survives re-score" guarantee (`restore_manual_assignments`) makes a curated axis the limit case — all-manual, never scored. `axis_assignments.py` gains `freeze_to_curated` (keyword→curated: snapshot the **shown** members [assigned ≥ cutoff + manual], demote to manual + ordered, **drop the uncertain** — honors A10 *shown=frozen*; set kind) + `revert_to_keyword` (warned: members kept, position cleared, → stale) + `set_member_order`/`append_member_position`. `routers/axes.py`: `kind` on `POST /axes` + the `PATCH /axes/{id}` switch (standard↔curated only, never to/from my_publications) + **`PUT /axes/{id}/order`** (the full id list — SP2's drag reuses it). Frontend (`15_axes.jsx`, mirroring `isMyPubs`): hides the scoring row; a **📌** label cue + a neutral `.is-curated` badge (quiet `--accent-soft`); members in `position` order with per-row **↑/↓**; a 📌 toolbar create + a **❄ Freeze** / **↩ Convert** switch. **Principles aligned** (a transparently human-authored, score-free, inspectable set — #3/#7/#9; freeze explicit, revert warned; declined the "folder"/manual-hierarchy easy path). **No audit / no new dependency** (local column + local endpoints). **SP2** = swap ↑/↓ for drag-to-reorder (frontend-only, reuses `PUT …/order`). pytest **733** (+9); QA surface **145/145 API + 689/689 FE, 0 uncovered**; help corpus + DESIGN updated; headed-verified. `15_axes.jsx` 551. |
 | Library-wide per-paper citation counts via OpenAlex (backlog A2 close-out; inc 210) | Generalize the My-Pubs cited-by display (inc 119) to **every** library card: a **"Citations ↻"** header control → an async batch (`POST /papers/citation-counts/refresh`) fetches each live-with-DOI paper's OpenAlex `cited_by_count` → a verbatim **"N cited-by"** chip + an explicit opt-in **Most cited** sort. **The aligned shape is Example-3 (per-paper-number) by the book:** the count is shown **raw + attributed** ("per OpenAlex · as of <date>"), never a composite (#7); the citation sort is **explicit/user-invoked**, never the default or a silent reorder (#2); a no-DOI / no-record paper shows **no chip** — honest "—", never a fabricated 0 (#6; a genuine 0 shows "0 cited-by"); the source+date are **visible** on the control + each chip's tooltip (#8). **Migration 0027** adds a dedicated `paper_citation_counts` table (PK paper_id FK CASCADE; `retrieved_at` = the "as of") — kept OUT of the canonical `papers` row, like every other derived datum; additive/guarded/no-op-downgrade (the 0021 pattern). `OpenAlexClient.fetch_cited_by_count` rides the already-cached DOI fetch; `repository.list_papers` surfaces the count via correlated scalar subqueries (no JOIN → no row dup) + a `citations_desc` sort key (NULL last); `routers/citation_counts.py` is the async batch (registered **before** papers.router). Egress = DOI→OpenAlex (**public metadata, bounded/cached/on-demand** — #10), **NOT** the Gemini library-text gate. Audit `2026-06-29_citation-counts.md` PASS; **no new dependency** (reuses the OpenAlex adapter). Frontend reuses the inc-119 `.paper-cite` chip + `.trash-toggle` (no new CSS). pytest **724** (+5); QA surface **144/144 API + 679/679 FE, 0 uncovered** (`route_23_citation_counts.md`); help corpus updated; headed-verified. `40_app.jsx` stays 599/600 (the new prop folded onto an existing line). |
 | Full-text PDF search via SQLite FTS5 (backlog A3 close-out; inc 209) | Verbatim/lexical search over the extracted `chunks.text` — the exact-string complement to the semantic axes/synthesis ("find 'ultimatum game' verbatim"). **Migration 0026** creates an **external-content** FTS5 index `chunks_fts` (no text duplication) + a **sync trigger trio** on `chunks`; the AFTER DELETE trigger is the crux — it catches the **FK CASCADE** from `purge_paper` (inc 65) that bypasses Python (a Python hook would miss it). `metadata.create_all` can't express FTS5, so the migration is the source of truth + has a **real guarded downgrade** (drops the FTS table + triggers; 0001's metadata-loop can't, so no double-drop — the inc-208 0025 lesson in reverse). `persistence/fulltext_repo.py`: `_safe_match` token-quotes the query (neutralizes every FTS5 operator → no syntax error / no query-lang injection) + bound param (rule #3) + `try/except → []` (never 500). `routers/fulltext.py` `GET /papers/fulltext` (registered **before** papers.router). Frontend: a **"Full text"** search scope → a self-contained `FulltextResults` (`js/10c_fulltext.jsx`) that does its own fetch → per-occurrence snippet hits (bolded matches via the U+E000/E001 markers split into React `<b>` nodes — no `dangerouslySetInnerHTML`) + Open-at-page (region precision, no fabricated rect). **`40_app.jsx` untouched** (self-contained component avoids its 599/600 cap). **Principles non-triggering** (no claim/rank/score; bm25 is an internal ordering, never a displayed verdict). Audit `2026-06-29_fulltext-search.md` PASS; **no new dependency** (FTS5 is core SQLite). pytest **719** (+4); QA surface **142/142 API + 677/677 FE, 0 uncovered** (`route_22_fulltext.md`); help corpus + DESIGN updated; headed-verified. |
 | Saved searches — a named facet bundle, distinct from an axis (backlog A1 close-out; inc 208) | A **saved search** persists a named combination of the existing library facets (q / search_field / item_type / axis / tag / needs_review / signal / sort) and recalls it from a **Saved ▾** header menu (apply / save-current / delete). New `saved_searches` table (**migration 0025**; `params` a JSON blob validated by a typed `extra="forbid"` model → unknown key 422, so only known facet keys are stored — rule #4). `persistence/saved_search_repo.py` (new; upsert-by-name = re-saving a name never duplicates) + `routers/saved_searches.py` (new; `GET`/`POST`/`DELETE /saved-searches`). Frontend: `currentSearchParams`/`applySavedSearch` in `40_app.jsx` + a `SavedSearchMenu`. **Distinct from an axis** (a semantic lens that *scores* papers): a saved search just replays the GET /papers filters — no new query semantics, no claim/rank/score → **Principles non-triggering** (reinforced in the copy: tags + saved searches stay the multi-dimensional, score-free organization). **Rule-#1 split:** SavedSearchMenu pushed `10_pdf_layer.jsx` to 602/600 → both header dropdowns extracted → `js/10b_libmenus.jsx` (547). No audit (local table + 3 local endpoints; no egress/fetch/dependency). pytest **715** (+1 `test_saved_searches.py`); QA surface **141/141 API + 675/675 FE, 0 uncovered** (`route_21_saved_searches.md`); help corpus updated; headed-verified 4/4. |
@@ -896,7 +898,53 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 210 (A2 — library-wide per-paper citation counts; the eighth cheapest-first
+*Last updated: 2026-06-30 — increment 211 (A7 SP1 — the Curated Axis primitive; the last A-item, brainstormed →
+spec'd → planned → built, decomposed into SP1 [this] + SP2 [drag-reorder follow-on]). A **curated axis** is an axis
+populated **by hand** rather than by keyword scoring — the bounded, ordered "manual container" the axis model needed,
+**without becoming a folder**. **Architecture:** a curated axis is a normal `axes` row with a third **`kind="curated"`**;
+its members are the existing **all-`confidence IS NULL` (manual)** rows on its single cluster node, ordered by a new
+nullable **`cluster_node_papers.position`** (**migration 0028**, additive/guarded). Membership stays in
+`cluster_node_papers`, so the inc-63 synthesis filter, the A6 drop-to-add, and axis merge keep working **unchanged**
+(vs the rejected separate-table / JSON-order forks); the inc-50 `restore_manual_assignments` "manual survives
+re-score" guarantee makes a curated axis the limit case (all-manual, never scored). **Backend:** `axis_assignments.py`
+gains `CURATED_KIND`/`CREATABLE_KINDS` + `append_member_position` (new member → position max+1) + `set_member_order`
+(validates the id set == members; writes position by index) + **`freeze_to_curated`** (keyword→curated: snapshot the
+**shown** members [assigned `confidence >= cutoff` + manual], demote all to manual + position-ordered, **drop the
+below-cutoff uncertain** — honors A10 *shown = frozen*; kind=curated) + **`revert_to_keyword`** (warned: members
+**kept**, position cleared, axis → stale) + a curated short-circuit in `axis_score_state`; `repository.get_papers_for_cluster_node`
+orders by `position` NULLS-last; `create_axis(kind=)`; `routers/axes.py` adds `kind` to `POST /axes` (allowlisted →
+422) + the `PATCH /axes/{id}` freeze/revert switch (standard↔curated only — never to/from my_publications) +
+**`PUT /axes/{id}/order`** (the full id list; 422 on a non-curated axis / foreign id set — SP2's drag reuses it
+verbatim) + a position-append on `POST /axes/{id}/papers` + `ClusterPaperResponse.position`; `discovery/relevance.py`
+excludes `curated` (no query text). **Frontend** (`15_axes.jsx`, mirroring the `isMyPubs` pattern): `isCurated` hides
+the re-score row (cutoff/Score/👁); a **📌** label cue; a neutral **`.is-curated`** count badge (quiet `--accent-soft`
+tint — distinct from unscored-grey / scored-green / stale-amber); members render in `position` order with per-row
+**↑/↓** (→ `PUT /axes/{id}/order`); drop-to-add + ✕-remove still work; a **📌** toolbar button creates a curated axis
+by name; a **❄ Freeze** action on keyword cards + a warned **↩ Convert** on curated cards. New CSS
+(`.axis-count-badge.is-curated`, `.axis-reorder`, `.axis-curated-hint`) — tokens only. **Principles — aligned,
+non-triggering:** a curated axis is a transparently human-authored, score-free, inspectable set (#3 facts-vs-candidates;
+#7 no opaque score; #9 defaults are the user's); freeze is an explicit user act, revert is warned-not-silent; the
+declined easy path (a "folder" / manual hierarchy) stays declined (flat; the umbrella is "Axis"). **No security audit**
+(a local additive column + local endpoints; no egress/fetch/dependency — the saved-searches/color-tags precedent);
+**no new dependency**. Tags need no change (already pure labels — A5 declined ratings). pytest **733 passed, 1
+skipped** (+9 `tests/test_curated_axis.py`: the position column; manual-add appends + ordered read; `set_member_order`
+writes + rejects-foreign; order-endpoint 422 on a non-curated axis; freeze keeps assigned+manual / drops uncertain /
+orders / kind=curated; revert keeps members / clears order / kind=standard; create-curated + bad-kind/my_publications
+→ 422; PATCH freeze→revert keeps the member; `test_axes.py` updated for the additive `position` field); `ruff` clean;
+frontend rebuilt; migration head **0028** via `alembic_head()`; **QA surface 145/145 API** (+1 `/axes/{id}/order`,
+claimed by the `/axes*` glob) **+ 689/689 FE, 0 uncovered** (`route_15_axes.md` extended + the never-"folder"
+assertion). help corpus gained a "Curated axes" paragraph (`HELP-DOCS-SYNCED` → 211); DESIGN.md records the 📌 cue +
+`.is-curated` badge. **Headed-verified, no egress** (`.local/visual/drive_inc211_curated.py` — **❄ Freeze** a seeded
+axis → curated: 2 members [uncertain dropped] + 📌 + neutral badge + no scoring UI; **↓** reorder persists across a
+reload; **📌** create-by-name; **↩ Convert** back → 📌 gone; 0 console/page/genai). **Rule-#1:** `js/15_axes.jsx` ends
+at **551** (no split needed); `js/40_app.jsx` untouched at **599/600** (the chronic watch item). Notes:
+`INCREMENT-211-NOTES.md`; spec `…/specs/2026-06-30-curated-axis-design.md`; plan (gitignored)
+`.claude/backups/plans/2026-06-30_curated-axis-sp1.md`. **NEXT: A7 SP2** — swap the per-row ↑/↓ for HTML5
+drag-to-reorder within the member list (frontend-only; reuses `PUT /axes/{id}/order`; its own small increment). With
+SP2, the entire competitive-benchmark A-list (A1–A10) is closed; the deferred **B-items** (MCP server,
+citation-context classifier, collaboration, OCR, mobile) remain larger, own design passes.
+
+Earlier — increment 210 (A2 — library-wide per-paper citation counts; the eighth cheapest-first
 close-out, the third migration-bearing one). Generalizes the My-Publications cited-by display (inc 119) so **every**
 library card can show its OpenAlex `cited_by_count` — **verbatim + attributed** ("cited by N · OpenAlex, as of
 <date>"), with an explicit opt-in **Most cited** sort. A displayed fact, never a composite or a silent rank.
