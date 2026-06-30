@@ -281,6 +281,12 @@
   .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
+  /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
+  .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
+  .agent-activity-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 4px 6px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); }
+  .agent-activity-row.reverted { opacity: 0.55; }
+  .agent-activity-what { font-size: 11.5px; color: var(--ink-2); }
 
   /* My Publications axis — the pinned own-papers card (inc 78). Indigo = provenance / your authoritative work. */
   .axis-mypubs .axis { background: var(--accent-soft); border-left: 2px solid var(--accent); }
@@ -6943,6 +6949,55 @@
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
     )), on && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: regenerate }, "Regenerate token")), token && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Access token \u2014 shown once; copy it into the add-on", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Stored on this machine; sent to your tunnel as a Bearer token. It is never shown again or returned by the app.")), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: token, onFocus: (e) => e.target.select() })), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Locked out locally after losing the token? Set ", /* @__PURE__ */ React.createElement("code", null, "CALLOSUM_DISABLE_REMOTE_ACCESS=1"), " and restart, or remove the token from ", /* @__PURE__ */ React.createElement("code", null, "~/.callosum/app-settings.json"), "."));
   }
+  function AgentSettings() {
+    const [on, setOn] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [writes, setWrites] = useState([]);
+    const [msg, setMsg] = useState("");
+    const refresh = () => {
+      api("/settings").then((r) => {
+        if (r.ok) setOn(!!r.data.agent_writes_enabled);
+      });
+      api("/agent/writes").then((r) => {
+        if (r.ok) setWrites(r.data);
+      });
+    };
+    useEffect(() => {
+      refresh();
+    }, []);
+    const toggle = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/settings", { agent_writes_enabled: !on });
+      setBusy(false);
+      if (r.ok) {
+        setOn(!!r.data.agent_writes_enabled);
+        refresh();
+      } else setMsg("Couldn't toggle: " + (r.error || "error"));
+    };
+    const revert = async (id) => {
+      const r = await apiPost(`/agent/writes/${id}/revert`, {});
+      if (r.ok) refresh();
+    };
+    const revertAll = async () => {
+      for (const w of writes) if (!w.reverted_at) await apiPost(`/agent/writes/${w.id}/revert`, {});
+      refresh();
+    };
+    const pending = writes.filter((w) => !w.reverted_at);
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI agent (MCP writes)"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Let an AI agent edit your library", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, /* @__PURE__ */ React.createElement("b", null, "Off by default."), " When on, an MCP agent (e.g. Claude Desktop, via the callosum MCP server) can tag papers, add them to axes, save verified references, and add notes \u2014 each marked ", /* @__PURE__ */ React.createElement("b", null, "ai-agent"), " and reversible below. It can't delete or overwrite anything. Restart your agent host after enabling so the write tools appear.")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (on ? " on" : ""),
+        role: "switch",
+        "aria-checked": on,
+        "aria-label": "Allow agent writes",
+        disabled: busy,
+        onClick: toggle
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg), writes.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Agent activity", pending.length > 0 && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-link", onClick: revertAll }, "Revert all (", pending.length, ")")), /* @__PURE__ */ React.createElement("div", { className: "agent-activity" }, writes.map((w) => /* @__PURE__ */ React.createElement("div", { key: w.id, className: "agent-activity-row" + (w.reverted_at ? " reverted" : "") }, /* @__PURE__ */ React.createElement("span", { className: "agent-activity-what" }, w.action, " \xB7 ", w.target_title || "#" + w.target_paper_id), w.reverted_at ? /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "reverted") : /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-link", onClick: () => revert(w.id) }, "Revert"))))));
+  }
   function AccountSettings() {
     const [acct, setAcct] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -7020,7 +7075,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");

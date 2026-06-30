@@ -257,6 +257,12 @@
   .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
+  /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
+  .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
+  .agent-activity-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 4px 6px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); }
+  .agent-activity-row.reverted { opacity: 0.55; }
+  .agent-activity-what { font-size: 11.5px; color: var(--ink-2); }
 
   /* My Publications axis — the pinned own-papers card (inc 78). Indigo = provenance / your authoritative work. */
   .axis-mypubs .axis { background: var(--accent-soft); border-left: 2px solid var(--accent); }

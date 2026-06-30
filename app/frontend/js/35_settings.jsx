@@ -382,6 +382,67 @@ function RemoteAccessSettings() {
   );
 }
 
+// AI agent (MCP writes), B1 SP2 — opt-in (default off); when on, an MCP agent can tag / add-to-axis / save a
+// verified reference / annotate, each stamped "ai-agent" and reversible here. No destructive tool exists.
+function AgentSettings() {
+  const [on, setOn] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [writes, setWrites] = useState([]);
+  const [msg, setMsg] = useState("");
+  const refresh = () => {
+    api("/settings").then(r => { if (r.ok) setOn(!!r.data.agent_writes_enabled); });
+    api("/agent/writes").then(r => { if (r.ok) setWrites(r.data); });
+  };
+  useEffect(() => { refresh(); }, []);
+
+  const toggle = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPut("/settings", { agent_writes_enabled: !on });
+    setBusy(false);
+    if (r.ok) { setOn(!!r.data.agent_writes_enabled); refresh(); }
+    else setMsg("Couldn't toggle: " + (r.error || "error"));
+  };
+  const revert = async (id) => { const r = await apiPost(`/agent/writes/${id}/revert`, {}); if (r.ok) refresh(); };
+  const revertAll = async () => {
+    for (const w of writes) if (!w.reverted_at) await apiPost(`/agent/writes/${w.id}/revert`, {});
+    refresh();
+  };
+  const pending = writes.filter(w => !w.reverted_at);
+
+  return (
+    <>
+      <p className="eyebrow">AI agent (MCP writes)</p>
+      <div className="settings-row">
+        <span className="settings-label">Let an AI agent edit your library
+          <span className="settings-sub">
+            <b>Off by default.</b> When on, an MCP agent (e.g. Claude Desktop, via the callosum MCP server) can tag papers, add them to axes, save verified references, and add notes — each marked <b>ai-agent</b> and reversible below. It can't delete or overwrite anything. Restart your agent host after enabling so the write tools appear.
+          </span>
+        </span>
+        <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
+          aria-label="Allow agent writes" disabled={busy} onClick={toggle}><span className="settings-knob" /></button>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+      {writes.length > 0 &&
+        <div className="settings-field">
+          <label className="settings-field-label">Agent activity
+            {pending.length > 0 &&
+              <button type="button" className="btn-link" onClick={revertAll}>Revert all ({pending.length})</button>}
+          </label>
+          <div className="agent-activity">
+            {writes.map(w => (
+              <div key={w.id} className={"agent-activity-row" + (w.reverted_at ? " reverted" : "")}>
+                <span className="agent-activity-what">{w.action} · {w.target_title || ("#" + w.target_paper_id)}</span>
+                {w.reverted_at
+                  ? <span className="settings-sub">reverted</span>
+                  : <button type="button" className="btn-link" onClick={() => revert(w.id)}>Revert</button>}
+              </div>
+            ))}
+          </div>
+        </div>}
+    </>
+  );
+}
+
 // Optional account (SP1) — "Sign in with ORCID" via the callosum account platform (OIDC). Opt-in + additive: the app
 // works fully offline with no account. Signing in verifies your identity and populates My Publications; identity
 // only — the library never leaves the machine. The Sign-in button shows only when the account service is configured
@@ -497,6 +558,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         <WordSettings />
 
         <RemoteAccessSettings />
+
+        <AgentSettings />
 
         <AccountSettings />
 
