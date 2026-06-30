@@ -102,3 +102,19 @@ New async endpoint `POST`/`GET /methods/citation-equity/overlooked` (the inc-227
 **Security Audit (inc 228 addendum): PASS.** Public-metadata egress (not the Gemini gate); SSRF-safe (validated +
 bound ids/topic); the add path is metadata-only with no PDF fetch (no paywall circumvention); local embedding,
 no new dependency; bounded; no identity inference (proven by test); add-only / no-drop by construction.
+
+---
+
+## inc 229 addendum — geography signal + nationality extraction REMOVED (values rework)
+
+The geography ("Global South spread") signal and the gender framing were removed (rejected on principle: sorting
+cited authors into a group to measure bias reifies the category). This is a **removal + narrowing**, no new audit
+trigger: no new endpoint/fetch/dependency/ingestion. The egress surface is **strictly smaller** —
+`integrations/openalex/adapter.py::_meta_from_work` **no longer extracts `country_codes`** at all (the data layer no
+longer collects author nationality), and the analyzer carries no `GLOBAL_NORTH`/`country_code`/gender/race/sex
+keying (now enforced by a static guard test `test_analyzer_source_has_no_people_categorization`). Same per-reference
++ field OpenAlex fetches as inc 227/228 (public metadata, cached, SSRF-safe, NOT the Gemini gate); the panel was
+renamed "Citation concentration"; the API path keeps the historical `/methods/citation-equity/*` slug.
+
+**Security Audit (inc 229 addendum): PASS.** Removal + egress-narrowing; no new surface; no-people-categorization
+enforced structurally (data layer no longer extracts nationality) + guard-tested.

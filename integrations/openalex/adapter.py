@@ -355,9 +355,10 @@ def _httpx_fetcher(
 
 
 def _meta_from_work(work: Any) -> dict[str, Any] | None:
-    """Map an OpenAlex work object → a meta dict (inc 135 gap-finder; extended inc 227 citation-equity). DOI
-    normalized lower, prefix stripped. The inc-227 keys (venue/issn/institutions/country_codes/primary_topic) are
-    purely additive — gap-finder/citation-count callers read only their own keys."""
+    """Map an OpenAlex work object → a meta dict (inc 135 gap-finder; extended inc 227 citation-concentration). DOI
+    normalized lower, prefix stripped. The inc-227 keys (venue/issn/institutions/primary_topic) are purely additive
+    — gap-finder/citation-count callers read only their own keys. (Author *nationality* is deliberately NOT
+    extracted: the citation tool never categorizes the people cited — see methods/citation_equity.py, inc 229.)"""
     if not isinstance(work, dict):
         return None
     raw_id = str(work.get("id") or "")
@@ -371,11 +372,10 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     venue_src = (work.get("primary_location") or {}).get("source") or work.get("host_venue") or {}
     venue = venue_src.get("display_name") if isinstance(venue_src, dict) else None
     issn = venue_src.get("issn_l") if isinstance(venue_src, dict) else None
-    # inc 227: institutions + affiliation countries from the authorships, for the institutional + geographic signals.
-    # OpenAlex affiliation coverage is uneven (esp. older works) — a missing country is recorded as absent, NEVER
-    # assumed domestic (silence ≠ certificate); the analyzer reports its coverage.
+    # inc 227: institution names from the authorships, for the institutional-concentration signal (deference to a
+    # power *structure* — elite-affiliation over-emphasis — never the identity of a person). Country/nationality is
+    # deliberately not extracted (inc 229: the tool measures WHAT is cited, never WHO wrote it).
     institutions: list[str] = []
-    country_codes: set[str] = set()
     for a in authorships:
         for inst in a.get("institutions") or []:
             if not isinstance(inst, dict):
@@ -383,9 +383,6 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
             name = inst.get("display_name")
             if name and str(name) not in institutions and len(institutions) < 20:
                 institutions.append(str(name))
-            cc = inst.get("country_code")
-            if isinstance(cc, str) and cc.strip():
-                country_codes.add(cc.strip().upper())
     # inc 227: the focal paper's primary_topic = the "field" the reference list is shown against (id validated).
     raw_topic = work.get("primary_topic")
     primary_topic = None
@@ -416,7 +413,6 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         "venue": str(venue) if venue else None,
         "issn": str(issn) if issn else None,
         "institutions": institutions,
-        "country_codes": sorted(country_codes),
         "primary_topic": primary_topic,
         "related_works": related,
         "concepts": concepts,

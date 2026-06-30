@@ -1,5 +1,18 @@
 # Future track — Citation-equity audit (METHODS panel)
 
+> **SHIPPED + REWORKED (inc 227 SP1 / inc 228 SP2 / inc 229 rework). The "equity" framing below is partly
+> SUPERSEDED — read this decision first.** The structural signals (self-citation, Matthew/reliance-on-famous-work,
+> venue + institutional concentration) shipped, and the topical **overlooked-work** remediation shipped. But the
+> **geography ("Global South spread") signal was REMOVED in inc 229, and any gender/identity module is DROPPED, not
+> deferred — rejected on principle.** The reasoning (maintainer + CC, inc 229): *you cannot measure who is
+> under-cited by sorting cited authors into a group, because that re-inscribes the very category the bias runs on —
+> making people visible by category uses the same machinery as making them invisible by it.* The geography signal
+> was the surviving instance of that error (it classified every cited author's country-of-affiliation into a
+> hardcoded Global-North/South binary), so it went too. The tool was **renamed "Citation concentration"** and now
+> measures only the shape of **what** is cited (your own work, famous work, a few venues, a few elite institutions —
+> i.e. deference to concentrated *power/prestige structures*), **never who wrote it.** Treat every "identity /
+> gender / Global-South / equity-score" idea below as a record of what was considered and **declined**, not a TODO.
+
 **Disposition for CC:** Capture into the backlog + `.claude/docs/future-tracks/`. Do not build yet.
 Equity-sensitive; the **identity-agnostic** design below is load-bearing — build only this shape. Runs through the
 Principles gate (should clear) + the **security audit gate** (new OpenAlex egress + bibliography ingestion). The

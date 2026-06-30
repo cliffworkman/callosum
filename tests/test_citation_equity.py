@@ -1,12 +1,13 @@
-"""inc 227 (backlog #25) — the identity-agnostic structural citation-equity audit: the OpenAlex parser extension
-+ field-sample fetch, the pure analyzer's 5 descriptive signals, the no-identity-inference guarantee, and the async
-endpoint. Descriptive, never a score/verdict/accusation; the gender module is deferred + absent."""
+"""inc 227 (backlog #25; reworked inc 229) — the structural citation-concentration analyzer: the OpenAlex parser
+extension + field-sample fetch, the pure analyzer's 4 descriptive signals, the no-people-categorization guarantee,
+and the async endpoint. Descriptive, never a score/verdict/accusation; the tool NEVER categorizes the people cited
+(no gender/race/nationality — the geography "Global South" signal was removed inc 229, rejected on principle)."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from app.backend.methods.citation_equity import GLOBAL_NORTH, audit_reference_list
+from app.backend.methods.citation_equity import audit_reference_list
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 from integrations.openalex.adapter import OpenAlexClient, _meta_from_work
@@ -59,11 +60,11 @@ def test_meta_from_work_parses_new_fields():
     meta = _meta_from_work(_ref_work("W7", cited=42, venue="Cell", country="ng", inst="Univ Lagos"))
     assert meta["cited_by_count"] == 42
     assert meta["venue"] == "Cell" and meta["issn"] == "1000-0001"
-    assert meta["country_codes"] == ["NG"]  # upper-cased
     assert meta["institutions"] == ["Univ Lagos"]
+    assert "country_codes" not in meta  # nationality is deliberately NOT extracted (inc 229)
     # a gap-finder-shape blob with none of the new structures → safe defaults, no crash
     bare = _meta_from_work({"id": "https://openalex.org/W9", "cited_by_count": 5})
-    assert bare["venue"] is None and bare["country_codes"] == [] and bare["institutions"] == []
+    assert bare["venue"] is None and bare["institutions"] == []
     assert bare["primary_topic"] is None
 
 
@@ -79,14 +80,14 @@ def test_fetch_field_sample_validates_id_and_fail_closed(temp_db_url):
     with engine.begin() as conn:
         client = OpenAlexClient(fetcher=_fetcher({}, {}, [_ref_work("W1"), _ref_work("W2", country="NG")]))
         out = client.fetch_field_sample(conn, "T100", size=10)
-        assert len(out) == 2 and out[1]["country_codes"] == ["NG"]
+        assert len(out) == 2 and out[1]["venue"] == "Nature"
         assert client.fetch_field_sample(conn, "X1") == []  # not ^T\d+$ → no request, []
         bad = OpenAlexClient(fetcher=lambda p, **k: (500, None))
         assert bad.fetch_field_sample(conn, "T999") == []  # non-200 → fail-closed
     engine.dispose()
 
 
-# --- analyzer: the 5 descriptive signals ------------------------------------
+# --- analyzer: the 4 descriptive signals ------------------------------------
 
 
 def _by_key(report):
@@ -141,47 +142,61 @@ def test_venue_and_institution_concentration():
     ]
     rep = audit_reference_list(refs=refs, focal_author_families=set(), field=[], field_topic=None, references_total=4)
     v = _by_key(rep)["venue"]
-    assert v.list_pct == 1.0 and "3 references" not in v.coverage and "venue data" in v.coverage  # 3 of 4 had a venue
+    assert v.list_pct == 1.0 and "3 references" not in v.coverage.text and "venue data" in v.coverage.text
     inst = _by_key(rep)["institution"]
-    assert inst.list_pct is not None and "affiliation data" in inst.coverage
+    assert inst.list_pct is not None and "affiliation data" in inst.coverage.text
 
 
-def test_geography_global_south_share_and_coverage():
-    assert "NG" not in GLOBAL_NORTH and "US" in GLOBAL_NORTH
-    refs = [
-        {"country_codes": ["US"], "authors": [], "cited_by_count": 1},
-        {"country_codes": ["NG"], "authors": [], "cited_by_count": 1},
-        {"country_codes": ["US", "CN"], "authors": [], "cited_by_count": 1},  # has a non-North author → counts
-        {"authors": [], "cited_by_count": 1},  # no country → unknown, NOT assumed domestic
-    ]
-    rep = audit_reference_list(refs=refs, focal_author_families=set(), field=[], field_topic=None, references_total=4)
-    g = _by_key(rep)["geography"]
-    assert round(g.list_pct, 3) == round(2 / 3, 3)  # 2 of the 3 with country data have a Global-South author
-    assert "shown as unknown" in g.coverage  # the 1 unknown is reported, not assumed
-    assert any(b.startswith("NG") or b.startswith("US") or b.startswith("CN") for b in g.basis)  # country breakdown
+def test_low_coverage_flag_when_a_signal_resolves_under_half():
+    """A signal computed over <50% of the references is SHOWN but flagged low-confidence (honesty #4/#6) — never
+    hidden, and never presented next to the field baseline as if equally reliable (the inc-227 experience-pass gap)."""
+    # 3 refs resolved (all with institution data) out of 10 listed → institution coverage = 3/10 = 0.3 → low.
+    refs = [{"institutions": ["MIT"], "authors": [], "cited_by_count": 1} for _ in range(3)]
+    rep = audit_reference_list(refs=refs, focal_author_families=set(), field=[], field_topic=None, references_total=10)
+    inst = _by_key(rep)["institution"]
+    assert inst.coverage.fraction is not None and inst.coverage.fraction < 0.5  # 3 of 10
+    assert inst.coverage.low is True
+    d = inst.to_dict()
+    assert d["low_coverage"] is True and d["coverage_fraction"] == inst.coverage.fraction  # flows through the payload
+
+    # A fully-resolved signal (all references resolved with data) is NOT flagged.
+    full = [{"institutions": ["MIT"], "authors": [], "cited_by_count": 1} for _ in range(4)]
+    rep2 = audit_reference_list(refs=full, focal_author_families=set(), field=[], field_topic=None, references_total=4)
+    inst2 = _by_key(rep2)["institution"]
+    assert inst2.coverage.fraction == 1.0 and inst2.coverage.low is False and inst2.to_dict()["low_coverage"] is False
 
 
-def test_no_identity_inference_in_core():
-    """The acceptance criterion: no gender/race code path. Behaviorally — injecting an author 'gender' field into
-    the inputs changes NOTHING in the output (the analyzer never reads it); and the report carries no per-author
-    identity label."""
-    refs = [{"venue": "Nature", "country_codes": ["NG"], "authors": ["A B"], "cited_by_count": 5}]
+def test_no_people_categorization_in_core():
+    """The load-bearing guarantee (inc 229): the analyzer NEVER categorizes the people cited. Behaviorally —
+    injecting gender/race/sex/nationality fields into the inputs changes NOTHING in the output (they are never
+    read); and no signal or basis line names an identity attribute."""
+    refs = [{"venue": "Nature", "institutions": ["MIT"], "authors": ["A B"], "cited_by_count": 5}]
     base = audit_reference_list(refs=refs, focal_author_families=set(), field=[], field_topic=None, references_total=1)
-    poisoned = [{**refs[0], "gender": "f", "author_race": "x", "sex": "m"}]
+    poisoned = [{**refs[0], "gender": "f", "author_race": "x", "sex": "m", "country_codes": ["NG"]}]
     withjunk = audit_reference_list(
         refs=poisoned, focal_author_families=set(), field=[], field_topic=None, references_total=1
     )
-    assert base.to_dict() == withjunk.to_dict()  # identity fields are ignored entirely
-    # no signal or basis line names a gender/race attribute
+    assert base.to_dict() == withjunk.to_dict()  # gender/race/sex/nationality are ignored entirely
     blob = str(base.to_dict()).lower()
-    assert "male" not in blob and "female" not in blob and "race" not in blob
+    assert all(w not in blob for w in ("male", "female", "race", "global south", "country"))
 
 
-def test_analyzer_source_has_no_gender_keying():
-    """A static guard: the analyzer never reads a gender/race/sex key from its inputs."""
+def test_analyzer_source_has_no_people_categorization():
+    """A static guard: the analyzer never reads a gender/race/sex/nationality key, and carries no Global-North/South
+    classification — categorizing the people cited is rejected on principle (inc 229), not just unimplemented."""
     src = Path("app/backend/methods/citation_equity.py").read_text(encoding="utf-8")
     code = "\n".join(line for line in src.splitlines() if not line.strip().startswith("#"))
-    for forbidden in ('.get("gender"', '.get("sex"', '.get("race"', '["gender"]', '["sex"]', '["race"]'):
+    for forbidden in (
+        '.get("gender"',
+        '.get("sex"',
+        '.get("race"',
+        '["gender"]',
+        '["sex"]',
+        '["race"]',
+        "country_code",
+        "GLOBAL_NORTH",
+        "global_south",
+    ):
         assert forbidden not in code
 
 
@@ -232,10 +247,9 @@ def test_run_produces_report(temp_db_url):
     assert rep["references_total"] == 2 and rep["references_resolved"] == 2
     assert rep["field_topic"]["display_name"] == "Genetics" and rep["field_sample_size"] == 20
     keys = {s["key"] for s in rep["signals"]}
-    assert keys == {"self_citation", "matthew", "venue", "institution", "geography"}
+    assert keys == {"self_citation", "matthew", "venue", "institution"}  # no geography — people are never categorized
     by_key = {s["key"]: s for s in rep["signals"]}
     assert by_key["self_citation"]["list_pct"] == 0.5  # W1 (Pat Doe) is a self-cite, W2 is not
-    assert by_key["geography"]["list_pct"] == 0.5  # 1 of 2 (NG) outside the high-income economies
 
 
 def test_run_404_and_422(temp_db_url):
@@ -273,7 +287,7 @@ def test_run_field_absent_is_own_shape(temp_db_url):
     assert done["status"] == "done"
     rep = done["report"]
     assert rep["field_topic"] is None and rep["field_sample_size"] == 0
-    assert len(rep["signals"]) == 5  # the own-shape signals still computed
+    assert len(rep["signals"]) == 4  # the own-shape signals still computed
     assert {s["key"]: s for s in rep["signals"]}["matthew"]["field_pct"] is None
 
 

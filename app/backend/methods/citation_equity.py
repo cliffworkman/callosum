@@ -1,19 +1,23 @@
-"""Citation-equity audit — the identity-agnostic, structural shape of a paper's reference list (inc 227).
+"""Citation concentration — the structural shape of a paper's reference list (inc 227; reworked inc 229).
 
-A *descriptive* Methods producer (the statcheck/p-curve class; PRINCIPLES Example 3 + value A8 access-equity).
-It measures the **machinery** that reproduces inequitable citation — self-citation, reliance on already-famous
-work (the Matthew effect), venue + institutional concentration, and geographic (Global-South) spread — each shown
-against a sample of the focal paper's *field*, with the basis inspectable.
+A *descriptive* Methods producer (the statcheck/p-curve class). It measures how much a reference list **defers to
+concentrated power** — self-citation, reliance on already-famous work (the Matthew effect), and venue + institutional
+concentration — each shown against a sample of the focal paper's *field*, with the basis inspectable. The companion
+"Find overlooked work" (overlooked_work.py) is the remediation: surface topically-relevant work the list omits.
 
-What it is **not** (load-bearing — the canonical spec `…/future-tracks/opus4.8_future-tracks_citationequitytool.md`):
-- **No author-identity inference.** There is no gender/race code path here. Name→gender inference is cis-normative,
-  systematically wrong for non-Western names (Lockhart, King & Munsch 2023), and would cross the no-accusation veto;
-  the structural reframe measures the machinery directly. A gender-balance number is deliberately not produced.
+What it deliberately does **not** do (load-bearing — the inc-229 decision):
+- **It never categorizes the people who are cited.** No gender, no race, no nationality, no Global-North/South
+  inference — **not deferred, rejected on principle.** Sorting authors into a group to "measure" bias along that
+  group re-inscribes the very category the bias runs on: making people *visible by category* (an equity metric) uses
+  the same machinery as making them *invisible by category* (the bias). So the tool only ever measures the shape of
+  **what** is cited (your own work, famous work, a few venues, a few elite institutions) — never **who** wrote it.
+  (The earlier geography "Global South spread" signal was the surviving instance of this error; it was removed.)
 - **Never a pass/fail score, a target, a quota, or an accusation** (PRINCIPLES #2 signal-not-verdict, #7 no opaque
   composite — each signal is a raw shape, never folded into one number). The field comparison is *context*, not a
-  verdict; the human reads it and decides (#5).
-- **Honest coverage** (#6): every signal reports how many references it could resolve; a reference with no
-  affiliation/country data is recorded as *unknown* — never assumed domestic (silence ≠ certificate).
+  verdict; the human reads it and decides (#5). Institutional concentration measures deference to a power *structure*
+  (elite-affiliation over-emphasis), never the identity of a person.
+- **Honest coverage** (#6): every signal reports how many references it could resolve; a signal computed over <50%
+  of the references is shown but flagged low-confidence (silence ≠ certificate).
 
 Pure + local + no-LLM + no-I/O (the analyzer takes already-fetched OpenAlex meta dicts). Bounded inputs (rule #4).
 """
@@ -27,48 +31,7 @@ from typing import Any
 MAX_REFS = 1000  # defensive cap on the analyzed reference list (the fetch already caps at 500; rule #4)
 MAX_FIELD = 1000  # defensive cap on the field sample
 MAX_BASIS = 10  # how many inspectable basis lines to surface per signal
-
-# "Global North" = a conventional grouping of the high-income, historically citation-dominant reference economies
-# (anglosphere + Western/Northern Europe + high-income East Asia + Israel), by ISO-2 country code. The "Global
-# South" line counts references with ≥1 author affiliated OUTSIDE this set. The grouping is contestable — so the
-# full country breakdown is always shown as the inspectable basis, and the signal is framed as "outside the
-# high-income reference economies," never as a verdict about a paper or an author.
-GLOBAL_NORTH: frozenset[str] = frozenset(
-    {
-        # North America + anglosphere
-        "US",
-        "CA",
-        "GB",
-        "IE",
-        "AU",
-        "NZ",
-        # Western / Northern Europe (high-income)
-        "FR",
-        "DE",
-        "NL",
-        "BE",
-        "LU",
-        "CH",
-        "AT",
-        "IT",
-        "ES",
-        "PT",
-        "SE",
-        "NO",
-        "DK",
-        "FI",
-        "IS",
-        "MC",
-        "LI",
-        "MT",
-        "CY",
-        # High-income East Asia + Israel
-        "JP",
-        "KR",
-        "SG",
-        "IL",
-    }
-)
+LOW_COVERAGE = 0.5  # below this effective coverage a signal is flagged low-confidence (honesty #4/#6 — see Coverage)
 
 
 def _family(name: str) -> str:
@@ -99,14 +62,29 @@ def _pct(x: float | None) -> str:
 
 
 @dataclass(frozen=True)
+class Coverage:
+    """How much of the reference list a signal could actually compute over — the honest #6 datum, carried as both
+    the human sentence and a numeric fraction so a thin basis can be *flagged*, not silently shown as comparable."""
+
+    text: str
+    fraction: (
+        float | None
+    )  # effective_resolved / total (the share the number is actually computed over); None if total==0
+
+    @property
+    def low(self) -> bool:  # a number computed over <50% of references is shown but flagged low-confidence (#4/#6)
+        return self.fraction is not None and self.fraction < LOW_COVERAGE
+
+
+@dataclass(frozen=True)
 class SignalView:
-    key: str  # self_citation | matthew | venue | institution | geography
+    key: str  # self_citation | matthew | venue | institution
     label: str
     summary: str  # the descriptive headline (never a verdict)
     list_pct: float | None  # 0..1 — the reference list's value, for the bar (None = not computable)
     field_pct: float | None  # 0..1 — the field sample's value (None = no field baseline / N/A)
     basis: list[str]  # inspectable lines (the refs / venues / countries behind the number)
-    coverage: str  # how many references this signal could resolve (honest #6)
+    coverage: Coverage  # how many references this signal could resolve (honest #6)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -116,7 +94,9 @@ class SignalView:
             "list_pct": self.list_pct,
             "field_pct": self.field_pct,
             "basis": self.basis,
-            "coverage": self.coverage,
+            "coverage": self.coverage.text,
+            "coverage_fraction": self.coverage.fraction,
+            "low_coverage": self.coverage.low,
         }
 
 
@@ -138,11 +118,13 @@ class CitationEquityReport:
         }
 
 
-def _coverage(resolved: int, total: int, *, with_data: int | None = None, datum: str = "") -> str:
+def _coverage(resolved: int, total: int, *, with_data: int | None = None, datum: str = "") -> Coverage:
     base = f"computed over {resolved} of {total} references with an OpenAlex record"
     if with_data is not None and with_data < resolved:
         base += f"; {with_data} had {datum}"
-    return base + "."
+    effective = with_data if with_data is not None else resolved  # the share the number is *actually* computed over
+    fraction = (effective / total) if total else None
+    return Coverage(base + ".", fraction)
 
 
 def _self_citation(refs: list[dict], families: set[str], total: int) -> SignalView:
@@ -275,49 +257,6 @@ def _institution(refs: list[dict], field: list[dict], total: int) -> SignalView:
     )
 
 
-def _geography(refs: list[dict], field: list[dict], total: int) -> SignalView:
-    n = len(refs)
-    with_country = [r for r in refs if r.get("country_codes")]
-    nc = len(with_country)
-
-    def gs_share(rows: list[dict]) -> float | None:
-        rc = [w for w in rows if w.get("country_codes")]
-        if not rc:
-            return None
-        gs = sum(1 for w in rc if any(cc not in GLOBAL_NORTH for cc in w["country_codes"]))
-        return gs / len(rc)
-
-    list_pct = gs_share(refs)
-    field_pct = gs_share(field)
-    country_counts = Counter(cc for r in with_country for cc in r["country_codes"])
-    basis = [f"{cc} — {c}" for cc, c in country_counts.most_common(MAX_BASIS)]
-    coverage = _coverage(n, total, with_data=nc, datum="no affiliation/country data (shown as unknown, not assumed)")
-    if list_pct is None:
-        return SignalView(
-            "geography",
-            "Geographic spread (affiliation outside high-income economies)",
-            "No affiliation/country data was available for these references.",
-            None,
-            None,
-            [],
-            coverage,
-        )
-    summary = (
-        f"{_pct(list_pct)} of references with affiliation data include an author outside the high-income reference "
-        f"economies (field sample: {_pct(field_pct)}). 'Global South' is a conventional grouping — see the country "
-        "breakdown."
-    )
-    return SignalView(
-        "geography",
-        "Geographic spread (affiliation outside high-income economies)",
-        summary,
-        list_pct,
-        field_pct,
-        basis,
-        coverage,
-    )
-
-
 def audit_reference_list(
     *,
     refs: list[dict[str, Any]],
@@ -326,9 +265,11 @@ def audit_reference_list(
     field_topic: dict[str, Any] | None,
     references_total: int,
 ) -> CitationEquityReport:
-    """Compute the 5 descriptive structural signals over a paper's resolved reference list (`refs` = OpenAlex
+    """Compute the 4 descriptive structural signals over a paper's resolved reference list (`refs` = OpenAlex
     `_meta_from_work` dicts) against an optional `field` sample. Each signal carries its list value, the field
-    value, the inspectable basis, and an honest coverage count. **No score, no verdict, no identity inference.**"""
+    value, the inspectable basis, and an honest coverage count. **No score, no verdict — and crucially, no
+    categorization of the people cited (no gender/race/nationality/region): the tool measures what is cited, never
+    who wrote it.**"""
     refs = refs[:MAX_REFS]
     field = (field or [])[:MAX_FIELD]
     topic_name = (field_topic or {}).get("display_name") or None
@@ -337,7 +278,6 @@ def audit_reference_list(
         _matthew(refs, field, references_total, topic_name),
         _venue(refs, field, references_total),
         _institution(refs, field, references_total),
-        _geography(refs, field, references_total),
     ]
     return CitationEquityReport(
         references_total=references_total,

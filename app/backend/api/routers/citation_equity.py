@@ -1,12 +1,13 @@
-"""Citation-equity audit (inc 227, backlog #25) — the identity-agnostic structural shape of a paper's reference list.
+"""Citation concentration (inc 227, backlog #25; reworked inc 229) — the structural shape of a paper's reference list.
 
 ``POST /methods/citation-equity/run {paper_id}`` (async) resolves a library paper's OpenAlex ``referenced_works``,
-fetches each reference's metadata, samples the paper's *field* (its OpenAlex primary topic), and computes 5
+fetches each reference's metadata, samples the paper's *field* (its OpenAlex primary topic), and computes 4
 **descriptive** structural signals (self-citation, reliance on highly-cited work, venue + institutional
-concentration, geographic / Global-South spread) — each shown against the field with an inspectable basis. It is a
-*signal, never a verdict* (Principles #2/#7), **identity-agnostic** (no gender/race inference — the gender module is
-deferred behind its own gate), and honest about coverage (#6). Egress is **public OpenAlex metadata**, NOT the
-Gemini library-text gate; the per-reference + field fetches are cached, so re-runs are cheap.
+concentration) — each shown against the field with an inspectable basis. It is a *signal, never a verdict*
+(Principles #2/#7), and — load-bearing — it **never categorizes the people cited** (no gender/race/nationality/
+region; the earlier "Global South" geography signal was removed in inc 229, *rejected on principle*: sorting authors
+into a group to measure bias reifies the category). Honest about coverage (#6). Egress is **public OpenAlex
+metadata**, NOT the Gemini library-text gate; the per-reference + field fetches are cached, so re-runs are cheap.
 
 Own router (3-segment ``/methods/citation-equity/*`` path) — the citation_counts.py precedent. The audit is
 ephemeral (the job result), no table/migration: it is recomputable and the OpenAlex calls are cached.
@@ -47,6 +48,8 @@ class SignalModel(BaseModel):
     field_pct: float | None = None
     basis: list[str] = []
     coverage: str = ""
+    coverage_fraction: float | None = None  # the share the number is actually computed over (honest #6)
+    low_coverage: bool = False  # True when computed over <50% of references → shown but flagged low-confidence (#4)
 
 
 class EquityReportModel(BaseModel):

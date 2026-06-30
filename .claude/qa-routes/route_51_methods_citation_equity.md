@@ -3,12 +3,13 @@ api: /methods/citation-equity*
 fe: 08b_methods_citation_equity.jsx
 -->
 
-# ROUTE 51 - Methods: citation-equity audit (identity-agnostic structural reference-list audit)
+# ROUTE 51 - Methods: Citation concentration (structural reference-list audit; never categorizes the people cited)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the citation-equity audit over a library paper while preserving the load-bearing posture:
-**identity-agnostic** (no author-identity inference), **descriptive — never a score / target / quota /
-accusation**, honest coverage, and the field comparison shown as context.
+**Goal:** Exhaust the Citation-concentration audit over a library paper while preserving the load-bearing posture:
+it **never categorizes the people cited** (no gender/race/nationality/region — the geography "Global South" signal
+was removed inc 229, rejected on principle), it is **descriptive — never a score / target / quota / accusation**,
+honest about coverage, and the field comparison is shown as context.
 
 ## Environment
 
@@ -22,13 +23,17 @@ listeners before navigation.
 - **No uncompletable control.** Any visible control that cannot be completed through the UI is a bug.
 - **Egress gate.** The audit fetches **public OpenAlex metadata**, NOT library text. ANY request to a
   `generativelanguage`/Gemini/genai host during a run is **Critical** (this is not the Gemini gate).
-- **No identity inference (veto-level).** No gender/race/sex of any author is inferred, shown, or used anywhere.
-  A "gender balance" number must NOT appear; the deferred-module note states it is deliberately not produced. Any
-  per-author identity label is **Critical**.
-- **Signal not verdict.** No composite "equity score", no pass/fail, no rank, no accusation about the paper or any
+- **No people-categorization (veto-level).** No gender/race/sex AND no nationality/country/Global-North-South of any
+  author is inferred, shown, or used anywhere. A "gender balance" or "Global South share" number must NOT appear;
+  the principle note states people-categorization is *rejected on principle*, not deferred. Any per-author identity
+  or origin label is **Critical**. (The earlier geography signal was removed; if it reappears, **Critical**.)
+- **Signal not verdict.** No composite score, no pass/fail, no rank, no accusation about the paper or any
   person. Each signal is a raw shape with an inspectable basis; the field value is context, not a target.
-- **Honest coverage (#6).** Each signal reports how many references it could resolve; a reference with no
-  affiliation/country data is shown as "unknown", never assumed domestic.
+- **Honest coverage (#6).** Each signal reports how many references it could resolve; a reference with no data for
+  that signal is shown as "unknown", never assumed.
+- **Low coverage is flagged, not hidden (#4/#6 — inc 229).** A signal computed over <50% of the references carries
+  `low_coverage:true` + a `coverage_fraction`, and the UI shows a **⚠ low coverage (N%)** badge — the number is
+  still shown (never suppressed) but it must not read as comparable to a fully-resolved signal or the field baseline.
 
 ## Adversarial checklist
 
@@ -41,18 +46,19 @@ listeners before navigation.
 
 ## Steps
 
-1. Select a paper -> open METHODS -> the **Citation equity** section (order 35, among the real tools). Confirm the
-   descriptive intro states it is "descriptive context, never a score or a target" + "Identity-agnostic: no
-   author-identity inference."
-2. Click **Run audit** (`POST /methods/citation-equity/run`); poll (`GET .../run/{job_id}`) with the
-   `ProgressBar`. Confirm the **field attribution** ("compared with a sample of N recent <topic> papers").
-3. Confirm the **5 signals** render: self-citation, reliance on highly-cited work (Matthew), venue concentration,
-   institutional concentration, geographic / Global-South spread. Each shows a **This list vs Field** mini-bar
-   (where applicable), a **descriptive summary** (never a verdict), an expandable **basis** (the refs / venues /
-   countries behind the number), and a **coverage** line.
-4. Expand a signal's **basis** -> the specific references/venues/countries are listed (inspectability).
-5. Confirm the **deferred-module note** ("a gender or identity balance number is deliberately not produced …") and
-   the **credit** block (King et al. 2017; Merton 1968; Perc 2014) with a working **＋ add to library** (idempotent).
+1. Select a paper -> open METHODS -> the **Citation concentration** section (order 35, among the real tools).
+   Confirm the descriptive intro frames it as concentration ("does it lean on your own work, famous work, a few
+   venues, a few elite institutions?") and states it "never looks at who the cited authors are — only what is cited."
+2. Click **Run audit** (`POST /methods/citation-equity/run` — the path keeps the historical slug); poll
+   (`GET .../run/{job_id}`) with the `ProgressBar`. Confirm the **field attribution** ("sample of N recent <topic>").
+3. Confirm the **4 signals** render: self-citation, reliance on highly-cited work (Matthew), venue concentration,
+   institutional concentration. **There is NO geography / Global-South signal.** Each shows a **This list vs Field**
+   mini-bar (where applicable), a **descriptive summary** (never a verdict), an expandable **basis** (the refs /
+   venues / institutions behind the number), and a **coverage** line.
+4. Expand a signal's **basis** -> the specific references/venues/institutions are listed (inspectability).
+5. Confirm the **principle note** ("This tool never infers or shows the identity of the people you cite … not
+   deferred; something we won't build …") and the **credit** block (King et al. 2017; Merton 1968; Perc 2014) with
+   a working **＋ add to library** (idempotent).
 6. **Overlooked work (SP2, inc 228).** Below the audit, the **Overlooked work** sub-section: click **Find overlooked
    work** (`POST /methods/citation-equity/overlooked`); poll (`GET .../overlooked/{job_id}`). Confirm the intro
    states it is "candidates to consider, never a 'you must cite this'; nothing is dropped or auto-added, and an
@@ -67,13 +73,14 @@ listeners before navigation.
 
 ## Pass criteria
 
-- The audit completes; the panel shows the field attribution + 5 descriptive signals (list-vs-field bars +
-  inspectable bases + coverage) + the deferred-module note + credit.
+- The audit completes; the panel shows the field attribution + **4** descriptive signals (list-vs-field bars +
+  inspectable bases + coverage) + the never-categorize-people principle note + credit. **No geography signal.**
 - **Overlooked work**: candidates render with a topical-match chip + (optional) shared-topics why + ✓-in-library /
   ＋ Add; Add is metadata-only (`/discovery/save`, no PDF) and flips to ✓ added; **no drop/remove control, no
   per-author identity, no quota copy**; ranked by topical match, not citation count.
 - 0 console/page errors; **0 genai-host requests** (OpenAlex metadata + a local embedding, never the Gemini gate).
-- **No identity inference**: no gender/race label or "gender balance" number anywhere (audit or overlooked).
+- **No people-categorization**: no gender/race/nationality label, no "gender balance" or "Global South" number,
+  and no geography signal anywhere (audit or overlooked).
 - No composite score / rank / pass-fail / accusation; the field value is shown as context.
 - Empty/no-DOI/no-topic/error states are honest; mobile viewport has no horizontal overflow.
 

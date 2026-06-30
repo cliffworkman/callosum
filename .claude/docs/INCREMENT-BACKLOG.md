@@ -285,14 +285,17 @@ sibling of statcheck under the findings subsystem.
 Bayes factors for canonical designs (t/F/r + N) + Tier-2 completeness audit; signal-not-verdict, deliberately does
 **not** teach "BF>3 = significance". Sibling of statcheck under the findings subsystem.
 
-**25. Citation-equity audit** (`…_citationequitytool.md`, METHODS) — **[DONE — SP1 inc 227 + SP2 inc 228]** the
-identity-agnostic **structural** reference-list audit (self-citation, Matthew concentration, venue + institutional
-concentration, geographic/Global-South spread) shown against a field-topic sample (SP1) + the topical
-**overlooked-work remediation** (SP2 inc 228 — **Find overlooked work** surfaces topically-relevant omitted papers
-ranked by a local SPECTER cosine, add-only/identity-agnostic/no-quota, metadata-only add). Descriptive, never a
-verdict; gender module deferred + absent. **Open follow-ups (from the SP1 experience pass, both deferred — not
-blocking):** a real *field* self-citation baseline; a prominent low-coverage flag when a signal resolves <50% of
-references.
+**25. Citation concentration** (`…_citationequitytool.md`, METHODS) — **[DONE — SP1 inc 227 + SP2 inc 228 +
+values rework inc 229]** the **structural** reference-list audit (self-citation, Matthew concentration, venue +
+institutional concentration) shown against a field-topic sample (SP1) + the topical **overlooked-work remediation**
+(SP2 — **Find overlooked work** surfaces topically-relevant omitted papers ranked by a local SPECTER cosine,
+add-only/no-quota/metadata-only). **Inc-229 values rework (maintainer + CC):** removed the **geography ("Global
+South") signal** + all gender framing — *rejected on principle*, because sorting cited authors into a group to measure
+bias reifies the category (visibility-by-category == erasure-by-category). Renamed **"Citation concentration."** It
+now measures only the shape of WHAT is cited (deference to concentrated power/prestige), never WHO wrote it; enforced
+by a static guard test. Descriptive, never a verdict; a ⚠ low-coverage flag (signal over <50% of refs). **Open
+follow-up (deferred, not blocking):** a real *field* self-citation baseline (needs per-field-paper reference fetches —
+a cost/design call).
 
 **26. CRediT contributions builder** (`…_creditcontributionsbuilder.md`) — **[future track]** authors × 14-roles
 grid (NISO CRediT) → a contributorship statement injected via the Word link (depends on #33/#34); **builder, not
