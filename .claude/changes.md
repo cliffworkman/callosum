@@ -9,7 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-30 inc 212 — axes section: curated reorder is now drag-by-grip (was ↑/↓) -->
+<!-- HELP-DOCS-SYNCED 2026-06-30 inc 213 — privacy section: added "Using Callosum from an AI agent (MCP)" -->
+## 2026-06-30 — Increment 213: read-first MCP server (backlog B1, SP1)
+- **Files (new):** `mcp_server/{__init__,client,server,__main__}.py` + `mcp_server/requirements.txt` +
+  `mcp_server/README.md`; `tests/test_mcp_server.py`; `.claude/security-audits/2026-06-30_mcp-server.md`;
+  `.claude/docs/specs/2026-06-30-mcp-server-design.md`; `INCREMENT-213-NOTES.md`.
+  **(modified):** `requirements-dev.txt` (+`mcp`), `app/backend/help/help_content.md`, CLAUDE,
+  `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** a SEPARATE in-repo deployable (mirrors `sync_server/`) — a Model Context Protocol **stdio** server
+  exposing five **read-only** tools (`search_library`/`get_paper`/`full_text_search`/`find_passages`/
+  `format_citation`) to an agent host. Each tool makes one HTTP call to the running app via an injectable httpx
+  client; read-only by construction (hardcoded read-endpoint allowlist; no write/scan method exists).
+- **Why:** B1 SP1 — let agents use the library *through* callosum (provenance + grounding authority), read-first.
+- **Gates:** **no app change** → no migration, no new app endpoint, QA surface unchanged (145/145 API + 685/685
+  FE); audit `2026-06-30_mcp-server.md` PASS; new dep `mcp` fenced in `mcp_server/requirements.txt` (+ dev for CI).
+  pytest +9 (`tests/test_mcp_server.py`, hermetic via httpx.MockTransport); ruff clean. Live MCP↔host handshake is
+  the maintainer's manual check. SP2 (gated writes) = a separate spec + heavy A4/A-A pass.
+- **Revert:** `git revert` the inc-213 commit + `rm -r mcp_server/` (the app never imports it; nothing else depends).
+
 ## 2026-06-30 — Increment 212: A7 SP2 — drag-to-reorder curated members
 - **Files:** `app/frontend/js/15_axes.jsx` (↑/↓ → a ⠿ grip + HTML5 drag-source/drop-target rows; `reorderToIndex`
   replaces `reorderPaper`) + `styles.css` (`.axis-grip` + `.axis-member-drag.dragover`) + `callosum-app.html`

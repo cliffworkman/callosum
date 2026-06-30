@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 212** (see Increment workflow) with **733 pytest tests
+It is currently at **Increment 213** (see Increment workflow) with **742 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -331,6 +331,12 @@ callosum/
 │                                  per-user], auth.py [TokenVerifier Protocol + JwksVerifier — an OIDC resource server],
 │                                  store.py [push LWW-by-version + per-user seq / pull since-delta], app.py
 │                                  [GET/POST /sync/records + /health], README.md. Stores only OPAQUE AES-GCM blobs.
+├── mcp_server/                    ← the read-first **MCP server** (backlog B1 SP1, inc 213): a SEPARATE stdio
+│                                  deployable (its own requirements.txt — `mcp` SDK + httpx; the app never imports it,
+│                                  it never imports the app — talks HTTP). client.py [CallosumClient: 5 read methods,
+│                                  injectable httpx, fail-closed], server.py [create_server(client)→FastMCP + 5 read
+│                                  tools], __main__.py [`python -m mcp_server`], README.md. Read-only by construction
+│                                  (hardcoded read-endpoint allowlist; no write/scan method). SP2 = gated writes.
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
@@ -738,6 +744,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Read-first MCP server — a separate stdio deployable, read-only by construction (backlog B1 SP1; inc 213) | Expose callosum's own **MCP server** so an external agent (Claude Desktop / Cursor) uses the library **through** callosum — keeping callosum the provenance + grounding authority — rather than bypassing it as a dumb store. **Architecture = a thin stdio adapter over the running app, NOT a direct-DB reader:** new **`mcp_server/`** (a separate in-repo deployable mirroring `sync_server/` — the app never imports it, it never imports the app), where each `@mcp.tool()` makes **one HTTP call** to an existing callosum endpoint (`CALLOSUM_BASE_URL`, default loopback) via an **injectable httpx client** + shapes the response. Chosen over reading SQLite directly because it **reuses the audited endpoints + their honesty/egress contracts + the embedding/vector models already on `app.state`** (`find_passages` needs them), and literally keeps callosum the authority (every op runs callosum's own logic) — exactly B1's point, the `sync_server`-over-HTTP shape generalized. **SP1 = five read tools:** `search_library`→`GET /papers`, `get_paper`→`GET /papers/{id}`, `full_text_search`→`GET /papers/fulltext` (strips the U+E000/E001 FTS markers), **`find_passages`→`POST /citations/suggest {evaluate:false}`** (the grounding primitive — each passage carries its verbatim quote + page + `coordinate_precision`), `format_citation`→`POST /papers/export`. **Read-only is structural** — `CallosumClient` exposes only the five read methods (no write/scan/delete method exists); `test_server_only_issues_readonly_calls` drives every tool through a recording transport and asserts only the four allowlisted `(method,path)` pairs are ever issued. **`CALLOSUM_MCP_TOKEN`** (only when Remote access, inc 168, is on) is a write-only env→`Authorization: Bearer` header, never logged/returned. **No app change** → no migration, no new app endpoint, QA surface unchanged (145/145 API + 685/685 FE), no new QA route (the inc-157/170 external-adapter precedent). **GOTCHA:** this SDK's `FastMCP.call_tool` is shape-inconsistent by return type — a non-dict return is `(content, {"result": value})`, a dict return is a bare `list[TextContent]`; the test helper handles both. New dep `mcp>=1.2` (justified — can't speak MCP without the SDK; **fenced** in `mcp_server/requirements.txt`, dev-side for CI). Audit `2026-06-30_mcp-server.md` PASS; values gate ran in the spec (emergent value adopted deliberately; read-first carries evidence; default-off; SP1 mutates nothing; no A-A veto). pytest **+9** (`tests/test_mcp_server.py`, hermetic via `httpx.MockTransport`). **SP2 = gated writes** (provenance-stamped `imported_source="ai-agent"` + reversible + per-write confirmation + audit log; its own spec + a heavy A4/A-A pass). The live MCP↔host handshake is the maintainer's manual check. |
 | Curated Axis — a hand-populated `kind` on the axis primitive (backlog A7 SP1; inc 211) | An axis populated **by hand** rather than by keyword scoring — the bounded "manual container" the axis model needed, **without becoming a folder**. A curated axis is a normal `axes` row with a third **`kind="curated"`**; its members are the existing **all-`confidence IS NULL` (manual)** rows on its single cluster node, ordered by a new nullable **`cluster_node_papers.position`** (migration 0028). **Reusing `cluster_node_papers` is the load-bearing choice:** membership stays there, so the inc-63 synthesis filter, the A6 drop-to-add, and axis merge all keep working unchanged (vs the rejected separate-table / JSON-order forks). The "manual survives re-score" guarantee (`restore_manual_assignments`) makes a curated axis the limit case — all-manual, never scored. `axis_assignments.py` gains `freeze_to_curated` (keyword→curated: snapshot the **shown** members [assigned ≥ cutoff + manual], demote to manual + ordered, **drop the uncertain** — honors A10 *shown=frozen*; set kind) + `revert_to_keyword` (warned: members kept, position cleared, → stale) + `set_member_order`/`append_member_position`. `routers/axes.py`: `kind` on `POST /axes` + the `PATCH /axes/{id}` switch (standard↔curated only, never to/from my_publications) + **`PUT /axes/{id}/order`** (the full id list — SP2's drag reuses it). Frontend (`15_axes.jsx`, mirroring `isMyPubs`): hides the scoring row; a **📌** label cue + a neutral `.is-curated` badge (quiet `--accent-soft`); members in `position` order with per-row **↑/↓**; a 📌 toolbar create + a **❄ Freeze** / **↩ Convert** switch. **Principles aligned** (a transparently human-authored, score-free, inspectable set — #3/#7/#9; freeze explicit, revert warned; declined the "folder"/manual-hierarchy easy path). **No audit / no new dependency** (local column + local endpoints). **SP2** = swap ↑/↓ for drag-to-reorder (frontend-only, reuses `PUT …/order`). pytest **733** (+9); QA surface **145/145 API + 689/689 FE, 0 uncovered**; help corpus + DESIGN updated; headed-verified. `15_axes.jsx` 551. |
 | Library-wide per-paper citation counts via OpenAlex (backlog A2 close-out; inc 210) | Generalize the My-Pubs cited-by display (inc 119) to **every** library card: a **"Citations ↻"** header control → an async batch (`POST /papers/citation-counts/refresh`) fetches each live-with-DOI paper's OpenAlex `cited_by_count` → a verbatim **"N cited-by"** chip + an explicit opt-in **Most cited** sort. **The aligned shape is Example-3 (per-paper-number) by the book:** the count is shown **raw + attributed** ("per OpenAlex · as of <date>"), never a composite (#7); the citation sort is **explicit/user-invoked**, never the default or a silent reorder (#2); a no-DOI / no-record paper shows **no chip** — honest "—", never a fabricated 0 (#6; a genuine 0 shows "0 cited-by"); the source+date are **visible** on the control + each chip's tooltip (#8). **Migration 0027** adds a dedicated `paper_citation_counts` table (PK paper_id FK CASCADE; `retrieved_at` = the "as of") — kept OUT of the canonical `papers` row, like every other derived datum; additive/guarded/no-op-downgrade (the 0021 pattern). `OpenAlexClient.fetch_cited_by_count` rides the already-cached DOI fetch; `repository.list_papers` surfaces the count via correlated scalar subqueries (no JOIN → no row dup) + a `citations_desc` sort key (NULL last); `routers/citation_counts.py` is the async batch (registered **before** papers.router). Egress = DOI→OpenAlex (**public metadata, bounded/cached/on-demand** — #10), **NOT** the Gemini library-text gate. Audit `2026-06-29_citation-counts.md` PASS; **no new dependency** (reuses the OpenAlex adapter). Frontend reuses the inc-119 `.paper-cite` chip + `.trash-toggle` (no new CSS). pytest **724** (+5); QA surface **144/144 API + 679/679 FE, 0 uncovered** (`route_23_citation_counts.md`); help corpus updated; headed-verified. `40_app.jsx` stays 599/600 (the new prop folded onto an existing line). |
 | Full-text PDF search via SQLite FTS5 (backlog A3 close-out; inc 209) | Verbatim/lexical search over the extracted `chunks.text` — the exact-string complement to the semantic axes/synthesis ("find 'ultimatum game' verbatim"). **Migration 0026** creates an **external-content** FTS5 index `chunks_fts` (no text duplication) + a **sync trigger trio** on `chunks`; the AFTER DELETE trigger is the crux — it catches the **FK CASCADE** from `purge_paper` (inc 65) that bypasses Python (a Python hook would miss it). `metadata.create_all` can't express FTS5, so the migration is the source of truth + has a **real guarded downgrade** (drops the FTS table + triggers; 0001's metadata-loop can't, so no double-drop — the inc-208 0025 lesson in reverse). `persistence/fulltext_repo.py`: `_safe_match` token-quotes the query (neutralizes every FTS5 operator → no syntax error / no query-lang injection) + bound param (rule #3) + `try/except → []` (never 500). `routers/fulltext.py` `GET /papers/fulltext` (registered **before** papers.router). Frontend: a **"Full text"** search scope → a self-contained `FulltextResults` (`js/10c_fulltext.jsx`) that does its own fetch → per-occurrence snippet hits (bolded matches via the U+E000/E001 markers split into React `<b>` nodes — no `dangerouslySetInnerHTML`) + Open-at-page (region precision, no fabricated rect). **`40_app.jsx` untouched** (self-contained component avoids its 599/600 cap). **Principles non-triggering** (no claim/rank/score; bm25 is an internal ordering, never a displayed verdict). Audit `2026-06-29_fulltext-search.md` PASS; **no new dependency** (FTS5 is core SQLite). pytest **719** (+4); QA surface **142/142 API + 677/677 FE, 0 uncovered** (`route_22_fulltext.md`); help corpus + DESIGN updated; headed-verified. |
@@ -898,7 +905,50 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 212 (A7 SP2 — drag-to-reorder curated members; the frontend-only follow-on
+*Last updated: 2026-06-30 — increment 213 (B1 SP1 — the read-first MCP server; the first of the deferred B-items,
+brainstormed → spec'd → planned → built). Expose callosum's own **Model Context Protocol** server so an external
+agent (Claude Desktop / Cursor) uses the library **through** callosum — keeping callosum the provenance + grounding
+authority — rather than bypassing it as a dumb store. **Architecture = a thin stdio adapter over the running app,
+not a direct-DB reader:** new **`mcp_server/`** (a SEPARATE in-repo deployable mirroring `sync_server/` — `app/`
+never imports it, it never imports `app/`; it talks HTTP). `client.py` `CallosumClient` = a thin httpx wrapper with
+five **read** methods (injectable `http` for hermetic tests; `_ok` maps 401→a token hint / ≥400→a clean error;
+httpx errors → `CallosumUnavailable`, never a fabricated result; `default_client()` from `CALLOSUM_BASE_URL`
+[default loopback] + `CALLOSUM_MCP_TOKEN`). `server.py` `create_server(client)→FastMCP` registers five `@mcp.tool()`s
+(docstrings = the agent-facing descriptions) + `build()`; `__main__.py` = `python -m mcp_server` →
+`run(transport="stdio")`. **The five tools → endpoints:** `search_library`→`GET /papers`, `get_paper`→`GET
+/papers/{id}`, `full_text_search`→`GET /papers/fulltext` (strips the U+E000/E001 FTS bold markers),
+**`find_passages`→`POST /citations/suggest {evaluate:false}`** (the grounding primitive — each passage carries its
+verbatim quote + page + `coordinate_precision`, so the agent can cite the source), `format_citation`→`POST
+/papers/export`. **Read-only by construction** — `CallosumClient` exposes only those five read methods (no
+write/scan/delete method exists); `test_server_only_issues_readonly_calls` drives every tool through a recording
+transport and asserts only the four allowlisted `(method,path)` pairs (+ the `GET /papers/{id}` detail) are ever
+issued, and `test_tool_registry_is_exactly_the_five_read_tools` pins the set. **No app change** → no migration, no
+new app endpoint, **QA surface unchanged (145/145 API + 685/685 FE, 0 uncovered)**, no new QA route (the inc-157
+LO-suggest-macro / inc-170 GDocs-add-on precedent — an external process reusing existing endpoints). **GOTCHA:**
+this `mcp` SDK's `FastMCP.call_tool` is shape-inconsistent by return type — a non-dict return is `(content,
+{"result": value})`, a **dict** return is a bare `list[TextContent]`; the test helper `_call` handles both. **New
+dep `mcp>=1.2`** (justified — can't speak MCP without the SDK; **fenced** in `mcp_server/requirements.txt`, never
+the app's prod deps; added to `requirements-dev.txt` only so CI runs the hermetic test). **Audit
+`2026-06-30_mcp-server.md` PASS** (read-only by construction; local stdio with no listener; one configured [not
+arg-derived] target → no SSRF; token write-only from env, never logged/returned; no egress of its own; honest
+failures; one justified/fenced/pinned dependency; app surface unchanged). **Values gate ran in the spec**
+(APPROACH-AVOIDANCE — emergent value "callosum as MCP provider", adopted deliberately; read-first carries evidence
+[A2]; default-off/opt-in [A5]; SP1 mutates nothing [A4]; no A-A veto); code-level Principles non-triggering (no new
+claim/signal). pytest **742 passed, 1 skipped** (+9 `tests/test_mcp_server.py`, hermetic via `httpx.MockTransport`:
+the request/response mapping per tool, the auth header, honest failures [app-down/401], the read-only allowlist, the
+tool registry); `ruff` clean; help corpus +1 paragraph ("Using Callosum from an AI agent (MCP)", `HELP-DOCS-SYNCED`
+→ 213). **The live MCP↔host handshake is the maintainer's manual check** (configure Claude Desktop/Cursor per
+`mcp_server/README.md` with callosum running → call a tool → see grounded results); what's proven in-repo is the
+pure mapping + the read-only allowlist + the endpoints the tools call (covered by the main suite). Spec
+`…/specs/2026-06-30-mcp-server-design.md`; plan (gitignored) `.claude/backups/plans/2026-06-30_mcp-server-sp1.md`;
+notes `INCREMENT-213-NOTES.md`. **NEXT: B1 SP2 — gated writes** (`add_tag`/`add_to_axis`/`save_reference`/`annotate`,
+each provenance-stamped `imported_source="ai-agent"` + reversible [session undo / soft-delete] + gated [a
+writes-enabled opt-in + per-write confirmation] + an agent audit log; its own design spec + a heavy A4/A-A pass —
+the A4 "user owns every irreversible act" value makes the gate mandatory). Other deferred B-items (B2 collaboration/
+shared libraries [≈ accounts SP4], B3 OCR, B4 citation-context classifier, B5 mobile reading) remain larger, own
+design passes.
+
+Earlier — increment 212 (A7 SP2 — drag-to-reorder curated members; the frontend-only follow-on
 that **completes A7**, and with it the **entire competitive-benchmark A-list, A1–A10**). The inc-211 per-row **↑/↓**
 reorder is replaced by **HTML5 drag-to-reorder**: a curated member row shows a **⠿ grip** (`.axis-grip`) and each
 `.axis-member-drag` wrapper is a drag **source + drop target** via a member-only MIME

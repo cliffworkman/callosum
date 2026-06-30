@@ -1,0 +1,5 @@
+# Read-first MCP server (backlog B1, SP1). A SEPARATE deployable — the local callosum app does NOT
+# depend on these (the app never imports mcp_server/, and mcp_server/ never imports app/; it talks HTTP).
+# Install + run standalone:  pip install -r mcp_server/requirements.txt  &&  python -m mcp_server
+mcp>=1.2
+httpx>=0.27

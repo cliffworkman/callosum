@@ -470,11 +470,15 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   already pure labels. **This closes the entire A1–A10 benchmark list.**
 
 **B — deferred (BELOW the cut; queued behind critical functionality):**
-- **B1 — read-first / write-gated MCP server** *(needs a detail doc; design home: §B1)* — expose Callosum's own MCP
-  server so external agents use the library *through* Callosum (keeping it the provenance authority) rather than
-  bypassing it. **Read-first** (search/metadata/full-text/**grounded passage retrieval with page anchors** free);
-  **all writes gated** (explicit confirmation + session undo + provenance/lineage-stamp every AI-originated write).
-  Security audit + egress gate. The one genuinely-new architectural item; the defensive moat.
+- **B1 — read-first / write-gated MCP server** *(spec `…/specs/2026-06-30-mcp-server-design.md`; design home: §B1)* —
+  expose Callosum's own MCP server so external agents use the library *through* Callosum (keeping it the provenance
+  authority) rather than bypassing it. **SP1 — read-first — DONE (inc 213):** `mcp_server/` (a separate stdio
+  deployable mirroring `sync_server/`) with 5 read tools (search / get_paper / full-text / **grounded find_passages
+  with quote+page** / format_citation), each one HTTP call to the running app; read-only by construction; no app
+  change; audit `2026-06-30_mcp-server.md` PASS. **SP2 — gated writes — TODO** (its own spec + a heavy A4/A-A pass):
+  `add_tag` / `add_to_axis` / `save_reference` / `annotate`, each provenance-stamped (`imported_source="ai-agent"`),
+  reversible (session undo / soft-delete), and gated (writes-enabled opt-in + per-write confirmation) + an agent
+  audit log. The one genuinely-new architectural item; the defensive moat.
 - **B2 — collaboration / shared libraries** — opt-in shared libraries on the **now-built account + sync** layer
   (incs 194–202), under the same E2E/consent discipline. **Not declined** — a scope/architecture-weight question.
   *(This is essentially SP4 of the accounts arc.)*

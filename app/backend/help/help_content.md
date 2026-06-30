@@ -868,6 +868,9 @@ Important distinctions:
 ### Optional account — sign in (ORCID, Google, or email)
 **Opt-in and additive — Callosum needs no account.** **Settings → Account → Sign in** (via a callosum account service the maintainer configures) lets you sign in with **ORCID, Google, or email** — you pick the method on the account service's page. It is **identity-only**: signing in verifies who you are — and signing in with **ORCID** also pre-fills **My Publications** with your authoritative author record — but it does **not** send your library, PDFs, notes, or any text anywhere. The app works fully offline with no account, and signing out clears only the session (your data is untouched). On an instance where the account service hasn't been set up, the Account section simply says so and nothing changes. (Cross-device **sync** — the only thing that *would* move library data off your machine — is a separate, future, explicitly-consented step; it does not exist yet.)
 
+### Using Callosum from an AI agent (MCP)
+Callosum ships a small, **read-only** [MCP](https://modelcontextprotocol.io) server (`mcp_server/`) so an AI agent (Claude Desktop, Cursor, etc.) can use your library **through Callosum** — keeping Callosum the source of provenance and grounding rather than letting the agent treat your files as a dumb store. It runs locally as a stdio subprocess the agent host spawns; it has no network listener. The agent can **search**, **read a paper's details**, **search the verbatim text** inside your PDFs, **retrieve grounded passages** (each with its quote and page, so the agent can cite the source), and **format citations** — but it **cannot** tag, edit, delete, or scan anything (those are not exposed). It reads from the running app, so start Callosum first; see `mcp_server/README.md` for the host setup. (Gated *write* tools are a separate, future opt-in.)
+
 <!-- section: troubleshooting-and-faq -->
 ## Troubleshooting and FAQ
 ### Why is my axis empty?

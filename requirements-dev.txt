@@ -11,3 +11,4 @@ ruff==0.9.6
 pip-audit>=2.7
 playwright>=1.40
 pytest-playwright>=0.5
+mcp>=1.2  # mcp_server SP1 — to run tests/test_mcp_server.py (B1); a server-only runtime dep, dev-side here for CI
