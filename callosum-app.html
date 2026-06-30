@@ -1893,6 +1893,492 @@
     const n = parseInt(m[1], 16);
     return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${alpha})`;
   }
+  function useLibrary(opts) {
+    const {
+      selected,
+      setSelected,
+      setActiveTab,
+      cancelFocus,
+      setLeftOpen,
+      setTheoryOpen,
+      setMethodsOpen,
+      setSettingsOpen,
+      setTagRefresh,
+      setAxisRefresh,
+      autoScanWatched
+    } = opts;
+    const [listState, setListState] = useState({ status: "loading", papers: [] });
+    const [query, setQuery] = useState("");
+    const [debounced, setDebounced] = useState("");
+    const [page, setPage] = useState(0);
+    const [selectedLibraryIds, setSelectedLibraryIds] = useState(() => /* @__PURE__ */ new Set());
+    const [pendingSummarize, setPendingSummarize] = useState(null);
+    const [libraryAxisFilter, setLibraryAxisFilter] = useState(null);
+    const [libraryTagFilter, setLibraryTagFilter] = useState(null);
+    const [trashView, setTrashView] = useState(false);
+    const [libraryNeedsReview, setLibraryNeedsReview] = useState(false);
+    const [librarySignalFilter, setLibrarySignalFilter] = useState(null);
+    const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });
+    const [statcheckFlagged, setStatcheckFlagged] = useState(0);
+    const [retractionFlagged, setRetractionFlagged] = useState(0);
+    const [librarySort, setLibrarySort] = useState(() => {
+      try {
+        return localStorage.getItem("callosum.librarySort") || "added";
+      } catch (e) {
+        return "added";
+      }
+    });
+    const [librarySearchField, setLibrarySearchField] = useState("all");
+    const [libraryItemType, setLibraryItemType] = useState("");
+    const [itemTypes, setItemTypes] = useState([]);
+    const [libRefresh, setLibRefresh] = useState(0);
+    const pendingSelectTopRef = useRef(false);
+    const [pcurvePapers, setPcurvePapers] = useState(null);
+    const [mergeIds, setMergeIds] = useState(null);
+    const toggleLibrarySelect = useCallback((id) => {
+      setSelectedLibraryIds((prev) => {
+        const n = new Set(prev);
+        n.has(id) ? n.delete(id) : n.add(id);
+        return n;
+      });
+    }, []);
+    const clearLibrarySelect = useCallback(() => setSelectedLibraryIds(/* @__PURE__ */ new Set()), []);
+    const selectAllLibrary = useCallback((ids) => setSelectedLibraryIds(new Set(ids)), []);
+    const bulkDeletePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (!ids.length) return;
+      if (!window.confirm(`Move ${ids.length} ${ids.length === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
+      Promise.all(ids.map((id) => apiDelete(`/papers/${id}`))).then(() => {
+        setSelectedLibraryIds(/* @__PURE__ */ new Set());
+        setSelected((prev) => ids.includes(prev) ? null : prev);
+        setLibRefresh((n) => n + 1);
+      });
+    }, [selectedLibraryIds, setSelected]);
+    const bulkSummarizePapers = useCallback((focus) => {
+      const ids = [...selectedLibraryIds];
+      if (!ids.length) return;
+      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1, focus: (focus || "").trim() || null }));
+      setLeftOpen(true);
+      setTheoryOpen("synthesis");
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+    }, [selectedLibraryIds, setLeftOpen, setTheoryOpen]);
+    const bulkPcurvePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length) {
+        setPcurvePapers(ids);
+        setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      }
+    }, [selectedLibraryIds]);
+    const bulkMergePapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length >= 2) setMergeIds(ids);
+    }, [selectedLibraryIds]);
+    const onMerged = useCallback((survivorId) => {
+      setMergeIds(null);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSelected(survivorId || null);
+      setLibRefresh((n) => n + 1);
+      setAxisRefresh((n) => n + 1);
+      setTagRefresh((n) => n + 1);
+    }, [setSelected, setAxisRefresh, setTagRefresh]);
+    const summarizePaperIds = useCallback((ids) => {
+      if (!ids || !ids.length) return;
+      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
+      setLeftOpen(true);
+      setTheoryOpen("synthesis");
+    }, [setLeftOpen, setTheoryOpen]);
+    const bulkExportPapers = useCallback((format) => downloadCitationExport([...selectedLibraryIds], format), [selectedLibraryIds]);
+    const bulkBibliography = useCallback((style) => downloadBibliography([...selectedLibraryIds], style), [selectedLibraryIds]);
+    const restorePaper = useCallback((id) => {
+      apiPost(`/papers/${id}/restore`, {}).then((r) => {
+        if (r.ok) setLibRefresh((n) => n + 1);
+      });
+    }, []);
+    const purgePaper = useCallback((id) => {
+      if (!window.confirm("Permanently delete this paper? This removes its text, highlights, and search index, and cannot be undone.")) return;
+      apiDelete(`/papers/${id}/permanent`).then((r) => {
+        if (r.ok) setLibRefresh((n) => n + 1);
+      });
+    }, []);
+    const emptyTrash = useCallback(() => {
+      if (!window.confirm("Permanently delete EVERY paper in Trash? This cannot be undone.")) return;
+      apiPost("/papers/trash/empty", {}).then((r) => {
+        if (r.ok) setLibRefresh((n) => n + 1);
+      });
+    }, []);
+    const toggleTrash = useCallback(() => {
+      setTrashView((v) => !v);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      setLibrarySignalFilter(null);
+      setPage(0);
+    }, []);
+    const filterToAxis = useCallback((axis) => {
+      setLibraryAxisFilter({ id: axis.id, label: axis.label, hideUncertain: !!axis.hideUncertain });
+      setLibraryTagFilter(null);
+      setActiveTab("library");
+      setPage(0);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setTrashView(false);
+      setLibraryNeedsReview(false);
+      setLibrarySignalFilter(null);
+      cancelFocus();
+    }, [setActiveTab, cancelFocus]);
+    const clearAxisFilter = useCallback(() => {
+      setLibraryAxisFilter(null);
+      setPage(0);
+    }, []);
+    const filterToTag = useCallback((tag) => {
+      setLibraryTagFilter({ id: tag.id, name: tag.name });
+      setLibraryAxisFilter(null);
+      setActiveTab("library");
+      setPage(0);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setTrashView(false);
+      setLibraryNeedsReview(false);
+      setLibrarySignalFilter(null);
+      cancelFocus();
+    }, [setActiveTab, cancelFocus]);
+    const clearTagFilter = useCallback(() => {
+      setLibraryTagFilter(null);
+      setPage(0);
+    }, []);
+    const changeSort = useCallback((s) => {
+      setLibrarySort(s);
+      setPage(0);
+      try {
+        localStorage.setItem("callosum.librarySort", s);
+      } catch (e) {
+      }
+    }, []);
+    const changeReadingFilter = useCallback((next) => {
+      setLibraryReading(next);
+      setPage(0);
+    }, []);
+    const toggleNeedsReview = useCallback(() => {
+      setLibraryNeedsReview((v) => {
+        const next = !v;
+        if (next) {
+          setTrashView(false);
+          setLibraryAxisFilter(null);
+          setLibraryTagFilter(null);
+          setLibrarySignalFilter(null);
+          cancelFocus();
+        }
+        return next;
+      });
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setPage(0);
+    }, [cancelFocus]);
+    const clearNeedsReview = useCallback(() => {
+      setLibraryNeedsReview(false);
+      setPage(0);
+    }, []);
+    const showNeedsReview = useCallback(() => {
+      setLibraryNeedsReview(true);
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibrarySignalFilter(null);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setPage(0);
+    }, [cancelFocus]);
+    const showStatcheckFlagged = useCallback(() => {
+      setLibrarySignalFilter("statcheck-inconsistent");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      pendingSelectTopRef.current = true;
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setMethodsOpen("statcheck");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab, setMethodsOpen]);
+    const clearSignalFilter = useCallback(() => {
+      setLibrarySignalFilter(null);
+      setPage(0);
+    }, []);
+    const showRetractionFlagged = useCallback(() => {
+      setLibrarySignalFilter("retraction-retracted");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const clearViewFilters = useCallback(() => {
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibrarySignalFilter(null);
+    }, []);
+    const refreshStatcheckChip = useCallback(() => {
+      api("/methods/statcheck/summary").then((r) => {
+        if (r.ok) setStatcheckFlagged(r.data.flagged || 0);
+      });
+    }, []);
+    const refreshRetractionChip = useCallback(() => {
+      api("/methods/retraction/summary").then((r) => {
+        if (r.ok) setRetractionFlagged(r.data.retracted || 0);
+      });
+    }, []);
+    const [findingsByPaper, setFindingsByPaper] = useState({});
+    const [findingsRefresh, setFindingsRefresh] = useState(0);
+    useEffect(() => {
+      api("/findings/overview").then((r) => {
+        if (!r.ok) return;
+        const m = {};
+        r.data.forEach((o) => {
+          m[o.paper_id] = o;
+        });
+        setFindingsByPaper(m);
+      });
+    }, [findingsRefresh, libRefresh]);
+    const findingsToReview = Object.values(findingsByPaper).filter((o) => o.unreviewed_count > 0).length;
+    const showFindingsToReview = useCallback(() => {
+      setLibrarySignalFilter("needs-review");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const [savedSearches, setSavedSearches] = useState([]);
+    const loadSavedSearches = useCallback(() => {
+      api("/saved-searches").then((r) => {
+        if (r.ok) setSavedSearches(r.data || []);
+      });
+    }, []);
+    useEffect(() => {
+      loadSavedSearches();
+    }, [loadSavedSearches]);
+    const currentSearchParams = useCallback(() => ({
+      q: query,
+      search_field: librarySearchField,
+      item_type: libraryItemType,
+      axis: libraryAxisFilter ? { id: libraryAxisFilter.id, label: libraryAxisFilter.label || "", hideUncertain: !!libraryAxisFilter.hideUncertain } : null,
+      tag: libraryTagFilter ? { id: libraryTagFilter.id, name: libraryTagFilter.name || "" } : null,
+      needs_review: libraryNeedsReview,
+      signal: librarySignalFilter,
+      sort: librarySort
+    }), [query, librarySearchField, libraryItemType, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
+    const applySavedSearch = useCallback((p) => {
+      setQuery(p.q || "");
+      setDebounced(p.q || "");
+      setLibrarySearchField(p.search_field || "all");
+      setLibraryItemType(p.item_type || "");
+      setLibraryAxisFilter(p.axis ? { id: p.axis.id, label: p.axis.label, hideUncertain: !!p.axis.hideUncertain } : null);
+      setLibraryTagFilter(p.tag ? { id: p.tag.id, name: p.tag.name } : null);
+      setLibraryNeedsReview(!!p.needs_review);
+      setLibrarySignalFilter(p.signal || null);
+      setLibrarySort(p.sort || "added");
+      try {
+        localStorage.setItem("callosum.librarySort", p.sort || "added");
+      } catch (e) {
+      }
+      setTrashView(false);
+      setActiveTab("library");
+      setPage(0);
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      cancelFocus();
+    }, [setActiveTab, cancelFocus]);
+    const saveCurrentSearch = useCallback((name) => {
+      if (!name || !name.trim()) return;
+      apiPost("/saved-searches", { name: name.trim(), params: currentSearchParams() }).then((r) => {
+        if (r.ok) loadSavedSearches();
+      });
+    }, [currentSearchParams, loadSavedSearches]);
+    const deleteSavedSearch = useCallback((id) => {
+      apiDelete(`/saved-searches/${id}`).then((r) => {
+        if (r.ok) loadSavedSearches();
+      });
+    }, [loadSavedSearches]);
+    const rescanInFlight = useRef(false);
+    const lastRescan = useRef(0);
+    const triggerWatchedRescan = useCallback(() => {
+      if (!autoScanWatched || rescanInFlight.current) return;
+      if (Date.now() - lastRescan.current < 2e4) return;
+      rescanInFlight.current = true;
+      lastRescan.current = Date.now();
+      apiPost("/library/watched/rescan", {}).then((r) => {
+        if (!r.ok) {
+          rescanInFlight.current = false;
+          return;
+        }
+        const poll = (jobId) => api(`/library/watched/rescan/${jobId}`).then((rr) => {
+          if (!rr.ok) {
+            rescanInFlight.current = false;
+            return;
+          }
+          if (rr.data.status === "done") {
+            rescanInFlight.current = false;
+            const sm = rr.data.summary;
+            if (sm && (sm.added || sm.removed)) {
+              setLibRefresh((n) => n + 1);
+              setTagRefresh((n) => n + 1);
+            }
+          } else if (rr.data.status === "error") rescanInFlight.current = false;
+          else setTimeout(() => poll(jobId), 2e3);
+        });
+        poll(r.data.job_id);
+      });
+    }, [autoScanWatched, setTagRefresh]);
+    useEffect(() => {
+      triggerWatchedRescan();
+      const onFocus = () => triggerWatchedRescan();
+      window.addEventListener("focus", onFocus);
+      return () => window.removeEventListener("focus", onFocus);
+    }, [triggerWatchedRescan]);
+    useEffect(() => {
+      const t = setTimeout(() => {
+        setDebounced(query);
+        setPage(0);
+      }, 280);
+      return () => clearTimeout(t);
+    }, [query]);
+    useEffect(() => {
+      let live = true;
+      setListState((s) => ({ ...s, status: "loading" }));
+      const qs = new URLSearchParams({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
+      if (debounced.trim()) qs.set("q", debounced.trim());
+      if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
+      if (trashView) qs.set("deleted", "true");
+      if (libraryAxisFilter) {
+        qs.set("axis_id", libraryAxisFilter.id);
+        if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");
+      }
+      if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
+      if (libraryItemType) qs.set("item_type", libraryItemType);
+      if (libraryNeedsReview) qs.set("needs_review", "true");
+      if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");
+      else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+      if (libraryReading.read) qs.set("read_status", libraryReading.read);
+      if (libraryReading.priority) qs.set("priority", libraryReading.priority);
+      if (librarySort !== "added") qs.set("sort", librarySort);
+      api(`/papers?${qs.toString()}`).then((r) => {
+        if (!live) return;
+        if (r.ok) {
+          setListState({ status: "ready", papers: r.data });
+          if (pendingSelectTopRef.current) {
+            pendingSelectTopRef.current = false;
+            setSelected(r.data.length ? r.data[0].id : null);
+          }
+        } else setListState({ status: "error", error: r.error, papers: [] });
+      });
+      return () => {
+        live = false;
+      };
+    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryReading, librarySort, findingsRefresh, setSelected]);
+    useEffect(() => {
+      api("/papers/item-types").then((r) => {
+        if (r.ok) setItemTypes(r.data);
+      });
+    }, [libRefresh]);
+    useEffect(() => {
+      if (selected == null && !trashView && listState.status === "ready" && listState.papers.length > 0) {
+        setSelected(listState.papers[0].id);
+      }
+    }, [selected, trashView, listState, setSelected]);
+    useEffect(() => {
+      refreshStatcheckChip();
+    }, [refreshStatcheckChip]);
+    useEffect(() => {
+      refreshRetractionChip();
+    }, [refreshRetractionChip]);
+    const libraryBits = {
+      state: listState,
+      query,
+      onQuery: setQuery,
+      page,
+      onPage: setPage,
+      total: null,
+      trashView,
+      selectedLibraryIds,
+      librarySort,
+      onSortChange: changeSort,
+      librarySearchField,
+      onSearchFieldChange: (f) => {
+        setLibrarySearchField(f);
+        setPage(0);
+      },
+      libraryItemType,
+      itemTypes,
+      onItemTypeChange: (t) => {
+        setLibraryItemType(t);
+        setPage(0);
+      },
+      libraryReading,
+      onReadingFilter: changeReadingFilter,
+      onToggleLibrarySelect: toggleLibrarySelect,
+      onClearLibrarySelect: clearLibrarySelect,
+      onBulkDelete: bulkDeletePapers,
+      onBulkSummarize: bulkSummarizePapers,
+      onBulkPcurve: bulkPcurvePapers,
+      onBulkMerge: bulkMergePapers,
+      onBulkExport: bulkExportPapers,
+      onBulkBibliography: bulkBibliography,
+      onSelectAll: selectAllLibrary,
+      libraryAxisFilter,
+      onClearAxisFilter: clearAxisFilter,
+      libraryTagFilter,
+      onClearTagFilter: clearTagFilter,
+      libraryNeedsReview,
+      onToggleNeedsReview: toggleNeedsReview,
+      onClearNeedsReview: clearNeedsReview,
+      librarySignalFilter,
+      onClearSignalFilter: clearSignalFilter,
+      statcheckFlagged,
+      onShowStatcheckFlagged: showStatcheckFlagged,
+      retractionFlagged,
+      onShowRetractionFlagged: showRetractionFlagged,
+      findingsToReview,
+      onShowFindingsToReview: showFindingsToReview,
+      findingsByPaper,
+      onToggleTrash: toggleTrash,
+      onRestore: restorePaper,
+      onPurge: purgePaper,
+      onEmptyTrash: emptyTrash,
+      onCitationsRefreshed: () => setLibRefresh((n) => n + 1),
+      onEnriched: () => setLibRefresh((n) => n + 1),
+      savedSearches,
+      onApplySavedSearch: applySavedSearch,
+      onSaveSearch: saveCurrentSearch,
+      onDeleteSavedSearch: deleteSavedSearch
+    };
+    return {
+      libraryBits,
+      setLibRefresh,
+      pendingSummarize,
+      summarizePaperIds,
+      filterToTag,
+      filterToAxis,
+      clearViewFilters,
+      showNeedsReview,
+      showStatcheckFlagged,
+      showRetractionFlagged,
+      refreshStatcheckChip,
+      refreshRetractionChip,
+      setFindingsRefresh,
+      pcurvePapers,
+      setPcurvePapers,
+      mergeIds,
+      setMergeIds,
+      onMerged
+    };
+  }
   function _loadLayout(key, fallback) {
     try {
       const v = window.localStorage.getItem(key);
@@ -2726,6 +3212,8 @@
     libraryItemType,
     itemTypes,
     onItemTypeChange,
+    libraryReading,
+    onReadingFilter,
     onToggleLibrarySelect,
     onClearLibrarySelect,
     onBulkDelete,
@@ -2835,7 +3323,7 @@
         onChange: (e) => onQuery(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "citations_desc" }, "Most cited"), /* @__PURE__ */ React.createElement("option", { value: "priority" }, "By priority"), /* @__PURE__ */ React.createElement("option", { value: "unread" }, "Unread first"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), !trashView && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryReading && libraryReading.read || "", onChange: (e) => onReadingFilter({ ...libraryReading, read: e.target.value }), title: "Filter by read state" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Read: all"), /* @__PURE__ */ React.createElement("option", { value: "unread" }, "Unread"), /* @__PURE__ */ React.createElement("option", { value: "read" }, "Read")), !trashView && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryReading && libraryReading.priority || "", onChange: (e) => onReadingFilter({ ...libraryReading, priority: e.target.value }), title: "Filter by priority" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Priority: all"), /* @__PURE__ */ React.createElement("option", { value: "high" }, "High"), /* @__PURE__ */ React.createElement("option", { value: "normal" }, "Normal"), /* @__PURE__ */ React.createElement("option", { value: "low" }, "Low")), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "citations_desc" }, "Most cited"), /* @__PURE__ */ React.createElement("option", { value: "priority" }, "By priority"), /* @__PURE__ */ React.createElement("option", { value: "unread" }, "Unread first"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "bulk-focus",
@@ -7805,42 +8293,54 @@
       readingMode,
       toggleReading
     } = useUiPrefs();
-    const [listState, setListState] = useState({ status: "loading", papers: [] });
-    const [query, setQuery] = useState("");
-    const [debounced, setDebounced] = useState("");
-    const [page, setPage] = useState(0);
     const [selected, setSelected] = useState(null);
     const [tabs, setTabs] = useState([]);
     const [activeTab, setActiveTab] = useState("library");
     const [annoRefresh, setAnnoRefresh] = useState(0);
-    const [selectedLibraryIds, setSelectedLibraryIds] = useState(() => /* @__PURE__ */ new Set());
-    const [pendingSummarize, setPendingSummarize] = useState(null);
-    const [libraryAxisFilter, setLibraryAxisFilter] = useState(null);
-    const [libraryTagFilter, setLibraryTagFilter] = useState(null);
-    const [trashView, setTrashView] = useState(false);
-    const [libraryNeedsReview, setLibraryNeedsReview] = useState(false);
-    const [librarySignalFilter, setLibrarySignalFilter] = useState(null);
-    const [statcheckFlagged, setStatcheckFlagged] = useState(0);
-    const [retractionFlagged, setRetractionFlagged] = useState(0);
-    const [librarySort, setLibrarySort] = useState(() => {
-      try {
-        return localStorage.getItem("callosum.librarySort") || "added";
-      } catch (e) {
-        return "added";
-      }
-    });
-    const [librarySearchField, setLibrarySearchField] = useState("all");
-    const [libraryItemType, setLibraryItemType] = useState("");
-    const [itemTypes, setItemTypes] = useState([]);
-    const [libRefresh, setLibRefresh] = useState(0);
     const [queueRefresh, setQueueRefresh] = useState(0);
-    const pendingSelectTopRef = useRef(false);
     const [tagRefresh, setTagRefresh] = useState(0);
     const [duplicatesOpen, setDuplicatesOpen] = useState(false);
     const [wantedOpen, setWantedOpen] = useState(false);
     const [gapsOpen, setGapsOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
+    const cancelFocusRef = useRef(() => {
+    });
+    const setAxisRefreshRef = useRef(() => {
+    });
+    const lib = useLibrary({
+      selected,
+      setSelected,
+      setActiveTab,
+      cancelFocus: () => cancelFocusRef.current(),
+      setLeftOpen,
+      setTheoryOpen,
+      setMethodsOpen,
+      setSettingsOpen,
+      setTagRefresh,
+      setAxisRefresh: (fn) => setAxisRefreshRef.current(fn),
+      autoScanWatched
+    });
+    const {
+      libraryBits,
+      setLibRefresh,
+      pendingSummarize,
+      summarizePaperIds,
+      filterToTag,
+      filterToAxis,
+      clearViewFilters,
+      showNeedsReview,
+      showStatcheckFlagged,
+      showRetractionFlagged,
+      refreshStatcheckChip,
+      refreshRetractionChip,
+      setFindingsRefresh,
+      pcurvePapers,
+      setPcurvePapers,
+      mergeIds,
+      setMergeIds,
+      onMerged
+    } = lib;
     const {
       focusAxis,
       focusMembers,
@@ -7851,14 +8351,9 @@
       cancelFocus,
       toggleFocusPaper,
       saveFocus
-    } = useFocusMode({
-      setActiveTab,
-      onEnterClearFilters: () => {
-        setLibraryAxisFilter(null);
-        setLibraryTagFilter(null);
-        setLibrarySignalFilter(null);
-      }
-    });
+    } = useFocusMode({ setActiveTab, onEnterClearFilters: clearViewFilters });
+    cancelFocusRef.current = cancelFocus;
+    setAxisRefreshRef.current = setAxisRefresh;
     const openPdf = useCallback((paper, target) => {
       const key = "pdf:" + paper.id;
       const title = paper.title || "Paper " + paper.id;
@@ -7900,366 +8395,12 @@
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
-    const toggleLibrarySelect = useCallback((id) => {
-      setSelectedLibraryIds((prev) => {
-        const n = new Set(prev);
-        n.has(id) ? n.delete(id) : n.add(id);
-        return n;
-      });
-    }, []);
-    const clearLibrarySelect = useCallback(() => setSelectedLibraryIds(/* @__PURE__ */ new Set()), []);
-    const bulkDeletePapers = useCallback(() => {
-      const ids = [...selectedLibraryIds];
-      if (!ids.length) return;
-      if (!window.confirm(`Move ${ids.length} ${ids.length === 1 ? "paper" : "papers"} to Trash? You can restore from Trash.`)) return;
-      Promise.all(ids.map((id) => apiDelete(`/papers/${id}`))).then(() => {
-        setSelectedLibraryIds(/* @__PURE__ */ new Set());
-        setSelected((prev) => ids.includes(prev) ? null : prev);
-        setLibRefresh((n) => n + 1);
-      });
-    }, [selectedLibraryIds]);
-    const bulkSummarizePapers = useCallback((focus) => {
-      const ids = [...selectedLibraryIds];
-      if (!ids.length) return;
-      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1, focus: (focus || "").trim() || null }));
-      setLeftOpen(true);
-      setTheoryOpen("synthesis");
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-    }, [selectedLibraryIds]);
-    const [pcurvePapers, setPcurvePapers] = useState(null);
-    const bulkPcurvePapers = useCallback(() => {
-      const ids = [...selectedLibraryIds];
-      if (ids.length) {
-        setPcurvePapers(ids);
-        setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      }
-    }, [selectedLibraryIds]);
-    const [mergeIds, setMergeIds] = useState(null);
-    const bulkMergePapers = useCallback(() => {
-      const ids = [...selectedLibraryIds];
-      if (ids.length >= 2) setMergeIds(ids);
-    }, [selectedLibraryIds]);
-    const onMerged = useCallback((survivorId) => {
-      setMergeIds(null);
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setSelected(survivorId || null);
-      setLibRefresh((n) => n + 1);
-      setAxisRefresh((n) => n + 1);
-      setTagRefresh((n) => n + 1);
-    }, []);
-    const summarizePaperIds = useCallback((ids) => {
-      if (!ids || !ids.length) return;
-      setPendingSummarize((prev) => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
-      setLeftOpen(true);
-      setTheoryOpen("synthesis");
-    }, []);
-    const bulkExportPapers = useCallback((format) => downloadCitationExport([...selectedLibraryIds], format), [selectedLibraryIds]);
-    const bulkBibliography = useCallback((style) => downloadBibliography([...selectedLibraryIds], style), [selectedLibraryIds]);
-    const restorePaper = useCallback((id) => {
-      apiPost(`/papers/${id}/restore`, {}).then((r) => {
-        if (r.ok) setLibRefresh((n) => n + 1);
-      });
-    }, []);
-    const purgePaper = useCallback((id) => {
-      if (!window.confirm("Permanently delete this paper? This removes its text, highlights, and search index, and cannot be undone.")) return;
-      apiDelete(`/papers/${id}/permanent`).then((r) => {
-        if (r.ok) setLibRefresh((n) => n + 1);
-      });
-    }, []);
-    const emptyTrash = useCallback(() => {
-      if (!window.confirm("Permanently delete EVERY paper in Trash? This cannot be undone.")) return;
-      apiPost("/papers/trash/empty", {}).then((r) => {
-        if (r.ok) setLibRefresh((n) => n + 1);
-      });
-    }, []);
-    const toggleTrash = useCallback(() => {
-      setTrashView((v) => !v);
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setLibraryAxisFilter(null);
-      setLibraryTagFilter(null);
-      setLibraryNeedsReview(false);
-      setLibrarySignalFilter(null);
-      setPage(0);
-    }, []);
-    const filterToAxis = useCallback((axis) => {
-      setLibraryAxisFilter({ id: axis.id, label: axis.label, hideUncertain: !!axis.hideUncertain });
-      setLibraryTagFilter(null);
-      setActiveTab("library");
-      setPage(0);
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setTrashView(false);
-      setLibraryNeedsReview(false);
-      setLibrarySignalFilter(null);
-      cancelFocus();
-    }, [cancelFocus]);
-    const clearAxisFilter = useCallback(() => {
-      setLibraryAxisFilter(null);
-      setPage(0);
-    }, []);
-    const filterToTag = useCallback((tag) => {
-      setLibraryTagFilter({ id: tag.id, name: tag.name });
-      setLibraryAxisFilter(null);
-      setActiveTab("library");
-      setPage(0);
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setTrashView(false);
-      setLibraryNeedsReview(false);
-      setLibrarySignalFilter(null);
-      cancelFocus();
-    }, [cancelFocus]);
-    const clearTagFilter = useCallback(() => {
-      setLibraryTagFilter(null);
-      setPage(0);
-    }, []);
-    const selectAllLibrary = useCallback((ids) => setSelectedLibraryIds(new Set(ids)), []);
-    const changeSort = useCallback((s) => {
-      setLibrarySort(s);
-      setPage(0);
-      try {
-        localStorage.setItem("callosum.librarySort", s);
-      } catch (e) {
-      }
-    }, []);
-    const toggleNeedsReview = useCallback(() => {
-      setLibraryNeedsReview((v) => {
-        const next = !v;
-        if (next) {
-          setTrashView(false);
-          setLibraryAxisFilter(null);
-          setLibraryTagFilter(null);
-          setLibrarySignalFilter(null);
-          cancelFocus();
-        }
-        return next;
-      });
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setPage(0);
-    }, [cancelFocus]);
-    const clearNeedsReview = useCallback(() => {
-      setLibraryNeedsReview(false);
-      setPage(0);
-    }, []);
-    const showNeedsReview = useCallback(() => {
-      setLibraryNeedsReview(true);
-      setTrashView(false);
-      setLibraryAxisFilter(null);
-      setLibraryTagFilter(null);
-      setLibrarySignalFilter(null);
-      cancelFocus();
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setPage(0);
-    }, [cancelFocus]);
-    const showStatcheckFlagged = useCallback(() => {
-      setLibrarySignalFilter("statcheck-inconsistent");
-      setTrashView(false);
-      setLibraryAxisFilter(null);
-      setLibraryTagFilter(null);
-      setLibraryNeedsReview(false);
-      cancelFocus();
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      pendingSelectTopRef.current = true;
-      setSettingsOpen(false);
-      setActiveTab("library");
-      setMethodsOpen("statcheck");
-      setPage(0);
-    }, [cancelFocus, setMethodsOpen]);
-    const clearSignalFilter = useCallback(() => {
-      setLibrarySignalFilter(null);
-      setPage(0);
-    }, []);
-    const [savedSearches, setSavedSearches] = useState([]);
-    const loadSavedSearches = useCallback(() => {
-      api("/saved-searches").then((r) => {
-        if (r.ok) setSavedSearches(r.data || []);
-      });
-    }, []);
-    useEffect(() => {
-      loadSavedSearches();
-    }, [loadSavedSearches]);
-    const currentSearchParams = useCallback(() => ({
-      q: query,
-      search_field: librarySearchField,
-      item_type: libraryItemType,
-      axis: libraryAxisFilter ? { id: libraryAxisFilter.id, label: libraryAxisFilter.label || "", hideUncertain: !!libraryAxisFilter.hideUncertain } : null,
-      tag: libraryTagFilter ? { id: libraryTagFilter.id, name: libraryTagFilter.name || "" } : null,
-      needs_review: libraryNeedsReview,
-      signal: librarySignalFilter,
-      sort: librarySort
-    }), [query, librarySearchField, libraryItemType, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort]);
-    const applySavedSearch = useCallback((p) => {
-      setQuery(p.q || "");
-      setDebounced(p.q || "");
-      setLibrarySearchField(p.search_field || "all");
-      setLibraryItemType(p.item_type || "");
-      setLibraryAxisFilter(p.axis ? { id: p.axis.id, label: p.axis.label, hideUncertain: !!p.axis.hideUncertain } : null);
-      setLibraryTagFilter(p.tag ? { id: p.tag.id, name: p.tag.name } : null);
-      setLibraryNeedsReview(!!p.needs_review);
-      setLibrarySignalFilter(p.signal || null);
-      setLibrarySort(p.sort || "added");
-      try {
-        localStorage.setItem("callosum.librarySort", p.sort || "added");
-      } catch (e) {
-      }
-      setTrashView(false);
-      setActiveTab("library");
-      setPage(0);
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      cancelFocus();
-    }, [cancelFocus]);
-    const saveCurrentSearch = useCallback((name) => {
-      if (!name || !name.trim()) return;
-      apiPost("/saved-searches", { name: name.trim(), params: currentSearchParams() }).then((r) => {
-        if (r.ok) loadSavedSearches();
-      });
-    }, [currentSearchParams, loadSavedSearches]);
-    const deleteSavedSearch = useCallback((id) => {
-      apiDelete(`/saved-searches/${id}`).then((r) => {
-        if (r.ok) loadSavedSearches();
-      });
-    }, [loadSavedSearches]);
-    const refreshStatcheckChip = useCallback(() => {
-      api("/methods/statcheck/summary").then((r) => {
-        if (r.ok) setStatcheckFlagged(r.data.flagged || 0);
-      });
-    }, []);
-    const showRetractionFlagged = useCallback(() => {
-      setLibrarySignalFilter("retraction-retracted");
-      setTrashView(false);
-      setLibraryAxisFilter(null);
-      setLibraryTagFilter(null);
-      setLibraryNeedsReview(false);
-      cancelFocus();
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setSettingsOpen(false);
-      setActiveTab("library");
-      setPage(0);
-    }, [cancelFocus]);
-    const refreshRetractionChip = useCallback(() => {
-      api("/methods/retraction/summary").then((r) => {
-        if (r.ok) setRetractionFlagged(r.data.retracted || 0);
-      });
-    }, []);
-    const [findingsByPaper, setFindingsByPaper] = useState({});
-    const [findingsRefresh, setFindingsRefresh] = useState(0);
-    useEffect(() => {
-      api("/findings/overview").then((r) => {
-        if (!r.ok) return;
-        const m = {};
-        r.data.forEach((o) => {
-          m[o.paper_id] = o;
-        });
-        setFindingsByPaper(m);
-      });
-    }, [findingsRefresh, libRefresh]);
-    const findingsToReview = Object.values(findingsByPaper).filter((o) => o.unreviewed_count > 0).length;
-    const showFindingsToReview = useCallback(() => {
-      setLibrarySignalFilter("needs-review");
-      setTrashView(false);
-      setLibraryAxisFilter(null);
-      setLibraryTagFilter(null);
-      setLibraryNeedsReview(false);
-      cancelFocus();
-      setSelectedLibraryIds(/* @__PURE__ */ new Set());
-      setSettingsOpen(false);
-      setActiveTab("library");
-      setPage(0);
-    }, [cancelFocus]);
     useEffect(() => {
       api("/health").then((r) => {
         if (r.ok) setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
         else setConn({ state: "bad" });
       });
     }, []);
-    const rescanInFlight = useRef(false);
-    const lastRescan = useRef(0);
-    const triggerWatchedRescan = useCallback(() => {
-      if (!autoScanWatched || rescanInFlight.current) return;
-      if (Date.now() - lastRescan.current < 2e4) return;
-      rescanInFlight.current = true;
-      lastRescan.current = Date.now();
-      apiPost("/library/watched/rescan", {}).then((r) => {
-        if (!r.ok) {
-          rescanInFlight.current = false;
-          return;
-        }
-        const poll = (jobId) => api(`/library/watched/rescan/${jobId}`).then((rr) => {
-          if (!rr.ok) {
-            rescanInFlight.current = false;
-            return;
-          }
-          if (rr.data.status === "done") {
-            rescanInFlight.current = false;
-            const sm = rr.data.summary;
-            if (sm && (sm.added || sm.removed)) {
-              setLibRefresh((n) => n + 1);
-              setTagRefresh((n) => n + 1);
-            }
-          } else if (rr.data.status === "error") rescanInFlight.current = false;
-          else setTimeout(() => poll(jobId), 2e3);
-        });
-        poll(r.data.job_id);
-      });
-    }, [autoScanWatched]);
-    useEffect(() => {
-      triggerWatchedRescan();
-      const onFocus = () => triggerWatchedRescan();
-      window.addEventListener("focus", onFocus);
-      return () => window.removeEventListener("focus", onFocus);
-    }, [triggerWatchedRescan]);
-    useEffect(() => {
-      const t = setTimeout(() => {
-        setDebounced(query);
-        setPage(0);
-      }, 280);
-      return () => clearTimeout(t);
-    }, [query]);
-    useEffect(() => {
-      let live = true;
-      setListState((s) => ({ ...s, status: "loading" }));
-      const qs = new URLSearchParams({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
-      if (debounced.trim()) qs.set("q", debounced.trim());
-      if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
-      if (trashView) qs.set("deleted", "true");
-      if (libraryAxisFilter) {
-        qs.set("axis_id", libraryAxisFilter.id);
-        if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");
-      }
-      if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
-      if (libraryItemType) qs.set("item_type", libraryItemType);
-      if (libraryNeedsReview) qs.set("needs_review", "true");
-      if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");
-      else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
-      if (librarySort !== "added") qs.set("sort", librarySort);
-      api(`/papers?${qs.toString()}`).then((r) => {
-        if (!live) return;
-        if (r.ok) {
-          setListState({ status: "ready", papers: r.data });
-          if (pendingSelectTopRef.current) {
-            pendingSelectTopRef.current = false;
-            setSelected(r.data.length ? r.data[0].id : null);
-          }
-        } else setListState({ status: "error", error: r.error, papers: [] });
-      });
-      return () => {
-        live = false;
-      };
-    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, librarySort, findingsRefresh]);
-    useEffect(() => {
-      api("/papers/item-types").then((r) => {
-        if (r.ok) setItemTypes(r.data);
-      });
-    }, [libRefresh]);
-    useEffect(() => {
-      if (selected == null && !trashView && listState.status === "ready" && listState.papers.length > 0) {
-        setSelected(listState.papers[0].id);
-      }
-    }, [selected, trashView, listState]);
-    useEffect(() => {
-      refreshStatcheckChip();
-    }, [refreshStatcheckChip]);
-    useEffect(() => {
-      refreshRetractionChip();
-    }, [refreshRetractionChip]);
     const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
@@ -8332,76 +8473,20 @@
       LibraryFrame,
       {
         libraryProps: {
-          state: listState,
-          query,
-          onQuery: setQuery,
+          ...libraryBits,
           selected,
           onSelect: setSelected,
-          page,
-          onPage: setPage,
-          total: listState.status === "ready" ? null : null,
           focusAxis,
           focusMembers,
           focusPending,
           onToggleFocusPaper: toggleFocusPaper,
           onSaveFocus: saveFocus,
           onCancelFocus: cancelFocus,
-          trashView,
-          selectedLibraryIds,
-          librarySort,
-          onSortChange: changeSort,
-          librarySearchField,
-          onSearchFieldChange: (f) => {
-            setLibrarySearchField(f);
-            setPage(0);
-          },
-          libraryItemType,
-          itemTypes,
-          onItemTypeChange: (t) => {
-            setLibraryItemType(t);
-            setPage(0);
-          },
-          onToggleLibrarySelect: toggleLibrarySelect,
-          onClearLibrarySelect: clearLibrarySelect,
-          onBulkDelete: bulkDeletePapers,
-          onBulkSummarize: bulkSummarizePapers,
-          onBulkPcurve: bulkPcurvePapers,
-          onBulkMerge: bulkMergePapers,
-          onBulkExport: bulkExportPapers,
-          onBulkBibliography: bulkBibliography,
-          onSelectAll: selectAllLibrary,
-          libraryAxisFilter,
-          onClearAxisFilter: clearAxisFilter,
-          libraryTagFilter,
-          onClearTagFilter: clearTagFilter,
-          libraryNeedsReview,
-          onToggleNeedsReview: toggleNeedsReview,
-          onClearNeedsReview: clearNeedsReview,
-          librarySignalFilter,
-          onClearSignalFilter: clearSignalFilter,
-          statcheckFlagged,
-          onShowStatcheckFlagged: showStatcheckFlagged,
-          retractionFlagged,
-          onShowRetractionFlagged: showRetractionFlagged,
-          findingsToReview,
-          onShowFindingsToReview: showFindingsToReview,
-          findingsByPaper,
-          onToggleTrash: toggleTrash,
-          onRestore: restorePaper,
-          onPurge: purgePaper,
-          onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
-          onCitationsRefreshed: () => setLibRefresh((n) => n + 1),
-          onEnriched: () => setLibRefresh((n) => n + 1),
-          // A2/217: reload after the cited-by / metadata refresh
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),
-          onOpenImport: () => setImportOpen(true),
-          savedSearches,
-          onApplySavedSearch: applySavedSearch,
-          onSaveSearch: saveCurrentSearch,
-          onDeleteSavedSearch: deleteSavedSearch
+          onOpenImport: () => setImportOpen(true)
         },
         tabs,
         activeTab,
@@ -8444,48 +8529,7 @@
         onChanged: () => setLibRefresh((n) => n + 1),
         onMerge: (ids) => setMergeIds(ids)
       }
-    ), mergeIds && /* @__PURE__ */ React.createElement(
-      MergePapersModal,
-      {
-        ids: mergeIds,
-        onClose: () => setMergeIds(null),
-        onMerged
-      }
-    ), wantedOpen && /* @__PURE__ */ React.createElement(
-      WantedModal,
-      {
-        onClose: () => setWantedOpen(false),
-        onOpenPaper: openPdf,
-        onChanged: () => setLibRefresh((n) => n + 1)
-      }
-    ), gapsOpen && /* @__PURE__ */ React.createElement(
-      GapsModal,
-      {
-        onClose: () => setGapsOpen(false),
-        onChanged: () => setLibRefresh((n) => n + 1)
-      }
-    ), pcurvePapers && /* @__PURE__ */ React.createElement(
-      PcurveModal,
-      {
-        paperIds: pcurvePapers,
-        onClose: () => setPcurvePapers(null),
-        onOpenPaper: openPdf,
-        onChanged: () => setLibRefresh((n) => n + 1)
-      }
-    ), scanOpen && /* @__PURE__ */ React.createElement(
-      ScanModal,
-      {
-        onClose: () => setScanOpen(false),
-        onScanned: () => setLibRefresh((n) => n + 1),
-        onShowUnsorted: showNeedsReview
-      }
-    ), importOpen && /* @__PURE__ */ React.createElement(
-      ImportModal,
-      {
-        onClose: () => setImportOpen(false),
-        onImported: () => setLibRefresh((n) => n + 1)
-      }
-    ));
+    ), mergeIds && /* @__PURE__ */ React.createElement(MergePapersModal, { ids: mergeIds, onClose: () => setMergeIds(null), onMerged }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: () => setScanOpen(false), onScanned: () => setLibRefresh((n) => n + 1), onShowUnsorted: showNeedsReview }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: () => setImportOpen(false), onImported: () => setLibRefresh((n) => n + 1) }));
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
 })();

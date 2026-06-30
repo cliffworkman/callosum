@@ -42,6 +42,9 @@ register console/pageerror/request listeners on any opened page.
 5. `POST /papers/999999/read` and `…/priority` → **404**.
 6. (UI) On a library card, the read toggle (○ unread / ✓ read) flips on click; the **Priority ▾** badge opens a
    popover (High/Normal/Low/Clear) that sets the level. Clicking the markers never selects/opens the card.
+7. (UI, inc 221) The library header has a **Read** filter (all/unread/read) + a **Priority** filter (all/high/
+   normal/low) — both user facets (no score), live-library only. Filtering to Unread excludes read papers; to High
+   shows only high-priority. These compose with the other filters (the inc-221 useLibrary subsystem).
 
 ## Pass criteria
 

@@ -581,7 +581,7 @@ Each library card carries two personal markers you set **by hand** — they're y
 - **Read / unread:** a toggle on the card (○ unread → ✓ read). Marking a paper read is a manual choice — opening a PDF does **not** auto-mark it. (This is separate from the reading queue, where ✓ *removes* a paper.)
 - **Priority:** a **Priority ▾** badge on the card opens a small picker — **High / Normal / Low**, or **Clear**. Priority is your triage order, not a quality rating: a paper can be low-priority and excellent, or high-priority because it's due tomorrow.
 
-You can then **sort** the library by **"By priority"** (high → normal → low → unset) or **"Unread first"** from the Sort dropdown. Both markers live only on this machine.
+You can then **filter** the library to **Unread**/**Read** or to a priority level (the **Read** and **Priority** dropdowns in the library header), and/or **sort** by **"By priority"** (high → normal → low → unset) or **"Unread first"**. Both markers live only on this machine.
 
 Callosum can gather your own papers into a pinned **My Publications** axis at the top of the Axes panel.
 

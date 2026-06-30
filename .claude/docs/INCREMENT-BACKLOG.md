@@ -71,17 +71,14 @@ features (Cliff queued them; duplicate-detection + the Unsorted tab she also ask
 inc 80). Likely **one increment**: a tiny migration adding per-paper state + a library facet/sort + a card control.
 - **reading queue** — ✅ **SHIPPED inc 219** (the **Queue** tab — 3rd tab of the left-pane AXES section): a dedicated
   `reading_queue` table; drag-a-card / Details-button to add, drag-to-reorder, ✓-read / ×-remove.
-- **read / unread marker + priority markers** — ✅ **markers + sort SHIPPED inc 220** (`papers.read_at` + `papers.priority`;
-  a manual read toggle + a high/normal/low priority picker on each card [`16b_readmark.jsx`], a **"By priority"** + **"Unread
-  first"** sort, `read_status`/`priority` `GET /papers` filter params; user labels, never an AI score — the inc-207
-  declined-ratings logic). **▲ STILL OPEN — the library-HEADER filter facet** (an "Unread"/"High priority" filter *chip*
-  in the library header): **deferred because `40_app.jsx` is at the 600-line cap** (the filter state lives there). The
-  inc-220 experience pass (post-import-triager persona) found this **strands the retrieval half of triage** — you can mark
-  papers but can only *sort*, not *filter*, back to "what's unread / what's hot" — so bump it above generic backlog. It
-  needs the overdue **`40_app.jsx` split** first (extract the library filter/query state into a `useLibrary` hook, the
-  inc-128/167 pattern), then add the read/priority filter chips (+ fold them into saved-searches for completeness).
-  *(Minor, low-urgency: at large scale "By priority" collapses all unset papers into one bucket — a secondary order
-  [e.g. recency] within the unset tier would help. Experience-pass finding #4.)*
+- **read / unread marker + priority markers** — ✅ **SHIPPED inc 220 (markers + sort) + inc 221 (filter facet)**:
+  `papers.read_at` + `papers.priority`; a manual read toggle + a high/normal/low priority picker on each card
+  [`16b_readmark.jsx`]; **"By priority"** + **"Unread first"** sorts; and the **header Read/Priority filter facet**
+  (inc 221, after the `40_app.jsx`→`useLibrary` split that freed the headroom). User labels, never an AI score (the
+  inc-207 declined-ratings logic). **This completes Bella's reading-workflow thread** (queue 219 + markers 220 +
+  facet 221).
+  *(Minor, low-urgency, OPEN: at large scale "By priority" collapses all unset papers into one bucket — a secondary
+  order [e.g. recency] within the unset tier would help. Experience-pass finding #4.)*
 *(Eileen's multi-pass metadata enrichment — the other half of that thread — shipped inc 217/218.)*
 
 **SQLite read-then-write upgrade-deadlock — app-wide concurrency hardening** *(surfaced by the inc-219 headed

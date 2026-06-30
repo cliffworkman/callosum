@@ -308,7 +308,8 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
 function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, total, onOpenPdf,
                     focusAxis, focusMembers, focusPending, onToggleFocusPaper, onSaveFocus, onCancelFocus,
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
-                    libraryItemType, itemTypes, onItemTypeChange, onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
+                    libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
+                    onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
                     onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
@@ -444,6 +445,20 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <select className="lib-sort" value={libraryItemType} onChange={e => onItemTypeChange(e.target.value)} title="Filter by type">
               <option value="">All types</option>
               {itemTypes.map(t => <option key={t.item_type} value={t.item_type}>{_typeLabel(t.item_type)} ({t.count})</option>)}
+            </select>}
+          {/* inc 221: read + priority filter facets (your triage labels). Live library only. */}
+          {!trashView &&
+            <select className="lib-sort" value={(libraryReading && libraryReading.read) || ""} onChange={e => onReadingFilter({ ...libraryReading, read: e.target.value })} title="Filter by read state">
+              <option value="">Read: all</option>
+              <option value="unread">Unread</option>
+              <option value="read">Read</option>
+            </select>}
+          {!trashView &&
+            <select className="lib-sort" value={(libraryReading && libraryReading.priority) || ""} onChange={e => onReadingFilter({ ...libraryReading, priority: e.target.value })} title="Filter by priority">
+              <option value="">Priority: all</option>
+              <option value="high">High</option>
+              <option value="normal">Normal</option>
+              <option value="low">Low</option>
             </select>}
           <span className="lib-sort-label">Sort</span>
           <select className="lib-sort" value={librarySort} onChange={e => onSortChange(e.target.value)} title="Sort the library">
