@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 215** (see Increment workflow) with **748 pytest tests
+It is currently at **Increment 216** (see Increment workflow) with **763 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -233,7 +233,8 @@ callosum/
    │                          gaps [literature gap-finder, inc 135],discovery [Search providers, inc 183],settings [BYOK: Gemini key + egress
    │                          consent, inc 146],libreoffice [LO plugin install/download, inc 162],word [Word add-in
    │                          task pane + manifest serving, inc 164],sync [opt-in E2E sync: setup/settings/status/run,
-   │                          inc 202],help}.py [models + handlers])
+   │                          inc 202],agent [gated MCP write endpoints: tag/axis/reference/note + audit + revert, inc 216],
+   │                          help}.py [models + handlers])
 │   │   ├── persistence/           (schema.py [SQLAlchemy Core core tables] + schema_base.py [shared metadata] +
 │   │   │                          schema_findings.py [findings/signals/retraction/gap tables] + schema_feed.py
 │   │   │                          [feed_subscriptions/feed_items, inc 187] + schema_sync.py [sync_state/sync_conflicts/
@@ -247,7 +248,8 @@ callosum/
 │   │   │                          signals_repo.py [open_science_signals: statcheck + retraction status, inc 97/131],
 │   │   │                          watched_repo.py [watched_folders, inc 98],
    │   │                          findings_repo.py [paper_findings: FACT/CANDIDATE contract, inc 130],
-   │   │                          retraction_repo.py [retraction_records: local Retraction Watch mirror, inc 132])
+   │   │                          retraction_repo.py [retraction_records: local Retraction Watch mirror, inc 132],
+   │   │                          agent_repo.py [agent_writes: gated MCP-write audit log + revert, inc 216])
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
 │   │   │                          location.py, cli.py)
@@ -335,10 +337,12 @@ callosum/
 │                                  [GET/POST /sync/records + /health], README.md. Stores only OPAQUE AES-GCM blobs.
 ├── mcp_server/                    ← the read-first **MCP server** (backlog B1 SP1, inc 213): a SEPARATE stdio
 │                                  deployable (its own requirements.txt — `mcp` SDK + httpx; the app never imports it,
-│                                  it never imports the app — talks HTTP). client.py [CallosumClient: 5 read methods,
-│                                  injectable httpx, fail-closed], server.py [create_server(client)→FastMCP + 5 read
-│                                  tools], __main__.py [`python -m mcp_server`], README.md. Read-only by construction
-│                                  (hardcoded read-endpoint allowlist; no write/scan method). SP2 = gated writes.
+│                                  it never imports the app — talks HTTP). client.py [CallosumClient: 5 read methods +
+│                                  4 opt-in write methods, injectable httpx, fail-closed], server.py [create_server(client)
+│                                  →FastMCP; 5 read tools + 4 write tools registered only when agent_writes_enabled],
+│                                  __main__.py [`python -m mcp_server`], README.md. Reads = hardcoded allowlist; writes
+│                                  (SP2, inc 216) hit only the gated/audited/reversible `/agent/*` endpoints — no
+│                                  delete/scan/merge method anywhere.
 ├── research/                      (planning + research docs; Track-D acquisition rate-limit records)
 ├── ops/                           (deployment notes — planning state; gets real content pre-deploy)
 ├── tools/                         (validation_harness.py + validation/ [reports.py, report_renderer.py],
@@ -352,7 +356,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0021_feed)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0029_agent_writes)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -750,6 +754,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Gated MCP agent writes — additive + reversible + opt-in, no destructive route (backlog B1 SP2; inc 216) | Let an external agent (Claude Desktop/Cursor) **write** to the library through callosum — add a tag, add a paper to an axis, save a reference by DOI, add a note — while keeping callosum the provenance authority. **Human-in-loop model (maintainer's pick): review + revert after** — writes apply immediately but are **additive-only, reversible, `ai-agent`-stamped, and audited**; the agent host's native per-call confirmation is the in-the-moment gate (no elicitation, no approval queue — fragile/clunky, rejected). The **A4 value** ("the user owns every irreversible act") is honored *structurally*, not by a prompt: there is **no delete/overwrite/merge/scan agent route**, and `CallosumClient` exposes only the four write methods — an irreversible agent act is inexpressible (mirrors SP1's read-only allowlist). Writes gate on **`agent_writes_enabled`** (Settings → AI agent, **default OFF** → 403; `CALLOSUM_DISABLE_AGENT_WRITES=1` kill switch); each is recorded in **`agent_writes`** (migration 0029, guarded additive) and reverted from Settings (per-row + Revert-all; tag→remove, axis→remove, reference→soft-delete *only if agent-created*, note→delete; idempotent + dedup-safe). **`save_reference` is DOI-verified** — resolves against the audited Crossref client, **refuses an unresolvable DOI** (no fabrication), builds the paper from the resolved CSL stamped `ai-agent` (which is outside `_can_update_from_crossref`'s allowlist → never clobbered by a later enrich). **My-Publications axes are refused (422)** — authorship is the user's to assert (A-A no-accusation). New `routers/agent.py` (7 endpoints), `persistence/agent_repo.py` + `agent_writes` table, `app_settings` flag, `35_settings.jsx` `AgentSettings`; `mcp_server` gains `agent_status` + 4 write tools registered **only when enabled**. Egress: local DB mutations + a public DOI→Crossref lookup (NOT the Gemini library-text gate). Audit `2026-06-30_mcp-agent-writes.md` PASS; A4/A-A pass ran in the spec; code-level Principles non-triggering. No new app dependency (reuses the inc-213 `mcp` SDK + token). QA `route_47_agent_writes.md`; the live MCP↔host write round-trip is the maintainer's manual check. |
 | Read-first MCP server — a separate stdio deployable, read-only by construction (backlog B1 SP1; inc 213) | Expose callosum's own **MCP server** so an external agent (Claude Desktop / Cursor) uses the library **through** callosum — keeping callosum the provenance + grounding authority — rather than bypassing it as a dumb store. **Architecture = a thin stdio adapter over the running app, NOT a direct-DB reader:** new **`mcp_server/`** (a separate in-repo deployable mirroring `sync_server/` — the app never imports it, it never imports the app), where each `@mcp.tool()` makes **one HTTP call** to an existing callosum endpoint (`CALLOSUM_BASE_URL`, default loopback) via an **injectable httpx client** + shapes the response. Chosen over reading SQLite directly because it **reuses the audited endpoints + their honesty/egress contracts + the embedding/vector models already on `app.state`** (`find_passages` needs them), and literally keeps callosum the authority (every op runs callosum's own logic) — exactly B1's point, the `sync_server`-over-HTTP shape generalized. **SP1 = five read tools:** `search_library`→`GET /papers`, `get_paper`→`GET /papers/{id}`, `full_text_search`→`GET /papers/fulltext` (strips the U+E000/E001 FTS markers), **`find_passages`→`POST /citations/suggest {evaluate:false}`** (the grounding primitive — each passage carries its verbatim quote + page + `coordinate_precision`), `format_citation`→`POST /papers/export`. **Read-only is structural** — `CallosumClient` exposes only the five read methods (no write/scan/delete method exists); `test_server_only_issues_readonly_calls` drives every tool through a recording transport and asserts only the four allowlisted `(method,path)` pairs are ever issued. **`CALLOSUM_MCP_TOKEN`** (only when Remote access, inc 168, is on) is a write-only env→`Authorization: Bearer` header, never logged/returned. **No app change** → no migration, no new app endpoint, QA surface unchanged (145/145 API + 685/685 FE), no new QA route (the inc-157/170 external-adapter precedent). **GOTCHA:** this SDK's `FastMCP.call_tool` is shape-inconsistent by return type — a non-dict return is `(content, {"result": value})`, a dict return is a bare `list[TextContent]`; the test helper handles both. New dep `mcp>=1.2` (justified — can't speak MCP without the SDK; **fenced** in `mcp_server/requirements.txt`, dev-side for CI). Audit `2026-06-30_mcp-server.md` PASS; values gate ran in the spec (emergent value adopted deliberately; read-first carries evidence; default-off; SP1 mutates nothing; no A-A veto). pytest **+9** (`tests/test_mcp_server.py`, hermetic via `httpx.MockTransport`). **SP2 = gated writes** (provenance-stamped `imported_source="ai-agent"` + reversible + per-write confirmation + audit log; its own spec + a heavy A4/A-A pass). The live MCP↔host handshake is the maintainer's manual check. |
 | Curated Axis — a hand-populated `kind` on the axis primitive (backlog A7 SP1; inc 211) | An axis populated **by hand** rather than by keyword scoring — the bounded "manual container" the axis model needed, **without becoming a folder**. A curated axis is a normal `axes` row with a third **`kind="curated"`**; its members are the existing **all-`confidence IS NULL` (manual)** rows on its single cluster node, ordered by a new nullable **`cluster_node_papers.position`** (migration 0028). **Reusing `cluster_node_papers` is the load-bearing choice:** membership stays there, so the inc-63 synthesis filter, the A6 drop-to-add, and axis merge all keep working unchanged (vs the rejected separate-table / JSON-order forks). The "manual survives re-score" guarantee (`restore_manual_assignments`) makes a curated axis the limit case — all-manual, never scored. `axis_assignments.py` gains `freeze_to_curated` (keyword→curated: snapshot the **shown** members [assigned ≥ cutoff + manual], demote to manual + ordered, **drop the uncertain** — honors A10 *shown=frozen*; set kind) + `revert_to_keyword` (warned: members kept, position cleared, → stale) + `set_member_order`/`append_member_position`. `routers/axes.py`: `kind` on `POST /axes` + the `PATCH /axes/{id}` switch (standard↔curated only, never to/from my_publications) + **`PUT /axes/{id}/order`** (the full id list — SP2's drag reuses it). Frontend (`15_axes.jsx`, mirroring `isMyPubs`): hides the scoring row; a **📌** label cue + a neutral `.is-curated` badge (quiet `--accent-soft`); members in `position` order with per-row **↑/↓**; a 📌 toolbar create + a **❄ Freeze** / **↩ Convert** switch. **Principles aligned** (a transparently human-authored, score-free, inspectable set — #3/#7/#9; freeze explicit, revert warned; declined the "folder"/manual-hierarchy easy path). **No audit / no new dependency** (local column + local endpoints). **SP2** = swap ↑/↓ for drag-to-reorder (frontend-only, reuses `PUT …/order`). pytest **733** (+9); QA surface **145/145 API + 689/689 FE, 0 uncovered**; help corpus + DESIGN updated; headed-verified. `15_axes.jsx` 551. |
 | Library-wide per-paper citation counts via OpenAlex (backlog A2 close-out; inc 210) | Generalize the My-Pubs cited-by display (inc 119) to **every** library card: a **"Citations ↻"** header control → an async batch (`POST /papers/citation-counts/refresh`) fetches each live-with-DOI paper's OpenAlex `cited_by_count` → a verbatim **"N cited-by"** chip + an explicit opt-in **Most cited** sort. **The aligned shape is Example-3 (per-paper-number) by the book:** the count is shown **raw + attributed** ("per OpenAlex · as of <date>"), never a composite (#7); the citation sort is **explicit/user-invoked**, never the default or a silent reorder (#2); a no-DOI / no-record paper shows **no chip** — honest "—", never a fabricated 0 (#6; a genuine 0 shows "0 cited-by"); the source+date are **visible** on the control + each chip's tooltip (#8). **Migration 0027** adds a dedicated `paper_citation_counts` table (PK paper_id FK CASCADE; `retrieved_at` = the "as of") — kept OUT of the canonical `papers` row, like every other derived datum; additive/guarded/no-op-downgrade (the 0021 pattern). `OpenAlexClient.fetch_cited_by_count` rides the already-cached DOI fetch; `repository.list_papers` surfaces the count via correlated scalar subqueries (no JOIN → no row dup) + a `citations_desc` sort key (NULL last); `routers/citation_counts.py` is the async batch (registered **before** papers.router). Egress = DOI→OpenAlex (**public metadata, bounded/cached/on-demand** — #10), **NOT** the Gemini library-text gate. Audit `2026-06-29_citation-counts.md` PASS; **no new dependency** (reuses the OpenAlex adapter). Frontend reuses the inc-119 `.paper-cite` chip + `.trash-toggle` (no new CSS). pytest **724** (+5); QA surface **144/144 API + 679/679 FE, 0 uncovered** (`route_23_citation_counts.md`); help corpus updated; headed-verified. `40_app.jsx` stays 599/600 (the new prop folded onto an existing line). |
@@ -911,7 +916,46 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 215 (PDF highlight minimap — the last close-out dreg). A thin gutter beside the
+*Last updated: 2026-06-30 — increment 216 (B1 SP2 — gated MCP agent writes; brainstorm → spec → plan → built inline).
+The read-first MCP server (inc 213) gains **write** tools so an external agent (Claude Desktop/Cursor) can edit the
+library **through** callosum: **add a tag, add a paper to an axis, save a reference by DOI, add a note** — each
+**additive, reversible, `ai-agent`-stamped, and audited**, behind a **default-OFF opt-in**. The maintainer's
+human-in-loop model = **review + revert after** (writes apply immediately; the agent host's native per-call prompt is
+the in-the-moment gate — no elicitation, no approval queue), and **DOI-verified** `save_reference` (resolve via
+Crossref, refuse the unresolvable — no fabrication). **The A4 value ("the user owns every irreversible act") is
+honored structurally, not by a prompt:** there is **no delete/overwrite/merge/scan agent route**, and the MCP write
+client exposes only the four write methods → an irreversible agent act is inexpressible (mirrors SP1's read-only
+allowlist). **Backend:** `app_settings` gains `agent_writes_enabled` (default off; `CALLOSUM_DISABLE_AGENT_WRITES=1`
+kill switch) on `GET`/`PUT /settings`; **`agent_writes`** table (`schema_findings.py` → re-exported; **migration 0029**,
+guarded additive, no-op downgrade; `target_paper_id` has **no FK** so it outlives a purge) + `persistence/agent_repo.py`
+(record/list/get/mark-reverted/delete_note); **`routers/agent.py`** (NEW, included after settings) = 7 endpoints —
+`GET /agent/status`, the four writes (each gated by `_require_writes` → **403** when off), `GET /agent/writes`,
+`POST /agent/writes/{id}/revert`. Writes stamp `imported_source="ai-agent"` (`AI_AGENT_SOURCE`, outside the
+`_can_update_from_crossref` allowlist → never clobbered by a later enrich); **My-Publications axes are refused (422)**
+(authorship is the user's — A-A no-accusation); **`save_reference`** dedups, else resolves the DOI via the audited
+Crossref client + **422s the unresolvable**, building the paper from the resolved CSL. **Revert** dispatches per action
+(tag→remove, axis→remove, reference→soft-delete *only if agent-created* [a re-found paper is left live], note→delete),
+idempotent + dedup-safe. **MCP:** `mcp_server/client.py` gains `agent_status` + the four write methods; `server.py`
+registers the write tools **only when `agent_status()` is true**. **Frontend:** `35_settings.jsx` `AgentSettings` (the
+toggle + an activity list with per-row + Revert-all) + `.agent-activity*` CSS (tokens only); `callosum-app.html`
+rebuilt. **Audit `2026-06-30_mcp-agent-writes.md` PASS** (default-off gate proven by negative path; additive+reversible
+by construction; ai-agent provenance; authorship-boundary 422; bound-param SQL; DOI-verified → no SSRF, no fabrication;
+local mutations + a public DOI lookup, NOT the Gemini library-text gate; no new app dependency). **A4/A-A pass ran in
+the spec**; code-level **Principles non-triggering** (no new claim/signal). pytest **763 passed, 1 skipped** (+15:
+`tests/test_agent_writes.py` [repo round-trip + the gated endpoints + revert dispatch + My-Pubs-422 + DOI-verify +
+dedup-safe revert] + `test_settings.py` toggle + `test_mcp_server.py` write-tool registration/mapping/allowlist);
+`ruff` clean; migration head **0029** via `alembic_head()`; **QA surface 152/152 API** (+7 `/agent/*`; new
+`route_47_agent_writes.md`) **+ 693/693 FE, 0 uncovered**; help corpus + `mcp_server/README.md` cover the opt-in write
+tools (`HELP-DOCS-SYNCED` → 216). **Headed-verified, no egress** (`.local/visual/drive_inc216_agent_writes.py` — enable
+→ an agent tag-write → an activity row → Revert → the tag is removed + `reverted_at` set; 0 console/page/genai). **The
+live MCP↔host write round-trip is the maintainer's manual check** (configure Claude Desktop/Cursor per
+`mcp_server/README.md` with writes ON → the four write tools appear). Spec
+`…/specs/2026-06-30-mcp-agent-writes-design.md`; plan (gitignored) `.claude/backups/plans/2026-06-30_mcp-agent-writes-sp2.md`;
+notes `INCREMENT-216-NOTES.md`. **NEXT (the remaining backlog is design-gated B-items):** B2 collaboration/shared
+libraries (≈ accounts SP4), B3 OCR, B4 citation-context classifier, B5 mobile reading — each its own brainstorm + the
+maintainer's pick.
+
+Earlier — increment 215 (PDF highlight minimap — the last close-out dreg). A thin gutter beside the
 PDF page-scroller shows one tick per highlight, click-to-jump — the reading-pane bit the maintainer picked. New
 `MinimapTrack({annotations, numPages, onJump})` in `js/30_viewer.jsx` (module-level, IIFE-hoisted): a `.pdf-minimap`
 track with a `.pdf-minimap-tick` per annotation, positioned by **page fraction** (`top = ((page-1+0.5)/numPages)%`,
