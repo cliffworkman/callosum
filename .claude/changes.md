@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-30 inc 211 — axes section: a "Curated axes (hand-picked, hand-ordered)" paragraph -->
+<!-- HELP-DOCS-SYNCED 2026-06-30 inc 212 — axes section: curated reorder is now drag-by-grip (was ↑/↓) -->
+## 2026-06-30 — Increment 212: A7 SP2 — drag-to-reorder curated members
+- **Files:** `app/frontend/js/15_axes.jsx` (↑/↓ → a ⠿ grip + HTML5 drag-source/drop-target rows; `reorderToIndex`
+  replaces `reorderPaper`) + `styles.css` (`.axis-grip` + `.axis-member-drag.dragover`) + `callosum-app.html`
+  (rebuilt); `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_15_axes.md`,
+  CLAUDE, `.claude/docs/INCREMENT-BACKLOG.md`, `INCREMENT-212-NOTES.md`.
+- **What:** curated-axis members reorder by **dragging the ⠿ grip** (was per-row ↑/↓). Member-drag uses a distinct
+  MIME (`…-axismember`) so it never triggers the A6 card-level drop-to-add; reuses `PUT /axes/{id}/order`.
+- **Why:** A7 SP2 — the drag-reorder the spec planned; completes the Curated Axis feature (and the A1–A10 list).
+- **Gates:** **frontend-only** — pytest unchanged (733/1 skipped; `test_frontend_assembly` in sync); ruff clean;
+  **no backend/endpoint/migration/audit/dependency**; QA surface **145/145 API + 685/685 FE, 0 uncovered**.
+  Headed-verified (`.local/visual/drive_inc212_dragreorder.py` — drag Alpha onto Gamma → [Beta,Alpha,Gamma],
+  persists across reload, no ↑/↓ remain; 0 console/page/genai). `15_axes.jsx` 562.
+- **Revert:** `git revert` the inc-212 commit (frontend-only; no schema/endpoint change).
+
 ## 2026-06-30 — Increment 211: A7 SP1 — the Curated Axis primitive
 - **Files:** `alembic/versions/0028_cluster_node_paper_position.py` (NEW) + `persistence/schema.py` (the column),
   `clustering/axis_assignments.py` (`CURATED_KIND`/`CREATABLE_KINDS`, `append_member_position`, `set_member_order`,

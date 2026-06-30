@@ -553,9 +553,10 @@
   /* A7 (inc 211): a curated axis has no scoring state — a quiet accent tint (a deliberate hand-built set),
      distinct from the neutral unscored grey and the green scored / amber stale. */
   .axis-count-badge.is-curated { background: var(--accent-soft); color: var(--accent); }
-  /* A7: per-row ↑/↓ reorder on a curated axis (compact; reuses .axis-icon-btn). */
-  .axis-reorder { display: inline-flex; gap: 0; flex: none; margin-right: 2px; }
-  .axis-reorder .axis-icon-btn { font-size: 11px; padding: 0 2px; line-height: 1; }
+  /* A7 SP2 (inc 212): drag-to-reorder a curated axis's members — a grip handle + a drop indicator. */
+  .axis-grip { flex: none; margin-right: 4px; color: var(--ink-3); cursor: grab; font-size: 12px; user-select: none; }
+  .axis-member-drag { cursor: grab; }
+  .axis-member-drag.dragover { box-shadow: inset 0 2px 0 var(--accent); }  /* a top accent line = "drop here" */
   .axis-curated-hint { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
 
   /* axis re-score row + cutoff flipper (inc 45) */

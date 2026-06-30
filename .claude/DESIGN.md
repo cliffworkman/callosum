@@ -177,9 +177,9 @@ is at a premium.
 hand-ordered; `kind="curated"`) is distinguished by a **📌 prefix on the label** (the established cue
 pattern — My-Pubs uses 📄), plus `.axis-count-badge.is-curated` = a **quiet `--accent-soft` tint** (a
 deliberate hand-built set — distinct from the neutral unscored grey and the green-scored / amber-stale of a
-keyword axis; it has no scoring state). Per-row reorder arrows reuse `.axis-icon-btn` inside `.axis-reorder`
-(compact). The cue is deliberately *subtle* (per §A7); the curated axis is the umbrella "Axis", never a
-"folder".
+keyword axis; it has no scoring state). Members reorder by **dragging the ⠿ grip** (`.axis-grip`; inc 212 — each
+`.axis-member-drag` row is an HTML5 drag source + drop target; `.dragover` = an inset top `--accent` line). The
+cue is deliberately *subtle* (per §A7); the curated axis is the umbrella "Axis", never a "folder".
 
 ### Hover (rows/cards)
 List rows + cards darken to a warm neutral on hover (`.axis:hover`, `.cluster:hover`, `.frame-tab:hover`,

@@ -16,16 +16,12 @@ function AxisTierBadge({ status }) {
   return <span className={"axis-tier axis-tier-" + label}>{label}</span>;
 }
 
-function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated, onMoveUp, onMoveDown }) {
-  // A7 (inc 211): a curated row shows reorder arrows + title + remove — no tier/confidence (every member is a
-  // hand-pick by definition, so the "manual" badge would be noise). A keyword row keeps the honesty tier UI.
+function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated }) {
+  // A7: a curated row shows a drag grip (inc 212 — reorder by dragging) + title + remove — no tier/confidence
+  // (every member is a hand-pick by definition, so the "manual" badge would be noise). Keyword rows keep the tiers.
   return (
     <div className={"axis-paper" + (selected ? " sel" : "")}>
-      {curated &&
-        <span className="axis-reorder">
-          <button className="axis-icon-btn" title="Move up" disabled={!onMoveUp} onClick={() => onMoveUp && onMoveUp()}>↑</button>
-          <button className="axis-icon-btn" title="Move down" disabled={!onMoveDown} onClick={() => onMoveDown && onMoveDown()}>↓</button>
-        </span>}
+      {curated && <span className="axis-grip" title="Drag to reorder">⠿</span>}
       {onStar &&
         <button className={"axis-star" + (paper.starred ? " on" : "")}
           title={paper.starred ? "Starred — click to unstar" : "Star this key publication (scopes the AI summary)"}
@@ -77,6 +73,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   // A6 (inc 206): a library card dragged onto a (non-My-Pubs) axis card manually adds it. My-Pubs is authorship-
   // resolved (✓/✕ only), so it's never a drop target. The drag payload rides the native dataTransfer (cross-pane).
   const [dragOver, setDragOver] = useState(false);
+  const [dragMemberOver, setDragMemberOver] = useState(null);  // A7 SP2 (inc 212): the member row a drag is hovering
   const canDrop = !isMyPubs;
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
@@ -97,13 +94,26 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   // inc 118 (SP2 #16/#17): filter + sort (starred-first for My-Pubs), then group My-Pubs rows by domain ("Other" last).
   const renderPapers = (allPapers) => {
     if (isCurated) {
-      // A7: render in the server's manual (position) order — with per-row ↑/↓ reorder (SP2 swaps for drag).
-      return allPapers.map((p, i) => (
-        <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id} curated
-          onOpen={handlers.openPaper}
-          onRemove={(pid) => handlers.removePaper(axis.id, pid)}
-          onMoveUp={i > 0 ? () => handlers.reorderPaper(axis.id, p.id, -1) : undefined}
-          onMoveDown={i < allPapers.length - 1 ? () => handlers.reorderPaper(axis.id, p.id, 1) : undefined} />
+      // A7 SP2 (inc 212): render in the server's manual (position) order, drag-to-reorder. Each row is a drag
+      // source + drop target via a member-only MIME (distinct from A6's "…-paper" so the card-level drop-to-add
+      // never fires); dropping moves the dragged member to the target row's position → PUT /axes/{id}/order.
+      const MEMBER_MIME = "application/x-callosum-axismember";
+      return allPapers.map((p) => (
+        <div key={p.id}
+          className={"axis-member-drag" + (dragMemberOver === p.id ? " dragover" : "")}
+          draggable
+          onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData(MEMBER_MIME, String(p.id)); e.dataTransfer.effectAllowed = "move"; }}
+          onDragOver={e => { if (e.dataTransfer.types.includes(MEMBER_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragMemberOver(p.id); } }}
+          onDragLeave={() => setDragMemberOver(o => (o === p.id ? null : o))}
+          onDrop={e => {
+            setDragMemberOver(null);
+            const dragged = parseInt(e.dataTransfer.getData(MEMBER_MIME), 10);
+            if (dragged && dragged !== p.id) { e.preventDefault(); e.stopPropagation(); handlers.reorderToIndex(axis.id, dragged, p.id); }
+          }}>
+          <AxisPaperRow paper={p} selected={selectedPaper === p.id} curated
+            onOpen={handlers.openPaper}
+            onRemove={(pid) => handlers.removePaper(axis.id, pid)} />
+        </div>
       ));
     }
     const sorted = [...allPapers]
@@ -380,15 +390,16 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     });
   }, [axes, loadDetail, loadAxes, flash]);
 
-  // A7 (inc 211): ↑/↓ reorder a curated axis's members. Swap the paper with its neighbor in the current
-  // (server position) order and PUT the full id list; the endpoint reuses this for SP2's drag-reorder.
-  const reorderPaper = useCallback((axisId, paperId, dir) => {
+  // A7 SP2 (inc 212): drag-to-reorder a curated axis's members. Move `draggedId` to `targetId`'s slot in the
+  // current (server position) order and PUT the full id list (the endpoint validates it == the member set).
+  const reorderToIndex = useCallback((axisId, draggedId, targetId) => {
     const cur = (details[axisId] && details[axisId].papers) || [];
     const order = cur.map(p => p.id);
-    const i = order.indexOf(paperId);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= order.length) return;
-    [order[i], order[j]] = [order[j], order[i]];
+    const from = order.indexOf(draggedId);
+    if (from < 0 || draggedId === targetId) return;
+    order.splice(from, 1);
+    const to = order.indexOf(targetId);
+    order.splice(to < 0 ? order.length : to, 0, draggedId);
     apiPut(`/axes/${axisId}/order`, { paper_ids: order }).then(r => {
       if (!r.ok) { flash(r.error); return; }
       loadDetail(axisId);
@@ -481,7 +492,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   const handlers = {
     toggle, score, remove, removePaper, confirmPaper, dropPaper, dismissMyPubs, enterFocus, filterToAxis,
     openMyPubsDashboard, starPaper, toggleSelect, openEdit, openPaper,
-    reorderPaper, freeze, convertToKeyword,  // A7 (inc 211): curated-axis reorder + freeze/revert switch
+    reorderToIndex, freeze, convertToKeyword,  // A7: curated-axis drag-reorder (SP2) + freeze/revert switch
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 211** (see Increment workflow) with **733 pytest tests
+It is currently at **Increment 212** (see Increment workflow) with **733 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -898,7 +898,28 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 211 (A7 SP1 — the Curated Axis primitive; the last A-item, brainstormed →
+*Last updated: 2026-06-30 — increment 212 (A7 SP2 — drag-to-reorder curated members; the frontend-only follow-on
+that **completes A7**, and with it the **entire competitive-benchmark A-list, A1–A10**). The inc-211 per-row **↑/↓**
+reorder is replaced by **HTML5 drag-to-reorder**: a curated member row shows a **⠿ grip** (`.axis-grip`) and each
+`.axis-member-drag` wrapper is a drag **source + drop target** via a member-only MIME
+**`application/x-callosum-axismember`** (distinct from A6's `…-paper`, so dragging a member never triggers the
+card-level drop-to-add). Dropping member X onto Y moves X to Y's slot → `reorderToIndex` (splice on the current
+`position` order) → **`PUT /axes/{id}/order`** (the inc-211 endpoint, reused unchanged — **no backend change**); a
+`dragMemberOver` state drives a `.dragover` drop indicator (inset top `--accent` line). **Frontend-only** — `15_axes.jsx`
+(↑/↓ → grip + DnD; `reorderToIndex` replaces `reorderPaper`) + `styles.css` (`.axis-grip` + `.axis-member-drag.dragover`,
+replacing `.axis-reorder`). **No migration / no new endpoint / no audit / no dependency.** **Principles non-triggering**
+(a reorder interaction over an existing endpoint). pytest unchanged (**733 passed, 1 skipped** — a frontend-only edit;
+`test_frontend_assembly` confirms the rebuilt `callosum-app.html` is in sync; CI re-runs the full suite); `ruff` clean;
+**QA surface 145/145 API + 685/685 FE, 0 uncovered** (FE −4 = the removed ↑/↓ buttons; `route_15_axes.md`'s curated
+step updated to the drag mechanism). help corpus's curated paragraph now says "drag a member by its ⠿ grip"
+(`HELP-DOCS-SYNCED` → 212); DESIGN.md records the grip/drag recipe. **Headed-verified, no egress**
+(`.local/visual/drive_inc212_dragreorder.py` — a curated axis [Alpha,Beta,Gamma]; drag Alpha onto Gamma → [Beta,Alpha,
+Gamma], **persists across a reload**; no ↑/↓ remain; 0 console/page/genai). **Rule-#1:** `js/15_axes.jsx` ends at
+**562**. Notes: `INCREMENT-212-NOTES.md`. **This completes A7 (SP1 inc 211 + SP2 inc 212) and the A1–A10 list. NEXT:**
+the deferred **B-items** — B1 read-first/write-gated MCP server, B4 citation-context classifier, B2 collaboration/
+shared libraries, B3 OCR, B5 mobile reading — each a larger, own design pass (a brainstorm + the maintainer's pick).
+
+Earlier — increment 211 (A7 SP1 — the Curated Axis primitive; the last A-item, brainstormed →
 spec'd → planned → built, decomposed into SP1 [this] + SP2 [drag-reorder follow-on]). A **curated axis** is an axis
 populated **by hand** rather than by keyword scoring — the bounded, ordered "manual container" the axis model needed,
 **without becoming a folder**. **Architecture:** a curated axis is a normal `axes` row with a third **`kind="curated"`**;

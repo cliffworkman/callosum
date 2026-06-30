@@ -577,9 +577,10 @@
   /* A7 (inc 211): a curated axis has no scoring state — a quiet accent tint (a deliberate hand-built set),
      distinct from the neutral unscored grey and the green scored / amber stale. */
   .axis-count-badge.is-curated { background: var(--accent-soft); color: var(--accent); }
-  /* A7: per-row ↑/↓ reorder on a curated axis (compact; reuses .axis-icon-btn). */
-  .axis-reorder { display: inline-flex; gap: 0; flex: none; margin-right: 2px; }
-  .axis-reorder .axis-icon-btn { font-size: 11px; padding: 0 2px; line-height: 1; }
+  /* A7 SP2 (inc 212): drag-to-reorder a curated axis's members — a grip handle + a drop indicator. */
+  .axis-grip { flex: none; margin-right: 4px; color: var(--ink-3); cursor: grab; font-size: 12px; user-select: none; }
+  .axis-member-drag { cursor: grab; }
+  .axis-member-drag.dragover { box-shadow: inset 0 2px 0 var(--accent); }  /* a top accent line = "drop here" */
   .axis-curated-hint { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
 
   /* axis re-score row + cutoff flipper (inc 45) */
@@ -3110,8 +3111,8 @@
     const label = status === "uncertain" ? "uncertain" : "manual";
     return /* @__PURE__ */ React.createElement("span", { className: "axis-tier axis-tier-" + label }, label);
   }
-  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated, onMoveUp, onMoveDown }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && /* @__PURE__ */ React.createElement("span", { className: "axis-reorder" }, /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Move up", disabled: !onMoveUp, onClick: () => onMoveUp && onMoveUp() }, "\u2191"), /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Move down", disabled: !onMoveDown, onClick: () => onMoveDown && onMoveDown() }, "\u2193")), onStar && /* @__PURE__ */ React.createElement(
+  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"), onStar && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-star" + (paper.starred ? " on" : ""),
@@ -3147,6 +3148,7 @@
     const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
     const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
     const [dragOver, setDragOver] = useState(false);
+    const [dragMemberOver, setDragMemberOver] = useState(null);
     const canDrop = !isMyPubs;
     const stop = (fn) => (e) => {
       e.stopPropagation();
@@ -3176,18 +3178,46 @@
     });
     const renderPapers = (allPapers) => {
       if (isCurated) {
-        return allPapers.map((p, i) => /* @__PURE__ */ React.createElement(
-          AxisPaperRow,
+        const MEMBER_MIME = "application/x-callosum-axismember";
+        return allPapers.map((p) => /* @__PURE__ */ React.createElement(
+          "div",
           {
             key: p.id,
-            paper: p,
-            selected: selectedPaper === p.id,
-            curated: true,
-            onOpen: handlers.openPaper,
-            onRemove: (pid) => handlers.removePaper(axis.id, pid),
-            onMoveUp: i > 0 ? () => handlers.reorderPaper(axis.id, p.id, -1) : void 0,
-            onMoveDown: i < allPapers.length - 1 ? () => handlers.reorderPaper(axis.id, p.id, 1) : void 0
-          }
+            className: "axis-member-drag" + (dragMemberOver === p.id ? " dragover" : ""),
+            draggable: true,
+            onDragStart: (e) => {
+              e.stopPropagation();
+              e.dataTransfer.setData(MEMBER_MIME, String(p.id));
+              e.dataTransfer.effectAllowed = "move";
+            },
+            onDragOver: (e) => {
+              if (e.dataTransfer.types.includes(MEMBER_MIME)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragMemberOver(p.id);
+              }
+            },
+            onDragLeave: () => setDragMemberOver((o) => o === p.id ? null : o),
+            onDrop: (e) => {
+              setDragMemberOver(null);
+              const dragged = parseInt(e.dataTransfer.getData(MEMBER_MIME), 10);
+              if (dragged && dragged !== p.id) {
+                e.preventDefault();
+                e.stopPropagation();
+                handlers.reorderToIndex(axis.id, dragged, p.id);
+              }
+            }
+          },
+          /* @__PURE__ */ React.createElement(
+            AxisPaperRow,
+            {
+              paper: p,
+              selected: selectedPaper === p.id,
+              curated: true,
+              onOpen: handlers.openPaper,
+              onRemove: (pid) => handlers.removePaper(axis.id, pid)
+            }
+          )
         ));
       }
       const sorted = [...allPapers].filter((p) => !hideUncertain || p.status !== "uncertain").sort((a, b) => (isMyPubs ? (b.starred ? 1 : 0) - (a.starred ? 1 : 0) : 0) || _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0));
@@ -3437,13 +3467,14 @@
         loadAxes();
       });
     }, [axes, loadDetail, loadAxes, flash]);
-    const reorderPaper = useCallback((axisId, paperId, dir) => {
+    const reorderToIndex = useCallback((axisId, draggedId, targetId) => {
       const cur = details[axisId] && details[axisId].papers || [];
       const order = cur.map((p) => p.id);
-      const i = order.indexOf(paperId);
-      const j = i + dir;
-      if (i < 0 || j < 0 || j >= order.length) return;
-      [order[i], order[j]] = [order[j], order[i]];
+      const from = order.indexOf(draggedId);
+      if (from < 0 || draggedId === targetId) return;
+      order.splice(from, 1);
+      const to = order.indexOf(targetId);
+      order.splice(to < 0 ? order.length : to, 0, draggedId);
       apiPut(`/axes/${axisId}/order`, { paper_ids: order }).then((r) => {
         if (!r.ok) {
           flash(r.error);
@@ -3548,10 +3579,10 @@
       toggleSelect,
       openEdit,
       openPaper,
-      reorderPaper,
+      reorderToIndex,
       freeze,
       convertToKeyword
-      // A7 (inc 211): curated-axis reorder + freeze/revert switch
+      // A7: curated-axis drag-reorder (SP2) + freeze/revert switch
     };
     const sortedAxes = axes ? [...axes].sort((a, b) => {
       if (sortBy === "count") return (b.assignment_count || 0) - (a.assignment_count || 0) || a.label.localeCompare(b.label);
