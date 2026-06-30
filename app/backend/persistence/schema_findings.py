@@ -112,3 +112,19 @@ paper_citation_counts = Table(
     Column("source", String(40), nullable=False),
     Column("retrieved_at", DateTime, nullable=False, server_default=func.current_timestamp()),
 )
+
+# B1 SP2 (agent writes): the audit log of every MCP-agent write — action + target + enough detail to undo,
+# backing the Settings "AI agent activity" review + one-click revert (migration 0029, additive/guarded). NOT a
+# FK to papers — the audit history outlives a purged paper. `detail_json` carries the args + created/affected ids.
+agent_writes = Table(
+    "agent_writes",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    Column("action", String(20), nullable=False),  # 'tag' | 'axis' | 'reference' | 'note'
+    Column("target_paper_id", Integer),
+    Column("tool", String(40)),
+    Column("detail_json", JSON, nullable=False),
+    Column("reverted_at", DateTime),
+    Index("ix_agent_writes_created", "created_at"),
+)
