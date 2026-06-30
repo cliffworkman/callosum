@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Increment 222: split 15_axes.jsx (axis-card subsystem → 15b_axis_card.jsx) — clears the last over-cap file
+- **Files:** `app/frontend/js/15b_axis_card.jsx` (new, 224), `app/frontend/js/15_axes.jsx` (614→**395**), `.claude/qa-routes/route_15_axes.md` (`fe:` += `15b_axis_card.jsx`), CLAUDE, `INCREMENT-222-NOTES.md`. (callosum-app.html rebuilt.)
+- **What:** a behavior-preserving rule-#1 split — moved the **axis-card rendering subsystem** verbatim out of `15_axes.jsx`: `AxisItem` (the one-axis card, 166 lines) + its presentational helpers (`axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/`_tierRank`) → `15b_axis_card.jsx`. `15_axes.jsx` keeps `MyPubsPrompt` + `AxesPanel` (state/loaders/handlers/sort-filter/modals) + `registerPaneTab`. Works via the cross-chunk function hoist in the shared esbuild IIFE (the inc-208 `10b_libmenus.jsx` precedent); cut by a deterministic line-range script with per-function boundary assertions.
+- **Why:** clear the long-flagged `15_axes.jsx` 600-cap violation (614 since inc 211/212) — the last over-cap file; the tree is now fully under the cap.
+- **Verify:** baseline-then-after on `drive_inc212_dragreorder.py` (curated path) + `drive_inc204_hide_uncertain.py` (keyword path) — both **GREEN before and after**, 0 console/page/genai. pytest **785** unchanged (`test_frontend_assembly` 5/5); ruff + format clean; QA **161/161 API + 719/719 FE, 0 uncovered**.
+- **Revert:** `git revert <sha>` (frontend-only; restores the merged `15_axes.jsx`).
+
 ## 2026-06-30 — Increment 221: the 40_app.jsx split (useLibrary) + the read/priority filter facet
 <!-- HELP-DOCS-SYNCED 2026-06-30 inc 221 — the read/priority help section now covers filtering (not just sorting) -->
 - **Files:** `app/frontend/js/03_library.jsx` (new — the `useLibrary` hook), `app/frontend/js/40_app.jsx` (599→**212**: calls useLibrary + breaks the focus↔library cycle with two refs), `app/frontend/js/10_pdf_layer.jsx` (PaperList gains `libraryReading`/`onReadingFilter` + the Read/Priority filter dropdowns), help corpus, `.claude/qa-routes/route_50_reading_markers.md`, `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-221-NOTES.md`. (callosum-app.html rebuilt.)

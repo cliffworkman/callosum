@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /axes*
-fe: 14_axes_edit.jsx, 15_axes.jsx, 16_axes_merge.jsx, 17_axes_suggest.jsx
+fe: 14_axes_edit.jsx, 15_axes.jsx, 15b_axis_card.jsx, 16_axes_merge.jsx, 17_axes_suggest.jsx
 -->
 
 # ROUTE 15 - Axes, assignments, merge, and suggestions

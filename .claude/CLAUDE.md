@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 221** (see Increment workflow) with **785 pytest tests
+It is currently at **Increment 222** (see Increment workflow) with **785 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -391,10 +391,12 @@ shared/core code loading first.
 **Exempt-but-watched:** `tests/` and `tools/` (the validation harness is allowed to be large),
 and non-code (Markdown, SQL, config).
 
-**Standing split tasks:** ⚠ **`app/frontend/js/15_axes.jsx` is 614 (>600)** — a pre-existing violation carried since
-inc 211/212 (curated-axis SP1/SP2 grew it; the footers mis-noted 551/562). It's the only file over the cap; per rule #1
-it's a flagged **separate behavior-preserving split** (extract a low-coupling unit, e.g. the curated-axis branch or the
-merge/suggest helpers) — do it before the next feature lands in `15_axes.jsx`. **Inc 221** split the App god-component
+**Standing split tasks:** none — the tree is **fully under the 600-line cap.** (The long-flagged
+`app/frontend/js/15_axes.jsx` violation — 614 since inc 211/212 — was cleared in **inc 222**: the axis-card subsystem
+[`AxisItem` + its presentational helpers `axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/
+`_tierRank`] moved verbatim → new `js/15b_axis_card.jsx` [224]; `15_axes.jsx` 614→**395** [`AxesPanel` + `MyPubsPrompt`
++ `registerPaneTab`]. Hoists across the shared IIFE — the inc-208 `10b_libmenus.jsx` precedent. Behavior-preserving,
+proven by baseline-then-after on `drive_inc212_dragreorder.py` + `drive_inc204_hide_uncertain.py`.) **Inc 221** split the App god-component
 `app/frontend/js/40_app.jsx` (599→**212**): the library-list subsystem (filters/fetch/bulk/saved-searches/chips/findings)
 → `js/03_library.jsx`'s **`useLibrary`** hook (351; the focus↔library cycle broken with two refs). **Inc 167** split `app/frontend/js/40_app.jsx` (630→551:
 the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-download helpers → `js/00_lib.jsx`) —
@@ -409,9 +411,9 @@ the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-do
 **562** (chip + Most-cited option + control); `js/40_app.jsx` held at **599/600** (the new prop folded onto an
 existing line — split before the next addition there). **Inc 211** (A7 SP1 curated axis): `js/15_axes.jsx` grew to
 **551** (the `isCurated` branch + freeze/convert/reorder) — comfortably under; `js/40_app.jsx` untouched.
-**Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
-`js/30_viewer.jsx` (**580**, +23 from the inc-215 minimap; was 557, NOT the stale-noted 599/600 — inc-182's
-LibraryFrame extraction had relieved it). **Inc 214** split `routers/papers.py` (604→**510**, over the cap when the #5 `extra_urls`
+**Watch (re-measure):** `js/30_viewer.jsx` (**580**, +23 from the inc-215 minimap; was 557, NOT the stale-noted
+599/600 — inc-182's LibraryFrame extraction had relieved it), `js/10_pdf_layer.jsx` (**581**) — the closest frontend
+chunks now that inc-221 took `js/40_app.jsx` to **212** and inc-222 took `js/15_axes.jsx` to **395**. **Inc 214** split `routers/papers.py` (604→**510**, over the cap when the #5 `extra_urls`
 field landed): the request-normalisation cluster (`edits_from_request` + `_clean_*`/`_validate_csl_patch` + the caps
 constants) → new `routers/paper_edit_input.py` (111; duck-typed on the request → no import cycle). **Inc 137** split
 `schema.py` (611→558, over the cap
@@ -770,6 +772,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Split `15_axes.jsx` (614→395) — the axis-card subsystem → `15b_axis_card.jsx`; clears the last over-cap file (inc 222) | The long-flagged rule-#1 violation (`15_axes.jsx` had been **614** since inc 211/212's curated-axis work; the footers had mis-noted it). A **behavior-preserving** refactor, no feature. Extracted the **axis-card rendering subsystem** verbatim into new **`js/15b_axis_card.jsx`** (224): `AxisItem` (the one-axis card — 166 lines) + its presentational helpers (`axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/`_tierRank`); `15_axes.jsx` (**395**) keeps `MyPubsPrompt` + **`AxesPanel`** (state/loaders/handlers/sort-filter/modals) + `registerPaneTab`. **Cross-chunk function hoist** — the chunks concatenate into one esbuild IIFE, so `AxesPanel` (textually before, in 15_axes) renders `<AxisItem/>` (in 15b) regardless of load order (the inc-208 `10b_libmenus.jsx` precedent; esbuild keeps `AxisItem` since `AxesPanel` references it). Cut by a deterministic **line-range script** with per-function boundary assertions (no transcription of the 166-line `AxisItem`). **Frontend-only** — no Python/migration/endpoint/egress, no audit/Principles trigger. **Behavior-preservation proven the inc-221 way:** the existing axis drivers `drive_inc212_dragreorder.py` (curated path — `AxisPaperRow` + drag-reorder) + `drive_inc204_hide_uncertain.py` (keyword path — `AxisCutoffFlipper` + `AxisTierBadge` + 👁) ran **GREEN before and after** (`drive_inc211_curated.py` is stale — it clicks the ↑/↓ buttons inc 212 replaced with drag). pytest **785** unchanged (`test_frontend_assembly` 5/5 confirms `15b` is in the build + in sync); QA **161/161 API + 719/719 FE, 0 uncovered** (`route_15_axes.md`'s `fe:` gained `15b_axis_card.jsx`, reclaiming the 36 moved FE surfaces). **This clears the last over-cap file — the tree is fully under the 600-line cap.** |
 | The 40_app.jsx god-component split (useLibrary) + the read/priority filter facet (maintainer chose "proper split first"; inc 221) | `40_app.jsx` had been pinned at the 600 cap for 10+ increments; the inc-220 read/priority **filter facet** (the experience-pass persona-blocking gap) needed headroom there, and the maintainer chose the **proper split** over a compaction can-kick. Extracted the **library-list subsystem** (filter/query/list-fetch state, pagination, bulk + trash + view-filter actions, saved searches, the statcheck/retraction chips + findings overview, the watched-folder rescan, the p-curve/merge modal state) into a new **`useLibrary(opts)`** hook (`js/03_library.jsx`); App keeps the shell + cross-cutting state (selection, tabs, modals, focus) and spreads the hook's `libraryBits` into LibraryFrame. **40_app.jsx 599→212.** **The load-bearing technical detail — the focus↔library circular dependency:** `useFocusMode.onEnterClearFilters` must clear the library view filters while the library's filter/merge actions call `cancelFocus`/`setAxisRefresh` — but `useFocusMode` is declared *after* `useLibrary`. Broken with two refs (`cancelFocusRef`/`setAxisRefreshRef`, resolved after `useFocusMode`) + wiring `onEnterClearFilters` to the hook's `clearViewFilters` (39_focus.jsx untouched). **Then** the read/priority **filter facet** landed: header **Read** (all/unread/read) + **Priority** (all/high/normal/low) dropdowns → `libraryReading` → the inc-220 `read_status`/`priority` query params; live-library only. **Frontend-only** (no Python/migration/endpoint — the backend shipped inc 220); no audit/Principles trigger. **Behavior-preservation verified by a baseline regression driver run GREEN on the pre-refactor code, then GREEN after** (14/14: load/search/sort/type-filter/trash/saved-search/bulk + the facet; deterministic 3/3, 0 console/page/genai) — the discipline for a frontend refactor with no pytest coverage. pytest **785** unchanged; QA **161/161 API + 719/719 FE, 0 uncovered**. **Completes Bella's reading-workflow thread** (queue 219 + markers 220 + facet 221). |
 | Read/unread + priority markers = user-set per-paper labels (NOT a score), card-control + sort now, filter facet deferred; a forced repository.py split (beta feedback — Bella; inc 220) | Two **hand-set** per-paper reading markers on each library card — a **manual read/unread** toggle (`papers.read_at`; opening a PDF does NOT auto-mark — the maintainer's call) + a **priority** picker (high/normal/low — "a few named levels," the maintainer's call). **The inc-207 declined-ratings logic is the load-bearing principle:** a unidimensional *star* was declined as an AI-suggestible score that flattens a paper; a **user-set** priority is a personal triage label (never computed, shown **neutrally** — no verified-green/flag-amber/danger-red — orthogonal to tags/axes), so it's the inc-207 color-tag class, NOT the declined thing. **migration 0031** adds both nullable columns (guarded ADD COLUMN). `routers/papers.py`: `POST /papers/{id}/read` (404) + `POST /papers/{id}/priority` (422 off-allowlist `{high,normal,low}`, 404); `read_status`/`priority` filter params + a **"priority"** sort (high→low→unset) + an **"unread"** sort on `GET /papers`. Frontend `16b_readmark.jsx` (`ReadPriorityControl`, **optimistic** local state → zero `40_app.jsx` change, dodging its 600 cap) rendered in PaperCard's foot + the two Sort options. **Forced rule-#1 split:** `repository.py` was 662 (pre-existing violation; my additions → 698), so the paper-lifecycle cluster → `paper_lifecycle_repo.py` + the synthesis CRUD → `summaries_repo.py`, both re-exported (zero call-site change) → repository.py **565**. **No security audit** (local columns + 2 local endpoints; no egress/fetch/dependency — the inc-207 color-tag precedent); **Principles non-triggering** (user labels, not claims). QA surface **161/161 API + 715/715 FE, 0 uncovered** (`route_50`). pytest **785** (+2). **Experience pass (post-import-triager persona):** capture works but *retrieval* was half-built → added the **"Unread first"** sort (cap-free interim, finding #1) in-increment; the library-HEADER **filter facet** is **deferred** (needs a `40_app.jsx` split) + bumped to persona-blocking in the backlog. Headed-verified 5/5 (0 console/page/genai) `.local/visual/drive_inc220_readmark.py` (sets an empty `CALLOSUM_LIBRARY_DIR` so the on-load auto-rescan doesn't pull the real library into the seeded DB — a harness fix, not a product bug). |
 | Reading queue = a dedicated `reading_queue` table + the "Queue" AXES tab; WAL+busy_timeout SQLite hardening (beta feedback — Bella; inc 219) | A personal, **ordered to-read list** as the **third tab of the left-pane AXES section** ([Axes \| Tags \| Queue]). **Built as a dedicated table, NOT the inc-211 curated-axis primitive** — a queue isn't a scored lens, and the maintainer's instinct was a separate tab; reusing curated-axis would couple it to `cluster_node_papers`/scoring for no gain. **`reading_queue`** (migration 0030, guarded + no-op downgrade): `paper_id` FK CASCADE + UNIQUE (one row/paper → idempotent add; purge → CASCADE-drop), nullable `position` (manual order). `reading_queue_repo.py` (list [trashed-excluded, position NULLS-last] / add [append, idempotent] / remove / `set_queue_order` [validate set == members else ValueError]) + `routers/reading_queue.py` (GET/POST[404]/DELETE[idempotent 204]/PUT-order[422]). Frontend `16_queue.jsx` (`registerPaneTab` order 30): add by **dragging a library card** (`application/x-callosum-paper`, inc 206) onto the panel **or** the Details **+ Reading queue** button; **drag-to-reorder** via a queue-only MIME `application/x-callosum-queueitem` (inc 212) → `PUT /reading-queue/order`; ✓ (read→remove) / × (remove); click a row opens the paper. **Two distinct MIMEs** so add-drag vs reorder-drag never cross-fire. **The non-obvious half — `database.py` now sets `PRAGMA journal_mode=WAL` + `busy_timeout=5000`:** the headed verification reliably hit `database is locked` because uvicorn serves sync endpoints from a threadpool (concurrent connections to one SQLite file) and the default rollback-journal + busy_timeout=0 made a write racing the list-refresh GET fail immediately; WAL (readers don't block the writer) + busy_timeout (wait, don't error) is the standard local-SQLite-under-a-web-server pairing — a real app-wide hardening. **`BEGIN IMMEDIATE` (the cure for the residual read-then-write upgrade-deadlock) was rejected as unsafe** — `_run_scan_job`/embed/import wrap a multi-minute job in one `engine.begin()` transaction, so grabbing the write lock up front would block all requests for the whole job; the upgrade-deadlock (rare; a human never hits it) is a **filed backlog item** for a focused concurrency pass. **No security audit** (a local table + 4 local endpoints; no egress/fetch/dependency — the inc-208 saved-searches precedent); **Principles non-triggering** (a user-ordered list, no claim/score). QA surface **159/159 API + 706/706 FE, 0 uncovered** (`route_49`). pytest **783** (+6 `test_reading_queue.py`); help corpus + DESIGN-recipe (`.queue-*`, tokens only). Headed-verified deterministic (10/10, 0 console/page/genai) `.local/visual/drive_inc219_queue.py`. |
@@ -936,7 +939,38 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 221 (the 40_app.jsx god-component split + the read/priority filter facet;
+*Last updated: 2026-06-30 — increment 222 (split `15_axes.jsx` 614→395 — the axis-card subsystem →
+`15b_axis_card.jsx`; clears the **last over-cap file**, so the tree is fully under the 600-line cap). A
+**behavior-preserving** refactor (no feature), the standing rule-#1 split the maintainer picked: `15_axes.jsx` had
+been **614** since inc 211/212's curated-axis work (the footers had mis-noted it). Extracted the **axis-card rendering
+subsystem** verbatim → new **`js/15b_axis_card.jsx`** (224): **`AxisItem`** (the one-axis card — header + the
+re-score/curated branches + the member list `renderPapers`, 166 lines) + its presentational helpers
+(`axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/`_tierRank`). `15_axes.jsx` (**395**) keeps
+`MyPubsPrompt` + **`AxesPanel`** (the container — state, loaders, all the handlers
+[score/remove/confirm/dropPaper/reorderToIndex/freeze/convertToKeyword/createCurated/bulkDelete/openMerge/…],
+sort+filter, and the edit/merge/suggest modals) + the `registerPaneTab` registration. **The load-bearing detail —
+the cross-chunk function hoist:** the chunks concatenate into one esbuild IIFE, so top-level `function`
+declarations hoist across chunk boundaries — `AxesPanel` (textually *before*, in `15_axes.jsx`, which sorts before
+`15b`) renders `<AxisItem/>` (in `15b_axis_card.jsx`) regardless of load order (the inc-208 `10b_libmenus.jsx` /
+inc-182 `30c_frame.jsx` precedent; esbuild's DCE keeps `AxisItem` since `AxesPanel` references it). The cut was done
+by a **deterministic line-range script** with per-function boundary assertions (no transcription of the 166-line
+`AxisItem`). **Frontend-only** — no Python/migration/endpoint/egress change, so **no audit/Principles trigger** (a
+pure refactor). **Behavior-preservation proven the inc-221 way** — the existing axis drivers ran **GREEN before and
+after** the move: `.local/visual/drive_inc212_dragreorder.py` (the curated `AxisItem` path — `AxisPaperRow` + the ⠿
+grip + HTML5 drag-reorder + persists-across-reload) + `.local/visual/drive_inc204_hide_uncertain.py` (the keyword
+path — the re-score row + `AxisCutoffFlipper` + `AxisTierBadge` + the 👁 hide-uncertain toggle + the manual member),
+0 console/page/genai each. (`drive_inc211_curated.py` is **stale** — it still clicks the ↑/↓ "Move down" buttons inc
+212 replaced with drag; `212` is its current replacement.) pytest **785** unchanged (frontend-only;
+`test_frontend_assembly` 5/5 confirms `callosum-app.html` is in sync + `15b_axis_card.jsx` is in the assembly);
+`ruff check` + `ruff format --check` clean; **QA surface 161/161 API + 719/719 FE, 0 uncovered** (`route_15_axes.md`'s
+`fe:` claim gained `15b_axis_card.jsx`, reclaiming the 36 moved FE surfaces); no help-corpus change (no user-facing
+behavior change → `HELP-DOCS-SYNCED` stays at 221). **Rule-#1:** `15_axes.jsx` **614 → 395**, `15b_axis_card.jsx`
+**224** — both under cap; **the tree is now fully under the 600-line cap** (closest: `js/10_pdf_layer.jsx` 581,
+`js/30_viewer.jsx` 580, `clustering/my_publications.py` ~594). Notes: `INCREMENT-222-NOTES.md`. **NEXT:** the standing
+rule-#1 backlog is empty; the remaining work is the design-gated **B-items** (B2 collaboration, B3 OCR, B4
+citation-context classifier, B5 mobile) — each its own brainstorm + the maintainer's pick.
+
+Earlier — increment 221 (the 40_app.jsx god-component split + the read/priority filter facet;
 the maintainer chose "do the proper split first"). `40_app.jsx` had been pinned at the 600-line cap for 10+
 increments, and the inc-220 read/priority **filter facet** (the experience-pass persona-blocking gap) needed
 headroom there. Extracted the **library-list subsystem** (filter/query/list-fetch state, pagination, the bulk +

@@ -3669,214 +3669,8 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: addCustom }, "add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: searching, onClick: runSearch }, searching ? "searching\u2026" : "search related terms")), searchMsg && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, searchMsg), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, error), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: saving || !title.trim(), onClick: save }, saving ? "Saving\u2026" : mode === "edit" ? "Save changes" : "Create axis"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: saving, onClick: onClose }, "cancel"))));
   }
-  function axisConfidenceLabel(paper) {
-    if (paper.manual || paper.confidence == null) return "manual";
-    return paper.confidence.toFixed(2);
-  }
-  function AxisTierBadge({ status }) {
-    if (status === "assigned") return null;
-    const label = status === "uncertain" ? "uncertain" : "manual";
-    return /* @__PURE__ */ React.createElement("span", { className: "axis-tier axis-tier-" + label }, label);
-  }
-  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"), onStar && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-star" + (paper.starred ? " on" : ""),
-        title: paper.starred ? "Starred \u2014 click to unstar" : "Star this key publication (scopes the AI summary)",
-        onClick: () => onStar(paper.id, !paper.starred)
-      },
-      paper.starred ? "\u2605" : "\u2606"
-    ), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-title", onClick: () => onOpen(paper), title: "Open " + paper.title }, paper.title), !curated && /* @__PURE__ */ React.createElement(AxisTierBadge, { status: paper.status }), !curated && /* @__PURE__ */ React.createElement("span", { className: "axis-paper-conf", title: paper.manual ? "Manually added by you" : "Embedding-similarity confidence" }, axisConfidenceLabel(paper)), !curated && paper.status === "uncertain" && /* @__PURE__ */ React.createElement("button", { className: "axis-confirm", title: "Confirm \u2014 keep this paper on the axis (a manual override)", onClick: () => onConfirm(paper.id) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "axis-x", title: "Remove from this axis", onClick: () => onRemove(paper.id) }, "\xD7"));
-  }
-  function AxisCutoffFlipper({ value, onChange, disabled }) {
-    return /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff", title: "Assigned = similarity at or above this cutoff (lower includes more)" }, /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-name" }, "Cutoff"), /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "axis-cutoff-range",
-        type: "range",
-        min: "0.2",
-        max: "0.6",
-        step: "0.01",
-        value,
-        disabled,
-        onChange: (e) => onChange(parseFloat(e.target.value))
-      }
-    ), /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-val" }, value.toFixed(2)));
-  }
   function MyPubsPrompt() {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-prompt", title: "Set your name / ORCID in Settings to auto-gather your own papers" }, "\u{1F4C4} ", /* @__PURE__ */ React.createElement("b", null, "My Publications"), " \u2014 set your name / ORCID in Settings (\u2699) to auto-gather your own papers.");
-  }
-  function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
-    const scoring = job && job.status === "running";
-    const isMyPubs = axis.kind === "my_publications";
-    const isCurated = axis.kind === "curated";
-    const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
-    const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
-    const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
-    const [dragOver, setDragOver] = useState(false);
-    const [dragMemberOver, setDragMemberOver] = useState(null);
-    const canDrop = !isMyPubs;
-    const stop = (fn) => (e) => {
-      e.stopPropagation();
-      fn();
-    };
-    const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
-    const uncertainCount = readyPapers.filter((p) => p.status === "uncertain").length;
-    const total = axis.assignment_count || 0;
-    const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
-    const renderRow = (p) => /* @__PURE__ */ React.createElement(
-      AxisPaperRow,
-      {
-        key: p.id,
-        paper: p,
-        selected: selectedPaper === p.id,
-        onOpen: handlers.openPaper,
-        onConfirm: (pid) => handlers.confirmPaper(axis.id, pid),
-        onRemove: (pid) => handlers.removePaper(axis.id, pid),
-        onStar: isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : void 0
-      }
-    );
-    const toggleCollapse = (label) => setCollapsedDomains((s) => {
-      const n = new Set(s);
-      if (n.has(label)) n.delete(label);
-      else n.add(label);
-      return n;
-    });
-    const renderPapers = (allPapers) => {
-      if (isCurated) {
-        const MEMBER_MIME = "application/x-callosum-axismember";
-        return allPapers.map((p) => /* @__PURE__ */ React.createElement(
-          "div",
-          {
-            key: p.id,
-            className: "axis-member-drag" + (dragMemberOver === p.id ? " dragover" : ""),
-            draggable: true,
-            onDragStart: (e) => {
-              e.stopPropagation();
-              e.dataTransfer.setData(MEMBER_MIME, String(p.id));
-              e.dataTransfer.effectAllowed = "move";
-            },
-            onDragOver: (e) => {
-              if (e.dataTransfer.types.includes(MEMBER_MIME)) {
-                e.preventDefault();
-                e.dataTransfer.dropEffect = "move";
-                setDragMemberOver(p.id);
-              }
-            },
-            onDragLeave: () => setDragMemberOver((o) => o === p.id ? null : o),
-            onDrop: (e) => {
-              setDragMemberOver(null);
-              const dragged = parseInt(e.dataTransfer.getData(MEMBER_MIME), 10);
-              if (dragged && dragged !== p.id) {
-                e.preventDefault();
-                e.stopPropagation();
-                handlers.reorderToIndex(axis.id, dragged, p.id);
-              }
-            }
-          },
-          /* @__PURE__ */ React.createElement(
-            AxisPaperRow,
-            {
-              paper: p,
-              selected: selectedPaper === p.id,
-              curated: true,
-              onOpen: handlers.openPaper,
-              onRemove: (pid) => handlers.removePaper(axis.id, pid)
-            }
-          )
-        ));
-      }
-      const sorted = [...allPapers].filter((p) => !hideUncertain || p.status !== "uncertain").sort((a, b) => (isMyPubs ? (b.starred ? 1 : 0) - (a.starred ? 1 : 0) : 0) || _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0));
-      if (!(isMyPubs && sorted.some((p) => p.domain))) return sorted.map(renderRow);
-      const groupsMap = /* @__PURE__ */ new Map();
-      for (const p of sorted) {
-        const k = p.domain || "Other";
-        if (!groupsMap.has(k)) groupsMap.set(k, []);
-        groupsMap.get(k).push(p);
-      }
-      const ordered = [...groupsMap.entries()].sort(
-        (a, b) => (a[0] === "Other") - (b[0] === "Other") || b[1].length - a[1].length
-      );
-      return ordered.map(([label, rows]) => /* @__PURE__ */ React.createElement("div", { key: label, className: "axis-domain-group" }, /* @__PURE__ */ React.createElement("button", { className: "axis-domain-subhead", onClick: () => toggleCollapse(label) }, collapsedDomains.has(label) ? "\u25B8" : "\u25BE", " ", label, " ", /* @__PURE__ */ React.createElement("span", { className: "axis-domain-count" }, rows.length)), !collapsedDomains.has(label) && rows.map(renderRow)));
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-item" + (isMyPubs ? " axis-mypubs" : "") }, /* @__PURE__ */ React.createElement(
-      "div",
-      {
-        className: "axis" + (expanded ? " active" : "") + (dragOver ? " drag-over" : ""),
-        onClick: () => handlers.toggle(axis.id),
-        onDragOver: canDrop ? ((e) => {
-          if (e.dataTransfer.types.includes("application/x-callosum-paper")) {
-            e.preventDefault();
-            e.dataTransfer.dropEffect = "copy";
-            setDragOver(true);
-          }
-        }) : void 0,
-        onDragLeave: canDrop ? (() => setDragOver(false)) : void 0,
-        onDrop: canDrop ? ((e) => {
-          setDragOver(false);
-          const pid = parseInt(e.dataTransfer.getData("application/x-callosum-paper"), 10);
-          if (pid) {
-            e.preventDefault();
-            handlers.dropPaper(axis.id, pid);
-          }
-        }) : void 0
-      },
-      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !isMyPubs && /* @__PURE__ */ React.createElement(
-        "input",
-        {
-          type: "checkbox",
-          className: "axis-select",
-          checked: selected,
-          title: "Select for bulk delete / merge",
-          onClick: (e) => e.stopPropagation(),
-          onChange: () => handlers.toggleSelect(axis.id)
-        }
-      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          className: "axis-icon-btn",
-          title: "Freeze to a curated set \u2014 snapshot the current members + unlock manual ordering",
-          onClick: stop(() => handlers.freeze(axis.id))
-        },
-        "\u2744"
-      ), isCurated && /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          className: "axis-icon-btn",
-          title: "Convert to a keyword axis \u2014 needs search terms and replaces your manual order with fit order; members are kept",
-          onClick: stop(() => handlers.convertToKeyword(axis.id))
-        },
-        "\u21A9"
-      ), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          className: "axis-icon-btn axis-icon-danger",
-          title: isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis",
-          onClick: stop(() => isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id))
-        },
-        "\u{1F5D1}"
-      ), /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          className: "axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
-          title: isMyPubs ? `Show your ${axis.assignment_count || 0} papers in the library` : isCurated ? `Show these ${axis.assignment_count || 0} hand-picked papers in the library` : hideUncertain && (axis.uncertain_count || 0) > 0 ? `${badgeCount} assigned \xB7 ${axis.uncertain_count} uncertain hidden \u2014 click to show this axis in the library` : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? axis.stale ? " \xB7 edited since scoring" : " \xB7 scored & up to date" : " \xB7 not scored yet"),
-          onClick: stop(() => handlers.filterToAxis(axis, hideUncertain))
-        },
-        badgeCount
-      )))
-    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-curated-hint" }, "Hand-picked set \u2014 drag papers from the library onto this card to add them; reorder with \u2191/\u2193."), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "axis-icon-btn axis-eye" + (hideUncertain ? " off" : ""),
-        title: hideUncertain ? `Show ${uncertainCount} uncertain paper${uncertainCount > 1 ? "s" : ""}` : "Hide uncertain papers (assigned-only view)",
-        onClick: () => setHideUncertain((h) => !h)
-      },
-      "\u{1F441}"
-    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : isCurated ? "Empty \u2014 drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
-  }
-  function _tierRank(p) {
-    return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
   }
   function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault }) {
     const [axes, setAxes] = useState(null);
@@ -4264,6 +4058,212 @@
       )
     }
   );
+  function axisConfidenceLabel(paper) {
+    if (paper.manual || paper.confidence == null) return "manual";
+    return paper.confidence.toFixed(2);
+  }
+  function AxisTierBadge({ status }) {
+    if (status === "assigned") return null;
+    const label = status === "uncertain" ? "uncertain" : "manual";
+    return /* @__PURE__ */ React.createElement("span", { className: "axis-tier axis-tier-" + label }, label);
+  }
+  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"), onStar && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-star" + (paper.starred ? " on" : ""),
+        title: paper.starred ? "Starred \u2014 click to unstar" : "Star this key publication (scopes the AI summary)",
+        onClick: () => onStar(paper.id, !paper.starred)
+      },
+      paper.starred ? "\u2605" : "\u2606"
+    ), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-title", onClick: () => onOpen(paper), title: "Open " + paper.title }, paper.title), !curated && /* @__PURE__ */ React.createElement(AxisTierBadge, { status: paper.status }), !curated && /* @__PURE__ */ React.createElement("span", { className: "axis-paper-conf", title: paper.manual ? "Manually added by you" : "Embedding-similarity confidence" }, axisConfidenceLabel(paper)), !curated && paper.status === "uncertain" && /* @__PURE__ */ React.createElement("button", { className: "axis-confirm", title: "Confirm \u2014 keep this paper on the axis (a manual override)", onClick: () => onConfirm(paper.id) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "axis-x", title: "Remove from this axis", onClick: () => onRemove(paper.id) }, "\xD7"));
+  }
+  function AxisCutoffFlipper({ value, onChange, disabled }) {
+    return /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff", title: "Assigned = similarity at or above this cutoff (lower includes more)" }, /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-name" }, "Cutoff"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "axis-cutoff-range",
+        type: "range",
+        min: "0.2",
+        max: "0.6",
+        step: "0.01",
+        value,
+        disabled,
+        onChange: (e) => onChange(parseFloat(e.target.value))
+      }
+    ), /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-val" }, value.toFixed(2)));
+  }
+  function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
+    const scoring = job && job.status === "running";
+    const isMyPubs = axis.kind === "my_publications";
+    const isCurated = axis.kind === "curated";
+    const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
+    const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
+    const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
+    const [dragOver, setDragOver] = useState(false);
+    const [dragMemberOver, setDragMemberOver] = useState(null);
+    const canDrop = !isMyPubs;
+    const stop = (fn) => (e) => {
+      e.stopPropagation();
+      fn();
+    };
+    const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
+    const uncertainCount = readyPapers.filter((p) => p.status === "uncertain").length;
+    const total = axis.assignment_count || 0;
+    const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
+    const renderRow = (p) => /* @__PURE__ */ React.createElement(
+      AxisPaperRow,
+      {
+        key: p.id,
+        paper: p,
+        selected: selectedPaper === p.id,
+        onOpen: handlers.openPaper,
+        onConfirm: (pid) => handlers.confirmPaper(axis.id, pid),
+        onRemove: (pid) => handlers.removePaper(axis.id, pid),
+        onStar: isMyPubs ? ((pid, starred) => handlers.starPaper(axis.id, pid, starred)) : void 0
+      }
+    );
+    const toggleCollapse = (label) => setCollapsedDomains((s) => {
+      const n = new Set(s);
+      if (n.has(label)) n.delete(label);
+      else n.add(label);
+      return n;
+    });
+    const renderPapers = (allPapers) => {
+      if (isCurated) {
+        const MEMBER_MIME = "application/x-callosum-axismember";
+        return allPapers.map((p) => /* @__PURE__ */ React.createElement(
+          "div",
+          {
+            key: p.id,
+            className: "axis-member-drag" + (dragMemberOver === p.id ? " dragover" : ""),
+            draggable: true,
+            onDragStart: (e) => {
+              e.stopPropagation();
+              e.dataTransfer.setData(MEMBER_MIME, String(p.id));
+              e.dataTransfer.effectAllowed = "move";
+            },
+            onDragOver: (e) => {
+              if (e.dataTransfer.types.includes(MEMBER_MIME)) {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = "move";
+                setDragMemberOver(p.id);
+              }
+            },
+            onDragLeave: () => setDragMemberOver((o) => o === p.id ? null : o),
+            onDrop: (e) => {
+              setDragMemberOver(null);
+              const dragged = parseInt(e.dataTransfer.getData(MEMBER_MIME), 10);
+              if (dragged && dragged !== p.id) {
+                e.preventDefault();
+                e.stopPropagation();
+                handlers.reorderToIndex(axis.id, dragged, p.id);
+              }
+            }
+          },
+          /* @__PURE__ */ React.createElement(
+            AxisPaperRow,
+            {
+              paper: p,
+              selected: selectedPaper === p.id,
+              curated: true,
+              onOpen: handlers.openPaper,
+              onRemove: (pid) => handlers.removePaper(axis.id, pid)
+            }
+          )
+        ));
+      }
+      const sorted = [...allPapers].filter((p) => !hideUncertain || p.status !== "uncertain").sort((a, b) => (isMyPubs ? (b.starred ? 1 : 0) - (a.starred ? 1 : 0) : 0) || _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0));
+      if (!(isMyPubs && sorted.some((p) => p.domain))) return sorted.map(renderRow);
+      const groupsMap = /* @__PURE__ */ new Map();
+      for (const p of sorted) {
+        const k = p.domain || "Other";
+        if (!groupsMap.has(k)) groupsMap.set(k, []);
+        groupsMap.get(k).push(p);
+      }
+      const ordered = [...groupsMap.entries()].sort(
+        (a, b) => (a[0] === "Other") - (b[0] === "Other") || b[1].length - a[1].length
+      );
+      return ordered.map(([label, rows]) => /* @__PURE__ */ React.createElement("div", { key: label, className: "axis-domain-group" }, /* @__PURE__ */ React.createElement("button", { className: "axis-domain-subhead", onClick: () => toggleCollapse(label) }, collapsedDomains.has(label) ? "\u25B8" : "\u25BE", " ", label, " ", /* @__PURE__ */ React.createElement("span", { className: "axis-domain-count" }, rows.length)), !collapsedDomains.has(label) && rows.map(renderRow)));
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-item" + (isMyPubs ? " axis-mypubs" : "") }, /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "axis" + (expanded ? " active" : "") + (dragOver ? " drag-over" : ""),
+        onClick: () => handlers.toggle(axis.id),
+        onDragOver: canDrop ? ((e) => {
+          if (e.dataTransfer.types.includes("application/x-callosum-paper")) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setDragOver(true);
+          }
+        }) : void 0,
+        onDragLeave: canDrop ? (() => setDragOver(false)) : void 0,
+        onDrop: canDrop ? ((e) => {
+          setDragOver(false);
+          const pid = parseInt(e.dataTransfer.getData("application/x-callosum-paper"), 10);
+          if (pid) {
+            e.preventDefault();
+            handlers.dropPaper(axis.id, pid);
+          }
+        }) : void 0
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !isMyPubs && /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          type: "checkbox",
+          className: "axis-select",
+          checked: selected,
+          title: "Select for bulk delete / merge",
+          onClick: (e) => e.stopPropagation(),
+          onChange: () => handlers.toggleSelect(axis.id)
+        }
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-icon-btn",
+          title: "Freeze to a curated set \u2014 snapshot the current members + unlock manual ordering",
+          onClick: stop(() => handlers.freeze(axis.id))
+        },
+        "\u2744"
+      ), isCurated && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-icon-btn",
+          title: "Convert to a keyword axis \u2014 needs search terms and replaces your manual order with fit order; members are kept",
+          onClick: stop(() => handlers.convertToKeyword(axis.id))
+        },
+        "\u21A9"
+      ), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-icon-btn axis-icon-danger",
+          title: isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis",
+          onClick: stop(() => isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id))
+        },
+        "\u{1F5D1}"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
+          title: isMyPubs ? `Show your ${axis.assignment_count || 0} papers in the library` : isCurated ? `Show these ${axis.assignment_count || 0} hand-picked papers in the library` : hideUncertain && (axis.uncertain_count || 0) > 0 ? `${badgeCount} assigned \xB7 ${axis.uncertain_count} uncertain hidden \u2014 click to show this axis in the library` : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? axis.stale ? " \xB7 edited since scoring" : " \xB7 scored & up to date" : " \xB7 not scored yet"),
+          onClick: stop(() => handlers.filterToAxis(axis, hideUncertain))
+        },
+        badgeCount
+      )))
+    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-curated-hint" }, "Hand-picked set \u2014 drag papers from the library onto this card to add them; reorder with \u2191/\u2193."), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "axis-icon-btn axis-eye" + (hideUncertain ? " off" : ""),
+        title: hideUncertain ? `Show ${uncertainCount} uncertain paper${uncertainCount > 1 ? "s" : ""}` : "Hide uncertain papers (assigned-only view)",
+        onClick: () => setHideUncertain((h) => !h)
+      },
+      "\u{1F441}"
+    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : isCurated ? "Empty \u2014 drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
+  }
+  function _tierRank(p) {
+    return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
+  }
   function _axisBase(description) {
     return (description || "").split(/\n*Related:\s*/i)[0].trim();
   }
