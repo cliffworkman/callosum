@@ -28,6 +28,9 @@ USER_EDITED_SOURCE = "user-edited"
 # Provenance for a record produced by merging duplicate papers (inc 161). Like USER_EDITED_SOURCE, kept OUT of
 # the `_can_update_from_crossref` allowlist so a batch enrich won't clobber the user's curated merge.
 MERGED_SOURCE = "merged"
+# Provenance for anything an MCP agent wrote (B1 SP2). Kept OUT of the `_can_update_from_crossref` allowlist (a
+# batch enrich won't clobber it) AND makes agent-origin visible/filterable (the inc-100 tag-source styling).
+AI_AGENT_SOURCE = "ai-agent"
 
 
 @dataclass(frozen=True)

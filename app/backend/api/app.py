@@ -23,6 +23,7 @@ from app.backend.api.frontend import FRONTEND_DIR, build_frontend_document, fron
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers import (
     acquisition,
+    agent,
     annotations,
     axes,
     citation_counts,
@@ -214,6 +215,9 @@ def create_app(
     api.include_router(summaries.router)
     api.include_router(help.router)
     api.include_router(settings.router)  # /settings — BYOK: Gemini key + egress consent from the UI (inc 146)
+    api.include_router(
+        agent.router
+    )  # /agent/* — gated MCP agent writes: tag/axis/reference/note + audit + revert (SP2)
     api.include_router(sync.router)  # /sync/* — opt-in E2E sync: setup/settings/status/run (SP3b, inc 202)
     api.include_router(auth_router)  # /auth/* + /oauth/callback — optional account: Sign in with ORCID (SP1)
     api.include_router(
