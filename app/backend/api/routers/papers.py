@@ -301,7 +301,7 @@ def fill_metadata(paper_id: int, request: Request, conn: Connection = Depends(ge
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    registry = build_default_enrich_registry(
+    registry = request.app.state.enrich_registry or build_default_enrich_registry(
         crossref_client=request.app.state.crossref_client, openalex_client=request.app.state.openalex_client
     )
     result = enrich_paper_metadata_multi(

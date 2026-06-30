@@ -344,7 +344,7 @@ Records often come in with gaps — a missing DOI, no abstract, a blank venue. *
 
 How it works, per paper:
 - If the paper has **no DOI**, Callosum tries to recover one — first from the PDF, then by searching Crossref for the title (it only adopts a DOI when the title clearly matches and the year agrees, so it never guesses a wrong one).
-- It then asks each source in turn for a bibliographic record and **fills any blank field** (abstract, venue, year, authors, type, …) from the first source that supplies it. The sources are Crossref and OpenAlex (Europe PMC and PubMed are added as the cascade grows). Only public bibliographic metadata (a DOI, PMID, or title) leaves your machine — this is **not** the Gemini library-text gate.
+- It then asks each source in turn for a bibliographic record and **fills any blank field** (abstract, venue, year, authors, type, …) from the first source that supplies it. The sources, in order, are **Crossref**, **OpenAlex**, **Europe PMC**, and **PubMed** (the last two are especially good at supplying a missing abstract). Only public bibliographic metadata (a DOI, PMID, or title) leaves your machine — this is **not** the Gemini library-text gate.
 
 Two ways to run it:
 - **One paper:** open its Detail pane and click **Fill missing fields** (next to the 🔎). It reports which fields it filled.

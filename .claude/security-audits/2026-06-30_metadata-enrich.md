@@ -101,5 +101,32 @@
 **Security Audit: PASS.**
 
 SP2 (Europe PMC + PubMed sources) extends the same cascade under the **same posture** (public-metadata egress,
-constant audited hosts, fail-closed, gap-fill-only) — each is one `register()` + a response mapper; covered by an
-addendum to this audit when it lands.
+constant audited hosts, fail-closed, gap-fill-only) — each is one `register()` + a response mapper; covered by the
+addendum below.
+
+---
+
+## Addendum — SP2: Europe PMC + PubMed sources (inc 218)
+
+Two sources added to the cascade, each behind the existing `EnrichmentSource`/registry contract — **no new
+endpoint, no new external host, no new dependency, no migration** (both reuse already-audited adapters/hosts).
+
+- **`EuropePmcEnrichSource`** (DOI/PMID-keyed): a new `EuropePmcClient.lookup_metadata(conn, ref)` reads the **same
+  cached `resultType=core` record** the OA resolver (`lookup_oa`) already fetches from the constant
+  `www.ebi.ac.uk/europepmc/...` host (cache-first via the shared `external_api_cache`), and maps title/authors/
+  journal/year/abstract/DOI/PMID → a CSL fragment. No new fetch path; SSRF-safe (DOI/PMID as a bound query param).
+- **`PubMedEnrichSource`** (PMID → efetch abstract; else title-search → matched record's metadata + abstract): reuses
+  the audited `pubmed_provider` helpers (`_eutils_search` esearch→esummary, `fetch_abstracts` efetch, `summary_to_item`)
+  against the constant NCBI E-utilities host, query/ids as bound params (the inc-186/191 SSRF posture). The
+  **title-search path adopts a record only on a conservative title match** (`_title_overlap`: normalized-equal or
+  token-Jaccard ≥ 0.7) — no wrong-paper enrichment; the efetch abstract parse is the regex (not an XML parser) →
+  no XXE. Both fetchers are fail-closed (any error → no fragment).
+
+These only **add fragments** to the gap-fill cascade — the merge is still fill-empty-only and the provenance/
+DOI/duplicate guards (above) are unchanged, so the non-destructiveness + honesty properties hold identically.
+Egress remains **public bibliographic metadata** (a DOI/PMID/title to Crossref/OpenAlex/Europe PMC/NCBI), **not**
+the Gemini library-text gate. Negative paths re-checked: the Europe PMC `core`→CSL mapper; the PubMed PMID-abstract
++ title-match-adopt + title-mismatch-reject paths; the default registry is exactly `[crossref, openalex, europepmc,
+pubmed]` (`tests/test_metadata_multi_enrich.py`).
+
+**Security Audit (SP2 addendum): PASS.**

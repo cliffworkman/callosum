@@ -18,7 +18,9 @@ from typing import Any, Protocol, runtime_checkable
 from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import PaperRef
+from app.backend.app_settings import resolved_mailto
 from integrations.crossref import CrossrefClient
+from integrations.europepmc.adapter import EuropePmcClient
 from integrations.openalex import OpenAlexClient
 
 
@@ -107,16 +109,108 @@ class OpenAlexEnrichSource:
         return client.fetch_work_csl(conn, paper_ref)
 
 
+def _title_overlap(a: str | None, b: str | None) -> bool:
+    """Conservative title match for the PubMed title-search path: normalized-equal or token-Jaccard >= 0.7."""
+    from app.backend.discovery.providers import normalized_title
+
+    na, nb = normalized_title(a), normalized_title(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    ta, tb = set(na.split()), set(nb.split())
+    return bool(ta and tb) and len(ta & tb) / len(ta | tb) >= 0.7
+
+
+class EuropePmcEnrichSource:
+    """Europe PMC by DOI/PMID → a CSL-fragment (abstract + journal/year/authors). Reuses the cached resolver fetch."""
+
+    name = "europepmc"
+
+    def __init__(self, client: EuropePmcClient | None = None) -> None:
+        self._client = client
+
+    def fetch(self, conn: Connection, ref: EnrichRef) -> dict[str, Any] | None:
+        if not (ref.doi or ref.pmid):  # Europe PMC is DOI/PMID-keyed
+            return None
+        client = self._client or EuropePmcClient()
+        paper_ref = ref.to_paper_ref()
+        return client.lookup_metadata(conn, paper_ref) if paper_ref is not None else None
+
+
+class PubMedEnrichSource:
+    """PubMed (NCBI E-utilities): a known PMID → its abstract (efetch); else a title-search → the matched record's
+    abstract + journal/year/DOI/PMID. The biomedical abstract fallback. Public metadata; fail-closed."""
+
+    name = "pubmed"
+
+    def __init__(
+        self,
+        *,
+        search=None,
+        abstract_fetcher=None,
+        email: str | None = None,
+        timeout: float = 15.0,
+    ) -> None:
+        from app.backend.discovery.pubmed_provider import _eutils_search, fetch_abstracts
+
+        self._search = search or _eutils_search
+        self._abstracts = abstract_fetcher or fetch_abstracts
+        self._email = email if email is not None else resolved_mailto("CALLOSUM_CROSSREF_MAILTO")
+        self._timeout = timeout
+
+    def _abstract_for(self, pmid: str) -> str | None:
+        try:
+            return (self._abstracts([pmid], email=self._email, timeout=self._timeout) or {}).get(pmid)
+        except Exception:
+            return None
+
+    def fetch(self, conn: Connection, ref: EnrichRef) -> dict[str, Any] | None:
+        from app.backend.discovery.pubmed_provider import summary_to_item
+
+        if ref.pmid:  # the others usually supplied the rest — PubMed's unique value here is the abstract
+            abstract = self._abstract_for(str(ref.pmid))
+            return {"abstract": abstract} if abstract else None
+        if not ref.title:
+            return None
+        try:
+            raw = self._search(ref.title, 3, email=self._email, timeout=self._timeout) or []
+        except Exception:
+            return None
+        item = next(
+            (it for it in (summary_to_item(r) for r in raw) if it and _title_overlap(ref.title, it.title)), None
+        )
+        if item is None:
+            return None
+        fragment: dict[str, Any] = {}
+        if item.journal:
+            fragment["container-title"] = item.journal
+        if item.year:
+            fragment["issued"] = {"date-parts": [[item.year]]}
+        if item.doi:
+            fragment["DOI"] = item.doi
+        if item.pmid:
+            fragment["PMID"] = item.pmid
+        if item.authors:
+            fragment["author"] = [{"literal": name} for name in item.authors]
+        abstract = self._abstract_for(item.pmid) if item.pmid else None
+        if abstract:
+            fragment["abstract"] = abstract
+        return fragment or None
+
+
 def build_default_enrich_registry(
     *,
     crossref_client: CrossrefClient | None = None,
     openalex_client: OpenAlexClient | None = None,
 ) -> EnrichmentRegistry:
-    """The shipped enrichment cascade (gap-fill, in order). SP1: Crossref-by-DOI → OpenAlex-by-DOI/PMID/title.
-    SP2 adds Europe PMC + PubMed — each one ``register()`` (the registry test proves a new source needs no other
-    edit). Sources reuse the injectable clients (hermetic tests) and default to the real ones."""
+    """The shipped enrichment cascade (gap-fill, in order): Crossref-by-DOI → OpenAlex-by-DOI/PMID/title →
+    Europe PMC-by-DOI/PMID → PubMed (PMID/title). Adding a source is one ``register()`` (the registry test proves a
+    new source needs no other edit). Sources reuse the injectable clients (hermetic tests) and default to real ones."""
     return (
         EnrichmentRegistry()
         .register(CrossrefEnrichSource(crossref_client))
         .register(OpenAlexEnrichSource(openalex_client))
+        .register(EuropePmcEnrichSource())
+        .register(PubMedEnrichSource())
     )

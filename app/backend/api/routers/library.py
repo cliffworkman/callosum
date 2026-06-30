@@ -355,7 +355,7 @@ def _run_metadata_enrich_job(app: FastAPI, job_id: str) -> None:
     jobs: JobStore[MetadataEnrichResponse] = app.state.metadata_enrich_jobs
     jobs.mark_running(job_id)
     try:
-        registry = build_default_enrich_registry(
+        registry = app.state.enrich_registry or build_default_enrich_registry(
             crossref_client=app.state.crossref_client, openalex_client=app.state.openalex_client
         )
         search_provider = getattr(app.state, "enrich_search_provider", None)

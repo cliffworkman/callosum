@@ -40,6 +40,16 @@ class EuropePmcClient:
             return None
         return _oa_from_search(body)
 
+    def lookup_metadata(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
+        """A CSL-fragment (title/author/issued/container-title/abstract/DOI/PMID) from the `resultType=core`
+        record — for the multi-pass metadata enricher (inc 218). DOI/PMID-keyed; reuses the cached `_fetch`;
+        fail-closed → None. (The OA resolver path reads the same cached record for `isOpenAccess`/`pmcid`.)"""
+        query, cache_key = _query_for(ref)
+        if query is None:
+            return None
+        body = self._fetch(conn, query, cache_key)
+        return _csl_from_record(body) if body else None
+
     def _fetch(self, conn: Connection, query: str, cache_key: str) -> dict[str, Any] | None:
         cached = get_cached(conn, EUROPEPMC_PROVIDER, cache_key)
         if cached is not None:
@@ -85,6 +95,49 @@ def _httpx_fetcher(query: str, *, headers: dict[str, str], timeout: float) -> tu
     except ValueError:
         body = None
     return response.status_code, body
+
+
+def _csl_from_record(body: dict[str, Any]) -> dict[str, Any] | None:
+    """Map a Europe PMC `resultType=core` record → a CSL-fragment for gap-fill enrichment (inc 218)."""
+    results = (body.get("resultList") or {}).get("result")
+    if not isinstance(results, list) or not results:
+        return None
+    record = results[0] or {}
+    fragment: dict[str, Any] = {}
+    title = record.get("title")
+    if title:
+        fragment["title"] = str(title)
+    authors: list[dict[str, str]] = []
+    for author in (record.get("authorList") or {}).get("author") or []:
+        if not isinstance(author, dict):
+            continue
+        last, first = str(author.get("lastName") or "").strip(), str(author.get("firstName") or "").strip()
+        if last and first:
+            authors.append({"family": last, "given": first})
+        elif author.get("fullName"):
+            authors.append({"literal": str(author["fullName"])})
+        elif last:
+            authors.append({"family": last})
+    if authors:
+        fragment["author"] = authors
+    venue = ((record.get("journalInfo") or {}).get("journal") or {}).get("title")
+    if venue:
+        fragment["container-title"] = str(venue)
+    year = record.get("pubYear")
+    if year and str(year).isdigit():
+        fragment["issued"] = {"date-parts": [[int(year)]]}
+    abstract = record.get("abstractText")
+    if abstract:
+        fragment["abstract"] = str(abstract)
+    doi = record.get("doi")
+    if doi:
+        fragment["DOI"] = str(doi).strip().lower()
+    pmid = record.get("pmid")
+    if pmid:
+        digits = "".join(ch for ch in str(pmid) if ch.isdigit())
+        if digits:
+            fragment["PMID"] = digits
+    return fragment or None
 
 
 def _oa_from_search(body: dict[str, Any]) -> OaLocation | None:

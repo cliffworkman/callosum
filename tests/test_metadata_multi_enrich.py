@@ -12,12 +12,17 @@ from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
 from app.backend.discovery.providers import Item
-from app.backend.metadata.enrich_sources import EnrichmentRegistry
+from app.backend.metadata.enrich_sources import (
+    EnrichmentRegistry,
+    EnrichRef,
+    PubMedEnrichSource,
+    build_default_enrich_registry,
+)
 from app.backend.metadata.enrichment import enrich_paper_metadata_multi, gap_merge
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper, get_paper
-from integrations.crossref import CrossrefClient
-from integrations.openalex.adapter import OpenAlexClient, _csl_from_work
+from integrations.europepmc.adapter import EuropePmcClient
+from integrations.openalex.adapter import _csl_from_work
 
 
 class _StubSource:
@@ -219,25 +224,71 @@ def test_csl_from_work_maps_venue_abstract_type_pmid():
     assert _csl_from_work(None) is None
 
 
-# ---- endpoints -------------------------------------------------------------
+# ---- SP2 sources: Europe PMC + PubMed --------------------------------------
 
 
-def _crossref_fetcher(message_by_doi):
-    def fake(doi, *, headers, timeout):
-        if doi in message_by_doi:
-            return 200, {"message": message_by_doi[doi]}
-        return 404, {"status": "error"}
+def test_europepmc_lookup_metadata_maps_core_record(temp_db_url):
+    engine = make_engine(temp_db_url)
+    record = {
+        "resultList": {
+            "result": [
+                {
+                    "title": "EPMC title",
+                    "authorList": {"author": [{"lastName": "Doe", "firstName": "Jane"}, {"fullName": "R. Roe"}]},
+                    "journalInfo": {"journal": {"title": "EPMC Journal"}},
+                    "pubYear": "2017",
+                    "abstractText": "An EPMC abstract.",
+                    "doi": "10.1/EPMC",
+                    "pmid": "555",
+                }
+            ]
+        }
+    }
+    with engine.begin() as conn:
+        client = EuropePmcClient(fetcher=lambda q, **kw: (200, record))
+        frag = client.lookup_metadata(conn, EnrichRef(doi="10.1/epmc").to_paper_ref())
+    engine.dispose()
+    assert frag["container-title"] == "EPMC Journal"
+    assert frag["abstract"] == "An EPMC abstract."
+    assert frag["author"] == [{"family": "Doe", "given": "Jane"}, {"literal": "R. Roe"}]
+    assert frag["issued"] == {"date-parts": [[2017]]} and frag["PMID"] == "555" and frag["DOI"] == "10.1/epmc"
 
-    return fake
+
+def test_pubmed_source_pmid_abstract_and_title_search(temp_db_url):
+    engine = make_engine(temp_db_url)
+    rec = {
+        "uid": "999",
+        "title": "A Study of X",
+        "fulljournalname": "J Pub",
+        "pubdate": "2016",
+        "articleids": [{"idtype": "doi", "value": "10.1/pub"}],
+    }
+    src = PubMedEnrichSource(
+        search=lambda q, n, **kw: [rec],
+        abstract_fetcher=lambda pmids, **kw: {"999": "A PubMed abstract."},
+    )
+    with engine.begin() as conn:
+        # PMID known → just the abstract
+        assert src.fetch(conn, EnrichRef(pmid="999")) == {"abstract": "A PubMed abstract."}
+        # title-search → matched record's metadata + abstract
+        frag = src.fetch(conn, EnrichRef(title="A study of X"))
+        assert frag["container-title"] == "J Pub" and frag["DOI"] == "10.1/pub"
+        assert frag["PMID"] == "999" and frag["abstract"] == "A PubMed abstract."
+        # title that doesn't match the returned record → nothing (no wrong-paper enrichment)
+        miss = PubMedEnrichSource(search=lambda q, n, **kw: [rec], abstract_fetcher=lambda p, **k: {})
+        assert miss.fetch(conn, EnrichRef(title="Totally Unrelated Title")) is None
+    engine.dispose()
 
 
-_OFFLINE_OPENALEX = OpenAlexClient(fetcher=lambda path, **kw: (404, {"error": "offline"}))
+def test_default_registry_has_four_sources():
+    assert [s.name for s in build_default_enrich_registry().sources] == ["crossref", "openalex", "europepmc", "pubmed"]
 
 
-def _inject_offline(client):
-    """Make every source hermetic: a canned Crossref + an OpenAlex that 404s + a no-op title search."""
-    client.app.state.openalex_client = _OFFLINE_OPENALEX
-    client.app.state.enrich_search_provider = _StubSearch([])
+# ---- endpoints (hermetic via an injected stub registry — no live sources) --
+
+
+def _stub_registry(fragment):
+    return _reg(_StubSource("stub", fragment))
 
 
 def test_fill_metadata_endpoint_gap_fills_one_paper(temp_db_url):
@@ -252,21 +303,10 @@ def test_fill_metadata_endpoint_gap_fills_one_paper(temp_db_url):
         )
     engine.dispose()
     client = TestClient(create_app(db_url=temp_db_url))
-    client.app.state.crossref_client = CrossrefClient(
-        fetcher=_crossref_fetcher(
-            {
-                "10.1/a": {
-                    "DOI": "10.1/a",
-                    "type": "journal-article",
-                    "title": ["Resolved"],
-                    "container-title": ["J"],
-                    "issued": {"date-parts": [[2020]]},
-                    "abstract": "An abstract.",
-                }
-            }
-        )
+    client.app.state.enrich_registry = _stub_registry(
+        {"title": "Resolved", "container-title": "J", "issued": {"date-parts": [[2020]]}, "abstract": "An abstract."}
     )
-    _inject_offline(client)
+    client.app.state.enrich_search_provider = _StubSearch([])
     body = client.post(f"/papers/{pid}/fill-metadata").json()
     assert "abstract" in body["filled_fields"] and "venue" in body["filled_fields"]
     assert body["paper"]["venue"] == "J" and body["paper"]["abstract"] == "An abstract."
@@ -290,25 +330,14 @@ def test_enrich_library_batch_endpoint(temp_db_url):
         _paper(conn, title="B", imported_source="pdf-scaffold")  # no DOI, no recovery
     engine.dispose()
     client = TestClient(create_app(db_url=temp_db_url))
-    client.app.state.crossref_client = CrossrefClient(
-        fetcher=_crossref_fetcher(
-            {
-                "10.1/a": {
-                    "DOI": "10.1/a",
-                    "type": "journal-article",
-                    "title": ["A"],
-                    "container-title": ["J"],
-                    "issued": {"date-parts": [[2020]]},
-                    "abstract": "abs",
-                }
-            }
-        )
+    client.app.state.enrich_registry = _stub_registry(
+        {"container-title": "J", "issued": {"date-parts": [[2020]]}, "abstract": "abs"}
     )
-    _inject_offline(client)
+    client.app.state.enrich_search_provider = _StubSearch([])
     done = _drive_enrich(client)
     assert done["status"] == "done"
     assert done["summary"]["papers"] == 2
-    assert done["summary"]["fields_filled"] >= 2  # A gained abstract + venue
+    assert done["summary"]["fields_filled"] >= 2  # A gained venue + abstract
     assert done["summary"]["still_missing_doi"] == 1  # B never got a DOI
 
 
