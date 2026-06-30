@@ -574,8 +574,15 @@ To work through it:
 
 Trashed papers don't appear in the queue. The queue lives only on this machine.
 
-<!-- section: my-publications -->
-## My Publications
+<!-- section: reading-markers -->
+## Read/unread & priority markers
+Each library card carries two personal markers you set **by hand** — they're your labels, never an AI score or judgment about the paper:
+
+- **Read / unread:** a toggle on the card (○ unread → ✓ read). Marking a paper read is a manual choice — opening a PDF does **not** auto-mark it. (This is separate from the reading queue, where ✓ *removes* a paper.)
+- **Priority:** a **Priority ▾** badge on the card opens a small picker — **High / Normal / Low**, or **Clear**. Priority is your triage order, not a quality rating: a paper can be low-priority and excellent, or high-priority because it's due tomorrow.
+
+You can then **sort** the library by **"By priority"** (high → normal → low → unset) or **"Unread first"** from the Sort dropdown. Both markers live only on this machine.
+
 Callosum can gather your own papers into a pinned **My Publications** axis at the top of the Axes panel.
 
 Set it up in Settings (⚙) → **My Publications**: enter your name, any other published-name variants (initials, maiden name), and — recommended — your **ORCID** (which gives an exact match). Then click **Refresh my papers**. (If the optional account is configured on your instance, **Settings → Account → Sign in with ORCID** fills in your verified ORCID + name for you — see "Optional account" under Privacy.)

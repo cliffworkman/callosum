@@ -299,6 +299,7 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
           : <span className="paper-cite paper-cite-static"
               title={citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex · as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"}>{citeInfo.count} cited-by</span>)}
         {footExtra}
+        <ReadPriorityControl paper={p} />  {/* inc 220: read toggle + priority (user markers) */}
       </div>
     </div>
   );
@@ -455,6 +456,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <option value="author">Author (A–Z)</option>
             <option value="author_desc">Author (Z–A)</option>
             <option value="citations_desc">Most cited</option>
+            <option value="priority">By priority</option>
+            <option value="unread">Unread first</option>
           </select>
         </div>
         {state.status === "ready" && !fulltextMode &&

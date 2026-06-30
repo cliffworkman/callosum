@@ -513,6 +513,20 @@
   .finding-card { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 10px; margin: 6px 0; }
   .finding-card.speculative { border-style: dashed; }
   .finding-card.reviewed { opacity: .7; }
+  /* inc 220: per-card reading markers — read toggle + priority. Neutral (a user label, NOT verified/flag/danger). */
+  .paper-mark { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+  .paper-read { font-size: 10px; font-family: var(--sans); color: var(--ink-3); background: none; border: 1px solid transparent; border-radius: var(--radius-pill); padding: 1px 6px; cursor: pointer; }
+  .paper-read:hover { border-color: var(--line-2); color: var(--ink-2); }
+  .paper-read.is-read { color: var(--ink); }
+  .paper-priority-wrap { position: relative; display: inline-flex; }
+  .paper-priority { font-size: 10px; font-family: var(--sans); color: var(--ink-3); background: none; border: 1px solid transparent; border-radius: var(--radius-pill); padding: 1px 6px; cursor: pointer; }
+  .paper-priority:hover { border-color: var(--line-2); color: var(--ink-2); }
+  .paper-priority.pr-high { color: var(--ink); background: var(--panel-2); border-color: var(--line-2); font-weight: 600; }
+  .paper-priority.pr-normal, .paper-priority.pr-low { color: var(--ink-2); background: var(--panel-2); border-color: var(--line); }
+  .priority-pop { position: absolute; top: 100%; right: 0; margin-top: 3px; z-index: 30; display: flex; flex-direction: column; min-width: 88px; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0,0,0,.12); padding: 3px; }
+  .pr-opt { text-align: left; font-size: 11.5px; font-family: var(--sans); color: var(--ink); background: none; border: none; border-radius: var(--radius-sm); padding: 4px 8px; cursor: pointer; }
+  .pr-opt:hover { background: var(--panel-2); }
+  .pr-opt.pr-clear { color: var(--ink-3); border-top: 1px solid var(--line); margin-top: 2px; }
   .finding-head { display: flex; align-items: baseline; gap: 8px; }
   .finding-text { font-size: 12.5px; color: var(--ink); }
   .finding-tier { font-size: 10px; color: var(--flag); text-transform: uppercase; letter-spacing: .04em; }
@@ -2684,7 +2698,7 @@
         },
         citeInfo.count,
         " cited-by"
-      )), footExtra)
+      )), footExtra, /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p }), "  ")
     );
   }
   function PaperList({
@@ -2821,7 +2835,7 @@
         onChange: (e) => onQuery(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "citations_desc" }, "Most cited"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "citations_desc" }, "Most cited"), /* @__PURE__ */ React.createElement("option", { value: "priority" }, "By priority"), /* @__PURE__ */ React.createElement("option", { value: "unread" }, "Unread first"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "bulk-focus",
@@ -3993,6 +4007,61 @@
       )
     }
   );
+  const PRIORITY_LEVELS = ["high", "normal", "low"];
+  const _cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+  function ReadPriorityControl({ paper }) {
+    const [read, setRead] = useState(!!paper.read_at);
+    const [priority, setPriority] = useState(paper.priority || "");
+    const [pop, setPop] = useState(false);
+    useEffect(() => {
+      setRead(!!paper.read_at);
+      setPriority(paper.priority || "");
+    }, [paper.read_at, paper.priority]);
+    useEffect(() => {
+      if (!pop) return;
+      const close = () => setPop(false);
+      document.addEventListener("mousedown", close);
+      return () => document.removeEventListener("mousedown", close);
+    }, [pop]);
+    const toggleRead = (e) => {
+      e.stopPropagation();
+      const next = !read;
+      setRead(next);
+      apiPost(`/papers/${paper.id}/read`, { read: next }).then((r) => {
+        if (!r.ok) setRead(!next);
+      });
+    };
+    const setLevel = (e, level) => {
+      e.stopPropagation();
+      const prev = priority;
+      setPriority(level || "");
+      setPop(false);
+      apiPost(`/papers/${paper.id}/priority`, { priority: level }).then((r) => {
+        if (!r.ok) setPriority(prev);
+      });
+    };
+    return /* @__PURE__ */ React.createElement("span", { className: "paper-mark", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "paper-read" + (read ? " is-read" : ""),
+        title: read ? "Read \u2014 click to mark unread" : "Mark as read",
+        onClick: toggleRead
+      },
+      read ? "\u2713 read" : "\u25CB unread"
+    ), /* @__PURE__ */ React.createElement("span", { className: "paper-priority-wrap" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "paper-priority pr-" + (priority || "none"),
+        title: "Set reading priority (your triage label)",
+        onMouseDown: (e) => e.stopPropagation(),
+        onClick: (e) => {
+          e.stopPropagation();
+          setPop((v) => !v);
+        }
+      },
+      priority ? _cap(priority) : "Priority \u25BE"
+    ), pop && /* @__PURE__ */ React.createElement("span", { className: "priority-pop", onMouseDown: (e) => e.stopPropagation() }, PRIORITY_LEVELS.map((l) => /* @__PURE__ */ React.createElement("button", { key: l, className: "pr-opt pr-" + l, onClick: (e) => setLevel(e, l) }, _cap(l))), /* @__PURE__ */ React.createElement("button", { className: "pr-opt pr-clear", onClick: (e) => setLevel(e, null) }, "Clear"))));
+  }
   function SuggestCard({ suggestion, onCreated }) {
     const [label, setLabel] = useState(suggestion.label);
     const [terms, setTerms] = useState(() => (suggestion.terms || []).map((t) => ({ term: t, selected: true })));

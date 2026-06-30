@@ -20,6 +20,7 @@ from app.backend.metadata.citation_export import render_citations
 from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.metadata.paper_edits import build_paper_update
 from app.backend.persistence.repository import (
+    PRIORITY_LEVELS,
     get_attachments_for_paper,
     get_chunks_for_paper,
     get_paper,
@@ -31,6 +32,8 @@ from app.backend.persistence.repository import (
     purge_paper,
     refresh_processing_tier,
     restore_paper,
+    set_paper_priority,
+    set_paper_read,
     soft_delete_paper,
     update_paper_metadata,
 )
@@ -52,6 +55,8 @@ class PaperListItem(BaseModel):
     chunk_count: int
     cited_by_count: int | None = None  # inc 210 (A2): verbatim OpenAlex cited-by count (None = not fetched)
     cited_by_as_of: str | None = None  # the "as of <date>" attribution (retrieved_at, ISO)
+    read_at: str | None = None  # inc 220: NULL = unread; ISO timestamp = the user marked it read
+    priority: str | None = None  # inc 220: user triage label (high/normal/low); NULL = unset
 
 
 class AttachmentResponse(BaseModel):
@@ -110,6 +115,16 @@ class PaperDetailResponse(BaseModel):
     chunk_count: int
     attachments: list[AttachmentResponse]
     tags: list[PaperTagRef] = []
+    read_at: str | None = None  # inc 220: NULL = unread; ISO timestamp = the user marked it read
+    priority: str | None = None  # inc 220: user triage label (high/normal/low); NULL = unset
+
+
+class ReadStateRequest(BaseModel):
+    read: bool  # inc 220: True = mark read (stamp read_at), False = mark unread (clear)
+
+
+class PriorityRequest(BaseModel):
+    priority: str | None = None  # inc 220: "high"/"normal"/"low" or null to clear; validated vs PRIORITY_LEVELS
 
 
 class PaperUpdateRequest(BaseModel):
@@ -176,6 +191,8 @@ def papers_index(
         default=None
     ),  # filter to a Methods-producer signal (allowlisted in repo), e.g. statcheck
     finding: str | None = Query(default=None),  # the "to review" queue: papers with unreviewed candidate findings
+    read_status: str | None = Query(default=None),  # inc 220: "read" / "unread" filter
+    priority: str | None = Query(default=None),  # inc 220: filter to a priority level (allowlisted in repo)
     sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted in repo)
     conn: Connection = Depends(get_connection),
 ) -> list[PaperListItem]:
@@ -193,6 +210,8 @@ def papers_index(
         needs_review=needs_review,
         signal=signal,
         finding=finding,
+        read_status=read_status,
+        priority=priority,
         sort=sort,
     )
     return [_paper_list_item(row) for row in rows]
@@ -336,6 +355,31 @@ def restore_paper_endpoint(paper_id: int, conn: Connection = Depends(get_connect
     return _detail_for(conn, paper_id)
 
 
+@router.post("/papers/{paper_id}/read", response_model=PaperDetailResponse)
+def set_read_endpoint(
+    paper_id: int, payload: ReadStateRequest, conn: Connection = Depends(get_connection)
+) -> PaperDetailResponse:
+    """Mark a paper read/unread — a manual user toggle (inc 220). 404 if the paper doesn't exist."""
+    if not set_paper_read(conn, paper_id, payload.read):
+        raise HTTPException(status_code=404, detail="Paper not found")
+    conn.commit()
+    return _detail_for(conn, paper_id)
+
+
+@router.post("/papers/{paper_id}/priority", response_model=PaperDetailResponse)
+def set_priority_endpoint(
+    paper_id: int, payload: PriorityRequest, conn: Connection = Depends(get_connection)
+) -> PaperDetailResponse:
+    """Set/clear the user's reading priority (high/normal/low or null) — a hand-set triage label, never an AI
+    score (inc 220). 422 off-allowlist; 404 if the paper doesn't exist."""
+    if payload.priority is not None and payload.priority not in PRIORITY_LEVELS:
+        raise HTTPException(status_code=422, detail=f"priority must be one of {PRIORITY_LEVELS} or null")
+    if not set_paper_priority(conn, paper_id, payload.priority):
+        raise HTTPException(status_code=404, detail="Paper not found")
+    conn.commit()
+    return _detail_for(conn, paper_id)
+
+
 # Permanent (irreversible) delete — only reachable for a paper already in Trash (inc 65). Purges the paper's
 # embeddings + sqlite-vec vectors too, so nothing orphans (an orphaned paper-embedding crashes retrieval).
 @router.delete("/papers/{paper_id}/permanent", status_code=http_status.HTTP_204_NO_CONTENT)
@@ -426,6 +470,8 @@ def _paper_list_item(row: Any) -> PaperListItem:
         chunk_count=row["chunk_count"],
         cited_by_count=row["cited_by_count"] if "cited_by_count" in row.keys() else None,
         cited_by_as_of=_iso_or_none(row["cited_by_as_of"]) if "cited_by_as_of" in row.keys() else None,
+        read_at=_iso_or_none(row["read_at"]),
+        priority=row["priority"],
     )
 
 
@@ -462,6 +508,8 @@ def _paper_detail(
             PaperTagRef(id=int(t["id"]), name=t["name"], source=t["import_source"], color=t["color"])
             for t in (tags or [])
         ],
+        read_at=_iso_or_none(row["read_at"]),
+        priority=row["priority"],
     )
 
 

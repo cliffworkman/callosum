@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 219** (see Increment workflow) with **783 pytest tests
+It is currently at **Increment 220** (see Increment workflow) with **785 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -251,7 +251,9 @@ callosum/
    │   │                          findings_repo.py [paper_findings: FACT/CANDIDATE contract, inc 130],
    │   │                          retraction_repo.py [retraction_records: local Retraction Watch mirror, inc 132],
    │   │                          agent_repo.py [agent_writes: gated MCP-write audit log + revert, inc 216],
-   │   │                          reading_queue_repo.py [reading_queue: the ordered to-read list, inc 219];
+   │   │                          reading_queue_repo.py [reading_queue: the ordered to-read list, inc 219],
+   │   │                          paper_lifecycle_repo.py [trash/purge/tier + read/priority setters, split inc 220],
+   │   │                          summaries_repo.py [synthesis CRUD, split inc 220] [both re-exported from repository];
    │   │                          database.py sets PRAGMA journal_mode=WAL + busy_timeout=5000, inc 219)
 │   │   ├── pdf_processing/        (extraction.py [PyMuPDF text + canonicalize], quote_matching.py
 │   │   │                          [locate_quote → bbox rects], ingest.py, library_scan.py [folder scan, inc 87],
@@ -361,7 +363,7 @@ callosum/
 │                                  dispatcher, _qa_serve.py = seeded throwaway server, route_runner_prompt.md])
 ├── tests/                         (pytest suite — per-resource files + conftest.py + api_helpers.py; 303 passing;
 │                                  tests/e2e/ = opt-in Playwright browser smoke, CALLOSUM_RUN_E2E=1)
-├── alembic/                       (env.py + versions/0001_persistence_core … 0030_reading_queue)
+├── alembic/                       (env.py + versions/0001_persistence_core … 0031_paper_read_priority)
 ├── alembic.ini, pyproject.toml, requirements.txt, requirements-dev.txt
 ├── package.json, package-lock.json  ← JS deps: esbuild (frontend build, inc 102) + citeproc (citation engine, inc 106); node_modules/ gitignored
 ├── THIRD-PARTY-NOTICES.md           ← credit-the-lineage: citeproc-js (AGPL) + bundled CSL styles (CC-BY-SA), inc 106
@@ -415,9 +417,13 @@ constants) → new `routers/paper_edit_input.py` (111; duck-typed on the request
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
+**Inc 220** split `repository.py` (662→**565**, a pre-existing violation the watch note had drifted on at "~556"; the
+read/priority feature landed in it): the paper-lifecycle cluster (trash/purge/tier + the new read/priority setters)
+→ `persistence/paper_lifecycle_repo.py` (121) and the synthesis CRUD → `persistence/summaries_repo.py` (61), both
+**re-exported** from `repository` (`# noqa: E402,F401`; zero call-site change — the inc-137 pattern).
 **Watch (re-measure before trusting):** `clustering/my_publications.py` (~594, **closest** — split before the next
-backend addition there), `repository.py` (~556), `routers/papers.py` (~554), `extraction.py` (~551),
-`routers/axes.py` (~537) — all under 600, but check `wc -l` before adding to them.
+backend addition there), `routers/papers.py` (**593** after inc 220), `extraction.py` (~551), `routers/axes.py`
+(~537), `repository.py` (**565**) — all under 600, but check `wc -l` before adding to them.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
 `app/backend/metadata/paper_edits.py`.)
 
@@ -763,6 +769,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Read/unread + priority markers = user-set per-paper labels (NOT a score), card-control + sort now, filter facet deferred; a forced repository.py split (beta feedback — Bella; inc 220) | Two **hand-set** per-paper reading markers on each library card — a **manual read/unread** toggle (`papers.read_at`; opening a PDF does NOT auto-mark — the maintainer's call) + a **priority** picker (high/normal/low — "a few named levels," the maintainer's call). **The inc-207 declined-ratings logic is the load-bearing principle:** a unidimensional *star* was declined as an AI-suggestible score that flattens a paper; a **user-set** priority is a personal triage label (never computed, shown **neutrally** — no verified-green/flag-amber/danger-red — orthogonal to tags/axes), so it's the inc-207 color-tag class, NOT the declined thing. **migration 0031** adds both nullable columns (guarded ADD COLUMN). `routers/papers.py`: `POST /papers/{id}/read` (404) + `POST /papers/{id}/priority` (422 off-allowlist `{high,normal,low}`, 404); `read_status`/`priority` filter params + a **"priority"** sort (high→low→unset) + an **"unread"** sort on `GET /papers`. Frontend `16b_readmark.jsx` (`ReadPriorityControl`, **optimistic** local state → zero `40_app.jsx` change, dodging its 600 cap) rendered in PaperCard's foot + the two Sort options. **Forced rule-#1 split:** `repository.py` was 662 (pre-existing violation; my additions → 698), so the paper-lifecycle cluster → `paper_lifecycle_repo.py` + the synthesis CRUD → `summaries_repo.py`, both re-exported (zero call-site change) → repository.py **565**. **No security audit** (local columns + 2 local endpoints; no egress/fetch/dependency — the inc-207 color-tag precedent); **Principles non-triggering** (user labels, not claims). QA surface **161/161 API + 715/715 FE, 0 uncovered** (`route_50`). pytest **785** (+2). **Experience pass (post-import-triager persona):** capture works but *retrieval* was half-built → added the **"Unread first"** sort (cap-free interim, finding #1) in-increment; the library-HEADER **filter facet** is **deferred** (needs a `40_app.jsx` split) + bumped to persona-blocking in the backlog. Headed-verified 5/5 (0 console/page/genai) `.local/visual/drive_inc220_readmark.py` (sets an empty `CALLOSUM_LIBRARY_DIR` so the on-load auto-rescan doesn't pull the real library into the seeded DB — a harness fix, not a product bug). |
 | Reading queue = a dedicated `reading_queue` table + the "Queue" AXES tab; WAL+busy_timeout SQLite hardening (beta feedback — Bella; inc 219) | A personal, **ordered to-read list** as the **third tab of the left-pane AXES section** ([Axes \| Tags \| Queue]). **Built as a dedicated table, NOT the inc-211 curated-axis primitive** — a queue isn't a scored lens, and the maintainer's instinct was a separate tab; reusing curated-axis would couple it to `cluster_node_papers`/scoring for no gain. **`reading_queue`** (migration 0030, guarded + no-op downgrade): `paper_id` FK CASCADE + UNIQUE (one row/paper → idempotent add; purge → CASCADE-drop), nullable `position` (manual order). `reading_queue_repo.py` (list [trashed-excluded, position NULLS-last] / add [append, idempotent] / remove / `set_queue_order` [validate set == members else ValueError]) + `routers/reading_queue.py` (GET/POST[404]/DELETE[idempotent 204]/PUT-order[422]). Frontend `16_queue.jsx` (`registerPaneTab` order 30): add by **dragging a library card** (`application/x-callosum-paper`, inc 206) onto the panel **or** the Details **+ Reading queue** button; **drag-to-reorder** via a queue-only MIME `application/x-callosum-queueitem` (inc 212) → `PUT /reading-queue/order`; ✓ (read→remove) / × (remove); click a row opens the paper. **Two distinct MIMEs** so add-drag vs reorder-drag never cross-fire. **The non-obvious half — `database.py` now sets `PRAGMA journal_mode=WAL` + `busy_timeout=5000`:** the headed verification reliably hit `database is locked` because uvicorn serves sync endpoints from a threadpool (concurrent connections to one SQLite file) and the default rollback-journal + busy_timeout=0 made a write racing the list-refresh GET fail immediately; WAL (readers don't block the writer) + busy_timeout (wait, don't error) is the standard local-SQLite-under-a-web-server pairing — a real app-wide hardening. **`BEGIN IMMEDIATE` (the cure for the residual read-then-write upgrade-deadlock) was rejected as unsafe** — `_run_scan_job`/embed/import wrap a multi-minute job in one `engine.begin()` transaction, so grabbing the write lock up front would block all requests for the whole job; the upgrade-deadlock (rare; a human never hits it) is a **filed backlog item** for a focused concurrency pass. **No security audit** (a local table + 4 local endpoints; no egress/fetch/dependency — the inc-208 saved-searches precedent); **Principles non-triggering** (a user-ordered list, no claim/score). QA surface **159/159 API + 706/706 FE, 0 uncovered** (`route_49`). pytest **783** (+6 `test_reading_queue.py`); help corpus + DESIGN-recipe (`.queue-*`, tokens only). Headed-verified deterministic (10/10, 0 console/page/genai) `.local/visual/drive_inc219_queue.py`. |
 | Multi-pass, gap-filling metadata enrichment (beta feedback — Eileen; inc 217 SP1 + inc 218 SP2) | Records come in with gaps (no DOI / no abstract / blank venue) and hand-fixing them is the chore. The fix: a **multi-source, gap-filling** enricher that **fills only a paper's EMPTY fields** from a source cascade — **never overwriting a value the user typed** — distinct from (and leaving unchanged) the existing wholesale `enrich_paper_metadata_from_crossref` (the force-overwrite re-resolve/scan/OA-acquire/my-pubs path). **Pluggable source registry** (`metadata/enrich_sources.py`, mirroring the discovery `SourceRegistry`): `EnrichmentSource.fetch(conn, ref) -> CSL-fragment`, run in order by `EnrichmentRegistry.fetch_all` (a source that raises is skipped); SP1 = Crossref-by-DOI + OpenAlex-by-DOI/PMID/title (`fetch_work_csl` + the additive `_csl_from_work` surfacing venue/abstract/type/PMID), SP2 (inc 218) **added** Europe PMC (`EuropePmcClient.lookup_metadata` reusing the OA resolver's cached `core` record) + PubMed (PMID→efetch abstract / title-search→matched record, conservative match) — each one `register()` + a mapper, so the default cascade is `crossref → openalex → europepmc → pubmed`; an `app.state.enrich_registry` seam keeps the endpoint tests hermetic once the default has live EPMC/PubMed clients. **Orchestrator** `enrich_paper_metadata_multi`: **Pass 0** recover a missing DOI (PDF scan → Crossref title-search, adopted only on a strong `_titles_match` + compatible year, and **only if it doesn't already belong to another paper** — honors the `papers.doi` UNIQUE + leaves dups to dedup); **then** `gap_merge` (fill-empty-only) + `_gap_fill_columns` (project merged CSL → only the empty columns). **Provenance never downgraded** — a `user-edited`/`merged`/`ai-agent` paper keeps its `imported_source` (only its blanks fill), which is *why* the batch can safely run over **all** live papers (the user-chosen scope), not just the `_can_update_from_crossref` allowlist. Shipped as a per-paper **Fill missing fields** (`25_detail.jsx`, beside 🔎) + a library-wide async batch **Enrich metadata ↻** (`POST/GET /library/enrich/refresh` in `routers/library.py` — the citation-counts JobStore shape; `EnrichMetadataButton` in `10b_libmenus.jsx`; summary = papers/dois_recovered/fields_filled/still_missing_doi). Egress = **public bibliographic metadata** (Crossref/OpenAlex — DOI/PMID/title out), the inc-87/183/210 posture, **NOT** the Gemini library-text gate. **No migration, no new dependency.** Audit `2026-06-30_metadata-enrich.md` PASS; Principles non-triggering/strengthening (gap-fill is *more* honest than overwrite — never clobbers a user value). QA `route_48_metadata_enrich.md`; the live Crossref/OpenAlex run over the real library is the maintainer's spot-check. |
 | Gated MCP agent writes — additive + reversible + opt-in, no destructive route (backlog B1 SP2; inc 216) | Let an external agent (Claude Desktop/Cursor) **write** to the library through callosum — add a tag, add a paper to an axis, save a reference by DOI, add a note — while keeping callosum the provenance authority. **Human-in-loop model (maintainer's pick): review + revert after** — writes apply immediately but are **additive-only, reversible, `ai-agent`-stamped, and audited**; the agent host's native per-call confirmation is the in-the-moment gate (no elicitation, no approval queue — fragile/clunky, rejected). The **A4 value** ("the user owns every irreversible act") is honored *structurally*, not by a prompt: there is **no delete/overwrite/merge/scan agent route**, and `CallosumClient` exposes only the four write methods — an irreversible agent act is inexpressible (mirrors SP1's read-only allowlist). Writes gate on **`agent_writes_enabled`** (Settings → AI agent, **default OFF** → 403; `CALLOSUM_DISABLE_AGENT_WRITES=1` kill switch); each is recorded in **`agent_writes`** (migration 0029, guarded additive) and reverted from Settings (per-row + Revert-all; tag→remove, axis→remove, reference→soft-delete *only if agent-created*, note→delete; idempotent + dedup-safe). **`save_reference` is DOI-verified** — resolves against the audited Crossref client, **refuses an unresolvable DOI** (no fabrication), builds the paper from the resolved CSL stamped `ai-agent` (which is outside `_can_update_from_crossref`'s allowlist → never clobbered by a later enrich). **My-Publications axes are refused (422)** — authorship is the user's to assert (A-A no-accusation). New `routers/agent.py` (7 endpoints), `persistence/agent_repo.py` + `agent_writes` table, `app_settings` flag, `35_settings.jsx` `AgentSettings`; `mcp_server` gains `agent_status` + 4 write tools registered **only when enabled**. Egress: local DB mutations + a public DOI→Crossref lookup (NOT the Gemini library-text gate). Audit `2026-06-30_mcp-agent-writes.md` PASS; A4/A-A pass ran in the spec; code-level Principles non-triggering. No new app dependency (reuses the inc-213 `mcp` SDK + token). QA `route_47_agent_writes.md`; the live MCP↔host write round-trip is the maintainer's manual check. |
@@ -927,7 +934,47 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 219 (reading queue — the to-read "Queue" tab — + a SQLite concurrency fix;
+*Last updated: 2026-06-30 — increment 220 (read/unread + priority markers; beta feedback from Bella). Two
+**user-set** per-paper reading markers on each library card — a **manual read/unread** toggle (`papers.read_at`;
+opening a PDF does NOT auto-mark — the maintainer's call) + a **priority** picker (high/normal/low — "a few named
+levels," the maintainer's call). **Both are hand triage labels, NEVER an AI score** — the inc-207 declined-ratings
+logic is load-bearing: a *star* was declined as an AI-suggestible composite that flattens a paper, but a **user-set**
+priority is a personal label (never computed; shown **neutrally** — no verified-green/flag-amber/danger-red; orthogonal
+to tags/axes), so it's the inc-207 color-tag class, not the declined thing. **migration 0031** (guarded ADD COLUMN +
+guarded downgrade) adds both nullable columns. `routers/papers.py`: `POST /papers/{id}/read` (404 if missing) + `POST
+/papers/{id}/priority` (422 off-allowlist `{high,normal,low}`/null, 404); `read_status`/`priority` filter params + a
+**"priority"** sort (high→normal→low→unset) + an **"unread"** sort on `GET /papers`; `read_at`/`priority` on the
+list-item + detail responses. Frontend new chunk `16b_readmark.jsx` (`ReadPriorityControl` — a read toggle + a
+priority badge/popover, **optimistic** local state → zero `40_app.jsx` change, dodging its 599/600 cap) rendered in
+PaperCard's foot (`10_pdf_layer.jsx`, function-hoisted, the inc-208 pattern) + the **"By priority"** + **"Unread
+first"** Sort options; `styles.css` `.paper-read`/`.paper-priority`/`.priority-pop` (neutral tokens, rule #8).
+**Forced rule-#1 split:** `repository.py` was **662 at HEAD** (a pre-existing violation the watch note had drifted on
+at "~556"); my additions took it to 698, so the paper-lifecycle cluster (trash/purge/tier + the new setters) →
+**`paper_lifecycle_repo.py`** (121) and the synthesis CRUD → **`summaries_repo.py`** (61), both **re-exported** from
+`repository` (`# noqa: E402,F401`; zero call-site change — the inc-137 schema_findings pattern; `compute_processing_tier`
+inlines its paper query to avoid a cycle) → repository.py **565**. **No security audit** (local columns + 2 local
+endpoints; no egress/fetch/dependency — the inc-207 color-tag precedent); **Principles non-triggering** (user labels,
+not claims/scores — the declined-ratings call IS the principle pass). pytest **785** (+2 `tests/test_papers.py`:
+read marker set/clear + read/unread filters + the unread sort + 404; priority set/clear + filter + 422-off-allowlist +
+404 + the by-priority sort); the split is **behavior-preserving** (summaries/merge/health/reading-queue green
+untouched); `ruff` clean; migration head **0031** via `alembic_head()`; **QA surface 161/161 API** (+2 `/papers/{id}/read`
++ `/priority`; new `route_50_reading_markers.md`) **+ 715/715 FE, 0 uncovered**; help corpus gained "Read/unread &
+priority markers" (`HELP-DOCS-SYNCED` → 220). **Experience pass (rule #11, post-import-triager persona):** capture
+works but *retrieval* was half-built (you could mark but only *sort* — not *filter* — back to "what's unread/hot") →
+added the **"Unread first"** sort (a cap-free interim, the persona's top fix-cheap) in-increment; the library-HEADER
+**read/priority filter facet** is **DEFERRED** (it needs a `40_app.jsx` split — the file is at the 600 cap) and bumped
+to persona-blocking in the backlog. **Headed-verified deterministic (5/5, 0 console/page/genai)**
+`.local/visual/drive_inc220_readmark.py` (read toggle → read/unread filter; priority popover → priority filter; the
+by-priority sort; the harness sets an empty `CALLOSUM_LIBRARY_DIR` so the on-load auto-rescan [inc 98/136/160] doesn't
+scan the real `library/` PDFs into the seeded DB — a test-harness fix, the read_status filter itself is correct, proven
+by a direct-API check + the pytest). **Rule-#1:** `16b_readmark.jsx` **62**; `repository.py` **565**; `routers/papers.py`
+**593**; `15_axes.jsx` is **614 (>600, pre-existing from inc 211/212)** — a separate behavior-preserving split,
+untouched here. Notes: `INCREMENT-220-NOTES.md`. **NEXT (the fast-follow):** the **`40_app.jsx` split** (extract the
+library filter/query state into a `useLibrary` hook, the inc-128/167 pattern) → then the read/priority **filter
+facet** (Unread / High-priority header chips) the experience pass flagged. Then Bella's thread is complete; otherwise
+the design-gated **B-items** (B2 collaboration, B3 OCR, B4 citation-context classifier, B5 mobile).
+
+Earlier — increment 219 (reading queue — the to-read "Queue" tab — + a SQLite concurrency fix;
 beta feedback from Bella). A **personal, ordered to-read list** as the **third tab of the left-pane AXES section**
 ([Axes | Tags | Queue]) — **not** an axis (no scoring): its own **`reading_queue`** table (migration **0030**, guarded
 + no-op downgrade; `paper_id` FK CASCADE + UNIQUE → idempotent add / purge-CASCADE-drop, nullable `position` for the

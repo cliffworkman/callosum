@@ -68,6 +68,8 @@ papers = Table(
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("updated_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     Column("deleted_at", DateTime),  # NULL = live; a timestamp = soft-deleted (in Trash). inc 54.
+    Column("read_at", DateTime),  # NULL = unread; a timestamp = the user marked it read (manual). inc 220.
+    Column("priority", String(20)),  # NULL = unset; a user triage label (high/normal/low), never an AI score. inc 220.
     enum_check("processing_tier", PROCESSING_TIERS, "processing_tier_valid"),
     UniqueConstraint("doi", name="uq_papers_doi"),
     UniqueConstraint("openalex_work_id", name="uq_papers_openalex_work_id"),

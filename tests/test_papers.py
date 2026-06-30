@@ -1061,3 +1061,67 @@ def test_dismissed_pair_can_be_listed_and_undismissed(temp_db_url: str) -> None:
         client.post("/papers/duplicates/undismiss", json={"paper_ids": [a, b]}).status_code == 204
     )  # idempotent no-op
     assert client.post("/papers/duplicates/undismiss", json={"paper_ids": [a]}).status_code == 422  # <2 ids
+
+
+def test_paper_read_marker(temp_db_url: str) -> None:
+    # inc 220: a manual read/unread toggle + an Unread/Read library filter. Read state is the user's, never auto.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="Paper A", csl_json={"title": "Paper A"})
+        b = create_paper(conn, title="Paper B", csl_json={"title": "Paper B"})
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    # both start unread
+    assert client.get(f"/papers/{a}").json()["read_at"] is None
+    assert {p["id"] for p in client.get("/papers", params={"read_status": "unread"}).json()} == {a, b}
+    assert client.get("/papers", params={"read_status": "read"}).json() == []
+
+    # mark A read
+    detail = client.post(f"/papers/{a}/read", json={"read": True})
+    assert detail.status_code == 200 and detail.json()["read_at"] is not None
+    assert {p["id"] for p in client.get("/papers", params={"read_status": "read"}).json()} == {a}
+    assert {p["id"] for p in client.get("/papers", params={"read_status": "unread"}).json()} == {b}
+
+    # "Unread first" sort (experience-pass interim): with A read, the unread B sorts ahead of A
+    client.post(f"/papers/{a}/read", json={"read": True})
+    ordered = [p["id"] for p in client.get("/papers", params={"sort": "unread"}).json()]
+    assert ordered.index(b) < ordered.index(a)
+
+    # unmark A
+    assert client.post(f"/papers/{a}/read", json={"read": False}).json()["read_at"] is None
+    assert client.get("/papers", params={"read_status": "read"}).json() == []
+
+    # 404 on a nonexistent paper
+    assert client.post("/papers/999999/read", json={"read": True}).status_code == 404
+
+
+def test_paper_priority_marker(temp_db_url: str) -> None:
+    # inc 220: a user-set priority (high/normal/low) — a hand label, never an AI score. Filter + "By priority" sort.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        hi = create_paper(conn, title="High one", csl_json={"title": "High one"})
+        lo = create_paper(conn, title="Low one", csl_json={"title": "Low one"})
+        un = create_paper(conn, title="Unset one", csl_json={"title": "Unset one"})
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    assert client.get(f"/papers/{hi}").json()["priority"] is None
+    assert client.post(f"/papers/{hi}/priority", json={"priority": "high"}).json()["priority"] == "high"
+    assert client.post(f"/papers/{lo}/priority", json={"priority": "low"}).json()["priority"] == "low"
+
+    # off-allowlist → 422 (stored value unchanged); 404 on a nonexistent paper
+    assert client.post(f"/papers/{hi}/priority", json={"priority": "urgent"}).status_code == 422
+    assert client.get(f"/papers/{hi}").json()["priority"] == "high"
+    assert client.post("/papers/999999/priority", json={"priority": "high"}).status_code == 404
+
+    # filter to a level
+    assert {p["id"] for p in client.get("/papers", params={"priority": "high"}).json()} == {hi}
+
+    # By-priority sort: high → low → unset (NULL last)
+    ordered = [p["id"] for p in client.get("/papers", params={"sort": "priority"}).json()]
+    assert ordered == [hi, lo, un]
+
+    # clear via null
+    assert client.post(f"/papers/{hi}/priority", json={"priority": None}).json()["priority"] is None
+    assert client.get("/papers", params={"priority": "high"}).json() == []

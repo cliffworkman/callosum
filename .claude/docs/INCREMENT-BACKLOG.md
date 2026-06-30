@@ -69,18 +69,19 @@ _Italic notes are light implementation pointers, not designs._
 **Beta feedback — Bella (Slack, 2026-06-30): reading-workflow markers.** Three small, related per-paper-state
 features (Cliff queued them; duplicate-detection + the Unsorted tab she also asked for already exist — inc 56/64 +
 inc 80). Likely **one increment**: a tiny migration adding per-paper state + a library facet/sort + a card control.
-- **read / unread marker** — a per-paper `read_at` (or a bool) + a card toggle + a library filter ("Unread"), mirroring
-  the inc-80 needs-review facet + the inc-207 color-tag card affordance. *(The closest existing pattern: the `signal`/
-  `finding` query-param filters on `GET /papers` + the `.trash-toggle` header chips.)*
-- **priority markers** — a per-paper priority/flag (a small enum or star) + sort/filter. *(Reuses the inc-207
-  color-tag migration shape; an explicit **user** label, never an AI score — the inc-207 declined-ratings logic
-  applies: keep it a user marker, not a composite.)*
-- **reading queue** — ✅ **SHIPPED inc 219** (the **Queue** tab — 3rd tab of the left-pane AXES section). Built as a
-  **dedicated `reading_queue` table** (NOT the curated-axis primitive — a queue isn't a scored lens, and the maintainer's
-  instinct was a separate tab): drag-a-card / Details-button to add, drag-to-reorder, ✓-read / ×-remove.
-- **read / unread marker** + **priority markers** — still open (the per-paper-state pair above; note inc 219's ✓ on the
-  queue *removes* it, which is distinct from a durable read/unread marker — keep them separate). Likely one small
-  migration + a library facet/sort + a card control.
+- **reading queue** — ✅ **SHIPPED inc 219** (the **Queue** tab — 3rd tab of the left-pane AXES section): a dedicated
+  `reading_queue` table; drag-a-card / Details-button to add, drag-to-reorder, ✓-read / ×-remove.
+- **read / unread marker + priority markers** — ✅ **markers + sort SHIPPED inc 220** (`papers.read_at` + `papers.priority`;
+  a manual read toggle + a high/normal/low priority picker on each card [`16b_readmark.jsx`], a **"By priority"** + **"Unread
+  first"** sort, `read_status`/`priority` `GET /papers` filter params; user labels, never an AI score — the inc-207
+  declined-ratings logic). **▲ STILL OPEN — the library-HEADER filter facet** (an "Unread"/"High priority" filter *chip*
+  in the library header): **deferred because `40_app.jsx` is at the 600-line cap** (the filter state lives there). The
+  inc-220 experience pass (post-import-triager persona) found this **strands the retrieval half of triage** — you can mark
+  papers but can only *sort*, not *filter*, back to "what's unread / what's hot" — so bump it above generic backlog. It
+  needs the overdue **`40_app.jsx` split** first (extract the library filter/query state into a `useLibrary` hook, the
+  inc-128/167 pattern), then add the read/priority filter chips (+ fold them into saved-searches for completeness).
+  *(Minor, low-urgency: at large scale "By priority" collapses all unset papers into one bucket — a secondary order
+  [e.g. recency] within the unset tier would help. Experience-pass finding #4.)*
 *(Eileen's multi-pass metadata enrichment — the other half of that thread — shipped inc 217/218.)*
 
 **SQLite read-then-write upgrade-deadlock — app-wide concurrency hardening** *(surfaced by the inc-219 headed

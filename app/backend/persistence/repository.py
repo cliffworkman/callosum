@@ -10,36 +10,50 @@ from sqlalchemy import (
     RowMapping,
     String,
     and_,
+    case,
     cast,
-    delete,
-    exists,
     func,
     insert,
-    not_,
     or_,
     select,
-    update,
 )
 
 from app.backend.persistence.schema import (
     attachments,
     axes,
     chunks,
-    citation_mappings,
     cluster_node_papers,
     cluster_nodes,
-    embeddings,
     open_science_signals,
     paper_citation_counts,
     paper_findings,
     paper_tags,
     papers,
-    summaries,
-    summary_sentences,
 )
 
 if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at import time
-    from app.backend.embeddings.vector_store import VectorStore
+    pass
+
+# Paper lifecycle/state mutators (trash, purge, read/priority, tier) live in paper_lifecycle_repo.py (extracted
+# inc 220 to keep this module under the 600-line cap); re-exported so existing import sites are unchanged.
+from app.backend.persistence.paper_lifecycle_repo import (  # noqa: E402,F401
+    compute_processing_tier,
+    purge_all_trashed,
+    purge_paper,
+    refresh_processing_tier,
+    restore_paper,
+    set_paper_priority,
+    set_paper_read,
+    soft_delete_paper,
+    update_paper_metadata,
+)
+
+# Summary (synthesis) CRUD lives in summaries_repo.py (extracted inc 220); re-exported so call sites are unchanged.
+from app.backend.persistence.summaries_repo import (  # noqa: E402,F401
+    delete_summary,
+    get_summary,
+    list_summaries,
+)
 
 
 def _cited_by_subquery():
@@ -58,6 +72,15 @@ def _cited_by_as_of_subquery():
         .where(paper_citation_counts.c.paper_id == papers.c.id)
         .scalar_subquery()
     )
+
+
+# User-set reading priority (inc 220). A personal triage label the user sets BY HAND — never an AI score / rank
+# (the inc-207 declined-ratings logic: a user dimension, like a color tag, not a composite). Allowlist (rule #3);
+# NULL = unset. The CASE ranks high→low→unset for the explicit "By priority" sort.
+PRIORITY_LEVELS = ("high", "normal", "low")
+_PRIORITY_RANK = case(
+    (papers.c.priority == "high", 0), (papers.c.priority == "normal", 1), (papers.c.priority == "low", 2), else_=3
+)
 
 
 def _paper_sort_order(sort: str) -> list:
@@ -79,6 +102,12 @@ def _paper_sort_order(sort: str) -> list:
         # Most cited (inc 210, A2): an EXPLICIT, user-chosen sort by the OpenAlex cited-by count — never the
         # default (no silent rank, Principles #2/#7). Papers without a fetched count sort last.
         "citations_desc": [_cited_by_subquery().is_(None), _cited_by_subquery().desc()],
+        # By priority (inc 220): an EXPLICIT, user-chosen sort — high → normal → low → unset. The user's own
+        # triage order, never the default and never an AI rank.
+        "priority": [_PRIORITY_RANK.asc()],
+        # Unread first (inc 220, experience-pass): the cap-free interim for "come back to what's unread" until the
+        # header filter facet lands. read_at IS NULL (unread) sorts before read; a user-chosen order, never default.
+        "unread": [papers.c.read_at.is_not(None)],
     }
     order = sorts.get(sort, sorts["added"])
     return order if sort in ("added", "recent") else [*order, papers.c.id.asc()]
@@ -196,6 +225,8 @@ def list_papers(
     needs_review: bool = False,
     signal: str | None = None,
     finding: str | None = None,
+    read_status: str | None = None,
+    priority: str | None = None,
     sort: str = "added",
 ) -> list[RowMapping]:
     attachment_count = (
@@ -278,6 +309,12 @@ def list_papers(
                 select(paper_findings.c.paper_id).where(paper_findings.c.review_state == FINDING_FILTERS[finding])
             )
         )
+    if read_status == "read":
+        stmt = stmt.where(papers.c.read_at.is_not(None))  # the user marked it read (inc 220)
+    elif read_status == "unread":
+        stmt = stmt.where(papers.c.read_at.is_(None))
+    if priority in PRIORITY_LEVELS:
+        stmt = stmt.where(papers.c.priority == priority)  # bound value over the allowlist (rule #3)
     return list(conn.execute(stmt.limit(limit).offset(offset)).mappings())
 
 
@@ -345,88 +382,6 @@ def get_paper_counts(conn: Connection, paper_id: int) -> RowMapping:
             )
         )
     )
-
-
-def update_paper_metadata(conn: Connection, paper_id: int, **values: Any) -> None:
-    if not values:
-        return
-    conn.execute(update(papers).where(papers.c.id == paper_id).values(**values))
-
-
-def soft_delete_paper(conn: Connection, paper_id: int) -> bool:
-    """Soft-delete (move to Trash): stamp deleted_at. Returns False if the paper is missing or already
-    trashed. Nothing is removed — rows are kept so it's fully restorable and nothing orphans (inc 54)."""
-    result = conn.execute(
-        update(papers)
-        .where(and_(papers.c.id == paper_id, papers.c.deleted_at.is_(None)))
-        .values(deleted_at=func.current_timestamp())
-    )
-    return bool(result.rowcount)
-
-
-def restore_paper(conn: Connection, paper_id: int) -> bool:
-    """Restore from Trash: clear deleted_at. Returns False if the paper is missing or not trashed."""
-    result = conn.execute(
-        update(papers).where(and_(papers.c.id == paper_id, papers.c.deleted_at.is_not(None))).values(deleted_at=None)
-    )
-    return bool(result.rowcount)
-
-
-def purge_paper(conn: Connection, paper_id: int, *, vector_store: "VectorStore") -> bool:
-    """Permanently delete a TRASHED paper and everything it owns. Irreversible (inc 65).
-
-    Only acts on a soft-deleted (in-Trash) paper — returns False if the paper is missing or still live, so a
-    live paper can never be purged in one step. Deletes the paper's `embeddings` rows AND their vectors first
-    (those have no FK and would otherwise orphan and crash `retrieval._resolve_hit`), then deletes the paper
-    row, whose FK CASCADE removes chunks/annotations/attachments/cluster_node_papers/dismissed pairs/etc.
-    Caller commits.
-    """
-    row = conn.execute(select(papers.c.deleted_at).where(papers.c.id == paper_id)).first()
-    if row is None or row[0] is None:
-        return False  # missing or not in Trash — never purge a live paper
-    _purge_paper_embeddings(conn, paper_id, vector_store=vector_store)
-    conn.execute(delete(papers).where(papers.c.id == paper_id))
-    return True
-
-
-def purge_all_trashed(conn: Connection, *, vector_store: "VectorStore") -> int:
-    """Empty the Trash: permanently delete every soft-deleted paper. Returns the count purged. Caller commits."""
-    ids = [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_not(None)))]
-    for paper_id in ids:
-        purge_paper(conn, paper_id, vector_store=vector_store)  # each is trashed → True
-    return len(ids)
-
-
-def _purge_paper_embeddings(conn: Connection, paper_id: int, *, vector_store: "VectorStore") -> None:
-    # The polymorphic `embeddings` table has no FK: a paper's vectors are its own paper-embedding plus one per
-    # chunk. Collect them, drop each vector from the store (by embedding id), then delete the embedding rows.
-    chunk_ids = [int(r[0]) for r in conn.execute(select(chunks.c.id).where(chunks.c.paper_id == paper_id))]
-    conditions = [and_(embeddings.c.target_type == "paper", embeddings.c.target_id == paper_id)]
-    if chunk_ids:
-        conditions.append(and_(embeddings.c.target_type == "chunk", embeddings.c.target_id.in_(chunk_ids)))
-    rows = conn.execute(select(embeddings.c.id, embeddings.c.dimension).where(or_(*conditions))).all()
-    for embedding_id, dimension in rows:
-        vector_store.delete(conn, embedding_id=int(embedding_id), dimension=int(dimension))
-    if rows:
-        conn.execute(delete(embeddings).where(embeddings.c.id.in_([int(r[0]) for r in rows])))
-
-
-def compute_processing_tier(conn: Connection, paper_id: int) -> str:
-    chunk_count = int(
-        conn.execute(select(func.count()).select_from(chunks).where(chunks.c.paper_id == paper_id)).scalar_one()
-    )
-    if chunk_count > 0:
-        return "fully-chunked"
-    paper = get_paper(conn, paper_id)
-    if paper["abstract"] or paper["doi"] or paper["year"] or paper["venue"] or paper["first_author_family_name"]:
-        return "abstract-embedded"
-    return "metadata-only"
-
-
-def refresh_processing_tier(conn: Connection, paper_id: int) -> str:
-    tier = compute_processing_tier(conn, paper_id)
-    conn.execute(update(papers).where(papers.c.id == paper_id).values(processing_tier=tier))
-    return tier
 
 
 def find_existing_paper_by_identity(
@@ -604,55 +559,6 @@ def get_papers_for_cluster_node(conn: Connection, cluster_node_id: int) -> list[
 
 # Persistent "not a duplicate" dismissals (inc 64) live in `app/backend/persistence/dedup_repo.py`
 # (extracted inc 67 to keep this module under the 600-line cap).
-
-
-def list_summaries(conn: Connection, *, limit: int = 50, offset: int = 0) -> list[RowMapping]:
-    sentence_count = (
-        select(func.count())
-        .select_from(summary_sentences)
-        .where(summary_sentences.c.summary_id == summaries.c.id)
-        .scalar_subquery()
-    )
-    verified_sentence_count = (
-        select(func.count())
-        .select_from(summary_sentences)
-        .where(
-            summary_sentences.c.summary_id == summaries.c.id,
-            exists(
-                select(citation_mappings.c.id).where(citation_mappings.c.summary_sentence_id == summary_sentences.c.id)
-            ),
-            not_(
-                exists(
-                    select(citation_mappings.c.id).where(
-                        citation_mappings.c.summary_sentence_id == summary_sentences.c.id,
-                        citation_mappings.c.status != "verified",
-                    )
-                )
-            ),
-        )
-        .scalar_subquery()
-    )
-    stmt = (
-        select(
-            summaries,
-            sentence_count.label("sentence_count"),
-            verified_sentence_count.label("verified_sentence_count"),
-            (sentence_count - verified_sentence_count).label("flagged_sentence_count"),
-        )
-        .order_by(summaries.c.created_at.desc(), summaries.c.id.desc())
-        .limit(limit)
-        .offset(offset)
-    )
-    return list(conn.execute(stmt).mappings())
-
-
-def get_summary(conn: Connection, summary_id: int) -> RowMapping:
-    return _one_mapping(conn.execute(select(summaries).where(summaries.c.id == summary_id)))
-
-
-def delete_summary(conn: Connection, summary_id: int) -> bool:
-    result = conn.execute(delete(summaries).where(summaries.c.id == summary_id))
-    return bool(result.rowcount)
 
 
 def _normalize_doi(doi: str | None) -> str | None:
