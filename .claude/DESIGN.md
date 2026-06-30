@@ -161,6 +161,13 @@ recipe** (inc 156) — a hit is just another evidence card. New only: `.ft-mark`
 `--accent`** (search = the provenance/primary color), and the quiet `.fulltext-hint` / `.fulltext-meta` / `.ft-page`
 mono-meta lines. Reuse `.ft-mark` for any future search-match highlight.
 
+### PDF highlight minimap (inc 215)
+A thin `.pdf-minimap` gutter (`flex: 0 0 14px`, `--panel-2` bg, `--line` left border) beside the page scroller,
+shown only when the Notes panel is closed. Each highlight is a `.pdf-minimap-tick` — absolutely positioned by
+**page fraction** (`top: ((page-1+0.5)/numPages)%`), tinted by the highlight's own color (fallback `--flag`),
+`var(--radius-sm)` corners, `--accent` hover outline. Tokens only; no raw hex. It's a navigation aid (page-level,
+not pixel), so it never touches the inc-34/35 render-core geometry.
+
 ### Status / provenance accents
 Connection LED, synthesis "running" pulse, the provenance box (`.prov`: `--accent-soft` bg + accent border
 + accent bold) — indigo = provenance. Verified green / flagged amber on summary sentences (left border 3px).

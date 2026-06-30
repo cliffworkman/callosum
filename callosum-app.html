@@ -1237,6 +1237,11 @@
   .pdf-scroll { flex: 1 1 auto; min-height: 0; min-width: 0; overflow: auto; background: var(--panel-2); }
   /* Viewer body row: the page scroller + an optional annotation panel beside it. */
   .pdf-body { flex: 1 1 auto; min-height: 0; display: flex; }
+  /* inc 215: a thin highlight minimap beside the scroller — one tick per highlight at its page fraction. */
+  .pdf-minimap { flex: 0 0 14px; position: relative; background: var(--panel-2); border-left: 1px solid var(--line); }
+  .pdf-minimap-tick { position: absolute; right: 3px; left: 3px; height: 6px; margin-top: -3px; padding: 0;
+    border: 1px solid var(--line); border-radius: var(--radius-sm); cursor: pointer; opacity: 0.82; }
+  .pdf-minimap-tick:hover { opacity: 1; outline: 1px solid var(--accent); }
   .pdf-annot-panel {
     flex: 0 0 290px; min-height: 0; overflow-y: auto; background: var(--panel-2);
     border-left: 1px solid var(--line-2); padding: 10px;
@@ -5692,7 +5697,7 @@
         ref: pagesRef,
         style: { display: state.status === "ready" ? "flex" : "none" }
       }
-    )), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement(
+    )), state.status === "ready" && annotations.length > 0 && !panelOpen && /* @__PURE__ */ React.createElement(MinimapTrack, { annotations, numPages: state.numPages, onJump: jumpToAnnotation }), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement(
       AnnotationsPanel,
       {
         annotations,
@@ -5731,6 +5736,23 @@
         onClick: () => setEditor((ed) => ({ ...ed, color: c }))
       }
     ))), /* @__PURE__ */ React.createElement("div", { className: "hl-editor-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost danger", onClick: () => deleteAnnotation(editor.id) }, "Delete"), /* @__PURE__ */ React.createElement("span", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setEditor(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveEdit }, "Save"))), notice && /* @__PURE__ */ React.createElement("div", { className: "pdf-toast", role: "alert", onClick: () => setNotice(null) }, notice));
+  }
+  function MinimapTrack({ annotations, numPages, onJump }) {
+    if (!numPages) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-minimap", title: "Highlights \u2014 click a mark to jump to it" }, annotations.map((a) => {
+      const pct = Math.max(0, Math.min(100, (a.page - 1 + 0.5) / numPages * 100));
+      const label = a.note ? `p.${a.page} \u2014 ${a.note}` : `Highlight on p.${a.page}`;
+      return /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: a.id,
+          className: "pdf-minimap-tick",
+          title: label,
+          style: { top: pct + "%", background: a.color || "var(--flag)" },
+          onClick: () => onJump(a)
+        }
+      );
+    }));
   }
   function AnnotationsPanel({ annotations, onCopy, onExport, onJump, onEdit, onDelete }) {
     const [notedOnly, setNotedOnly] = useState(false);

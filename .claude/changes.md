@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Increment 215: PDF highlight minimap (the last close-out dreg)
+- **Files:** `app/frontend/js/30_viewer.jsx` (a `MinimapTrack` component + the render hook) + `styles.css`
+  (`.pdf-minimap` / `.pdf-minimap-tick`, tokens only) + `callosum-app.html` (rebuilt); `.claude/DESIGN.md`,
+  `.claude/qa-routes/route_32_viewer_annotations.md`, CLAUDE, `INCREMENT-215-NOTES.md`.
+- **What:** a thin gutter beside the page-scroller with one tick per highlight, positioned by **page fraction**
+  (not pixel offset → never touches the inc-34/35 render core), tinted by the highlight's color; clicking a tick
+  jumps to + flashes it. Shown only when the Notes panel is closed (the panel supersedes it).
+- **Why:** the maintainer's "mop up the dregs" — the reading-pane minimap (the chosen option). No split was needed
+  (`30_viewer.jsx` was 557, not the stale-noted 599/600 → 580 with the minimap).
+- **Gates:** **frontend-only** — pytest **748** unchanged (`test_frontend_assembly` in sync); no backend/endpoint/
+  migration/egress/dependency/audit; Principles non-triggering (coordinate-honest navigation overlay). QA surface
+  **145/145 API + 687/687 FE, 0 uncovered**. Headed-verified (`.local/visual/drive_inc215_minimap.py` — 2 ticks,
+  click→jump+flash, hidden while Notes open; 0 console/page/genai). **This empties the autonomous close-out band.**
+- **Revert:** `git revert` the inc-215 commit (frontend-only; no schema/endpoint change).
+
 ## 2026-06-30 — Increment 214: close-out mop-up — per-file scan progress + first-class extra URLs (+ a forced split)
 - **Files:** `app/backend/pdf_processing/library_scan.py` (on_progress → `(current,total,filename)`),
   `app/backend/api/routers/library.py` (the scan/rescan lambdas put the basename in the label),

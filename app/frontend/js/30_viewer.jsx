@@ -518,6 +518,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
           <div className={"pdf-pages" + (pageView === "two" ? " pdf-two-up" : "")} ref={pagesRef}
                style={{ display: state.status === "ready" ? "flex" : "none" }}></div>
         </div>
+        {state.status === "ready" && annotations.length > 0 && !panelOpen &&
+          <MinimapTrack annotations={annotations} numPages={state.numPages} onJump={jumpToAnnotation} />}
         {panelOpen && state.status === "ready" &&
           <AnnotationsPanel annotations={annotations} onCopy={copyDigest} onExport={exportDigest}
             onJump={jumpToAnnotation} onEdit={openEditor} onDelete={deleteAnnotation} />}
@@ -548,6 +550,27 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
         </div>}
       {notice &&
         <div className="pdf-toast" role="alert" onClick={() => setNotice(null)}>{notice}</div>}
+    </div>
+  );
+}
+
+// inc 215: a thin scrollbar-side minimap — one tick per highlight at its page's vertical fraction; click to jump.
+// Positioned by PAGE (numPages), not pixel offset, so it never touches the fragile render-core geometry (inc 34/35);
+// the equal-page-height approximation is fine for a navigation aid. Shown when the Notes panel is closed (the panel
+// already lists + jumps). Tinted by the highlight's own color.
+function MinimapTrack({ annotations, numPages, onJump }) {
+  if (!numPages) return null;
+  return (
+    <div className="pdf-minimap" title="Highlights — click a mark to jump to it">
+      {annotations.map((a) => {
+        const pct = Math.max(0, Math.min(100, ((a.page - 1 + 0.5) / numPages) * 100));
+        const label = a.note ? `p.${a.page} — ${a.note}` : `Highlight on p.${a.page}`;
+        return (
+          <button key={a.id} className="pdf-minimap-tick" title={label}
+                  style={{ top: pct + "%", background: a.color || "var(--flag)" }}
+                  onClick={() => onJump(a)} />
+        );
+      })}
     </div>
   );
 }

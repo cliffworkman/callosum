@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 214** (see Increment workflow) with **748 pytest tests
+It is currently at **Increment 215** (see Increment workflow) with **748 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -394,7 +394,8 @@ the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-do
 existing line — split before the next addition there). **Inc 211** (A7 SP1 curated axis): `js/15_axes.jsx` grew to
 **551** (the `isCurated` branch + freeze/convert/reorder) — comfortably under; `js/40_app.jsx` untouched.
 **Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
-`js/30_viewer.jsx` (557). **Inc 214** split `routers/papers.py` (604→**510**, over the cap when the #5 `extra_urls`
+`js/30_viewer.jsx` (**580**, +23 from the inc-215 minimap; was 557, NOT the stale-noted 599/600 — inc-182's
+LibraryFrame extraction had relieved it). **Inc 214** split `routers/papers.py` (604→**510**, over the cap when the #5 `extra_urls`
 field landed): the request-normalisation cluster (`edits_from_request` + `_clean_*`/`_validate_csl_patch` + the caps
 constants) → new `routers/paper_edit_input.py` (111; duck-typed on the request → no import cycle). **Inc 137** split
 `schema.py` (611→558, over the cap
@@ -910,7 +911,31 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 214 (close-out mop-up — two small autonomous "dregs" + a forced split). The
+*Last updated: 2026-06-30 — increment 215 (PDF highlight minimap — the last close-out dreg). A thin gutter beside the
+PDF page-scroller shows one tick per highlight, click-to-jump — the reading-pane bit the maintainer picked. New
+`MinimapTrack({annotations, numPages, onJump})` in `js/30_viewer.jsx` (module-level, IIFE-hoisted): a `.pdf-minimap`
+track with a `.pdf-minimap-tick` per annotation, positioned by **page fraction** (`top = ((page-1+0.5)/numPages)%`,
+clamped) + tinted by the highlight's `color` (fallback `--flag`); each tick's title = page + note snippet; click →
+`onJump(annotation)` = the inc-177 `jumpToAnnotation` (scroll-to + flash). Rendered as a flex sibling of `.pdf-scroll`
+in `.pdf-body`, shown when `ready && annotations.length > 0 && !panelOpen` (**Notes panel closed** — the panel already
+lists + jumps, so the minimap is its compact alternative; opening Notes hides it). `styles.css`: `.pdf-minimap`
+(`flex: 0 0 14px`, `--panel-2`, `--line` border) + `.pdf-minimap-tick` (absolute `top: %`, `--radius-sm`, `--accent`
+hover) — **tokens only** (rule #8; DESIGN.md gained the recipe). **Page-fraction, not pixel offset** → the minimap
+never touches the fragile inc-34/35 render-core geometry (the equal-page-height approximation is honest for a nav aid;
+the actual jump uses the real `[data-page=N]` scroll, so landing is exact). **No split was needed** — `30_viewer.jsx`
+was **557** (inc-182's LibraryFrame extraction had relieved it; the rule-#1 "599/600 MAXED" note was stale), so the
+minimap took it to **580**, under the cap. **Frontend-only** — pytest **748** unchanged (`test_frontend_assembly` in
+sync; CI re-runs the full suite); no backend/endpoint/migration/egress/dependency/audit; **Principles non-triggering**
+(a coordinate-honest navigation overlay — page-level, no fabricated rect). QA: `route_32_viewer_annotations.md`
+extended with the minimap step; surface **145/145 API + 687/687 FE, 0 uncovered** (+2 FE = the track + tick, claimed
+via `30_viewer.jsx`). **Headed-verified, no egress** (`.local/visual/drive_inc215_minimap.py` — seed a 4-page PDF + 2
+highlights [p.1, p.4] → 2 ticks → click the lower tick → the p.4 highlight flashes → open Notes → the minimap hides;
+0 console/page/genai). Notes: `INCREMENT-215-NOTES.md`. **This empties the autonomous close-out band** (A1–A10 closed
+incs 203–212; the dregs #4/#5/minimap cleared incs 214–215). **NEXT:** the remaining backlog is **design-gated
+B-items** — B1 SP2 (gated agent writes), B2 collaboration/shared libraries, B3 OCR, B4 citation-context classifier,
+B5 mobile reading — each its own brainstorm + the maintainer's pick.
+
+Earlier — increment 214 (close-out mop-up — two small autonomous "dregs" + a forced split). The
 maintainer asked to clear the last cheap autonomous leftovers. **#4 — per-file scan progress:** `scan_library_folder`'s
 `on_progress` callback is now `(current, total, filename)`; the scan/watched-rescan job lambdas put the basename in the
 label (`f"Reading {name}"`), so the existing `ProgressBar` (which renders `progress.label — X / N`) shows
