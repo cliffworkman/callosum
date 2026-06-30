@@ -60,3 +60,45 @@ paper — *simpler* than the spec's word-processor-bibliography assumption), **n
 topic id + the paper's own DOI); fail-closed parsing; bounded inputs; bound-param SQL; no new ingestion path /
 dependency / migration / secret. No identity inference in the core (the gender module is deferred + absent),
 proven by test.
+
+---
+
+## Increment 228 addendum — overlooked-work remediation (SP2)
+
+The Citation-equity panel gains a **"Find overlooked work"** action: surface topically-relevant work the reference
+list OMITS, ranked by a **local** scientific-paper embedding cosine, with a one-click **metadata-only add**.
+New async endpoint `POST`/`GET /methods/citation-equity/overlooked` (the inc-227 JobStore scaffold;
+`app.state.overlooked_jobs`); a new pure ranker `methods/overlooked_work.py`; OpenAlex candidate machinery added to
+`adapter.py`. **No migration; no new dependency.**
+
+- **SSRF / external calls.** The candidate pool is the focal paper's OpenAlex `related_works` (read from the cached
+  focal blob) ∪ the topic sample. Both reach OpenAlex only as **validated, bound** tokens: `fetch_works_by_ids`
+  builds a `?filter=openalex_id:W1|W2|…` from ids each validated **`^W\d+$` before the request** (≤MAX_BYIDS=50;
+  invalid ids dropped → no request if none valid), and `fetch_topic_candidates` reuses the inc-227
+  `primary_topic.id:^T\d+$`-validated field-sample call (just parses the abstract too). Constant host; bound
+  `filter` params; httpx timeouts; fail-closed (any non-200/error → []).
+- **The add path = metadata only, NO PDF (A-A no-paywall-circumvention veto).** ＋ Add calls the already-audited
+  inc-183 `POST /discovery/save` → `save_item` — deduped (`find_existing_paper_by_identity`), `imported_source=
+  "discovery-import"`, and **fetches no PDF** (the OA-acquire lane is untouched). A candidate is a paper the user
+  chooses to add as metadata; **nothing auto-inserts into the document and nothing is dropped** (there is no
+  "remove citation" path anywhere — structural).
+- **No identity inference / no opaque score.** The ranker (`overlooked_work.py`) has **no gender/race/sex code
+  path** — proven behaviorally (`test_no_identity_in_ranker`: injecting `gender`/`sex`/`race` into a candidate
+  changes the output not at all). Candidates are ranked by **topical cosine, never by citation count** (which
+  would amplify the Matthew effect the audit measures); the displayed "topical match 0.NN" is callosum's own
+  inspectable cosine + the shared-concept "why", never a verdict (#2/#7/#8).
+- **Egress / the embedding.** The focal + candidate **title+abstract** are embedded **locally** (SPECTER v1
+  `sentence-transformers/allenai-specter` — loaded through the existing sentence-transformers stack; a ~440 MB
+  **model download** on first use, **not a new package** → no supply-chain change). Only DOIs / W-ids / the topic
+  id leave the machine (the OpenAlex metadata fetches, cached) — **public bibliographic metadata, NOT the Gemini
+  library-text gate**. The action is user-initiated (a click), never auto-run.
+- **Resource caps.** MAX_RELATED=50, MAX_BYIDS=50 (one batch call), topic sample ≤200, MAX_CANDIDATES=1000 to
+  embed, top_k=12, relevance threshold 0.55 (below-bar candidates are not shown — no fabricated relevance). One
+  batch fetch + one topic fetch (both cached) per run; the embedding is one local batch.
+- **Negative paths** (`tests/test_overlooked_work.py`): 404 (missing paper) / 422 (no DOI); unknown job → 404;
+  no related-works + empty topic → an honest empty report (`shown == 0`); an already-cited work that is also
+  "related" is **excluded**; `fetch_works_by_ids` drops non-`^W\d+$` ids and fail-closes on non-200.
+
+**Security Audit (inc 228 addendum): PASS.** Public-metadata egress (not the Gemini gate); SSRF-safe (validated +
+bound ids/topic); the add path is metadata-only with no PDF fetch (no paywall circumvention); local embedding,
+no new dependency; bounded; no identity inference (proven by test); add-only / no-drop by construction.

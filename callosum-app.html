@@ -511,6 +511,22 @@
   .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
   .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
   .cite-equity-howto { font-size: 11px; color: var(--ink-2); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+  /* inc 228: overlooked-work remediation — candidate cards (add-only, topical-match "why"). Tokens only. */
+  .cite-equity-overlooked { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
+  .cite-equity-overlooked-intro { font-size: 11px; color: var(--ink-2); line-height: 1.5; margin-bottom: 6px; }
+  .cite-equity-cand-cov { font-size: 10.5px; color: var(--ink-3); margin: 4px 0 6px; }
+  .cite-equity-cand { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px; margin: 6px 0; }
+  .cite-equity-cand-title { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+  .cite-equity-cand-meta { font-size: 10.5px; color: var(--ink-3); margin: 2px 0 4px; }
+  .cite-equity-cand-foot { font-size: 11px; color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .cite-equity-match { color: var(--accent); font-weight: 600; }
+  .cite-equity-cand-why { color: var(--ink-3); }
+  .cite-equity-cand-inlib { color: var(--verified); margin-left: auto; }
+  .cite-equity-cand-open { margin-left: auto; }
+  .cite-equity-cand-open ~ .cite-equity-cand-inlib, .cite-equity-cand-open ~ .btn-link { margin-left: 0; }
+  .cite-equity-cand-abstract { font-size: 11px; margin-top: 5px; }
+  .cite-equity-cand-abstract summary { color: var(--accent); cursor: pointer; }
+  .cite-equity-cand-abstract p { margin: 4px 0 0; color: var(--ink-2); line-height: 1.5; max-height: 160px; overflow-y: auto; }
   .cite-equity-signal { border-top: 1px solid var(--line); padding: 8px 0; }
   .cite-equity-siglabel { font-size: 12px; font-weight: 600; color: var(--ink); }
   .cite-equity-summary { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; margin: 3px 0 6px; }
@@ -2989,8 +3005,64 @@
       "Run audit"
     ), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-egress-note" }, "Running fetches public OpenAlex metadata about your references (their DOIs) \u2014 nothing about your draft or library text leaves your machine.")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Resolving references\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't run the audit: ", state.error), state.status === "done" && rep && (rep.references_total === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "OpenAlex has no reference-list data for this paper, so there's nothing to audit.") : /* @__PURE__ */ React.createElement("div", { className: "cite-equity-report" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-field" }, rep.field_topic ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Compared with a sample of ", rep.field_sample_size, " recent ", /* @__PURE__ */ React.createElement("b", null, rep.field_topic.display_name || "field"), " papers (OpenAlex).") : /* @__PURE__ */ React.createElement(React.Fragment, null, "No field comparison available (OpenAlex has no topic for this paper) \u2014 showing the list's own shape.")), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-caption" }, "The bars show each value descriptively \u2014 context for you to interpret, not a target or a score; neither direction is a verdict."), rep.signals.map((s) => /* @__PURE__ */ React.createElement(CiteEquitySignal, { key: s.key, s })), /* @__PURE__ */ React.createElement(CiteEquityFoot, null))));
   }
+  function OverlookedCard({ c }) {
+    const [st, setSt] = useState(c.in_library ? "in" : "idle");
+    const add = async () => {
+      setSt("adding");
+      const r = await apiPost("/discovery/save", {
+        title: c.title,
+        doi: c.doi || void 0,
+        authors: c.authors || [],
+        journal: c.venue || void 0,
+        year: c.year || void 0,
+        abstract: c.abstract || void 0
+      });
+      setSt(r && r.ok ? "added" : "idle");
+    };
+    const openHref = c.doi ? `https://doi.org/${c.doi}` : c.openalex_work_id ? `https://openalex.org/${c.openalex_work_id}` : null;
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-title" }, c.title), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-meta" }, (c.authors || []).slice(0, 3).join(", "), c.year ? ` \xB7 ${c.year}` : "", c.venue ? ` \xB7 ${c.venue}` : ""), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-foot" }, /* @__PURE__ */ React.createElement("span", { className: "cite-equity-match", title: "callosum's own local embedding cosine to this paper \u2014 a topical match, never a 'you must cite this'" }, "topical match: ", c.match.toFixed(2)), c.shared_concepts && c.shared_concepts.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "cite-equity-cand-why" }, " \xB7 shared: ", c.shared_concepts.join(", ")), openHref && /* @__PURE__ */ React.createElement("a", { className: "btn-link cite-equity-cand-open", href: openHref, target: "_blank", rel: "noopener noreferrer" }, "Open \u2197"), st === "in" ? /* @__PURE__ */ React.createElement("span", { className: "cite-equity-cand-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: st !== "idle", onClick: add }, st === "added" ? "\u2713 in library" : st === "adding" ? "adding\u2026" : "\uFF0B Add to library")), c.abstract && /* @__PURE__ */ React.createElement("details", { className: "cite-equity-cand-abstract" }, /* @__PURE__ */ React.createElement("summary", null, "Abstract"), /* @__PURE__ */ React.createElement("p", null, c.abstract)));
+  }
+  function OverlookedWork({ paperId }) {
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+    }, [paperId]);
+    const run = async () => {
+      setState({ status: "running", progress: null });
+      const poll = (jobId) => api(`/methods/citation-equity/overlooked/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", report: d.report });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "Search failed." });
+        else {
+          setState({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+      const r = await apiPost("/methods/citation-equity/overlooked", { paper_id: paperId });
+      if (!r.ok) {
+        setState({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    if (paperId == null) return null;
+    const rep = state.report;
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overlooked work"), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked-intro" }, "Relevant work you may have missed \u2014 candidates to consider, ranked by topical match (callosum's own local embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite."), state.status === "idle" && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: run,
+        title: "Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)"
+      },
+      "Find overlooked work"
+    ), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Finding related work\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && (rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing clearly relevant that your reference list missed \u2014 or OpenAlex relates too few works to this paper. (Considered ", rep.considered, " candidates you don't already cite.)") : /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cands" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-cov" }, rep.shown, " candidate", rep.shown === 1 ? "" : "s", " from ", rep.considered, " works related to your paper that you don't already cite", rep.field_topic ? /* @__PURE__ */ React.createElement(React.Fragment, null, " (field: ", /* @__PURE__ */ React.createElement("b", null, rep.field_topic.display_name), ")") : null, " \u2014 ranked by topical match; only clearly-relevant matches (cosine \u2265 0.55) are shown."), rep.candidates.map((c, i) => /* @__PURE__ */ React.createElement(OverlookedCard, { key: c.openalex_work_id || i, c })))));
+  }
   function CitationEquitySection({ ctx }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId: ctx.selectedPaper }));
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId: ctx.selectedPaper }), /* @__PURE__ */ React.createElement(OverlookedWork, { paperId: ctx.selectedPaper }));
   }
   registerPaneSection({
     id: "citation-equity",

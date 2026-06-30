@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 227** (see Increment workflow) with **809 pytest tests
+It is currently at **Increment 228** (see Increment workflow) with **819 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -266,7 +266,8 @@ callosum/
    │                          gapfinder.py [backward citation gap-finder, inc 135])
 │   │   ├── methods/               (statcheck.py [NHST p-value recomputation, inc 95], pcurve.py [inc 126], grim.py
    │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131],
-   │   │                          citation_equity.py [identity-agnostic structural reference-list audit, inc 227])
+   │   │                          citation_equity.py [identity-agnostic structural reference-list audit, inc 227],
+   │   │                          overlooked_work.py [topical overlooked-work ranker — local SPECTER cosine, inc 228])
 │   │   ├── discovery/             (providers.py [SourceProvider registry + normalized Item + cross-provider dedup],
    │   │                          crossref_provider.py [Crossref /works keyword search], pubmed_provider.py [NCBI
    │   │                          E-utilities esearch→esummary: PubMed Search provider (SP1a inc 186) + PubMedKeywordFeedSource
@@ -778,6 +779,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Citation-equity SP2 — topical overlooked-work remediation: local SPECTER cosine over a related∪field pool, add-only/identity-agnostic (backlog #25; inc 228 — completes #25) | The SP1 panel promised it: given a paper's reference list, surface **topically-relevant work the list OMITS** — candidates the author may have missed — ranked by callosum's **own local** scientific-paper embedding cosine, each with an inspectable "why" (the labeled cosine + shared OpenAlex concepts) + its abstract, and a one-click **metadata-only add**. **The A-A veto lines are STRUCTURAL, not prose:** there is **no "drop this citation" path** (only surface/add); the reason is **topical relevance, never an author's identity** (no identity is read/computed/shown — equity improves as a *byproduct* of better scholarship); **no quota/tokenism** ("work you may have missed," never "add N to hit a target"); ranked by **topical cosine, never citation count** (which would amplify the very Matthew effect SP1 measures). **Embedding decision (aligned alternative the maintainer was flagged on):** **SPECTER v1** (`sentence-transformers/allenai-specter`) via the *existing* sentence-transformers stack → **NO new dependency** (only a ~440MB model download on first use, like MiniLM); SPECTER2 (needs the `adapters` lib) / SciNCL are documented swaps. **Candidate pool = union** (the maintainer's pick): the focal paper's OpenAlex **`related_works`** ∪ a **field sample** (its `primary_topic`), minus the **already-cited** (`fetch_referenced_works`) + the focal itself. **Rides the audited OpenAlex client** — `_meta_from_work` extended additively (+`related_works` [bare `W…` ids, capped] + `concepts` [top display_names]); new `fetch_works_by_ids` (batch `?filter=openalex_id:W1|W2|…`, each id `^W\d+$`-validated → no SSRF, cached, fail-closed) + `fetch_topic_candidates` (the topic sample WITH abstract, sharing the `field:<id>` cache). New pure ranker `methods/overlooked_work.py` (`rank_overlooked` — numpy unit-cosine, `threshold=0.55`, `top_k=12`; `OverlookedCandidate{…, match, shared_concepts, abstract, in_library}`); a 2nd async endpoint on `routers/citation_equity.py` (`POST/GET /methods/citation-equity/overlooked`, a `app.state.overlooked_jobs` JobStore; the worker pools→excludes-cited→`fetch_works_by_ids`/`fetch_topic_candidates`→`rank_overlooked`→marks `in_library` via `find_existing_paper_by_identity`). **Add = metadata-only `POST /discovery/save`** (`imported_source="discovery-import"`, deduped, **NO PDF fetch** → the OA lane untouched, no paywall circumvention [A-A veto]). Frontend: a **Find overlooked work** button + candidate cards (topical-match chip + shared-topics why + abstract `<details>` + **Open ↗** + **＋ Add to library** / **✓ in library**) on `08b_methods_citation_equity.jsx`. **Local embedding — only DOIs/W-ids + the topic id leave** (the OpenAlex fetches); the text the model sees is embedded **locally**; **NOT** the Gemini gate. **No migration, no new dependency.** Audit **addendum** to `2026-06-30_citation-equity.md` **PASS** (SSRF-safe ids/topics, metadata-only add, bounded, fail-closed); **Principles/A-A aligned** (the inc-156-suggest/inc-185-relevance class; veto lines structural). **Experience pass (conscientious-author persona)** → fixed-cheap in-increment: the candidate **abstract** (the backend already fetched it for ranking then discarded it — plumbed through to a card toggle, the highest-value fix), an **Open ↗** external link, **＋ Add → ＋ Add to library** / **✓ added → ✓ in library** relabels, a "topical match" + relevance-floor caption. QA `route_51` extended (overlooked step + veto assertions); surface **165/165 API + 727/727 FE, 0 uncovered**. pytest **819** (+10 `test_overlooked_work.py`, hermetic — fake embed model + fake OpenAlex); headed-verified (`drive_inc228_overlooked.py` — 3 candidates, match chips, in-lib marked, abstracts, open-links, off-topic excluded, ＋ Add → paper lands; 0 console/page/genai). **This completes #25 (SP1 inc 227 + SP2 inc 228).** |
 | Citation-equity audit SP1 — identity-agnostic structural reference-list audit + field baseline (backlog #25; inc 227) | A new **Citation equity** METHODS panel: a **descriptive** structural audit of a library paper's reference list (its OpenAlex `referenced_works`), shown against a sample of the paper's **field** (its OpenAlex `primary_topic`). 5 signals — **self-citation** (King et al. 2017), **reliance on highly-cited work** (Matthew; Merton 1968 / Perc 2014), **venue** + **institutional concentration**, **geographic / Global-South spread** — each with its list value, the field value, an **inspectable basis**, and an honest **coverage** count. **Never a score / verdict / target / accusation** (#2/#7); **identity-agnostic — no gender/race code path** (proven by test: injecting `gender`/`sex`/`race` changes nothing); the gender module stays **deferred + absent** (the canonical spec — name→gender inference is unreliable + crosses the no-accusation veto). **Rides the audited OpenAlex client** (`_meta_from_work` extended +venue/issn/institutions/country_codes/primary_topic — additive; new `fetch_field_sample` [topic id `^T\d+$`-validated → no SSRF] + `fetch_work_meta_for`); a new pure analyzer `methods/citation_equity.py` + an async endpoint `routers/citation_equity.py` (`POST/GET /methods/citation-equity/run`, the citation_counts JobStore scaffold) — **ephemeral, no table/migration**; a new METHODS panel `08b_methods_citation_equity.jsx` (order 35; the inc-163 placeholder removed). Egress = **public bibliographic metadata** (DOIs + a topic id), user-initiated, **NOT** the Gemini gate. **No new dependency.** Audit `2026-06-30_citation-equity.md` PASS; Principles aligned (statcheck/p-curve class + A8 access-equity, the A-A no-accusation boundary honored structurally). **Experience pass (conscientious-author persona)** → fixed-cheap in-increment: a "context, not a target; neither direction is a verdict" bar caption; a "descriptive count, no field baseline" self-citation anchor; a "mirror, not a report card — never drop a relevant citation or add one to hit a number" how-to; the geography *label* led with "affiliation outside high-income economies" (Global South kept as the in-summary gloss + country breakdown); an egress reassurance. QA `route_51`; surface 163/163 API + 723/723 FE, 0 uncovered. pytest **809** (+14); headed-verified (fake OpenAlex, 0 console/page/genai). **SP2 = the topical overlooked-work remediation** (needs embeddings + a candidate pool — its own increment). |
 | Per-identifier re-fetch 🔎 for PMID + arXiv (reuse the audited OpenAlex client + the DOI overwrite primitive; inc 226) | The Details → Identifiers 🔎 (DOI → Crossref re-resolve, inc 49) is generalized to **PMID** (→ PubMed via OpenAlex) + **arXiv** (→ the synthesized arXiv DOI `10.48550/arXiv.<id>` via OpenAlex); ISBN/ISSN/Cite-key stay plain (no per-paper source). **`POST /papers/{id}/re-resolve`** gains an allowlisted `source: Literal["crossref","pmid","arxiv"] = "crossref"` (default keeps the DOI 🔎 byte-for-byte + back-compat with the no-body POST). The non-DOI branches reuse the **already-audited** `OpenAlexClient.fetch_work_csl(conn, PaperRef(...))` (the inc-217 enrich client) + the inc-49 force-overwrite primitive (`_paper_values_from_csl` + `update_paper_metadata`); a new `OPENALEX_SOURCE="openalex"` is added to the `_can_update_from_crossref` allowlist (resolved+updatable, like crossref, never protected like user-edited). **The clicked identifier is preserved across the wholesale `csl_json` overwrite** (the orchestrator `setdefault`s PMID/arXiv back, since `_csl_from_work` doesn't echo the arXiv id); **422** if the identifier is absent; a fetch miss → no overwrite (graceful 200); the inc-174 user-edited confirm guard still gates. **Forced rule-#1 split** (papers.py was at the 600 cap): the enrichment-action endpoints → new `routers/paper_enrich.py` (113; included before papers.router). Frontend: `DoiRow` → generic `IdentifierRow` (PMID/arXiv rows get a 🔎). Egress = **public bibliographic metadata** (DOI/PMID out), **NOT** the Gemini gate; **no new external host / dependency / migration / QA route** (the `source` param rides the existing `/re-resolve`; noted on `route_30`). Audit = inc-226 addendum to `2026-06-30_metadata-enrich.md` PASS; Principles non-triggering (bibliographic facts). pytest **795** (+4); headed-verified (fake OpenAlex). |
 | Progress ETA ("~Ns left") on long async jobs; cancel deferred (#4 close-out; inc 225) | Long jobs showed determinate "X / N" (inc 142) but no time estimate. Added `Job.started_at` (monotonic, stamped on `mark_running`, **preserved across every `mark_progress`** via a `_started_at` helper so the elapsed clock is continuous) + `Job.eta_seconds()` (`elapsed / current × remaining`; None until there's progress, 0 when complete — computed at read time, so a method not a stored field); surfaced as an additive `eta_seconds` on `JobProgressOut` (the shared `_progress_out` → scan/rescan/import/enrich) + `CitationRefreshProgress`; rendered as " · ~Ns left" by `ProgressBar` + the libmenus Citations/Enrich (a hoisted `_fmtEta`). **Cancel deferred** — correct cooperative cancellation needs the four `_run_*_job` single-`engine.begin()` blocks split into per-item transactions (the same infra as the open SQLite read-then-write concurrency item). Additive — no migration/egress/endpoint/dependency, no audit/Principles trigger; QA surface unchanged (optional field on existing payloads). pytest **791** (+2 `test_job_store.py`); verified unit + a live-import API probe (eta in the payload, decreasing) + **headed** (`drive_inc225_progress.py` → `Embedding papers — 3 / 8 · ~2s left`, 0 console/page/genai). **Harness note:** the inc-142-derived progress driver had drifted (the inc-160 auto-rescan pulled the real library/ into the seeded DB; `seed()` didn't clean the inc-219 `-wal`/`-shm` sidecars → stale-row "N failed" imports) — both fixed in the inc-225 driver; carry to other inc-142-derived drivers. |
@@ -950,7 +952,70 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 227 (citation-equity audit, SP1 — backlog #25; "let's pull something cool and
+*Last updated: 2026-06-30 — increment 228 (citation-equity SP2 — the topical overlooked-work remediation; "hell
+yes!!!!!" → completes backlog #25). The SP1 panel (inc 227) literally promised it; this is it. **Find overlooked work**
+(a separate, opt-in button on the Citation equity panel) surfaces **topically-relevant work a paper's reference list
+OMITS** — candidates the author may have missed — ranked by callosum's **own local** scientific-paper embedding cosine,
+each with an inspectable "why" (the labeled cosine + shared OpenAlex concepts) + its abstract, and a one-click
+**metadata-only add**. **The A-A veto lines are honored STRUCTURALLY, not by prose:** there is **no "drop this
+citation" path** (only surface/add); the reason is **topical relevance, never an author's identity** (no identity is
+read/computed/shown — equity improves as a *byproduct* of better scholarship); **no quota/tokenism** ("work you may
+have missed," never "add N to hit a target"); ranked by **topical cosine, never citation count** (which would amplify
+the very Matthew effect SP1 measures). Via AskUserQuestion the maintainer chose **SPECTER-class scientific embeddings**
++ a **union candidate pool**. **Embedding decision (the aligned alternative, flagged):** **SPECTER v1**
+(`sentence-transformers/allenai-specter`) through the *existing* sentence-transformers stack → **NO new dependency**
+(only a ~440MB model download on first use, like MiniLM; tests/headed inject a fake deterministic keyword model so CI
+never downloads it); SPECTER2 (needs the `adapters` lib) / SciNCL are documented swaps. **Candidate pool = union:** the
+focal paper's OpenAlex **`related_works`** ∪ a **field sample** (its `primary_topic`), minus the **already-cited**
+(`fetch_referenced_works`) + the focal itself. **Rides the audited OpenAlex client** — `_meta_from_work` extended
+additively (+`related_works` [bare `W…` ids, capped `MAX_RELATED`] + `concepts` [top 8 display_names]; existing callers
+ignore the new keys); new `fetch_works_by_ids` (one batched `?filter=openalex_id:W1|W2|…`, each id `^W\d+$`-validated
+**before** the request → no SSRF, cached `byids:<sha>`, fail-closed) + `fetch_topic_candidates` (the topic sample WITH
+abstract, sharing the `field:<id>` cache via a shared `_field_sample_body`); the candidate abstract via the existing
+`_reconstruct_abstract`, kept on a `_meta_with_abstract` (out of the base `_meta_from_work` — too big for 500 refs).
+New **pure** ranker `methods/overlooked_work.py` (`rank_overlooked` — numpy unit-cosine `cand_u @ focal_u`, `threshold=0.55`
+floor [below it = *not shown*, no fabricated relevance], `top_k=12`; `OverlookedCandidate{openalex_work_id, doi, title,
+authors, year, venue, match, shared_concepts, abstract, in_library}` + `to_dict`; the "why" = focal ∩ candidate
+concepts; bounded `MAX_CANDIDATES=1000`, rule #4). A **2nd** async endpoint on `routers/citation_equity.py`
+(`POST/GET /methods/citation-equity/overlooked` + `app.state.overlooked_jobs` JobStore + `_overlooked_model(app)`
+[lazy-cached SPECTER; injected `embedding_model` wins]; the worker: `fetch_work_csl` focal title+abstract +
+`fetch_work_meta_for` for `related_works`/topic → pool → exclude cited+focal → `fetch_works_by_ids` /
+`fetch_topic_candidates` → `rank_overlooked` → mark `in_library` via `find_existing_paper_by_identity`;
+report `{candidates, pool_size, considered, shown, field_topic}`; 404/422; fail-closed). **Add = metadata-only**
+`POST /discovery/save` (`imported_source="discovery-import"`, deduped, **NO PDF fetch** → the OA lane untouched, no
+paywall circumvention [A-A veto]). Frontend (`08b_methods_citation_equity.jsx`, +`OverlookedWork`/`OverlookedCard`):
+the **Find overlooked work** button → ranked candidate cards (a **topical-match** chip + the shared-topics **why** +
+an abstract `<details>` + an **Open ↗** external link + **＋ Add to library** / **✓ in library**) + a framing line +
+an honest coverage/empty state. **Local embedding — only DOIs/W-ids + the topic id leave** (the OpenAlex fetches); the
+focal+candidate **title+abstract** is embedded **locally**; **NOT** the Gemini library-text gate. **No migration, no
+new dependency.** Audit = **addendum** to `.claude/security-audits/2026-06-30_citation-equity.md` **PASS** (SSRF-safe
+ids/topics, metadata-only add, bounded, fail-closed, public-metadata-not-Gemini-gate). **Principles/A-A — aligned**
+(the inc-156-suggest / inc-185-relevance class; the veto lines structural — no drop path, identity never the reason,
+no quota). **Experience pass (rule #11, conscientious-author persona) — fixed-cheap in-increment:** the candidate
+**abstract** (the backend already fetched it for ranking then *discarded* it — plumbed through `OverlookedCandidate` →
+the card toggle, the highest-value cheap fix: read-before-add); an **Open ↗** external link; **＋ Add → ＋ Add to
+library** / **✓ added → ✓ in library** relabels (clearer affordance); a "topical match" chip + the relevance-floor
+caption ("only clearly-relevant matches, cosine ≥ 0.55, are shown"). **Rule #1:** all touched files under cap
+(`methods/overlooked_work.py` 119, `routers/citation_equity.py` ~290 → re-measure before the next addition there,
+`js/08b_methods_citation_equity.jsx` 255). pytest **819 passed, 1 skipped** (+10 `tests/test_overlooked_work.py`,
+hermetic — a fake deterministic keyword embed model + a fake OpenAlex fetcher: the additive `_meta_from_work` keys,
+`_meta_with_abstract`, `fetch_works_by_ids` [batch/validate/fail-close]; the ranker [order/threshold/shared-concepts/
+no-identity]; the endpoint [produces candidates, excludes already-cited, 404/422, empty-state, unknown-job-404]);
+`ruff check` + `format --check` clean; frontend rebuilt (`test_frontend_assembly` 5/5); **QA surface 165/165 API +
+727/727 FE, 0 uncovered** (`route_51_methods_citation_equity.md` extended — overlooked step + the no-drop/no-identity/
+no-quota/in-library-marked/metadata-only-add veto assertions); help corpus's "Checking citation equity" gained a
+"Find overlooked work" paragraph (`HELP-DOCS-SYNCED` → 228). **Headed-verified, no egress**
+(`.local/visual/drive_inc228_overlooked.py` — fake OpenAlex + fake embed model injected, empty `CALLOSUM_LIBRARY_DIR`:
+**Find overlooked work** → 3 candidates, each a match chip + abstract toggle + Open ↗, the in-library one ✓-marked,
+the off-topic "Plant cell biology" excluded below the 0.55 floor, **＋ Add to library** → the candidate lands in
+`/papers`; 0 console/page/genai). Notes: `INCREMENT-228-NOTES.md`; spec
+`.claude/docs/future-tracks/opus4.8_future-tracks_citationequitytool.md`; plan
+`.claude/plans/would-you-mind-reading-wise-peacock.md`. **This completes the citation-equity track #25 (SP1 inc 227 +
+SP2 inc 228).** **NEXT:** the design-gated **B-items** (B2 collaboration, B3 OCR, B4 citation-context classifier, B5
+mobile) — each its own brainstorm + the maintainer's pick; or backlogged from the SP1 experience pass (a real *field*
+self-citation baseline; a prominent low-coverage flag).
+
+Earlier — increment 227 (citation-equity audit, SP1 — backlog #25; "let's pull something cool and
 exciting from the backlog"). A new **Citation equity** METHODS panel: an **identity-agnostic, structural** audit of a
 library paper's reference list (its OpenAlex `referenced_works`), shown against a sample of the paper's **field** (its
 OpenAlex `primary_topic`). The project's own spec had the load-bearing design settled — **structural, not name→gender

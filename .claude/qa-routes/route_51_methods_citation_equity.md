@@ -53,14 +53,27 @@ listeners before navigation.
 4. Expand a signal's **basis** -> the specific references/venues/countries are listed (inspectability).
 5. Confirm the **deferred-module note** ("a gender or identity balance number is deliberately not produced …") and
    the **credit** block (King et al. 2017; Merton 1968; Perc 2014) with a working **＋ add to library** (idempotent).
-6. Adversarial: a no-DOI paper -> can't-resolve message; a fake job id -> 404; mobile viewport -> no overflow.
+6. **Overlooked work (SP2, inc 228).** Below the audit, the **Overlooked work** sub-section: click **Find overlooked
+   work** (`POST /methods/citation-equity/overlooked`); poll (`GET .../overlooked/{job_id}`). Confirm the intro
+   states it is "candidates to consider, never a 'you must cite this'; nothing is dropped or auto-added, and an
+   author's identity is never the reason." Confirm each candidate shows a **topical match** chip (callosum's own
+   local cosine), an optional **shared topics** "why", and either **✓ in library** or a one-click **＋ Add** that
+   adds metadata-only (`POST /discovery/save` — NO PDF) and flips to **✓ added**. **Veto-level assertions:** there is
+   **no "drop / remove this citation" control anywhere**; **no per-author identity** label and **no "gender balance"**
+   number; **no quota / "add N to hit a target"** copy; candidates ranked by topical match, **never by citation
+   count**. A no-candidate result shows an honest empty state.
+7. Adversarial: a no-DOI paper -> can't-resolve message (audit + overlooked both 422-class); a fake job id -> 404;
+   mobile viewport -> no overflow.
 
 ## Pass criteria
 
 - The audit completes; the panel shows the field attribution + 5 descriptive signals (list-vs-field bars +
   inspectable bases + coverage) + the deferred-module note + credit.
-- 0 console/page errors; **0 genai-host requests**.
-- **No identity inference**: no gender/race label or "gender balance" number anywhere.
+- **Overlooked work**: candidates render with a topical-match chip + (optional) shared-topics why + ✓-in-library /
+  ＋ Add; Add is metadata-only (`/discovery/save`, no PDF) and flips to ✓ added; **no drop/remove control, no
+  per-author identity, no quota copy**; ranked by topical match, not citation count.
+- 0 console/page errors; **0 genai-host requests** (OpenAlex metadata + a local embedding, never the Gemini gate).
+- **No identity inference**: no gender/race label or "gender balance" number anywhere (audit or overlooked).
 - No composite score / rank / pass-fail / accusation; the field value is shown as context.
 - Empty/no-DOI/no-topic/error states are honest; mobile viewport has no horizontal overflow.
 

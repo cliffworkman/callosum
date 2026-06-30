@@ -487,6 +487,22 @@
   .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
   .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
   .cite-equity-howto { font-size: 11px; color: var(--ink-2); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+  /* inc 228: overlooked-work remediation — candidate cards (add-only, topical-match "why"). Tokens only. */
+  .cite-equity-overlooked { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
+  .cite-equity-overlooked-intro { font-size: 11px; color: var(--ink-2); line-height: 1.5; margin-bottom: 6px; }
+  .cite-equity-cand-cov { font-size: 10.5px; color: var(--ink-3); margin: 4px 0 6px; }
+  .cite-equity-cand { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 9px; margin: 6px 0; }
+  .cite-equity-cand-title { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.4; }
+  .cite-equity-cand-meta { font-size: 10.5px; color: var(--ink-3); margin: 2px 0 4px; }
+  .cite-equity-cand-foot { font-size: 11px; color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+  .cite-equity-match { color: var(--accent); font-weight: 600; }
+  .cite-equity-cand-why { color: var(--ink-3); }
+  .cite-equity-cand-inlib { color: var(--verified); margin-left: auto; }
+  .cite-equity-cand-open { margin-left: auto; }
+  .cite-equity-cand-open ~ .cite-equity-cand-inlib, .cite-equity-cand-open ~ .btn-link { margin-left: 0; }
+  .cite-equity-cand-abstract { font-size: 11px; margin-top: 5px; }
+  .cite-equity-cand-abstract summary { color: var(--accent); cursor: pointer; }
+  .cite-equity-cand-abstract p { margin: 4px 0 0; color: var(--ink-2); line-height: 1.5; max-height: 160px; overflow-y: auto; }
   .cite-equity-signal { border-top: 1px solid var(--line); padding: 8px 0; }
   .cite-equity-siglabel { font-size: 12px; font-weight: 600; color: var(--ink); }
   .cite-equity-summary { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; margin: 3px 0 6px; }

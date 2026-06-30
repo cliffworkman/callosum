@@ -24,6 +24,8 @@ OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
 MAX_REFERENCED = 500  # cap on referenced-work ids read per paper (inc 135; bound the gap-finder fetches)
 MAX_CITING = 200  # cap on citing works read per paper (inc 137 forward gap; bound + a documented coverage limit)
+MAX_RELATED = 50  # cap on related-work ids read per paper (inc 228 overlooked-work; OpenAlex returns ~10–25)
+MAX_BYIDS = 50  # cap on ids fetched in one batch `?filter=openalex_id:` call (inc 228; OpenAlex's OR-filter limit)
 
 # OpenAlex `oa_status` → our OA color. "closed" (and anything unknown) → None = no authorized OA copy.
 _OA_STATUS_TO_COLOR: dict[str, OaColor] = {
@@ -171,15 +173,70 @@ class OpenAlexClient:
                 out.append(meta)
         return out
 
-    def fetch_field_sample(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
-        """A random sample of recent works in an OpenAlex topic (inc 227 citation-equity) — the descriptive
-        "field" a paper's reference list is shown against. `?filter=primary_topic.id:<T>&sample=<n>&seed=42`,
-        capped, cached (`field:<id>`), fail-closed → []. `topic_id` is validated `^T\\d+$` **before** any request
-        (so it can never reach the URL as anything but a known-shape id — no SSRF). Returns `_meta_from_work` dicts."""
+    def _field_sample_body(self, conn: Connection, topic_id: str, size: int) -> dict[str, Any] | None:
+        """Raw OpenAlex listing body for a topic sample (cached `field:<id>`) — shared by `fetch_field_sample`
+        (inc 227) + `fetch_topic_candidates` (inc 228), so the audit's sample + the overlooked candidates reuse one
+        cached call. `topic_id` validated `^T\\d+$` **before** any request (no SSRF). Fail-closed → None."""
         if not re.fullmatch(r"T\d+", topic_id or ""):
-            return []
+            return None
         size = max(1, min(int(size), 200))
         cache_key = f"field:{topic_id}"
+        cached = _cached_response(conn, cache_key)
+        if cached is not None:
+            return cached["response_json"] if cached["status_code"] == 200 else None
+        try:
+            status, body = self.fetcher(
+                "",
+                params={
+                    "filter": f"primary_topic.id:{topic_id}",
+                    "sample": str(size),
+                    "seed": "42",  # fixed → a reproducible sample (re-runs hit the cache anyway)
+                    "per-page": str(size),
+                    **self._polite_params(),
+                },
+                headers=self._headers(),
+                timeout=self.timeout,
+            )
+        except Exception:
+            _store_cache(
+                conn,
+                cache_key,
+                request_json={"topic_id": topic_id},
+                response_json={"error": "fetch failed"},
+                status_code=None,
+            )
+            return None
+        _store_cache(conn, cache_key, request_json={"topic_id": topic_id}, response_json=body, status_code=status)
+        return body if status == 200 else None
+
+    def fetch_field_sample(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
+        """A random sample of recent works in an OpenAlex topic (inc 227 citation-equity) — the descriptive
+        "field" a paper's reference list is shown against. Returns `_meta_from_work` dicts."""
+        body = self._field_sample_body(conn, topic_id, size)
+        if not isinstance(body, dict):
+            return []
+        return [m for work in (body.get("results") or [])[:size] if (m := _meta_from_work(work))]
+
+    def fetch_topic_candidates(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
+        """Topic-sample works WITH the reconstructed abstract (inc 228 overlooked-work) — candidates from the field,
+        ranked by local embedding similarity to the focal paper. Shares the `field:<id>` cache with
+        `fetch_field_sample` (no extra HTTP if the audit already ran). Returns `_meta_with_abstract` dicts."""
+        body = self._field_sample_body(conn, topic_id, size)
+        if not isinstance(body, dict):
+            return []
+        return [m for work in (body.get("results") or [])[:size] if (m := _meta_with_abstract(work))]
+
+    def fetch_works_by_ids(
+        self, conn: Connection, ids: list[str], *, with_abstract: bool = True
+    ) -> list[dict[str, Any]]:
+        """Batch-fetch OpenAlex works by their `W…` ids (inc 228 overlooked-work) — one
+        `?filter=openalex_id:W1|W2|…` call (≤MAX_BYIDS ids, each validated `^W\\d+$` **before** the request → no
+        SSRF), cached per id-set. Returns `_meta_with_abstract` dicts (title+abstract+concepts for ranking).
+        Fail-closed → []."""
+        valid = [w for w in (ids or []) if re.fullmatch(r"W\d+", w or "")][:MAX_BYIDS]
+        if not valid:
+            return []
+        cache_key = "byids:" + hashlib.sha256("|".join(sorted(valid)).encode("utf-8")).hexdigest()[:24]
         cached = _cached_response(conn, cache_key)
         if cached is not None:
             body = cached["response_json"] if cached["status_code"] == 200 else None
@@ -188,10 +245,8 @@ class OpenAlexClient:
                 status, body = self.fetcher(
                     "",
                     params={
-                        "filter": f"primary_topic.id:{topic_id}",
-                        "sample": str(size),
-                        "seed": "42",  # fixed → a reproducible sample (re-runs hit the cache anyway)
-                        "per-page": str(size),
+                        "filter": "openalex_id:" + "|".join(valid),
+                        "per-page": str(len(valid)),
                         **self._polite_params(),
                     },
                     headers=self._headers(),
@@ -201,20 +256,20 @@ class OpenAlexClient:
                 _store_cache(
                     conn,
                     cache_key,
-                    request_json={"topic_id": topic_id},
+                    request_json={"ids": valid},
                     response_json={"error": "fetch failed"},
                     status_code=None,
                 )
                 return []
-            _store_cache(conn, cache_key, request_json={"topic_id": topic_id}, response_json=body, status_code=status)
+            _store_cache(conn, cache_key, request_json={"ids": valid}, response_json=body, status_code=status)
             if status != 200:
                 body = None
         if not isinstance(body, dict):
             return []
         out: list[dict[str, Any]] = []
-        for work in (body.get("results") or [])[:size]:
-            meta = _meta_from_work(work)
-            if meta:
+        for work in body.get("results") or []:
+            meta = _meta_with_abstract(work) if with_abstract else _meta_from_work(work)
+            if meta and meta.get("openalex_work_id"):
                 out.append(meta)
         return out
 
@@ -338,6 +393,19 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         tid = str(raw_topic.get("id") or "").rsplit("/", 1)[-1]
         if re.fullmatch(r"T\d+", tid):
             primary_topic = {"id": tid, "display_name": str(raw_topic.get("display_name") or "")}
+    # inc 228 (overlooked-work SP2): related_works (OpenAlex's relatedness to this paper, bare ids) + concepts
+    # (top concept names — the shared-topic "why" for a candidate). Small lists; existing callers ignore them.
+    related: list[str] = []
+    for url in (work.get("related_works") or [])[:MAX_RELATED]:
+        if isinstance(url, str):
+            wid = url.rsplit("/", 1)[-1]
+            if re.fullmatch(r"W\d+", wid):
+                related.append(wid)
+    concepts = [
+        str(c.get("display_name"))
+        for c in (work.get("concepts") or [])[:8]
+        if isinstance(c, dict) and c.get("display_name")
+    ]
     return {
         "openalex_work_id": raw_id.rsplit("/", 1)[-1] if raw_id else None,
         "doi": doi,
@@ -350,7 +418,20 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         "institutions": institutions,
         "country_codes": sorted(country_codes),
         "primary_topic": primary_topic,
+        "related_works": related,
+        "concepts": concepts,
     }
+
+
+def _meta_with_abstract(work: Any) -> dict[str, Any] | None:
+    """`_meta_from_work` + the reconstructed `abstract` (inc 228) — for an overlooked-work *candidate* whose
+    title+abstract we embed to rank topical relevance. Abstract is kept out of `_meta_from_work` (too large to add
+    to every reference/field meta); only candidates carry it."""
+    meta = _meta_from_work(work)
+    if meta is None:
+        return None
+    meta["abstract"] = _reconstruct_abstract(work.get("abstract_inverted_index"))
+    return meta
 
 
 # OpenAlex `type` → CSL type (only the common ones; unknown → omitted, never a guessed type — inc 217).

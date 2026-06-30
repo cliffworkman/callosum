@@ -163,10 +163,96 @@ function CitationEquityPaper({ paperId }) {
   );
 }
 
+// inc 228 (SP2): the topical overlooked-work remediation — surface relevant work the reference list OMITS, ranked
+// by callosum's OWN local embedding cosine. Add-only (never "drop this"); the reason is topical match, never an
+// author's identity; no quota. A candidate the user judges + adds (metadata-only, no PDF) — nothing auto-inserts.
+function OverlookedCard({ c }) {
+  const [st, setSt] = useState(c.in_library ? "in" : "idle");  // in | idle | adding | added
+  const add = async () => {
+    setSt("adding");
+    const r = await apiPost("/discovery/save", {
+      title: c.title, doi: c.doi || undefined, authors: c.authors || [],
+      journal: c.venue || undefined, year: c.year || undefined, abstract: c.abstract || undefined,
+    });
+    setSt(r && r.ok ? "added" : "idle");
+  };
+  // a link out so you can READ before deciding (doi.org, else the OpenAlex work page) — an external link, no token.
+  const openHref = c.doi ? `https://doi.org/${c.doi}` : (c.openalex_work_id ? `https://openalex.org/${c.openalex_work_id}` : null);
+  return (
+    <div className="cite-equity-cand">
+      <div className="cite-equity-cand-title">{c.title}</div>
+      <div className="cite-equity-cand-meta">
+        {(c.authors || []).slice(0, 3).join(", ")}{c.year ? ` · ${c.year}` : ""}{c.venue ? ` · ${c.venue}` : ""}
+      </div>
+      <div className="cite-equity-cand-foot">
+        <span className="cite-equity-match" title="callosum's own local embedding cosine to this paper — a topical match, never a 'you must cite this'">topical match: {c.match.toFixed(2)}</span>
+        {c.shared_concepts && c.shared_concepts.length > 0 &&
+          <span className="cite-equity-cand-why"> · shared: {c.shared_concepts.join(", ")}</span>}
+        {openHref && <a className="btn-link cite-equity-cand-open" href={openHref} target="_blank" rel="noopener noreferrer">Open ↗</a>}
+        {st === "in"
+          ? <span className="cite-equity-cand-inlib">✓ in library</span>
+          : <button className="btn-link" disabled={st !== "idle"} onClick={add}>
+              {st === "added" ? "✓ in library" : st === "adding" ? "adding…" : "＋ Add to library"}
+            </button>}
+      </div>
+      {c.abstract &&
+        <details className="cite-equity-cand-abstract">
+          <summary>Abstract</summary>
+          <p>{c.abstract}</p>
+        </details>}
+    </div>
+  );
+}
+
+function OverlookedWork({ paperId }) {
+  const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
+  useEffect(() => { setState({ status: "idle" }); }, [paperId]);
+  const run = async () => {
+    setState({ status: "running", progress: null });
+    const poll = (jobId) => api(`/methods/citation-equity/overlooked/${jobId}`).then(r => {
+      if (!r.ok) { setState({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") setState({ status: "done", report: d.report });
+      else if (d.status === "error") setState({ status: "error", error: d.detail || "Search failed." });
+      else { setState({ status: "running", progress: d.progress }); setTimeout(() => poll(jobId), 1500); }
+    });
+    const r = await apiPost("/methods/citation-equity/overlooked", { paper_id: paperId });
+    if (!r.ok) { setState({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  if (paperId == null) return null;
+  const rep = state.report;
+  return (
+    <div className="cite-equity-overlooked">
+      <p className="eyebrow">Overlooked work</p>
+      <div className="cite-equity-overlooked-intro">
+        Relevant work you may have missed — candidates to consider, ranked by topical match (callosum's own local
+        embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite.
+      </div>
+      {state.status === "idle" &&
+        <button className="btn btn-primary" onClick={run}
+          title="Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)">
+          Find overlooked work
+        </button>}
+      {state.status === "running" && <ProgressBar progress={state.progress} label="Finding related work…" />}
+      {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}
+      {state.status === "done" && rep && (rep.shown === 0
+        ? <div className="tag-suggest-empty">Nothing clearly relevant that your reference list missed — or OpenAlex relates too few works to this paper. (Considered {rep.considered} candidates you don't already cite.)</div>
+        : <div className="cite-equity-cands">
+            <div className="cite-equity-cand-cov">
+              {rep.shown} candidate{rep.shown === 1 ? "" : "s"} from {rep.considered} works related to your paper that you don't already cite{rep.field_topic ? <> (field: <b>{rep.field_topic.display_name}</b>)</> : null} — ranked by topical match; only clearly-relevant matches (cosine ≥ 0.55) are shown.
+            </div>
+            {rep.candidates.map((c, i) => <OverlookedCard key={c.openalex_work_id || i} c={c} />)}
+          </div>)}
+    </div>
+  );
+}
+
 function CitationEquitySection({ ctx }) {
   return (
     <div className="cite-equity-section">
       <CitationEquityPaper paperId={ctx.selectedPaper} />
+      <OverlookedWork paperId={ctx.selectedPaper} />
     </div>
   );
 }
