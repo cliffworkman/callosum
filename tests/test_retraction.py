@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 
 from app.backend.acquisition.registry import PaperRef
 from app.backend.api import create_app
+from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.methods.retraction import (
     RetractionChecker,
     RetractionSignal,
@@ -331,3 +332,94 @@ def test_citation_import_auto_checks_retraction(temp_db_url):
     pid = next(p["id"] for p in client.get("/papers").json() if p["title"] == "Imported Paper")
     facts = client.get(f"/papers/{pid}/findings").json()["facts"]
     assert any(f["payload"]["status"] == "retracted" for f in facts)  # flagged on import, no manual batch
+
+
+# ---- on-enrich / on-acquire auto-check (inc 224 — the remaining DOI-bearing paths) ----
+
+
+class _GracefulCrossref:  # a hermetic Crossref fetcher: always a clean 404 miss, never networks
+    def __call__(self, doi, *, headers, timeout):
+        return 404, {"status": "error"}
+
+
+def _flag_checker():  # a fake retraction checker that flags one DOI, offline
+    return RetractionChecker(
+        "crossref",
+        lambda c, p: RetractionSignal(source="crossref", status="retracted", notice_doi="10.1/n")
+        if p["doi"] == "10.1/retracted"
+        else None,
+    )
+
+
+def test_reresolve_auto_checks_retraction(temp_db_url):
+    # inc 224: re-resolving a paper's DOI auto-checks retraction (the on-import hook). The graceful Crossref miss
+    # keeps the paper's existing DOI; the fake retraction checker keys off that DOI → the FACT lands.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/retracted", title="A")
+        b = _paper(conn, doi="10.1/clean", title="B")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url, crossref_client=CrossrefClient(fetcher=_GracefulCrossref())))
+    client.app.state.retraction_checkers = [_flag_checker()]
+
+    assert client.post(f"/papers/{a}/re-resolve").status_code == 200
+    assert client.post(f"/papers/{b}/re-resolve").status_code == 200
+    a_facts = client.get(f"/papers/{a}/findings").json()["facts"]
+    assert any(f["payload"]["status"] == "retracted" for f in a_facts)  # flagged on re-resolve
+    assert client.get(f"/papers/{b}/findings").json()["facts"] == []  # clean DOI → no FACT
+
+
+def test_fill_metadata_auto_checks_retraction(temp_db_url):
+    # inc 224: gap-fill ("Fill missing fields") auto-checks retraction. An empty enrich registry keeps it hermetic
+    # (no source fetch); the seeded DOI drives the fake checker.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/retracted", title="A")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.enrich_registry = EnrichmentRegistry()  # no sources → no network
+    client.app.state.retraction_checkers = [_flag_checker()]
+
+    assert client.post(f"/papers/{a}/fill-metadata").status_code == 200
+    facts = client.get(f"/papers/{a}/findings").json()["facts"]
+    assert any(f["payload"]["status"] == "retracted" for f in facts)
+
+
+def test_oa_acquire_auto_checks_retraction(temp_db_url, monkeypatch, tmp_path):
+    # inc 224: an OA-acquired paper (just Crossref-enriched) auto-checks retraction. Hermetic: a fake resolver +
+    # a fake download (a real minimal PDF) + a graceful Crossref + the fake checker — no network.
+    import fitz
+
+    import app.backend.api.routers.acquisition as acq
+    from app.backend.acquisition.registry import OaLocation
+
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(tmp_path / "lib"))
+    doc = fitz.open()
+    doc.new_page()
+    pdf = tmp_path / "x.pdf"
+    pdf.write_bytes(doc.tobytes())
+    doc.close()
+
+    class _Reg:
+        def resolve(self, conn, ref):
+            return OaLocation(pdf_url="https://e.org/x.pdf", oa_color="gold", version="vor", source="openalex")
+
+    monkeypatch.setattr(acq, "build_default_registry", lambda **kw: _Reg())
+    monkeypatch.setattr(acq, "download_oa_pdf", lambda location: str(pdf))
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/retracted", title="Acq")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url, crossref_client=CrossrefClient(fetcher=_GracefulCrossref())))
+    client.app.state.retraction_checkers = [_flag_checker()]
+
+    started = client.post(f"/papers/{pid}/acquire-oa")
+    assert started.status_code in (200, 202)
+    jid = started.json()["job_id"]
+    for _ in range(30):
+        if client.get(f"/papers/acquire-oa/{jid}").json()["status"] in ("done", "error"):
+            break
+    assert client.get(f"/papers/acquire-oa/{jid}").json()["status"] == "done"
+    facts = client.get(f"/papers/{pid}/findings").json()["facts"]
+    assert any(f["payload"]["status"] == "retracted" for f in facts)  # flagged after OA acquire

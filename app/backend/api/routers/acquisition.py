@@ -21,6 +21,7 @@ from app.backend.acquisition.fetch import download_oa_pdf, import_oa_pdf
 from app.backend.acquisition.registry import PaperRef, build_default_registry
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.methods.retraction import auto_check_retractions
 from app.backend.persistence.repository import get_paper
 from integrations.openalex import OpenAlexClient
 
@@ -124,6 +125,10 @@ def _run_acquire_job(app: FastAPI, job_id: str, paper_id: int) -> None:
             result = import_oa_pdf(
                 conn, location, temp_path, paper_id=paper_id, crossref_client=app.state.crossref_client
             )
+            # inc 224: a freshly OA-acquired paper was just Crossref-enriched (DOI populated) — auto-check
+            # retraction now (the inc-134 on-import hook; best-effort, swallows per-paper errors → can't break
+            # the acquire). The retraction checkers are the same already-audited set on app.state.
+            auto_check_retractions(conn, [paper_id], checkers=app.state.retraction_checkers)
         jobs.mark_done(
             job_id,
             AcquireOaResponse(

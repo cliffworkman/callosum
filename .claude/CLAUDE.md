@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 223** (see Increment workflow) with **786 pytest tests
+It is currently at **Increment 224** (see Increment workflow) with **789 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -424,9 +424,10 @@ shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (ze
 read/priority feature landed in it): the paper-lifecycle cluster (trash/purge/tier + the new read/priority setters)
 → `persistence/paper_lifecycle_repo.py` (121) and the synthesis CRUD → `persistence/summaries_repo.py` (61), both
 **re-exported** from `repository` (`# noqa: E402,F401`; zero call-site change — the inc-137 pattern).
-**Watch (re-measure before trusting):** `clustering/my_publications.py` (~594, **closest** — split before the next
-backend addition there), `routers/papers.py` (**593** after inc 220), `extraction.py` (~551), `routers/axes.py`
-(~537), `repository.py` (**565**) — all under 600, but check `wc -l` before adding to them.
+**Watch (re-measure before trusting):** `routers/papers.py` (**598** after inc 224 — now the **closest** backend
+file; split before the next addition there [the inc-91/214 request-normalisation extraction precedent]),
+`clustering/my_publications.py` (~594), `repository.py` (**565**), `extraction.py` (~551), `routers/axes.py`
+(~537) — all under 600, but check `wc -l` before adding to them.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
 `app/backend/metadata/paper_edits.py`.)
 
@@ -772,6 +773,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Retraction auto-check on the remaining DOI-bearing routes (OA-acquire + re-resolve + fill-metadata); the Zotero hook is moot (#31 close-out; inc 224) | Completes the retraction on-import lifecycle. `auto_check_retractions` (inc 134) was wired into scan + citation-import only; it now also fires after the Crossref/multi-pass enrich on the **OA-acquire job** (`acquisition.py::_run_acquire_job`, inside the existing `engine.begin()`) and the per-paper **`reresolve_paper`** + **`fill_metadata`** handlers (`papers.py`, before `conn.commit()`), all reusing `app.state.retraction_checkers`. **The backlog's "Zotero / single-PDF import paths" remainder is partly moot** — `import_zotero_library` has **no API route** (only the harness/tests call it), so there's no app-state-bearing caller to hook (a hook there = dead code, rule #5; recorded in the audit). Best-effort by construction (the fn swallows per-paper errors → can't break the acquire/enrich). **No new endpoint/migration/external-fetch-type/dependency** (reuses the inc-131 checkers + their already-audited public-DOI-metadata egress, NOT the Gemini gate) → audit = **addendum 2** to `2026-06-26_retraction.md` PASS; **Principles non-triggering** (reuses the established FACT producer; no new claim type). **Rule-#1:** the hooks pushed `routers/papers.py` to exactly 600 → condensed the two new comments to 1 line each → **598** (now the closest to the cap; split before the next addition there). pytest **789** (+3 hermetic `test_retraction.py`: re-resolve / fill-metadata / OA-acquire each flag a seeded retracted DOI); QA surface unchanged (no new route; `route_39` gained an on-import-lifecycle assertion). |
 | "By priority" sort gains a within-tier recency tiebreak (id DESC) — close-out of the reading-markers thread (inc 223) | Experience-pass finding #4 (inc 220): the **"By priority"** library sort (high→normal→low→unset) tiebroke only on the global `papers.id ASC`, so the large **unset** tier collapsed into one oldest-imported-first block. Fix = a one-line ORDER-BY append at `repository.py:107` (`"priority": [_PRIORITY_RANK.asc(), papers.c.id.desc()]`) — `id DESC` is the recency proxy `"recent"` already uses, so within each tier the most-recently-added papers come first; the global `id ASC` tail (`:113`) stays as the pagination tiebreak (harmless after a unique-id DESC). A user-chosen sort, never an AI rank (inc-207 declined-ratings posture). Backend-only — no migration/egress/endpoint/dependency, no audit/Principles trigger. pytest **786** (+1 `test_priority_sort_recency_tiebreak_within_tier`); QA surface unchanged (161/161 API + 719/719 FE). |
 | Split `15_axes.jsx` (614→395) — the axis-card subsystem → `15b_axis_card.jsx`; clears the last over-cap file (inc 222) | The long-flagged rule-#1 violation (`15_axes.jsx` had been **614** since inc 211/212's curated-axis work; the footers had mis-noted it). A **behavior-preserving** refactor, no feature. Extracted the **axis-card rendering subsystem** verbatim into new **`js/15b_axis_card.jsx`** (224): `AxisItem` (the one-axis card — 166 lines) + its presentational helpers (`axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/`_tierRank`); `15_axes.jsx` (**395**) keeps `MyPubsPrompt` + **`AxesPanel`** (state/loaders/handlers/sort-filter/modals) + `registerPaneTab`. **Cross-chunk function hoist** — the chunks concatenate into one esbuild IIFE, so `AxesPanel` (textually before, in 15_axes) renders `<AxisItem/>` (in 15b) regardless of load order (the inc-208 `10b_libmenus.jsx` precedent; esbuild keeps `AxisItem` since `AxesPanel` references it). Cut by a deterministic **line-range script** with per-function boundary assertions (no transcription of the 166-line `AxisItem`). **Frontend-only** — no Python/migration/endpoint/egress, no audit/Principles trigger. **Behavior-preservation proven the inc-221 way:** the existing axis drivers `drive_inc212_dragreorder.py` (curated path — `AxisPaperRow` + drag-reorder) + `drive_inc204_hide_uncertain.py` (keyword path — `AxisCutoffFlipper` + `AxisTierBadge` + 👁) ran **GREEN before and after** (`drive_inc211_curated.py` is stale — it clicks the ↑/↓ buttons inc 212 replaced with drag). pytest **785** unchanged (`test_frontend_assembly` 5/5 confirms `15b` is in the build + in sync); QA **161/161 API + 719/719 FE, 0 uncovered** (`route_15_axes.md`'s `fe:` gained `15b_axis_card.jsx`, reclaiming the 36 moved FE surfaces). **This clears the last over-cap file — the tree is fully under the 600-line cap.** |
 | The 40_app.jsx god-component split (useLibrary) + the read/priority filter facet (maintainer chose "proper split first"; inc 221) | `40_app.jsx` had been pinned at the 600 cap for 10+ increments; the inc-220 read/priority **filter facet** (the experience-pass persona-blocking gap) needed headroom there, and the maintainer chose the **proper split** over a compaction can-kick. Extracted the **library-list subsystem** (filter/query/list-fetch state, pagination, bulk + trash + view-filter actions, saved searches, the statcheck/retraction chips + findings overview, the watched-folder rescan, the p-curve/merge modal state) into a new **`useLibrary(opts)`** hook (`js/03_library.jsx`); App keeps the shell + cross-cutting state (selection, tabs, modals, focus) and spreads the hook's `libraryBits` into LibraryFrame. **40_app.jsx 599→212.** **The load-bearing technical detail — the focus↔library circular dependency:** `useFocusMode.onEnterClearFilters` must clear the library view filters while the library's filter/merge actions call `cancelFocus`/`setAxisRefresh` — but `useFocusMode` is declared *after* `useLibrary`. Broken with two refs (`cancelFocusRef`/`setAxisRefreshRef`, resolved after `useFocusMode`) + wiring `onEnterClearFilters` to the hook's `clearViewFilters` (39_focus.jsx untouched). **Then** the read/priority **filter facet** landed: header **Read** (all/unread/read) + **Priority** (all/high/normal/low) dropdowns → `libraryReading` → the inc-220 `read_status`/`priority` query params; live-library only. **Frontend-only** (no Python/migration/endpoint — the backend shipped inc 220); no audit/Principles trigger. **Behavior-preservation verified by a baseline regression driver run GREEN on the pre-refactor code, then GREEN after** (14/14: load/search/sort/type-filter/trash/saved-search/bulk + the facet; deterministic 3/3, 0 console/page/genai) — the discipline for a frontend refactor with no pytest coverage. pytest **785** unchanged; QA **161/161 API + 719/719 FE, 0 uncovered**. **Completes Bella's reading-workflow thread** (queue 219 + markers 220 + facet 221). |
@@ -940,7 +942,32 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 223 (the "By priority" sort gains a within-tier recency tiebreak — the
+*Last updated: 2026-06-30 — increment 224 (retraction auto-check on the remaining DOI-bearing routes — #31's
+on-import-lifecycle close-out; the 2nd of the "wrap up the partially-completed backlog items" session). The
+inc-134 hook `auto_check_retractions(conn, paper_ids, *, checkers)` was wired into the **scan** + **citation-import**
+jobs only; it now also fires after the Crossref/multi-pass enrich on the three remaining routes where a paper
+gains/corrects a DOI: the **OA-acquire job** (`routers/acquisition.py::_run_acquire_job`, inside the existing
+`engine.begin()` after `import_oa_pdf`) and the per-paper **`reresolve_paper`** + **`fill_metadata`** sync handlers
+(`routers/papers.py`, after enrich + before `conn.commit()`), all reusing `app.state.retraction_checkers`.
+**Best-effort by construction** (the fn swallows per-paper errors → can't break the acquire/enrich). **The backlog's
+"Zotero / single-PDF import paths" remainder is partly MOOT** — `import_zotero_library` has **no API route** (only
+the harness/tests call it), so there's no app-state-bearing caller to hook (a hook there would be dead code, rule
+#5; recorded in the audit). **No new endpoint/migration/external-fetch-type/dependency** (reuses the inc-131
+Crossref+OpenAlex+RW-mirror checkers + their already-audited public-DOI-metadata egress, **NOT** the Gemini
+library-text gate) → audit = **addendum 2** to `.claude/security-audits/2026-06-26_retraction.md` **PASS**;
+**Principles non-triggering** (reuses the established retraction FACT producer; no new claim type; no-accusation
+boundary intact). **Rule-#1:** the three hooks + the import pushed `routers/papers.py` to **exactly 600** → condensed
+the two new hook comments to one line each → **598** (now the closest backend file to the cap — split before the
+next addition there); `acquisition.py` 148. pytest **789** (+3 hermetic `tests/test_retraction.py`:
+`test_reresolve_auto_checks_retraction` [graceful Crossref fetcher + fake checker keyed on the DOI],
+`test_fill_metadata_auto_checks_retraction` [empty `EnrichmentRegistry` → no fetch], `test_oa_acquire_auto_checks_retraction`
+[monkeypatched `build_default_registry`/`download_oa_pdf` + a real minimal fitz PDF] — each flags a seeded retracted
+DOI; a clean DOI gets no FACT); `ruff` clean; **QA surface unchanged 161/161 API + 719/719 FE, 0 uncovered** (the
+behavior rides existing routes; `route_39_retraction.md` gained an on-import-lifecycle standing assertion); no
+help-corpus change (`HELP-DOCS-SYNCED` stays at 221). Notes: `INCREMENT-224-NOTES.md`. **NEXT (this session):** inc
+225 — progress ETA (#4). See the session plan `.claude/plans/would-you-mind-reading-wise-peacock.md`.
+
+Earlier — increment 223 (the "By priority" sort gains a within-tier recency tiebreak — the
 first of a "wrap up the partially-completed backlog items" close-out session, cheapest-first). Experience-pass
 finding #4 (inc 220): the **"By priority"** library sort (high→normal→low→unset) tiebroke only on the global
 `papers.id ASC` tail, so the large **unset** tier collapsed into one undifferentiated oldest-imported-first block.

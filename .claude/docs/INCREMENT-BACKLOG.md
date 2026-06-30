@@ -338,8 +338,10 @@ suggest papers to cite + evaluate support/contrast/mention via the NLI spine. Ne
 the accordion shell (inc 121), the FACT-vs-candidate findings model (inc 130), the **first producer = retraction**
 (inc 131 Crossref/OpenAlex + inc 132 the Retraction Watch DB mirror), the statcheck **candidate** findings + the
 unified **"N to review"** facet (inc 133), and the retraction **on-import auto-check + RW staleness nudge** (inc 134)
-all shipped. **Remaining only:** on-import retraction-check for the **Zotero / single-PDF import paths** (scan +
-citation-import are wired); an automatic **cadence** refresh of the RW DB (manual + the staleness nudge is v1); a
+all shipped. **on-import retraction-check extended to the remaining DOI-bearing routes — ✅ SHIPPED inc 224**
+(OA-acquire job + per-paper re-resolve + fill-metadata; scan + citation-import were wired inc 134). The **Zotero
+import hook is moot** — `import_zotero_library` has no API route (harness/tests only), so there's no caller to
+hook. **Remaining only:** an automatic **cadence** refresh of the RW DB (manual + the staleness nudge is v1); a
 later consolidation folding the statcheck signal chip into the unified facet (coexist is the deliberate v1).
 (p-curve/GRIM are collection/per-value → they don't emit per-paper candidates, by design.) **Cross-cut:** system
 FACTs (`RETRACTED`) filterable via the inc-71 tag mechanism (see #19).

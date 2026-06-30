@@ -50,6 +50,10 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 - **No accusation / not a verdict.** The chip is a **filter** count of papers a registry records retracted —
   never a score, rank, or author judgment; the framing says "verify before citing".
 - **Evidence carried.** The FactMark links the **notice** (a doi.org URL) + names the flagging source(s).
+- **On-import lifecycle (inc 134/224).** The FACT can also land *without* a manual batch — on scan + citation
+  import (134), and on the DOI-bearing enrich/acquire paths (224: OA-acquire, `re-resolve`, `fill-metadata`).
+  These auto-checks are best-effort (a source error never breaks the import/enrich), reuse the same
+  public-metadata checkers (no Gemini gate), and add no new endpoint/surface.
 
 ## Adversarial checklist
 

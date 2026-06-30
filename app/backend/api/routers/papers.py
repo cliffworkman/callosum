@@ -19,6 +19,7 @@ from app.backend.metadata.abstract_display import abstract_plain_text, clean_abs
 from app.backend.metadata.citation_export import render_citations
 from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.metadata.paper_edits import build_paper_update
+from app.backend.methods.retraction import auto_check_retractions
 from app.backend.persistence.repository import (
     PRIORITY_LEVELS,
     get_attachments_for_paper,
@@ -300,6 +301,8 @@ def reresolve_paper(
     if not (paper["doi"] or "").strip():
         raise HTTPException(status_code=422, detail="Set a DOI before re-resolving from Crossref")
     enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=_crossref(request.app), force=True)
+    # inc 224: a re-resolved DOI can newly reveal a retraction — auto-check now (inc-134 hook; best-effort).
+    auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
     conn.commit()
     return _detail_for(conn, paper_id)
 
@@ -329,6 +332,8 @@ def fill_metadata(paper_id: int, request: Request, conn: Connection = Depends(ge
         registry=registry,
         search_provider=getattr(request.app.state, "enrich_search_provider", None),
     )
+    # inc 224: gap-fill can recover a missing DOI (Pass 0) → now checkable; auto-check retraction (inc-134 hook).
+    auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
     conn.commit()
     return FillMetadataResponse(
         filled_fields=list(result.filled_fields),

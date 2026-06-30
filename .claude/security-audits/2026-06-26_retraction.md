@@ -83,3 +83,21 @@ Crossref+OpenAlex checkers + the inc-132 RW mirror) — the threat review above 
 - **Cost:** bounded by the count of *new* papers per import; the Crossref checker reads the cache the enrich just
   populated (free), the RW checker is offline, OpenAlex is one cached lookup — marginal on an already-async job.
 - No new endpoint, no migration, no egress beyond the already-audited DOI metadata lookups. **Still PASS.**
+
+## Addendum 2 — on-enrich / on-acquire auto-check, the remaining DOI-bearing paths (inc 224)
+
+The same `auto_check_retractions(conn, [paper_id], checkers=…)` hook is now also called on the three remaining
+paths where a paper gains/corrects a DOI through a real route, all reusing `app.state.retraction_checkers`:
+- **OA-acquire job** (`routers/acquisition.py::_run_acquire_job`) — after `import_oa_pdf` Crossref-enriches the
+  acquired paper, inside the same `engine.begin()` transaction.
+- **`reresolve_paper`** + **`fill_metadata`** (`routers/papers.py`) — sync handlers, after the Crossref/multi-pass
+  enrich and before `conn.commit()`, using `request.app.state.retraction_checkers`.
+
+Threat review unchanged from the inc-131/134 addenda — **no new fetch type/host, endpoint, migration, dependency,
+or egress** (the checkers are the already-audited Crossref+OpenAlex+RW-mirror set; the only egress is the same
+public DOI metadata lookups, NOT the Gemini library-text gate). Same best-effort isolation (`auto_check_retractions`
+swallows per-paper errors → can't break the acquire/enrich). The **Zotero importer** path was considered and
+**skipped**: `import_zotero_library` has no API route (only the harness/tests call it), so there is no
+app-state-bearing caller to hook — a hook there would be dead code (rule #5). Tests are hermetic (injected fake
+checkers + a graceful Crossref fetcher + an empty enrich registry + a fake OA resolver/download — no network).
+**Still PASS.**

@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Increment 224: retraction auto-check on the remaining DOI-bearing routes (#31 close-out)
+- **Files:** `app/backend/api/routers/acquisition.py` (OA-acquire hook), `app/backend/api/routers/papers.py` (reresolve + fill-metadata hooks; 598), `tests/test_retraction.py` (+3), `.claude/security-audits/2026-06-26_retraction.md` (addendum 2), `.claude/qa-routes/route_39_retraction.md`, CLAUDE, `INCREMENT-224-NOTES.md`, `INCREMENT-BACKLOG.md`.
+- **What:** `auto_check_retractions` (inc 134) now also fires after the enrich on the OA-acquire job + the per-paper re-resolve / fill-metadata handlers — completing the on-import retraction lifecycle for the routed DOI-bearing paths. Reuses `app.state.retraction_checkers`; best-effort. The Zotero-import hook is moot (no Zotero route exists).
+- **Why:** wrap up backlog #31's "on-import for the remaining paths" remainder.
+- **Verify:** hermetic pytest (graceful Crossref fetcher + fake checker + empty enrich registry + fake OA resolver/download). pytest **789** (+3); ruff clean; QA surface unchanged. Audit addendum PASS; Principles non-triggering (reuses the established FACT producer; no new fetch/egress).
+- **Revert:** `git revert <sha>` (3 hook insertions; no migration).
+
 ## 2026-06-30 — Increment 223: "By priority" sort gains a within-tier recency tiebreak (backlog close-out, finding #4)
 - **Files:** `app/backend/persistence/repository.py` (`:107`, one-line ORDER-BY append), `tests/test_papers.py` (+`test_priority_sort_recency_tiebreak_within_tier`), CLAUDE, `INCREMENT-223-NOTES.md`, `INCREMENT-BACKLOG.md`.
 - **What:** the `"priority"` sort now tiebreaks within each tier on `papers.id DESC` (recency), so the large **unset** tier isn't one undifferentiated oldest-imported-first block. `[_PRIORITY_RANK.asc(), papers.c.id.desc()]`.
