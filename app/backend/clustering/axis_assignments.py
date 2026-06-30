@@ -105,6 +105,52 @@ def set_member_order(conn: Connection, *, axis_id: int, paper_ids: list[int]) ->
         )
 
 
+def freeze_to_curated(conn: Connection, *, axis_id: int, cutoff: float) -> None:
+    """Keyword → Curated ("freeze", A7 inc 211): snapshot the currently-SHOWN members — *assigned*
+    (confidence >= cutoff) + *manual* (confidence IS NULL) — demote them all to manual, assign `position` by
+    display order (assigned by confidence desc, then manual by id), DROP the below-cutoff uncertain rows, and
+    set kind=curated. Idempotent for an already-curated axis (no scored rows → a no-op reorder)."""
+    node_id = ensure_axis_node(conn, axis_id)
+    rows = list(
+        conn.execute(
+            select(cluster_node_papers.c.paper_id, cluster_node_papers.c.confidence).where(
+                cluster_node_papers.c.cluster_node_id == node_id
+            )
+        )
+    )
+    manual = sorted(int(r[0]) for r in rows if r[1] is None)
+    assigned = sorted(
+        ((int(r[0]), float(r[1])) for r in rows if r[1] is not None and float(r[1]) >= cutoff),
+        key=lambda t: t[1],
+        reverse=True,
+    )
+    uncertain = [int(r[0]) for r in rows if r[1] is not None and float(r[1]) < cutoff]
+    ordered = [pid for pid, _ in assigned] + manual  # the card's pre-freeze display order
+    for index, pid in enumerate(ordered):
+        conn.execute(
+            update(cluster_node_papers)
+            .where(and_(cluster_node_papers.c.cluster_node_id == node_id, cluster_node_papers.c.paper_id == pid))
+            .values(confidence=None, position=index)
+        )
+    for pid in uncertain:
+        conn.execute(
+            delete(cluster_node_papers).where(
+                and_(cluster_node_papers.c.cluster_node_id == node_id, cluster_node_papers.c.paper_id == pid)
+            )
+        )
+    conn.execute(update(axes).where(axes.c.id == axis_id).values(kind=CURATED_KIND))
+
+
+def revert_to_keyword(conn: Connection, *, axis_id: int) -> None:
+    """Curated → Keyword (warned, A7 inc 211): members are KEPT (the manual NULL rows survive); clear
+    `position`; set kind=standard. The axis is then stale → a re-score replaces the manual order with fit order."""
+    node_id = ensure_axis_node(conn, axis_id)
+    conn.execute(
+        update(cluster_node_papers).where(cluster_node_papers.c.cluster_node_id == node_id).values(position=None)
+    )
+    conn.execute(update(axes).where(axes.c.id == axis_id).values(kind="standard"))
+
+
 def remove_assignment(conn: Connection, *, axis_id: int, paper_id: int) -> bool:
     """Remove a paper's assignment (scored or manual) from an axis. Returns True if a row was
     deleted, False if the axis had no node or no such assignment."""
@@ -196,6 +242,9 @@ def axis_score_state(conn: Connection, axis_id: int, *, cutoff: float | None = N
             .where(cluster_nodes.c.axis_id == axis_id)
         ).scalar_one()
     )
+    if axis["kind"] == CURATED_KIND:
+        # A7 (inc 211): a curated axis is never scored / never stale; all members are manual, none uncertain.
+        return {"scored": False, "stale": False, "assignment_count": count, "uncertain_count": 0}
     # Uncertain = scored (confidence NOT NULL) but below the display cutoff; manual (NULL) is never uncertain.
     # Mirrors the read-time tiering in routers/axes.py (assigned = confidence >= cutoff).
     uncertain = 0

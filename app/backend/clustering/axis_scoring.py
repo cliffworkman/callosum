@@ -125,8 +125,8 @@ class PaperEmbeddingRepresentation:
         return {int(row.id): int(row.target_id) for row in conn.execute(stmt)}
 
 
-def create_axis(conn: Connection, *, label: str, description: str | None = None) -> int:
-    result = conn.execute(insert(axes).values(label=label, description=description))
+def create_axis(conn: Connection, *, label: str, description: str | None = None, kind: str = "standard") -> int:
+    result = conn.execute(insert(axes).values(label=label, description=description, kind=kind))
     return int(result.inserted_primary_key[0])
 
 

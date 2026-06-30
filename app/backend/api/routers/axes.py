@@ -31,13 +31,16 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.axis_assignments import (
+    CREATABLE_KINDS,
     CURATED_KIND,
     add_manual_assignment,
     append_member_position,
     axis_score_state,
+    freeze_to_curated,
     manual_assignment_paper_ids,
     remove_assignment,
     restore_manual_assignments,
+    revert_to_keyword,
     set_member_order,
 )
 from app.backend.clustering.axis_operations import merge_axes
@@ -106,6 +109,7 @@ SUPERVISED_AXIS_CONFIG = _axis_config(DEFAULT_AXIS_CUTOFF)  # the default; tests
 class AxisCreateRequest(BaseModel):
     label: str = Field(min_length=1, max_length=AXIS_LABEL_MAX)
     description: str | None = Field(default=None, max_length=AXIS_DESCRIPTION_MAX)
+    kind: str = "standard"  # A7 (inc 211): "standard" (keyword/scored) or "curated" (hand-populated). Allowlisted.
 
 
 class AxisUpdateRequest(BaseModel):
@@ -113,6 +117,7 @@ class AxisUpdateRequest(BaseModel):
     # so the axis becomes stale until re-scored (surfaced via the response's `stale`).
     label: str | None = Field(default=None, min_length=1, max_length=AXIS_LABEL_MAX)
     description: str | None = Field(default=None, max_length=AXIS_DESCRIPTION_MAX)
+    kind: str | None = None  # A7 (inc 211): switch keyword<->curated (freeze / warned revert). Allowlisted.
 
 
 class ManualAssignmentRequest(BaseModel):
@@ -159,6 +164,7 @@ class ClusterPaperResponse(BaseModel):
     manual: bool = False  # True when the human added this, not the scorer
     starred: bool = False  # inc 84: My Publications only — a starred key publication
     domain: str | None = None  # inc 118 (SP2 #16): My Publications only — the paper's research-domain label
+    position: int | None = None  # A7 (inc 211): manual order on a curated axis (NULL on keyword axes)
 
 
 class ClusterNodeResponse(BaseModel):
@@ -217,8 +223,12 @@ def create_axis_endpoint(request: AxisCreateRequest, conn: Connection = Depends(
     label = request.label.strip()
     if not label:
         raise HTTPException(status_code=422, detail="Axis label must not be empty")
+    if (
+        request.kind not in CREATABLE_KINDS
+    ):  # A7: only standard | curated are user-creatable (my_publications is resolver-only)
+        raise HTTPException(status_code=422, detail=f"Unsupported axis kind: {request.kind}")
     description = request.description.strip() if request.description else None
-    axis_id = create_axis(conn, label=label, description=description)
+    axis_id = create_axis(conn, label=label, description=description, kind=request.kind)
     conn.commit()
     return _axis_response(conn, get_axis(conn, axis_id))
 
@@ -252,10 +262,11 @@ def update_axis_endpoint(
     request: AxisUpdateRequest,
     conn: Connection = Depends(get_connection),
 ) -> AxisResponse:
-    if get_axis(conn, axis_id) is None:
+    axis = get_axis(conn, axis_id)
+    if axis is None:
         raise HTTPException(status_code=404, detail="Axis not found")
     fields = request.model_fields_set
-    if not ({"label", "description"} & fields):
+    if not ({"label", "description", "kind"} & fields):
         raise HTTPException(status_code=422, detail="No updatable fields provided")
     kwargs: dict[str, str | None] = {}
     if "label" in fields:
@@ -265,7 +276,20 @@ def update_axis_endpoint(
         kwargs["label"] = label
     if "description" in fields:
         kwargs["description"] = request.description.strip() if request.description else None
-    update_axis(conn, axis_id, **kwargs)
+    if kwargs:
+        update_axis(conn, axis_id, **kwargs)
+    # A7 (inc 211): the keyword<->curated switch. Only standard<->curated; never to/from my_publications.
+    if "kind" in fields and request.kind is not None and request.kind != axis["kind"]:
+        if request.kind not in CREATABLE_KINDS:
+            raise HTTPException(status_code=422, detail=f"Unsupported axis kind: {request.kind}")
+        if axis["kind"] == "standard" and request.kind == CURATED_KIND:
+            freeze_to_curated(
+                conn, axis_id=axis_id, cutoff=_axis_cutoff(axis)
+            )  # snapshot shown members → manual+ordered
+        elif axis["kind"] == CURATED_KIND and request.kind == "standard":
+            revert_to_keyword(conn, axis_id=axis_id)  # members kept, order cleared, axis → stale
+        else:
+            raise HTTPException(status_code=422, detail=f"Cannot switch axis kind {axis['kind']} → {request.kind}")
     conn.commit()
     return _axis_response(conn, get_axis(conn, axis_id))
 
@@ -420,9 +444,7 @@ class AxisOrderRequest(BaseModel):
 
 
 @router.put("/axes/{axis_id}/order", status_code=http_status.HTTP_204_NO_CONTENT)
-def set_axis_order(
-    axis_id: int, request: AxisOrderRequest, conn: Connection = Depends(get_connection)
-) -> Response:
+def set_axis_order(axis_id: int, request: AxisOrderRequest, conn: Connection = Depends(get_connection)) -> Response:
     # A7 (inc 211): set the manual member order of a CURATED axis. The SP2 drag-reorder reuses this verbatim.
     axis = get_axis(conn, axis_id)
     if axis is None:
@@ -575,4 +597,5 @@ def _cluster_paper_response(
         manual=confidence is None,
         starred=int(paper["id"]) in starred_ids,
         domain=(domain_by_id or {}).get(int(paper["id"])),
+        position=paper["position"] if "position" in paper.keys() else None,
     )

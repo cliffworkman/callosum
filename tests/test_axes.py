@@ -243,6 +243,7 @@ def test_axes_and_clusters_return_sidebar_tree_data(temp_db_url: str) -> None:
             "manual": False,
             "starred": False,  # inc 84: standard axis → never starred
             "domain": None,  # inc 118: standard axis → no research-domain label
+            "position": None,  # inc 211 (A7): NULL on a keyword axis (order stays papers.id)
         }
     ]
     assert missing.status_code == 404

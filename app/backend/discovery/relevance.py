@@ -17,6 +17,7 @@ from typing import Any
 import numpy as np
 from sqlalchemy import Connection, select
 
+from app.backend.clustering.axis_assignments import CURATED_KIND
 from app.backend.clustering.my_publications import MY_PUBLICATIONS_KIND
 from app.backend.embeddings.models import EmbeddingModel, strip_punctuation
 from app.backend.persistence.schema import axes
@@ -51,7 +52,8 @@ def score_axis_relevance(
     axis, not a topical lens) is excluded; an empty/axis-less library returns ``{}`` (no badges)."""
     if not items:
         return {}
-    rows = conn.execute(select(axes).where(axes.c.kind != MY_PUBLICATIONS_KIND)).mappings().all()
+    # Exclude authorship (my_publications) + hand-curated axes (A7) — neither is a topical query lens.
+    rows = conn.execute(select(axes).where(axes.c.kind.not_in((MY_PUBLICATIONS_KIND, CURATED_KIND)))).mappings().all()
     prepared: list[tuple[int, str, float, str]] = []
     for ax in rows:
         text = strip_punctuation(_axis_text(ax["label"], ax["description"]))
