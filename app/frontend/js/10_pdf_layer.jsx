@@ -314,7 +314,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport,
-                    onCitationsRefreshed,
+                    onCitationsRefreshed, onEnriched,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
@@ -357,6 +357,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView &&
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {!trashView && <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />}
+            {!trashView && <EnrichMetadataButton onRefreshed={onEnriched} />}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
               <button className="trash-toggle danger" onClick={onEmptyTrash}
                 title="Permanently delete every paper in Trash — cannot be undone">Empty Trash</button>}

@@ -57,6 +57,42 @@ function CitationCountsButton({ asOf, onRefreshed }) {
   );
 }
 
+// inc-217: a header control to gap-fill missing bibliographic metadata across the whole library. Self-contained:
+// POSTs the async batch, polls the job, then calls onRefreshed() (the library reloads). Each paper's EMPTY fields
+// are filled from Crossref/OpenAlex (SP2 adds Europe PMC + PubMed) — never overwriting a value you typed. Public
+// bibliographic-metadata egress (the inc-87/183/210 posture), NOT the Gemini library-text gate.
+function EnrichMetadataButton({ onRefreshed }) {
+  const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState(null);  // {current,total}
+  const [done, setDone] = useState(null);  // {papers,dois_recovered,fields_filled,still_missing_doi}
+  const run = async () => {
+    if (busy) return;
+    setBusy(true); setProg(null); setDone(null);
+    const start = await apiPost("/library/enrich/refresh", {});
+    const jid = start.ok && start.data ? start.data.job_id : null;
+    if (!jid) { setBusy(false); return; }
+    for (let i = 0; i < 1200; i++) {  // ~12 min cap; the job keeps running server-side if the poll gives up
+      await new Promise(r => setTimeout(r, 600));
+      const r = await api("/library/enrich/refresh/" + jid);
+      if (!r.ok) break;
+      if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+      if (r.data.status === "done" || r.data.status === "error") {
+        if (r.data.status === "done" && r.data.summary) setDone(r.data.summary);
+        onRefreshed && onRefreshed();
+        break;
+      }
+    }
+    setBusy(false); setProg(null);
+  };
+  const label = busy
+    ? (prog ? `Enriching ${prog.current}/${prog.total}` : "Enriching…")
+    : (done ? `Filled ${done.fields_filled}` : "Enrich metadata ↻");
+  const title = done
+    ? `Filled ${done.fields_filled} field(s) across ${done.papers} papers · recovered ${done.dois_recovered} DOI(s) · ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields — never overwrites what you typed.`
+    : "Fill each paper's missing fields (DOI, abstract, venue…) from Crossref/OpenAlex — public metadata, fills only blanks, never overwrites your edits.";
+  return <button className="trash-toggle" onClick={run} disabled={busy} title={title}>{label}</button>;
+}
+
 // inc-208 (A1): saved searches — a "Saved ▾" menu mirroring AddMenu. Recall a named bundle of the current library
 // facets (filters + sort + search box), save the current set, or delete one. Closes on outside-click.
 function SavedSearchMenu({ searches, onApply, onSave, onDelete }) {

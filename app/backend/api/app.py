@@ -133,6 +133,8 @@ def create_app(
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
+    api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
+    api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
     api.state.feed_registry = feed_registry or build_default_feed_registry()  # inc 187: Feed sources (bioRxiv)
     api.state.feed_jobs = JobStore()  # inc 187: async Feed refresh (poll subscriptions)

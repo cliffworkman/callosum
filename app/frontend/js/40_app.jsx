@@ -523,11 +523,10 @@ function App() {
           findingsByPaper,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
-          onFindDuplicates: () => setDuplicatesOpen(true), onCitationsRefreshed: () => setLibRefresh(n => n + 1),  // A2: reload after the cited-by refresh
+          onFindDuplicates: () => setDuplicatesOpen(true), onCitationsRefreshed: () => setLibRefresh(n => n + 1), onEnriched: () => setLibRefresh(n => n + 1),  // A2/217: reload after the cited-by / metadata refresh
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
-          onOpenScan: () => setScanOpen(true),
-          onOpenImport: () => setImportOpen(true),
+          onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
           savedSearches, onApplySavedSearch: applySavedSearch, onSaveSearch: saveCurrentSearch, onDeleteSavedSearch: deleteSavedSearch,
         }}
         tabs={tabs} activeTab={activeTab}

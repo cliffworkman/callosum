@@ -338,6 +338,20 @@ Possible outcomes:
 
 Gotcha: Re-resolve can overwrite fields from Crossref because you explicitly requested a refresh. If you have carefully hand-edited a record, use this intentionally.
 
+<!-- section: enriching-metadata -->
+## Filling in missing metadata (gap-fill enrichment)
+Records often come in with gaps — a missing DOI, no abstract, a blank venue. **Enrichment fills only the empty fields**, drawing on several public sources in turn, and **never overwrites a value you typed**. (This is the opposite of 🔎 re-resolve, which deliberately *refreshes* a record from its DOI.)
+
+How it works, per paper:
+- If the paper has **no DOI**, Callosum tries to recover one — first from the PDF, then by searching Crossref for the title (it only adopts a DOI when the title clearly matches and the year agrees, so it never guesses a wrong one).
+- It then asks each source in turn for a bibliographic record and **fills any blank field** (abstract, venue, year, authors, type, …) from the first source that supplies it. The sources are Crossref and OpenAlex (Europe PMC and PubMed are added as the cascade grows). Only public bibliographic metadata (a DOI, PMID, or title) leaves your machine — this is **not** the Gemini library-text gate.
+
+Two ways to run it:
+- **One paper:** open its Detail pane and click **Fill missing fields** (next to the 🔎). It reports which fields it filled.
+- **Your whole library:** click **Enrich metadata ↻** in the Library header. It runs in the background with a progress count, then reports how many DOIs it recovered, how many fields it filled, and how many papers still have no DOI.
+
+Because it only ever fills blanks, it's safe to run across everything — including papers you've hand-edited (your typed values stay exactly as you left them, and a hand-edited paper keeps its "hand-edited" status).
+
 <!-- section: acquiring-open-access -->
 ## Acquiring an open-access copy
 When a paper in your library has no PDF, Callosum can try to fetch a **rights-holder-authorized open-access** copy and import it for you. Callosum never decides on its own that something is open access — it only downloads a copy that a maintained open-access database has already declared free to read.

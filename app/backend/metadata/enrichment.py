@@ -9,7 +9,12 @@ from typing import Any
 from sqlalchemy import Connection, select
 
 from app.backend.metadata.doi import DoiCandidate, find_doi_in_pdf
-from app.backend.persistence.repository import refresh_processing_tier, update_paper_metadata
+from app.backend.metadata.enrich_sources import EnrichmentRegistry, EnrichRef, build_default_enrich_registry
+from app.backend.persistence.repository import (
+    find_existing_paper_by_identity,
+    refresh_processing_tier,
+    update_paper_metadata,
+)
 from app.backend.persistence.schema import attachments, papers
 from app.backend.persistence.tags_repo import add_tags_to_paper, suppressed_tag_names
 from integrations.crossref import CrossrefClient
@@ -214,3 +219,162 @@ def _first_author_family(csl_json: dict[str, Any]) -> str | None:
         return None
     family = first.get("family")
     return str(family) if family else None
+
+
+# --- Multi-pass, gap-filling enrichment (inc 217) -------------------------------------------------------------
+# A SEPARATE path from `enrich_paper_metadata_from_crossref` (wholesale overwrite, left unchanged for the
+# re-resolve / scan / OA-acquire / my-pubs callers). This one recovers a missing DOI then fills ONLY a paper's
+# empty fields from a source cascade — never overwriting a value already present, never downgrading the
+# provenance of a hand-edited / merged / agent record (so it's safe to run library-wide over every paper).
+
+
+@dataclass(frozen=True)
+class MultiEnrichResult:
+    paper_id: int
+    doi: str | None
+    doi_recovered: bool
+    filled_fields: tuple[str, ...]
+    still_missing_doi: bool
+
+
+def _is_empty(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    if isinstance(value, (list, tuple, dict)):
+        return len(value) == 0
+    return False
+
+
+def gap_merge(existing: dict[str, Any], fragments: list[dict[str, Any]]) -> dict[str, Any]:
+    """Fill only the keys absent/empty in `existing` from the CSL fragments, in order (the `Item.merged_with`
+    self.x-or-other.x pattern, generalized to a dict). Never overwrites a populated key. `DOI` is handled by the
+    caller (the UNIQUE column + the duplicate guard), so it's left out of the merge."""
+    merged = dict(existing or {})
+    for fragment in fragments:
+        for key, value in fragment.items():
+            if key == "DOI":
+                continue
+            if _is_empty(merged.get(key)) and not _is_empty(value):
+                merged[key] = value
+    return merged
+
+
+def _gap_fill_columns(paper: Any, merged: dict[str, Any]) -> dict[str, Any]:
+    """Project `merged` CSL → scalar columns, returning ONLY columns currently empty on the paper (gap-fill).
+    Excludes `doi` + `imported_source` (the orchestrator handles those); `title` is NOT NULL so it never fills."""
+    date_parts = _date_parts(merged)
+    candidates = {
+        "abstract": merged.get("abstract"),
+        "year": date_parts[0] if date_parts else None,
+        "venue": merged.get("container-title"),
+        "item_type": merged.get("type"),
+        "publication_date": "-".join(str(part) for part in date_parts) if date_parts else None,
+        "first_author_family_name": _first_author_family(merged),
+    }
+    return {col: val for col, val in candidates.items() if _is_empty(paper[col]) and not _is_empty(val)}
+
+
+def _titles_match(a: str | None, b: str | None) -> bool:
+    """Conservative match for DOI recovery: normalized-title equality, else token-Jaccard >= 0.7."""
+    from app.backend.discovery.providers import normalized_title
+
+    na, nb = normalized_title(a), normalized_title(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    ta, tb = set(na.split()), set(nb.split())
+    if not ta or not tb:
+        return False
+    return len(ta & tb) / len(ta | tb) >= 0.7
+
+
+def _years_compatible(a: int | None, b: int | None) -> bool:
+    return a is None or b is None or int(a) == int(b)
+
+
+def _pmid_from_csl(csl_json: dict[str, Any]) -> str | None:
+    pmid = csl_json.get("PMID") if isinstance(csl_json, dict) else None
+    if not pmid:
+        return None
+    return "".join(ch for ch in str(pmid) if ch.isdigit()) or None
+
+
+def enrich_paper_metadata_multi(
+    conn: Connection,
+    paper_id: int,
+    *,
+    registry: EnrichmentRegistry | None = None,
+    search_provider: Any | None = None,
+) -> MultiEnrichResult:
+    """Multi-pass, GAP-FILLING enrichment of one paper (inc 217). See the module note above for the contract."""
+    if registry is None:
+        registry = build_default_enrich_registry()
+    if search_provider is None:
+        from app.backend.discovery.crossref_provider import CrossrefSearchProvider
+
+        search_provider = CrossrefSearchProvider()
+
+    paper = conn.execute(select(papers).where(papers.c.id == paper_id)).mappings().one()
+    existing_csl = dict(paper["csl_json"] or {})
+    title = paper["title"]
+    paper_year = paper["year"]
+
+    # Pass 0 — recover a missing DOI (PDF scan → Crossref title-search; a recovered DOI that belongs to a
+    # DIFFERENT paper is left for dedup, honoring the papers.doi UNIQUE constraint).
+    doi = str(paper["doi"]) if paper["doi"] else None
+    pmid = _pmid_from_csl(existing_csl)
+    doi_recovered = False
+    if not doi:
+        candidate = _doi_for_paper(conn, paper_id, existing_doi=None)
+        recovered = candidate.doi if candidate else None
+        if not recovered and title:
+            try:
+                items = search_provider.search(title, 5)
+            except Exception:
+                items = []
+            for item in items:
+                if item.doi and _titles_match(title, item.title) and _years_compatible(paper_year, item.year):
+                    recovered = item.doi
+                    pmid = pmid or item.pmid
+                    break
+        if recovered:
+            hit = find_existing_paper_by_identity(conn, doi=recovered)
+            if hit is None or int(hit[1]["id"]) == paper_id:
+                doi = recovered.strip().lower()
+                doi_recovered = True
+
+    # Cascade — gap-fill from each source, in order.
+    fragments = registry.fetch_all(conn, EnrichRef(doi=doi, pmid=pmid, title=title, year=paper_year))
+    merged = gap_merge(existing_csl, fragments)
+    if doi:
+        merged["DOI"] = doi  # the guarded effective DOI; a fragment's DOI never sets this
+
+    gap_cols = _gap_fill_columns(paper, merged)
+    updates: dict[str, Any] = {"csl_json": merged, **gap_cols}
+    filled = list(gap_cols.keys())
+    if doi and _is_empty(paper["doi"]):
+        updates["doi"] = doi
+        filled.append("doi")
+
+    # Provenance — never downgrade a curated record; mark a freshly-enriched scaffold.
+    source = paper["imported_source"]
+    if source not in {USER_EDITED_SOURCE, MERGED_SOURCE, AI_AGENT_SOURCE}:
+        if doi or filled:
+            updates["imported_source"] = CROSSREF_SOURCE
+        elif source in {PDF_SCAFFOLD_SOURCE, None}:
+            updates["imported_source"] = CROSSREF_UNRESOLVED_SOURCE
+
+    update_paper_metadata(conn, paper_id, **updates)
+    apply_crossref_subject_tags(conn, paper_id, merged)
+    _hook_my_publications(conn, paper_id)
+    refresh_processing_tier(conn, paper_id)
+    return MultiEnrichResult(
+        paper_id=paper_id,
+        doi=doi,
+        doi_recovered=doi_recovered,
+        filled_fields=tuple(filled),
+        still_missing_doi=doi is None,
+    )

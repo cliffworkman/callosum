@@ -834,6 +834,7 @@
   .detail-type:hover { border-color: var(--line-2); color: var(--ink-2); }
   .detail-type:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); color: var(--ink); }
   .detail-saving { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .detail-fill { margin-left: auto; font-size: 11.5px; white-space: nowrap; }  /* inc 217: per-paper gap-fill action */
 
   /* Inline-editable field: reads as text until hover/focus, then the canonical input recipe
      (focus ring). Empty shows the grey "Add …" placeholder. (DESIGN.md §2 text-input variant.) */

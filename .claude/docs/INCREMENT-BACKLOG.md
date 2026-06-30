@@ -66,6 +66,21 @@ _Italic notes are light implementation pointers, not designs._
 > page"/fit-height option (touches the fit-mode logic — render-risk); free-form note colors/labels; a
 > scrollbar/minimap marker. (See `INCREMENT-144/175/176/177/179-NOTES.md`.)
 
+**Beta feedback — Bella (Slack, 2026-06-30): reading-workflow markers.** Three small, related per-paper-state
+features (Cliff queued them; duplicate-detection + the Unsorted tab she also asked for already exist — inc 56/64 +
+inc 80). Likely **one increment**: a tiny migration adding per-paper state + a library facet/sort + a card control.
+- **read / unread marker** — a per-paper `read_at` (or a bool) + a card toggle + a library filter ("Unread"), mirroring
+  the inc-80 needs-review facet + the inc-207 color-tag card affordance. *(The closest existing pattern: the `signal`/
+  `finding` query-param filters on `GET /papers` + the `.trash-toggle` header chips.)*
+- **priority markers** — a per-paper priority/flag (a small enum or star) + sort/filter. *(Reuses the inc-207
+  color-tag migration shape; an explicit **user** label, never an AI score — the inc-207 declined-ratings logic
+  applies: keep it a user marker, not a composite.)*
+- **reading queue** — an ordered "to-read" list. *(Could ride the inc-211 **curated axis** primitive — an ordered,
+  hand-populated `cluster_node_papers.position` list — i.e. "Reading queue" as a built-in curated axis, or a dedicated
+  table. Decide at build time.)*
+*(Eileen's multi-pass metadata enrichment — the other half of that thread — is the active build, plan
+`.claude/backups/plans/2026-06-30_metadata-multi-enrich.md`.)*
+
 **Superuser *capabilities* — what the flag gates** — **[decision — deferred by the maintainer]** the **flag shipped
 inc 195**: a `CALLOSUM_SUPERUSER_ORCIDS` env allowlist → `app_settings.is_superuser_orcid` → an `is_superuser` flag
 derived from the **verified ORCID claim** on the signed-in account, surfaced in `GET /settings`'s `account` block + a

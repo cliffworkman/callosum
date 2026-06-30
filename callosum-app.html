@@ -858,6 +858,7 @@
   .detail-type:hover { border-color: var(--line-2); color: var(--ink-2); }
   .detail-type:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); color: var(--ink); }
   .detail-saving { font-family: var(--mono); font-size: 10px; color: var(--ink-3); }
+  .detail-fill { margin-left: auto; font-size: 11.5px; white-space: nowrap; }  /* inc 217: per-paper gap-fill action */
 
   /* Inline-editable field: reads as text until hover/focus, then the canonical input recipe
      (focus ring). Empty shows the grey "Add …" placeholder. (DESIGN.md §2 text-input variant.) */
@@ -2727,6 +2728,7 @@
     onOpenScan,
     onOpenImport,
     onCitationsRefreshed,
+    onEnriched,
     savedSearches,
     onApplySavedSearch,
     onSaveSearch,
@@ -2784,7 +2786,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -2953,6 +2955,39 @@
       },
       busy ? prog ? `Citations ${prog.current}/${prog.total}` : "Citations\u2026" : date ? `Citations \xB7 ${date}` : "Citations \u21BB"
     );
+  }
+  function EnrichMetadataButton({ onRefreshed }) {
+    const [busy, setBusy] = useState(false);
+    const [prog, setProg] = useState(null);
+    const [done, setDone] = useState(null);
+    const run = async () => {
+      if (busy) return;
+      setBusy(true);
+      setProg(null);
+      setDone(null);
+      const start = await apiPost("/library/enrich/refresh", {});
+      const jid = start.ok && start.data ? start.data.job_id : null;
+      if (!jid) {
+        setBusy(false);
+        return;
+      }
+      for (let i = 0; i < 1200; i++) {
+        await new Promise((r2) => setTimeout(r2, 600));
+        const r = await api("/library/enrich/refresh/" + jid);
+        if (!r.ok) break;
+        if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+        if (r.data.status === "done" || r.data.status === "error") {
+          if (r.data.status === "done" && r.data.summary) setDone(r.data.summary);
+          onRefreshed && onRefreshed();
+          break;
+        }
+      }
+      setBusy(false);
+      setProg(null);
+    };
+    const label = busy ? prog ? `Enriching ${prog.current}/${prog.total}` : "Enriching\u2026" : done ? `Filled ${done.fields_filled}` : "Enrich metadata \u21BB";
+    const title = done ? `Filled ${done.fields_filled} field(s) across ${done.papers} papers \xB7 recovered ${done.dois_recovered} DOI(s) \xB7 ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields \u2014 never overwrites what you typed.` : "Fill each paper's missing fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 public metadata, fills only blanks, never overwrites your edits.";
+    return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, label);
   }
   function SavedSearchMenu({ searches, onApply, onSave, onDelete }) {
     const [open, setOpen] = useState(false);
@@ -4632,6 +4667,7 @@
     const [savingField, setSavingField] = useState(null);
     const [note, setNote] = useState(null);
     const [resolving, setResolving] = useState(false);
+    const [filling, setFilling] = useState(false);
     const [idOpen, setIdOpen] = useState(true);
     const [moreOpen, setMoreOpen] = useState(true);
     useEffect(() => {
@@ -4674,6 +4710,20 @@
         setNote({ kind: "err", text: r.error || "Re-resolve failed." });
       }
     }, [paperId]);
+    const fillMetadata = useCallback(async () => {
+      if (paperId == null) return;
+      setNote(null);
+      setFilling(true);
+      const r = await apiPost(`/papers/${paperId}/fill-metadata`, {});
+      setFilling(false);
+      if (r.ok && r.data) {
+        setState({ status: "ready", paper: r.data.paper });
+        const n = (r.data.filled_fields || []).length;
+        setNote(n ? { kind: "ok", text: `Filled ${n} missing field${n === 1 ? "" : "s"}: ${r.data.filled_fields.join(", ")}.` } : { kind: "warn", text: r.data.still_missing_doi ? "No DOI found and nothing to fill from public sources." : "Nothing missing to fill \u2014 this record is already complete." });
+      } else {
+        setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
+      }
+    }, [paperId]);
     const onAcquired = useCallback(() => {
       if (paperId == null) return;
       api(`/papers/${paperId}`).then((r) => {
@@ -4704,7 +4754,16 @@
       (k) => !CORE_CSL_KEYS.has(k) && isScalarValue(p.csl_json[k])
     );
     const hasPdf = (p.attachments || []).some((a) => a.attachment_type === "pdf" && a.availability === "available");
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "12px 18px 32px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026")), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), note && /* @__PURE__ */ React.createElement("div", { className: "detail-note detail-note-" + note.kind }, note.text), needsMetadata(p) && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 12px" } }, /* @__PURE__ */ React.createElement("b", null, "Metadata not yet resolved."), " This paper came from a raw PDF. Add its DOI under Identifiers and click \u{1F50E} to fetch a bibliographic record from Crossref."), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "12px 18px 32px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link detail-fill",
+        onClick: fillMetadata,
+        disabled: filling,
+        title: "Fetch any MISSING fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 fills only blanks, never overwrites what you typed"
+      },
+      filling ? "Filling\u2026" : "Fill missing fields"
+    )), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), note && /* @__PURE__ */ React.createElement("div", { className: "detail-note detail-note-" + note.kind }, note.text), needsMetadata(p) && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 12px" } }, /* @__PURE__ */ React.createElement("b", null, "Metadata not yet resolved."), " This paper came from a raw PDF. Add its DOI under Identifiers and click \u{1F50E} to fetch a bibliographic record from Crossref."), /* @__PURE__ */ React.createElement(
       EditableText,
       {
         label: "Authors",
@@ -8079,7 +8138,8 @@
           onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
           onCitationsRefreshed: () => setLibRefresh((n) => n + 1),
-          // A2: reload after the cited-by refresh
+          onEnriched: () => setLibRefresh((n) => n + 1),
+          // A2/217: reload after the cited-by / metadata refresh
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),

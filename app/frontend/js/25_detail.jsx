@@ -362,6 +362,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
   const [resolving, setResolving] = useState(false);
+  const [filling, setFilling] = useState(false);
   const [idOpen, setIdOpen] = useState(true);
   const [moreOpen, setMoreOpen] = useState(true);
 
@@ -402,6 +403,27 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
         : { kind: "warn", text: "Crossref couldn't resolve that DOI. Check it and try again." });
     } else {
       setNote({ kind: "err", text: r.error || "Re-resolve failed." });
+    }
+  }, [paperId]);
+
+  // inc 217: multi-pass GAP-FILL of this one paper — recover a missing DOI then fill ONLY empty fields from
+  // Crossref/OpenAlex. Never overwrites a typed value (distinct from the force-overwrite 🔎 re-resolve).
+  const fillMetadata = useCallback(async () => {
+    if (paperId == null) return;
+    setNote(null);
+    setFilling(true);
+    const r = await apiPost(`/papers/${paperId}/fill-metadata`, {});
+    setFilling(false);
+    if (r.ok && r.data) {
+      setState({ status: "ready", paper: r.data.paper });
+      const n = (r.data.filled_fields || []).length;
+      setNote(n
+        ? { kind: "ok", text: `Filled ${n} missing field${n === 1 ? "" : "s"}: ${r.data.filled_fields.join(", ")}.` }
+        : { kind: "warn", text: r.data.still_missing_doi
+            ? "No DOI found and nothing to fill from public sources."
+            : "Nothing missing to fill — this record is already complete." });
+    } else {
+      setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
     }
   }, [paperId]);
 
@@ -447,6 +469,9 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
       <div className="detail-type-row">
         <TypeSelect value={p.item_type} onSave={saveField} />
         {savingField && <span className="detail-saving">saving…</span>}
+        <button className="btn-link detail-fill" onClick={fillMetadata} disabled={filling}
+          title="Fetch any MISSING fields (DOI, abstract, venue…) from Crossref/OpenAlex — fills only blanks, never overwrites what you typed">
+          {filling ? "Filling…" : "Fill missing fields"}</button>
       </div>
 
       <EditableText variant="title" value={p.title} placeholder="Add title" onSave={(t) => saveField("title", t)} />

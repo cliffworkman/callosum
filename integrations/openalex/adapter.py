@@ -114,6 +114,12 @@ class OpenAlexClient:
             return None
         return _meta_from_work(body)
 
+    def fetch_work_csl(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
+        """A CSL-fragment (title/author/issued/container-title/type/abstract/DOI/PMID) for a work by DOI/PMID/
+        title — the multi-pass metadata enricher's OpenAlex source (inc 217). Notably fills venue / abstract /
+        type that Crossref may lack. Reuses the cached `_fetch_work`; fail-closed → None."""
+        return _csl_from_work(self._fetch_work(conn, ref))
+
     def fetch_work_id(self, conn: Connection, ref: PaperRef) -> str | None:
         """The OpenAlex `W…` id for a paper (inc 137 forward gap) — read from the cached DOI→work fetch."""
         work = self._fetch_work(conn, ref)
@@ -262,6 +268,79 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         "authors": [a for a in authors if a][:8],
         "cited_by_count": int(work.get("cited_by_count") or 0),
     }
+
+
+# OpenAlex `type` → CSL type (only the common ones; unknown → omitted, never a guessed type — inc 217).
+_OA_TYPE_TO_CSL = {
+    "article": "article-journal",
+    "journal-article": "article-journal",
+    "book-chapter": "chapter",
+    "book": "book",
+    "dataset": "dataset",
+    "proceedings-article": "paper-conference",
+    "preprint": "article-journal",
+    "posted-content": "article-journal",
+}
+
+
+def _reconstruct_abstract(inverted_index: Any) -> str | None:
+    """Rebuild plain-text from OpenAlex's `abstract_inverted_index` ({word: [positions]}). Capped; None if absent."""
+    if not isinstance(inverted_index, dict) or not inverted_index:
+        return None
+    positions: list[tuple[int, str]] = []
+    for word, idxs in inverted_index.items():
+        if not isinstance(idxs, list):
+            continue
+        for i in idxs:
+            if isinstance(i, int):
+                positions.append((i, str(word)))
+    if not positions:
+        return None
+    positions.sort()
+    text = " ".join(word for _, word in positions).strip()
+    return text[:20000] or None
+
+
+def _csl_from_work(work: Any) -> dict[str, Any] | None:
+    """Map an OpenAlex work object → a CSL-fragment for gap-fill enrichment (inc 217). Only includes keys it can
+    supply; authors are stored as CSL `{literal}` (OpenAlex doesn't split family/given reliably)."""
+    if not isinstance(work, dict):
+        return None
+    fragment: dict[str, Any] = {}
+    title = work.get("title") or work.get("display_name")
+    if title:
+        fragment["title"] = str(title)
+    year = work.get("publication_year")
+    if isinstance(year, int):
+        fragment["issued"] = {"date-parts": [[year]]}
+    authors = [
+        {"literal": str(name)}
+        for a in (work.get("authorships") or [])
+        if isinstance(a, dict)
+        for name in [(a.get("author") or {}).get("display_name") or a.get("raw_author_name")]
+        if name
+    ]
+    if authors:
+        fragment["author"] = authors
+    venue = (work.get("primary_location") or {}).get("source") or work.get("host_venue") or {}
+    venue_name = venue.get("display_name") if isinstance(venue, dict) else None
+    if venue_name:
+        fragment["container-title"] = str(venue_name)
+    csl_type = _OA_TYPE_TO_CSL.get(str(work.get("type") or "").lower())
+    if csl_type:
+        fragment["type"] = csl_type
+    abstract = _reconstruct_abstract(work.get("abstract_inverted_index"))
+    if abstract:
+        fragment["abstract"] = abstract
+    raw_doi = work.get("doi") or (work.get("ids") or {}).get("doi")
+    if isinstance(raw_doi, str) and raw_doi:
+        fragment["DOI"] = raw_doi.strip().lower().replace("https://doi.org/", "")
+    raw_pmid = (work.get("ids") or {}).get("pmid")
+    if isinstance(raw_pmid, str) and raw_pmid:
+        digits = "".join(ch for ch in raw_pmid if ch.isdigit())
+        if digits:
+            fragment["PMID"] = digits
+    return fragment or None
 
 
 def _work_from_body(body: Any) -> dict[str, Any] | None:
