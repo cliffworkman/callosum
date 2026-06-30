@@ -199,6 +199,10 @@ def test_server_only_issues_readonly_calls():
         ("GET", "/papers/fulltext"),
         ("POST", "/citations/suggest"),
         ("POST", "/papers/export"),
+        (
+            "GET",
+            "/agent/status",
+        ),  # B1 SP2: create_server reads this (a READ) to decide whether to advertise write tools
     }
 
     def handler(request):
@@ -242,3 +246,49 @@ def test_tool_registry_is_exactly_the_five_read_tools():
     mcp = create_server(_client(lambda r: httpx.Response(200, json=[])))
     names = {t.name for t in asyncio.run(mcp.list_tools())}
     assert names == {"search_library", "get_paper", "full_text_search", "find_passages", "format_citation"}
+
+
+# --- B1 SP2: the gated write tools ---
+
+_READ_TOOLS = {"search_library", "get_paper", "full_text_search", "find_passages", "format_citation"}
+_WRITE_TOOLS = {"add_tag", "add_to_axis", "save_reference", "annotate"}
+
+
+def test_write_tools_registered_only_when_enabled():
+    off = create_server(_client(lambda r: httpx.Response(200, json={"writes_enabled": False})))
+    assert {t.name for t in asyncio.run(off.list_tools())} == _READ_TOOLS  # disabled → read tools only
+    on = create_server(_client(lambda r: httpx.Response(200, json={"writes_enabled": True})))
+    assert {t.name for t in asyncio.run(on.list_tools())} == _READ_TOOLS | _WRITE_TOOLS  # enabled → + write tools
+
+
+def test_add_tag_tool_maps_to_agent_endpoint():
+    seen = {}
+
+    def handler(req):
+        if req.url.path == "/agent/status":
+            return httpx.Response(200, json={"writes_enabled": True})
+        seen["method"], seen["path"] = req.method, req.url.path
+        return httpx.Response(200, json={"write_id": 1, "tag_id": 9, "name": "x"})
+
+    out = _call(create_server(_client(handler)), "add_tag", {"paper_id": 7, "tag": "x"})
+    assert seen == {"method": "POST", "path": "/agent/papers/7/tags"} and out["tag_id"] == 9
+
+
+def test_write_tools_only_hit_agent_paths():
+    calls = []
+
+    def handler(req):
+        calls.append((req.method, req.url.path))
+        if req.url.path == "/agent/status":
+            return httpx.Response(200, json={"writes_enabled": True})
+        return httpx.Response(200, json={"write_id": 1, "created": True})
+
+    mcp = create_server(_client(handler))
+    for name, args in [
+        ("add_tag", {"paper_id": 1, "tag": "x"}),
+        ("add_to_axis", {"paper_id": 1, "axis_id": 2}),
+        ("save_reference", {"identifier": "10.1/x"}),
+        ("annotate", {"paper_id": 1, "text": "n"}),
+    ]:
+        _call(mcp, name, args)
+    assert all(p.startswith("/agent/") for _m, p in calls), calls  # every write call stays under /agent/

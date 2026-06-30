@@ -114,6 +114,27 @@ class CallosumClient:
         r = self._ok(self._post("/papers/export", {"paper_ids": [int(i) for i in paper_ids], "format": fmt}))
         return r.text
 
+    # --- write methods (B1 SP2) — used only by the gated write tools; each hits a /agent/* endpoint ---
+
+    def agent_status(self) -> bool:
+        """Are agent writes enabled? Fail-closed on ANY error (callosum down / not configured) → no write tools."""
+        try:
+            return bool(self._http.get("/agent/status").json().get("writes_enabled"))
+        except Exception:
+            return False
+
+    def add_tag(self, paper_id: int, tag: str) -> dict:
+        return self._ok(self._post(f"/agent/papers/{int(paper_id)}/tags", {"tag": tag})).json()
+
+    def add_to_axis(self, paper_id: int, axis_id: int) -> dict:
+        return self._ok(self._post(f"/agent/axes/{int(axis_id)}/papers", {"paper_id": int(paper_id)})).json()
+
+    def save_reference(self, identifier: str) -> dict:
+        return self._ok(self._post("/agent/references", {"identifier": identifier})).json()
+
+    def annotate(self, paper_id: int, text: str) -> dict:
+        return self._ok(self._post(f"/agent/papers/{int(paper_id)}/notes", {"text": text})).json()
+
 
 def default_client() -> CallosumClient:
     return CallosumClient(

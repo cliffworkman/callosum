@@ -45,6 +45,31 @@ def create_server(client: CallosumClient) -> FastMCP:
         """Format one or more library papers as a citation string. format is one of "bibtex", "ris", "csl-json"."""
         return client.format_citation(paper_ids, format)
 
+    # B1 SP2: the WRITE tools are advertised only when the user has enabled agent writes in callosum Settings.
+    # Each is additive + reversible (one-click revert in callosum); the endpoint enforces the gate in real time.
+    if client.agent_status():
+
+        @mcp.tool()
+        def add_tag(paper_id: int, tag: str) -> dict:
+            """Add a tag to a library paper. The tag is stamped as agent-added and is reversible in callosum."""
+            return client.add_tag(paper_id, tag)
+
+        @mcp.tool()
+        def add_to_axis(paper_id: int, axis_id: int) -> dict:
+            """Add a library paper to one of the user's axes (a manual membership). Not allowed for My-Publications axes."""
+            return client.add_to_axis(paper_id, axis_id)
+
+        @mcp.tool()
+        def save_reference(identifier: str) -> dict:
+            """Save a new reference to the library by DOI. callosum verifies the DOI (Crossref) and saves the real
+            record metadata-only; an unresolvable DOI is refused. No PDF is fetched."""
+            return client.save_reference(identifier)
+
+        @mcp.tool()
+        def annotate(paper_id: int, text: str) -> dict:
+            """Attach a note to a library paper (a paper-level note, not a PDF highlight). Reversible in callosum."""
+            return client.annotate(paper_id, text)
+
     return mcp
 
 
