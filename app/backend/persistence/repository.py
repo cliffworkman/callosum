@@ -592,10 +592,12 @@ def get_papers_for_cluster_node(conn: Connection, cluster_node_id: int) -> list[
                 papers.c.id,
                 papers.c.title,
                 cluster_node_papers.c.confidence,
+                cluster_node_papers.c.position,  # A7 (inc 211): manual order on a curated axis (NULL on keyword axes)
             )
             .select_from(cluster_node_papers.join(papers, papers.c.id == cluster_node_papers.c.paper_id))
             .where(cluster_node_papers.c.cluster_node_id == cluster_node_id, papers.c.deleted_at.is_(None))
-            .order_by(papers.c.id)
+            # A7: curated axes order by `position`; keyword axes (all-NULL position) fall back to papers.id (unchanged).
+            .order_by(cluster_node_papers.c.position.is_(None), cluster_node_papers.c.position, papers.c.id)
         ).mappings()
     )
 

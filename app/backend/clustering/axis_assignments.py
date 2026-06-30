@@ -16,6 +16,9 @@ from app.backend.clustering.axis_scoring import _axis_text, _axis_text_version, 
 from app.backend.embeddings.models import strip_punctuation
 from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, embeddings
 
+CURATED_KIND = "curated"  # A7 (inc 211): a hand-populated, hand-ordered axis (members all manual; never scored)
+CREATABLE_KINDS = {"standard", CURATED_KIND}  # kinds a user can create/switch to (my_publications is resolver-only)
+
 
 def ensure_axis_node(conn: Connection, axis_id: int) -> int:
     """Find or create the axis's single top-level cluster_node (so manual assignment works
@@ -54,6 +57,27 @@ def add_manual_assignment(conn: Connection, *, axis_id: int, paper_id: int) -> i
             .values(confidence=None)
         )
     return node_id
+
+
+def append_member_position(conn: Connection, *, axis_id: int, paper_id: int) -> None:
+    """Place a freshly-added member at the END of a curated axis's manual order (position = max+1). Called
+    after add_manual_assignment when the axis is curated; keyword axes leave position NULL (A7, inc 211)."""
+    node_id = ensure_axis_node(conn, axis_id)
+    next_pos = conn.execute(
+        select(func.coalesce(func.max(cluster_node_papers.c.position), -1) + 1).where(
+            cluster_node_papers.c.cluster_node_id == node_id
+        )
+    ).scalar_one()
+    conn.execute(
+        update(cluster_node_papers)
+        .where(
+            and_(
+                cluster_node_papers.c.cluster_node_id == node_id,
+                cluster_node_papers.c.paper_id == paper_id,
+            )
+        )
+        .values(position=int(next_pos))
+    )
 
 
 def remove_assignment(conn: Connection, *, axis_id: int, paper_id: int) -> bool:
