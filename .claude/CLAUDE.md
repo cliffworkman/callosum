@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 209** (see Increment workflow) with **719 pytest tests
+It is currently at **Increment 210** (see Increment workflow) with **724 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -381,6 +381,9 @@ the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-do
 (`AddMenu` + `SavedSearchMenu`) → new `js/10b_libmenus.jsx` (62) — called via the shared-IIFE function hoist.
 **Inc 209** kept the full-text mode self-contained (`js/10c_fulltext.jsx`'s `FulltextResults` does its own fetch) so
 `js/40_app.jsx` stayed at 599 + `js/10_pdf_layer.jsx` rose only to **555** (the scope option + the swap branch).
+**Inc 210** (A2 citation counts): `CitationCountsButton` → `js/10b_libmenus.jsx` (**93**); `js/10_pdf_layer.jsx`
+**562** (chip + Most-cited option + control); `js/40_app.jsx` held at **599/600** (the new prop folded onto an
+existing line — split before the next addition there).
 **Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
 `routers/papers.py` (570), `js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
@@ -734,6 +737,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Library-wide per-paper citation counts via OpenAlex (backlog A2 close-out; inc 210) | Generalize the My-Pubs cited-by display (inc 119) to **every** library card: a **"Citations ↻"** header control → an async batch (`POST /papers/citation-counts/refresh`) fetches each live-with-DOI paper's OpenAlex `cited_by_count` → a verbatim **"N cited-by"** chip + an explicit opt-in **Most cited** sort. **The aligned shape is Example-3 (per-paper-number) by the book:** the count is shown **raw + attributed** ("per OpenAlex · as of <date>"), never a composite (#7); the citation sort is **explicit/user-invoked**, never the default or a silent reorder (#2); a no-DOI / no-record paper shows **no chip** — honest "—", never a fabricated 0 (#6; a genuine 0 shows "0 cited-by"); the source+date are **visible** on the control + each chip's tooltip (#8). **Migration 0027** adds a dedicated `paper_citation_counts` table (PK paper_id FK CASCADE; `retrieved_at` = the "as of") — kept OUT of the canonical `papers` row, like every other derived datum; additive/guarded/no-op-downgrade (the 0021 pattern). `OpenAlexClient.fetch_cited_by_count` rides the already-cached DOI fetch; `repository.list_papers` surfaces the count via correlated scalar subqueries (no JOIN → no row dup) + a `citations_desc` sort key (NULL last); `routers/citation_counts.py` is the async batch (registered **before** papers.router). Egress = DOI→OpenAlex (**public metadata, bounded/cached/on-demand** — #10), **NOT** the Gemini library-text gate. Audit `2026-06-29_citation-counts.md` PASS; **no new dependency** (reuses the OpenAlex adapter). Frontend reuses the inc-119 `.paper-cite` chip + `.trash-toggle` (no new CSS). pytest **724** (+5); QA surface **144/144 API + 679/679 FE, 0 uncovered** (`route_23_citation_counts.md`); help corpus updated; headed-verified. `40_app.jsx` stays 599/600 (the new prop folded onto an existing line). |
 | Full-text PDF search via SQLite FTS5 (backlog A3 close-out; inc 209) | Verbatim/lexical search over the extracted `chunks.text` — the exact-string complement to the semantic axes/synthesis ("find 'ultimatum game' verbatim"). **Migration 0026** creates an **external-content** FTS5 index `chunks_fts` (no text duplication) + a **sync trigger trio** on `chunks`; the AFTER DELETE trigger is the crux — it catches the **FK CASCADE** from `purge_paper` (inc 65) that bypasses Python (a Python hook would miss it). `metadata.create_all` can't express FTS5, so the migration is the source of truth + has a **real guarded downgrade** (drops the FTS table + triggers; 0001's metadata-loop can't, so no double-drop — the inc-208 0025 lesson in reverse). `persistence/fulltext_repo.py`: `_safe_match` token-quotes the query (neutralizes every FTS5 operator → no syntax error / no query-lang injection) + bound param (rule #3) + `try/except → []` (never 500). `routers/fulltext.py` `GET /papers/fulltext` (registered **before** papers.router). Frontend: a **"Full text"** search scope → a self-contained `FulltextResults` (`js/10c_fulltext.jsx`) that does its own fetch → per-occurrence snippet hits (bolded matches via the U+E000/E001 markers split into React `<b>` nodes — no `dangerouslySetInnerHTML`) + Open-at-page (region precision, no fabricated rect). **`40_app.jsx` untouched** (self-contained component avoids its 599/600 cap). **Principles non-triggering** (no claim/rank/score; bm25 is an internal ordering, never a displayed verdict). Audit `2026-06-29_fulltext-search.md` PASS; **no new dependency** (FTS5 is core SQLite). pytest **719** (+4); QA surface **142/142 API + 677/677 FE, 0 uncovered** (`route_22_fulltext.md`); help corpus + DESIGN updated; headed-verified. |
 | Saved searches — a named facet bundle, distinct from an axis (backlog A1 close-out; inc 208) | A **saved search** persists a named combination of the existing library facets (q / search_field / item_type / axis / tag / needs_review / signal / sort) and recalls it from a **Saved ▾** header menu (apply / save-current / delete). New `saved_searches` table (**migration 0025**; `params` a JSON blob validated by a typed `extra="forbid"` model → unknown key 422, so only known facet keys are stored — rule #4). `persistence/saved_search_repo.py` (new; upsert-by-name = re-saving a name never duplicates) + `routers/saved_searches.py` (new; `GET`/`POST`/`DELETE /saved-searches`). Frontend: `currentSearchParams`/`applySavedSearch` in `40_app.jsx` + a `SavedSearchMenu`. **Distinct from an axis** (a semantic lens that *scores* papers): a saved search just replays the GET /papers filters — no new query semantics, no claim/rank/score → **Principles non-triggering** (reinforced in the copy: tags + saved searches stay the multi-dimensional, score-free organization). **Rule-#1 split:** SavedSearchMenu pushed `10_pdf_layer.jsx` to 602/600 → both header dropdowns extracted → `js/10b_libmenus.jsx` (547). No audit (local table + 3 local endpoints; no egress/fetch/dependency). pytest **715** (+1 `test_saved_searches.py`); QA surface **141/141 API + 675/675 FE, 0 uncovered** (`route_21_saved_searches.md`); help corpus updated; headed-verified 4/4. |
 | Color tags — and **decline ratings** (backlog A5 close-out; inc 207) | A5 was "color tags / ratings / flags"; **ratings/flags are declined** (Cliff): a unidimensional star reduces a paper to one number, erasing the multi-dimensionality tags capture ("I'd give bad science 5 stars for teachability") — which *is* the charter's own logic (#7 no opaque composite, inspectability over authority). So A5 = **color tags only.** A tag carries an optional `color` (**migration 0024**, nullable; a fixed 8-key palette stored as a **key**, never arbitrary hex — allowlist-validated at the write boundary, rule #3/#4). New `GET /tags/colors` + `POST /tags/{id}/color` (422 off-palette, 404 no-tag); `color` on `TagRef`/`TagSummary`/`PaperTagRef`. Frontend: theme-aware `--tag-<key>` tokens + a `color-mix(var(--tag-c) 16%, var(--panel))` chip recipe (a colored chip overrides the inc-100 provenance styling; uncolored keeps it); a swatch popover off each chip's color dot + a sidebar color dot. **Principles:** the declined-ratings call IS the principle pass — a color is a user label, never a score; tags stay the orthogonal, inspectable judgment. **Rule-#1 split:** the picker pushed `25_detail.jsx` to 609/600 → `TagsRow` extracted → `js/25b_tags.jsx` (522). No audit (color column + 2 local endpoints; no egress/fetch/dependency). pytest **714** (+1 `test_tags.py`); QA surface **138/138 API + 667/667 FE, 0 uncovered**; DESIGN + help corpus + `route_20` updated; headed-verified. |
@@ -892,7 +896,45 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-29 — increment 209 (A3 — full-text PDF search via SQLite FTS5; the seventh cheapest-first
+*Last updated: 2026-06-29 — increment 210 (A2 — library-wide per-paper citation counts; the eighth cheapest-first
+close-out, the third migration-bearing one). Generalizes the My-Publications cited-by display (inc 119) so **every**
+library card can show its OpenAlex `cited_by_count` — **verbatim + attributed** ("cited by N · OpenAlex, as of
+<date>"), with an explicit opt-in **Most cited** sort. A displayed fact, never a composite or a silent rank.
+**Backend:** **migration 0027** adds a dedicated **`paper_citation_counts`** table (PK `paper_id` FK CASCADE +
+`cited_by_count` + `source` + `retrieved_at` [= the "as of"]) — kept OUT of the canonical `papers` row (consistent
+with open_science_signals / gap_candidates; additive + guarded + no-op downgrade, the 0021 pattern; registered on the
+shared metadata via `schema_findings.py`, re-exported from `schema.py`). **`OpenAlexClient.fetch_cited_by_count`** rides
+the already-audited, **cached** DOI→work fetch (verbatim count; a real 0 kept; missing work/field → None; fail-closed).
+**`repository.py`**: `list_papers` surfaces the count via two correlated scalar subqueries (`cited_by_count` +
+`cited_by_as_of` — no JOIN → no row duplication) + a `citations_desc` sort key (NULL counts last) + `upsert_citation_count`
+(OR-REPLACE on the PK → idempotent) + `list_live_papers_with_doi` (the bounded fetch set — DOI only, the reliable
+identifier). `PaperListItem` (`routers/papers.py`) += `cited_by_count`/`cited_by_as_of`. **`routers/citation_counts.py`**
+(new): async `POST /papers/citation-counts/refresh` + `GET …/{job_id}` (the statcheck/retraction batch shape — JobStore +
+`mark_progress`; the worker fetches via `app.state.openalex_client`), registered **before** `papers.router` (so
+`/papers/citation-counts/*` isn't captured by `/papers/{paper_id}` — the duplicates.py/fulltext.py precedent).
+**Frontend:** the existing static `.paper-cite` chip (inc 119) now renders on library cards (`citeInfo={count,asOf}`, no
+`workId` → the static span, tooltip "per OpenAlex · as of <date>"); a **"Most cited"** Sort option (`citations_desc`,
+opt-in); a **"Citations ↻"** header control (`CitationCountsButton` in `js/10b_libmenus.jsx` — a self-contained POST→poll
+that bumps the library refresh on completion + then reads "Citations · <date>"). **No new CSS** (reuses `.paper-cite` +
+`.trash-toggle`). **Principles (Example 3, the per-paper-number case) — aligned:** raw not composite (#7); explicit
+opt-in sort, never the default/silent (#2); honest "—" for no-record, never a fabricated 0 (#6); source+date visible
+(#8); egress = DOI→OpenAlex (public metadata, bounded/cached/on-demand — #10), **NOT** the Gemini gate. **Audit
+`2026-06-29_citation-counts.md` PASS** (no SSRF — constant host + DB-DOI path-quoted; bounded/cached; bound-param
+upsert; additive guarded migration; **no new dependency**). pytest **724 passed, 1 skipped** (+5 `tests/test_citation_counts.py`:
+`fetch_cited_by_count` [verbatim/0-kept/missing→None]; upsert + projection + Most-cited sort + idempotent re-fetch;
+`list_live_papers_with_doi` [DOI-only]; the refresh endpoint stores counts + shows on `GET /papers` [404'd DOI → None
+never 0; real 0 shown]; unknown job → 404); `ruff` clean; frontend rebuilt; migration head **0027** via `alembic_head()`;
+**QA surface 144/144 API** (+2: the refresh POST + GET) **+ 679/679 FE, 0 uncovered** (`route_23_citation_counts.md`);
+help corpus gained a "Citation counts" paragraph (`HELP-DOCS-SYNCED` → 210). **Headed-verified, no Gemini egress**
+(`.local/visual/drive_inc210_citations.py` — a FAKE OpenAlex fetcher, offline: unknown job → 404; **Citations ↻** → 0
+chips → **2 chips** + the control reads "Citations · 2026-06-29"; **Most cited** → "99 cited-by" first; 0
+console/page/genai). **Rule-#1:** `js/40_app.jsx` stays **599/600** (the new prop folded onto an existing line — the
+chronic watch item; a split is its own refactor); `js/10_pdf_layer.jsx` **562**; `js/10b_libmenus.jsx` **93**. Notes:
+`INCREMENT-210-NOTES.md`. **NEXT (the cheapest-first A-items are now all closed — A9/A10/A8/A6/A5/A1/A3/A2):** the
+remaining A-item is **A7 Curated Axis** (the largest; its own design pass). The deferred **B-items** (MCP server,
+citation-context classifier) are larger, own design passes.
+
+Earlier — increment 209 (A3 — full-text PDF search via SQLite FTS5; the seventh cheapest-first
 close-out, the second migration-bearing one). Verbatim/lexical search over the already-extracted PDF chunk text — the
 **exact-string complement** to the semantic axes/synthesis ("find 'ultimatum game' verbatim"). **Backend:** **migration
 0026** creates an **external-content** FTS5 index `chunks_fts` over `chunks.text` (`content='chunks',

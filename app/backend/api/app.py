@@ -25,6 +25,7 @@ from app.backend.api.routers import (
     acquisition,
     annotations,
     axes,
+    citation_counts,
     citations,
     discovery,
     duplicates,
@@ -130,6 +131,7 @@ def create_app(
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
+    api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
     api.state.feed_registry = feed_registry or build_default_feed_registry()  # inc 187: Feed sources (bioRxiv)
     api.state.feed_jobs = JobStore()  # inc 187: async Feed refresh (poll subscriptions)
@@ -191,6 +193,9 @@ def create_app(
     api.include_router(duplicates.router)  # before papers so "/papers/duplicates*" wins over "/papers/{paper_id}"
     api.include_router(acquisition.router)  # before papers so "/papers/acquire-oa*" wins over "/papers/{paper_id}"
     api.include_router(fulltext.router)  # before papers so "/papers/fulltext" wins over "/papers/{paper_id}" (inc 209)
+    api.include_router(
+        citation_counts.router
+    )  # before papers so "/papers/citation-counts/*" wins over "/papers/{id}" (inc 210)
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
     api.include_router(papers.router)

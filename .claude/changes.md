@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-06-29 inc 209 — browsing section: a "Searching inside your PDFs (full text)" paragraph -->
+<!-- HELP-DOCS-SYNCED 2026-06-29 inc 210 — browsing section: a "Citation counts" paragraph (Citations ↻ + Most cited) -->
+## 2026-06-29 — Increment 210: A2 — library-wide per-paper citation counts
+- **Files:** `alembic/versions/0027_paper_citation_counts.py` (NEW), `persistence/schema_findings.py` +
+  `schema.py` (the table + re-export), `integrations/openalex/adapter.py` (`fetch_cited_by_count`),
+  `persistence/repository.py` (list projection + `citations_desc` sort + `upsert_citation_count` +
+  `list_live_papers_with_doi`), `api/routers/papers.py` (`PaperListItem` fields), `api/routers/citation_counts.py`
+  (NEW — async batch) + `app.py` (register before papers), `app/frontend/js/10b_libmenus.jsx`
+  (`CitationCountsButton`) + `10_pdf_layer.jsx` (chip + Most-cited option + control) + `40_app.jsx`
+  (`onCitationsRefreshed`) + `callosum-app.html` (rebuilt), `app/backend/help/help_content.md`,
+  `.claude/qa-routes/route_23_citation_counts.md` (NEW), `.claude/security-audits/2026-06-29_citation-counts.md`
+  (NEW), `tests/test_citation_counts.py` (NEW), `.claude/docs/INCREMENT-BACKLOG.md`, CLAUDE, `INCREMENT-210-NOTES.md`.
+- **What:** every library card can show its OpenAlex cited-by count (verbatim + "as of <date>") via a
+  **"Citations ↻"** header refresh, plus an explicit opt-in **Most cited** sort. A displayed fact, attributed —
+  never a composite/silent rank; no DOI/record → honest "—" (a real 0 shows "0 cited-by").
+- **Why:** A2 — see how often the literature cites each paper, honestly, without a leaderboard.
+- **Gates:** pytest **724 passed, 1 skipped** (+5); ruff clean; migration head **0027**; QA surface **144/144 API**
+  (+2) **+ 679/679 FE, 0 uncovered**; **audit PASS**; **no new dependency** (reuses the OpenAlex adapter).
+  Headed-verified (`.local/visual/drive_inc210_citations.py` — Citations ↻ → 2 chips + "Citations · <date>" →
+  Most cited → "99 cited-by" first; unknown job → 404; 0 console/page/genai). `40_app.jsx` stays 599/600.
+- **Revert:** `git revert` the inc-210 commit + `alembic downgrade -1` (no-op; the table is dropped by a base downgrade).
+
 ## 2026-06-29 — Increment 209: A3 — full-text PDF search (SQLite FTS5)
 - **Files:** `alembic/versions/0026_chunks_fts.py` (NEW — external-content FTS5 + sync triggers + backfill),
   `persistence/fulltext_repo.py` (NEW — sanitize + MATCH query), `api/routers/fulltext.py` (NEW — GET /papers/fulltext)

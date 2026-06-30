@@ -99,3 +99,16 @@ gap_candidates = Table(
     Column("computed_at", String(40), nullable=False),
     Index("ix_gap_candidates_scope", "direction", "axis_id"),
 )
+
+# Per-paper OpenAlex cited-by count (inc 210, A2): a refreshable external metric, stored OUT of the canonical
+# `papers` row (like every other derived datum — open_science_signals, gap_candidates). One row per paper,
+# replaced by the on-demand batch. `retrieved_at` IS the "as of <date>" attribution. A displayed FACT shown
+# verbatim + attributed — never folded into a composite or used to silently rank (Principles #2/#7).
+paper_citation_counts = Table(
+    "paper_citation_counts",
+    metadata,
+    Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True),
+    Column("cited_by_count", Integer, nullable=False),
+    Column("source", String(40), nullable=False),
+    Column("retrieved_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+)

@@ -30,6 +30,7 @@ from app.backend.persistence.schema import (
     cluster_nodes,
     embeddings,
     open_science_signals,
+    paper_citation_counts,
     paper_findings,
     paper_tags,
     papers,
@@ -39,6 +40,24 @@ from app.backend.persistence.schema import (
 
 if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at import time
     from app.backend.embeddings.vector_store import VectorStore
+
+
+def _cited_by_subquery():
+    """Correlated scalar subquery: a paper's OpenAlex cited-by count (NULL if not fetched). Reused by the
+    list projection (the card chip) and the explicit "Most cited" sort (inc 210, A2)."""
+    return (
+        select(paper_citation_counts.c.cited_by_count)
+        .where(paper_citation_counts.c.paper_id == papers.c.id)
+        .scalar_subquery()
+    )
+
+
+def _cited_by_as_of_subquery():
+    return (
+        select(paper_citation_counts.c.retrieved_at)
+        .where(paper_citation_counts.c.paper_id == papers.c.id)
+        .scalar_subquery()
+    )
 
 
 def _paper_sort_order(sort: str) -> list:
@@ -57,6 +76,9 @@ def _paper_sort_order(sort: str) -> list:
             papers.c.first_author_family_name.is_(None),
             func.lower(papers.c.first_author_family_name).desc(),
         ],
+        # Most cited (inc 210, A2): an EXPLICIT, user-chosen sort by the OpenAlex cited-by count — never the
+        # default (no silent rank, Principles #2/#7). Papers without a fetched count sort last.
+        "citations_desc": [_cited_by_subquery().is_(None), _cited_by_subquery().desc()],
     }
     order = sorts.get(sort, sorts["added"])
     return order if sort in ("added", "recent") else [*order, papers.c.id.asc()]
@@ -185,6 +207,10 @@ def list_papers(
             papers,
             attachment_count.label("attachment_count"),
             chunk_count.label("chunk_count"),
+            _cited_by_subquery().label(
+                "cited_by_count"
+            ),  # inc 210, A2 — verbatim OpenAlex count + as-of for the card chip
+            _cited_by_as_of_subquery().label("cited_by_as_of"),
         )
         .where(papers.c.deleted_at.is_not(None) if only_deleted else papers.c.deleted_at.is_(None))
         .order_by(*_paper_sort_order(sort))
@@ -283,6 +309,23 @@ def list_item_types(conn: Connection) -> list[RowMapping]:
 def list_live_paper_ids(conn: Connection) -> list[int]:
     """All live (non-trashed) paper ids — for batch Methods producers (inc 97). A light ids-only query."""
     return [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_(None)))]
+
+
+def list_live_papers_with_doi(conn: Connection) -> list[RowMapping]:
+    """(id, doi) for live papers that have a DOI — the bounded set the citation-count batch fetches (inc 210,
+    A2). DOI only: it's the reliable OpenAlex identifier; a title-search cited-by count is unreliable + costly."""
+    stmt = select(papers.c.id, papers.c.doi).where(papers.c.deleted_at.is_(None), papers.c.doi.is_not(None))
+    return list(conn.execute(stmt).mappings())
+
+
+def upsert_citation_count(conn: Connection, paper_id: int, cited_by_count: int, *, source: str = "openalex") -> None:
+    """Store/replace one paper's cited-by count (inc 210, A2). OR-REPLACE on the paper_id PK → idempotent;
+    `retrieved_at` server-defaults to now (the "as of <date>" attribution). Bound params (rule #3)."""
+    conn.execute(
+        insert(paper_citation_counts)
+        .prefix_with("OR REPLACE")
+        .values(paper_id=paper_id, cited_by_count=int(cited_by_count), source=source)
+    )
 
 
 def get_paper_counts(conn: Connection, paper_id: int) -> RowMapping:

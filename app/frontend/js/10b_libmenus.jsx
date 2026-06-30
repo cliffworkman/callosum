@@ -26,6 +26,37 @@ function AddMenu({ onScan, onImport }) {
   );
 }
 
+// inc-210 (A2): a header control to refresh per-paper OpenAlex cited-by counts. Self-contained: POSTs the async
+// batch, polls the job, then calls onRefreshed() (the library reloads → the cards show counts). `asOf` (the
+// freshest retrieved_at across the loaded list) makes the source + date VISIBLE — verbatim + attributed, never a
+// silent rank (Principles #2/#7/#8). Public-metadata egress, NOT the Gemini gate.
+function CitationCountsButton({ asOf, onRefreshed }) {
+  const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState(null);  // {current,total}
+  const run = async () => {
+    if (busy) return;
+    setBusy(true); setProg(null);
+    const start = await apiPost("/papers/citation-counts/refresh", {});
+    const jid = start.ok && start.data ? start.data.job_id : null;
+    if (!jid) { setBusy(false); return; }
+    for (let i = 0; i < 600; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      const r = await api("/papers/citation-counts/refresh/" + jid);
+      if (!r.ok) break;
+      if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+      if (r.data.status === "done" || r.data.status === "error") { onRefreshed && onRefreshed(); break; }
+    }
+    setBusy(false); setProg(null);
+  };
+  const date = asOf ? String(asOf).slice(0, 10) : null;
+  return (
+    <button className="trash-toggle" onClick={run} disabled={busy}
+      title="Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking)">
+      {busy ? (prog ? `Citations ${prog.current}/${prog.total}` : "Citations…") : (date ? `Citations · ${date}` : "Citations ↻")}
+    </button>
+  );
+}
+
 // inc-208 (A1): saved searches — a "Saved ▾" menu mirroring AddMenu. Recall a named bundle of the current library
 // facets (filters + sort + search box), save the current set, or delete one. Closes on outside-click.
 function SavedSearchMenu({ searches, onApply, onSave, onDelete }) {

@@ -585,6 +585,7 @@ from app.backend.persistence.schema_feed import (  # noqa: E402,F401
 from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     gap_candidates,
     open_science_signals,
+    paper_citation_counts,
     paper_findings,
     retraction_records,
 )

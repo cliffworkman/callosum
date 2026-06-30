@@ -49,6 +49,8 @@ class PaperListItem(BaseModel):
     processing_tier: str
     attachment_count: int
     chunk_count: int
+    cited_by_count: int | None = None  # inc 210 (A2): verbatim OpenAlex cited-by count (None = not fetched)
+    cited_by_as_of: str | None = None  # the "as of <date>" attribution (retrieved_at, ISO)
 
 
 class AttachmentResponse(BaseModel):
@@ -445,6 +447,13 @@ def _crossref(app: FastAPI) -> CrossrefClient:
     return CrossrefClient()
 
 
+def _iso_or_none(value: Any) -> str | None:
+    """A DateTime column (datetime) or its SQLite text form → an ISO string, else None (inc 210)."""
+    if value is None:
+        return None
+    return value.isoformat() if hasattr(value, "isoformat") else str(value)
+
+
 def _paper_list_item(row: Any) -> PaperListItem:
     return PaperListItem(
         id=row["id"],
@@ -456,6 +465,8 @@ def _paper_list_item(row: Any) -> PaperListItem:
         processing_tier=row["processing_tier"],
         attachment_count=row["attachment_count"],
         chunk_count=row["chunk_count"],
+        cited_by_count=row["cited_by_count"] if "cited_by_count" in row.keys() else None,
+        cited_by_as_of=_iso_or_none(row["cited_by_as_of"]) if "cited_by_as_of" in row.keys() else None,
     )
 
 

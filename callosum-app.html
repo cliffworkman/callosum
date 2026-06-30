@@ -2637,7 +2637,15 @@
         },
         citeInfo.count,
         " cited-by"
-      ) : /* @__PURE__ */ React.createElement("span", { className: "paper-cite paper-cite-static", title: "Cited-by count, per OpenAlex" }, citeInfo.count, " cited-by")), footExtra)
+      ) : /* @__PURE__ */ React.createElement(
+        "span",
+        {
+          className: "paper-cite paper-cite-static",
+          title: citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex \xB7 as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"
+        },
+        citeInfo.count,
+        " cited-by"
+      )), footExtra)
     );
   }
   function PaperList({
@@ -2699,6 +2707,7 @@
     onOpenGaps,
     onOpenScan,
     onOpenImport,
+    onCitationsRefreshed,
     savedSearches,
     onApplySavedSearch,
     onSaveSearch,
@@ -2711,6 +2720,7 @@
     const selecting = !focusAxis && !trashView;
     const selCount = selectedLibraryIds ? selectedLibraryIds.size : 0;
     const fulltextMode = librarySearchField === "fulltext" && !!(query || "").trim();
+    const maxCitedAsOf = (state.papers || []).reduce((m, p) => p.cited_by_as_of && (!m || p.cited_by_as_of > m) ? p.cited_by_as_of : m, null);
     const [citeStyles, setCiteStyles] = useState([]);
     useEffect(() => {
       api("/citations/styles").then((r) => {
@@ -2755,7 +2765,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -2771,7 +2781,7 @@
         onChange: (e) => onQuery(e.target.value),
         spellCheck: false
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySearchField, onChange: (e) => onSearchFieldChange(e.target.value), title: "Search in" }, /* @__PURE__ */ React.createElement("option", { value: "all" }, "All fields"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author"), /* @__PURE__ */ React.createElement("option", { value: "journal" }, "Journal"), /* @__PURE__ */ React.createElement("option", { value: "fulltext" }, "Full text (PDFs)")), itemTypes && itemTypes.length > 0 && /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: libraryItemType, onChange: (e) => onItemTypeChange(e.target.value), title: "Filter by type" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All types"), itemTypes.map((t) => /* @__PURE__ */ React.createElement("option", { key: t.item_type, value: t.item_type }, _typeLabel(t.item_type), " (", t.count, ")"))), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: librarySort, onChange: (e) => onSortChange(e.target.value), title: "Sort the library" }, /* @__PURE__ */ React.createElement("option", { value: "added" }, "Date added"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "Recently added"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "title_desc" }, "Title (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "year_desc" }, "Year (newest)"), /* @__PURE__ */ React.createElement("option", { value: "year_asc" }, "Year (oldest)"), /* @__PURE__ */ React.createElement("option", { value: "author" }, "Author (A\u2013Z)"), /* @__PURE__ */ React.createElement("option", { value: "author_desc" }, "Author (Z\u2013A)"), /* @__PURE__ */ React.createElement("option", { value: "citations_desc" }, "Most cited"))), state.status === "ready" && !fulltextMode && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, total != null ? `${total} shown` : `${state.papers.length} shown`, query ? ` \xB7 filtered by \u201C${query}\u201D` : "", ` \xB7 page ${page + 1}`, selecting && state.papers.length > 0 && /* @__PURE__ */ React.createElement("button", { className: "lib-select-all", onClick: () => onSelectAll(state.papers.map((p) => p.id)) }, "select all"))), fulltextMode && /* @__PURE__ */ React.createElement(FulltextResults, { query, onOpenPdf }), !fulltextMode && /* @__PURE__ */ React.createElement(React.Fragment, null, selecting && selCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-bulk-bar" }, /* @__PURE__ */ React.createElement("span", { className: "axis-bulk-count" }, selCount, " selected"), /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "bulk-focus",
@@ -2864,6 +2874,7 @@
           checked: selectedLibraryIds && selectedLibraryIds.has(p.id),
           onToggleCheck: onToggleLibrarySelect,
           findings: findingsByPaper && findingsByPaper[p.id],
+          citeInfo: p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : void 0,
           footExtra
         }
       );
@@ -2885,6 +2896,44 @@
       fn();
     };
     return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026")));
+  }
+  function CitationCountsButton({ asOf, onRefreshed }) {
+    const [busy, setBusy] = useState(false);
+    const [prog, setProg] = useState(null);
+    const run = async () => {
+      if (busy) return;
+      setBusy(true);
+      setProg(null);
+      const start = await apiPost("/papers/citation-counts/refresh", {});
+      const jid = start.ok && start.data ? start.data.job_id : null;
+      if (!jid) {
+        setBusy(false);
+        return;
+      }
+      for (let i = 0; i < 600; i++) {
+        await new Promise((r2) => setTimeout(r2, 600));
+        const r = await api("/papers/citation-counts/refresh/" + jid);
+        if (!r.ok) break;
+        if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+        if (r.data.status === "done" || r.data.status === "error") {
+          onRefreshed && onRefreshed();
+          break;
+        }
+      }
+      setBusy(false);
+      setProg(null);
+    };
+    const date = asOf ? String(asOf).slice(0, 10) : null;
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle",
+        onClick: run,
+        disabled: busy,
+        title: "Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking)"
+      },
+      busy ? prog ? `Citations ${prog.current}/${prog.total}` : "Citations\u2026" : date ? `Citations \xB7 ${date}` : "Citations \u21BB"
+    );
   }
   function SavedSearchMenu({ searches, onApply, onSave, onDelete }) {
     const [open, setOpen] = useState(false);
@@ -7813,6 +7862,8 @@
           onPurge: purgePaper,
           onEmptyTrash: emptyTrash,
           onFindDuplicates: () => setDuplicatesOpen(true),
+          onCitationsRefreshed: () => setLibRefresh((n) => n + 1),
+          // A2: reload after the cited-by refresh
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),

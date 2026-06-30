@@ -523,7 +523,7 @@ function App() {
           findingsByPaper,
           onToggleTrash: toggleTrash, onRestore: restorePaper,
           onPurge: purgePaper, onEmptyTrash: emptyTrash,
-          onFindDuplicates: () => setDuplicatesOpen(true),
+          onFindDuplicates: () => setDuplicatesOpen(true), onCitationsRefreshed: () => setLibRefresh(n => n + 1),  // A2: reload after the cited-by refresh
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),

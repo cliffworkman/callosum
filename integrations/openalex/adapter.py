@@ -159,6 +159,15 @@ class OpenAlexClient:
                 out.append(meta)
         return out
 
+    def fetch_cited_by_count(self, conn: Connection, ref: PaperRef) -> int | None:
+        """OpenAlex's `cited_by_count` for a paper (inc 210, A2) — read from the cached DOI→work fetch.
+        Returns the verbatim count (0 is a real value, kept), or None if the work/field is absent. Fail-closed."""
+        work = self._fetch_work(conn, ref)
+        if not isinstance(work, dict):
+            return None
+        count = work.get("cited_by_count")
+        return int(count) if isinstance(count, int) else None
+
     def lookup_retraction(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         """Read OpenAlex's `is_retracted` boolean for a work (inc 131). Thin (a boolean, no notice detail) —
         corroboration + coverage alongside Crossref. Returns `{"status": "retracted"}` or None; never raises."""

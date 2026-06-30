@@ -296,7 +296,8 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
               onClick={e => { e.stopPropagation(); citeInfo.onOpenCiting(citeInfo.workId, p); }}>
               {citeInfo.count} cited-by
             </button>
-          : <span className="paper-cite paper-cite-static" title="Cited-by count, per OpenAlex">{citeInfo.count} cited-by</span>)}
+          : <span className="paper-cite paper-cite-static"
+              title={citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex · as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"}>{citeInfo.count} cited-by</span>)}
         {footExtra}
       </div>
     </div>
@@ -313,6 +314,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport,
+                    onCitationsRefreshed,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
@@ -323,6 +325,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   // inc-209 (A3): full-text PDF search mode — the "Full text" scope + a query swaps the library list for a
   // self-contained snippet-hit list (FulltextResults does its own fetch; 40_app is untouched).
   const fulltextMode = librarySearchField === "fulltext" && !!(query || "").trim();
+  // inc-210 (A2): the freshest cited-by "as of" across the loaded list → shown on the Citations control (attribution).
+  const maxCitedAsOf = (state.papers || []).reduce((m, p) => (p.cited_by_as_of && (!m || p.cited_by_as_of > m) ? p.cited_by_as_of : m), null);
   const [citeStyles, setCiteStyles] = useState([]);  // inc-106: bundled CSL styles for the bulk "bibliography…" picker
   useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setCiteStyles(r.data.styles || []); }); }, []);
   return (
@@ -352,6 +356,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <button className="trash-toggle" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
+            {!trashView && <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
               <button className="trash-toggle danger" onClick={onEmptyTrash}
                 title="Permanently delete every paper in Trash — cannot be undone">Empty Trash</button>}
@@ -448,6 +453,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <option value="year_asc">Year (oldest)</option>
             <option value="author">Author (A–Z)</option>
             <option value="author_desc">Author (Z–A)</option>
+            <option value="citations_desc">Most cited</option>
           </select>
         </div>
         {state.status === "ready" && !fulltextMode &&
@@ -538,6 +544,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onSelect={onSelect} onOpen={onOpenPdf}
             checked={selectedLibraryIds && selectedLibraryIds.has(p.id)} onToggleCheck={onToggleLibrarySelect}
             findings={findingsByPaper && findingsByPaper[p.id]}
+            citeInfo={p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : undefined}
             footExtra={footExtra}
           />
         );

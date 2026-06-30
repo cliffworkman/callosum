@@ -451,9 +451,11 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
 - ✅ **A6 — DONE (inc 206): drag a library card onto a (non-My-Pubs) axis card to add it.** A manual override via
   `POST /axes/{id}/papers`; the axis card shows a dashed-accent drop-invite; My-Pubs (authorship-resolved) is not a
   drop target. Frontend-only (rides the existing endpoint).
-- **A2 — library-wide per-paper citation counts** (generalize My-Pubs Layer 3's OpenAlex counts to all cards/Details).
-  A **displayed metadata field with a visible source** — never a composite, never a silent rank (#7); shown honestly,
-  not zero-filled. *(Metadata egress, the inc-81 posture — not the Gemini gate.)*
+- ✅ **A2 — DONE (inc 210): library-wide per-paper citation counts.** A **"Citations ↻"** header control →
+  `POST /papers/citation-counts/refresh` (async, OpenAlex `cited_by_count` by DOI → the new `paper_citation_counts`
+  table, migration 0027) → a verbatim **"N cited-by"** chip on every card + an explicit opt-in **Most cited** sort.
+  Attributed ("per OpenAlex · as of <date>"); never a composite, never a silent rank; no-record → honest "—" (#2/#6/#7).
+  Metadata egress (DOI→OpenAlex), NOT the Gemini gate; audit `2026-06-29_citation-counts.md` PASS.
 - ✅ **A3 — DONE (inc 209): full-text PDF search.** A SQLite **FTS5** index (`chunks_fts`, external-content + sync
   triggers, migration 0026) over the extracted `chunks.text`, surfaced as a **"Full text (PDFs)"** search scope →
   per-occurrence snippet hits (bolded matches + page + Open-at-page, region precision). `GET /papers/fulltext`;
