@@ -337,6 +337,7 @@ cluster_node_papers = Table(
     Column("cluster_node_id", ForeignKey("cluster_nodes.id", ondelete="CASCADE"), primary_key=True),
     Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True),
     Column("confidence", Float),
+    Column("position", Integer, nullable=True),  # A7 (inc 211): manual member order on a curated axis (NULL on keyword axes)
     CheckConstraint(
         "confidence IS NULL OR (confidence >= 0 AND confidence <= 1)", name="cluster_assignment_confidence_0_1"
     ),
