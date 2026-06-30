@@ -52,6 +52,7 @@ class SettingsStatus(BaseModel):
     contact_email_source: str | None = None  # "ui" | "env" | None
     remote_access_enabled: bool = False  # inc 168: gate callosum behind a bearer token (for the Google Docs tunnel)
     access_token_set: bool = False  # is a remote-access token stored? — NEVER the token value
+    agent_writes_enabled: bool = False  # B1 SP2: allow the MCP agent write tools (default off)
     account: AccountStatus  # SP1: optional "Sign in with ORCID" status — the verified identity, never tokens
 
 
@@ -69,6 +70,7 @@ class SettingsUpdate(BaseModel):
     set_contact_email: bool = False
     contact_email: str | None = Field(default=None, max_length=app_settings.CONTACT_EMAIL_MAX_LEN)
     remote_access_enabled: bool | None = None
+    agent_writes_enabled: bool | None = None  # B1 SP2
 
 
 def _stored_key(provider: str) -> bool:
@@ -117,6 +119,7 @@ def _status() -> SettingsStatus:
         contact_email_source=contact_source,
         remote_access_enabled=app_settings.stored_remote_access(),
         access_token_set=app_settings.stored_access_token() is not None,
+        agent_writes_enabled=app_settings.stored_agent_writes(),
         account=AccountStatus(configured=app_settings.oidc_configured(), **app_settings.oauth_account_status()),
     )
 
@@ -162,6 +165,8 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         if update.remote_access_enabled and app_settings.stored_access_token() is None:
             raise HTTPException(status_code=422, detail="Generate an access token before enabling remote access.")
         app_settings.set_remote_access_enabled(update.remote_access_enabled)
+    if update.agent_writes_enabled is not None:
+        app_settings.set_agent_writes_enabled(update.agent_writes_enabled)
     return _status()
 
 

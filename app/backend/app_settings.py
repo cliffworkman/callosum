@@ -321,6 +321,20 @@ def stored_remote_access() -> bool:
     return bool(load_settings().get("remote_access_enabled", False))
 
 
+def set_agent_writes_enabled(enabled: bool) -> None:
+    data = load_settings()
+    data["agent_writes_enabled"] = bool(enabled)
+    _write(data)
+
+
+def stored_agent_writes() -> bool:
+    """Whether AI-agent writes (the MCP write tools, B1 SP2) are allowed. Default OFF. The
+    CALLOSUM_DISABLE_AGENT_WRITES env var force-disables it (a local recovery hatch)."""
+    if os.getenv("CALLOSUM_DISABLE_AGENT_WRITES", "").strip().lower() in {"1", "true", "yes"}:
+        return False
+    return bool(load_settings().get("agent_writes_enabled", False))
+
+
 # --- Optional account (SP1): "Sign in with ORCID" via OIDC to the callosum account platform (Authentik) ---
 # Sign-in is OFF until an issuer + client_id are configured (env, set by the maintainer at standup). Tokens are
 # SECRETS (keychain/file via _set_secret, write-only over the wire); GET /settings reports only a non-secret status.

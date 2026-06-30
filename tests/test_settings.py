@@ -26,6 +26,16 @@ def test_store_roundtrip_and_clear() -> None:
     assert app_settings.stored_api_key() is None
 
 
+def test_agent_writes_toggle_defaults_off_and_round_trips(temp_db_url: str) -> None:
+    # B1 SP2: the MCP agent-writes opt-in. Default OFF; PUT toggles it (the conftest isolates the settings store).
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/settings").json()["agent_writes_enabled"] is False
+    assert client.put("/settings", json={"agent_writes_enabled": True}).json()["agent_writes_enabled"] is True
+    assert client.get("/settings").json()["agent_writes_enabled"] is True
+    client.put("/settings", json={"agent_writes_enabled": False})
+    assert client.get("/settings").json()["agent_writes_enabled"] is False
+
+
 def test_get_settings_never_returns_the_key(temp_db_url: str) -> None:
     app_settings.set_api_key("sk-super-secret-value")
     client = TestClient(create_app(db_url=temp_db_url))
