@@ -285,10 +285,13 @@ sibling of statcheck under the findings subsystem.
 Bayes factors for canonical designs (t/F/r + N) + Tier-2 completeness audit; signal-not-verdict, deliberately does
 **not** teach "BF>3 = significance". Sibling of statcheck under the findings subsystem.
 
-**25. Citation-equity audit** (`…_citationequitytool.md`, METHODS) — **[future track]** identity-**agnostic**
-structural/topical reference-list audit (self-citation, concentration, Global-South under-citation, topical gaps) +
-add-only "overlooked work" remediation; descriptive, never a verdict. Gender/identity module **deferred + separately
-gated** (A-A no-accusation).
+**25. Citation-equity audit** (`…_citationequitytool.md`, METHODS) — **[SP1 SHIPPED inc 227]** the identity-agnostic
+**structural** reference-list audit (self-citation, Matthew concentration, venue + institutional concentration,
+geographic/Global-South spread) shown against a field-topic sample — descriptive, never a verdict; gender module
+deferred + absent. **Remaining: SP2** = the topical **overlooked-work remediation** (surface relevant work the list
+omits, with a why-this-substitute trail; add-only, never identity-driven) — needs local embeddings + an OpenAlex
+candidate pool; reuses inc-227's field machinery; its own audit + Principles pass. Also (experience pass, inc 227): a
+real *field* self-citation baseline; a prominent low-coverage flag when a signal resolves <50% of references.
 
 **26. CRediT contributions builder** (`…_creditcontributionsbuilder.md`) — **[future track]** authors × 14-roles
 grid (NISO CRediT) → a contributorship statement injected via the Word link (depends on #33/#34); **builder, not

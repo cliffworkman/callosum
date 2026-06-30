@@ -504,6 +504,30 @@
   /* inc 180: canonical credit-the-lineage block, shared by every METHODS module (statcheck / GRIM / p-curve). */
   .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  /* inc 227: citation-equity audit — descriptive signal rows + a list-vs-field mini-bar. Tokens only. */
+  .cite-equity-section { font-size: 12px; }
+  .cite-equity-intro { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin-bottom: 8px; }
+  .cite-equity-field { font-size: 11px; color: var(--ink-3); margin: 4px 0 4px; }
+  .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
+  .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
+  .cite-equity-howto { font-size: 11px; color: var(--ink-2); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+  .cite-equity-signal { border-top: 1px solid var(--line); padding: 8px 0; }
+  .cite-equity-siglabel { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .cite-equity-summary { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; margin: 3px 0 6px; }
+  .cite-equity-bars { display: flex; flex-direction: column; gap: 3px; margin-bottom: 5px; }
+  .cite-equity-barrow { display: flex; align-items: center; gap: 7px; }
+  .cite-equity-barlabel { flex: 0 0 56px; font-size: 10px; color: var(--ink-3); }
+  .cite-equity-bar { flex: 1; height: 7px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-pill); overflow: hidden; }
+  .cite-equity-fill { display: block; height: 100%; border-radius: var(--radius-pill); }
+  .cite-equity-fill.list { background: var(--accent); }
+  .cite-equity-fill.field { background: var(--ink-3); }
+  .cite-equity-barval { flex: 0 0 34px; text-align: right; font-size: 10.5px; color: var(--ink-2); }
+  .cite-equity-basis { font-size: 11px; margin: 2px 0 4px; }
+  .cite-equity-basis summary { color: var(--accent); cursor: pointer; }
+  .cite-equity-basis ul { margin: 4px 0 0; padding-left: 18px; color: var(--ink-2); }
+  .cite-equity-basis li { margin: 2px 0; }
+  .cite-equity-coverage { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .cite-equity-deferred { font-size: 10.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 8px; line-height: 1.45; margin-top: 10px; }
   /* inc 130: findings subsystem (FactMark + review cards + library badge). Tokens only. */
   .findings-section { font-size: 12px; }
   .findings-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
@@ -2859,6 +2883,122 @@
     return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, /* @__PURE__ */ React.createElement(RetractionBatch, { ctx }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), pid == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RetractionStatusLine, { paperId: pid }), state.status !== "ready" ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026") : facts.length || candidates.length ? /* @__PURE__ */ React.createElement(React.Fragment, null, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper }))) : /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.")));
   }
   registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
+  const CITATION_EQUITY_CSL = [
+    {
+      type: "article-journal",
+      title: "Men Set Their Own Cites High: Gender and Self-Citation across Fields and over Time",
+      author: [
+        { family: "King", given: "Molly M." },
+        { family: "Bergstrom", given: "Carl T." },
+        { family: "Correll", given: "Shelley J." },
+        { family: "Jacquet", given: "Jennifer" },
+        { family: "West", given: "Jevin D." }
+      ],
+      "container-title": "Socius",
+      volume: "3",
+      issued: { "date-parts": [[2017]] },
+      DOI: "10.1177/2378023117738903"
+    },
+    {
+      type: "article-journal",
+      title: "The Matthew Effect in Science",
+      author: [{ family: "Merton", given: "Robert K." }],
+      "container-title": "Science",
+      volume: "159",
+      issue: "3810",
+      page: "56-63",
+      issued: { "date-parts": [[1968]] },
+      DOI: "10.1126/science.159.3810.56"
+    },
+    {
+      type: "article-journal",
+      title: "The Matthew effect in empirical data",
+      author: [{ family: "Perc", given: "Matja\u017E" }],
+      "container-title": "Journal of the Royal Society Interface",
+      volume: "11",
+      issue: "98",
+      page: "20140378",
+      issued: { "date-parts": [[2014]] },
+      DOI: "10.1098/rsif.2014.0378"
+    }
+  ];
+  function CiteEquityBar({ label, pct, kind }) {
+    if (pct == null) return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-barrow" }, /* @__PURE__ */ React.createElement("span", { className: "cite-equity-barlabel" }, label), /* @__PURE__ */ React.createElement("span", { className: "cite-equity-barval" }, "\u2014"));
+    const w = Math.max(2, Math.round(pct * 100));
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-barrow" }, /* @__PURE__ */ React.createElement("span", { className: "cite-equity-barlabel" }, label), /* @__PURE__ */ React.createElement("span", { className: "cite-equity-bar" }, /* @__PURE__ */ React.createElement("span", { className: "cite-equity-fill " + kind, style: { width: w + "%" } })), /* @__PURE__ */ React.createElement("span", { className: "cite-equity-barval" }, Math.round(pct * 100), "%"));
+  }
+  function CiteEquitySignal({ s }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-signal" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-siglabel" }, s.label), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-summary" }, s.summary), (s.list_pct != null || s.field_pct != null) && /* @__PURE__ */ React.createElement("div", { className: "cite-equity-bars" }, /* @__PURE__ */ React.createElement(CiteEquityBar, { label: "This list", pct: s.list_pct, kind: "list" }), s.field_pct != null && /* @__PURE__ */ React.createElement(CiteEquityBar, { label: "Field", pct: s.field_pct, kind: "field" })), s.basis && s.basis.length > 0 && /* @__PURE__ */ React.createElement("details", { className: "cite-equity-basis" }, /* @__PURE__ */ React.createElement("summary", null, "Show the basis (", s.basis.length, ")"), /* @__PURE__ */ React.createElement("ul", null, s.basis.map((b, i) => /* @__PURE__ */ React.createElement("li", { key: i }, b)))), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-coverage" }, s.coverage));
+  }
+  function CiteEquityFoot() {
+    const [added, setAdded] = useState("idle");
+    const addCredit = async () => {
+      setAdded("adding");
+      const r = await apiPost("/library/import", { content: JSON.stringify(CITATION_EQUITY_CSL), format: "csl-json" });
+      setAdded(r && r.ok ? "added" : "idle");
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-howto" }, "Read this as a mirror, not a report card. If a concentration stands out, the move is to read more widely \u2014 never to drop a relevant citation, or add one to hit a number. A future version will help surface relevant work you may have overlooked."), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-deferred" }, "A gender or identity balance number is deliberately ", /* @__PURE__ */ React.createElement("b", null, "not"), " produced. Name\u2192gender inference is unreliable (systematically wrong for non-Western names) and would mean inferring an attribute about people \u2014 so equity here is measured structurally, not by guessing identities."), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " self-citation (King et al. 2017, ", /* @__PURE__ */ React.createElement("i", null, "Socius"), "); the Matthew effect (Merton 1968, ", /* @__PURE__ */ React.createElement("i", null, "Science"), "; Perc 2014, ", /* @__PURE__ */ React.createElement("i", null, "J. R. Soc. Interface"), ").", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Computed structurally from OpenAlex metadata (public) \u2014 credited, not reused.")));
+  }
+  function CitationEquityPaper({ paperId }) {
+    const [meta, setMeta] = useState(null);
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      setMeta(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (!live || !r.ok) return;
+        setMeta({ title: r.data.title, hasDoi: !!r.data.doi });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const run = async () => {
+      setState({ status: "running", progress: null });
+      const poll = (jobId) => api(`/methods/citation-equity/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", report: d.report });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "Audit failed." });
+        else {
+          setState({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+      const r = await apiPost("/methods/citation-equity/run", { paper_id: paperId });
+      if (!r.ok) {
+        setState({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to audit its reference list.");
+    const rep = state.report;
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, "The structural shape of ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "this paper"), "'s reference list \u2014 descriptive context, never a score or a target. Identity-agnostic: no author-identity inference."), meta && !meta.hasDoi && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so OpenAlex can't resolve its references."), meta && meta.hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: run,
+        title: "Resolve this paper's references via OpenAlex (public metadata) and compute its structural signals"
+      },
+      "Run audit"
+    ), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-egress-note" }, "Running fetches public OpenAlex metadata about your references (their DOIs) \u2014 nothing about your draft or library text leaves your machine.")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Resolving references\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't run the audit: ", state.error), state.status === "done" && rep && (rep.references_total === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "OpenAlex has no reference-list data for this paper, so there's nothing to audit.") : /* @__PURE__ */ React.createElement("div", { className: "cite-equity-report" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-field" }, rep.field_topic ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Compared with a sample of ", rep.field_sample_size, " recent ", /* @__PURE__ */ React.createElement("b", null, rep.field_topic.display_name || "field"), " papers (OpenAlex).") : /* @__PURE__ */ React.createElement(React.Fragment, null, "No field comparison available (OpenAlex has no topic for this paper) \u2014 showing the list's own shape.")), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-caption" }, "The bars show each value descriptively \u2014 context for you to interpret, not a target or a score; neither direction is a verdict."), rep.signals.map((s) => /* @__PURE__ */ React.createElement(CiteEquitySignal, { key: s.key, s })), /* @__PURE__ */ React.createElement(CiteEquityFoot, null))));
+  }
+  function CitationEquitySection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId: ctx.selectedPaper }));
+  }
+  registerPaneSection({
+    id: "citation-equity",
+    label: "Citation equity",
+    paneId: "methods",
+    order: 35,
+    render: (ctx) => /* @__PURE__ */ React.createElement(CitationEquitySection, { ctx })
+  });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
@@ -2901,20 +3041,6 @@
         title: "Surface a meta-analysis's choices",
         body: "Extract and structure a meta-analysis's effect sizes, model, heterogeneity, and sensitivity choices so you can inspect them. It extracts and structures \u2014 it never pools, models, or adjudicates.",
         builds: "An extraction/structuring aid, never a re-analysis. (Backlog #37)"
-      }
-    )
-  });
-  registerPaneSection({
-    id: "citation-equity",
-    label: "Citation equity",
-    paneId: "methods",
-    order: 80,
-    render: () => /* @__PURE__ */ React.createElement(
-      ComingSoon,
-      {
-        title: "A structural look at the reference list",
-        body: "An identity-agnostic, structural audit of a paper's references \u2014 self-citation, source concentration, topical gaps, overlooked work \u2014 to inform, with add-only 'overlooked work' remediation. Descriptive, never an accusation about anyone.",
-        builds: "Structural + topical, identity-agnostic. (Backlog #25)"
       }
     )
   });

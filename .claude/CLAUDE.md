@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 226** (see Increment workflow) with **795 pytest tests
+It is currently at **Increment 227** (see Increment workflow) with **809 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -227,7 +227,7 @@ callosum/
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
 │   │   │                          frontend.py [serve-time assembler], routers/{health,papers,paper_files [PDF
-│   │   │                          file-serving, inc 91],methods [statcheck, inc 95],citations [formatted-citation
+│   │   │                          file-serving, inc 91],methods [statcheck, inc 95],citation_equity [structural reference-list audit, inc 227],citations [formatted-citation
 │   │   │                          engine, inc 106],duplicates,acquisition,wanted,my_publications,library,
 │   │   │                          annotations,tags,axes,summaries,findings [FACT/CANDIDATE store, inc 130],
    │                          gaps [literature gap-finder, inc 135],discovery [Search providers, inc 183],settings [BYOK: Gemini key + egress
@@ -265,7 +265,8 @@ callosum/
 │   │                          my_publications.py [own-papers resolver + import hook, inc 78],
    │                          gapfinder.py [backward citation gap-finder, inc 135])
 │   │   ├── methods/               (statcheck.py [NHST p-value recomputation, inc 95], pcurve.py [inc 126], grim.py
-   │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131])
+   │   │                          [GRIM/GRIMMER, inc 127], retraction.py [multi-source retraction → FACT, inc 131],
+   │   │                          citation_equity.py [identity-agnostic structural reference-list audit, inc 227])
 │   │   ├── discovery/             (providers.py [SourceProvider registry + normalized Item + cross-provider dedup],
    │   │                          crossref_provider.py [Crossref /works keyword search], pubmed_provider.py [NCBI
    │   │                          E-utilities esearch→esummary: PubMed Search provider (SP1a inc 186) + PubMedKeywordFeedSource
@@ -777,6 +778,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Citation-equity audit SP1 — identity-agnostic structural reference-list audit + field baseline (backlog #25; inc 227) | A new **Citation equity** METHODS panel: a **descriptive** structural audit of a library paper's reference list (its OpenAlex `referenced_works`), shown against a sample of the paper's **field** (its OpenAlex `primary_topic`). 5 signals — **self-citation** (King et al. 2017), **reliance on highly-cited work** (Matthew; Merton 1968 / Perc 2014), **venue** + **institutional concentration**, **geographic / Global-South spread** — each with its list value, the field value, an **inspectable basis**, and an honest **coverage** count. **Never a score / verdict / target / accusation** (#2/#7); **identity-agnostic — no gender/race code path** (proven by test: injecting `gender`/`sex`/`race` changes nothing); the gender module stays **deferred + absent** (the canonical spec — name→gender inference is unreliable + crosses the no-accusation veto). **Rides the audited OpenAlex client** (`_meta_from_work` extended +venue/issn/institutions/country_codes/primary_topic — additive; new `fetch_field_sample` [topic id `^T\d+$`-validated → no SSRF] + `fetch_work_meta_for`); a new pure analyzer `methods/citation_equity.py` + an async endpoint `routers/citation_equity.py` (`POST/GET /methods/citation-equity/run`, the citation_counts JobStore scaffold) — **ephemeral, no table/migration**; a new METHODS panel `08b_methods_citation_equity.jsx` (order 35; the inc-163 placeholder removed). Egress = **public bibliographic metadata** (DOIs + a topic id), user-initiated, **NOT** the Gemini gate. **No new dependency.** Audit `2026-06-30_citation-equity.md` PASS; Principles aligned (statcheck/p-curve class + A8 access-equity, the A-A no-accusation boundary honored structurally). **Experience pass (conscientious-author persona)** → fixed-cheap in-increment: a "context, not a target; neither direction is a verdict" bar caption; a "descriptive count, no field baseline" self-citation anchor; a "mirror, not a report card — never drop a relevant citation or add one to hit a number" how-to; the geography *label* led with "affiliation outside high-income economies" (Global South kept as the in-summary gloss + country breakdown); an egress reassurance. QA `route_51`; surface 163/163 API + 723/723 FE, 0 uncovered. pytest **809** (+14); headed-verified (fake OpenAlex, 0 console/page/genai). **SP2 = the topical overlooked-work remediation** (needs embeddings + a candidate pool — its own increment). |
 | Per-identifier re-fetch 🔎 for PMID + arXiv (reuse the audited OpenAlex client + the DOI overwrite primitive; inc 226) | The Details → Identifiers 🔎 (DOI → Crossref re-resolve, inc 49) is generalized to **PMID** (→ PubMed via OpenAlex) + **arXiv** (→ the synthesized arXiv DOI `10.48550/arXiv.<id>` via OpenAlex); ISBN/ISSN/Cite-key stay plain (no per-paper source). **`POST /papers/{id}/re-resolve`** gains an allowlisted `source: Literal["crossref","pmid","arxiv"] = "crossref"` (default keeps the DOI 🔎 byte-for-byte + back-compat with the no-body POST). The non-DOI branches reuse the **already-audited** `OpenAlexClient.fetch_work_csl(conn, PaperRef(...))` (the inc-217 enrich client) + the inc-49 force-overwrite primitive (`_paper_values_from_csl` + `update_paper_metadata`); a new `OPENALEX_SOURCE="openalex"` is added to the `_can_update_from_crossref` allowlist (resolved+updatable, like crossref, never protected like user-edited). **The clicked identifier is preserved across the wholesale `csl_json` overwrite** (the orchestrator `setdefault`s PMID/arXiv back, since `_csl_from_work` doesn't echo the arXiv id); **422** if the identifier is absent; a fetch miss → no overwrite (graceful 200); the inc-174 user-edited confirm guard still gates. **Forced rule-#1 split** (papers.py was at the 600 cap): the enrichment-action endpoints → new `routers/paper_enrich.py` (113; included before papers.router). Frontend: `DoiRow` → generic `IdentifierRow` (PMID/arXiv rows get a 🔎). Egress = **public bibliographic metadata** (DOI/PMID out), **NOT** the Gemini gate; **no new external host / dependency / migration / QA route** (the `source` param rides the existing `/re-resolve`; noted on `route_30`). Audit = inc-226 addendum to `2026-06-30_metadata-enrich.md` PASS; Principles non-triggering (bibliographic facts). pytest **795** (+4); headed-verified (fake OpenAlex). |
 | Progress ETA ("~Ns left") on long async jobs; cancel deferred (#4 close-out; inc 225) | Long jobs showed determinate "X / N" (inc 142) but no time estimate. Added `Job.started_at` (monotonic, stamped on `mark_running`, **preserved across every `mark_progress`** via a `_started_at` helper so the elapsed clock is continuous) + `Job.eta_seconds()` (`elapsed / current × remaining`; None until there's progress, 0 when complete — computed at read time, so a method not a stored field); surfaced as an additive `eta_seconds` on `JobProgressOut` (the shared `_progress_out` → scan/rescan/import/enrich) + `CitationRefreshProgress`; rendered as " · ~Ns left" by `ProgressBar` + the libmenus Citations/Enrich (a hoisted `_fmtEta`). **Cancel deferred** — correct cooperative cancellation needs the four `_run_*_job` single-`engine.begin()` blocks split into per-item transactions (the same infra as the open SQLite read-then-write concurrency item). Additive — no migration/egress/endpoint/dependency, no audit/Principles trigger; QA surface unchanged (optional field on existing payloads). pytest **791** (+2 `test_job_store.py`); verified unit + a live-import API probe (eta in the payload, decreasing) + **headed** (`drive_inc225_progress.py` → `Embedding papers — 3 / 8 · ~2s left`, 0 console/page/genai). **Harness note:** the inc-142-derived progress driver had drifted (the inc-160 auto-rescan pulled the real library/ into the seeded DB; `seed()` didn't clean the inc-219 `-wal`/`-shm` sidecars → stale-row "N failed" imports) — both fixed in the inc-225 driver; carry to other inc-142-derived drivers. |
 | Retraction auto-check on the remaining DOI-bearing routes (OA-acquire + re-resolve + fill-metadata); the Zotero hook is moot (#31 close-out; inc 224) | Completes the retraction on-import lifecycle. `auto_check_retractions` (inc 134) was wired into scan + citation-import only; it now also fires after the Crossref/multi-pass enrich on the **OA-acquire job** (`acquisition.py::_run_acquire_job`, inside the existing `engine.begin()`) and the per-paper **`reresolve_paper`** + **`fill_metadata`** handlers (`papers.py`, before `conn.commit()`), all reusing `app.state.retraction_checkers`. **The backlog's "Zotero / single-PDF import paths" remainder is partly moot** — `import_zotero_library` has **no API route** (only the harness/tests call it), so there's no app-state-bearing caller to hook (a hook there = dead code, rule #5; recorded in the audit). Best-effort by construction (the fn swallows per-paper errors → can't break the acquire/enrich). **No new endpoint/migration/external-fetch-type/dependency** (reuses the inc-131 checkers + their already-audited public-DOI-metadata egress, NOT the Gemini gate) → audit = **addendum 2** to `2026-06-26_retraction.md` PASS; **Principles non-triggering** (reuses the established FACT producer; no new claim type). **Rule-#1:** the hooks pushed `routers/papers.py` to exactly 600 → condensed the two new comments to 1 line each → **598** (now the closest to the cap; split before the next addition there). pytest **789** (+3 hermetic `test_retraction.py`: re-resolve / fill-metadata / OA-acquire each flag a seeded retracted DOI); QA surface unchanged (no new route; `route_39` gained an on-import-lifecycle assertion). |
@@ -948,7 +950,54 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 226 (per-identifier re-fetch 🔎 for PMID + arXiv). The maintainer asked to
+*Last updated: 2026-06-30 — increment 227 (citation-equity audit, SP1 — backlog #25; "let's pull something cool and
+exciting from the backlog"). A new **Citation equity** METHODS panel: an **identity-agnostic, structural** audit of a
+library paper's reference list (its OpenAlex `referenced_works`), shown against a sample of the paper's **field** (its
+OpenAlex `primary_topic`). The project's own spec had the load-bearing design settled — **structural, not name→gender
+inference** (which is cis-normative, >43% wrong for non-Western names, and crosses the no-accusation veto); the gender
+module stays **deferred + absent**. Via AskUserQuestion the maintainer chose **"Full + field baseline"** (the maximal
+slice). **5 descriptive signals** — self-citation (King et al. 2017), reliance on highly-cited work (Matthew; Merton
+1968 / Perc 2014), venue + institutional concentration, geographic / Global-South spread — each carrying its **list
+value**, the **field value**, an **inspectable basis** (the exact refs/venues/countries), and an honest **coverage**
+count (a reference with no affiliation data is *unknown*, never assumed domestic). **Never a score / verdict / target /
+accusation** (#2/#7); the field value is *context for you to interpret*. **Rides the audited OpenAlex client** — no new
+host/dependency/migration: `_meta_from_work` extended (additively — venue/issn/institutions/country_codes/primary_topic
+from the cached raw blob; existing gap-finder/citation-count callers ignore the new keys); new `fetch_field_sample`
+(cached `field:<id>`; `topic_id` validated `^T\d+$` **before** any request → no SSRF; one query per audit) +
+`fetch_work_meta_for` (the focal `primary_topic` from the already-cached by-DOI fetch — no extra HTTP). New pure
+analyzer `methods/citation_equity.py` (a documented `GLOBAL_NORTH` ISO-2 set; **no gender/race code path** — proven by
+test: injecting `gender`/`sex`/`race` into inputs changes nothing) + an async endpoint `routers/citation_equity.py`
+(`POST/GET /methods/citation-equity/run`, the `citation_counts.py` JobStore scaffold; POST validates 404/422; the
+worker resolves focal → topic → `referenced_works` → per-ref `fetch_work_meta` [progress] → field sample → audit) —
+**ephemeral, no table/migration**. New METHODS panel `08b_methods_citation_equity.jsx` (order 35, among the real tools;
+a **Run audit** button — user-initiated egress, not auto-run; the 5 signal rows with a `This list` vs `Field` mini-bar
++ summary + expandable basis + coverage; the credit block [King/Merton/Perc, ＋ add to library]; the deferred-module
+note); the inc-163 **citation-equity placeholder removed** from `09_placeholders.jsx` (the inc-163/205 convention).
+Egress = **public bibliographic metadata** (DOIs + a topic id), **NOT** the Gemini library-text gate. **Audit
+`.claude/security-audits/2026-06-30_citation-equity.md` PASS**; **Principles aligned** (the statcheck/p-curve class +
+value A8 access-equity; the A-A veto-level no-accusation boundary honored *structurally* — descriptive,
+identity-agnostic, no target/quota/per-author label). **Experience pass (rule #11, conscientious-author persona) —
+fixed-cheap in-increment** (two HIGH, charter-relevant): a neutral **"context, not a target; neither direction is a
+verdict"** bar caption (the undirected bars otherwise implied higher=worse uniformly); a **"descriptive count, no field
+baseline, not a judgment"** anchor on the baseline-less self-citation %; a **"mirror, not a report card — never drop a
+relevant citation or add one to hit a number"** how-to (closes the SP1 diagnostic-only dead-end + bakes in the SP2 veto
+framing); the geography **label** led with "affiliation outside high-income economies" (Global South kept as the
+in-summary gloss + the full country breakdown); an egress reassurance at Run. pytest **809 passed, 1 skipped** (+14
+`tests/test_citation_equity.py`, hermetic via an injected fake OpenAlex: the additive parser keys + `fetch_field_sample`;
+each of the 5 signals; **no-identity-inference proven 2 ways**; the async endpoint [run→report, 404/422,
+no-referenced-works→graceful, field-absent→own-shape, unknown-job→404]); `ruff` + `format` clean; frontend rebuilt
+(`test_frontend_assembly` 5/5); **QA surface 163/163 API + 723/723 FE, 0 uncovered** (`route_51_methods_citation_equity.md`);
+help corpus gained "Checking citation equity" (`HELP-DOCS-SYNCED` → 227). **Headed-verified, no egress**
+(`.local/visual/drive_inc227_citation_equity.py` — fake OpenAlex injected: open the section → **Run audit** → 5 signals
++ the field attribution ("24 recent Decision neuroscience papers") + the geography country-breakdown basis + the
+deferred note + credit; 0 console/page/genai). **Rule-#1:** all new files under cap (`citation_equity.py` analyzer ~292,
+`routers/citation_equity.py` 166, `js/08b_methods_citation_equity.jsx` 178). Notes: `INCREMENT-227-NOTES.md`; spec
+`.claude/docs/future-tracks/opus4.8_future-tracks_citationequitytool.md`. **NEXT — SP2:** the topical **overlooked-work
+remediation** (surface relevant work the reference list omits, with a why-this-substitute trail; needs local embeddings
++ an OpenAlex candidate pool — reuses this audit's field machinery; its own audit + Principles pass). Also backlogged
+from the experience pass: a real *field* self-citation baseline, and a prominent low-coverage flag.
+
+Earlier — increment 226 (per-identifier re-fetch 🔎 for PMID + arXiv). The maintainer asked to
 "add search to the other options under identifiers, like how DOI has the little search icon," and (via
 AskUserQuestion) chose **re-fetch metadata from that source**. So the Details → Identifiers 🔎 (DOI → Crossref
 re-resolve, inc 49) is **generalized to PMID** (→ PubMed via OpenAlex) **and arXiv** (→ the synthesized arXiv DOI

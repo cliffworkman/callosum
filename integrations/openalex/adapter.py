@@ -114,6 +114,12 @@ class OpenAlexClient:
             return None
         return _meta_from_work(body)
 
+    def fetch_work_meta_for(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
+        """Full `_meta_from_work` for a paper by DOI/PMID/title (inc 227) — reuses the cached by-ref work fetch,
+        so when `fetch_referenced_works`/`fetch_cited_by_count` already populated it there is **no extra HTTP**.
+        Gives the focal paper's `primary_topic` (the field baseline) + authors. Fail-closed → None."""
+        return _meta_from_work(self._fetch_work(conn, ref))
+
     def fetch_work_csl(self, conn: Connection, ref: PaperRef) -> dict[str, Any] | None:
         """A CSL-fragment (title/author/issued/container-title/type/abstract/DOI/PMID) for a work by DOI/PMID/
         title — the multi-pass metadata enricher's OpenAlex source (inc 217). Notably fills venue / abstract /
@@ -162,6 +168,53 @@ class OpenAlexClient:
         for work in (body.get("results") or [])[:MAX_CITING]:
             meta = _meta_from_work(work)
             if meta and meta.get("openalex_work_id"):
+                out.append(meta)
+        return out
+
+    def fetch_field_sample(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
+        """A random sample of recent works in an OpenAlex topic (inc 227 citation-equity) — the descriptive
+        "field" a paper's reference list is shown against. `?filter=primary_topic.id:<T>&sample=<n>&seed=42`,
+        capped, cached (`field:<id>`), fail-closed → []. `topic_id` is validated `^T\\d+$` **before** any request
+        (so it can never reach the URL as anything but a known-shape id — no SSRF). Returns `_meta_from_work` dicts."""
+        if not re.fullmatch(r"T\d+", topic_id or ""):
+            return []
+        size = max(1, min(int(size), 200))
+        cache_key = f"field:{topic_id}"
+        cached = _cached_response(conn, cache_key)
+        if cached is not None:
+            body = cached["response_json"] if cached["status_code"] == 200 else None
+        else:
+            try:
+                status, body = self.fetcher(
+                    "",
+                    params={
+                        "filter": f"primary_topic.id:{topic_id}",
+                        "sample": str(size),
+                        "seed": "42",  # fixed → a reproducible sample (re-runs hit the cache anyway)
+                        "per-page": str(size),
+                        **self._polite_params(),
+                    },
+                    headers=self._headers(),
+                    timeout=self.timeout,
+                )
+            except Exception:
+                _store_cache(
+                    conn,
+                    cache_key,
+                    request_json={"topic_id": topic_id},
+                    response_json={"error": "fetch failed"},
+                    status_code=None,
+                )
+                return []
+            _store_cache(conn, cache_key, request_json={"topic_id": topic_id}, response_json=body, status_code=status)
+            if status != 200:
+                body = None
+        if not isinstance(body, dict):
+            return []
+        out: list[dict[str, Any]] = []
+        for work in (body.get("results") or [])[:size]:
+            meta = _meta_from_work(work)
+            if meta:
                 out.append(meta)
         return out
 
@@ -247,7 +300,9 @@ def _httpx_fetcher(
 
 
 def _meta_from_work(work: Any) -> dict[str, Any] | None:
-    """Map an OpenAlex work object → a gap-candidate meta dict (inc 135). DOI normalized lower, prefix stripped."""
+    """Map an OpenAlex work object → a meta dict (inc 135 gap-finder; extended inc 227 citation-equity). DOI
+    normalized lower, prefix stripped. The inc-227 keys (venue/issn/institutions/country_codes/primary_topic) are
+    purely additive — gap-finder/citation-count callers read only their own keys."""
     if not isinstance(work, dict):
         return None
     raw_id = str(work.get("id") or "")
@@ -255,11 +310,34 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     doi = raw_doi.strip().lower().replace("https://doi.org/", "") if isinstance(raw_doi, str) and raw_doi else None
     title = work.get("title") or work.get("display_name")
     year = work.get("publication_year")
-    authors = [
-        str((a.get("author") or {}).get("display_name") or "").strip()
-        for a in (work.get("authorships") or [])
-        if isinstance(a, dict)
-    ]
+    authorships = [a for a in (work.get("authorships") or []) if isinstance(a, dict)]
+    authors = [str((a.get("author") or {}).get("display_name") or "").strip() for a in authorships]
+    # inc 227 (citation-equity): venue + ISSN for the venue-concentration signal.
+    venue_src = (work.get("primary_location") or {}).get("source") or work.get("host_venue") or {}
+    venue = venue_src.get("display_name") if isinstance(venue_src, dict) else None
+    issn = venue_src.get("issn_l") if isinstance(venue_src, dict) else None
+    # inc 227: institutions + affiliation countries from the authorships, for the institutional + geographic signals.
+    # OpenAlex affiliation coverage is uneven (esp. older works) — a missing country is recorded as absent, NEVER
+    # assumed domestic (silence ≠ certificate); the analyzer reports its coverage.
+    institutions: list[str] = []
+    country_codes: set[str] = set()
+    for a in authorships:
+        for inst in a.get("institutions") or []:
+            if not isinstance(inst, dict):
+                continue
+            name = inst.get("display_name")
+            if name and str(name) not in institutions and len(institutions) < 20:
+                institutions.append(str(name))
+            cc = inst.get("country_code")
+            if isinstance(cc, str) and cc.strip():
+                country_codes.add(cc.strip().upper())
+    # inc 227: the focal paper's primary_topic = the "field" the reference list is shown against (id validated).
+    raw_topic = work.get("primary_topic")
+    primary_topic = None
+    if isinstance(raw_topic, dict):
+        tid = str(raw_topic.get("id") or "").rsplit("/", 1)[-1]
+        if re.fullmatch(r"T\d+", tid):
+            primary_topic = {"id": tid, "display_name": str(raw_topic.get("display_name") or "")}
     return {
         "openalex_work_id": raw_id.rsplit("/", 1)[-1] if raw_id else None,
         "doi": doi,
@@ -267,6 +345,11 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         "year": int(year) if isinstance(year, int) else None,
         "authors": [a for a in authors if a][:8],
         "cited_by_count": int(work.get("cited_by_count") or 0),
+        "venue": str(venue) if venue else None,
+        "issn": str(issn) if issn else None,
+        "institutions": institutions,
+        "country_codes": sorted(country_codes),
+        "primary_topic": primary_topic,
     }
 
 

@@ -480,6 +480,30 @@
   /* inc 180: canonical credit-the-lineage block, shared by every METHODS module (statcheck / GRIM / p-curve). */
   .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  /* inc 227: citation-equity audit — descriptive signal rows + a list-vs-field mini-bar. Tokens only. */
+  .cite-equity-section { font-size: 12px; }
+  .cite-equity-intro { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin-bottom: 8px; }
+  .cite-equity-field { font-size: 11px; color: var(--ink-3); margin: 4px 0 4px; }
+  .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
+  .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
+  .cite-equity-howto { font-size: 11px; color: var(--ink-2); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
+  .cite-equity-signal { border-top: 1px solid var(--line); padding: 8px 0; }
+  .cite-equity-siglabel { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .cite-equity-summary { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; margin: 3px 0 6px; }
+  .cite-equity-bars { display: flex; flex-direction: column; gap: 3px; margin-bottom: 5px; }
+  .cite-equity-barrow { display: flex; align-items: center; gap: 7px; }
+  .cite-equity-barlabel { flex: 0 0 56px; font-size: 10px; color: var(--ink-3); }
+  .cite-equity-bar { flex: 1; height: 7px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-pill); overflow: hidden; }
+  .cite-equity-fill { display: block; height: 100%; border-radius: var(--radius-pill); }
+  .cite-equity-fill.list { background: var(--accent); }
+  .cite-equity-fill.field { background: var(--ink-3); }
+  .cite-equity-barval { flex: 0 0 34px; text-align: right; font-size: 10.5px; color: var(--ink-2); }
+  .cite-equity-basis { font-size: 11px; margin: 2px 0 4px; }
+  .cite-equity-basis summary { color: var(--accent); cursor: pointer; }
+  .cite-equity-basis ul { margin: 4px 0 0; padding-left: 18px; color: var(--ink-2); }
+  .cite-equity-basis li { margin: 2px 0; }
+  .cite-equity-coverage { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+  .cite-equity-deferred { font-size: 10.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 8px; line-height: 1.45; margin-top: 10px; }
   /* inc 130: findings subsystem (FactMark + review cards + library badge). Tokens only. */
   .findings-section { font-size: 12px; }
   .findings-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }

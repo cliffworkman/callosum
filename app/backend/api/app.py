@@ -27,6 +27,7 @@ from app.backend.api.routers import (
     annotations,
     axes,
     citation_counts,
+    citation_equity,
     citations,
     discovery,
     duplicates,
@@ -135,6 +136,7 @@ def create_app(
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
+    api.state.citation_equity_jobs = JobStore()  # inc 227 (#25): per-paper structural citation-equity audit
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
     api.state.enrich_registry = None  # inc 217 test seam: a fake EnrichmentRegistry (else built from the clients)
     api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
@@ -210,6 +212,7 @@ def create_app(
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
+    api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)

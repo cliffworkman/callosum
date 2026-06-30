@@ -44,13 +44,9 @@ registerPaneSection({
     body="Extract and structure a meta-analysis's effect sizes, model, heterogeneity, and sensitivity choices so you can inspect them. It extracts and structures — it never pools, models, or adjudicates."
     builds="An extraction/structuring aid, never a re-analysis. (Backlog #37)" />,
 });
-registerPaneSection({
-  id: "citation-equity", label: "Citation equity", paneId: "methods", order: 80,
-  render: () => <ComingSoon
-    title="A structural look at the reference list"
-    body="An identity-agnostic, structural audit of a paper's references — self-citation, source concentration, topical gaps, overlooked work — to inform, with add-only 'overlooked work' remediation. Descriptive, never an accusation about anyone."
-    builds="Structural + topical, identity-agnostic. (Backlog #25)" />,
-});
+// NB: the METHODS → Citation-equity placeholder was removed in inc 227 — the real structural audit shipped
+// (08b_methods_citation_equity.jsx, order 35, among the real tools); per the inc-163 convention a stub is dropped
+// in the increment its feature lands. (The SP2 topical "overlooked work" remediation is the remaining backlog #25.)
 
 // ── METHODS: a subsection TAB on the shipped Statistics-check section (DESIGN.md §5: more stat checks become
 // tabs, not new sections). registerPaneTab find-or-creates by id, so this appends to the inc-122 statcheck

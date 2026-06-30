@@ -795,6 +795,19 @@ Each candidate shows **"cited by N of your papers"** (backward) or **"cites N of
 
 After a Refresh it tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
 
+<!-- section: citation-equity -->
+## Checking citation equity
+The **Citation equity** section (METHODS, with a paper selected) describes the **structural shape** of a paper's reference list — and it's deliberately a *mirror, not a report card*. Select a paper, open the section, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows five descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
+
+- **Self-citation** — how many references include an author of the paper (King et al. 2017).
+- **Reliance on highly-cited work** — how much the list leans on already-famous papers, against the field (the Matthew effect; Merton 1968 / Perc 2014).
+- **Venue** and **institutional concentration** — how spread across journals / institutions the references are.
+- **Geographic spread** — the share of references with an author affiliated outside the high-income reference economies (a conventional "Global South" grouping, shown with the full country breakdown so you can judge it).
+
+Every signal shows its **basis** (expand to see the exact references / venues / countries) and an honest **coverage** line (how many references it could resolve — a reference with no affiliation data is shown as *unknown*, never assumed). The field value is **context for you to interpret, not a target or a score**, and there's no composite "equity score", no ranking, and no accusation.
+
+**It is identity-agnostic by design:** it does **not** infer or show anyone's gender or other identity — a gender-balance number is deliberately not produced, because name-based inference is unreliable (and especially so for non-Western names). Equity here is measured structurally. (A future version will help surface relevant work a reference list may have overlooked.)
+
 <!-- section: discover-search -->
 ## Finding new papers (Discover)
 The **Discover** tab (beside **Library** in the center) searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
