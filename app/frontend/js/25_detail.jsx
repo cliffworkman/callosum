@@ -420,6 +420,11 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
     return saveField("translators", list);
   }, [saveField]);
 
+  const saveExtraUrls = useCallback((text) => {  // inc 214 (#5): additional URLs beyond the primary, one per line
+    const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
+    return saveField("extra_urls", list);
+  }, [saveField]);
+
   if (state.status === "idle")
     return <div className="state"><div className="big">Select a paper</div>Its metadata and provenance appear here — and are editable.</div>;
   if (state.status === "loading")
@@ -467,6 +472,8 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
       <EditableRow label="Journal" value={p.venue} onSave={(v) => saveField("venue", v)} />
       <EditableRow label="Language" value={p.language} onSave={(v) => saveField("language", v)} />
       <EditableRow label="URL" value={cslGet(p, "URL")} mono onSave={(v) => saveField("url", v)} />
+      <EditableText label="More URLs" value={(p.extra_urls || []).join("\n")}
+        placeholder="Add URLs (one per line)" onSave={saveExtraUrls} rows={2} />
       <EditableText label="Abstract" value={p.abstract_text != null ? p.abstract_text : p.abstract} placeholder="Add abstract"
         onSave={(t) => saveField("abstract", t)} expandable />
 

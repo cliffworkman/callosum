@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Increment 214: close-out mop-up — per-file scan progress + first-class extra URLs (+ a forced split)
+- **Files:** `app/backend/pdf_processing/library_scan.py` (on_progress → `(current,total,filename)`),
+  `app/backend/api/routers/library.py` (the scan/rescan lambdas put the basename in the label),
+  `app/backend/metadata/paper_edits.py` (+`extra_urls` field + `_apply_extra_urls` + reserved key),
+  `app/backend/api/routers/papers.py` (610→510: extra_urls req/resp field + `_extra_urls_from_csl`; **the
+  request-normalisation cluster extracted** → new `app/backend/api/routers/paper_edit_input.py`),
+  `app/frontend/js/25_detail.jsx` (a "More URLs" `EditableText`) + `callosum-app.html` (rebuilt);
+  `tests/test_library_scan.py`, `tests/test_paper_edits.py`, `tests/test_papers.py`; `INCREMENT-214-NOTES.md`.
+- **What:** (#4) scan progress now shows "Reading <file> — X / N" (the basename threads through the existing
+  `JobProgress.label`; no frontend change). (#5) a paper records additional URLs beyond the primary CSL `URL`
+  (`csl_json["extra_urls"]`, a list; a "More URLs" editable field, one-per-line) — reserved against the generic
+  "More" passthrough. The #5 field pushed `papers.py` over the 600-line cap → the request-normalisers were split
+  out to `paper_edit_input.py` (rule #1; the inc-91/207 pattern; behavior-preserving).
+- **Why:** the maintainer's "mop up the dregs" — clear the last small autonomous close-out items (#4 + #5).
+- **Gates:** pytest **748 passed, 1 skipped** (+6); ruff clean; QA surface unchanged (145/145 API + 685/685 FE);
+  no migration / endpoint / egress / dependency / audit trigger; Principles non-triggering. Headed-verified
+  (`.local/visual/drive_inc214_extra_urls.py` — the More-URLs field persists `extra_urls`; 0 console/page/genai).
+- **Revert:** `git revert` the inc-214 commit (re-inlines the normalisers; drops `extra_urls` + the progress filename).
+
 ## 2026-06-30 — Google Docs tunnel hostname renamed `callosum` → `callosum-tunnel`.clffwrkmn.net
 - **Files:** `adapters/googledocs/{cloudflared-config.yml, cloudflared-config.local.yml [gitignored], Code.gs,
   sidebar.html, README.md, callosum-gdocs.gs [rebuilt via tools/build_gdocs_addon.py]}`, `tools/run_tunnel.py`,

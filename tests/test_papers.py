@@ -569,6 +569,29 @@ def test_patch_paper_authors_round_trip_as_literal(temp_db_url: str) -> None:
     assert body["csl_json"]["author"] == [{"literal": "Baez S"}, {"literal": "Herrera E"}]
 
 
+def test_patch_paper_extra_urls_round_trip(temp_db_url: str) -> None:  # inc 214 (#5)
+    seeded = _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+    pid = seeded["signal_paper_id"]
+
+    body = client.patch(f"/papers/{pid}", json={"extra_urls": ["https://osf.io/abc", " https://preprint ", ""]}).json()
+    assert body["extra_urls"] == ["https://osf.io/abc", "https://preprint"]  # cleaned, empties dropped
+    assert body["csl_json"]["extra_urls"] == ["https://osf.io/abc", "https://preprint"]
+
+    detail = client.get(f"/papers/{pid}").json()  # persisted + surfaced on GET
+    assert detail["extra_urls"] == ["https://osf.io/abc", "https://preprint"]
+
+    cleared = client.patch(f"/papers/{pid}", json={"extra_urls": []}).json()  # clears
+    assert cleared["extra_urls"] == [] and "extra_urls" not in cleared["csl_json"]
+
+
+def test_patch_paper_extra_urls_reserved_against_generic_patch(temp_db_url: str) -> None:  # inc 214
+    seeded = _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+    # extra_urls is a reserved key → the generic "More" passthrough must reject it (422).
+    assert client.patch(f"/papers/{seeded['signal_paper_id']}", json={"csl": {"extra_urls": "x"}}).status_code == 422
+
+
 def test_patch_paper_generic_csl_passthrough_and_reserved_key_rejected(temp_db_url: str) -> None:
     seeded = _seed_library(temp_db_url)
     client = TestClient(create_app(db_url=temp_db_url))

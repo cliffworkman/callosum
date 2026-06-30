@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import PurePosixPath, PureWindowsPath
 from typing import Any, Literal
 
@@ -13,11 +12,12 @@ from sqlalchemy import Connection
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.backend.api.dependencies import get_connection
+from app.backend.api.routers.paper_edit_input import edits_from_request
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.metadata import enrich_paper_metadata_from_crossref
 from app.backend.metadata.abstract_display import abstract_plain_text, clean_abstract_for_display
 from app.backend.metadata.citation_export import render_citations
-from app.backend.metadata.paper_edits import RESERVED_CSL_KEYS, build_paper_update
+from app.backend.metadata.paper_edits import build_paper_update
 from app.backend.persistence.repository import (
     get_attachments_for_paper,
     get_chunks_for_paper,
@@ -104,20 +104,11 @@ class PaperDetailResponse(BaseModel):
     citation_key: str | None = None
     processing_tier: str
     csl_json: dict[str, Any]
+    extra_urls: list[str] = []  # additional URLs beyond the primary CSL URL (inc 214)
     attachment_count: int
     chunk_count: int
     attachments: list[AttachmentResponse]
     tags: list[PaperTagRef] = []
-
-
-# Caps for the generic "More" passthrough (free-form scalar csl fields a DOI populated). The
-# named core fields below carry their own length caps; the generic patch is the one place
-# arbitrary keys arrive, so it is bounded explicitly (rule #4: validate untrusted input).
-CSL_PATCH_MAX_KEYS = 60
-CSL_PATCH_KEY_MAX_LEN = 64
-CSL_PATCH_VALUE_MAX_LEN = 4000
-AUTHOR_MAX_LEN = 1000
-_CSL_KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]*$")
 
 
 class PaperUpdateRequest(BaseModel):
@@ -145,6 +136,7 @@ class PaperUpdateRequest(BaseModel):
     arxiv: str | None = Field(default=None, max_length=100)
     issn: str | None = Field(default=None, max_length=100)
     isbn: str | None = Field(default=None, max_length=100)
+    extra_urls: list[str] | None = Field(default=None, max_length=50)  # additional URLs beyond the primary (inc 214)
     csl: dict[str, str | None] | None = Field(default=None)
 
 
@@ -258,7 +250,7 @@ def update_paper(
         paper = get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    edits = _edits_from_request(request)
+    edits = edits_from_request(request)
     if not edits:
         raise HTTPException(status_code=422, detail="No updatable fields provided")
     try:
@@ -372,74 +364,6 @@ def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:
     )
 
 
-def _edits_from_request(request: PaperUpdateRequest) -> dict[str, Any]:
-    """Normalise the user-set fields into the dict build_paper_update consumes.
-
-    Strings are stripped with ""→None (clears the field); title must stay non-empty; the generic
-    `csl` passthrough is key/value-validated. Only fields in model_fields_set are included.
-    """
-    fields = request.model_fields_set
-    edits: dict[str, Any] = {}
-    for name in fields:
-        value = getattr(request, name)
-        if name == "title":
-            title = (value or "").strip()
-            if not title:
-                raise HTTPException(status_code=422, detail="Title must not be empty")
-            edits["title"] = title
-        elif name in ("year", "month", "day"):
-            edits[name] = value
-        elif name in ("authors", "translators"):
-            edits[name] = _clean_authors(value)
-        elif name == "csl":
-            edits["csl"] = _validate_csl_patch(value)
-        else:
-            edits[name] = _norm_str(value)
-    return edits
-
-
-def _norm_str(value: str | None) -> str | None:
-    if value is None:
-        return None
-    stripped = value.strip()
-    return stripped or None
-
-
-def _clean_authors(value: list[str] | None) -> list[str] | None:
-    if value is None:
-        return None
-    cleaned: list[str] = []
-    for author in value:
-        text = (author or "").strip()
-        if not text:
-            continue
-        if len(text) > AUTHOR_MAX_LEN:
-            raise HTTPException(status_code=422, detail="Author name exceeds the maximum length")
-        cleaned.append(text)
-    return cleaned
-
-
-def _validate_csl_patch(value: dict[str, str | None] | None) -> dict[str, str | None] | None:
-    if value is None:
-        return None
-    if len(value) > CSL_PATCH_MAX_KEYS:
-        raise HTTPException(status_code=422, detail="Too many additional fields")
-    cleaned: dict[str, str | None] = {}
-    for key, raw in value.items():
-        if not isinstance(key, str) or len(key) > CSL_PATCH_KEY_MAX_LEN or not _CSL_KEY_RE.match(key):
-            raise HTTPException(status_code=422, detail="Invalid additional-field name")
-        if key in RESERVED_CSL_KEYS:
-            raise HTTPException(
-                status_code=422, detail=f"'{key}' is edited through its own field, not the additional fields"
-            )
-        if raw is not None:
-            if not isinstance(raw, str) or len(raw) > CSL_PATCH_VALUE_MAX_LEN:
-                raise HTTPException(status_code=422, detail="Additional-field value is invalid or too long")
-            raw = raw.strip() or None
-        cleaned[key] = raw
-    return cleaned
-
-
 def _crossref(app: FastAPI) -> CrossrefClient:
     injected = app.state.crossref_client
     if injected is not None:
@@ -495,6 +419,7 @@ def _paper_detail(
         citation_key=row["citation_key"],
         processing_tier=row["processing_tier"],
         csl_json=row["csl_json"],
+        extra_urls=_extra_urls_from_csl(row["csl_json"]),
         attachment_count=attachment_count,
         chunk_count=chunk_count,
         attachments=[_attachment_response(item) for item in attachments],
@@ -577,3 +502,9 @@ def _authors_from_csl(csl_json: Any, *, fallback: str | None) -> list[str]:
     if not authors and fallback:
         authors.append(fallback)
     return authors
+
+
+def _extra_urls_from_csl(csl_json: Any) -> list[str]:
+    if not isinstance(csl_json, dict):
+        return []
+    return [str(u) for u in (csl_json.get("extra_urls") or []) if isinstance(u, str) and u.strip()]

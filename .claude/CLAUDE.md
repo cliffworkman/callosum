@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 213** (see Increment workflow) with **742 pytest tests
+It is currently at **Increment 214** (see Increment workflow) with **748 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -394,7 +394,10 @@ the axis focus-mode → `js/39_focus.jsx`'s `useFocusMode` hook; the citation-do
 existing line — split before the next addition there). **Inc 211** (A7 SP1 curated axis): `js/15_axes.jsx` grew to
 **551** (the `isCurated` branch + freeze/convert/reorder) — comfortably under; `js/40_app.jsx` untouched.
 **Watch (re-measure):** `js/40_app.jsx` (**599/600**, the closest — split before the next addition there),
-`routers/papers.py` (570), `js/30_viewer.jsx` (557). **Inc 137** split `schema.py` (611→558, over the cap
+`js/30_viewer.jsx` (557). **Inc 214** split `routers/papers.py` (604→**510**, over the cap when the #5 `extra_urls`
+field landed): the request-normalisation cluster (`edits_from_request` + `_clean_*`/`_validate_csl_patch` + the caps
+constants) → new `routers/paper_edit_input.py` (111; duck-typed on the request → no import cycle). **Inc 137** split
+`schema.py` (611→558, over the cap
 since inc 130/132): the findings/signals/retraction/gap tables moved to `persistence/schema_findings.py` on a
 shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (zero blast radius). **Inc 91** split
 `repository.py` (625→538, → `persistence/annotations_repo.py`) and `routers/papers.py` (600→539, → `routers/paper_files.py`).
@@ -907,7 +910,38 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 213 (B1 SP1 — the read-first MCP server; the first of the deferred B-items,
+*Last updated: 2026-06-30 — increment 214 (close-out mop-up — two small autonomous "dregs" + a forced split). The
+maintainer asked to clear the last cheap autonomous leftovers. **#4 — per-file scan progress:** `scan_library_folder`'s
+`on_progress` callback is now `(current, total, filename)`; the scan/watched-rescan job lambdas put the basename in the
+label (`f"Reading {name}"`), so the existing `ProgressBar` (which renders `progress.label — X / N`) shows
+"Reading <file> — 12 / 80" for free — **no frontend change**. **#5 — first-class extra URLs:** a paper records
+additional URLs beyond the primary CSL `URL` in `csl_json["extra_urls"]` (a list; the primary `URL` stays canonical) —
+`paper_edits.build_paper_update` gains an `extra_urls` field (`_apply_extra_urls`; `"extra_urls"` added to
+`RESERVED_CSL_KEYS` so the generic "More" passthrough can't clobber it), `PaperUpdateRequest.extra_urls` (≤50, each
+≤2000) + `PaperDetailResponse.extra_urls` (read via `_extra_urls_from_csl`), and a **"More URLs"** `EditableText`
+(one-per-line) in `25_detail.jsx` → `saveField("extra_urls", list)` (mirrors Authors/Translators; consistent with the
+pane's other editable URL/identifier fields — clickable-link rendering deferred since the pane is an editor, not a
+viewer). **The forced split (rule #1):** the `extra_urls` field pushed `routers/papers.py` to **604 (>600)**, so the
+**request-normalisation cluster** (`edits_from_request` [was `_edits_from_request`] + `_norm_str`/`_clean_authors`/
+`_clean_urls`/`_validate_csl_patch` + the caps constants) was extracted **verbatim** → new
+**`routers/paper_edit_input.py`** (111; the inc-91/207 pattern). `edits_from_request` is duck-typed on the request
+(`model_fields_set` + `getattr`) so it needn't import `PaperUpdateRequest` → **no import cycle**; `papers.py` 604→**510**
+(dropped the now-unused `import re` + `RESERVED_CSL_KEYS`). **No migration / endpoint / egress / dependency / audit
+trigger; Principles non-triggering** (recording fields + a behavior-preserving split, no claim/signal). pytest **748
+passed, 1 skipped** (+6: `test_library_scan.py` +1 [the callback gets sorted basenames + total], `test_paper_edits.py`
++3 [extra_urls stored/cleared/reserved-against-passthrough], `test_papers.py` +2 [PATCH→GET round-trip; extra_urls
+rejected via the generic `csl` patch]); ruff clean; **QA surface unchanged (145/145 API + 685/685 FE, 0 uncovered)** —
+a request/response field on existing endpoints + an `EditableText` reusing already-claimed elements, no new route; help
+corpus unchanged (the editing section is already general; the field is self-describing). **Headed-verified, no egress**
+(`.local/visual/drive_inc214_extra_urls.py` — top paper auto-selects → Details → type two URLs into "More URLs" → blur
+→ `GET /papers/{id}.extra_urls == [both]`; 0 console/page/genai). **Rule-#1:** `papers.py` 510, `paper_edit_input.py`
+111, `25_detail.jsx` 529; `js/40_app.jsx` stays the closest at 599/600. Notes: `INCREMENT-214-NOTES.md`. **NEXT:** inc
+215 — a **minimap/scrollbar highlight marker** in the PDF viewer (its own headed check). NB `30_viewer.jsx` is actually
+**557**, not 599/600 (inc-182's LibraryFrame extraction relieved it; the rule-#1 "MAXED" note was stale), so the
+planned split is **unnecessary** — the minimap fits under the cap directly. After it, the autonomous close-out band is
+empty and the remaining backlog is design-gated B-items (B1 SP2 gated writes, B2–B5).
+
+Earlier — increment 213 (B1 SP1 — the read-first MCP server; the first of the deferred B-items,
 brainstormed → spec'd → planned → built). Expose callosum's own **Model Context Protocol** server so an external
 agent (Claude Desktop / Cursor) uses the library **through** callosum — keeping callosum the provenance + grounding
 authority — rather than bypassing it as a dumb store. **Architecture = a thin stdio adapter over the running app,

@@ -4677,6 +4677,10 @@
       const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
       return saveField("translators", list);
     }, [saveField]);
+    const saveExtraUrls = useCallback((text) => {
+      const list = text == null ? [] : text.split("\n").map((s) => s.trim()).filter(Boolean);
+      return saveField("extra_urls", list);
+    }, [saveField]);
     if (state.status === "idle")
       return /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Select a paper"), "Its metadata and provenance appear here \u2014 and are editable.");
     if (state.status === "loading")
@@ -4708,6 +4712,15 @@
         rows: 2
       }
     ), /* @__PURE__ */ React.createElement(EditableRow, { label: "Year", value: dp[0], numeric: true, onSave: (v) => saveField("year", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Month", value: dp[1], numeric: true, onSave: (v) => saveField("month", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Day", value: dp[2], numeric: true, onSave: (v) => saveField("day", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Volume", value: cslGet(p, "volume"), onSave: (v) => saveField("volume", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Issue", value: cslGet(p, "issue"), onSave: (v) => saveField("issue", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Pages", value: cslGet(p, "page"), onSave: (v) => saveField("page", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Journal", value: p.venue, onSave: (v) => saveField("venue", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "Language", value: p.language, onSave: (v) => saveField("language", v) }), /* @__PURE__ */ React.createElement(EditableRow, { label: "URL", value: cslGet(p, "URL"), mono: true, onSave: (v) => saveField("url", v) }), /* @__PURE__ */ React.createElement(
+      EditableText,
+      {
+        label: "More URLs",
+        value: (p.extra_urls || []).join("\n"),
+        placeholder: "Add URLs (one per line)",
+        onSave: saveExtraUrls,
+        rows: 2
+      }
+    ), /* @__PURE__ */ React.createElement(
       EditableText,
       {
         label: "Abstract",

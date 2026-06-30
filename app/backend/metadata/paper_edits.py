@@ -42,6 +42,7 @@ RESERVED_CSL_KEYS = frozenset(
         "translator",
         "issued",
         "id",
+        "extra_urls",  # the additional-URLs list (inc 214) — its own field, never the generic passthrough
     }
 )
 
@@ -107,6 +108,11 @@ def build_paper_update(existing_row: Any, edits: dict[str, Any]) -> dict[str, An
     # translators: same literal-list model as authors; CSL `translator` array, no mirror column (inc 111)
     if "translators" in edits:
         _apply_translators(csl, edits["translators"])
+
+    # additional URLs beyond the primary CSL `URL` (inc 214): a list of strings in csl_json["extra_urls"],
+    # no mirror column. The primary URL stays canonical CSL `URL` (edited via its own `url` field).
+    if "extra_urls" in edits:
+        _apply_extra_urls(csl, edits["extra_urls"])
 
     # generic "More" passthrough: arbitrary scalar csl fields a DOI populated (reserved keys skipped)
     generic = edits.get("csl")
@@ -179,6 +185,14 @@ def _apply_translators(csl: dict[str, Any], translators: list[str] | None) -> No
         csl["translator"] = [{"literal": t.strip()} for t in cleaned]
     else:
         csl.pop("translator", None)
+
+
+def _apply_extra_urls(csl: dict[str, Any], urls: list[str] | None) -> None:
+    cleaned = [u.strip() for u in (urls or []) if u and u.strip()]
+    if cleaned:
+        csl["extra_urls"] = cleaned
+    else:
+        csl.pop("extra_urls", None)
 
 
 def _normalize_doi(doi: str | None) -> str | None:

@@ -177,7 +177,7 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         crossref = app.state.crossref_client
         with app.state.engine.begin() as conn:
             scanned = scan_library_folder(
-                conn, folder, on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Reading PDFs")
+                conn, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
             )
             _process_scan_result(
                 conn,
@@ -284,7 +284,7 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                         error_details.append(ScanError(path=folder, error="watched folder no longer exists"))
                     continue
                 scanned = scan_library_folder(
-                    conn, folder, on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Reading PDFs")
+                    conn, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
                 )
                 _process_scan_result(
                     conn,

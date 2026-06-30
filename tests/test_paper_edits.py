@@ -87,6 +87,22 @@ def test_generic_passthrough_cannot_corrupt_translator() -> None:
     assert out["csl_json"]["translator"] == [{"literal": "Real"}]
 
 
+def test_extra_urls_stored_as_list_no_column() -> None:  # inc 214 (#5)
+    out = build_paper_update(_row({"title": "T"}), {"extra_urls": ["https://a", " https://b ", ""]})
+    assert out["csl_json"]["extra_urls"] == ["https://a", "https://b"]  # cleaned + empties dropped
+    assert "URL" not in out["csl_json"]  # the primary CSL URL is untouched by extra_urls
+
+
+def test_empty_extra_urls_clears() -> None:  # inc 214
+    out = build_paper_update(_row({"extra_urls": ["https://x"]}), {"extra_urls": []})
+    assert "extra_urls" not in out["csl_json"]
+
+
+def test_generic_passthrough_cannot_corrupt_extra_urls() -> None:  # inc 214 — extra_urls is reserved
+    out = build_paper_update(_row({"extra_urls": ["https://real"]}), {"csl": {"extra_urls": "HACK"}})
+    assert out["csl_json"]["extra_urls"] == ["https://real"]
+
+
 def test_generic_passthrough_sets_extras_and_ignores_reserved_keys() -> None:
     out = build_paper_update(_row({"title": "T"}), {"csl": {"publisher": "Springer", "title": "HACK"}})
     assert out["csl_json"]["publisher"] == "Springer"

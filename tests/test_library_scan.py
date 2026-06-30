@@ -73,6 +73,19 @@ def test_scan_adds_new_skips_unchanged_flags_removed(temp_db_url, tmp_path):
     assert len(third["removed"]) == 1 and len(third["unchanged"]) == 1 and len(missing) == 1
 
 
+def test_scan_progress_reports_the_per_file_basename(temp_db_url, tmp_path):
+    # inc 214 (#4): on_progress now receives (current, total, filename) so the UI can show "Reading <file>".
+    folder = tmp_path / "lib"
+    folder.mkdir()
+    _make_pdf(folder / "alpha.pdf", "Alpha one.")
+    _make_pdf(folder / "beta.pdf", "Beta two.")
+    calls: list[tuple[int, int, str]] = []
+    with make_engine(temp_db_url).begin() as conn:
+        scan_library_folder(conn, folder, on_progress=lambda c, t, name: calls.append((c, t, name)))
+    assert [c[2] for c in calls] == ["alpha.pdf", "beta.pdf"]  # sorted; basenames, not full paths
+    assert all(c[1] == 2 for c in calls)  # total carried through
+
+
 def test_scan_endpoint_processes_folder(temp_db_url, tmp_path):
     folder = tmp_path / "lib"
     folder.mkdir()

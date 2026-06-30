@@ -34,12 +34,12 @@ def scan_library_folder(
     folder: str | Path,
     *,
     import_source: str = LIBRARY_SCAN_SOURCE,
-    on_progress: Callable[[int, int], None] | None = None,
+    on_progress: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
     """Reconcile ``folder``'s ``*.pdf`` files with the library. Returns
     ``{added:[{paper_id, chunk_ids}], unchanged:[…], removed:[…], errors:[…]}``. Per-file failures are isolated
-    (a savepoint per new file; the bad file is recorded and the scan continues). ``on_progress(current, total)``
-    (inc 142) is called once per file so the UI can show determinate "reading PDF X / N" progress."""
+    (a savepoint per new file; the bad file is recorded and the scan continues). ``on_progress(current, total,
+    filename)`` (inc 142 / 214) is called once per file — the basename lets the UI show "Reading <file> (X / N)"."""
     folder = Path(folder)
     result: dict[str, Any] = {"added": [], "unchanged": [], "removed": [], "errors": []}
     current = {str(p.resolve()): p for p in sorted(folder.glob("*.pdf")) if p.is_file()}
@@ -61,7 +61,8 @@ def scan_library_folder(
     total = len(current)
     for index, (resolved, path) in enumerate(current.items(), start=1):
         if on_progress:
-            on_progress(index, total)  # inc 142: determinate per-file progress (extraction is the slow per-file step)
+            # inc 142/214: determinate per-file progress + the basename (extraction is the slow per-file step).
+            on_progress(index, total, path.name)
         try:
             if path.stat().st_size > MAX_SCAN_PDF_BYTES:
                 result["errors"].append({"path": resolved, "error": "exceeds the per-file size cap"})
