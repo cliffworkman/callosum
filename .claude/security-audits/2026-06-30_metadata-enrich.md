@@ -130,3 +130,37 @@ the Gemini library-text gate. Negative paths re-checked: the Europe PMC `core`�
 pubmed]` (`tests/test_metadata_multi_enrich.py`).
 
 **Security Audit (SP2 addendum): PASS.**
+
+---
+
+## Increment 226 addendum — per-identifier re-fetch (PMID / arXiv → OpenAlex)
+
+The Details → Identifiers 🔎 (DOI → Crossref re-resolve, inc 49) is generalized to **PMID** and **arXiv**:
+each calls `POST /papers/{id}/re-resolve {source}` (`routers/paper_enrich.py`, split out of `papers.py` to keep
+both under the 600-line cap). The new `source` is an allowlisted `Literal["crossref","pmid","arxiv"]` (default
+`crossref` → byte-for-byte the prior DOI behavior + back-compat with the no-body POST).
+
+- **No new external host / fetch path / dependency.** `pmid`/`arxiv` reuse the **already-audited**
+  `OpenAlexClient.fetch_work_csl(conn, ref)` (the inc-217 enrich client): `pmid` → `PaperRef(pmid=<csl PMID>)`;
+  `arxiv` → `PaperRef(doi="10.48550/arXiv.<csl arxiv>")` (the synthesized arXiv DOI, the `_ARXIV_DOI_RE` form).
+  Egress is the same **public bibliographic metadata** posture (a PMID/DOI to OpenAlex's constant host as a bound
+  path segment → no SSRF), **not** the Gemini library-text gate.
+- **Overwrite is the force path** (`enrich_paper_metadata_from_identifier`, `force=True` from the endpoint, the
+  user's explicit "re-fetch from *that* source" intent — mirrors the DOI 🔎): the resolved CSL projects through
+  `_paper_values_from_csl(record, imported_source="openalex")` + `update_paper_metadata` (full wholesale
+  overwrite, the inc-49 primitive). `OPENALEX_SOURCE` is added to the `_can_update_from_crossref` allowlist so a
+  re-fetched record is treated as resolved+updatable (like `crossref`), never protected like `user-edited`. The
+  **inc-174 confirm guard** in the frontend still gates overwriting a `user-edited` record.
+- **Provenance honesty / identifier preservation:** `_csl_from_work` echoes PMID but **not** the arXiv id, and the
+  projector replaces `csl_json` wholesale — so the orchestrator `setdefault`s the clicked identifier back onto the
+  record before overwrite (the source id is never silently dropped). The tradeoff (re-fetching from PMID/arXiv may
+  yield an OpenAlex record thinner than a prior Crossref one) is the user's explicit intent.
+- **Negative paths:** identifier absent from `csl_json` → **422** (no fetch, no overwrite); a fetch miss → **no
+  overwrite**, the row keeps its data, the UI warns (graceful 200, never 500). Covered by
+  `tests/test_papers.py` (`test_reresolve_from_pmid_overwrites_via_openalex`,
+  `test_reresolve_from_arxiv_uses_synthesized_doi`, `test_reresolve_from_identifier_miss_is_graceful`,
+  `test_reresolve_from_identifier_422_when_absent`) via an injected fake OpenAlex client (hermetic, no network).
+- **No migration, no new QA route** (paths unchanged → surface map still 161/161 API + 719/719 FE, 0 uncovered;
+  the optional `source` param is noted on `route_30_detail_pane.md`). The router split is behavior-preserving.
+
+**Security Audit (inc 226 addendum): PASS.**

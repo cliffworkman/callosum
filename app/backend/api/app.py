@@ -40,6 +40,7 @@ from app.backend.api.routers import (
     libreoffice,
     methods,
     my_publications,
+    paper_enrich,
     paper_files,
     papers,
     reading_queue,
@@ -203,6 +204,9 @@ def create_app(
     )  # before papers so "/papers/citation-counts/*" wins over "/papers/{id}" (inc 210)
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
+    api.include_router(
+        paper_enrich.router
+    )  # /papers/{id}/re-resolve + /fill-metadata — split out of papers.py (inc 226)
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)

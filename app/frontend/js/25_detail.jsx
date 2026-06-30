@@ -165,43 +165,46 @@ function TypeSelect({ value, onSave }) {
   );
 }
 
-// DOI row with the 🔎 re-resolve button. Persists a freshly-typed DOI BEFORE re-resolving
-// (so Crossref uses the corrected identifier, not the stale stored one).
-function DoiRow({ paper, onSave, onResolve, resolving }) {
-  const [v, setV] = useState(paper.doi || "");
-  useEffect(() => { setV(paper.doi || ""); }, [paper.doi]);
+// An identifier row with the 🔎 re-fetch button (inc 226, generalized from the inc-49 DoiRow). Persists a
+// freshly-typed identifier BEFORE re-fetching (so the source uses the corrected value, not the stale one).
+// `source` picks where the record is re-fetched from: crossref (DOI), pmid (PubMed via OpenAlex), arxiv (the
+// arXiv DOI via OpenAlex). `resolving` holds the in-flight source so only the clicked 🔎 spins.
+const _RESOLVE_SOURCE_NAME = { crossref: "Crossref", pmid: "PubMed (via OpenAlex)", arxiv: "OpenAlex" };
+
+function IdentifierRow({ label, value, fieldKey, source, paper, onSave, onResolve, resolving }) {
+  const [v, setV] = useState(value || "");
+  useEffect(() => { setV(value || ""); }, [value]);
   const commit = async () => {
-    const current = paper.doi || "";
-    if (v.trim() !== current) await onSave("doi", v.trim() === "" ? null : v.trim());
+    if (v.trim() !== (value || "")) await onSave(fieldKey, v.trim() === "" ? null : v.trim());
   };
   const resolve = async () => {
-    // inc 174: re-resolve force-overwrites from Crossref. Guard hand-edited papers so edits aren't lost silently.
+    // inc 174: re-fetch force-overwrites. Guard hand-edited papers so edits aren't lost silently.
     if (paper.imported_source === "user-edited" &&
-        !window.confirm("This paper has hand-edited metadata. Re-resolving from Crossref will overwrite your edits. Continue?")) {
+        !window.confirm("This paper has hand-edited metadata. Re-fetching will overwrite your edits. Continue?")) {
       return;
     }
     await commit();
-    onResolve();
+    onResolve(source);
   };
   return (
     <div className="detail-row">
-      <span className="k">DOI</span>
+      <span className="k">{label}</span>
       <span className="v detail-doi-row">
         <input
           className="detail-edit mono"
           value={v}
-          placeholder="Add DOI"
+          placeholder={"Add " + label}
           onChange={(e) => setV(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); resolve(); } }}
         />
         <button
           className="detail-reresolve"
-          disabled={!v.trim() || resolving}
-          title={v.trim() ? "Re-fetch metadata from Crossref using this DOI" : "Enter a DOI first"}
+          disabled={!v.trim() || resolving != null}
+          title={v.trim() ? `Re-fetch metadata from ${_RESOLVE_SOURCE_NAME[source]} using this ${label}` : `Enter a ${label} first`}
           onClick={resolve}
         >
-          {resolving ? "…" : "🔎"}
+          {resolving === source ? "…" : "🔎"}
         </button>
       </span>
     </div>
@@ -361,7 +364,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
-  const [resolving, setResolving] = useState(false);
+  const [resolving, setResolving] = useState(null);  // the in-flight re-fetch source (crossref/pmid/arxiv), or null
   const [filling, setFilling] = useState(false);
   const [queuing, setQueuing] = useState(false);
   const [idOpen, setIdOpen] = useState(true);
@@ -391,19 +394,23 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
     return r;
   }, [paperId]);
 
-  const reresolve = useCallback(async () => {
+  const reresolve = useCallback(async (source = "crossref") => {
     if (paperId == null) return;
     setNote(null);
-    setResolving(true);
-    const r = await apiPost(`/papers/${paperId}/re-resolve`, {});
-    setResolving(false);
+    setResolving(source);
+    const r = await apiPost(`/papers/${paperId}/re-resolve`, { source });
+    setResolving(null);
     if (r.ok && r.data) {
       setState({ status: "ready", paper: r.data });
-      setNote(r.data.imported_source === "crossref"
-        ? { kind: "ok", text: "Resolved from Crossref." }
-        : { kind: "warn", text: "Crossref couldn't resolve that DOI. Check it and try again." });
+      // A hit lands the source's provenance (crossref → "crossref"; pmid/arxiv → "openalex"); anything else is a miss.
+      const expected = source === "crossref" ? "crossref" : "openalex";
+      const srcName = source === "crossref" ? "Crossref" : "OpenAlex";
+      const idLabel = source === "crossref" ? "DOI" : source === "pmid" ? "PMID" : "arXiv ID";
+      setNote(r.data.imported_source === expected
+        ? { kind: "ok", text: `Resolved from ${srcName}.` }
+        : { kind: "warn", text: `Couldn't re-fetch from that ${idLabel}. Check it and try again.` });
     } else {
-      setNote({ kind: "err", text: r.error || "Re-resolve failed." });
+      setNote({ kind: "err", text: r.error || "Re-fetch failed." });
     }
   }, [paperId]);
 
@@ -524,9 +531,12 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       <TagsRow key={p.id} paperId={p.id} initialTags={p.tags} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} />
 
       <DetailSection title="Identifiers" open={idOpen} onToggle={() => setIdOpen((o) => !o)}>
-        <DoiRow paper={p} onSave={saveField} onResolve={reresolve} resolving={resolving} />
-        <EditableRow label="ArXiv ID" value={cslGet(p, "arxiv")} mono onSave={(v) => saveField("arxiv", v)} />
-        <EditableRow label="PMID" value={cslGet(p, "PMID")} mono onSave={(v) => saveField("pmid", v)} />
+        <IdentifierRow label="DOI" value={p.doi} fieldKey="doi" source="crossref"
+          paper={p} onSave={saveField} onResolve={reresolve} resolving={resolving} />
+        <IdentifierRow label="PMID" value={cslGet(p, "PMID")} fieldKey="pmid" source="pmid"
+          paper={p} onSave={saveField} onResolve={reresolve} resolving={resolving} />
+        <IdentifierRow label="ArXiv ID" value={cslGet(p, "arxiv")} fieldKey="arxiv" source="arxiv"
+          paper={p} onSave={saveField} onResolve={reresolve} resolving={resolving} />
         <EditableRow label="Cite key" value={p.citation_key} mono onSave={(v) => saveField("citation_key", v)} />
         <EditableRow label="ISBN" value={cslGet(p, "ISBN")} mono onSave={(v) => saveField("isbn", v)} />
         <EditableRow label="ISSN" value={cslGet(p, "ISSN")} mono onSave={(v) => saveField("issn", v)} />

@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 225** (see Increment workflow) with **791 pytest tests
+It is currently at **Increment 226** (see Increment workflow) with **795 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -424,10 +424,14 @@ shared `persistence/schema_base.py` `metadata`, re-exported from `schema.py` (ze
 read/priority feature landed in it): the paper-lifecycle cluster (trash/purge/tier + the new read/priority setters)
 → `persistence/paper_lifecycle_repo.py` (121) and the synthesis CRUD → `persistence/summaries_repo.py` (61), both
 **re-exported** from `repository` (`# noqa: E402,F401`; zero call-site change — the inc-137 pattern).
-**Watch (re-measure before trusting):** `routers/papers.py` (**598** after inc 224 — now the **closest** backend
-file; split before the next addition there [the inc-91/214 request-normalisation extraction precedent]),
-`clustering/my_publications.py` (~594), `repository.py` (**565**), `extraction.py` (~551), `routers/axes.py`
-(~537) — all under 600, but check `wc -l` before adding to them.
+**Inc 226** split `routers/papers.py` (598→**528**, was at the 600 cap when the per-identifier `source` field landed):
+the enrichment-action endpoints (`reresolve_paper` + `fill_metadata` + `FillMetadataResponse` + `_crossref`) → new
+`routers/paper_enrich.py` (113; imports `PaperDetailResponse`/`_detail_for` from papers.py, no cycle).
+**Watch (re-measure before trusting):** `clustering/my_publications.py` (~594 — now the **closest** backend file;
+split before the next addition there), `js/25_detail.jsx` (**583** — the closest frontend chunk after the inc-226
+IdentifierRow generalization), `js/10_pdf_layer.jsx` (~581), `js/30_viewer.jsx` (~580), `repository.py` (**565**),
+`routers/papers.py` (**528**), `extraction.py` (~551), `routers/axes.py` (~537) — all under 600, but check `wc -l`
+before adding to them.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
 `app/backend/metadata/paper_edits.py`.)
 
@@ -773,6 +777,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Per-identifier re-fetch 🔎 for PMID + arXiv (reuse the audited OpenAlex client + the DOI overwrite primitive; inc 226) | The Details → Identifiers 🔎 (DOI → Crossref re-resolve, inc 49) is generalized to **PMID** (→ PubMed via OpenAlex) + **arXiv** (→ the synthesized arXiv DOI `10.48550/arXiv.<id>` via OpenAlex); ISBN/ISSN/Cite-key stay plain (no per-paper source). **`POST /papers/{id}/re-resolve`** gains an allowlisted `source: Literal["crossref","pmid","arxiv"] = "crossref"` (default keeps the DOI 🔎 byte-for-byte + back-compat with the no-body POST). The non-DOI branches reuse the **already-audited** `OpenAlexClient.fetch_work_csl(conn, PaperRef(...))` (the inc-217 enrich client) + the inc-49 force-overwrite primitive (`_paper_values_from_csl` + `update_paper_metadata`); a new `OPENALEX_SOURCE="openalex"` is added to the `_can_update_from_crossref` allowlist (resolved+updatable, like crossref, never protected like user-edited). **The clicked identifier is preserved across the wholesale `csl_json` overwrite** (the orchestrator `setdefault`s PMID/arXiv back, since `_csl_from_work` doesn't echo the arXiv id); **422** if the identifier is absent; a fetch miss → no overwrite (graceful 200); the inc-174 user-edited confirm guard still gates. **Forced rule-#1 split** (papers.py was at the 600 cap): the enrichment-action endpoints → new `routers/paper_enrich.py` (113; included before papers.router). Frontend: `DoiRow` → generic `IdentifierRow` (PMID/arXiv rows get a 🔎). Egress = **public bibliographic metadata** (DOI/PMID out), **NOT** the Gemini gate; **no new external host / dependency / migration / QA route** (the `source` param rides the existing `/re-resolve`; noted on `route_30`). Audit = inc-226 addendum to `2026-06-30_metadata-enrich.md` PASS; Principles non-triggering (bibliographic facts). pytest **795** (+4); headed-verified (fake OpenAlex). |
 | Progress ETA ("~Ns left") on long async jobs; cancel deferred (#4 close-out; inc 225) | Long jobs showed determinate "X / N" (inc 142) but no time estimate. Added `Job.started_at` (monotonic, stamped on `mark_running`, **preserved across every `mark_progress`** via a `_started_at` helper so the elapsed clock is continuous) + `Job.eta_seconds()` (`elapsed / current × remaining`; None until there's progress, 0 when complete — computed at read time, so a method not a stored field); surfaced as an additive `eta_seconds` on `JobProgressOut` (the shared `_progress_out` → scan/rescan/import/enrich) + `CitationRefreshProgress`; rendered as " · ~Ns left" by `ProgressBar` + the libmenus Citations/Enrich (a hoisted `_fmtEta`). **Cancel deferred** — correct cooperative cancellation needs the four `_run_*_job` single-`engine.begin()` blocks split into per-item transactions (the same infra as the open SQLite read-then-write concurrency item). Additive — no migration/egress/endpoint/dependency, no audit/Principles trigger; QA surface unchanged (optional field on existing payloads). pytest **791** (+2 `test_job_store.py`); verified unit + a live-import API probe (eta in the payload, decreasing) + **headed** (`drive_inc225_progress.py` → `Embedding papers — 3 / 8 · ~2s left`, 0 console/page/genai). **Harness note:** the inc-142-derived progress driver had drifted (the inc-160 auto-rescan pulled the real library/ into the seeded DB; `seed()` didn't clean the inc-219 `-wal`/`-shm` sidecars → stale-row "N failed" imports) — both fixed in the inc-225 driver; carry to other inc-142-derived drivers. |
 | Retraction auto-check on the remaining DOI-bearing routes (OA-acquire + re-resolve + fill-metadata); the Zotero hook is moot (#31 close-out; inc 224) | Completes the retraction on-import lifecycle. `auto_check_retractions` (inc 134) was wired into scan + citation-import only; it now also fires after the Crossref/multi-pass enrich on the **OA-acquire job** (`acquisition.py::_run_acquire_job`, inside the existing `engine.begin()`) and the per-paper **`reresolve_paper`** + **`fill_metadata`** handlers (`papers.py`, before `conn.commit()`), all reusing `app.state.retraction_checkers`. **The backlog's "Zotero / single-PDF import paths" remainder is partly moot** — `import_zotero_library` has **no API route** (only the harness/tests call it), so there's no app-state-bearing caller to hook (a hook there = dead code, rule #5; recorded in the audit). Best-effort by construction (the fn swallows per-paper errors → can't break the acquire/enrich). **No new endpoint/migration/external-fetch-type/dependency** (reuses the inc-131 checkers + their already-audited public-DOI-metadata egress, NOT the Gemini gate) → audit = **addendum 2** to `2026-06-26_retraction.md` PASS; **Principles non-triggering** (reuses the established FACT producer; no new claim type). **Rule-#1:** the hooks pushed `routers/papers.py` to exactly 600 → condensed the two new comments to 1 line each → **598** (now the closest to the cap; split before the next addition there). pytest **789** (+3 hermetic `test_retraction.py`: re-resolve / fill-metadata / OA-acquire each flag a seeded retracted DOI); QA surface unchanged (no new route; `route_39` gained an on-import-lifecycle assertion). |
 | "By priority" sort gains a within-tier recency tiebreak (id DESC) — close-out of the reading-markers thread (inc 223) | Experience-pass finding #4 (inc 220): the **"By priority"** library sort (high→normal→low→unset) tiebroke only on the global `papers.id ASC`, so the large **unset** tier collapsed into one oldest-imported-first block. Fix = a one-line ORDER-BY append at `repository.py:107` (`"priority": [_PRIORITY_RANK.asc(), papers.c.id.desc()]`) — `id DESC` is the recency proxy `"recent"` already uses, so within each tier the most-recently-added papers come first; the global `id ASC` tail (`:113`) stays as the pagination tiebreak (harmless after a unique-id DESC). A user-chosen sort, never an AI rank (inc-207 declined-ratings posture). Backend-only — no migration/egress/endpoint/dependency, no audit/Principles trigger. pytest **786** (+1 `test_priority_sort_recency_tiebreak_within_tier`); QA surface unchanged (161/161 API + 719/719 FE). |
@@ -943,7 +948,48 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 225 (progress ETA on long async jobs — #4's close-out; the 3rd + final of
+*Last updated: 2026-06-30 — increment 226 (per-identifier re-fetch 🔎 for PMID + arXiv). The maintainer asked to
+"add search to the other options under identifiers, like how DOI has the little search icon," and (via
+AskUserQuestion) chose **re-fetch metadata from that source**. So the Details → Identifiers 🔎 (DOI → Crossref
+re-resolve, inc 49) is **generalized to PMID** (→ PubMed via OpenAlex) **and arXiv** (→ the synthesized arXiv DOI
+`10.48550/arXiv.<id>` via OpenAlex); **ISBN/ISSN/Cite-key stay plain** (no per-paper source). **The whole non-DOI
+path reuses what already exists** — `OpenAlexClient.fetch_work_csl(conn, PaperRef(...))` (the inc-217 enrich client,
+already audited) + the inc-49 force-overwrite primitive (`_paper_values_from_csl` + `update_paper_metadata`) — so
+**no new external host / fetch path / dependency / migration**. New `enrich_paper_metadata_from_identifier(conn,
+paper_id, *, source, openalex_client, force)` (`enrichment.py`): builds the ref (`PaperRef(pmid=…)` / `PaperRef(
+doi="10.48550/arXiv.<id>")`), `setdefault`s the clicked identifier back onto the resolved CSL (the projector replaces
+`csl_json` wholesale and `_csl_from_work` doesn't echo the arXiv id → the source id is never silently dropped), then
+overwrites with `imported_source="openalex"` (a new `OPENALEX_SOURCE` added to the `_can_update_from_crossref`
+allowlist → resolved+updatable like crossref, never protected like user-edited); a fetch miss → no overwrite
+(`status="unresolved"`, graceful 200). **`POST /papers/{id}/re-resolve`** gains an allowlisted `source:
+Literal["crossref","pmid","arxiv"] = "crossref"` (default keeps the DOI 🔎 byte-for-byte + back-compat with the
+no-body POST); `crossref` → the existing 422-if-no-DOI + `enrich_paper_metadata_from_crossref`; `pmid`/`arxiv` →
+read the identifier from `csl_json` (**422 if absent**) + the new fn with `force=True` (the user's explicit "re-fetch
+from *that* source" intent — mirrors the DOI 🔎; the inc-174 user-edited confirm guard still gates in the UI). Both
+branches keep the inc-224 `auto_check_retractions` + the `conn.commit()` + return `_detail_for`. **Forced rule-#1
+split** (papers.py was at the **600** cap): the enrichment-action endpoints (`reresolve_paper` + `fill_metadata` +
+`FillMetadataResponse` + `_crossref`) → new **`routers/paper_enrich.py`** (113; imports `PaperDetailResponse`/
+`_detail_for` from papers.py → no cycle; included **before** `papers.router` so the literal paths keep winning) →
+papers.py **598→528**. Frontend (`25_detail.jsx`): `DoiRow` → generic **`IdentifierRow`** (input + 🔎 + the inc-174
+confirm guard + a per-row in-flight state via `resolving === source`) used for DOI/PMID/ArXiv; `reresolve(source)`
+posts `{source}` + the success note reflects the source. **Egress = public bibliographic metadata** (DOI/PMID out;
+SSRF-safe constant host + bound path), **NOT** the Gemini library-text gate. Audit = inc-226 **addendum** to
+`.claude/security-audits/2026-06-30_metadata-enrich.md` **PASS** (reuses the audited client; force-overwrite is the
+user's intent; identifier preserved; 422/miss negative paths). **Principles non-triggering** (bibliographic facts,
+the inc-49/217 posture). pytest **795 passed, 1 skipped** (+4 `tests/test_papers.py`, hermetic via an injected fake
+OpenAlex: PMID overwrite via OpenAlex; arXiv synthesized-DOI; miss-graceful; 422-when-absent); `ruff check` +
+`format --check` clean; frontend rebuilt (`test_frontend_assembly` 5/5); **QA surface unchanged 161/161 API +
+719/719 FE, 0 uncovered** (the `source` param rides the existing `/re-resolve`; noted on `route_30_detail_pane.md`);
+no help-corpus change (the editing section is general; `HELP-DOCS-SYNCED` stays at 221). **Headed-verified, no egress**
+(`.local/visual/drive_inc226_identifier_resolve.py` — fake OpenAlex injected: the PMID + ArXiv rows each show a 🔎,
+clicking the PMID 🔎 re-fetches → title "Resolved by OpenAlex" + `imported_source == "openalex"` + PMID preserved;
+0 console/page/genai). **Rule-#1:** `routers/papers.py` **528**, `routers/paper_enrich.py` **113**, `enrichment.py`
+**450**, `js/25_detail.jsx` **583** — all under cap (`clustering/my_publications.py` ~594 now the closest backend
+file). Notes: `INCREMENT-226-NOTES.md`. **NEXT:** the genuinely-clean autonomous partials are done; what remains is
+decision/design/destructive/infra-gated (the #4 cancel + SQLite concurrency pass, etc.) or the design-gated B-items
+(B2/B3/B4/B5) — each the maintainer's call.
+
+Earlier — increment 225 (progress ETA on long async jobs — #4's close-out; the 3rd + final of
 the "wrap up the partially-completed backlog items" session). Long jobs showed determinate "X / N" (inc 142) but
 no time estimate. Added a rough **"~Ns left"** ETA, additive + no transaction risk: `Job.started_at` (monotonic,
 stamped on `mark_running` and **preserved across every `mark_progress`** via a `_started_at` helper, so the elapsed

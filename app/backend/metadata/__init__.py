@@ -6,6 +6,7 @@ from app.backend.metadata.enrichment import (
     MetadataEnrichmentRunResult,
     MultiEnrichResult,
     enrich_paper_metadata_from_crossref,
+    enrich_paper_metadata_from_identifier,
     enrich_paper_metadata_multi,
     enrich_pdf_scaffold_library,
 )
@@ -18,6 +19,7 @@ __all__ = [
     "MetadataEnrichmentRunResult",
     "MultiEnrichResult",
     "enrich_paper_metadata_from_crossref",
+    "enrich_paper_metadata_from_identifier",
     "enrich_paper_metadata_multi",
     "enrich_pdf_scaffold_library",
 ]

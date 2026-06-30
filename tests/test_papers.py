@@ -719,6 +719,87 @@ def test_reresolve_forces_past_a_user_edit(temp_db_url: str) -> None:
     assert body["venue"] == "Resolved Journal"  # force overrode the manual edit
 
 
+# ── per-identifier re-resolve: PMID / arXiv via OpenAlex (inc 226) ────────────
+
+
+class _FakeOpenAlex:
+    """A hermetic OpenAlex stand-in: returns a CSL for a known key, records the refs it was called with."""
+
+    def __init__(self, csl_by_key: dict) -> None:
+        self.csl_by_key = csl_by_key
+        self.refs: list = []
+
+    def fetch_work_csl(self, conn, ref):
+        self.refs.append(ref)
+        if ref.pmid:
+            return self.csl_by_key.get(f"pmid:{ref.pmid}")
+        if ref.doi:
+            return self.csl_by_key.get(f"doi:{ref.doi.lower()}")
+        return None
+
+
+_OA_CSL = {
+    "title": "Resolved by OpenAlex",
+    "DOI": "10.1/oa",
+    "issued": {"date-parts": [[2022]]},
+    "container-title": "OA Journal",
+    "type": "article-journal",
+    "author": [{"family": "Doe"}],
+}
+
+
+def test_reresolve_from_pmid_overwrites_via_openalex(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="stub", csl_json={"title": "stub", "PMID": "12345"})
+    engine.dispose()
+    fake = _FakeOpenAlex({"pmid:12345": dict(_OA_CSL)})
+    client = TestClient(create_app(db_url=temp_db_url, openalex_client=fake))
+
+    body = client.post(f"/papers/{pid}/re-resolve", json={"source": "pmid"}).json()
+    assert body["title"] == "Resolved by OpenAlex" and body["year"] == 2022
+    assert body["imported_source"] == "openalex"
+    assert body["csl_json"]["PMID"] == "12345"  # the identifier the user clicked is preserved
+    assert fake.refs and fake.refs[0].pmid == "12345"
+
+
+def test_reresolve_from_arxiv_uses_synthesized_doi(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="stub", csl_json={"title": "stub", "arxiv": "2401.00001"})
+    engine.dispose()
+    fake = _FakeOpenAlex({"doi:10.48550/arxiv.2401.00001": dict(_OA_CSL)})
+    client = TestClient(create_app(db_url=temp_db_url, openalex_client=fake))
+
+    body = client.post(f"/papers/{pid}/re-resolve", json={"source": "arxiv"}).json()
+    assert body["title"] == "Resolved by OpenAlex"
+    assert body["csl_json"]["arxiv"] == "2401.00001"  # preserved (OpenAlex CSL omits it)
+    assert fake.refs and fake.refs[0].doi == "10.48550/arXiv.2401.00001"
+
+
+def test_reresolve_from_identifier_miss_is_graceful(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="Keep me", csl_json={"title": "Keep me", "PMID": "999"})
+    engine.dispose()
+    fake = _FakeOpenAlex({})  # nothing matches → a miss
+    client = TestClient(create_app(db_url=temp_db_url, openalex_client=fake))
+
+    resp = client.post(f"/papers/{pid}/re-resolve", json={"source": "pmid"})
+    assert resp.status_code == 200  # graceful, never 500
+    assert resp.json()["title"] == "Keep me"  # record left untouched on a miss
+
+
+def test_reresolve_from_identifier_422_when_absent(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="No ids", csl_json={"title": "No ids"})
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url, openalex_client=_FakeOpenAlex({})))
+    assert client.post(f"/papers/{pid}/re-resolve", json={"source": "pmid"}).status_code == 422
+    assert client.post(f"/papers/{pid}/re-resolve", json={"source": "arxiv"}).status_code == 422
+
+
 # ── soft-delete / Trash / restore (inc 54) ───────────────────────────────────
 
 

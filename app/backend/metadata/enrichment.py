@@ -36,6 +36,10 @@ MERGED_SOURCE = "merged"
 # Provenance for anything an MCP agent wrote (B1 SP2). Kept OUT of the `_can_update_from_crossref` allowlist (a
 # batch enrich won't clobber it) AND makes agent-origin visible/filterable (the inc-100 tag-source styling).
 AI_AGENT_SOURCE = "ai-agent"
+# Provenance for a record force-re-fetched from a non-DOI identifier via OpenAlex (inc 226 — the PMID/arXiv 🔎).
+# IN the `_can_update_from_crossref` allowlist below, so it's treated as "resolved + updatable" like `crossref`,
+# not protected like a user edit.
+OPENALEX_SOURCE = "openalex"
 
 
 @dataclass(frozen=True)
@@ -133,6 +137,72 @@ def enrich_paper_metadata_from_crossref(
     )
 
 
+def enrich_paper_metadata_from_identifier(
+    conn: Connection,
+    paper_id: int,
+    *,
+    source: str,
+    openalex_client: Any | None = None,
+    force: bool = False,
+) -> MetadataEnrichmentResult:
+    """Force-re-fetch a paper's full record from a non-DOI identifier via OpenAlex (inc 226 — the PMID/arXiv 🔎):
+    ``source="pmid"`` resolves ``PaperRef(pmid=…)``; ``source="arxiv"`` resolves the arXiv DOI
+    ``10.48550/arXiv.<id>``. Full overwrite, reusing the DOI re-resolve projector ``_paper_values_from_csl``;
+    public bibliographic-metadata egress (OpenAlex), NOT the Gemini library-text gate. A miss leaves the record
+    untouched (no provenance downgrade). The source identifier is preserved in the new csl_json so it can't vanish
+    when OpenAlex's record omits it (its CSL echoes PMID but not the arXiv id)."""
+    from app.backend.acquisition.registry import PaperRef
+    from integrations.openalex import OpenAlexClient
+
+    paper = conn.execute(select(papers).where(papers.c.id == paper_id)).mappings().one()
+    if not force and not _can_update_from_crossref(paper):
+        tier = refresh_processing_tier(conn, paper_id)
+        return MetadataEnrichmentResult(
+            paper_id=paper_id, status="skipped", doi=paper["doi"], doi_source=None, processing_tier=tier
+        )
+    csl = paper["csl_json"] or {}
+    if source == "pmid":
+        ident = str(csl.get("PMID") or "").strip()
+        ref = PaperRef(pmid=ident) if ident else None
+    elif source == "arxiv":
+        ident = str(csl.get("arxiv") or "").strip()
+        ref = PaperRef(doi=f"10.48550/arXiv.{ident}") if ident else None
+    else:
+        ident, ref = "", None
+    if ref is None:
+        tier = refresh_processing_tier(conn, paper_id)
+        return MetadataEnrichmentResult(
+            paper_id=paper_id,
+            status="unresolved",
+            doi=paper["doi"],
+            doi_source=None,
+            processing_tier=tier,
+            error=f"no {source} identifier",
+        )
+    client = openalex_client or OpenAlexClient()
+    record = client.fetch_work_csl(conn, ref)
+    if not record:
+        tier = refresh_processing_tier(conn, paper_id)
+        return MetadataEnrichmentResult(
+            paper_id=paper_id,
+            status="unresolved",
+            doi=paper["doi"],
+            doi_source=source,
+            processing_tier=tier,
+            error="not found",
+        )
+    record.setdefault("PMID" if source == "pmid" else "arxiv", ident)  # don't lose the id the user clicked
+    update_paper_metadata(conn, paper_id, **_paper_values_from_csl(record, imported_source=OPENALEX_SOURCE))
+    tier = refresh_processing_tier(conn, paper_id)
+    return MetadataEnrichmentResult(
+        paper_id=paper_id,
+        status="resolved",
+        doi=record.get("DOI") or paper["doi"],
+        doi_source=source,
+        processing_tier=tier,
+    )
+
+
 def _hook_my_publications(conn: Connection, paper_id: int) -> None:
     """Add a newly enriched paper to the My Publications axis if it matches the resolved author (cache-based,
     zero extra egress). Best-effort + lazy-imported: it must never alter or break import/enrichment behavior."""
@@ -178,7 +248,7 @@ def _doi_for_paper(conn: Connection, paper_id: int, *, existing_doi: str | None)
 
 def _can_update_from_crossref(paper: Any) -> bool:
     source = paper["imported_source"]
-    if source in {PDF_SCAFFOLD_SOURCE, CROSSREF_SOURCE, CROSSREF_UNRESOLVED_SOURCE, None}:
+    if source in {PDF_SCAFFOLD_SOURCE, CROSSREF_SOURCE, CROSSREF_UNRESOLVED_SOURCE, OPENALEX_SOURCE, None}:
         return True
     return False
 

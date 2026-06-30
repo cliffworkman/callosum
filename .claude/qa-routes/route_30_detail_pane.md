@@ -32,9 +32,12 @@ All of `_TEMPLATE.md` → Standing assertions. Specifically here:
    Try a reserved/core key and a non-letter-led key — confirm a clean 422-style rejection, not a crash.
 4. **User-edited guard:** after a hand-edit, confirm the paper is marked `user-edited` (it should now be
    skipped by batch enrich — verify it is NOT silently clobbered if you trigger a library enrich).
-5. **DOI re-resolve** (`POST /papers/{id}/re-resolve`): correct/replace the DOI, trigger 🔎 re-resolve.
-   Confirm a Crossref fetch + record overwrite (or a graceful `crossref-unresolved`, never a 500/crash).
-   A DOI-UNIQUE clash with another paper should surface a 409-style message, not a crash.
+5. **Identifier re-fetch** (`POST /papers/{id}/re-resolve {source}`, inc 226): each of **DOI / PMID / ArXiv ID**
+   has its own 🔎 (`IdentifierRow`) that force-re-fetches the record from that source — DOI→Crossref (default
+   source, back-compat), PMID→PubMed-via-OpenAlex, arXiv→the arXiv DOI via OpenAlex (public metadata, NOT the
+   Gemini gate). Correct/replace the identifier, trigger its 🔎 → confirm the record overwrites (or a graceful
+   miss leaves the record unchanged, never a 500/crash). **422** if that identifier is absent. A DOI-UNIQUE clash
+   surfaces a 409-style message, not a crash. ISBN/ISSN/Cite-key stay plain (no per-paper source).
 6. **Tags** (`/suggested-tags`, `POST/DELETE …/tags`): add a tag; confirm the chip appears without a paper
    switch; click ✨ Suggest, accept a candidate; remove a tag; confirm the orphan tag is pruned.
 7. **Cite** (`POST /citations/render`): open "Cite as…", switch styles, confirm a live formatted preview +

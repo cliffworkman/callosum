@@ -14,12 +14,9 @@ from sqlalchemy.exc import IntegrityError, NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.api.routers.paper_edit_input import edits_from_request
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
-from app.backend.metadata import enrich_paper_metadata_from_crossref, enrich_paper_metadata_multi
 from app.backend.metadata.abstract_display import abstract_plain_text, clean_abstract_for_display
 from app.backend.metadata.citation_export import render_citations
-from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.metadata.paper_edits import build_paper_update
-from app.backend.methods.retraction import auto_check_retractions
 from app.backend.persistence.repository import (
     PRIORITY_LEVELS,
     get_attachments_for_paper,
@@ -39,7 +36,6 @@ from app.backend.persistence.repository import (
     update_paper_metadata,
 )
 from app.backend.persistence.tags_repo import get_tags_for_paper
-from integrations.crossref import CrossrefClient
 
 router = APIRouter()
 
@@ -284,65 +280,6 @@ def update_paper(
     return _detail_for(conn, paper_id)
 
 
-@router.post("/papers/{paper_id}/re-resolve", response_model=PaperDetailResponse)
-def reresolve_paper(
-    paper_id: int,
-    request: Request,
-    conn: Connection = Depends(get_connection),
-) -> PaperDetailResponse:
-    # Re-run Crossref enrichment against the paper's (possibly just-corrected) DOI. Forces past the
-    # user-edited guard because the user explicitly asked. Only the DOI leaves the machine (public
-    # Crossref, like import) — this is NOT the Gemini library-text egress gate. A network/Crossref
-    # miss returns "unresolved" (graceful) — never a 500.
-    try:
-        paper = get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    if not (paper["doi"] or "").strip():
-        raise HTTPException(status_code=422, detail="Set a DOI before re-resolving from Crossref")
-    enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=_crossref(request.app), force=True)
-    # inc 224: a re-resolved DOI can newly reveal a retraction — auto-check now (inc-134 hook; best-effort).
-    auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
-    conn.commit()
-    return _detail_for(conn, paper_id)
-
-
-class FillMetadataResponse(BaseModel):
-    filled_fields: list[str]
-    doi: str | None
-    still_missing_doi: bool
-    paper: PaperDetailResponse
-
-
-@router.post("/papers/{paper_id}/fill-metadata", response_model=FillMetadataResponse)
-def fill_metadata(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> FillMetadataResponse:
-    # Multi-pass GAP-FILL of ONE paper (inc 217): recover a missing DOI (PDF scan → Crossref title-search) then
-    # fill ONLY empty fields from the source cascade — never overwrites a value you typed (distinct from the
-    # force-overwrite /re-resolve). Public bibliographic-metadata egress, NOT the Gemini library-text gate.
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    registry = request.app.state.enrich_registry or build_default_enrich_registry(
-        crossref_client=request.app.state.crossref_client, openalex_client=request.app.state.openalex_client
-    )
-    result = enrich_paper_metadata_multi(
-        conn,
-        paper_id,
-        registry=registry,
-        search_provider=getattr(request.app.state, "enrich_search_provider", None),
-    )
-    # inc 224: gap-fill can recover a missing DOI (Pass 0) → now checkable; auto-check retraction (inc-134 hook).
-    auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
-    conn.commit()
-    return FillMetadataResponse(
-        filled_fields=list(result.filled_fields),
-        doi=result.doi,
-        still_missing_doi=result.still_missing_doi,
-        paper=_detail_for(conn, paper_id),
-    )
-
-
 @router.delete("/papers/{paper_id}", status_code=http_status.HTTP_204_NO_CONTENT)
 def delete_paper(paper_id: int, conn: Connection = Depends(get_connection)) -> Response:
     # Soft-delete (move to Trash): hidden from the library/axes/clustering but kept + restorable.
@@ -446,13 +383,6 @@ def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:
         chunk_count=counts["chunk_count"],
         tags=get_tags_for_paper(conn, paper_id),
     )
-
-
-def _crossref(app: FastAPI) -> CrossrefClient:
-    injected = app.state.crossref_client
-    if injected is not None:
-        return injected
-    return CrossrefClient()
 
 
 def _iso_or_none(value: Any) -> str | None:
