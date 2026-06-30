@@ -313,7 +313,9 @@ callosum/
 │                                  CSL-JSON) + Refresh/renumber + bibliography (/citations/render-document) + Suggest
 │                                  (/citations/suggest) + one-click style-switch + Flatten.
 │   └── googledocs/                inc 169 (SP1 — the bridge): cloudflared-config.yml [CITE-ONLY ingress for
-│                                  callosum.clffwrkmn.net → localhost:8080; validated + LIVE-verified] (+ a gitignored
+│                                  callosum-tunnel.clffwrkmn.net → localhost; the hostname renamed from
+│                                  callosum.clffwrkmn.net (2026-06-30) to free callosum.clffwrkmn.net for a website —
+│                                  tunnel NAME stays `callosum`; validated + LIVE-verified] (+ a gitignored
 │                                  cloudflared-config.local.yml filled copy) + tools/run_tunnel.py. inc 170 (SP2 — the
 │                                  Apps Script add-on): Code.gs [sidebar glue] + gdocs_core.js [pure mapping, node --test,
 │                                  also loaded by GAS as CallosumCore] + gdocs_core.test.js + sidebar.html + appsscript.json

@@ -2,7 +2,7 @@
  * Callosum — Google Docs cite-while-you-write add-on (inc 170, Google Docs SP2).
  *
  * A sidebar that cites from your LOCAL callosum library: it reaches callosum over the cloudflared bridge
- * (https://callosum.clffwrkmn.net) with your access token (Settings → Remote access). Citations follow the Zotero
+ * (https://callosum-tunnel.clffwrkmn.net) with your access token (Settings → Remote access). Citations follow the Zotero
  * pattern — each is a Google Docs NamedRange (name = a uuid) whose cited work's CSL-JSON lives in
  * DocumentProperties; Refresh renders the whole ordered set via /citations/render-document and writes each
  * NamedRange's text back, then rebuilds a managed "References" block. The add-on never formats citations itself
@@ -35,7 +35,7 @@ function getSettings() {
   var up = PropertiesService.getUserProperties();
   var dp = PropertiesService.getDocumentProperties();
   return {
-    baseUrl: up.getProperty("CALLOSUM_BASE_URL") || "https://callosum.clffwrkmn.net",
+    baseUrl: up.getProperty("CALLOSUM_BASE_URL") || "https://callosum-tunnel.clffwrkmn.net",
     hasToken: !!up.getProperty("CALLOSUM_TOKEN"),
     style: dp.getProperty(CallosumCore.STYLE_KEY) || "apa",
   };

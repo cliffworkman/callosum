@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Google Docs tunnel hostname renamed `callosum` → `callosum-tunnel`.clffwrkmn.net
+- **Files:** `adapters/googledocs/{cloudflared-config.yml, cloudflared-config.local.yml [gitignored], Code.gs,
+  sidebar.html, README.md, callosum-gdocs.gs [rebuilt via tools/build_gdocs_addon.py]}`, `tools/run_tunnel.py`,
+  `.claude/CLAUDE.md` (directory-layout line).
+- **What:** the Google Docs cite bridge now serves **`callosum-tunnel.clffwrkmn.net`** (was `callosum.clffwrkmn.net`)
+  — a pure hostname rename across config + the add-on default URL + the runbook. The cloudflared **tunnel name**
+  stays `callosum` (id `653c4da3…`); only the public hostname changed. Cite-only ingress + the bearer-token gate are
+  unchanged (cloudflared `ingress validate` OK on the new host; `/papers`→forward, `/settings`→404).
+- **Why:** free up `callosum.clffwrkmn.net` for Cliff's website (a hostname = one origin; the bridge moves to a
+  clearly-named subdomain).
+- **Not a security change:** the cite-only allowlist (path-based) + token are the controls, both intact; no audit
+  trigger. No app code / migration / egress-posture change; pytest unchanged (`test_gdocs_bundle` in sync); node
+  tests green.
+- **Live steps (Cliff's, in Cloudflare):** `cloudflared tunnel route dns callosum callosum-tunnel.clffwrkmn.net`;
+  delete/repoint the old `callosum` CNAME; re-set the add-on's base URL to the new host (or clear it → it now
+  defaults there). Restart the tunnel (`python tools/run_tunnel.py`).
+- **Revert:** `git revert` this commit + re-run `cloudflared tunnel route dns callosum callosum.clffwrkmn.net`.
+
 <!-- HELP-DOCS-SYNCED 2026-06-30 inc 213 — privacy section: added "Using Callosum from an AI agent (MCP)" -->
 ## 2026-06-30 — Increment 213: read-first MCP server (backlog B1, SP1)
 - **Files (new):** `mcp_server/{__init__,client,server,__main__}.py` + `mcp_server/requirements.txt` +

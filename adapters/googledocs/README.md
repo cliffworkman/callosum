@@ -7,7 +7,7 @@ your computer, so a small bridge exposes **only the citation endpoints** of your
 Google Docs add-on (Google cloud)
    │  HTTPS + your access token
    ▼
-https://callosum.clffwrkmn.net   ← Cloudflare edge (clffwrkmn.net's DNS on Cloudflare; existing records stay "DNS only" — site + email unchanged; only `callosum` is proxied to the tunnel)
+https://callosum-tunnel.clffwrkmn.net   ← Cloudflare edge (clffwrkmn.net's DNS on Cloudflare; existing records stay "DNS only" — site + email unchanged; only `callosum-tunnel` is proxied to the tunnel)
    │  cloudflared tunnel (runs on YOUR pc, outbound only — no inbound port)
    ▼
 http://localhost:8080            ← your callosum, CITE-ONLY ingress + a bearer token
@@ -63,7 +63,7 @@ below instead. Either way, the one-file bundle (step 3) replaces the three-file 
   - **TXT** `@` (SPF): `v=spf1 +a +mx +ip4:50.87.144.47 +include:websitewelcome.com ~all`
   - **TXT** `default._domainkey` (**DKIM**): `v=DKIM1; k=rsa; p=MIIBIjAN…` — **paste the FULL value if it didn't import**
   - (no DMARC record currently — nothing to add)
-- Set `callosum` (added in step 4) to **proxied (orange)** — only that subdomain goes through Cloudflare.
+- Set `callosum-tunnel` (added in step 4) to **proxied (orange)** — only that subdomain goes through Cloudflare.
 
 ### 3. Switch nameservers (the actual cutover)
 - Cloudflare shows you **two nameservers** (e.g. `xxx.ns.cloudflare.com`, `yyy.ns.cloudflare.com`).
@@ -81,7 +81,7 @@ below instead. Either way, the one-file bundle (step 3) replaces the three-file 
   (this `.local.yml` copy is **gitignored** — it holds your tunnel id, so it never gets committed; the committed
   `cloudflared-config.yml` stays a placeholder template). In the copy, replace `<TUNNEL_ID>` (both places) + the
   `credentials-file` path with the values above. `run_tunnel.py` automatically prefers the `.local.yml` copy.
-- `cloudflared tunnel route dns callosum callosum.clffwrkmn.net` → points the hostname at the tunnel.
+- `cloudflared tunnel route dns callosum callosum-tunnel.clffwrkmn.net` → points the hostname at the tunnel.
 
 ### 5. Run it
 - Keep callosum running (uvicorn :8080, Remote access ON), then in another terminal:
@@ -94,13 +94,13 @@ below instead. Either way, the one-file bundle (step 3) replaces the three-file 
 ### 6. Verify (cite-only + token-gated)
 ```
 # search works WITH the token:
-curl -H "Authorization: Bearer <YOUR_TOKEN>" "https://callosum.clffwrkmn.net/papers?q=test"     # → JSON
+curl -H "Authorization: Bearer <YOUR_TOKEN>" "https://callosum-tunnel.clffwrkmn.net/papers?q=test"     # → JSON
 
 # no token → blocked:
-curl "https://callosum.clffwrkmn.net/papers?q=test"                                              # → 401
+curl "https://callosum-tunnel.clffwrkmn.net/papers?q=test"                                              # → 401
 
 # non-cite path → blocked at the tunnel:
-curl -H "Authorization: Bearer <YOUR_TOKEN>" "https://callosum.clffwrkmn.net/settings"           # → 404
+curl -H "Authorization: Bearer <YOUR_TOKEN>" "https://callosum-tunnel.clffwrkmn.net/settings"           # → 404
 ```
 
 ### 7. The Google Docs add-on (SP2)
@@ -122,7 +122,7 @@ that one file → Save → reload → **Extensions → Callosum → Open Callosu
 3. Save → reload the Doc → **Extensions → Callosum → Open Callosum** (authorize on first run).
 
 **Use:**
-- In the sidebar's **Connection settings**, enter `https://callosum.clffwrkmn.net` + your access token → **Save**.
+- In the sidebar's **Connection settings**, enter `https://callosum-tunnel.clffwrkmn.net` + your access token → **Save**.
 - Pick a **citation style**.
 - **Search** your library → **Insert** at the cursor. Or **select a sentence** and **Suggest from selection** —
   the local engine ranks library papers to cite, each row showing its stance + a verbatim quote (the reason);

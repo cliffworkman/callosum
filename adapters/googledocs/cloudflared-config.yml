@@ -1,4 +1,4 @@
-# Callosum — cloudflared named-tunnel config for callosum.clffwrkmn.net (inc 169, Google Docs SP1).
+# Callosum — cloudflared named-tunnel config for callosum-tunnel.clffwrkmn.net (inc 169, Google Docs SP1).
 #
 # CITE-ONLY ingress: forward ONLY the citation endpoints the Google Docs add-on uses to local callosum; everything
 # else → 404. This is the tunnel-side boundary (the bearer token from Settings → Remote access is callosum's
@@ -14,11 +14,11 @@ credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
 ingress:
   # cite-only: GET /papers (search), POST /papers/export, POST /citations/render-document, /citations/suggest,
   # GET /citations/styles. Query strings (e.g. /papers?q=) are not part of the path match.
-  - hostname: callosum.clffwrkmn.net
+  - hostname: callosum-tunnel.clffwrkmn.net
     path: ^/(papers|papers/export|citations/render-document|citations/suggest|citations/styles)$
     service: http://localhost:8080
   # everything else on the hostname → 404 (the app shell, /settings, scan routes, /papers/{id} edit/delete, …)
-  - hostname: callosum.clffwrkmn.net
+  - hostname: callosum-tunnel.clffwrkmn.net
     service: http_status:404
   # required catch-all
   - service: http_status:404

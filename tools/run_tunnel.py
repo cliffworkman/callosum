@@ -9,7 +9,7 @@ cloudflared runs here, dials OUT to Cloudflare's edge (no inbound port). Two mod
   **bearer token is the SOLE boundary** (it is already the primary one; cite-only was defense-in-depth). Best for
   trying it out fast.
 
-* default (named tunnel, inc 169, the STABLE path): serves ``https://callosum.clffwrkmn.net`` with a **cite-only**
+* default (named tunnel, inc 169, the STABLE path): serves ``https://callosum-tunnel.clffwrkmn.net`` with a **cite-only**
   ingress (only the citation endpoints reach localhost; everything else → 404). Needs the one-time setup in
   ``adapters/googledocs/README.md`` (Cloudflare account + domain on Cloudflare, ``cloudflared login`` / ``tunnel
   create`` / ``route dns``, and the filled ``cloudflared-config.local.yml`` this runner prefers).
@@ -83,7 +83,7 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    print("Starting the cloudflared tunnel for callosum.clffwrkmn.net (cite-only). Ctrl-C to stop.")
+    print("Starting the cloudflared tunnel for callosum-tunnel.clffwrkmn.net (cite-only). Ctrl-C to stop.")
     return subprocess.call([cf, "tunnel", "--config", str(config), "run"])
 
 
