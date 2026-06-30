@@ -554,6 +554,26 @@ Gotchas:
 - Scored assignments are recalculated. Manual assignments are the durable human choices.
 - If the merged axis is too broad, raise the cutoff or split the idea back into more focused terms in a new axis.
 
+<!-- section: reading-queue -->
+## Reading queue (your to-read list)
+The **Queue** tab — the third tab of the left-pane AXES section, beside Axes and Tags — is a personal, ordered list of papers you mean to read. It is **not** an axis: there is no scoring, ranking, or AI judgment, just the papers you chose, in the order you chose.
+
+To add a paper:
+
+- **Drag** a library card onto the Queue panel, or
+- Open a paper's **Details** and click **+ Reading queue**.
+
+Adding a paper that's already queued does nothing (no duplicates).
+
+To order it: **drag a row by its ⠿ grip** to where you want it. The order is saved.
+
+To work through it:
+
+- Click a row to **open the paper**.
+- Click **✓** when you've **read** it, or **×** to **remove** it. Both take the paper off the queue (it stays in your library).
+
+Trashed papers don't appear in the queue. The queue lives only on this machine.
+
 <!-- section: my-publications -->
 ## My Publications
 Callosum can gather your own papers into a pinned **My Publications** axis at the top of the Axes panel.

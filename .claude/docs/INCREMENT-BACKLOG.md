@@ -75,11 +75,26 @@ inc 80). Likely **one increment**: a tiny migration adding per-paper state + a l
 - **priority markers** — a per-paper priority/flag (a small enum or star) + sort/filter. *(Reuses the inc-207
   color-tag migration shape; an explicit **user** label, never an AI score — the inc-207 declined-ratings logic
   applies: keep it a user marker, not a composite.)*
-- **reading queue** — an ordered "to-read" list. *(Could ride the inc-211 **curated axis** primitive — an ordered,
-  hand-populated `cluster_node_papers.position` list — i.e. "Reading queue" as a built-in curated axis, or a dedicated
-  table. Decide at build time.)*
-*(Eileen's multi-pass metadata enrichment — the other half of that thread — is the active build, plan
-`.claude/backups/plans/2026-06-30_metadata-multi-enrich.md`.)*
+- **reading queue** — ✅ **SHIPPED inc 219** (the **Queue** tab — 3rd tab of the left-pane AXES section). Built as a
+  **dedicated `reading_queue` table** (NOT the curated-axis primitive — a queue isn't a scored lens, and the maintainer's
+  instinct was a separate tab): drag-a-card / Details-button to add, drag-to-reorder, ✓-read / ×-remove.
+- **read / unread marker** + **priority markers** — still open (the per-paper-state pair above; note inc 219's ✓ on the
+  queue *removes* it, which is distinct from a durable read/unread marker — keep them separate). Likely one small
+  migration + a library facet/sort + a card control.
+*(Eileen's multi-pass metadata enrichment — the other half of that thread — shipped inc 217/218.)*
+
+**SQLite read-then-write upgrade-deadlock — app-wide concurrency hardening** *(surfaced by the inc-219 headed
+verification; **inc 219 shipped the partial fix: `PRAGMA journal_mode=WAL` + `busy_timeout=5000` in `make_engine`**,
+which resolves the common write-vs-read contention).* **Still open:** a SELECT-then-write endpoint (`add_to_queue`,
+`add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
+locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
+for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous
+writes/a write+fetch); only a machine-gun headed driver provokes it. **The textbook cure (`BEGIN IMMEDIATE` for all
+transactions) is UNSAFE here**: `_run_scan_job` (+ embed/import/enrich workers) wrap the entire multi-minute job in **one**
+`engine.begin()` transaction, so forcing every transaction to grab the write lock up front would block all other requests
+for the whole job. So this needs its **own focused increment** — e.g. a transaction-level retry-on-busy scoped to the
+short request-path write endpoints, or splitting the long jobs into incremental commits first (then BEGIN IMMEDIATE
+becomes safe). Low user-impact; do it as part of a pre-public concurrency pass.
 
 **Superuser *capabilities* — what the flag gates** — **[decision — deferred by the maintainer]** the **flag shipped
 inc 195**: a `CALLOSUM_SUPERUSER_ORCIDS` env allowlist → `app_settings.is_superuser_orcid` → an `is_superuser` flag

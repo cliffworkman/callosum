@@ -49,6 +49,7 @@ function App() {
   const [libraryItemType, setLibraryItemType] = useState("");  // inc-91: filter to a single CSL item type ("" = all)
   const [itemTypes, setItemTypes] = useState([]);  // inc-91: distinct item types present in the library (Type dropdown)
   const [libRefresh, setLibRefresh] = useState(0);
+  const [queueRefresh, setQueueRefresh] = useState(0);  // inc 219: bump to reload the Queue tab after add/remove
   const pendingSelectTopRef = useRef(false);  // inc-140: a view-change (e.g. the flagged chip) wants the next loaded list's top paper selected
   const [tagRefresh, setTagRefresh] = useState(0);  // inc-96: bump to refetch the sidebar Tags browser (tag add/remove)
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
@@ -477,8 +478,8 @@ function App() {
     conn, selectedPaper: selected, onSelectPaper: setSelected, onOpenPaper: openPdf,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
-    onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1),
-    pendingSummarize, axisRefresh, tagRefresh, hideUncertainDefault, axisCutoffDefault,
+    onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1), onQueueChanged: () => setQueueRefresh(n => n + 1),
+    pendingSummarize, axisRefresh, tagRefresh, queueRefresh, hideUncertainDefault, axisCutoffDefault,
     methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,

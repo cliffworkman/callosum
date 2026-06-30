@@ -42,6 +42,7 @@ from app.backend.api.routers import (
     my_publications,
     paper_files,
     papers,
+    reading_queue,
     saved_searches,
     settings,
     summaries,
@@ -213,6 +214,7 @@ def create_app(
     api.include_router(annotations.router)
     api.include_router(tags.router)
     api.include_router(saved_searches.router)
+    api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
     api.include_router(axes.router)
     api.include_router(summaries.router)

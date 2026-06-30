@@ -357,12 +357,13 @@ function AddFieldRow({ onSave }) {
   );
 }
 
-function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
+function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
   const [resolving, setResolving] = useState(false);
   const [filling, setFilling] = useState(false);
+  const [queuing, setQueuing] = useState(false);
   const [idOpen, setIdOpen] = useState(true);
   const [moreOpen, setMoreOpen] = useState(true);
 
@@ -427,6 +428,21 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
     }
   }, [paperId]);
 
+  // inc 219: add this paper to the reading Queue (the left-pane "Queue" tab). Idempotent server-side.
+  const addToQueue = useCallback(async () => {
+    if (paperId == null) return;
+    setNote(null);
+    setQueuing(true);
+    const r = await apiPost("/reading-queue", { paper_id: paperId });
+    setQueuing(false);
+    if (r.ok && r.data) {
+      setNote({ kind: "ok", text: r.data.added ? "Added to your reading queue." : "Already in your reading queue." });
+      if (onQueueChanged) onQueueChanged();
+    } else {
+      setNote({ kind: "err", text: r.error || "Couldn't add to the queue." });
+    }
+  }, [paperId, onQueueChanged]);
+
   const onAcquired = useCallback(() => {
     if (paperId == null) return;
     api(`/papers/${paperId}`).then((r) => { if (r.ok) setState({ status: "ready", paper: r.data }); });
@@ -472,6 +488,9 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
         <button className="btn-link detail-fill" onClick={fillMetadata} disabled={filling}
           title="Fetch any MISSING fields (DOI, abstract, venue…) from Crossref/OpenAlex — fills only blanks, never overwrites what you typed">
           {filling ? "Filling…" : "Fill missing fields"}</button>
+        <button className="btn-link detail-queue" onClick={addToQueue} disabled={queuing}
+          title="Add this paper to your reading Queue (the Queue tab in the left pane)">
+          {queuing ? "Adding…" : "+ Reading queue"}</button>
       </div>
 
       <EditableText variant="title" value={p.title} placeholder="Add title" onSave={(t) => saveField("title", t)} />

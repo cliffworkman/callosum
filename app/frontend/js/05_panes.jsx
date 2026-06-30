@@ -38,7 +38,7 @@ registerPaneSection({
   id: "details", label: "Details", paneId: "methods", order: 10,
   render: (ctx) => ctx.selectedPaper != null
     ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper}
-        onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} />
+        onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} onQueueChanged={ctx.onQueueChanged} />
     : <div className="axis-hint">Select a paper to see its details.</div>,
 });
 

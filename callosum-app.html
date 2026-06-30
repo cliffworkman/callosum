@@ -588,6 +588,24 @@
   .axis-member-drag { cursor: grab; }
   .axis-member-drag.dragover { box-shadow: inset 0 2px 0 var(--accent); }  /* a top accent line = "drop here" */
   .axis-curated-hint { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
+  /* inc 219: the Reading Queue tab — a drag-to-reorder to-read list (reuses .axis-grip + the inc-206 drop-invite). */
+  .queue-pane { padding: 2px 0 6px; border: 1px solid transparent; border-radius: var(--radius-sm); }
+  .queue-pane.queue-drop { background: var(--accent-soft); border: 1px dashed var(--accent); }  /* drag a card here */
+  .queue-head { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
+  .queue-row { display: flex; align-items: center; gap: 4px; padding: 4px 6px; border-radius: var(--radius-sm); cursor: grab; }
+  .queue-row:hover { background: var(--panel-2); }
+  .queue-row.sel { background: var(--accent-soft); }
+  .queue-row.dragover { box-shadow: inset 0 2px 0 var(--accent); }  /* a top accent line = "drop here" (inc 212 recipe) */
+  .queue-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+    background: none; border: none; padding: 0; cursor: pointer; text-align: left; }
+  .queue-title { font-size: 12.5px; color: var(--ink); line-height: 1.3; max-width: 100%; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+  .queue-meta { font-size: 10.5px; color: var(--ink-3); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .queue-done, .queue-x { flex: none; background: none; border: none; color: var(--ink-3); cursor: pointer;
+    font-size: 13px; line-height: 1; padding: 0 3px; border-radius: var(--radius-sm); }
+  .queue-done:hover { color: var(--verified); }
+  .queue-x:hover { color: var(--danger); }
+  .detail-queue { font-size: 11.5px; white-space: nowrap; }  /* the Details "+ Reading queue" button (inc 219) */
 
   /* axis re-score row + cutoff flipper (inc 45) */
   /* inc 86: nowrap row — the cutoff slider shrinks to keep label · slider · Re-score · 👁 on one line. */
@@ -2017,7 +2035,8 @@
         paperId: ctx.selectedPaper,
         onOpenPaper: ctx.onOpenPaper,
         onFilterToTag: ctx.onFilterToTag,
-        onTagsChanged: ctx.onTagsChanged
+        onTagsChanged: ctx.onTagsChanged,
+        onQueueChanged: ctx.onQueueChanged
       }
     ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
   });
@@ -3834,6 +3853,146 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: addCustom }, "add")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Resulting description (editable):"), /* @__PURE__ */ React.createElement("textarea", { className: "axis-input axis-textarea merge-preview", value: finalDesc, onChange: (e) => setDescEdited(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Manual paper assignments from all merged axes are combined; the merged axis re-scores automatically."), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, error), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: applying || !label.trim(), onClick: apply }, applying ? "Merging\u2026" : "Merge axes"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: applying, onClick: onClose }, "cancel"))));
   }
+  const QUEUE_ITEM_MIME = "application/x-callosum-queueitem";
+  const PAPER_CARD_MIME = "application/x-callosum-paper";
+  function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, onQueueChanged }) {
+    const [items, setItems] = useState([]);
+    const [cardOver, setCardOver] = useState(false);
+    const [rowOver, setRowOver] = useState(null);
+    const [notice, setNotice] = useState(null);
+    const load = useCallback(() => {
+      api("/reading-queue").then((r) => {
+        if (r.ok) setItems(r.data || []);
+      });
+    }, []);
+    useEffect(() => {
+      load();
+    }, [load, queueRefresh]);
+    const changed = useCallback(() => {
+      load();
+      if (onQueueChanged) onQueueChanged();
+    }, [load, onQueueChanged]);
+    const remove = useCallback((id, doneMsg) => {
+      apiDelete("/reading-queue/" + id).then((r) => {
+        if (!r.ok) {
+          setNotice(r.error);
+          return;
+        }
+        setNotice(doneMsg);
+        changed();
+      });
+    }, [changed]);
+    const addPaper = useCallback((pid) => {
+      apiPost("/reading-queue", { paper_id: pid }).then((r) => {
+        if (!r.ok) {
+          setNotice(r.error);
+          return;
+        }
+        setNotice(r.data && r.data.added ? "Added to the queue" : "Already in the queue");
+        changed();
+      });
+    }, [changed]);
+    const reorderToIndex = useCallback((draggedId, targetId) => {
+      if (draggedId === targetId) return;
+      const order = items.map((it) => it.id);
+      const from = order.indexOf(draggedId);
+      if (from < 0) return;
+      order.splice(from, 1);
+      const to = order.indexOf(targetId);
+      order.splice(to < 0 ? order.length : to, 0, draggedId);
+      apiPut("/reading-queue/order", { paper_ids: order }).then((r) => {
+        if (!r.ok) setNotice(r.error);
+        load();
+      });
+    }, [items, load]);
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "queue-pane" + (cardOver ? " queue-drop" : ""),
+        onDragOver: (e) => {
+          if (e.dataTransfer.types.includes(PAPER_CARD_MIME)) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setCardOver(true);
+          }
+        },
+        onDragLeave: (e) => {
+          if (e.currentTarget === e.target) setCardOver(false);
+        },
+        onDrop: (e) => {
+          if (!e.dataTransfer.types.includes(PAPER_CARD_MIME)) return;
+          e.preventDefault();
+          setCardOver(false);
+          const pid = parseInt(e.dataTransfer.getData(PAPER_CARD_MIME), 10);
+          if (pid) addPaper(pid);
+        }
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "queue-head" }, items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"} \xB7 drag to reorder` : "Reading queue"),
+      notice && /* @__PURE__ */ React.createElement("div", { className: "axis-err", onClick: () => setNotice(null) }, notice),
+      items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Your reading queue is empty \u2014 drag a paper here, or use ", /* @__PURE__ */ React.createElement("b", null, "+ Reading queue"), " in a paper's details.") : items.map((it) => /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          key: it.id,
+          className: "queue-row" + (selectedPaper === it.id ? " sel" : "") + (rowOver === it.id ? " dragover" : ""),
+          draggable: true,
+          onDragStart: (e) => {
+            e.dataTransfer.setData(QUEUE_ITEM_MIME, String(it.id));
+            e.dataTransfer.effectAllowed = "move";
+          },
+          onDragOver: (e) => {
+            if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setRowOver(it.id);
+            }
+          },
+          onDragLeave: () => setRowOver((o) => o === it.id ? null : o),
+          onDrop: (e) => {
+            if (!e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) return;
+            e.preventDefault();
+            e.stopPropagation();
+            setRowOver(null);
+            const dragged = parseInt(e.dataTransfer.getData(QUEUE_ITEM_MIME), 10);
+            if (dragged) reorderToIndex(dragged, it.id);
+          }
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"),
+        /* @__PURE__ */ React.createElement(
+          "button",
+          {
+            className: "queue-open",
+            title: "Open this paper",
+            onClick: () => {
+              if (onOpenPaper) onOpenPaper({ id: it.id, title: it.title });
+              if (onSelectPaper) onSelectPaper(it.id);
+            }
+          },
+          /* @__PURE__ */ React.createElement("span", { className: "queue-title" }, it.title),
+          /* @__PURE__ */ React.createElement("span", { className: "queue-meta" }, [(it.authors || []).slice(0, 2).join(", "), it.year].filter(Boolean).join(" \xB7 "))
+        ),
+        /* @__PURE__ */ React.createElement("button", { className: "queue-done", title: "Mark as read \u2014 removes it from the queue", onClick: () => remove(it.id, "Marked done") }, "\u2713"),
+        /* @__PURE__ */ React.createElement("button", { className: "queue-x", title: "Remove from the queue", onClick: () => remove(it.id, "Removed") }, "\xD7")
+      ))
+    );
+  }
+  registerPaneTab(
+    { id: "axes", label: "Axes", paneId: "theory", order: 10 },
+    {
+      id: "queue-tab",
+      label: "Queue",
+      order: 30,
+      render: (ctx) => /* @__PURE__ */ React.createElement(
+        QueuePanel,
+        {
+          onOpenPaper: ctx.onOpenPaper,
+          onSelectPaper: ctx.onSelectPaper,
+          selectedPaper: ctx.selectedPaper,
+          queueRefresh: ctx.queueRefresh,
+          onQueueChanged: ctx.onQueueChanged
+        }
+      )
+    }
+  );
   function SuggestCard({ suggestion, onCreated }) {
     const [label, setLabel] = useState(suggestion.label);
     const [terms, setTerms] = useState(() => (suggestion.terms || []).map((t) => ({ term: t, selected: true })));
@@ -4662,12 +4821,13 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy || !name.trim() || !value.trim(), onClick: add }, "+ add"));
   }
-  function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged }) {
+  function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged }) {
     const [state, setState] = useState({ status: "idle" });
     const [savingField, setSavingField] = useState(null);
     const [note, setNote] = useState(null);
     const [resolving, setResolving] = useState(false);
     const [filling, setFilling] = useState(false);
+    const [queuing, setQueuing] = useState(false);
     const [idOpen, setIdOpen] = useState(true);
     const [moreOpen, setMoreOpen] = useState(true);
     useEffect(() => {
@@ -4724,6 +4884,19 @@
         setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
       }
     }, [paperId]);
+    const addToQueue = useCallback(async () => {
+      if (paperId == null) return;
+      setNote(null);
+      setQueuing(true);
+      const r = await apiPost("/reading-queue", { paper_id: paperId });
+      setQueuing(false);
+      if (r.ok && r.data) {
+        setNote({ kind: "ok", text: r.data.added ? "Added to your reading queue." : "Already in your reading queue." });
+        if (onQueueChanged) onQueueChanged();
+      } else {
+        setNote({ kind: "err", text: r.error || "Couldn't add to the queue." });
+      }
+    }, [paperId, onQueueChanged]);
     const onAcquired = useCallback(() => {
       if (paperId == null) return;
       api(`/papers/${paperId}`).then((r) => {
@@ -4763,6 +4936,15 @@
         title: "Fetch any MISSING fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 fills only blanks, never overwrites what you typed"
       },
       filling ? "Filling\u2026" : "Fill missing fields"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link detail-queue",
+        onClick: addToQueue,
+        disabled: queuing,
+        title: "Add this paper to your reading Queue (the Queue tab in the left pane)"
+      },
+      queuing ? "Adding\u2026" : "+ Reading queue"
     )), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), note && /* @__PURE__ */ React.createElement("div", { className: "detail-note detail-note-" + note.kind }, note.text), needsMetadata(p) && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 12px" } }, /* @__PURE__ */ React.createElement("b", null, "Metadata not yet resolved."), " This paper came from a raw PDF. Add its DOI under Identifiers and click \u{1F50E} to fetch a bibliographic record from Crossref."), /* @__PURE__ */ React.createElement(
       EditableText,
       {
@@ -7582,6 +7764,7 @@
     const [libraryItemType, setLibraryItemType] = useState("");
     const [itemTypes, setItemTypes] = useState([]);
     const [libRefresh, setLibRefresh] = useState(0);
+    const [queueRefresh, setQueueRefresh] = useState(0);
     const pendingSelectTopRef = useRef(false);
     const [tagRefresh, setTagRefresh] = useState(0);
     const [duplicatesOpen, setDuplicatesOpen] = useState(false);
@@ -8030,9 +8213,11 @@
       onEnterFocus: enterFocus,
       onOpenMyPubsDashboard: openMyPubsDashboard,
       onTagsChanged: () => setTagRefresh((n) => n + 1),
+      onQueueChanged: () => setQueueRefresh((n) => n + 1),
       pendingSummarize,
       axisRefresh,
       tagRefresh,
+      queueRefresh,
       hideUncertainDefault,
       axisCutoffDefault,
       methodsOpen,

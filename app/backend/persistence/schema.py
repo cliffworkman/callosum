@@ -181,6 +181,19 @@ saved_searches = Table(
     UniqueConstraint("name", name="uq_saved_searches_name"),
 )
 
+# Reading queue (inc 219): a personal, ordered to-read list — papers the user wants to read, drag-to-reorder. NOT an
+# axis (no semantic scoring) — its own small table + its own left-pane "Queue" tab. One row per paper (UNIQUE);
+# `position` drives the manual order (the inc-211 curated-axis pattern); CASCADE drops a row when its paper is purged.
+reading_queue = Table(
+    "reading_queue",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("paper_id", Integer, ForeignKey("papers.id", ondelete="CASCADE"), nullable=False),
+    Column("position", Integer),
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("paper_id", name="uq_reading_queue_paper"),
+)
+
 notes = Table(
     "notes",
     metadata,
