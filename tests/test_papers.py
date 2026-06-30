@@ -1125,3 +1125,22 @@ def test_paper_priority_marker(temp_db_url: str) -> None:
     # clear via null
     assert client.post(f"/papers/{hi}/priority", json={"priority": None}).json()["priority"] is None
     assert client.get("/papers", params={"priority": "high"}).json() == []
+
+
+def test_priority_sort_recency_tiebreak_within_tier(temp_db_url: str) -> None:
+    # inc 223: within each priority tier (especially the unset bucket) "By priority" falls back to recency
+    # (most-recently-added first = id DESC), so a large unset tier isn't one undifferentiated oldest-first block.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        un_old = create_paper(conn, title="Unset old", csl_json={"title": "Unset old"})
+        hi_old = create_paper(conn, title="High old", csl_json={"title": "High old"})
+        un_new = create_paper(conn, title="Unset new", csl_json={"title": "Unset new"})
+        hi_new = create_paper(conn, title="High new", csl_json={"title": "High new"})
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.post(f"/papers/{hi_old}/priority", json={"priority": "high"}).status_code == 200
+    assert client.post(f"/papers/{hi_new}/priority", json={"priority": "high"}).status_code == 200
+
+    ordered = [p["id"] for p in client.get("/papers", params={"sort": "priority"}).json()]
+    # high tier first (newest-added first within it), then the unset tier (newest-added first within it).
+    assert ordered == [hi_new, hi_old, un_new, un_old]

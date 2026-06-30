@@ -77,8 +77,8 @@ inc 80). Likely **one increment**: a tiny migration adding per-paper state + a l
   (inc 221, after the `40_app.jsx`→`useLibrary` split that freed the headroom). User labels, never an AI score (the
   inc-207 declined-ratings logic). **This completes Bella's reading-workflow thread** (queue 219 + markers 220 +
   facet 221).
-  *(Minor, low-urgency, OPEN: at large scale "By priority" collapses all unset papers into one bucket — a secondary
-  order [e.g. recency] within the unset tier would help. Experience-pass finding #4.)*
+  *(Experience-pass finding #4 — ✅ **SHIPPED inc 223**: "By priority" now tiebreaks within each tier on recency
+  [`papers.id DESC`], so the large unset tier isn't one oldest-first block.)*
 *(Eileen's multi-pass metadata enrichment — the other half of that thread — shipped inc 217/218.)*
 
 **SQLite read-then-write upgrade-deadlock — app-wide concurrency hardening** *(surfaced by the inc-219 headed

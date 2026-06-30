@@ -103,8 +103,10 @@ def _paper_sort_order(sort: str) -> list:
         # default (no silent rank, Principles #2/#7). Papers without a fetched count sort last.
         "citations_desc": [_cited_by_subquery().is_(None), _cited_by_subquery().desc()],
         # By priority (inc 220): an EXPLICIT, user-chosen sort — high → normal → low → unset. The user's own
-        # triage order, never the default and never an AI rank.
-        "priority": [_PRIORITY_RANK.asc()],
+        # triage order, never the default and never an AI rank. Within each tier (esp. the unset bucket) fall back
+        # to recency (id DESC, the same proxy "recent" uses) so a large unset tier isn't one oldest-first block
+        # (inc 223 — experience-pass finding #4); the global id ASC tail at :113 stays as the pagination tiebreak.
+        "priority": [_PRIORITY_RANK.asc(), papers.c.id.desc()],
         # Unread first (inc 220, experience-pass): the cap-free interim for "come back to what's unread" until the
         # header filter facet lands. read_at IS NULL (unread) sorts before read; a user-chosen order, never default.
         "unread": [papers.c.read_at.is_not(None)],

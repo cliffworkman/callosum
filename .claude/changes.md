@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Increment 223: "By priority" sort gains a within-tier recency tiebreak (backlog close-out, finding #4)
+- **Files:** `app/backend/persistence/repository.py` (`:107`, one-line ORDER-BY append), `tests/test_papers.py` (+`test_priority_sort_recency_tiebreak_within_tier`), CLAUDE, `INCREMENT-223-NOTES.md`, `INCREMENT-BACKLOG.md`.
+- **What:** the `"priority"` sort now tiebreaks within each tier on `papers.id DESC` (recency), so the large **unset** tier isn't one undifferentiated oldest-imported-first block. `[_PRIORITY_RANK.asc(), papers.c.id.desc()]`.
+- **Why:** experience-pass finding #4 (inc 220) — wrap up the reading-markers thread's last loose end.
+- **Verify:** `GET /papers?sort=priority` → `[high-new, high-old, unset-new, unset-old]`. pytest **786** (+1); ruff clean; QA surface unchanged. Backend-only; no migration/egress/audit/Principles trigger.
+- **Revert:** `git revert <sha>` (one-line sort change).
+
 ## 2026-06-30 — Increment 222: split 15_axes.jsx (axis-card subsystem → 15b_axis_card.jsx) — clears the last over-cap file
 - **Files:** `app/frontend/js/15b_axis_card.jsx` (new, 224), `app/frontend/js/15_axes.jsx` (614→**395**), `.claude/qa-routes/route_15_axes.md` (`fe:` += `15b_axis_card.jsx`), CLAUDE, `INCREMENT-222-NOTES.md`. (callosum-app.html rebuilt.)
 - **What:** a behavior-preserving rule-#1 split — moved the **axis-card rendering subsystem** verbatim out of `15_axes.jsx`: `AxisItem` (the one-axis card, 166 lines) + its presentational helpers (`axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/`_tierRank`) → `15b_axis_card.jsx`. `15_axes.jsx` keeps `MyPubsPrompt` + `AxesPanel` (state/loaders/handlers/sort-filter/modals) + `registerPaneTab`. Works via the cross-chunk function hoist in the shared esbuild IIFE (the inc-208 `10b_libmenus.jsx` precedent); cut by a deterministic line-range script with per-function boundary assertions.
