@@ -16,19 +16,27 @@ function AxisTierBadge({ status }) {
   return <span className={"axis-tier axis-tier-" + label}>{label}</span>;
 }
 
-function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar }) {
+function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated, onMoveUp, onMoveDown }) {
+  // A7 (inc 211): a curated row shows reorder arrows + title + remove — no tier/confidence (every member is a
+  // hand-pick by definition, so the "manual" badge would be noise). A keyword row keeps the honesty tier UI.
   return (
     <div className={"axis-paper" + (selected ? " sel" : "")}>
+      {curated &&
+        <span className="axis-reorder">
+          <button className="axis-icon-btn" title="Move up" disabled={!onMoveUp} onClick={() => onMoveUp && onMoveUp()}>↑</button>
+          <button className="axis-icon-btn" title="Move down" disabled={!onMoveDown} onClick={() => onMoveDown && onMoveDown()}>↓</button>
+        </span>}
       {onStar &&
         <button className={"axis-star" + (paper.starred ? " on" : "")}
           title={paper.starred ? "Starred — click to unstar" : "Star this key publication (scopes the AI summary)"}
           onClick={() => onStar(paper.id, !paper.starred)}>{paper.starred ? "★" : "☆"}</button>}
       <span className="axis-paper-title" onClick={() => onOpen(paper)} title={"Open " + paper.title}>{paper.title}</span>
-      <AxisTierBadge status={paper.status} />
-      <span className="axis-paper-conf" title={paper.manual ? "Manually added by you" : "Embedding-similarity confidence"}>
-        {axisConfidenceLabel(paper)}
-      </span>
-      {paper.status === "uncertain" &&
+      {!curated && <AxisTierBadge status={paper.status} />}
+      {!curated &&
+        <span className="axis-paper-conf" title={paper.manual ? "Manually added by you" : "Embedding-similarity confidence"}>
+          {axisConfidenceLabel(paper)}
+        </span>}
+      {!curated && paper.status === "uncertain" &&
         <button className="axis-confirm" title="Confirm — keep this paper on the axis (a manual override)" onClick={() => onConfirm(paper.id)}>✓</button>}
       <button className="axis-x" title="Remove from this axis" onClick={() => onRemove(paper.id)}>×</button>
     </div>
@@ -59,6 +67,7 @@ function MyPubsPrompt() {
 function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
   const scoring = job && job.status === "running";
   const isMyPubs = axis.kind === "my_publications";  // inc 78: the pinned own-papers axis (variant UI, no scoring)
+  const isCurated = axis.kind === "curated";  // A7 (inc 211): hand-populated + hand-ordered (no scoring UI; drag-droppable)
   // inc-105: an unscored axis's flipper starts at the Settings default cutoff; a stored per-axis gain still wins.
   const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
   // B′: eye toggle — show assigned/manual only. Starts from the Settings default (re-keyed on change → remount).
@@ -87,6 +96,16 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
     setCollapsedDomains(s => { const n = new Set(s); if (n.has(label)) n.delete(label); else n.add(label); return n; });
   // inc 118 (SP2 #16/#17): filter + sort (starred-first for My-Pubs), then group My-Pubs rows by domain ("Other" last).
   const renderPapers = (allPapers) => {
+    if (isCurated) {
+      // A7: render in the server's manual (position) order — with per-row ↑/↓ reorder (SP2 swaps for drag).
+      return allPapers.map((p, i) => (
+        <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id} curated
+          onOpen={handlers.openPaper}
+          onRemove={(pid) => handlers.removePaper(axis.id, pid)}
+          onMoveUp={i > 0 ? () => handlers.reorderPaper(axis.id, p.id, -1) : undefined}
+          onMoveDown={i < allPapers.length - 1 ? () => handlers.reorderPaper(axis.id, p.id, 1) : undefined} />
+      ));
+    }
     const sorted = [...allPapers]
       .filter(p => !hideUncertain || p.status !== "uncertain")
       .sort((a, b) =>
@@ -130,21 +149,29 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
               onClick={e => e.stopPropagation()}
               onChange={() => handlers.toggleSelect(axis.id)}
             />}
-          <span className="axis-label">{isMyPubs ? "📄 " + axis.label : axis.label}</span>
+          <span className="axis-label">{isMyPubs ? "📄 " + axis.label : isCurated ? "📌 " + axis.label : axis.label}</span>
           <span className="axis-card-actions">
             {!isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
             {!isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
+            {!isMyPubs && !isCurated &&
+              <button className="axis-icon-btn" title="Freeze to a curated set — snapshot the current members + unlock manual ordering"
+                onClick={stop(() => handlers.freeze(axis.id))}>❄</button>}
+            {isCurated &&
+              <button className="axis-icon-btn" title="Convert to a keyword axis — needs search terms and replaces your manual order with fit order; members are kept"
+                onClick={stop(() => handlers.convertToKeyword(axis.id))}>↩</button>}
             {isMyPubs && <button className="axis-icon-btn" title="Open the impact dashboard" onClick={stop(() => handlers.openMyPubsDashboard(axis))}>📊</button>}
             <button className="axis-icon-btn axis-icon-danger"
               title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
               onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>
             <button
-              className={"axis-count-badge" + (isMyPubs ? " is-scored" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
+              className={"axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
               title={isMyPubs
                 ? `Show your ${axis.assignment_count || 0} papers in the library`
-                : (hideUncertain && (axis.uncertain_count || 0) > 0
-                    ? `${badgeCount} assigned · ${axis.uncertain_count} uncertain hidden — click to show this axis in the library`
-                    : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet"))}
+                : isCurated
+                  ? `Show these ${axis.assignment_count || 0} hand-picked papers in the library`
+                  : (hideUncertain && (axis.uncertain_count || 0) > 0
+                      ? `${badgeCount} assigned · ${axis.uncertain_count} uncertain hidden — click to show this axis in the library`
+                      : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? (axis.stale ? " · edited since scoring" : " · scored & up to date") : " · not scored yet"))}
               onClick={stop(() => handlers.filterToAxis(axis, hideUncertain))}
             >{badgeCount}</button>
           </span>
@@ -153,7 +180,9 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
 
       {expanded &&
         <div className="axis-body">
-          {!isMyPubs &&
+          {isCurated &&
+            <div className="axis-curated-hint">Hand-picked set — drag papers from the library onto this card to add them; reorder with ↑/↓.</div>}
+          {!isMyPubs && !isCurated &&
             <div className="axis-rescore-row">
               <span className="axis-rescore-label">Re-score:</span>
               <AxisCutoffFlipper value={cutoff} onChange={setCutoff} disabled={scoring} />
@@ -175,7 +204,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           {detail && detail.status === "error" && <div className="axis-err">Couldn't load assignments.</div>}
           {detail && detail.status === "ready" &&
             (detail.papers.length === 0
-              ? <div className="axis-hint">{isMyPubs ? "No publications matched yet — set your name/ORCID in Settings (⚙) and Refresh." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually."}</div>
+              ? <div className="axis-hint">{isMyPubs ? "No publications matched yet — set your name/ORCID in Settings (⚙) and Refresh." : isCurated ? "Empty — drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually."}</div>
               : <div className="axis-papers">
                   {renderPapers(detail.papers)}
                   {hideUncertain && uncertainCount > 0 &&
@@ -351,6 +380,52 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     });
   }, [axes, loadDetail, loadAxes, flash]);
 
+  // A7 (inc 211): ↑/↓ reorder a curated axis's members. Swap the paper with its neighbor in the current
+  // (server position) order and PUT the full id list; the endpoint reuses this for SP2's drag-reorder.
+  const reorderPaper = useCallback((axisId, paperId, dir) => {
+    const cur = (details[axisId] && details[axisId].papers) || [];
+    const order = cur.map(p => p.id);
+    const i = order.indexOf(paperId);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    apiPut(`/axes/${axisId}/order`, { paper_ids: order }).then(r => {
+      if (!r.ok) { flash(r.error); return; }
+      loadDetail(axisId);
+    });
+  }, [details, loadDetail, flash]);
+
+  // A7: "freeze" a keyword axis to a curated set — snapshot the shown members (uncertain dropped) → manual+ordered.
+  const freeze = useCallback((axisId) => {
+    if (!window.confirm("Freeze this axis to a curated set? It snapshots the current members (uncertain ones are dropped) and unlocks manual ordering — you can convert it back later.")) return;
+    apiPatch(`/axes/${axisId}`, { kind: "curated" }).then(r => {
+      if (!r.ok) { flash(r.error); return; }
+      loadAxes();
+      if (expanded === axisId) loadDetail(axisId);
+    });
+  }, [loadAxes, loadDetail, flash, expanded]);
+
+  // A7: convert a curated axis back to a keyword axis (warned — members kept, manual order lost, axis goes stale).
+  const convertToKeyword = useCallback((axisId) => {
+    if (!window.confirm("Convert to a keyword axis? It needs search terms and replaces your manual order with fit order — your members are kept. Re-score afterwards to populate it.")) return;
+    apiPatch(`/axes/${axisId}`, { kind: "standard" }).then(r => {
+      if (!r.ok) { flash(r.error); return; }
+      loadAxes();
+      if (expanded === axisId) loadDetail(axisId);
+    });
+  }, [loadAxes, loadDetail, flash, expanded]);
+
+  // A7: create an empty curated axis by name (you then drag papers onto it). No terms/scoring — label only.
+  const createCurated = useCallback(() => {
+    const name = window.prompt("Name this curated axis (then drag papers from the library onto it):");
+    if (!name || !name.trim()) return;
+    apiPost("/axes", { label: name.trim(), kind: "curated" }).then(r => {
+      if (!r.ok) { flash(r.error); return; }
+      loadAxes();
+      if (r.data && r.data.id) { setExpanded(r.data.id); loadDetail(r.data.id); }
+    });
+  }, [loadAxes, loadDetail, flash]);
+
   // 🗑 on the My Publications card dismisses it (keeps the profile + decisions); Refresh rebuilds it.
   const dismissMyPubs = useCallback(() => {
     if (!window.confirm("Dismiss the My Publications card? Your profile and confirm/reject choices are kept — Refresh in Settings rebuilds it.")) return;
@@ -406,6 +481,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
   const handlers = {
     toggle, score, remove, removePaper, confirmPaper, dropPaper, dismissMyPubs, enterFocus, filterToAxis,
     openMyPubsDashboard, starPaper, toggleSelect, openEdit, openPaper,
+    reorderPaper, freeze, convertToKeyword,  // A7 (inc 211): curated-axis reorder + freeze/revert switch
   };
 
   // Sorted copy for display (small list — no memo needed). Selection/merge act on real ids, not order.
@@ -436,7 +512,8 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
             <option value="recent">newest</option>
           </select>}
         <button className="axis-suggest" title="Suggest axes from your library" onClick={() => setSuggesting(true)}>✨</button>
-        <button className="axis-new" title={quickName != null ? "Cancel" : "New axis"} onClick={() => { setQuickName(q => q == null ? "" : null); setNotice(null); }}>{quickName != null ? "×" : "+"}</button>
+        <button className="axis-new" title="New curated axis (hand-picked, hand-ordered)" onClick={createCurated}>📌</button>
+        <button className="axis-new" title={quickName != null ? "Cancel" : "New keyword axis"} onClick={() => { setQuickName(q => q == null ? "" : null); setNotice(null); }}>{quickName != null ? "×" : "+"}</button>
       </div>
 
       {quickName != null &&

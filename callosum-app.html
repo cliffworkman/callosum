@@ -574,6 +574,13 @@
   .axis-count-badge:hover { outline: 2px solid var(--accent-soft); outline-offset: 1px; }   /* click → filter library to this axis */
   .axis-count-badge.is-scored { background: var(--verified); color: var(--on-fill); }
   .axis-count-badge.is-stale { background: var(--flag); color: var(--on-fill); }
+  /* A7 (inc 211): a curated axis has no scoring state — a quiet accent tint (a deliberate hand-built set),
+     distinct from the neutral unscored grey and the green scored / amber stale. */
+  .axis-count-badge.is-curated { background: var(--accent-soft); color: var(--accent); }
+  /* A7: per-row ↑/↓ reorder on a curated axis (compact; reuses .axis-icon-btn). */
+  .axis-reorder { display: inline-flex; gap: 0; flex: none; margin-right: 2px; }
+  .axis-reorder .axis-icon-btn { font-size: 11px; padding: 0 2px; line-height: 1; }
+  .axis-curated-hint { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
 
   /* axis re-score row + cutoff flipper (inc 45) */
   /* inc 86: nowrap row — the cutoff slider shrinks to keep label · slider · Re-score · 👁 on one line. */
@@ -3103,8 +3110,8 @@
     const label = status === "uncertain" ? "uncertain" : "manual";
     return /* @__PURE__ */ React.createElement("span", { className: "axis-tier axis-tier-" + label }, label);
   }
-  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, onStar && /* @__PURE__ */ React.createElement(
+  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated, onMoveUp, onMoveDown }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && /* @__PURE__ */ React.createElement("span", { className: "axis-reorder" }, /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Move up", disabled: !onMoveUp, onClick: () => onMoveUp && onMoveUp() }, "\u2191"), /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Move down", disabled: !onMoveDown, onClick: () => onMoveDown && onMoveDown() }, "\u2193")), onStar && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-star" + (paper.starred ? " on" : ""),
@@ -3112,7 +3119,7 @@
         onClick: () => onStar(paper.id, !paper.starred)
       },
       paper.starred ? "\u2605" : "\u2606"
-    ), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-title", onClick: () => onOpen(paper), title: "Open " + paper.title }, paper.title), /* @__PURE__ */ React.createElement(AxisTierBadge, { status: paper.status }), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-conf", title: paper.manual ? "Manually added by you" : "Embedding-similarity confidence" }, axisConfidenceLabel(paper)), paper.status === "uncertain" && /* @__PURE__ */ React.createElement("button", { className: "axis-confirm", title: "Confirm \u2014 keep this paper on the axis (a manual override)", onClick: () => onConfirm(paper.id) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "axis-x", title: "Remove from this axis", onClick: () => onRemove(paper.id) }, "\xD7"));
+    ), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-title", onClick: () => onOpen(paper), title: "Open " + paper.title }, paper.title), !curated && /* @__PURE__ */ React.createElement(AxisTierBadge, { status: paper.status }), !curated && /* @__PURE__ */ React.createElement("span", { className: "axis-paper-conf", title: paper.manual ? "Manually added by you" : "Embedding-similarity confidence" }, axisConfidenceLabel(paper)), !curated && paper.status === "uncertain" && /* @__PURE__ */ React.createElement("button", { className: "axis-confirm", title: "Confirm \u2014 keep this paper on the axis (a manual override)", onClick: () => onConfirm(paper.id) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "axis-x", title: "Remove from this axis", onClick: () => onRemove(paper.id) }, "\xD7"));
   }
   function AxisCutoffFlipper({ value, onChange, disabled }) {
     return /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff", title: "Assigned = similarity at or above this cutoff (lower includes more)" }, /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-name" }, "Cutoff"), /* @__PURE__ */ React.createElement(
@@ -3135,6 +3142,7 @@
   function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
     const scoring = job && job.status === "running";
     const isMyPubs = axis.kind === "my_publications";
+    const isCurated = axis.kind === "curated";
     const [cutoff, setCutoff] = useState(axis.scoring_gain != null ? axis.scoring_gain : axisCutoffDefault);
     const [hideUncertain, setHideUncertain] = useState(!!hideUncertainDefault);
     const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
@@ -3167,6 +3175,21 @@
       return n;
     });
     const renderPapers = (allPapers) => {
+      if (isCurated) {
+        return allPapers.map((p, i) => /* @__PURE__ */ React.createElement(
+          AxisPaperRow,
+          {
+            key: p.id,
+            paper: p,
+            selected: selectedPaper === p.id,
+            curated: true,
+            onOpen: handlers.openPaper,
+            onRemove: (pid) => handlers.removePaper(axis.id, pid),
+            onMoveUp: i > 0 ? () => handlers.reorderPaper(axis.id, p.id, -1) : void 0,
+            onMoveDown: i < allPapers.length - 1 ? () => handlers.reorderPaper(axis.id, p.id, 1) : void 0
+          }
+        ));
+      }
       const sorted = [...allPapers].filter((p) => !hideUncertain || p.status !== "uncertain").sort((a, b) => (isMyPubs ? (b.starred ? 1 : 0) - (a.starred ? 1 : 0) : 0) || _tierRank(a) - _tierRank(b) || (b.confidence || 0) - (a.confidence || 0));
       if (!(isMyPubs && sorted.some((p) => p.domain))) return sorted.map(renderRow);
       const groupsMap = /* @__PURE__ */ new Map();
@@ -3212,7 +3235,23 @@
           onClick: (e) => e.stopPropagation(),
           onChange: () => handlers.toggleSelect(axis.id)
         }
-      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-icon-btn",
+          title: "Freeze to a curated set \u2014 snapshot the current members + unlock manual ordering",
+          onClick: stop(() => handlers.freeze(axis.id))
+        },
+        "\u2744"
+      ), isCurated && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "axis-icon-btn",
+          title: "Convert to a keyword axis \u2014 needs search terms and replaces your manual order with fit order; members are kept",
+          onClick: stop(() => handlers.convertToKeyword(axis.id))
+        },
+        "\u21A9"
+      ), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn axis-icon-danger",
@@ -3223,13 +3262,13 @@
       ), /* @__PURE__ */ React.createElement(
         "button",
         {
-          className: "axis-count-badge" + (isMyPubs ? " is-scored" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
-          title: isMyPubs ? `Show your ${axis.assignment_count || 0} papers in the library` : hideUncertain && (axis.uncertain_count || 0) > 0 ? `${badgeCount} assigned \xB7 ${axis.uncertain_count} uncertain hidden \u2014 click to show this axis in the library` : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? axis.stale ? " \xB7 edited since scoring" : " \xB7 scored & up to date" : " \xB7 not scored yet"),
+          className: "axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? axis.stale ? " is-stale" : " is-scored" : ""),
+          title: isMyPubs ? `Show your ${axis.assignment_count || 0} papers in the library` : isCurated ? `Show these ${axis.assignment_count || 0} hand-picked papers in the library` : hideUncertain && (axis.uncertain_count || 0) > 0 ? `${badgeCount} assigned \xB7 ${axis.uncertain_count} uncertain hidden \u2014 click to show this axis in the library` : `Show these ${axis.assignment_count || 0} papers in the library` + (axis.scored ? axis.stale ? " \xB7 edited since scoring" : " \xB7 scored & up to date" : " \xB7 not scored yet"),
           onClick: stop(() => handlers.filterToAxis(axis, hideUncertain))
         },
         badgeCount
       )))
-    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, !isMyPubs && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
+    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-curated-hint" }, "Hand-picked set \u2014 drag papers from the library onto this card to add them; reorder with \u2191/\u2193."), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-icon-btn axis-eye" + (hideUncertain ? " off" : ""),
@@ -3237,7 +3276,7 @@
         onClick: () => setHideUncertain((h) => !h)
       },
       "\u{1F441}"
-    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
+    )), isMyPubs && uncertainCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-hint" }, "Name-only matches are candidates \u2014 ", /* @__PURE__ */ React.createElement("b", null, "\u2713"), " confirm the ones that are yours, ", /* @__PURE__ */ React.createElement("b", null, "\u2715"), " reject the rest. (Confirmed papers match by DOI/ORCID.)"), scoring && /* @__PURE__ */ React.createElement(ProgressBar, { label: job.message || "Scoring the library\u2026" }), job && job.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Scoring failed: ", job.message), detail && detail.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading\u2026"), detail && detail.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't load assignments."), detail && detail.status === "ready" && (detail.papers.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, isMyPubs ? "No publications matched yet \u2014 set your name/ORCID in Settings (\u2699) and Refresh." : isCurated ? "Empty \u2014 drag papers from the library onto this card to add them." : axis.scored ? "No papers were close enough to this axis. Add one manually if the scorer missed it." : "Score this axis to assign papers, or add one manually.") : /* @__PURE__ */ React.createElement("div", { className: "axis-papers" }, renderPapers(detail.papers), hideUncertain && uncertainCount > 0 && /* @__PURE__ */ React.createElement("button", { className: "axis-eye-hint", onClick: () => setHideUncertain(false) }, uncertainCount, " uncertain hidden \u2014 show")))));
   }
   function _tierRank(p) {
     return p.status === "assigned" ? 0 : p.status === "uncertain" ? 1 : 2;
@@ -3398,6 +3437,58 @@
         loadAxes();
       });
     }, [axes, loadDetail, loadAxes, flash]);
+    const reorderPaper = useCallback((axisId, paperId, dir) => {
+      const cur = details[axisId] && details[axisId].papers || [];
+      const order = cur.map((p) => p.id);
+      const i = order.indexOf(paperId);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= order.length) return;
+      [order[i], order[j]] = [order[j], order[i]];
+      apiPut(`/axes/${axisId}/order`, { paper_ids: order }).then((r) => {
+        if (!r.ok) {
+          flash(r.error);
+          return;
+        }
+        loadDetail(axisId);
+      });
+    }, [details, loadDetail, flash]);
+    const freeze = useCallback((axisId) => {
+      if (!window.confirm("Freeze this axis to a curated set? It snapshots the current members (uncertain ones are dropped) and unlocks manual ordering \u2014 you can convert it back later.")) return;
+      apiPatch(`/axes/${axisId}`, { kind: "curated" }).then((r) => {
+        if (!r.ok) {
+          flash(r.error);
+          return;
+        }
+        loadAxes();
+        if (expanded === axisId) loadDetail(axisId);
+      });
+    }, [loadAxes, loadDetail, flash, expanded]);
+    const convertToKeyword = useCallback((axisId) => {
+      if (!window.confirm("Convert to a keyword axis? It needs search terms and replaces your manual order with fit order \u2014 your members are kept. Re-score afterwards to populate it.")) return;
+      apiPatch(`/axes/${axisId}`, { kind: "standard" }).then((r) => {
+        if (!r.ok) {
+          flash(r.error);
+          return;
+        }
+        loadAxes();
+        if (expanded === axisId) loadDetail(axisId);
+      });
+    }, [loadAxes, loadDetail, flash, expanded]);
+    const createCurated = useCallback(() => {
+      const name = window.prompt("Name this curated axis (then drag papers from the library onto it):");
+      if (!name || !name.trim()) return;
+      apiPost("/axes", { label: name.trim(), kind: "curated" }).then((r) => {
+        if (!r.ok) {
+          flash(r.error);
+          return;
+        }
+        loadAxes();
+        if (r.data && r.data.id) {
+          setExpanded(r.data.id);
+          loadDetail(r.data.id);
+        }
+      });
+    }, [loadAxes, loadDetail, flash]);
     const dismissMyPubs = useCallback(() => {
       if (!window.confirm("Dismiss the My Publications card? Your profile and confirm/reject choices are kept \u2014 Refresh in Settings rebuilds it.")) return;
       apiDelete("/my-publications").then((r) => {
@@ -3456,7 +3547,11 @@
       starPaper,
       toggleSelect,
       openEdit,
-      openPaper
+      openPaper,
+      reorderPaper,
+      freeze,
+      convertToKeyword
+      // A7 (inc 211): curated-axis reorder + freeze/revert switch
     };
     const sortedAxes = axes ? [...axes].sort((a, b) => {
       if (sortBy === "count") return (b.assignment_count || 0) - (a.assignment_count || 0) || a.label.localeCompare(b.label);
@@ -3466,7 +3561,7 @@
     const visibleAxes = sortedAxes && filter.trim() ? sortedAxes.filter((a) => ((a.label || "") + " " + (a.description || "")).toLowerCase().includes(filter.trim().toLowerCase())) : sortedAxes;
     const myPubsAxis = (axes || []).find((a) => a.kind === "my_publications") || null;
     const standardVisible = visibleAxes ? visibleAxes.filter((a) => a.kind !== "my_publications") : visibleAxes;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "most papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "newest")), /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New axis", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "most papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "newest")), /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: "New curated axis (hand-picked, hand-ordered)", onClick: createCurated }, "\u{1F4CC}"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New keyword axis", onClick: () => {
       setQuickName((q) => q == null ? "" : null);
       setNotice(null);
     } }, quickName != null ? "\xD7" : "+")), quickName != null && /* @__PURE__ */ React.createElement("div", { className: "axis-quickname" }, /* @__PURE__ */ React.createElement(

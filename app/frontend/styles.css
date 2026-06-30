@@ -550,6 +550,13 @@
   .axis-count-badge:hover { outline: 2px solid var(--accent-soft); outline-offset: 1px; }   /* click → filter library to this axis */
   .axis-count-badge.is-scored { background: var(--verified); color: var(--on-fill); }
   .axis-count-badge.is-stale { background: var(--flag); color: var(--on-fill); }
+  /* A7 (inc 211): a curated axis has no scoring state — a quiet accent tint (a deliberate hand-built set),
+     distinct from the neutral unscored grey and the green scored / amber stale. */
+  .axis-count-badge.is-curated { background: var(--accent-soft); color: var(--accent); }
+  /* A7: per-row ↑/↓ reorder on a curated axis (compact; reuses .axis-icon-btn). */
+  .axis-reorder { display: inline-flex; gap: 0; flex: none; margin-right: 2px; }
+  .axis-reorder .axis-icon-btn { font-size: 11px; padding: 0 2px; line-height: 1; }
+  .axis-curated-hint { font-size: 11px; color: var(--ink-3); padding: 2px 8px 6px; }
 
   /* axis re-score row + cutoff flipper (inc 45) */
   /* inc 86: nowrap row — the cutoff slider shrinks to keep label · slider · Re-score · 👁 on one line. */
