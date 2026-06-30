@@ -120,10 +120,19 @@ function fmtDateTime(value) {
 // prefers-reduced-motion (a static half-filled bar instead of the sweep).
 // inc-142: a determinate `progress` prop ({current,total,label}) renders a real fill + "label  X / N" so a long
 // import/scan answers "how far / is it stuck", not just "alive"; without it the bar stays the indeterminate pulse.
+// Compact ETA (inc 225): seconds → "45s" / "3m" / "2h". Hoisted in the shared IIFE so libmenus can reuse it.
+function _fmtEta(s) {
+  if (s == null || s < 0) return "";
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.round(s / 60)}m`;
+  return `${Math.round(s / 3600)}h`;
+}
+
 function ProgressBar({ label, progress }) {
   const det = progress && progress.total > 0;
   const pct = det ? Math.min(100, Math.round((progress.current / progress.total) * 100)) : null;
-  const text = det ? `${progress.label} — ${progress.current} / ${progress.total}` : label;
+  const eta = det && progress.eta_seconds != null && progress.eta_seconds > 0 ? ` · ~${_fmtEta(progress.eta_seconds)} left` : "";
+  const text = det ? `${progress.label} — ${progress.current} / ${progress.total}${eta}` : label;
   return (
     <div className="progress" role="progressbar" aria-busy="true" aria-label={text || "Working"}
       aria-valuenow={det ? progress.current : undefined} aria-valuemax={det ? progress.total : undefined}>

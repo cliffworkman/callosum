@@ -3032,10 +3032,17 @@
     if (Number.isNaN(date.getTime())) return value;
     return date.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
   }
+  function _fmtEta(s) {
+    if (s == null || s < 0) return "";
+    if (s < 60) return `${s}s`;
+    if (s < 3600) return `${Math.round(s / 60)}m`;
+    return `${Math.round(s / 3600)}h`;
+  }
   function ProgressBar({ label, progress }) {
     const det = progress && progress.total > 0;
     const pct = det ? Math.min(100, Math.round(progress.current / progress.total * 100)) : null;
-    const text = det ? `${progress.label} \u2014 ${progress.current} / ${progress.total}` : label;
+    const eta = det && progress.eta_seconds != null && progress.eta_seconds > 0 ? ` \xB7 ~${_fmtEta(progress.eta_seconds)} left` : "";
+    const text = det ? `${progress.label} \u2014 ${progress.current} / ${progress.total}${eta}` : label;
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -3456,7 +3463,7 @@
         await new Promise((r2) => setTimeout(r2, 600));
         const r = await api("/papers/citation-counts/refresh/" + jid);
         if (!r.ok) break;
-        if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+        if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds });
         if (r.data.status === "done" || r.data.status === "error") {
           onRefreshed && onRefreshed();
           break;
@@ -3474,7 +3481,7 @@
         disabled: busy,
         title: "Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking)"
       },
-      busy ? prog ? `Citations ${prog.current}/${prog.total}` : "Citations\u2026" : date ? `Citations \xB7 ${date}` : "Citations \u21BB"
+      busy ? prog ? `Citations ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Citations\u2026" : date ? `Citations \xB7 ${date}` : "Citations \u21BB"
     );
   }
   function EnrichMetadataButton({ onRefreshed }) {
@@ -3496,7 +3503,7 @@
         await new Promise((r2) => setTimeout(r2, 600));
         const r = await api("/library/enrich/refresh/" + jid);
         if (!r.ok) break;
-        if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+        if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds });
         if (r.data.status === "done" || r.data.status === "error") {
           if (r.data.status === "done" && r.data.summary) setDone(r.data.summary);
           onRefreshed && onRefreshed();
@@ -3506,7 +3513,7 @@
       setBusy(false);
       setProg(null);
     };
-    const label = busy ? prog ? `Enriching ${prog.current}/${prog.total}` : "Enriching\u2026" : done ? `Filled ${done.fields_filled}` : "Enrich metadata \u21BB";
+    const label = busy ? prog ? `Enriching ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Enriching\u2026" : done ? `Filled ${done.fields_filled}` : "Enrich metadata \u21BB";
     const title = done ? `Filled ${done.fields_filled} field(s) across ${done.papers} papers \xB7 recovered ${done.dois_recovered} DOI(s) \xB7 ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields \u2014 never overwrites what you typed.` : "Fill each paper's missing fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 public metadata, fills only blanks, never overwrites your edits.";
     return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, label);
   }

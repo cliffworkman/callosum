@@ -35,6 +35,7 @@ class CitationRefreshProgress(BaseModel):
     current: int
     total: int
     label: str
+    eta_seconds: int | None = None  # inc 225: rough seconds-remaining for the "~Ns" hint
 
 
 class CitationRefreshResponse(BaseModel):
@@ -64,7 +65,12 @@ def citation_counts_status(job_id: str, request: Request) -> CitationRefreshResp
     if job.status == "done" and job.result is not None:
         return job.result
     progress = (
-        CitationRefreshProgress(current=job.progress.current, total=job.progress.total, label=job.progress.label)
+        CitationRefreshProgress(
+            current=job.progress.current,
+            total=job.progress.total,
+            label=job.progress.label,
+            eta_seconds=job.eta_seconds(),
+        )
         if job.progress is not None
         else None
     )

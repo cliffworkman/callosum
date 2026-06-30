@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-06-30 — Increment 225: progress ETA ("~Ns left") on long async jobs (#4 close-out)
+- **Files:** `app/backend/api/job_store.py` (`Job.started_at` + `eta_seconds()`), `app/backend/api/routers/library.py` (`JobProgressOut.eta_seconds` via `_progress_out`), `app/backend/api/routers/citation_counts.py` (`CitationRefreshProgress.eta_seconds`), `app/frontend/js/10_pdf_layer.jsx` (`_fmtEta` + ProgressBar), `app/frontend/js/10b_libmenus.jsx` (Citations/Enrich render eta), `tests/test_job_store.py` (+2), `.local/visual/drive_inc225_progress.py`, CLAUDE, `INCREMENT-225-NOTES.md`, `INCREMENT-BACKLOG.md`. (callosum-app.html rebuilt.)
+- **What:** long async jobs now show a rough "~Ns left" ETA = elapsed/current × remaining, computed from a continuous `started_at` (preserved across progress ticks). Surfaced on scan/rescan/import/enrich + citation-counts payloads + rendered in ProgressBar + the libmenus. Cancel is deferred (needs the transaction-restructuring concurrency pass).
+- **Why:** wrap up backlog #4's remaining ETA piece.
+- **Verify:** unit (`test_job_store`) + a live-import API probe (eta in the payload, decreasing) + headed (`drive_inc225_progress.py` → `Embedding papers — 3 / 8 · ~2s left`, 0 console/page/genai). pytest **791** (+2); ruff clean; QA surface unchanged. Additive; no migration/egress/audit/Principles trigger.
+- **Revert:** `git revert <sha>` (additive field + a method; no migration).
+
 ## 2026-06-30 — Increment 224: retraction auto-check on the remaining DOI-bearing routes (#31 close-out)
 - **Files:** `app/backend/api/routers/acquisition.py` (OA-acquire hook), `app/backend/api/routers/papers.py` (reresolve + fill-metadata hooks; 598), `tests/test_retraction.py` (+3), `.claude/security-audits/2026-06-26_retraction.md` (addendum 2), `.claude/qa-routes/route_39_retraction.md`, CLAUDE, `INCREMENT-224-NOTES.md`, `INCREMENT-BACKLOG.md`.
 - **What:** `auto_check_retractions` (inc 134) now also fires after the enrich on the OA-acquire job + the per-paper re-resolve / fill-metadata handlers — completing the on-import retraction lifecycle for the routed DOI-bearing paths. Reuses `app.state.retraction_checkers`; best-effort. The Zotero-import hook is moot (no Zotero route exists).

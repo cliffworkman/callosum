@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from app.backend.api.job_store import JobStore
+import time
+
+from app.backend.api.job_store import Job, JobProgress, JobStore
 
 
 def test_mark_progress_sets_running_with_determinate_progress() -> None:
@@ -27,3 +29,31 @@ def test_done_and_error_carry_no_progress() -> None:
     store.mark_error(other, "boom")
     err = store.get(other)
     assert err is not None and err.status == "error" and err.progress is None
+
+
+def test_started_at_is_stamped_once_and_preserved_across_progress() -> None:
+    # inc 225: the ETA measures from when the job began running — started_at is set on mark_running and carried
+    # through every mark_progress (not reset each tick).
+    store: JobStore = JobStore()
+    job_id = store.create()
+    assert store.get(job_id).started_at is None  # pending, not started
+    store.mark_running(job_id)
+    t0 = store.get(job_id).started_at
+    assert t0 is not None
+    store.mark_progress(job_id, 1, 10, "x")
+    store.mark_progress(job_id, 2, 10, "x")
+    assert store.get(job_id).started_at == t0  # preserved across ticks
+
+
+def test_eta_seconds_extrapolates_remaining() -> None:
+    # eta = elapsed / current * remaining. Construct a Job directly with a known started_at so it's deterministic.
+    started = time.monotonic() - 10.0  # 10s elapsed
+    job = Job(status="running", progress=JobProgress(current=2, total=10, label="x"), started_at=started)
+    eta = job.eta_seconds()
+    assert eta is not None and 35 <= eta <= 45  # ~10s for 2 → ~40s for the remaining 8
+
+    # None until there's a started_at + ≥1 unit of progress; 0 once complete.
+    assert Job(status="running", started_at=started).eta_seconds() is None  # no progress yet
+    assert Job(status="running", progress=JobProgress(0, 10, "x"), started_at=started).eta_seconds() is None
+    assert Job(status="running", progress=JobProgress(10, 10, "x"), started_at=started).eta_seconds() == 0
+    assert Job(status="running", progress=JobProgress(1, 5, "x")).eta_seconds() is None  # no started_at

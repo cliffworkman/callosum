@@ -43,7 +43,7 @@ function CitationCountsButton({ asOf, onRefreshed }) {
       await new Promise(r => setTimeout(r, 600));
       const r = await api("/papers/citation-counts/refresh/" + jid);
       if (!r.ok) break;
-      if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+      if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds });
       if (r.data.status === "done" || r.data.status === "error") { onRefreshed && onRefreshed(); break; }
     }
     setBusy(false); setProg(null);
@@ -52,7 +52,7 @@ function CitationCountsButton({ asOf, onRefreshed }) {
   return (
     <button className="trash-toggle" onClick={run} disabled={busy}
       title="Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking)">
-      {busy ? (prog ? `Citations ${prog.current}/${prog.total}` : "Citations…") : (date ? `Citations · ${date}` : "Citations ↻")}
+      {busy ? (prog ? `Citations ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Citations…") : (date ? `Citations · ${date}` : "Citations ↻")}
     </button>
   );
 }
@@ -75,7 +75,7 @@ function EnrichMetadataButton({ onRefreshed }) {
       await new Promise(r => setTimeout(r, 600));
       const r = await api("/library/enrich/refresh/" + jid);
       if (!r.ok) break;
-      if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total });
+      if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds });
       if (r.data.status === "done" || r.data.status === "error") {
         if (r.data.status === "done" && r.data.summary) setDone(r.data.summary);
         onRefreshed && onRefreshed();
@@ -85,7 +85,7 @@ function EnrichMetadataButton({ onRefreshed }) {
     setBusy(false); setProg(null);
   };
   const label = busy
-    ? (prog ? `Enriching ${prog.current}/${prog.total}` : "Enriching…")
+    ? (prog ? `Enriching ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Enriching…")
     : (done ? `Filled ${done.fields_filled}` : "Enrich metadata ↻");
   const title = done
     ? `Filled ${done.fields_filled} field(s) across ${done.papers} papers · recovered ${done.dois_recovered} DOI(s) · ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields — never overwrites what you typed.`

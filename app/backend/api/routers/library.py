@@ -57,16 +57,18 @@ def _path_key(p: Path) -> str:
 
 
 class JobProgressOut(BaseModel):
-    """Determinate progress for a running scan/import (inc 142) — the UI shows "label  current / total" + a fill."""
+    """Determinate progress for a running scan/import (inc 142) — the UI shows "label  current / total" + a fill,
+    plus a rough "~Ns left" ETA (inc 225) once there's progress to extrapolate from."""
 
     current: int
     total: int
     label: str
+    eta_seconds: int | None = None
 
 
 def _progress_out(job) -> JobProgressOut | None:
     p = getattr(job, "progress", None)
-    return JobProgressOut(current=p.current, total=p.total, label=p.label) if p else None
+    return JobProgressOut(current=p.current, total=p.total, label=p.label, eta_seconds=job.eta_seconds()) if p else None
 
 
 class ScanRequest(BaseModel):

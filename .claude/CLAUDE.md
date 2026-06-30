@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 224** (see Increment workflow) with **789 pytest tests
+It is currently at **Increment 225** (see Increment workflow) with **791 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -773,6 +773,7 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| Progress ETA ("~Ns left") on long async jobs; cancel deferred (#4 close-out; inc 225) | Long jobs showed determinate "X / N" (inc 142) but no time estimate. Added `Job.started_at` (monotonic, stamped on `mark_running`, **preserved across every `mark_progress`** via a `_started_at` helper so the elapsed clock is continuous) + `Job.eta_seconds()` (`elapsed / current × remaining`; None until there's progress, 0 when complete — computed at read time, so a method not a stored field); surfaced as an additive `eta_seconds` on `JobProgressOut` (the shared `_progress_out` → scan/rescan/import/enrich) + `CitationRefreshProgress`; rendered as " · ~Ns left" by `ProgressBar` + the libmenus Citations/Enrich (a hoisted `_fmtEta`). **Cancel deferred** — correct cooperative cancellation needs the four `_run_*_job` single-`engine.begin()` blocks split into per-item transactions (the same infra as the open SQLite read-then-write concurrency item). Additive — no migration/egress/endpoint/dependency, no audit/Principles trigger; QA surface unchanged (optional field on existing payloads). pytest **791** (+2 `test_job_store.py`); verified unit + a live-import API probe (eta in the payload, decreasing) + **headed** (`drive_inc225_progress.py` → `Embedding papers — 3 / 8 · ~2s left`, 0 console/page/genai). **Harness note:** the inc-142-derived progress driver had drifted (the inc-160 auto-rescan pulled the real library/ into the seeded DB; `seed()` didn't clean the inc-219 `-wal`/`-shm` sidecars → stale-row "N failed" imports) — both fixed in the inc-225 driver; carry to other inc-142-derived drivers. |
 | Retraction auto-check on the remaining DOI-bearing routes (OA-acquire + re-resolve + fill-metadata); the Zotero hook is moot (#31 close-out; inc 224) | Completes the retraction on-import lifecycle. `auto_check_retractions` (inc 134) was wired into scan + citation-import only; it now also fires after the Crossref/multi-pass enrich on the **OA-acquire job** (`acquisition.py::_run_acquire_job`, inside the existing `engine.begin()`) and the per-paper **`reresolve_paper`** + **`fill_metadata`** handlers (`papers.py`, before `conn.commit()`), all reusing `app.state.retraction_checkers`. **The backlog's "Zotero / single-PDF import paths" remainder is partly moot** — `import_zotero_library` has **no API route** (only the harness/tests call it), so there's no app-state-bearing caller to hook (a hook there = dead code, rule #5; recorded in the audit). Best-effort by construction (the fn swallows per-paper errors → can't break the acquire/enrich). **No new endpoint/migration/external-fetch-type/dependency** (reuses the inc-131 checkers + their already-audited public-DOI-metadata egress, NOT the Gemini gate) → audit = **addendum 2** to `2026-06-26_retraction.md` PASS; **Principles non-triggering** (reuses the established FACT producer; no new claim type). **Rule-#1:** the hooks pushed `routers/papers.py` to exactly 600 → condensed the two new comments to 1 line each → **598** (now the closest to the cap; split before the next addition there). pytest **789** (+3 hermetic `test_retraction.py`: re-resolve / fill-metadata / OA-acquire each flag a seeded retracted DOI); QA surface unchanged (no new route; `route_39` gained an on-import-lifecycle assertion). |
 | "By priority" sort gains a within-tier recency tiebreak (id DESC) — close-out of the reading-markers thread (inc 223) | Experience-pass finding #4 (inc 220): the **"By priority"** library sort (high→normal→low→unset) tiebroke only on the global `papers.id ASC`, so the large **unset** tier collapsed into one oldest-imported-first block. Fix = a one-line ORDER-BY append at `repository.py:107` (`"priority": [_PRIORITY_RANK.asc(), papers.c.id.desc()]`) — `id DESC` is the recency proxy `"recent"` already uses, so within each tier the most-recently-added papers come first; the global `id ASC` tail (`:113`) stays as the pagination tiebreak (harmless after a unique-id DESC). A user-chosen sort, never an AI rank (inc-207 declined-ratings posture). Backend-only — no migration/egress/endpoint/dependency, no audit/Principles trigger. pytest **786** (+1 `test_priority_sort_recency_tiebreak_within_tier`); QA surface unchanged (161/161 API + 719/719 FE). |
 | Split `15_axes.jsx` (614→395) — the axis-card subsystem → `15b_axis_card.jsx`; clears the last over-cap file (inc 222) | The long-flagged rule-#1 violation (`15_axes.jsx` had been **614** since inc 211/212's curated-axis work; the footers had mis-noted it). A **behavior-preserving** refactor, no feature. Extracted the **axis-card rendering subsystem** verbatim into new **`js/15b_axis_card.jsx`** (224): `AxisItem` (the one-axis card — 166 lines) + its presentational helpers (`axisConfidenceLabel`/`AxisTierBadge`/`AxisPaperRow`/`AxisCutoffFlipper`/`_tierRank`); `15_axes.jsx` (**395**) keeps `MyPubsPrompt` + **`AxesPanel`** (state/loaders/handlers/sort-filter/modals) + `registerPaneTab`. **Cross-chunk function hoist** — the chunks concatenate into one esbuild IIFE, so `AxesPanel` (textually before, in 15_axes) renders `<AxisItem/>` (in 15b) regardless of load order (the inc-208 `10b_libmenus.jsx` precedent; esbuild keeps `AxisItem` since `AxesPanel` references it). Cut by a deterministic **line-range script** with per-function boundary assertions (no transcription of the 166-line `AxisItem`). **Frontend-only** — no Python/migration/endpoint/egress, no audit/Principles trigger. **Behavior-preservation proven the inc-221 way:** the existing axis drivers `drive_inc212_dragreorder.py` (curated path — `AxisPaperRow` + drag-reorder) + `drive_inc204_hide_uncertain.py` (keyword path — `AxisCutoffFlipper` + `AxisTierBadge` + 👁) ran **GREEN before and after** (`drive_inc211_curated.py` is stale — it clicks the ↑/↓ buttons inc 212 replaced with drag). pytest **785** unchanged (`test_frontend_assembly` 5/5 confirms `15b` is in the build + in sync); QA **161/161 API + 719/719 FE, 0 uncovered** (`route_15_axes.md`'s `fe:` gained `15b_axis_card.jsx`, reclaiming the 36 moved FE surfaces). **This clears the last over-cap file — the tree is fully under the 600-line cap.** |
@@ -942,7 +943,36 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 224 (retraction auto-check on the remaining DOI-bearing routes — #31's
+*Last updated: 2026-06-30 — increment 225 (progress ETA on long async jobs — #4's close-out; the 3rd + final of
+the "wrap up the partially-completed backlog items" session). Long jobs showed determinate "X / N" (inc 142) but
+no time estimate. Added a rough **"~Ns left"** ETA, additive + no transaction risk: `Job.started_at` (monotonic,
+stamped on `mark_running` and **preserved across every `mark_progress`** via a `_started_at` helper, so the elapsed
+clock is continuous, not reset each tick) + **`Job.eta_seconds()`** (`elapsed / current × remaining`; None until
+there's a `started_at` + ≥1 unit of progress, 0 once complete — computed at status-read time, so a method on `Job`
+not a stored field). Surfaced as an additive `eta_seconds` on `JobProgressOut` (the shared `_progress_out(job)` →
+**scan / watched-rescan / import / enrich** at once) + the `CitationRefreshProgress` mirror; rendered as
+" · ~Ns left" by `ProgressBar` (a hoisted `_fmtEta` → "45s"/"3m"/"2h") + the `10b_libmenus.jsx` Citations/Enrich
+menus. **Cancel is OUT of scope** — correct cooperative cancellation needs the four `_run_*_job`
+single-`engine.begin()` blocks split into per-item transactions (the **same infra as the open SQLite read-then-write
+concurrency item**); deferred to that pass (recorded in the backlog). **Additive** — no migration/egress/endpoint/
+dependency, **no audit/Principles trigger**; **QA surface unchanged 161/161 API + 719/719 FE, 0 uncovered** (an
+optional field on existing status payloads, no new route/element). pytest **791** (+2 `tests/test_job_store.py`:
+`started_at` stamped-once-and-preserved-across-ticks; `eta_seconds` extrapolates / None-without-progress /
+0-when-complete). **Verified three ways:** unit (above) + a **live-import API probe** (a real slowed import's
+`GET /library/import/{id}` payload carries `progress.eta_seconds` decreasing 2→2→1→…→0 across the embed phase →
+proves Job → JobProgressOut → endpoint) + **headed, no egress** (`.local/visual/drive_inc225_progress.py` → the
+import modal's ProgressBar renders **`Embedding papers — 3 / 8 · ~2s left`**; 0 console/page/genai). **Harness note
+(carry forward):** the inc-142-derived progress driver had **drifted** (even `drive_inc142_progress.py` failed) —
+the inc-160 on-launch auto-rescan pulled the real 77-PDF `library/` into the seeded DB, and `seed()` didn't clean
+the inc-219 `-wal`/`-shm` sidecars → stale rows survived across runs → DOI-collision "N failed" imports; both fixed
+in the inc-225 driver (set an empty `CALLOSUM_LIBRARY_DIR`; unlink the sidecars). `ruff` clean; frontend rebuilt; no
+help-corpus change (`HELP-DOCS-SYNCED` stays at 221). Notes: `INCREMENT-225-NOTES.md`. **This completes the
+"wrap up the partials" session (inc 223 priority tiebreak + 224 retraction on-import + 225 progress ETA).** **NEXT:**
+the genuinely-clean autonomous partial remainders are now done; what's left on the partials is decision/design/
+destructive/infra-gated (the #4 cancel + SQLite concurrency pass, #27 statcheck test-stat `<`/`>`, #3/#5/#9/#11/#15
+SP3c/#12-13/#17/#35-Layer4) — each needs the maintainer's call. Otherwise the design-gated B-items (B2/B3/B4/B5).
+
+Earlier — increment 224 (retraction auto-check on the remaining DOI-bearing routes — #31's
 on-import-lifecycle close-out; the 2nd of the "wrap up the partially-completed backlog items" session). The
 inc-134 hook `auto_check_retractions(conn, paper_ids, *, checkers)` was wired into the **scan** + **citation-import**
 jobs only; it now also fires after the Crossref/multi-pass enrich on the three remaining routes where a paper

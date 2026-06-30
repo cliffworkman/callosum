@@ -129,9 +129,12 @@ full tag-provenance context.)*
 progress for scan + import (142) + a "Review unsorted →" door + the **scan done-summary now lists which files
 couldn't be read + why** (155) + the **import** path's **skipped-record reporting** (173 — the BibTeX/CSL/RIS
 parsers now report entries dropped at parse for no-title-and-no-DOI, plus record-cap overflow; the summary shows
-"N skipped (no title or DOI)", and `failed`/`skipped` are now distinct). **Remaining (smaller-but-infra):** the
-per-item **filename** in the progress label + a rough **ETA**; a **cancel** button (needs cooperative job
-cancellation).
+"N skipped (no title or DOI)", and `failed`/`skipped` are now distinct). A rough **ETA** ("~Ns left") — ✅
+**SHIPPED inc 225** (`Job.started_at` + `eta_seconds()` → all the job status payloads + ProgressBar/libmenus).
+**Remaining:** a per-item **title** in the import/embed/enrich progress label (scan already has the filename, inc
+214); a **cancel** button — **deferred** (correct cooperative cancellation needs the four `_run_*_job`
+single-`engine.begin()` blocks split into per-item transactions = the same infra as the SQLite read-then-write
+concurrency pass above).
 
 **5. G deferred items** (`INCREMENT-49-NOTES.md`) — **[design]** **Shipped:** the "More" add-arbitrary-field menu
 (inc 96 — an `AddFieldRow` reusing the validated `csl` patch) + **editable Translator(s)** (inc 111). **Remaining:**
