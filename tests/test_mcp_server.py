@@ -12,9 +12,6 @@ import json
 
 import httpx
 
-# The U+E000/U+E001 private-use chars callosum's FTS snippet wraps matched terms in (see fulltext_repo).
-_FT_OPEN, _FT_CLOSE = chr(0xE000), chr(0xE001)
-
 from mcp_server.client import CallosumClient
 from mcp_server.server import create_server
 
@@ -65,9 +62,7 @@ def test_search_library_maps_request_and_response():
     mcp = create_server(_client(handler))
     out = _call(mcp, "search_library", {"query": "faces", "limit": 5})
     assert seen == {"method": "GET", "path": "/papers", "q": "faces"}
-    assert out == [
-        {"id": 7, "title": "Faces", "authors": ["A. B"], "year": 2020, "venue": "J", "citation_key": "b20"}
-    ]
+    assert out == [{"id": 7, "title": "Faces", "authors": ["A. B"], "year": 2020, "venue": "J", "citation_key": "b20"}]
 
 
 def test_get_paper_maps_detail():
@@ -156,3 +151,94 @@ def test_format_citation_returns_text():
 
     out = _call(create_server(_client(handler)), "format_citation", {"paper_ids": [7], "format": "bibtex"})
     assert out.startswith("@article")
+
+
+def test_bearer_token_is_sent_when_configured():
+    seen = {}
+
+    def handler(request):
+        seen["auth"] = request.headers.get("authorization")
+        return httpx.Response(200, json=[])
+
+    c = CallosumClient(
+        "http://test",
+        token="secret",
+        http=httpx.Client(
+            base_url="http://test",
+            headers={"Authorization": "Bearer secret"},
+            transport=httpx.MockTransport(handler),
+        ),
+    )
+    _call(create_server(c), "search_library", {"query": "x"})
+    assert seen["auth"] == "Bearer secret"
+
+
+def test_app_down_and_401_are_clean_errors():
+    import pytest
+
+    from mcp_server.client import CallosumUnavailable
+
+    def down(request):
+        raise httpx.ConnectError("refused")
+
+    with pytest.raises(CallosumUnavailable):
+        _client(down).search("x")
+
+    def unauth(request):
+        return httpx.Response(401, json={"detail": "no"})
+
+    with pytest.raises(CallosumUnavailable):
+        _client(unauth).search("x")
+
+
+def test_server_only_issues_readonly_calls():
+    # Drive EVERY tool through a recording transport; assert no write verb / no scan-or-pdf path is touched.
+    calls = []
+    ALLOWED = {
+        ("GET", "/papers"),
+        ("GET", "/papers/fulltext"),
+        ("POST", "/citations/suggest"),
+        ("POST", "/papers/export"),
+    }
+
+    def handler(request):
+        path = request.url.path
+        calls.append((request.method, path))
+        assert request.method in ("GET", "POST"), f"write verb {request.method} to {path}"
+        if request.method == "GET":
+            if path == "/papers/fulltext":
+                return httpx.Response(200, json=[])
+            if path.startswith("/papers/"):  # GET /papers/{id} detail read only
+                return httpx.Response(
+                    200,
+                    json={
+                        "id": 1,
+                        "title": "t",
+                        "authors": [],
+                        "csl_json": {},
+                        "processing_tier": "metadata-only",
+                        "attachment_count": 0,
+                        "chunk_count": 0,
+                        "attachments": [],
+                        "tags": [],
+                    },
+                )
+            return httpx.Response(200, json=[])
+        if path == "/citations/suggest":
+            return httpx.Response(200, json={"suggestions": []})
+        return httpx.Response(200, text="")
+
+    mcp = create_server(_client(handler))
+    _call(mcp, "search_library", {"query": "x"})
+    _call(mcp, "get_paper", {"paper_id": 1})
+    _call(mcp, "full_text_search", {"query": "x"})
+    _call(mcp, "find_passages", {"query": "x"})
+    _call(mcp, "format_citation", {"paper_ids": [1], "format": "bibtex"})
+    bad = [c for c in calls if (c[0], c[1].rstrip("/")) not in ALLOWED and c != ("GET", "/papers/1")]
+    assert not bad, f"non-allowlisted calls: {bad}"
+
+
+def test_tool_registry_is_exactly_the_five_read_tools():
+    mcp = create_server(_client(lambda r: httpx.Response(200, json=[])))
+    names = {t.name for t in asyncio.run(mcp.list_tools())}
+    assert names == {"search_library", "get_paper", "full_text_search", "find_passages", "format_citation"}

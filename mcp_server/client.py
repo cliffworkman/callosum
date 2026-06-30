@@ -28,9 +28,7 @@ class CallosumClient:
         try:
             return self._http.get(path, params=params)
         except httpx.HTTPError as exc:
-            raise CallosumUnavailable(
-                f"callosum isn't reachable at {self.base_url} — is it running? ({exc})"
-            ) from exc
+            raise CallosumUnavailable(f"callosum isn't reachable at {self.base_url} — is it running? ({exc})") from exc
 
     @staticmethod
     def _ok(r: httpx.Response) -> httpx.Response:
@@ -46,9 +44,7 @@ class CallosumClient:
         try:
             return self._http.post(path, json=body)
         except httpx.HTTPError as exc:
-            raise CallosumUnavailable(
-                f"callosum isn't reachable at {self.base_url} — is it running? ({exc})"
-            ) from exc
+            raise CallosumUnavailable(f"callosum isn't reachable at {self.base_url} — is it running? ({exc})") from exc
 
     def search(self, query: str, limit: int = 20) -> list[dict]:
         r = self._ok(self._get("/papers", {"q": query, "limit": limit}))
