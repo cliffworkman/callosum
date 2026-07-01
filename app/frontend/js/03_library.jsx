@@ -77,6 +77,11 @@ function useLibrary(opts) {
     const ids = [...selectedLibraryIds];
     if (ids.length >= 2) setMergeIds(ids);
   }, [selectedLibraryIds]);
+  // B2 SP1: export the selected papers as a portable bundle (metadata + tags + annotations, NO PDFs).
+  const bulkExportBundle = useCallback(() => {
+    const ids = [...selectedLibraryIds];
+    if (ids.length) downloadBundle("selection", ids);
+  }, [selectedLibraryIds]);
   const onMerged = useCallback((survivorId) => {
     setMergeIds(null);
     setSelectedLibraryIds(new Set());
@@ -325,7 +330,7 @@ function useLibrary(opts) {
     libraryItemType, itemTypes, onItemTypeChange: (t) => { setLibraryItemType(t); setPage(0); },
     libraryReading, onReadingFilter: changeReadingFilter,
     onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkExport: bulkExportPapers, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
+    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
     libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
     libraryTagFilter, onClearTagFilter: clearTagFilter,
     libraryNeedsReview, onToggleNeedsReview: toggleNeedsReview, onClearNeedsReview: clearNeedsReview,

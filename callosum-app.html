@@ -1806,6 +1806,22 @@
       console.warn("[callosum] download error:", path, e);
     }
   }
+  async function downloadBundle(scope, paperIds) {
+    try {
+      const res = await fetch(API_BASE + "/library/bundle/export", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scope, paper_ids: paperIds || [] })
+      });
+      if (!res.ok) {
+        console.warn("[callosum] bundle export failed:", res.status);
+        return;
+      }
+      _downloadBlob(await res.blob(), "callosum-library-bundle.json");
+    } catch (e) {
+      console.warn("[callosum] bundle export error:", e);
+    }
+  }
   function buildAnnotationDigest(title, annotations) {
     const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
     for (const a of annotations) {
@@ -2032,6 +2048,10 @@
     const bulkMergePapers = useCallback(() => {
       const ids = [...selectedLibraryIds];
       if (ids.length >= 2) setMergeIds(ids);
+    }, [selectedLibraryIds]);
+    const bulkExportBundle = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length) downloadBundle("selection", ids);
     }, [selectedLibraryIds]);
     const onMerged = useCallback((survivorId) => {
       setMergeIds(null);
@@ -2389,6 +2409,7 @@
       onBulkPcurve: bulkPcurvePapers,
       onBulkMerge: bulkMergePapers,
       onBulkExport: bulkExportPapers,
+      onBulkExportBundle: bulkExportBundle,
       onBulkBibliography: bulkBibliography,
       onSelectAll: selectAllLibrary,
       libraryAxisFilter,
@@ -3584,6 +3605,7 @@
     onBulkPcurve,
     onBulkMerge,
     onBulkExport,
+    onBulkExportBundle,
     onBulkBibliography,
     onSelectAll,
     libraryAxisFilter,
@@ -3611,6 +3633,8 @@
     onOpenGaps,
     onOpenScan,
     onOpenImport,
+    onOpenImportBundle,
+    onExportBundle,
     onCitationsRefreshed,
     onEnriched,
     savedSearches,
@@ -3632,7 +3656,7 @@
         if (r.ok) setCiteStyles(r.data.styles || []);
       });
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -3715,7 +3739,7 @@
       /* @__PURE__ */ React.createElement("option", { value: "bibtex" }, "BibTeX (.bib)"),
       /* @__PURE__ */ React.createElement("option", { value: "ris" }, "RIS (.ris)"),
       /* @__PURE__ */ React.createElement("option", { value: "csl-json" }, "CSL-JSON")
-    ), citeStyles.length > 0 && /* @__PURE__ */ React.createElement(
+    ), onBulkExportBundle && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkExportBundle, title: "Export the selected papers as a portable bundle \u2014 metadata + tags + annotations, no PDFs" }, "bundle"), citeStyles.length > 0 && /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -3785,7 +3809,7 @@
       );
     }), state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: state.papers.length < PAGE_SIZE, onClick: () => onPage(page + 1) }, "Next \u2192"))));
   }
-  function AddMenu({ onScan, onImport }) {
+  function AddMenu({ onScan, onImport, onImportBundle, onExportBundle }) {
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
     useEffect(() => {
@@ -3800,7 +3824,7 @@
       setOpen(false);
       fn();
     };
-    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026")));
+    return /* @__PURE__ */ React.createElement("span", { className: "add-menu", ref }, /* @__PURE__ */ React.createElement("button", { className: "trash-toggle add", onClick: () => setOpen((o) => !o), title: "Add papers to the library" }, "+ Add \u25BE"), open && /* @__PURE__ */ React.createElement("div", { className: "add-menu-pop" }, /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onScan), title: "Add & watch folders of PDFs \u2014 new files are picked up automatically" }, "Watched folders\u2026"), /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImport), title: "Import a BibTeX, RIS, or CSL-JSON citation file" }, "Import file\u2026"), onImportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onImportBundle), title: "Import a callosum library bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Import bundle\u2026"), onExportBundle && /* @__PURE__ */ React.createElement("button", { onClick: () => pick(onExportBundle), title: "Export your whole library as a portable bundle (.json) \u2014 metadata + tags + annotations + axes, no PDFs" }, "Export library bundle\u2026")));
   }
   function CitationCountsButton({ asOf, onRefreshed }) {
     const [busy, setBusy] = useState(false);
@@ -6376,6 +6400,48 @@
     const s = imp.summary;
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import citations"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "BibTeX"), " (.bib), ", /* @__PURE__ */ React.createElement("b", null, "RIS"), " (.ris), or ", /* @__PURE__ */ React.createElement("b", null, "CSL-JSON"), " (.json) file exported from Zotero, Mendeley, EndNote, or callosum. Each entry becomes a metadata-only library paper (no PDF attached); entries already in your library are skipped. Everything stays on your machine \u2014 nothing is sent anywhere."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".bib,.ris,.json,.txt", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Parsing + embedding\u2026", progress: imp.progress }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.imported), " imported \xB7 ", s.duplicate, " already in library", s.failed ? ` \xB7 ${s.failed} failed` : "", s.skipped ? ` \xB7 ${s.skipped} skipped (no title or DOI)` : "", s.format == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't recognise the file \u2014 is it BibTeX, RIS, or CSL-JSON?") : s.imported > 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "New papers are in your library, filterable by type.") : null), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
   }
+  function BundleImportModal({ onClose, onImported }) {
+    const [file, setFile] = useState(null);
+    const [imp, setImp] = useState({ status: "idle" });
+    const onPick = async (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      try {
+        setFile({ name: f.name || "bundle.json", content: await f.text() });
+        setImp({ status: "idle" });
+      } catch (err) {
+        setImp({ status: "error", error: "Couldn't read that file." });
+      }
+    };
+    const run = () => {
+      if (!file || !file.content.trim()) return;
+      setImp({ status: "running" });
+      const poll = (jobId) => api(`/library/bundle/import/${jobId}`).then((r) => {
+        if (!r.ok) {
+          setImp({ status: "error", error: r.error });
+          return;
+        }
+        const d = r.data;
+        if (d.status === "done") {
+          setImp({ status: "done", summary: d.summary });
+          if (onImported) onImported();
+        } else if (d.status === "error") setImp({ status: "error", error: d.detail || "Import failed." });
+        else {
+          setImp({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+      apiPost("/library/bundle/import", { content: file.content }).then((r) => {
+        if (!r.ok) {
+          setImp({ status: "error", error: r.error });
+          return;
+        }
+        poll(r.data.job_id);
+      });
+    };
+    const s = imp.summary;
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Import library bundle"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Choose a ", /* @__PURE__ */ React.createElement("b", null, "callosum library bundle"), " (.json) exported from another library. Its papers, tags, annotations, and axis definitions merge into yours \u2014 existing papers keep their own metadata and just gain the bundle's tags + notes. ", /* @__PURE__ */ React.createElement("b", null, "No PDFs"), " travel in a bundle; a highlight's box re-appears once you have the same PDF. Everything stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "scan-row" }, /* @__PURE__ */ React.createElement("input", { type: "file", accept: ".json", onChange: onPick }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: imp.status === "running" || !file, onClick: run }, imp.status === "running" ? "Importing\u2026" : "Import")), file && imp.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, file.name, " \u2014 ready to import."), imp.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Merging + embedding\u2026", progress: imp.progress }), imp.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Import failed: ", imp.error), imp.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "scan-summary" }, /* @__PURE__ */ React.createElement("b", null, s.papers_created), " new \xB7 ", s.papers_merged, " merged", s.tags_applied ? ` \xB7 ${s.tags_applied} tags` : "", s.annotations_added ? ` \xB7 ${s.annotations_added} highlights` : "", s.axes_created ? ` \xB7 ${s.axes_created} axes` : "", s.axes_members_added ? ` \xB7 ${s.axes_members_added} axis members` : "", s.skipped ? ` \xB7 ${s.skipped} skipped` : "", /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Merged papers keep your own metadata; new papers are filterable by type.")), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
+  }
   const SNS2014_CSL = {
     type: "article-journal",
     title: "P-curve: A key to the file-drawer",
@@ -8758,6 +8824,7 @@
     const [gapsOpen, setGapsOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
+    const [bundleImportOpen, setBundleImportOpen] = useState(false);
     const cancelFocusRef = useRef(() => {
     });
     const setAxisRefreshRef = useRef(() => {
@@ -8855,7 +8922,7 @@
         else setConn({ state: "bad" });
       });
     }, []);
-    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || !!pcurvePapers;
+    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -8940,7 +9007,9 @@
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true),
-          onOpenImport: () => setImportOpen(true)
+          onOpenImport: () => setImportOpen(true),
+          onOpenImportBundle: () => setBundleImportOpen(true),
+          onExportBundle: () => downloadBundle("library")
         },
         tabs,
         activeTab,
@@ -8983,7 +9052,16 @@
         onChanged: () => setLibRefresh((n) => n + 1),
         onMerge: (ids) => setMergeIds(ids)
       }
-    ), mergeIds && /* @__PURE__ */ React.createElement(MergePapersModal, { ids: mergeIds, onClose: () => setMergeIds(null), onMerged }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: () => setScanOpen(false), onScanned: () => setLibRefresh((n) => n + 1), onShowUnsorted: showNeedsReview }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: () => setImportOpen(false), onImported: () => setLibRefresh((n) => n + 1) }));
+    ), mergeIds && /* @__PURE__ */ React.createElement(MergePapersModal, { ids: mergeIds, onClose: () => setMergeIds(null), onMerged }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: () => setScanOpen(false), onScanned: () => setLibRefresh((n) => n + 1), onShowUnsorted: showNeedsReview }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: () => setImportOpen(false), onImported: () => setLibRefresh((n) => n + 1) }), bundleImportOpen && /* @__PURE__ */ React.createElement(
+      BundleImportModal,
+      {
+        onClose: () => setBundleImportOpen(false),
+        onImported: () => {
+          setLibRefresh((n) => n + 1);
+          setAxisRefresh((n) => n + 1);
+        }
+      }
+    ));
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
 })();

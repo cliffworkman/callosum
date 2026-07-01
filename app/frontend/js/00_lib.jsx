@@ -193,6 +193,19 @@ async function downloadAsset(path, filename) {
 // inc-144 (Close-reader): assemble a paper's highlights + notes into a copy/printable Markdown digest — pure,
 // from the already-loaded annotations ({page, anchor_text, note}), page-ordered like the panel. (Relocated from
 // 30_viewer.jsx in inc 175 for the rule-#1 cap; it's a pure util, the viewer's home for it.)
+// B2 SP1: download a portable library bundle (metadata + tags + annotations + axis defs, NO PDFs). Raw POST — a
+// tokened fetch through the auth shim (so it carries the Remote-access token) since apiPost forces .json().
+async function downloadBundle(scope, paperIds) {
+  try {
+    const res = await fetch(API_BASE + "/library/bundle/export", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ scope, paper_ids: paperIds || [] }),
+    });
+    if (!res.ok) { console.warn("[callosum] bundle export failed:", res.status); return; }
+    _downloadBlob(await res.blob(), "callosum-library-bundle.json");
+  } catch (e) { console.warn("[callosum] bundle export error:", e); }
+}
+
 function buildAnnotationDigest(title, annotations) {
   const lines = [`# ${title || "Highlights & notes"}`, "", `_${annotations.length} highlight${annotations.length === 1 ? "" : "s"}_`, ""];
   for (const a of annotations) {

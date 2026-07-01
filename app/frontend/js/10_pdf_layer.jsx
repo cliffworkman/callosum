@@ -319,12 +319,12 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
                     libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
                     onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
-                    onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkExport, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport,
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
@@ -346,7 +346,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
           <span className="lib-head-actions">
-            {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} />}
+            {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onExportBundle={onExportBundle} />}
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
             {!trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" &&
               <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
@@ -515,6 +515,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <option value="ris">RIS (.ris)</option>
             <option value="csl-json">CSL-JSON</option>
           </select>
+          {onBulkExportBundle &&
+            <button className="axis-link" onClick={onBulkExportBundle} title="Export the selected papers as a portable bundle — metadata + tags + annotations, no PDFs">bundle</button>}
           {citeStyles.length > 0 &&
             <select className="bulk-export" value="" title="Download a formatted bibliography for the selected papers"
               onChange={e => { if (e.target.value) { onBulkBibliography(e.target.value); e.target.value = ""; } }}>

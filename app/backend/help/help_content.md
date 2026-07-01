@@ -84,6 +84,18 @@ Each entry in the file becomes a metadata-only library paper (title, authors, ye
 
 Import brings in **metadata only** — no PDF is attached (add PDFs via **Scan folder**, Zotero, or **Acquire OA copy**). It runs **entirely on your machine**: the file is read in your browser and nothing is sent anywhere — no DOI lookup, no other network call. Imported papers are searchable and can be filtered by **type**; because the file is treated as your authoritative metadata, a later batch re-resolve won't overwrite it unless you explicitly re-resolve that paper.
 
+<!-- section: sharing-a-library -->
+## Sharing a library (bundle export/import)
+A **library bundle** is a single `.json` file that carries your **paper metadata, tags, highlights + notes, and axis definitions** — but **no PDF files**. It's how you hand a library (or a slice of one) to a collaborator without a server and without redistributing copyrighted PDFs: they re-acquire their own copies (via **Acquire OA copy** or their own reference manager), while your notes and organization travel.
+
+**Export.** Open **+ Add ▾** at the top of the Library:
+- **Export library bundle…** saves your *whole* library (including axis definitions) as `callosum-library-bundle.json`.
+- Or select some papers (checkbox) and use the selection bar's **bundle** action to export just those papers + their tags + highlights (a selection doesn't carry axes).
+
+**Import.** **+ Add ▾ → Import bundle…** → pick a `.json` bundle → **Import**. Merging is **additive and non-destructive**: a paper you already have (matched by DOI, or title + year + first author) keeps *your* metadata and simply gains the bundle's tags + highlights; papers you don't have are created (metadata-only). Tags merge by name; a keyword axis arrives as a definition you can **Score** locally; a curated axis brings its hand-picked members. Re-importing the same bundle changes nothing (it's idempotent).
+
+Everything stays on your machine — the file is read in your browser and merged locally; nothing is sent anywhere. Two honest limits: a **highlight's box** only re-appears once you have the *same* PDF (the note, page, and highlighted text always land, since the bundle carries no PDF), and **syntheses aren't in the bundle yet** (a later version will carry them). Bundles are the portable, no-lock-in form of your library — plain JSON you can open and inspect.
+
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library
 The Library is for quickly finding papers and opening the ones you want to read. It shows each paper's title, authors, year, venue, processing tier, and file count.

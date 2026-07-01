@@ -36,6 +36,7 @@ function App() {
   const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
+  const [bundleImportOpen, setBundleImportOpen] = useState(false); // B2 SP1 import-library-bundle modal
   const cancelFocusRef = useRef(() => {});
   const setAxisRefreshRef = useRef(() => {});
 
@@ -118,7 +119,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || !!pcurvePapers;
+  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -169,6 +170,7 @@ function App() {
           onOpenWanted: () => setWantedOpen(true),
           onOpenGaps: () => setGapsOpen(true),
           onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
+          onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
         }}
         tabs={tabs} activeTab={activeTab}
         onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
@@ -205,6 +207,9 @@ function App() {
         <ScanModal onClose={() => setScanOpen(false)} onScanned={() => setLibRefresh(n => n + 1)} onShowUnsorted={showNeedsReview} />}
       {importOpen &&
         <ImportModal onClose={() => setImportOpen(false)} onImported={() => setLibRefresh(n => n + 1)} />}
+      {bundleImportOpen &&
+        <BundleImportModal onClose={() => setBundleImportOpen(false)}
+          onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); }} />}
     </div>
   );
 }

@@ -17,12 +17,13 @@ appear without re-adding — Zotero/Mendeley-style watching, minus a live OS fil
 
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response  # noqa: F401
+from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
 
@@ -34,6 +35,7 @@ from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStor
 from app.backend.metadata.citation_import import MAX_IMPORT_BYTES, import_citations
 from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref, enrich_paper_metadata_multi
+from app.backend.metadata.library_bundle import MAX_BUNDLE_BYTES, BundleError, build_bundle, import_bundle, parse_bundle
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.pdf_processing.library_scan import scan_library_folder
 from app.backend.persistence.repository import list_live_paper_ids
@@ -474,3 +476,99 @@ def _embedding_model(app: FastAPI) -> EmbeddingModel:
 
 def _vector_store(app: FastAPI) -> VectorStore:
     return app.state.vector_store if app.state.vector_store is not None else SQLiteVecVectorStore()
+
+
+# ── portable library bundle (B2 SP1): export/import metadata + tags + annotations + axis defs, NO PDFs ──────────
+
+
+class BundleExportRequest(BaseModel):
+    scope: Literal["library", "selection"] = "library"
+    paper_ids: list[int] = Field(default_factory=list)
+
+
+class BundleImportRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=MAX_BUNDLE_BYTES + 1_000_000)  # boundary cap (rule #4)
+
+
+class BundleImportSummary(BaseModel):
+    papers_created: int = 0
+    papers_merged: int = 0
+    tags_applied: int = 0
+    annotations_added: int = 0
+    axes_created: int = 0
+    axes_members_added: int = 0
+    skipped: int = 0
+
+
+class BundleImportJobResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    detail: str | None = None
+    summary: BundleImportSummary | None = None
+    progress: JobProgressOut | None = None
+
+
+@router.post("/library/bundle/export")
+def bundle_export(payload: BundleExportRequest, request: Request) -> Response:
+    """Serialize the library (or a selection) to a downloadable JSON bundle — metadata + tags + annotations +
+    (whole-library only) axis definitions; **NO PDFs**. Local read; no egress (a file the user hands off)."""
+    if payload.scope == "selection" and not payload.paper_ids:
+        raise HTTPException(status_code=422, detail="Select at least one paper to export as a bundle.")
+    with request.app.state.engine.begin() as conn:
+        bundle = build_bundle(conn, scope=payload.scope, paper_ids=payload.paper_ids or None)
+    return Response(
+        content=json.dumps(bundle, ensure_ascii=False),
+        media_type="application/json",
+        headers={"Content-Disposition": 'attachment; filename="callosum-library-bundle.json"'},
+    )
+
+
+@router.post(
+    "/library/bundle/import", response_model=BundleImportJobResponse, status_code=http_status.HTTP_202_ACCEPTED
+)
+def bundle_import_endpoint(
+    payload: BundleImportRequest, background_tasks: BackgroundTasks, request: Request
+) -> BundleImportJobResponse:
+    if not payload.content.strip():
+        raise HTTPException(status_code=422, detail="Choose a callosum library bundle (.json) to import.")
+    job_id = request.app.state.library_bundle_import_jobs.create()
+    background_tasks.add_task(_run_bundle_import_job, request.app, job_id, payload.content)
+    return BundleImportJobResponse(job_id=job_id, status="pending")
+
+
+@router.get("/library/bundle/import/{job_id}", response_model=BundleImportJobResponse)
+def bundle_import_status(job_id: str, request: Request) -> BundleImportJobResponse:
+    job = request.app.state.library_bundle_import_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Bundle import job not found")
+    if job.status == "done" and job.result is not None:
+        return job.result
+    return BundleImportJobResponse(job_id=job_id, status=job.status, detail=job.detail, progress=_progress_out(job))
+
+
+def _run_bundle_import_job(app: FastAPI, job_id: str, content: str) -> None:
+    jobs: JobStore[BundleImportJobResponse] = app.state.library_bundle_import_jobs
+    jobs.mark_running(job_id)
+    try:
+        bundle = parse_bundle(content)  # bounded + version-checked; raises BundleError on a bad file
+        model = _embedding_model(app)
+        store = _vector_store(app)
+        with app.state.engine.begin() as conn:
+            result = import_bundle(conn, bundle)  # additive, non-destructive; no egress
+            created = [int(pid) for pid in result["created"]]
+            if created:  # embed the new papers' metadata so they join search / axis-scoring / dedup
+                embed_papers(
+                    conn,
+                    model=model,
+                    vector_store=store,
+                    paper_ids=created,
+                    on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Embedding papers"),
+                )
+        jobs.mark_done(
+            job_id,
+            BundleImportJobResponse(job_id=job_id, status="done", summary=BundleImportSummary(**result["summary"])),
+        )
+    except BundleError as exc:
+        jobs.mark_error(job_id, str(exc))
+    except Exception as exc:  # noqa: BLE001 — any failure → a graceful job error, never a crash
+        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")

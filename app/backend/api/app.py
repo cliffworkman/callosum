@@ -132,6 +132,7 @@ def create_app(
     api.state.mypubs_domain_jobs = JobStore()
     api.state.library_scan_jobs = JobStore()
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
+    api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
     api.state.retraction_jobs = JobStore()  # inc 131: library-wide retraction batch
