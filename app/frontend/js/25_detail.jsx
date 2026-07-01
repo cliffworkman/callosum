@@ -333,6 +333,46 @@ function AcquireOaRow({ paperId, onAcquired }) {
   );
 }
 
+// inc-231 (B3): OCR a scanned / image-only PDF. Shown only when the paper HAS a PDF but no text layer
+// (chunk_count === 0). Async job → poll (with determinate progress) → refresh the detail on success. Fully local
+// (Tesseract + local embeddings); nothing leaves the machine. Reuses the .detail-acquire* recipe (DESIGN rule #8).
+function OcrRow({ paperId, onOcred }) {
+  const [status, setStatus] = useState("idle"); // idle | running | done | error
+  const [msg, setMsg] = useState(null);
+  const [prog, setProg] = useState(null);
+  const poll = async (jobId) => {
+    const r = await api(`/papers/ocr/run/${jobId}`);
+    if (!r.ok) { setStatus("error"); setMsg(r.error || "OCR status check failed."); return; }
+    const j = r.data;
+    if (j.status === "done") {
+      setStatus("done"); setProg(null);
+      const pages = j.result ? j.result.pages : 0;
+      setMsg(`OCR complete — ${pages} page${pages === 1 ? "" : "s"}; this paper is now searchable.`);
+      onOcred && onOcred();
+      return;
+    }
+    if (j.status === "error") { setStatus("error"); setProg(null); setMsg(j.detail || "OCR failed."); return; }
+    setProg(j.progress || null);
+    setTimeout(() => poll(jobId), 1000); // pending / running → keep polling
+  };
+  const start = async () => {
+    setStatus("running"); setMsg(null); setProg(null);
+    const r = await apiPost("/papers/ocr/run", { paper_id: paperId });
+    if (!r.ok) { setStatus("error"); setMsg(r.error || "Couldn't start OCR."); return; }
+    poll(r.data.job_id);
+  };
+  return (
+    <div className="detail-acquire">
+      <button className="btn btn-primary" disabled={status === "running"} onClick={start}
+        title="This PDF has no text layer (it looks scanned). Run local OCR to make it searchable + citable — nothing leaves your machine.">
+        {status === "running" ? "Running OCR…" : "OCR this paper (scanned)"}
+      </button>
+      {status === "running" && <ProgressBar label="Reading pages…" progress={prog} />}
+      {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
+    </div>
+  );
+}
+
 // inc-97: add an arbitrary CSL bibliographic field by hand (completes the inc-49 "More" deferral). Reuses the
 // validated generic `csl` patch — the backend allows letter-led [A-Za-z0-9_-] keys, rejecting reserved/core
 // ones (those have their own fields) with a 422 that surfaces as the pane's save note.
@@ -551,6 +591,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       </DetailSection>
 
       {!hasPdf && <AcquireOaRow paperId={p.id} onAcquired={onAcquired} />}
+      {hasPdf && p.chunk_count === 0 && <OcrRow paperId={p.id} onOcred={onAcquired} />}
 
       {p.attachments && p.attachments.length > 0 &&
         <div className="detail-files">

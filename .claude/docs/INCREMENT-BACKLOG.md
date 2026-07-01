@@ -522,8 +522,12 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
 - **B2 — collaboration / shared libraries** — opt-in shared libraries on the **now-built account + sync** layer
   (incs 194–202), under the same E2E/consent discipline. **Not declined** — a scope/architecture-weight question.
   *(This is essentially SP4 of the accounts arc.)*
-- **B3 — OCR for scanned PDFs** (Tesseract fallback; also helps merge's preprint-vs-scanned case) — rides the
-  desktop-shell/packaging track (#21) for the bundling cost.
+- **B3 — OCR for scanned PDFs** — **[DONE inc 231]** a manual per-paper **"OCR this paper"** action (shown only for
+  a PDF with no text layer): local **Tesseract** produces a **searchable PDF** (image + embedded OCR text layer),
+  attached as the new primary + extracted through the normal pipeline → the scanned paper becomes searchable +
+  embeddable + citable with **exact** highlights + selectable text. No new pip dependency (system binary), no egress.
+  *Follow-ups:* bundle Tesseract with the desktop shell (#21); a batch "OCR all scanned"; re-OCR of a partially-texted
+  PDF (needs the deferred delete-chunks/vector-cleanup); non-English language packs.
 - **B4 — library-level citation-context classifier (scite analogue)** *(needs a detail doc; design home: §B4)* —
   classify whether a *citing* paper supports/contrasts/mentions a claim across the citation graph, locally + grounded
   in retrieved passages. **Distinct from** the gap-finder (#29, discovery) and Track C (#30, the user's own draft).

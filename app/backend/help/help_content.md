@@ -68,6 +68,14 @@ Once you've added a folder it becomes a **watched folder**: Callosum re-scans yo
 
 Your PDFs stay where they are — watching links to them in place and never moves or copies anything. It reads only the folders you've added, on your own machine, and never sends your PDFs anywhere (only the DOI lookup talks to Crossref, the same public metadata service used elsewhere).
 
+<!-- section: ocr-scanned-pdfs -->
+## Making a scanned PDF searchable (OCR)
+Some PDFs are **scanned images** with no underlying text — you can see the words, but the computer can't read them, so they never show up in search, don't get embedded, and can't be cited. When a paper's PDF has no text layer, its **Details** pane shows an **"OCR this paper (scanned)"** button. Click it and Callosum runs **OCR** (optical character recognition) **entirely on your machine** — nothing is uploaded.
+
+It renders each page, recognizes the text, and saves a **searchable copy** of the PDF with an invisible, correctly-positioned text layer over the original page images. After it finishes (you'll see page-by-page progress), the paper is fully first-class: it turns up in search, gets embedded for synthesis, and its citations highlight **exactly** on the page — and you can select and copy text in the viewer. Your original scanned file is kept; the searchable copy just becomes the one Callosum reads.
+
+This needs the free **Tesseract** OCR engine installed on your computer (a one-time setup: `winget install UB-Mannheim.TesseractOCR` on Windows, `brew install tesseract` on macOS, or `apt install tesseract-ocr` on Linux). If it isn't installed, the button tells you so and nothing else happens.
+
 <!-- section: importing-citations -->
 ## Importing a citation file (BibTeX, RIS, CSL-JSON)
 To bring in references from another reference manager, open **+ Add → Import file…** at the top of the Library and choose a **BibTeX** (`.bib`), **RIS** (`.ris`), or **CSL-JSON** (`.json`) file. Zotero, Mendeley, EndNote, and Callosum itself can all export one of these formats. This is the mirror image of **Exporting citations** — what you export, you can re-import.

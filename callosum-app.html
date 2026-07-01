@@ -5557,6 +5557,58 @@
       status === "running" ? "Acquiring\u2026" : "Acquire OA copy"
     ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg));
   }
+  function OcrRow({ paperId, onOcred }) {
+    const [status, setStatus] = useState("idle");
+    const [msg, setMsg] = useState(null);
+    const [prog, setProg] = useState(null);
+    const poll = async (jobId) => {
+      const r = await api(`/papers/ocr/run/${jobId}`);
+      if (!r.ok) {
+        setStatus("error");
+        setMsg(r.error || "OCR status check failed.");
+        return;
+      }
+      const j = r.data;
+      if (j.status === "done") {
+        setStatus("done");
+        setProg(null);
+        const pages = j.result ? j.result.pages : 0;
+        setMsg(`OCR complete \u2014 ${pages} page${pages === 1 ? "" : "s"}; this paper is now searchable.`);
+        onOcred && onOcred();
+        return;
+      }
+      if (j.status === "error") {
+        setStatus("error");
+        setProg(null);
+        setMsg(j.detail || "OCR failed.");
+        return;
+      }
+      setProg(j.progress || null);
+      setTimeout(() => poll(jobId), 1e3);
+    };
+    const start = async () => {
+      setStatus("running");
+      setMsg(null);
+      setProg(null);
+      const r = await apiPost("/papers/ocr/run", { paper_id: paperId });
+      if (!r.ok) {
+        setStatus("error");
+        setMsg(r.error || "Couldn't start OCR.");
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-acquire" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        disabled: status === "running",
+        onClick: start,
+        title: "This PDF has no text layer (it looks scanned). Run local OCR to make it searchable + citable \u2014 nothing leaves your machine."
+      },
+      status === "running" ? "Running OCR\u2026" : "OCR this paper (scanned)"
+    ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Reading pages\u2026", progress: prog }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg));
+  }
   function AddFieldRow({ onSave }) {
     const [name, setName] = useState("");
     const [value, setValue] = useState("");
@@ -5802,7 +5854,7 @@
         value: String(p.csl_json[k]),
         onSave: (v) => saveField("csl", { [k]: v })
       }
-    )), /* @__PURE__ */ React.createElement(AddFieldRow, { onSave: saveField })), !hasPdf && /* @__PURE__ */ React.createElement(AcquireOaRow, { paperId: p.id, onAcquired }), p.attachments && p.attachments.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-files" }, /* @__PURE__ */ React.createElement("span", { className: "detail-files-label" }, "Files"), /* @__PURE__ */ React.createElement("div", { className: "detail-files-list" }, p.attachments.map((a) => /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement(AddFieldRow, { onSave: saveField })), !hasPdf && /* @__PURE__ */ React.createElement(AcquireOaRow, { paperId: p.id, onAcquired }), hasPdf && p.chunk_count === 0 && /* @__PURE__ */ React.createElement(OcrRow, { paperId: p.id, onOcred: onAcquired }), p.attachments && p.attachments.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-files" }, /* @__PURE__ */ React.createElement("span", { className: "detail-files-label" }, "Files"), /* @__PURE__ */ React.createElement("div", { className: "detail-files-list" }, p.attachments.map((a) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: a.id,

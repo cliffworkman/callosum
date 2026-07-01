@@ -41,6 +41,7 @@ from app.backend.api.routers import (
     libreoffice,
     methods,
     my_publications,
+    ocr,
     paper_enrich,
     paper_files,
     papers,
@@ -139,6 +140,7 @@ def create_app(
     api.state.citation_equity_jobs = JobStore()  # inc 227 (#25): per-paper structural citation-equity audit
     api.state.overlooked_jobs = JobStore()  # inc 228 (#25 SP2): topical overlooked-work remediation
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
+    api.state.ocr_jobs = JobStore()  # inc 231 (B3): per-paper OCR of a scanned PDF into a searchable copy
     api.state.enrich_registry = None  # inc 217 test seam: a fake EnrichmentRegistry (else built from the clients)
     api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
@@ -205,6 +207,7 @@ def create_app(
     api.include_router(
         citation_counts.router
     )  # before papers so "/papers/citation-counts/*" wins over "/papers/{id}" (inc 210)
+    api.include_router(ocr.router)  # before papers so "/papers/ocr/*" wins over "/papers/{paper_id}" (inc 231)
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
     api.include_router(
