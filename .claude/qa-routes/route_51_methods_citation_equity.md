@@ -25,8 +25,9 @@ listeners before navigation.
   `generativelanguage`/Gemini/genai host during a run is **Critical** (this is not the Gemini gate).
 - **No people-categorization (veto-level).** No gender/race/sex AND no nationality/country/Global-North-South of any
   author is inferred, shown, or used anywhere. A "gender balance" or "Global South share" number must NOT appear;
-  the principle note states people-categorization is *rejected on principle*, not deferred. Any per-author identity
-  or origin label is **Critical**. (The earlier geography signal was removed; if it reappears, **Critical**.)
+  the panel simply doesn't show any of it (no note about it either — the absence is clean, not editorialized). Any
+  per-author identity or origin label is **Critical**. (The earlier geography signal was removed; if it reappears,
+  **Critical**.)
 - **Signal not verdict.** No composite score, no pass/fail, no rank, no accusation about the paper or any
   person. Each signal is a raw shape with an inspectable basis; the field value is context, not a target.
 - **Honest coverage (#6).** Each signal reports how many references it could resolve; a reference with no data for
@@ -56,9 +57,8 @@ listeners before navigation.
    mini-bar (where applicable), a **descriptive summary** (never a verdict), an expandable **basis** (the refs /
    venues / institutions behind the number), and a **coverage** line.
 4. Expand a signal's **basis** -> the specific references/venues/institutions are listed (inspectability).
-5. Confirm the **principle note** ("This tool never infers or shows the identity of the people you cite … not
-   deferred; something we won't build …") and the **credit** block (King et al. 2017; Merton 1968; Perc 2014) with
-   a working **＋ add to library** (idempotent).
+5. Confirm the **credit** block (King et al. 2017; Merton 1968; Perc 2014) with a working **＋ add to library**
+   (idempotent). There is **no** "we don't categorize people" disclaimer in the UI — the absence is clean, not a note.
 6. **Overlooked work (SP2, inc 228).** Below the audit, the **Overlooked work** sub-section: click **Find overlooked
    work** (`POST /methods/citation-equity/overlooked`); poll (`GET .../overlooked/{job_id}`). Confirm the intro
    states it is "candidates to consider, never a 'you must cite this'; nothing is dropped or auto-added, and an
@@ -74,7 +74,7 @@ listeners before navigation.
 ## Pass criteria
 
 - The audit completes; the panel shows the field attribution + **4** descriptive signals (list-vs-field bars +
-  inspectable bases + coverage) + the never-categorize-people principle note + credit. **No geography signal.**
+  inspectable bases + coverage) + credit. **No geography signal, and no per-author identity/origin anywhere.**
 - **Overlooked work**: candidates render with a topical-match chip + (optional) shared-topics why + ✓-in-library /
   ＋ Add; Add is metadata-only (`/discovery/save`, no PDF) and flips to ✓ added; **no drop/remove control, no
   per-author identity, no quota copy**; ranked by topical match, not citation count.

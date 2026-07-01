@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 229** (see Increment workflow) with **819 pytest tests
+It is currently at **Increment 230** (see Increment workflow) with **819 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -954,7 +954,21 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-06-30 — increment 229 (a values rework of the citation-equity panel: **removed the
+*Last updated: 2026-06-30 — increment 230 (the small close-out of the inc-229 values rework: **dropped the
+user-facing "we don't categorize people" note — the absence is clean, not monumented**). The maintainer: *"if we
+have dropped it now, we should just drop it — time to move on."* Keeping a prominent in-app/help note explaining what
+the tool deliberately *doesn't* do (categorize authors by gender/race/nationality) is itself a way of keeping the
+removed idea alive — the same logic that removed the geography signal. So the `.cite-equity-deferred` note block (+
+its CSS) and the help paragraph were removed, and the intro/header comment trimmed; the panel now just measures
+citation concentration, cleanly, with no disclaimer about the dropped feature. **The regression guard test stays** —
+it's invisible to users but keeps people-categorization from creeping back in (the protective rail is not a monument).
+**Frontend + docs only** — no Python changed (pytest **819** unaffected); QA surface **165/165 API + 727/727 FE, 0
+uncovered**; help `HELP-DOCS-SYNCED → 230`. **Headed-verified, no egress** (`.local/visual/drive_inc229_concentration.py`
+— 4 signals, **0 geography + 0 gender/identity-disclaimer mentions anywhere**, the ⚠ low-coverage flag intact; 0
+console/page/genai). Notes: `INCREMENT-230-NOTES.md`. **NEXT:** genuinely moving on — the design-gated **B-items** (B2
+collaboration, B3 OCR, B4 citation-context classifier, B5 mobile), each its own brainstorm + the maintainer's pick.
+
+Earlier — increment 229 (a values rework of the citation-equity panel: **removed the
 people-categorizing geography signal + all gender framing — rejected on principle — renamed it "Citation
 concentration," + folded in a low-coverage flag**). **The maintainer caught it, and CC reached the same conclusion
 independently:** a citation tool *cannot* measure who is under-cited by sorting cited authors into a group, because

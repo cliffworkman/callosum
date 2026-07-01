@@ -1,10 +1,8 @@
 // inc 227 (backlog #25; reworked inc 229): the "Citation concentration" METHODS section — a structural look at a
 // library paper's reference list (its OpenAlex referenced_works), shown against a sample of the paper's field.
 // Descriptive context, never a score / target / accusation (Principles #2/#7 + the no-accusation A-A boundary).
-// Load-bearing: it NEVER categorizes the people cited (no gender/race/nationality/region — the earlier "Global
-// South" geography signal was removed in inc 229, rejected on principle: sorting authors into a group to measure
-// bias reifies the category). It measures WHAT is cited, never WHO wrote it. Egress = public OpenAlex metadata
-// (user-initiated "Run audit"), NOT the Gemini library-text gate.
+// It measures WHAT is cited, never WHO wrote it (no author-categorization; a guard test in test_citation_equity.py
+// keeps it that way). Egress = public OpenAlex metadata (user-initiated "Run audit"), NOT the Gemini gate.
 
 // credit-the-lineage: the methods this audit operationalizes, one-click added to the library (inc-93 import path).
 const CITATION_EQUITY_CSL = [
@@ -77,7 +75,8 @@ function CiteEquitySignal({ s }) {
   );
 }
 
-// credit + the honesty note (we never categorize the people cited — rejected on principle, not deferred).
+// credit + the how-to note. (The tool measures what is cited, never who wrote it — we don't editorialize that to
+// the user; it's just how it works. A regression guard test keeps people-categorization from creeping back in.)
 function CiteEquityFoot() {
   const [added, setAdded] = useState("idle");
   const addCredit = async () => {
@@ -91,13 +90,6 @@ function CiteEquityFoot() {
         Read this as a mirror, not a report card. If a concentration stands out, the move is to read more
         widely — never to drop a relevant citation, or add one to hit a number. Use <b>Find overlooked work</b>
         (below) to surface topically-relevant papers your list may have missed.
-      </div>
-      <div className="cite-equity-deferred">
-        This tool <b>never</b> infers or shows the identity of the people you cite — no gender, no race, no
-        nationality or region. That's not something we deferred; it's something we won't build. Sorting authors into
-        a group to "measure" bias re-inscribes the very category the bias runs on (making people visible by category
-        uses the same machinery as making them invisible by it). So we only ever look at the shape of <b>what</b> you
-        cite — your own work, famous work, a few venues, a few elite institutions — never <b>who</b> wrote it.
       </div>
       <div className="method-credit">
         <b>Methods:</b> self-citation (King et al. 2017, <i>Socius</i>); the Matthew effect (Merton 1968, <i>Science</i>;
@@ -143,8 +135,7 @@ function CitationEquityPaper({ paperId }) {
     <div className="cite-equity">
       <div className="cite-equity-intro">
         How concentrated <b>{meta ? meta.title : "this paper"}</b>'s reference list is — does it lean on your own
-        work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target,
-        and it never looks at who the cited authors are — only what is cited.
+        work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.
       </div>
       {meta && !meta.hasDoi &&
         <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't resolve its references.</div>}

@@ -522,7 +522,6 @@
   .cite-equity-basis ul { margin: 4px 0 0; padding-left: 18px; color: var(--ink-2); }
   .cite-equity-basis li { margin: 2px 0; }
   .cite-equity-coverage { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
-  .cite-equity-deferred { font-size: 10.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 8px; line-height: 1.45; margin-top: 10px; }
   /* inc 130: findings subsystem (FactMark + review cards + library badge). Tokens only. */
   .findings-section { font-size: 12px; }
   .findings-facts { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
