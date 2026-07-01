@@ -223,6 +223,10 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
             summary #{state.result.summary_id} · {state.result.summary_status}
             {` · ${verifiedCount} verified · ${flaggedCount} flagged`}
           </div>
+          {state.result.imported &&
+            <div className="synth-imported" title="This synthesis came from a shared bundle — its statuses are the sender's, computed against their PDFs, not re-checked here.">
+              Imported — the sender's assessment, not re-checked in your library. Sources open at the page (region precision).
+            </div>}
           {scopeMeta && scopeMeta.total != null &&
             <div className="synth-coverage">
               Drew from <b>{drewFromPapers}</b> of {scopeMeta.total} selected paper{scopeMeta.total === 1 ? "" : "s"} · top {scopeMeta.topK} chunks
@@ -336,6 +340,8 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
   const verified = citation.status === "verified";
   const precision = citation.coordinate_precision || "none";
   const canOpen = onOpenCitation && citation.paper_id != null && (citation.page_start != null || citation.page_end != null);
+  // B2 SP2: an imported citation whose source paper the recipient doesn't have — evidence still shown, no link.
+  const srcLabel = citation.paper_title || (citation.paper_id != null ? `Paper ${citation.paper_id}` : "Source not in your library");
   const [saveState, setSaveState] = useState("idle");  // idle | saving | saved | error
   // Honesty contract: a citation may be saved as a *precise* durable highlight ONLY when
   // it is verified AND its coordinates are exact (and there is at least one real bbox).
@@ -355,7 +361,7 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
   return (
     <details className="citation">
       <summary>
-        <span>{citation.paper_title || `Paper ${citation.paper_id}`} · {pageLabel(citation)}</span>
+        <span>{srcLabel} · {pageLabel(citation)}</span>
         <span className={"cite-status " + citeStatusClass(citation.status)}>
           {citation.status === "contradicted" ? "⚠ source disagrees" : citation.status}
         </span>
@@ -363,9 +369,9 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
       <div className="citation-card">
         <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "flex-start" }}>
           <div>
-            <div style={{ fontWeight: 600, fontSize: 12.5 }}>{citation.paper_title || `Paper ${citation.paper_id}`}</div>
+            <div style={{ fontWeight: 600, fontSize: 12.5 }}>{srcLabel}</div>
             <div style={{ fontFamily: "var(--mono)", fontSize: 10.5, color: "var(--ink-3)", marginTop: 2 }}>
-              chunk {citation.chunk_id} · {pageLabel(citation)}
+              {citation.chunk_id != null ? `chunk ${citation.chunk_id} · ` : ""}{pageLabel(citation)}
             </div>
           </div>
           <span className={"coord " + (precision === "exact" ? "exact" : precision === "region" ? "region" : "none")}>

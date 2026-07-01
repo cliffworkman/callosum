@@ -86,15 +86,17 @@ Import brings in **metadata only** — no PDF is attached (add PDFs via **Scan f
 
 <!-- section: sharing-a-library -->
 ## Sharing a library (bundle export/import)
-A **library bundle** is a single `.json` file that carries your **paper metadata, tags, highlights + notes, and axis definitions** — but **no PDF files**. It's how you hand a library (or a slice of one) to a collaborator without a server and without redistributing copyrighted PDFs: they re-acquire their own copies (via **Acquire OA copy** or their own reference manager), while your notes and organization travel.
+A **library bundle** is a single `.json` file that carries your **paper metadata, tags, highlights + notes, axis definitions, and syntheses** — but **no PDF files**. It's how you hand a library (or a slice of one) to a collaborator without a server and without redistributing copyrighted PDFs: they re-acquire their own copies (via **Acquire OA copy** or their own reference manager), while your notes and organization travel.
 
 **Export.** Open **+ Add ▾** at the top of the Library:
-- **Export library bundle…** saves your *whole* library (including axis definitions) as `callosum-library-bundle.json`.
-- Or select some papers (checkbox) and use the selection bar's **bundle** action to export just those papers + their tags + highlights (a selection doesn't carry axes).
+- **Export library bundle…** saves your *whole* library (axis definitions + all syntheses) as `callosum-library-bundle.json`.
+- Or select some papers (checkbox) and use the selection bar's **bundle** action to export just those papers + their tags + highlights + any synthesis over exactly those papers (a selection doesn't carry axes).
 
 **Import.** **+ Add ▾ → Import bundle…** → pick a `.json` bundle → **Import**. Merging is **additive and non-destructive**: a paper you already have (matched by DOI, or title + year + first author) keeps *your* metadata and simply gains the bundle's tags + highlights; papers you don't have are created (metadata-only). Tags merge by name; a keyword axis arrives as a definition you can **Score** locally; a curated axis brings its hand-picked members. Re-importing the same bundle changes nothing (it's idempotent).
 
-Everything stays on your machine — the file is read in your browser and merged locally; nothing is sent anywhere. Two honest limits: a **highlight's box** only re-appears once you have the *same* PDF (the note, page, and highlighted text always land, since the bundle carries no PDF), and **syntheses aren't in the bundle yet** (a later version will carry them). Bundles are the portable, no-lock-in form of your library — plain JSON you can open and inspect.
+**Imported syntheses are relayed, not re-verified.** A synthesis you receive is shown clearly as **the sender's assessment, not re-checked in your library** — its verified/flagged statuses were computed against the sender's PDFs. Each citation opens at the source paper's **page** (region precision, never a fabricated exact highlight), and a citation whose source paper you don't have still shows its quote (marked "Source not in your library"). You always see the evidence and decide; the app never re-labels a relayed synthesis as your own verified one. (Re-verifying an imported synthesis against your own library is a planned later addition.)
+
+Everything stays on your machine — the file is read in your browser and merged locally; nothing is sent anywhere. One honest limit remains: a **highlight's box** only re-appears once you have the *same* PDF (the note, page, and highlighted text always land, since the bundle carries no PDF). Bundles are the portable, no-lock-in form of your library — plain JSON you can open and inspect.
 
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library

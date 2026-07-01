@@ -1095,6 +1095,8 @@
   .synth-coverage-warn { color: var(--flag-ink); }
   /* AI-off nudge (inc 148): amber status banner + a door into Settings. Mirrors .synth-scope-note on the --flag family. */
   .synth-nudge { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 9px 11px; margin: 14px 0 0; }
+  /* Imported (relayed) synthesis banner (B2 SP2): a shared synthesis is the sender's assessment, not re-verified here. --flag family. */
+  .synth-imported { font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 9px; margin: 8px 0 0; }
   .synth-status.running::before {
     content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
     background: var(--accent); margin-right: 7px; animation: pulse 1.2s infinite;

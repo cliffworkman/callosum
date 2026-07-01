@@ -31,6 +31,13 @@ highlight, and one curated axis, so a round-trip is meaningful. Register listene
 - **Coordinate honesty.** An imported annotation carries its note + page + color; its box overlay renders only when
   the same PDF is present (the bundle has no PDF). The imported annotation's `attachment_id` is NULL. A fabricated box
   against an absent PDF is **High**.
+- **Relayed syntheses, not re-verified (B2 SP2 — the honesty gate).** Syntheses travel in the bundle and import as
+  **relayed artifacts**: a loaded imported synthesis shows the **"Imported — the sender's assessment, not re-checked
+  in your library"** banner (`.synth-imported`), its citations open at **region precision only** (never a fabricated
+  exact box — the sender's bbox is for the sender's PDF), and its response carries `imported: true`. Presenting an
+  imported synthesis as a locally-verified one (no banner / exact highlights / in the native verification tables) is
+  **Critical** (invariants #1/#4). A citation whose source paper isn't present shows its **quote** + "Source not in
+  your library" (evidence stays visible), no Open link. The history list flags imported syntheses (`imported: true`).
 - **Bounded input.** Oversized / malformed / unknown-version bundle text → a graceful job error (422 at the endpoint
   for empty/oversized `content`; the worker errors cleanly on bad JSON / unknown version), never a crash.
 

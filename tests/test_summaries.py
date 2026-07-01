@@ -225,6 +225,7 @@ def test_summaries_list_returns_history_with_counts_and_pagination(temp_db_url: 
             "sentence_count": 1,
             "verified_sentence_count": 1,
             "flagged_sentence_count": 0,
+            "imported": False,
         }
     ]
     assert first_page[0]["created_at"]

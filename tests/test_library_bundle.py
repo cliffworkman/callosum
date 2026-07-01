@@ -5,8 +5,10 @@ router embeds them separately)."""
 from __future__ import annotations
 
 import pytest
-from sqlalchemy import select
+from fastapi.testclient import TestClient
+from sqlalchemy import insert, select
 
+from app.backend.api import create_app
 from app.backend.clustering.axis_assignments import CURATED_KIND, add_manual_assignment, append_member_position
 from app.backend.clustering.axis_scoring import create_axis
 from app.backend.metadata.library_bundle import (
@@ -19,8 +21,18 @@ from app.backend.metadata.library_bundle import (
 )
 from app.backend.persistence import annotations_repo, tags_repo
 from app.backend.persistence.database import make_engine
-from app.backend.persistence.repository import create_paper
-from app.backend.persistence.schema import annotations, cluster_node_papers, cluster_nodes, metadata, papers
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
+from app.backend.persistence.schema import (
+    annotations,
+    citation_mappings,
+    cluster_node_papers,
+    cluster_nodes,
+    evidence_quotes,
+    metadata,
+    papers,
+    summaries,
+    summary_sentences,
+)
 
 
 def _db(tmp_path, name):
@@ -221,3 +233,213 @@ def test_parse_bundle_valid_and_malformed():
         parse_bundle('{"callosum_bundle": 1}')  # no papers list
     with pytest.raises(BundleError):
         parse_bundle('{"callosum_bundle": 1, "papers": []}' + " " * (MAX_BUNDLE_BYTES + 10))  # oversized
+
+
+# ── B2 SP2: syntheses (relayed, not re-verified) ─────────────────────────────
+
+
+def _seed_native_synthesis(conn):
+    """A native papers-scope synthesis over one paper: 1 sentence, 1 verified citation into its chunk."""
+    pid = create_paper(
+        conn,
+        title="Synth Paper",
+        csl_json={"title": "Synth Paper", "DOI": "10.9/synth"},
+        doi="10.9/synth",
+        year=2022,
+        first_author_family_name="Synthor",
+    )
+    aid = create_attachment(
+        conn,
+        paper_id=pid,
+        storage_mode="linked",
+        availability="available",
+        content_type="application/pdf",
+        checksum="synthchk",
+    )
+    cid = create_chunk(
+        conn,
+        paper_id=pid,
+        attachment_id=aid,
+        text="the finding sentence",
+        page_start=3,
+        page_end=3,
+        bbox_coordinate_system="pdf-points-top-left",
+        extraction_tool="fixture",
+        extraction_version="1",
+        chunking_strategy="paragraph",
+        chunk_version="cv1",
+        source_attachment_checksum="synthchk",
+    )
+    sm = conn.execute(
+        insert(summaries).values(
+            scope_type="papers",
+            scope_ref_json={"paper_ids": [pid]},
+            content="A synthesis.",
+            generated_by="fake",
+            chunk_version_verified_against="cv",
+            embedding_version_verified_against="ev",
+            verification_version="vv",
+            status="verified",
+            overview_json=[{"text": "Overview line.", "claim_ordinals": [0]}],
+        )
+    ).inserted_primary_key[0]
+    st = conn.execute(
+        insert(summary_sentences).values(summary_id=sm, ordinal=0, text="The finding holds.")
+    ).inserted_primary_key[0]
+    mp = conn.execute(
+        insert(citation_mappings).values(
+            summary_sentence_id=st,
+            chunk_id=cid,
+            status="verified",
+            chunk_version_verified_against="cv",
+            embedding_version_verified_against="ev",
+            verification_version="vv",
+        )
+    ).inserted_primary_key[0]
+    conn.execute(
+        insert(evidence_quotes).values(
+            citation_mapping_id=mp,
+            chunk_id=cid,
+            quote_text="the finding sentence",
+            page_start=3,
+            page_end=3,
+            retrieval_confidence=0.9,
+            quote_confidence=1.0,
+            support_confidence=0.8,
+        )
+    )
+    return pid
+
+
+def test_synthesis_export_carries_sentences_and_source_identity(tmp_path):
+    engine = _db(tmp_path, "src.sqlite")
+    with engine.begin() as conn:
+        _seed_native_synthesis(conn)
+        b = build_bundle(conn, scope="library")
+    assert len(b["syntheses"]) == 1
+    syn = b["syntheses"][0]
+    assert syn["scope_type"] == "papers"
+    assert any(i.get("doi") == "10.9/synth" for i in syn["scope_identities"])
+    cite = syn["sentences"][0]["citations"][0]
+    assert cite["status"] == "verified" and cite["quote_text"] == "the finding sentence"
+    assert cite["source"]["doi"] == "10.9/synth"  # travels by identity, not chunk id
+    engine.dispose()
+
+
+def test_imported_synthesis_is_relayed_and_read_via_api(tmp_path):
+    src = _db(tmp_path, "s.sqlite")
+    with src.begin() as conn:
+        _seed_native_synthesis(conn)
+        bundle = build_bundle(conn, scope="library")
+    dst_url = f"sqlite:///{(tmp_path / 'd.sqlite').as_posix()}"
+    dst = make_engine(dst_url)
+    metadata.create_all(dst)
+    with dst.begin() as conn:  # dest has the source paper so the citation resolves by identity
+        create_paper(
+            conn,
+            title="Synth Paper",
+            csl_json={"title": "Synth Paper", "DOI": "10.9/synth"},
+            doi="10.9/synth",
+            year=2022,
+            first_author_family_name="Synthor",
+        )
+        res = import_bundle(conn, bundle)
+        assert res["summary"]["syntheses_imported"] == 1
+        row = conn.execute(select(summaries).where(summaries.c.status == "imported")).mappings().first()
+        assert row is not None and row["imported_json"] is not None  # a relayed display blob, never in the tables
+    dst.dispose()
+    app = create_app(db_url=dst_url)
+    cl = TestClient(app)
+    listed = cl.get("/summaries").json()
+    imported = [s for s in listed if s["imported"]]
+    assert len(imported) == 1
+    detail = cl.get(f"/summaries/{imported[0]['summary_id']}").json()
+    assert detail["imported"] is True
+    cit = detail["sentences"][0]["citations"][0]
+    assert cit["coordinate_precision"] == "region"  # never a fabricated exact box
+    assert cit["paper_id"] is not None and cit["quote"] == "the finding sentence" and cit["status"] == "verified"
+    src.dispose()
+
+
+def test_synthesis_reimport_idempotent(tmp_path):
+    src, dst = _db(tmp_path, "s.sqlite"), _db(tmp_path, "d.sqlite")
+    with src.begin() as conn:
+        _seed_native_synthesis(conn)
+        bundle = build_bundle(conn, scope="library")
+    with dst.begin() as conn:
+        import_bundle(conn, bundle)
+    with dst.begin() as conn:
+        res2 = import_bundle(conn, bundle)
+        assert res2["summary"]["syntheses_imported"] == 0  # dedup by content
+        assert len(list(conn.execute(select(summaries.c.id).where(summaries.c.status == "imported")))) == 1
+    src.dispose()
+    dst.dispose()
+
+
+def test_synthesis_citation_source_not_in_library(tmp_path):
+    # A hand-crafted bundle whose synthesis cites a paper NOT carried in `papers` → the citation can't resolve.
+    dst = _db(tmp_path, "d.sqlite")
+    bundle = {
+        "callosum_bundle": 1,
+        "scope": "library",
+        "papers": [],
+        "syntheses": [
+            {
+                "scope_type": "query",
+                "scope_identities": [],
+                "scope_ref": {"query": "risk"},
+                "content": "A relayed synthesis.",
+                "overview_json": None,
+                "generated_by": "fake",
+                "sentences": [
+                    {
+                        "ordinal": 0,
+                        "text": "A claim.",
+                        "citations": [
+                            {
+                                "quote_text": "an external quote",
+                                "page_start": 5,
+                                "page_end": 5,
+                                "status": "verified",
+                                "retrieval_confidence": 0.9,
+                                "quote_confidence": 1.0,
+                                "support_confidence": 0.8,
+                                "source": {"doi": "10.9/absent", "title": "Absent Paper"},
+                            }
+                        ],
+                    }
+                ],
+            }
+        ],
+    }
+    with dst.begin() as conn:
+        assert import_bundle(conn, bundle)["summary"]["syntheses_imported"] == 1
+        blob = conn.execute(select(summaries.c.imported_json).where(summaries.c.status == "imported")).scalars().first()
+        cit = blob["sentences"][0]["citations"][0]
+        assert cit["paper_id"] is None  # source not in your library
+        assert cit["quote"] == "an external quote"  # evidence still carried (silence is not a certificate)
+    dst.dispose()
+
+
+def test_native_synthesis_only_never_re_exports_a_relayed_one(tmp_path):
+    src, dst = _db(tmp_path, "s.sqlite"), _db(tmp_path, "d.sqlite")
+    with src.begin() as conn:
+        _seed_native_synthesis(conn)
+        bundle = build_bundle(conn, scope="library")
+    with dst.begin() as conn:
+        import_bundle(conn, bundle)
+        b2 = build_bundle(conn, scope="library")  # dest now holds a RELAYED synthesis
+        assert b2["syntheses"] == []  # imported syntheses are never re-exported (clean provenance)
+    src.dispose()
+    dst.dispose()
+
+
+def test_selection_bundle_carries_fully_contained_synthesis_only(tmp_path):
+    engine = _db(tmp_path, "src.sqlite")
+    with engine.begin() as conn:
+        pid = _seed_native_synthesis(conn)
+        other = create_paper(conn, title="Other", csl_json={"title": "Other"}, doi="10.9/other")
+        b_in = build_bundle(conn, scope="selection", paper_ids=[pid])  # scope paper is selected
+        b_out = build_bundle(conn, scope="selection", paper_ids=[other])  # synth's scope paper NOT selected
+    assert len(b_in["syntheses"]) == 1 and b_out["syntheses"] == []
+    engine.dispose()

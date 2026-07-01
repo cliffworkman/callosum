@@ -368,6 +368,9 @@ summaries = Table(
     Column("scope_ref_json", JSON),
     Column("content", Text),
     Column("overview_json", JSON),  # inc 124: per-sentence traceable Overview [{text, claim_ordinals:[int]}]
+    Column(
+        "imported_json", JSON
+    ),  # B2 SP2 (inc 235): a RELAYED synthesis's self-contained display blob (status="imported")
     Column("generated_by", String(255)),
     Column("chunk_version_verified_against", String(255), nullable=False),
     Column("embedding_version_verified_against", String(255), nullable=False),

@@ -43,8 +43,9 @@ function BundleImportModal({ onClose, onImported }) {
         </div>
         <div className="axis-modal-note">
           Choose a <b>callosum library bundle</b> (.json) exported from another library. Its papers, tags,
-          annotations, and axis definitions merge into yours — existing papers keep their own metadata and just gain
-          the bundle's tags + notes. <b>No PDFs</b> travel in a bundle; a highlight's box re-appears once you have
+          annotations, axis definitions, and syntheses merge into yours — existing papers keep their own metadata and
+          just gain the bundle's tags + notes. An imported synthesis is shown as <b>the sender's assessment</b> (not
+          re-verified in your library). <b>No PDFs</b> travel in a bundle; a highlight's box re-appears once you have
           the same PDF. Everything stays on your machine.
         </div>
         <div className="scan-row">
@@ -63,8 +64,9 @@ function BundleImportModal({ onClose, onImported }) {
             {s.annotations_added ? ` · ${s.annotations_added} highlights` : ""}
             {s.axes_created ? ` · ${s.axes_created} axes` : ""}
             {s.axes_members_added ? ` · ${s.axes_members_added} axis members` : ""}
+            {s.syntheses_imported ? ` · ${s.syntheses_imported} syntheses` : ""}
             {s.skipped ? ` · ${s.skipped} skipped` : ""}
-            <div className="axis-hint">Merged papers keep your own metadata; new papers are filterable by type.</div>
+            <div className="axis-hint">Merged papers keep your own metadata; new papers are filterable by type. Imported syntheses are the sender's — not re-verified here.</div>
           </div>}
         <div className="axis-form-actions">
           <button className="axis-link" onClick={onClose}>Close</button>

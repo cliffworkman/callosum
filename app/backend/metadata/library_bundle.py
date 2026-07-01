@@ -14,20 +14,34 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import Connection, select
+from sqlalchemy import Connection, insert, select
 
 from app.backend.clustering.axis_assignments import CURATED_KIND, add_manual_assignment, append_member_position
 from app.backend.clustering.axis_scoring import create_axis
 from app.backend.metadata.citation_import import csl_record_to_paper_fields
 from app.backend.persistence import annotations_repo, tags_repo
 from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
-from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, papers
+from app.backend.persistence.schema import (
+    axes,
+    chunks,
+    citation_mappings,
+    cluster_node_papers,
+    cluster_nodes,
+    evidence_quotes,
+    papers,
+    summaries,
+    summary_sentences,
+)
 
 BUNDLE_VERSION = 1
 MAX_BUNDLE_BYTES = 20_000_000  # ~20 MB — annotations add bulk vs. the 5 MB citation-import cap (rule #4)
 MAX_BUNDLE_PAPERS = 20_000
 MAX_TAGS_PER_PAPER = 200
 MAX_ANNOTATIONS_PER_PAPER = 500
+MAX_BUNDLE_SYNTHESES = 2_000  # B2 SP2: syntheses carried in a whole-library / selection bundle
+MAX_SYNTHESIS_SENTENCES = 400
+MAX_CITATIONS_PER_SENTENCE = 50
+IMPORTED_SYNTHESIS_STATUS = "imported"  # a RELAYED synthesis — the sender's verification, not re-checked here
 BUNDLE_SOURCE = "bundle-import"  # kept out of the enrich-clobber allowlist, like user-edited/discovery-import
 _SHAREABLE_AXIS_KINDS = ("standard", CURATED_KIND)  # never export my_publications (authorship, resolver-only)
 _IDENTITY_FIELDS = ("doi", "openalex_work_id", "semantic_scholar_paper_id", "title", "year", "first_author_family_name")
@@ -106,9 +120,85 @@ def _axis_entries(conn: Connection) -> list[dict[str, Any]]:
     return out
 
 
+def _citation_rows(conn: Connection, sentence_id: int) -> list[Any]:
+    """A summary sentence's citations, resolved through chunks → papers (the summaries.py read join), carrying the
+    source paper's identity columns so each citation travels with its source-by-identity (B2 SP2)."""
+    return list(
+        conn.execute(
+            select(
+                citation_mappings.c.status,
+                evidence_quotes.c.quote_text,
+                evidence_quotes.c.page_start,
+                evidence_quotes.c.page_end,
+                evidence_quotes.c.retrieval_confidence,
+                evidence_quotes.c.quote_confidence,
+                evidence_quotes.c.support_confidence,
+                *[papers.c[f].label(f) for f in _IDENTITY_FIELDS],
+            )
+            .select_from(
+                citation_mappings.join(evidence_quotes, evidence_quotes.c.citation_mapping_id == citation_mappings.c.id)
+                .join(chunks, chunks.c.id == evidence_quotes.c.chunk_id)
+                .join(papers, papers.c.id == chunks.c.paper_id)
+            )
+            .where(citation_mappings.c.summary_sentence_id == sentence_id)
+            .order_by(citation_mappings.c.id)
+        ).mappings()
+    )
+
+
+def _synthesis_entries(conn: Connection, *, paper_ids: list[int] | None = None) -> list[dict[str, Any]]:
+    """Serialize NATIVE syntheses (never re-export a relayed one). For a selection, keep only papers-scope syntheses
+    fully contained in the selection so the recipient has every cited paper; whole-library keeps all."""
+    sel = {int(p) for p in paper_ids} if paper_ids is not None else None
+    out: list[dict[str, Any]] = []
+    for sm in conn.execute(select(summaries).where(summaries.c.imported_json.is_(None))).mappings():
+        scope_ref = sm["scope_ref_json"] if isinstance(sm["scope_ref_json"], dict) else {}
+        raw_ids = scope_ref.get("paper_ids")
+        scope_pids = [int(p) for p in raw_ids if str(p).lstrip("-").isdigit()] if isinstance(raw_ids, list) else []
+        if sel is not None and (sm["scope_type"] != "papers" or not scope_pids or not set(scope_pids).issubset(sel)):
+            continue
+        scope_identities = []
+        for pid in scope_pids:
+            row = conn.execute(select(papers).where(papers.c.id == pid)).mappings().first()
+            if row is not None:
+                scope_identities.append(_identity(row))
+        sentences = []
+        for st in conn.execute(
+            select(summary_sentences)
+            .where(summary_sentences.c.summary_id == sm["id"])
+            .order_by(summary_sentences.c.ordinal, summary_sentences.c.id)
+        ).mappings():
+            cites = [
+                {
+                    "quote_text": r["quote_text"],
+                    "page_start": r["page_start"],
+                    "page_end": r["page_end"],
+                    "status": r["status"],
+                    "retrieval_confidence": r["retrieval_confidence"],
+                    "quote_confidence": r["quote_confidence"],
+                    "support_confidence": r["support_confidence"],
+                    "source": {f: r[f] for f in _IDENTITY_FIELDS if r[f] is not None},
+                }
+                for r in _citation_rows(conn, int(st["id"]))
+            ]
+            sentences.append({"ordinal": int(st["ordinal"]), "text": st["text"], "citations": cites})
+        out.append(
+            {
+                "scope_type": sm["scope_type"],
+                "scope_identities": scope_identities,
+                "scope_ref": {"query": scope_ref.get("query")} if scope_ref.get("query") else {},
+                "content": sm["content"],
+                "overview_json": sm["overview_json"],
+                "generated_by": sm["generated_by"],
+                "sentences": sentences,
+            }
+        )
+    return out
+
+
 def build_bundle(conn: Connection, *, scope: str, paper_ids: list[int] | None = None) -> dict[str, Any]:
     """Serialize the library (or a selection) to a bundle dict. Whole-library carries axis definitions; a selection
-    carries only its papers + tags + annotations."""
+    carries only its papers + tags + annotations. Both carry native syntheses (relayed on import — B2 SP2)."""
     if scope == "selection":
         ids = [int(p) for p in (paper_ids or [])]
         rows = (
@@ -117,6 +207,7 @@ def build_bundle(conn: Connection, *, scope: str, paper_ids: list[int] | None = 
             else []
         )
     else:
+        ids = None
         rows = list(conn.execute(select(papers).where(papers.c.deleted_at.is_(None)).order_by(papers.c.id)).mappings())
     bundle: dict[str, Any] = {
         "callosum_bundle": BUNDLE_VERSION,
@@ -124,6 +215,7 @@ def build_bundle(conn: Connection, *, scope: str, paper_ids: list[int] | None = 
         "generator": "callosum",
         "scope": "selection" if scope == "selection" else "library",
         "papers": [_paper_entry(conn, r) for r in rows],
+        "syntheses": _synthesis_entries(conn, paper_ids=ids),  # native only; selection = fully-contained papers-scope
     }
     if scope != "selection":
         bundle["axes"] = _axis_entries(conn)
@@ -207,6 +299,7 @@ def import_bundle(conn: Connection, bundle: dict[str, Any]) -> dict[str, Any]:
         "annotations_added": 0,
         "axes_created": 0,
         "axes_members_added": 0,
+        "syntheses_imported": 0,
         "skipped": 0,
     }
     created: list[int] = []
@@ -321,4 +414,131 @@ def import_bundle(conn: Connection, bundle: dict[str, Any]) -> dict[str, Any]:
         except Exception:
             pass  # a bad axis never sinks the import
 
+    _import_syntheses(conn, bundle.get("syntheses") or [], summary)
     return {"summary": summary, "created": created}
+
+
+# ── relayed syntheses (B2 SP2): stored as a self-contained display blob, region precision, never re-verified ──────
+
+
+def _f(x: Any) -> float:
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _synthesis_scope_label(entry: dict[str, Any]) -> str:
+    st = entry.get("scope_type")
+    if st == "query":
+        q = (entry.get("scope_ref") or {}).get("query")
+        return f'"{q}"' if q else "Query"
+    if st == "cluster_node":
+        return "Cluster"
+    n = len(entry.get("scope_identities") or [])
+    return f"{n} paper{'s' if n != 1 else ''}" if n else "Selection"
+
+
+def _resolve_source(conn: Connection, src: Any) -> tuple[int | None, str | None]:
+    """Resolve a citation/scope source identity → (local paper_id, title). paper_id None = 'source not in your library'."""
+    if not isinstance(src, dict):
+        return None, None
+    found = find_existing_paper_by_identity(
+        conn,
+        doi=src.get("doi"),
+        openalex_work_id=src.get("openalex_work_id"),
+        semantic_scholar_paper_id=src.get("semantic_scholar_paper_id"),
+        title=src.get("title"),
+        year=src.get("year"),
+        first_author_family_name=src.get("first_author_family_name"),
+    )
+    if found is None:
+        return None, src.get("title")
+    return int(found[1]["id"]), found[1]["title"]
+
+
+def _import_syntheses(conn: Connection, entries: Any, summary: dict[str, int]) -> None:
+    """Merge relayed syntheses as self-contained display blobs (``status="imported"``; never in the verification
+    tables). Idempotent by content; each citation's source resolves by identity, region precision (the sender's box
+    is for the sender's PDF). A bad entry is skipped, never fatal."""
+    for entry in (entries or [])[:MAX_BUNDLE_SYNTHESES]:
+        try:
+            with conn.begin_nested():
+                if not isinstance(entry, dict):
+                    continue
+                content = entry.get("content")
+                if (
+                    content
+                    and conn.execute(
+                        select(summaries.c.id)
+                        .where(summaries.c.imported_json.isnot(None), summaries.c.content == content)
+                        .limit(1)
+                    ).first()
+                ):
+                    continue  # already imported (dedup by content → re-import is idempotent)
+                blob_sentences = []
+                for st in (entry.get("sentences") or [])[:MAX_SYNTHESIS_SENTENCES]:
+                    if not isinstance(st, dict):
+                        continue
+                    cites = []
+                    for c in (st.get("citations") or [])[:MAX_CITATIONS_PER_SENTENCE]:
+                        if not isinstance(c, dict):
+                            continue
+                        pid, ptitle = _resolve_source(conn, c.get("source"))
+                        cites.append(
+                            {
+                                "paper_id": pid,
+                                "paper_title": ptitle,
+                                "quote": c.get("quote_text"),
+                                "page_start": c.get("page_start"),
+                                "page_end": c.get("page_end"),
+                                "status": str(c.get("status") or "unverified"),
+                                "retrieval_confidence": _f(c.get("retrieval_confidence")),
+                                "quote_confidence": _f(c.get("quote_confidence")),
+                                "support_confidence": _f(c.get("support_confidence")),
+                                "coordinate_precision": "region",  # region only — never a fabricated exact box
+                            }
+                        )
+                    flagged = (not cites) or any(cc["status"] != "verified" for cc in cites)  # the native rule
+                    blob_sentences.append(
+                        {
+                            "ordinal": int(st.get("ordinal") or 0),
+                            "text": str(st.get("text") or ""),
+                            "flagged": flagged,
+                            "citations": cites,
+                        }
+                    )
+                overview = entry.get("overview_json") if isinstance(entry.get("overview_json"), list) else None
+                blob = {
+                    "generated_by": entry.get("generated_by"),
+                    "scope_label": _synthesis_scope_label(entry),
+                    "overview": overview,
+                    "sentences": blob_sentences,
+                }
+                scope_ref: dict[str, Any] = {}
+                local_pids = [
+                    pid
+                    for src in (entry.get("scope_identities") or [])
+                    if (pid := _resolve_source(conn, src)[0]) is not None
+                ]
+                if entry.get("scope_type") == "papers" and local_pids:
+                    scope_ref["paper_ids"] = local_pids
+                q = (entry.get("scope_ref") or {}).get("query")
+                if q:
+                    scope_ref["query"] = q
+                conn.execute(
+                    insert(summaries).values(
+                        scope_type=str(entry.get("scope_type") or "papers"),
+                        scope_ref_json=scope_ref,
+                        content=content,
+                        overview_json=overview,
+                        imported_json=blob,
+                        status=IMPORTED_SYNTHESIS_STATUS,
+                        chunk_version_verified_against="imported",
+                        embedding_version_verified_against="imported",
+                        verification_version="imported",
+                    )
+                )
+                summary["syntheses_imported"] += 1
+        except Exception:
+            pass  # a bad synthesis never sinks the import

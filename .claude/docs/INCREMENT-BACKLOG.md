@@ -519,13 +519,15 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   `add_tag` / `add_to_axis` / `save_reference` / `annotate`, each provenance-stamped (`imported_source="ai-agent"`),
   reversible (session undo / soft-delete), and gated (writes-enabled opt-in + per-write confirmation) + an agent
   audit log. The one genuinely-new architectural item; the defensive moat.
-- **B2 — collaboration / shared libraries** — **[SP1 SHIPPED inc 234]** the file-based, copyright-safe slice: a
-  **portable library bundle** — export/import a versioned JSON file carrying metadata + tags + annotations + axis
-  definitions but **NO PDFs** (`metadata/library_bundle.py`; `POST /library/bundle/export` + `POST/GET
-  /library/bundle/import`). No server, no egress; merge is additive/non-destructive by identity; the recipient
-  re-acquires their own PDFs. Spec `.claude/docs/specs/2026-07-01-library-bundle-design.md`. **Remaining: SP2** =
-  **syntheses in the bundle** (citations re-anchored as quote+page+source-DOI → region precision on the recipient's
-  matching paper, flagged "the sender's verification, not re-checked here"). **Beyond SP2 (deferred, own design):** a
+- **B2 — collaboration / shared libraries** — **[SP1 inc 234 + SP2 inc 235 SHIPPED]** the file-based, copyright-safe
+  slice: a **portable library bundle** — export/import a versioned JSON file carrying metadata + tags + annotations +
+  axis definitions **+ syntheses** but **NO PDFs** (`metadata/library_bundle.py`; `POST /library/bundle/export` +
+  `POST/GET /library/bundle/import`). No server, no egress; merge is additive/non-destructive by identity; the recipient
+  re-acquires their own PDFs. SP2 relays syntheses as the sender's assessment (region precision, a `summaries.imported_json`
+  display blob, never re-verified / never in the verification tables, clearly flagged — invariants #1/#4). Specs
+  `.claude/docs/specs/2026-07-01-library-bundle-design.md` + `…-syntheses-sp2.md`. **Remaining: SP3** = a one-click
+  **"re-verify against my library"** on an imported synthesis (re-run the local retrieval + NLI + quote-location over
+  the recipient's chunks → turns the relayed artifact into a native one). **Beyond SP3 (deferred, own design):** a
   *live* shared library on the account+sync layer (incs 194–202) under the E2E/consent discipline — ≈ accounts SP4.
 - **B3 — OCR for scanned PDFs** — **[DONE inc 231]** a manual per-paper **"OCR this paper"** action (shown only for
   a PDF with no text layer): local **Tesseract** produces a **searchable PDF** (image + embedded OCR text layer),

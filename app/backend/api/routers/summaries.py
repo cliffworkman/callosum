@@ -60,10 +60,10 @@ class SummarizeStartResponse(BaseModel):
 
 
 class SummaryCitationResponse(BaseModel):
-    mapping_id: int
-    evidence_quote_id: int
-    chunk_id: int
-    paper_id: int
+    mapping_id: int | None = None  # None for a relayed (imported) citation — no local mapping/evidence/chunk id
+    evidence_quote_id: int | None = None
+    chunk_id: int | None = None
+    paper_id: int | None = None  # None = the source paper isn't in the recipient's library (evidence still shown)
     paper_title: str
     page_start: int | None = None
     page_end: int | None = None
@@ -97,6 +97,7 @@ class SummarizeJobResponse(BaseModel):
     summary_status: str | None = None
     sentences: list[SummarySentenceResponse] | None = None
     overview: list[OverviewItemResponse] | None = None
+    imported: bool = False  # B2 SP2: a relayed synthesis — the sender's assessment, region precision, not re-verified
 
 
 class SummaryListItem(BaseModel):
@@ -108,6 +109,10 @@ class SummaryListItem(BaseModel):
     sentence_count: int
     verified_sentence_count: int
     flagged_sentence_count: int
+    imported: bool = False  # B2 SP2: flags a relayed synthesis in the history list
+
+
+IMPORTED_STATUS = "imported"  # a relayed synthesis carries the sender's verification (B2 SP2)
 
 
 @router.post(
@@ -267,6 +272,9 @@ def _vector_store(api: FastAPI) -> VectorStore:
 
 def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: str) -> SummarizeJobResponse:
     summary = get_summary(conn, summary_id)
+    imported_blob = summary["imported_json"] if "imported_json" in summary else None
+    if imported_blob:  # B2 SP2: a relayed synthesis — build the response from its self-contained display blob
+        return _imported_summary_response(imported_blob, summary_id=summary_id, job_id=job_id)
     sentence_rows = list(
         conn.execute(
             select(summary_sentences)
@@ -291,6 +299,59 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         summary_status=summary["status"],
         sentences=[_summary_sentence_response(conn, sentence) for sentence in sentence_rows],
         overview=overview,
+    )
+
+
+def _imported_summary_response(blob: Any, *, summary_id: int, job_id: str) -> SummarizeJobResponse:
+    """Build the response for a RELAYED synthesis from its display blob (B2 SP2): region-precision citations, the
+    sender's statuses, `imported=True`. Never touches the verification tables."""
+    sentences = []
+    for i, st in enumerate(blob.get("sentences") or []):
+        if not isinstance(st, dict):
+            continue
+        citations = [
+            SummaryCitationResponse(
+                paper_id=c.get("paper_id"),
+                paper_title=str(c.get("paper_title") or ""),
+                page_start=c.get("page_start"),
+                page_end=c.get("page_end"),
+                quote=str(c.get("quote") or ""),
+                retrieval_confidence=float(c.get("retrieval_confidence") or 0.0),
+                quote_confidence=float(c.get("quote_confidence") or 0.0),
+                support_confidence=float(c.get("support_confidence") or 0.0),
+                status=str(c.get("status") or "unverified"),
+                coordinate_precision="region",  # the sender's box is for the sender's PDF — always region here
+            )
+            for c in (st.get("citations") or [])
+            if isinstance(c, dict)
+        ]
+        sentences.append(
+            SummarySentenceResponse(
+                sentence_id=i,
+                ordinal=int(st.get("ordinal") or i),
+                text=str(st.get("text") or ""),
+                flagged=bool(st.get("flagged")),
+                citations=citations,
+            )
+        )
+    ov = blob.get("overview")
+    overview = (
+        [
+            OverviewItemResponse(text=str(i["text"]), claim_ordinals=[int(o) for o in i["claim_ordinals"]])
+            for i in ov
+            if isinstance(i, dict) and i.get("text") and isinstance(i.get("claim_ordinals"), list)
+        ]
+        if isinstance(ov, list)
+        else None
+    )
+    return SummarizeJobResponse(
+        job_id=job_id,
+        status="done",
+        summary_id=summary_id,
+        summary_status=IMPORTED_STATUS,
+        sentences=sentences,
+        overview=overview,
+        imported=True,
     )
 
 
@@ -366,6 +427,7 @@ def _summary_list_item(row: Any) -> SummaryListItem:
         sentence_count=int(row["sentence_count"]),
         verified_sentence_count=int(row["verified_sentence_count"]),
         flagged_sentence_count=int(row["flagged_sentence_count"]),
+        imported=row["status"] == IMPORTED_STATUS,
     )
 
 

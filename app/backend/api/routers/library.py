@@ -497,6 +497,7 @@ class BundleImportSummary(BaseModel):
     annotations_added: int = 0
     axes_created: int = 0
     axes_members_added: int = 0
+    syntheses_imported: int = 0
     skipped: int = 0
 
 

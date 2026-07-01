@@ -62,3 +62,55 @@ annotations + axis definitions — **NO PDFs**. Files: `app/backend/metadata/lib
 no path traversal (text-in-body); bounded + fail-closed; bound-param SQL; additive/non-destructive merge with
 `bundle-import` provenance; coordinate-honest imported annotations; no new dependency, no migration. Re-audit if PDF
 bytes, syntheses, or an automatic (non-user-initiated) share channel are ever added.
+
+---
+
+## Addendum — B2 SP2: syntheses in the bundle (relayed, not re-verified; inc 235)
+
+**Date:** 2026-07-01. **Change:** syntheses now travel in a bundle and import as **relayed display artifacts**.
+Files: `metadata/library_bundle.py` (`_synthesis_entries` export + `_import_syntheses` import), `summaries.py`
+(the read branch + Optional citation ids + `imported` flags), migration **0032** (`summaries.imported_json`, nullable
+JSON, guarded), `20_synthesis.jsx` (the imported banner + region handling) + the modal copy.
+
+**Audit-gate triggers:** a request/response schema change (#1 — `SummarizeJobResponse.imported`, `SummaryListItem.imported`,
+Optional citation ids) + a schema change (the additive migration). **NOT triggered:** no new endpoint (rides the SP1
+bundle endpoints + the existing `/summaries*`), no new external fetch, no new dependency.
+
+### Threat review (delta vs. SP1)
+
+- **The honesty gate (invariants #1/#4) — the load-bearing control.** A synthesis's statuses were computed against the
+  *sender's* chunks. An imported synthesis is stored as a **self-contained display blob** (`summaries.imported_json`,
+  `status="imported"`) — **never** in `summary_sentences` / `citation_mappings` / `evidence_quotes`, so it can't be
+  read as, or mistaken for, a locally-verified synthesis. `_persisted_summary_response` branches on `imported_json`
+  and returns `imported=True`; the frontend shows the **"the sender's assessment, not re-checked in your library"**
+  banner. It is never re-verified locally (re-verify is deferred SP3). Provenance stays clean: only **native**
+  syntheses (`imported_json IS NULL`) are exported — a bundle never re-relays a relayed artifact.
+- **Coordinate honesty (#2).** Every imported citation is **region precision** (`coordinate_precision="region"`),
+  never a fabricated exact box (the sender's bbox is for the sender's PDF and is not carried). Save-as-highlight
+  (exact-only) is inert for imported citations (`paper_id`/coordinate gating already excludes them).
+- **Evidence always shown (#4).** Each imported citation carries its quote + page + the sender's status. A citation
+  whose source paper the recipient lacks shows the quote + "Source not in your library" (no Open link) — evidence
+  stays visible; silence is not a certificate.
+- **No egress, no PDFs.** Unchanged from SP1 — a local file, no network call, no PDF bytes.
+- **SQL / injection (rule #3).** All synthesis reads/writes are SQLAlchemy Core bound parameters
+  (`_synthesis_entries` joins; the single `insert(summaries)` on import). No user/bundle value reaches SQL text.
+- **Input validation + resource caps (rule #4).** `MAX_BUNDLE_SYNTHESES = 2000`, `MAX_SYNTHESIS_SENTENCES = 400`,
+  `MAX_CITATIONS_PER_SENTENCE = 50`; each synthesis imports in a `begin_nested()` savepoint (a bad one is skipped,
+  never fatal); confidences coerced via a safe `_f`; malformed shapes skipped. Import is **idempotent** (dedup by
+  content among imported summaries). The migration is additive + guarded + no-op-downgrade (the 0031 pattern).
+- **Output encoding.** Blob strings (sentence text, quotes, titles) render through React as text (auto-escaped).
+
+### Negative-path checks (`tests/test_library_bundle.py` synthesis tests, hermetic)
+
+- Export carries the sentence + citation quote/status + **source-by-identity**; native only (a relayed synthesis is
+  never re-exported). ✔
+- Import stores a `status="imported"` row with a display blob (not in the verification tables); `GET /summaries/{id}`
+  returns `imported: true` + **region**-precision citations; `GET /summaries` flags it. ✔
+- Re-import is idempotent (dedup by content → one imported summary). ✔
+- A citation whose source paper isn't present → `paper_id: null`, the quote still carried. ✔
+- Selection export carries a fully-contained papers-scope synthesis, excludes an out-of-selection one. ✔
+
+**Security Audit: PASS (addendum).** The honest structural separation (a relayed display blob, region precision, never
+in the verification tables, clearly flagged) upholds invariants #1/#2/#4; additive/guarded migration; bound-param SQL;
+bounded + fail-closed; no egress, no PDFs, no new dependency, no new endpoint. Re-audit if imported syntheses ever
+become locally re-verifiable (SP3) or gain exact coordinates.
