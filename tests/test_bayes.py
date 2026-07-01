@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.methods.bayes import _normalize_bf10, jzs_bf10, run_bayes
+from app.backend.methods.bayes import _normalize_bf10, audit_completeness, jzs_bf10, run_bayes
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 
@@ -76,6 +76,65 @@ def test_no_bayes_factors_text():
     assert run_bayes([_chunk("Prose about the design and sampling, with no statistics.")]).checked == 0
 
 
+# ── SP2: the Tier-2 completeness/coherence checklist ──
+
+
+def _items(comp):
+    return {i.key: i for i in comp.items}
+
+
+def test_completeness_gated_on_bayesian():
+    # a non-Bayesian paper is not audited (else every paper "fails" the checklist)
+    comp = audit_completeness([_chunk("An OLS regression, F(2, 45) = 3.1, p = .05, with robust standard errors.")])
+    assert comp.is_bayesian is False and comp.items == []
+
+
+def test_completeness_closed_form_bf():
+    # a closed-form default-BF paper: prior stated (Cauchy), convergence N/A (no chains), no sensitivity analysis
+    comp = audit_completeness([_chunk("A Bayesian t-test with a Cauchy prior (scale 0.707); t(19) = 2.5, BF10 = 3.4.")])
+    assert comp.is_bayesian is True
+    items = _items(comp)
+    assert items["prior"].status == "present" and items["prior"].evidence
+    assert items["convergence"].status == "not-applicable"  # no MCMC → not "missing"
+    assert items["sensitivity"].status == "not-found"
+
+
+def test_completeness_mcmc_convergence_coherence_flag():
+    # an MCMC paper reporting a breaching R-hat → a coherence flag (not "missing"), with the value + convention noted
+    comp = audit_completeness(
+        [
+            _chunk(
+                "A brms model (MCMC) with a normal prior. R-hat = 1.21 for all parameters. A prior sensitivity analysis "
+                "confirmed robustness of the results to the prior."
+            )
+        ]
+    )
+    items = _items(comp)
+    assert items["prior"].status == "present"
+    assert items["convergence"].status == "coherence-flag" and "1.21" in items["convergence"].note
+    assert items["sensitivity"].status == "present"
+
+
+def test_completeness_default_prior_underspecified():
+    # "default priors" with no scale is present-but-under-specified (the BARG point), not simply absent
+    comp = audit_completeness([_chunk("We ran a Bayesian ANOVA in JASP with the default priors; BF10 = 8.")])
+    prior = _items(comp)["prior"]
+    assert prior.status == "present" and "under-specified" in prior.note
+
+
+def test_completeness_mcmc_diagnostics_present_no_breach():
+    # an MCMC paper reporting good diagnostics → present, no flag
+    comp = audit_completeness(
+        [
+            _chunk(
+                "We used Stan (posterior sampling). R-hat = 1.00 and the effective sample size exceeded 2000 for all "
+                "parameters, with a weakly-informative prior."
+            )
+        ]
+    )
+    assert _items(comp)["convergence"].status == "present"
+
+
 def test_bayes_endpoint(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
@@ -109,11 +168,11 @@ def test_bayes_endpoint(temp_db_url):
     assert data["checked"] == 1 and data["not_reproduced"] == 0
     assert data["results"][0]["page"] == 4 and data["results"][0]["consistency"] == "reproduced"
     assert data["prior_scale"] == round((2**0.5) / 2, 4)
+    # SP2: the paper (an inline BF10 present) is detectably Bayesian → the checklist runs
+    assert data["completeness"]["is_bayesian"] is True
+    assert {i["key"] for i in data["completeness"]["items"]} == {"prior", "convergence", "sensitivity"}
 
-    assert client.get(f"/papers/{empty_id}/bayes").json() == {  # no chunks → honest empty, not an error
-        "checked": 0,
-        "not_reproduced": 0,
-        "prior_scale": round((2**0.5) / 2, 4),
-        "results": [],
-    }
+    empty = client.get(f"/papers/{empty_id}/bayes").json()  # no chunks → honest empty, not an error
+    assert empty["checked"] == 0 and empty["results"] == []
+    assert empty["completeness"] == {"is_bayesian": False, "items": []}
     assert client.get("/papers/999999/bayes").status_code == 404

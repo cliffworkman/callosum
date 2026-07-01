@@ -3,13 +3,15 @@ api: /papers/{paper_id}/bayes
 fe: 08d_methods_bayes.jsx
 -->
 
-# ROUTE 59 - Methods: Bayesian auditor (default JZS Bayes-factor recompute)
+# ROUTE 59 - Methods: Bayesian auditor (default JZS Bayes-factor recompute + Tier-2 reporting checklist)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the per-paper Bayesian auditor (the statcheck sibling for t-test Bayes factors) while preserving
-signal-not-verdict + no-accusation framing. It recomputes a paper's reported **default JZS** Bayes factors (Rouder
-et al. 2009) from inline `t(df) = …, BF10 = …` and flags where they don't reproduce under the default prior. Local,
-deterministic, no AI.
+signal-not-verdict + no-accusation framing. **SP1:** recompute a paper's reported **default JZS** Bayes factors
+(Rouder et al. 2009) from inline `t(df) = …, BF10 = …` and flag where they don't reproduce under the default prior.
+**SP2:** a **Tier-2 completeness checklist** (BARG/WAMBS/JASP) — presence/absence of the prior, convergence
+diagnostics, and a sensitivity analysis, plus a coherence flag when a *reported* diagnostic breaches a convention.
+Local, deterministic, no AI.
 
 ## Environment
 
@@ -26,8 +28,12 @@ genai-host request regardless). Register listeners before navigation.
   "p-hacked"; the recomputed value + the assumed prior scale are shown so the result is inspectable.
 - **Silence ≠ certificate.** The inline-only coverage caveat is stated (a clean result isn't a clean bill; a BF with
   no adjacent t-stat is invisible, not "fine").
-- **Coordinate honesty.** A per-BF row opens its page at **region** precision (page-open), never a fabricated exact
-  highlight.
+- **Coordinate honesty.** A per-BF / per-checklist-item evidence link opens its page at **region** precision
+  (page-open), never a fabricated exact highlight.
+- **Checklist honesty (SP2).** The completeness checklist runs **only** on a paper detectably doing Bayesian analysis
+  (else no checklist). "not found" is worded **"not detected in the extracted text — check the paper"**, NEVER
+  "missing" / an accusation (Critical if it reads as a verdict). Convergence is **n/a** when no MCMC is reported (a
+  closed-form BF has no chains — not "missing"). Thresholds (R-hat < 1.1, ESS > 400) are cited as **conventions**.
 
 ## Adversarial checklist
 
@@ -50,8 +56,14 @@ genai-host request regardless). Register listeners before navigation.
 4. Click a per-BF row -> the PDF opens at that page at **region** precision (no exact rect).
 5. Confirm the **default-prior caveat** (r ≈ 0.71; a different prior → an expected mismatch; inline-only coverage;
    "not a verdict or an accusation").
-6. Confirm the **credit** block (Rouder, Speckman, Sun, Morey & Iverson 2009) + a working **＋ add to library**.
-7. Adversarial: a metadata-only paper -> "Process a PDF first"; a no-BF paper -> honest empty; 999999 -> 404-class.
+6. **SP2 — Reporting checklist.** For a Bayesian paper, confirm the **Reporting checklist** below the recompute: rows
+   for **Prior stated**, **Convergence diagnostics**, **Prior sensitivity/robustness**, each `✓ present` / `not found`
+   / `n/a` / `⚠ check` (coherence). A present/coherence row shows the **matched evidence snippet** (opens its page at
+   region precision). Confirm the guidelines-credit (BARG/WAMBS/JASP) + the "not detected in the text, not a verdict"
+   caveat. Confirm convergence is **n/a** for a closed-form BF paper (no MCMC).
+7. Confirm the **credit** block (Rouder, Speckman, Sun, Morey & Iverson 2009) + a working **＋ add to library**.
+8. Adversarial: a metadata-only paper -> "Process a PDF first"; a non-Bayesian paper -> "doesn't appear to report a
+   Bayesian analysis"; 999999 -> 404-class.
 
 ## Pass criteria
 

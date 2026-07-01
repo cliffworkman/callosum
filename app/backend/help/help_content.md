@@ -770,6 +770,15 @@ Read it honestly — it's a signal, not a verdict:
 - There is **no score and no rank** — only per-result outcomes with the recomputed number shown, so you can judge for yourself. Each result opens its page in the PDF.
 - The section credits Rouder et al. (2009) and offers a one-click **add to library**.
 
+Below the recompute, for a paper that reports Bayesian analysis, a **Reporting checklist** flags whether the core reporting elements from the Bayesian guidelines (BARG, WAMBS, and the JASP guidelines) are present in the text: whether the **prior** is stated (family and scale), whether **convergence diagnostics** (R-hat, effective sample size) are reported, and whether a **prior sensitivity / robustness analysis** is reported. Each item shows the matched sentence (which opens its page) so you can see the evidence.
+
+Read the checklist as a prompt, not a report card:
+
+- It runs **only** on a paper that actually reports Bayesian analysis — a non-Bayesian paper is never checked.
+- **“Not found” means we didn't detect it in the extracted text**, not that it's missing — tables aren't read, so check the paper. It is never an accusation.
+- **Convergence diagnostics show “n/a”** when the paper uses a closed-form Bayes factor (there are no MCMC chains to diagnose) — that's not a gap.
+- The **⚠ check** flag appears only when a *reported* value breaches a convention (e.g. an R-hat above 1.1, or an effective sample size below 400); those thresholds are widely-used **conventions**, cited as such, not laws.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

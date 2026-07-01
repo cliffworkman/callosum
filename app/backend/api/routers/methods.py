@@ -25,7 +25,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
-from app.backend.methods.bayes import DEFAULT_R, run_bayes
+from app.backend.methods.bayes import DEFAULT_R, audit_completeness, run_bayes
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.retraction import apply_retraction, detect_retraction
@@ -104,22 +104,39 @@ class BayesResult(BaseModel):
     page: int | None = None
 
 
+class BayesCompletenessItem(BaseModel):
+    key: str  # prior | convergence | sensitivity
+    label: str
+    status: str  # present | not-found | not-applicable | coherence-flag
+    evidence: str | None = None
+    page: int | None = None
+    note: str | None = None
+
+
+class BayesCompletenessOut(BaseModel):
+    is_bayesian: bool  # the checklist runs only on a paper that detectably does Bayesian analysis
+    items: list[BayesCompletenessItem]
+
+
 class BayesResponse(BaseModel):
     checked: int
     not_reproduced: int
     prior_scale: float  # the assumed default JZS prior scale (r ≈ 0.707), shown for inspectability
     results: list[BayesResult]
+    completeness: BayesCompletenessOut  # SP2: the Tier-2 BARG/WAMBS/JASP reporting checklist
 
 
 @router.get("/papers/{paper_id}/bayes", response_model=BayesResponse)
 def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> BayesResponse:
-    # Deterministic, local recompute of default JZS Bayes factors over the paper's extracted text. No chunks →
-    # checked: 0, an honest "no extractable text" — never an error.
+    # Deterministic, local recompute of default JZS Bayes factors + a Tier-2 completeness checklist over the paper's
+    # extracted text. No chunks → checked: 0, an honest "no extractable text" — never an error.
     try:
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    report = run_bayes(get_chunks_for_paper(conn, paper_id))
+    chunks = get_chunks_for_paper(conn, paper_id)
+    report = run_bayes(chunks)
+    completeness = audit_completeness(chunks)
     return BayesResponse(
         checked=report.checked,
         not_reproduced=report.not_reproduced,
@@ -136,6 +153,15 @@ def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> Ba
             )
             for r in report.results
         ],
+        completeness=BayesCompletenessOut(
+            is_bayesian=completeness.is_bayesian,
+            items=[
+                BayesCompletenessItem(
+                    key=i.key, label=i.label, status=i.status, evidence=i.evidence, page=i.page, note=i.note
+                )
+                for i in completeness.items
+            ],
+        ),
     )
 
 

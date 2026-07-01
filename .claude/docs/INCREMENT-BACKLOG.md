@@ -281,15 +281,18 @@ reader should look for in a mixed-model paper (random-effects structure, df meth
 missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**. A self-contained
 sibling of statcheck under the findings subsystem.
 
-**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[SP1 SHIPPED inc 241]** the **Tier-1
-deterministic recompute**: recompute the default **JZS** Bayes factor (Rouder et al. 2009) for inline **t-test** BFs
-(`t(df) = …, BF10 = …`) via `methods/bayes.py::jzs_bf10` (scipy quadrature; verified vs the pingouin anchor) + `GET
-/papers/{id}/bayes` + the METHODS panel `08d_methods_bayes.jsx`. Signal-not-verdict, no score, no accusation (a
-mismatch = "couldn't reproduce under the default prior"; recomputes under both paired + two-sample readings,
-reproduces if either matches within ~2×). Local, no LLM/egress/migration; audit PASS; credited (Rouder et al. +
-BayesFactor). **Remaining — SP2:** the **Tier-2 completeness checklist** (prior stated? R-hat/ESS/convergence?
-sensitivity analysis? — presence/absence, never a verdict; BARG/WAMBS/JASP) + more designs (correlation / ANOVA
-default BFs). Sibling of statcheck. Deliberately does **not** teach "BF>3 = significance".
+**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[DONE — SP1 inc 241 + SP2 inc 242]** the
+**Tier-1 deterministic recompute** (SP1): recompute the default **JZS** Bayes factor (Rouder et al. 2009) for inline
+**t-test** BFs (`t(df) = …, BF10 = …`) via `methods/bayes.py::jzs_bf10` (scipy quadrature; verified vs the pingouin
+anchor) + the **Tier-2 completeness checklist** (SP2): presence/absence of the prior + convergence diagnostics +
+sensitivity analysis (BARG/WAMBS/JASP), plus a coherence flag when a *reported* diagnostic breaches a conservative
+convention (R-hat > 1.1 / ESS < 400 / divergences). Both on `GET /papers/{id}/bayes` + the METHODS panel
+`08d_methods_bayes.jsx`. Signal-not-verdict, no score, no accusation; the checklist runs only on a Bayesian paper,
+convergence is n/a for closed-form BFs, "not found" = not-detected-in-text (never "missing"), thresholds cited as
+conventions. Local, no LLM/egress/migration/dependency; audits PASS; credited (Rouder et al. + BayesFactor +
+BARG/WAMBS/JASP). Deliberately does **not** teach "BF>3 = significance". **Deferred (own increment if wanted):**
+correlation/ANOVA default BFs (Tier-1 for more designs) + the fuzzier **textual-coherence** flags (credible-vs-
+confidence mislabel, BF-direction error) as *advisory* annotations. Sibling of statcheck.
 
 **25. Citation concentration** (`…_citationequitytool.md`, METHODS) — **[DONE — SP1 inc 227 + SP2 inc 228 +
 values rework inc 229]** the **structural** reference-list audit (self-citation, Matthew concentration, venue +

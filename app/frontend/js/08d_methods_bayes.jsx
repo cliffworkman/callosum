@@ -64,23 +64,58 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
             : null}
       {state.status === "running" && <span className="tag-suggest-empty">checking…</span>}
       {state.status === "error" && <div className="axis-err">Couldn't check: {state.error}</div>}
-      {state.status === "done" && d && (d.checked === 0
-        ? <div className="tag-suggest-empty">No inline t-test Bayes factors (e.g. “t(23) = 2.1, BF₁₀ = 3.4”) found in the extracted text.</div>
+      {state.status === "done" && d && ((d.checked === 0 && !(d.completeness && d.completeness.is_bayesian))
+        ? <div className="tag-suggest-empty">This paper doesn't appear to report a Bayesian analysis — nothing to recompute or check.</div>
         : <div className="statcheck-result">
-            <div className="statcheck-summary">{d.checked} checked · {d.not_reproduced} couldn't reproduce under the default prior</div>
-            <div className="statcheck-list">
-              {d.results.map((r, i) => (
-                <button key={i} className={"statcheck-item" + (r.consistency !== "reproduced" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
-                  <span className="statcheck-raw">{r.raw}</span>
-                  <span className="statcheck-computed">reported BF₁₀ = {r.reported_bf10} · recomputed {reBfLabel(r)}</span>
-                  <span className={"cite-status " + (r.consistency === "reproduced" ? "verified" : "flagged")}>{r.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"}</span>
-                </button>
-              ))}
-            </div>
-            <div className="statcheck-caveat">
-              Recomputed under the <b>default JZS prior</b> (Cauchy scale r ≈ {d.prior_scale}) for a t-test, under both a paired and a two-sample reading — a Bayes factor “reproduces” if it matches either within a factor of ~2. If the paper used a different prior scale or a non-t design, a mismatch is expected — a prompt to look, not a verdict or an accusation. It reads only inline t-test BFs, so a clean result isn't a clean bill.
-            </div>
+            {d.checked === 0
+              ? <div className="tag-suggest-empty">No inline t-test Bayes factors to recompute (the paper still reports Bayesian analysis — see the reporting checklist below).</div>
+              : <>
+                  <div className="statcheck-summary">{d.checked} checked · {d.not_reproduced} couldn't reproduce under the default prior</div>
+                  <div className="statcheck-list">
+                    {d.results.map((r, i) => (
+                      <button key={i} className={"statcheck-item" + (r.consistency !== "reproduced" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
+                        <span className="statcheck-raw">{r.raw}</span>
+                        <span className="statcheck-computed">reported BF₁₀ = {r.reported_bf10} · recomputed {reBfLabel(r)}</span>
+                        <span className={"cite-status " + (r.consistency === "reproduced" ? "verified" : "flagged")}>{r.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="statcheck-caveat">
+                    Recomputed under the <b>default JZS prior</b> (Cauchy scale r ≈ {d.prior_scale}) for a t-test, under both a paired and a two-sample reading — a Bayes factor “reproduces” if it matches either within a factor of ~2. If the paper used a different prior scale or a non-t design, a mismatch is expected — a prompt to look, not a verdict or an accusation. It reads only inline t-test BFs, so a clean result isn't a clean bill.
+                  </div>
+                </>}
+            {d.completeness && d.completeness.is_bayesian && <BayesChecklist items={d.completeness.items} onOpen={open} />}
           </div>)}
+    </div>
+  );
+}
+
+// SP2: the Tier-2 reporting checklist (BARG / WAMBS / JASP) — presence/absence + a coherence flag, never a verdict.
+function BayesChecklist({ items, onOpen }) {
+  if (!items || !items.length) return null;
+  return (
+    <div className="bayes-checklist">
+      <p className="eyebrow">Reporting checklist</p>
+      {items.map((it) => (
+        <div key={it.key} className={"bayes-check-item" + (it.status === "coherence-flag" ? " flagged-row" : "")}>
+          <div className="bayes-check-head">
+            <span className="bayes-check-label">{it.label}</span>
+            {it.status === "present"
+              ? <span className="cite-status verified">✓ present</span>
+              : it.status === "coherence-flag"
+                ? <span className="cite-status flagged">⚠ check</span>
+                : <span className="bayes-check-muted">{it.status === "not-applicable" ? "n/a" : "not found"}</span>}
+          </div>
+          {it.note && <div className="bayes-check-note">{it.note}</div>}
+          {it.evidence &&
+            <button className="bayes-check-ev" title={it.page != null ? "Open page " + it.page : ""} onClick={() => it.page != null && onOpen(it.page)}>
+              “{it.evidence}”
+            </button>}
+        </div>
+      ))}
+      <div className="statcheck-caveat">
+        A completeness prompt from the Bayesian reporting guidelines (BARG — Kruschke 2021; WAMBS — Depaoli &amp; van de Schoot 2017; the JASP guidelines — van Doorn et al. 2021): presence/absence in the text, never a verdict. It runs only on a Bayesian paper; <b>“not found” means not detected in the extracted text</b> — tables aren't read, so check the paper. Thresholds (R-hat &lt; 1.1, ESS &gt; 400) are cited conventions, not laws.
+      </div>
     </div>
   );
 }

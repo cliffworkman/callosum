@@ -50,3 +50,42 @@ pytest `tests/test_bayes.py` (hermetic — the JZS math against the pingouin anc
 design-both-interpretations reproduce-or-flag; the endpoint 404 / no-chunks-checked-0). No network / no model needed.
 
 **Security Audit: PASS.** Local, read-only, bounded, no egress, no new dependency; coordinate honesty preserved.
+
+---
+
+## Addendum — SP2: the Tier-2 completeness checklist (inc 242)
+
+**Change.** The **same** `GET /papers/{id}/bayes` endpoint gains an additive `completeness` block: a presence/absence
++ coherence checklist over the paper's extracted text (BARG/WAMBS/JASP — prior stated? convergence diagnostics?
+sensitivity analysis?), computed by `methods/bayes.py::audit_completeness`. No new endpoint, no request-schema change
+(the response is additive).
+
+**Audit trigger.** A major-ish response-schema change on an existing read-only endpoint — reviewed as an addendum.
+
+- **Input / injection / SQL.** Unchanged — reads the same `get_chunks_for_paper` text, computes in pure Python with
+  bounded anchored regexes. No SQL written; the completeness regexes have no catastrophic backtracking (character
+  classes / bounded alternations); each numeric parse is wrapped.
+- **Output.** Additive JSON; the frontend renders the evidence snippet + note as plain React text (no HTML injection).
+- **SSRF / egress / secrets / dependency.** None — same fully-local posture; **no new dependency**.
+- **Resource caps.** The checklist is a bounded set of `re.search`/`finditer` over the same chunk rows; no unbounded
+  work. Coordinate honesty preserved (a checklist evidence link opens its page at `region` precision).
+
+**Principles (recorded; the gate ran in the SP2 design).** The completeness-checklist class — presence/absence flags
+keyed to published guidelines, each carrying its evidence (#4/#8), no composite score (#7), signal-not-verdict (#2).
+The load-bearing honesty controls: the checklist **runs only on a paper detectably doing Bayesian analysis** (else no
+checklist — a non-Bayesian paper cannot "fail" it); **convergence is not-applicable** when no MCMC/sampler is reported
+(a closed-form BF has no chains, so it is not "missing"); **"not found" is framed "not detected in the extracted text
+— check the paper"** (tables aren't read — silence-≠-certificate cuts both ways; #6), never "missing"/an accusation
+(A-A veto); thresholds are cited as **conventions**, not laws; the coherence flag is conservative (R-hat > 1.1, ESS <
+400, > 0 divergences — prefers false negatives, the doc's guidance).
+
+**Negative-path.** Non-Bayesian paper → `is_bayesian: false`, no items (never a "failed checklist"). Metadata-only
+paper (no chunks) → `is_bayesian: false`, empty. A closed-form BF paper → convergence `not-applicable`, not "missing".
+
+**Verification.** pytest `tests/test_bayes.py` (+5 SP2: gated-on-Bayesian; closed-form BF → prior present /
+convergence n/a / sensitivity not-found; MCMC R-hat=1.21 → coherence-flag with the value + convention; "default
+priors" → present-under-specified; good MCMC diagnostics → present; + the endpoint `completeness` block).
+
+**Security Audit (SP2 addendum): PASS.** Additive read-only response field; local, bounded, no egress/dependency; the
+honesty controls (Bayesian-gated, convergence-n/a, not-found≠missing, conventions-not-laws) uphold the no-accusation
+boundary.

@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-01 inc 241 — gained "Checking Bayes factors (the Bayesian auditor)" -->
+<!-- HELP-DOCS-SYNCED 2026-07-01 inc 242 — "Checking Bayes factors" now covers the Tier-2 reporting checklist -->
+## 2026-07-01 — Increment 242: Bayesian auditor SP2 — a Tier-2 BARG/WAMBS/JASP reporting checklist (completes #24)
+- **Files:** `app/backend/methods/bayes.py` (`audit_completeness` + the BARG/WAMBS/JASP detection) + `app/backend/api/routers/methods.py` (additive `completeness` block on `GET /papers/{id}/bayes`) + `app/frontend/js/08d_methods_bayes.jsx` (a Reporting checklist section) + `styles.css` (`.bayes-check-*`, tokens); `tests/test_bayes.py` (+5); `route_59_methods_bayes.md`; the audit addendum; help corpus; CLAUDE; backlog; `INCREMENT-242-NOTES.md`. (callosum-app.html rebuilt.)
+- **What:** the completeness half of the Bayesian auditor — presence/absence of the prior, convergence diagnostics, and a sensitivity analysis (BARG/WAMBS/JASP), plus a coherence flag when a reported diagnostic breaches a convention. Runs only on a Bayesian paper; never a verdict.
+- **Why:** completes the Bayesian auditor (#24). Maintainer fork: the BARG/WAMBS core (over the riskier textual-coherence path).
+- **Verify:** honesty controls made structural (Bayesian-gated, convergence-n/a for closed-form BF, "not found" = not-detected-in-text never "missing", conventions-not-laws). pytest 899 (+5); `test_frontend_assembly` 5/5; ruff+format clean; QA 174/174 API + 769/769 FE, 0 uncovered; audit addendum PASS; Principles gate aligned. Headed-verified (checklist [prior ✓present / convergence n/a / sensitivity not-found] + credit; 0 console/page/genai). **No egress/LLM/migration/dependency.**
+- **Revert:** `git revert <sha>` (additive response field + a panel section + a pure function; no migration/destructive change).
+
 ## 2026-07-01 — Increment 241: Bayesian auditor SP1 — recompute default JZS Bayes factors (statcheck sibling)
 - **Files:** `app/backend/methods/bayes.py` (NEW — JZS BF recompute + inline extraction) + `app/backend/api/routers/methods.py` (`GET /papers/{id}/bayes`) + `app/frontend/js/08d_methods_bayes.jsx` (NEW METHODS panel); `tests/test_bayes.py` (NEW, +10); `.claude/qa-routes/route_59_methods_bayes.md`; `.claude/security-audits/2026-07-01_bayes-auditor.md`; THIRD-PARTY-NOTICES; help corpus; CLAUDE; backlog; `INCREMENT-241-NOTES.md`. (callosum-app.html rebuilt.)
 - **What:** the Bayesian sibling of statcheck — recompute a paper's reported default (JZS) Bayes factors for inline t-test results (`t(df) = …, BF10 = …`) and flag where they don't reproduce under the default prior. Local, deterministic, no AI.
