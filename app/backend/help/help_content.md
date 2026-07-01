@@ -74,7 +74,7 @@ Some PDFs are **scanned images** with no underlying text — you can see the wor
 
 It renders each page, recognizes the text, and saves a **searchable copy** of the PDF with an invisible, correctly-positioned text layer over the original page images. After it finishes (you'll see page-by-page progress), the paper is fully first-class: it turns up in search, gets embedded for synthesis, and its citations highlight **exactly** on the page — and you can select and copy text in the viewer. Your original scanned file is kept; the searchable copy just becomes the one Callosum reads.
 
-This needs the free **Tesseract** OCR engine installed on your computer (a one-time setup: `winget install UB-Mannheim.TesseractOCR` on Windows, `brew install tesseract` on macOS, or `apt install tesseract-ocr` on Linux). If it isn't installed, the button tells you so and nothing else happens.
+This needs the free **Tesseract** OCR engine installed on your computer (a one-time setup: `winget install UB-Mannheim.TesseractOCR` on Windows, `brew install tesseract` on macOS, or `apt install tesseract-ocr` on Linux). Callosum finds it automatically in the standard install locations — you don't need to add it to your PATH; if it's installed somewhere unusual, set the `CALLOSUM_TESSERACT_PATH` environment variable to its path. If it isn't installed at all, the button tells you so and nothing else happens.
 
 <!-- section: importing-citations -->
 ## Importing a citation file (BibTeX, RIS, CSL-JSON)

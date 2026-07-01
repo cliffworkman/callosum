@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 231** (see Increment workflow) with **824 pytest tests
+It is currently at **Increment 231** (see Increment workflow) with **825 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -990,10 +990,15 @@ searchable PDF the normal extractor reads; the endpoint 202→poll→done makes 
 original + the OCR copy primary [`import_source="ocr"`]; 404/422; graceful when Tesseract is absent); `ruff` +
 `format` clean; frontend rebuilt (`test_frontend_assembly` 5/5); **QA surface 167/167 API + 729/729 FE, 0 uncovered**
 (new `route_52_ocr.md`); help corpus gained "Making a scanned PDF searchable (OCR)" (`HELP-DOCS-SYNCED` → 231).
-**The real Tesseract round-trip is the maintainer's manual step** (`winget install UB-Mannheim.TesseractOCR` → open a
-scanned paper → "OCR this paper" → it becomes searchable + citations highlight exactly); the pure logic + the reused
-pipeline are pytest-proven, mirroring how the Node-dependent features are verified. Notes: `INCREMENT-231-NOTES.md`;
-plan `.claude/backups/plans/2026-06-30_ocr-scanned-pdfs-b3.md`. **NEXT:** the remaining B-items (B4 citation-context
+**Follow-up (same session):** the maintainer's `winget install UB-Mannheim.TesseractOCR` had **already** installed
+Tesseract v5.4.0 but **not on PATH** (the UB-Mannheim installer's default), so `shutil.which` missed it. Added
+`ocr.py::tesseract_exe()` — resolves via `CALLOSUM_TESSERACT_PATH` (env override) → PATH → a fixed list of common
+install locations (`C:\Program Files\Tesseract-OCR\…`, Homebrew/apt) — so OCR **just works** after a standard install
+without a manual PATH edit; the error message points at `CALLOSUM_TESSERACT_PATH` for non-standard installs. And with
+the binary now resolvable, the **real Tesseract round-trip is verified live** (an image-only page → `tesseract stdin
+stdout pdf` → a searchable PDF the normal extractor reads the recovered text from — "The ultimatum game…"). pytest
+**825** (+1 resolver test); audit addendum PASS. Notes: `INCREMENT-231-NOTES.md`; plan
+`.claude/backups/plans/2026-06-30_ocr-scanned-pdfs-b3.md`. **NEXT:** the remaining B-items (B4 citation-context
 classifier — the maintainer chose *both* directions, but "how a paper is cited" needs an external full-text source;
 B2 portable-bundle collaboration [no PDFs]; B5 mobile reading) — each its own brainstorm + build.
 

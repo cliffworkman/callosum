@@ -60,6 +60,31 @@ def test_make_searchable_pdf_embeds_a_text_layer(tmp_path):
     assert "ultimatum" in text.lower()
 
 
+def test_tesseract_exe_resolves_override_then_path_then_common(tmp_path, monkeypatch):
+    import app.backend.pdf_processing.ocr as ocr_mod
+
+    fake_bin = tmp_path / "tesseract.exe"
+    fake_bin.write_bytes(b"x")
+
+    # 1. CALLOSUM_TESSERACT_PATH override wins (even over PATH)
+    monkeypatch.setenv("CALLOSUM_TESSERACT_PATH", str(fake_bin))
+    monkeypatch.setattr(ocr_mod.shutil, "which", lambda _n: "/somewhere/on/path/tesseract")
+    assert ocr_mod.tesseract_exe() == str(fake_bin)
+
+    # 2. no override → PATH (shutil.which)
+    monkeypatch.delenv("CALLOSUM_TESSERACT_PATH", raising=False)
+    assert ocr_mod.tesseract_exe() == "/somewhere/on/path/tesseract"
+
+    # 3. not on PATH → the common install locations (the installed-but-not-on-PATH case)
+    monkeypatch.setattr(ocr_mod.shutil, "which", lambda _n: None)
+    monkeypatch.setattr(ocr_mod, "_COMMON_TESSERACT_PATHS", (str(fake_bin),))
+    assert ocr_mod.tesseract_exe() == str(fake_bin)
+
+    # 4. nowhere → None → not available
+    monkeypatch.setattr(ocr_mod, "_COMMON_TESSERACT_PATHS", (str(tmp_path / "missing.exe"),))
+    assert ocr_mod.tesseract_exe() is None and ocr_mod.tesseract_available() is False
+
+
 def test_make_searchable_pdf_merges_multiple_pages(tmp_path):
     src = tmp_path / "scan2.pdf"
     out = tmp_path / "scan2-ocr.pdf"

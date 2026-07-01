@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-01 inc 231 — new "Making a scanned PDF searchable (OCR)" help section -->
+<!-- HELP-DOCS-SYNCED 2026-07-01 inc 231 — new "Making a scanned PDF searchable (OCR)" help section (+ the auto-detect note) -->
+## 2026-07-01 — Increment 231 (follow-up): find Tesseract even when it's installed but not on PATH
+- **Files:** `app/backend/pdf_processing/ocr.py` (`tesseract_exe()` resolver), `tests/test_ocr.py` (+1), `.claude/security-audits/2026-07-01_ocr.md` (addendum), `app/backend/help/help_content.md`, CLAUDE.
+- **What:** OCR now resolves the Tesseract binary via `CALLOSUM_TESSERACT_PATH` → PATH → common install locations (`C:\Program Files\Tesseract-OCR\…`, Homebrew/apt), so it works after a standard `winget`/UB-Mannheim install without a manual PATH edit.
+- **Why:** the UB-Mannheim Windows installer doesn't add Tesseract to PATH, so `shutil.which` missed an installed binary (the maintainer had it installed but OCR reported "not installed"). Real Tesseract v5.4.0 round-trip verified live.
+- **Verify:** `test_ocr.py` resolver test (override → PATH → common → None); real end-to-end round-trip (image-only page → searchable PDF → recovered text). pytest 825. No egress/dependency/migration; audit addendum PASS.
+- **Revert:** `git revert <sha>`.
+
 ## 2026-07-01 — Increment 231: OCR scanned PDFs into a searchable copy (B3)
 - **Files:** `app/backend/pdf_processing/ocr.py` (NEW — `make_searchable_pdf` + `TesseractUnavailable`, shells out to the tesseract binary), `app/backend/api/routers/ocr.py` (NEW — `POST/GET /papers/ocr/run` async job), `app/backend/api/app.py` (`ocr_jobs` + include before papers), `app/frontend/js/25_detail.jsx` (`OcrRow` — the "OCR this paper (scanned)" button), `tests/test_ocr.py` (NEW +5, hermetic), `.claude/security-audits/2026-07-01_ocr.md`, `.claude/qa-routes/route_52_ocr.md`, `app/backend/help/help_content.md`, CLAUDE, backlog, `INCREMENT-231-NOTES.md`. (callosum-app.html rebuilt.)
 - **What:** a manual per-paper **"OCR this paper"** action (shown only for a PDF paper with no text layer, `chunk_count == 0`): render each page → local **Tesseract** → a **searchable PDF** (page image + embedded, correctly-positioned OCR text layer) → attach it as the new primary (original kept) → extract + embed through the **normal** pipeline. The scanned paper becomes searchable + embeddable + citable with **exact** highlights + selectable text.

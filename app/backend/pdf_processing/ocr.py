@@ -16,12 +16,24 @@ merges the PDFs — no Pillow. Fully **local — no network egress** (like statc
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
 import fitz
+
+# Where to look for the tesseract binary when it isn't on PATH. The UB-Mannheim Windows installer (the one `winget
+# install UB-Mannheim.TesseractOCR` uses) does NOT add itself to PATH by default, so `shutil.which` misses it even
+# though it's installed; Homebrew/apt usually do add it. Override with the CALLOSUM_TESSERACT_PATH env var.
+_COMMON_TESSERACT_PATHS = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    "/opt/homebrew/bin/tesseract",
+    "/usr/local/bin/tesseract",
+    "/usr/bin/tesseract",
+)
 
 OCR_DPI = 300  # standard OCR resolution
 OCR_LANG = "eng"
@@ -38,8 +50,23 @@ class TesseractUnavailable(RuntimeError):
     gracefully (the job fails with an install hint; the app never crashes)."""
 
 
+def tesseract_exe() -> str | None:
+    """Resolve the tesseract binary path: ``CALLOSUM_TESSERACT_PATH`` env override, then PATH (``shutil.which``),
+    then the common install locations (so an installed-but-not-on-PATH Tesseract still works). None if not found."""
+    override = os.environ.get("CALLOSUM_TESSERACT_PATH")
+    if override and Path(override).is_file():
+        return override
+    found = shutil.which("tesseract")
+    if found:
+        return found
+    for candidate in _COMMON_TESSERACT_PATHS:
+        if Path(candidate).is_file():
+            return candidate
+    return None
+
+
 def tesseract_available() -> bool:
-    return shutil.which("tesseract") is not None
+    return tesseract_exe() is not None
 
 
 def _default_page_runner(png: bytes, lang: str) -> bytes:
@@ -47,11 +74,12 @@ def _default_page_runner(png: bytes, lang: str) -> bytes:
 
     Fixed argv; the image is piped via **stdin** and the PDF read from **stdout** — no client-supplied path ever
     reaches the command line. Fail-closed: a missing binary raises ``TesseractUnavailable``; a non-zero exit raises."""
-    exe = shutil.which("tesseract")
+    exe = tesseract_exe()
     if exe is None:
         raise TesseractUnavailable(
-            "Tesseract OCR is not installed. Install it (e.g. `winget install UB-Mannheim.TesseractOCR` on Windows, "
-            "`brew install tesseract` on macOS, `apt install tesseract-ocr` on Linux) and restart callosum."
+            "Tesseract OCR could not be found. Install it (e.g. `winget install UB-Mannheim.TesseractOCR` on Windows, "
+            "`brew install tesseract` on macOS, `apt install tesseract-ocr` on Linux) and restart callosum. If it is "
+            "installed in a non-standard location, set the CALLOSUM_TESSERACT_PATH environment variable to its path."
         )
     proc = subprocess.run(
         [exe, "stdin", "stdout", "-l", lang, "pdf"],
