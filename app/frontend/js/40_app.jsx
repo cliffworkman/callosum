@@ -72,6 +72,10 @@ function App() {
   cancelFocusRef.current = cancelFocus;       // resolve the refs the library subsystem calls through
   setAxisRefreshRef.current = setAxisRefresh;
 
+  // B5 (inc 239): when a citation opens a source on mobile, remember to offer a "← Synthesis" back pill (the reader
+  // is in a different region than the synthesis it came from). A plain paper-open clears it.
+  const [citationReturn, setCitationReturn] = useState(false);
+
   const openPdf = useCallback((paper, target) => {
     const key = "pdf:" + paper.id;
     const title = paper.title || ("Paper " + paper.id);
@@ -82,13 +86,15 @@ function App() {
       return prev.map(t => t.key === key ? { ...t, title, target: nextTarget } : t);
     });
     setActiveTab(key);  // focuses the existing tab if already open
-  }, []);
+    if (mobile) { setMobilePane("library"); setCitationReturn(false); }  // pull the reader region into view
+  }, [mobile, setMobilePane]);
 
   const openCitation = useCallback((citation) => {
     const target = citationTarget(citation);
     if (!target) return;
     openPdf({ id: target.paperId, title: target.paperTitle }, target);
-  }, [openPdf]);
+    if (mobile) setCitationReturn(true);   // came from a synthesis → show the back pill on the reader
+  }, [openPdf, mobile]);
 
   // inc-81: open the My Publications impact dashboard as a frame tab (reuses the LibraryFrame tab system).
   const openMyPubsDashboard = useCallback((axis) => {
@@ -185,6 +191,7 @@ function App() {
       onDiscoverSaved={() => setLibRefresh(n => n + 1)}
       annoRefresh={annoRefresh}
       readingMode={readingMode} onToggleReading={toggleReading}
+      mobile={mobile}
     />
   );
   const detailEl = (
@@ -219,11 +226,17 @@ function App() {
 
   if (mobile) {
     const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
+    // B5 (inc 239): a one-tap return to the synthesis you came from (only while reading the source it opened).
+    const selectMobilePane = (pane) => { setMobilePane(pane); setCitationReturn(false); };
+    const backPill = citationReturn && mobilePane === "library"
+      ? <button className="pdf-back-pill" onClick={() => selectMobilePane("theory")}>← Synthesis</button>
+      : null;
     return (
       <div className={"app mobile" + (readOnly ? " read-only" : "")}>
         {readOnlyBadge}
         <div className="mobile-body">{activeEl}</div>
-        <MobileNav active={mobilePane} onSelect={setMobilePane} />
+        {backPill}
+        <MobileNav active={mobilePane} onSelect={selectMobilePane} />
         {modals}
       </div>
     );

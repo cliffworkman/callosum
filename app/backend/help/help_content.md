@@ -109,6 +109,8 @@ To reach it from your phone you use a **cloudflared tunnel** (the same outbound-
 
 When callosum is running read-only, it shows a small **Read-only** badge and hides the write controls — no "+ Add", no edit fields (bibliographic details show as plain text), no scan/import/enrich, no tag or axis editing, no synthesis-generate. You browse, read PDFs, and read your saved syntheses; everything is view-only, so nothing you tap can change your library.
 
+On a phone the PDF reader is tuned for touch: pages fit the screen width by default, **pinch to zoom** in and out, and the zoom buttons still work if you prefer. When you tap a verified citation in a synthesis, callosum jumps to the source PDF on the highlighted page and shows a **"← Synthesis"** pill — one tap takes you back to the exact synthesis you came from, so you can read a claim, check its source, and return without losing your place.
+
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library
 The Library is for quickly finding papers and opening the ones you want to read. It shows each paper's title, authors, year, venue, processing tier, and file count.

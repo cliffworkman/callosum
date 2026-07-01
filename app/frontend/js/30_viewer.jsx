@@ -1,6 +1,6 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
 
-function PdfViewer({ paperId, title, target, annoRefresh }) {
+function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
   const [state, setState] = useState({ status: "loading" });
   const [scale, setScale] = useState(1.15);
   const [page, setPage] = useState(1);
@@ -11,6 +11,9 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
   const [notice, setNotice] = useState(null);   // transient error/info toast
   const [dpr, setDpr] = useState(() => (typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1));
   const [pageView, setPageView] = useState(() => {
+    // B5 (inc 239): on a phone the fixed manual-zoom scale overflows the narrow viewport, so default to fit-width
+    // (the existing "width" mode re-fits on resize); two-up is nonsensical there. Desktop keeps the saved pref.
+    if (mobile) return "width";
     const v = _loadLayout("callosum.pageView", "page");   // "page" (manual zoom) | "width" (fit) | "two" (two-up)
     return v === "width" || v === "two" ? v : "page";
   });
@@ -24,6 +27,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
   const restoredPaperRef = useRef(null);  // inc 175: which paperId's remembered scroll has been restored (once per open)
   const lastScrollSaveRef = useRef(0);     // inc 175: throttle the per-paper scroll-position write
   const markCursorRef = useRef(-1);        // inc 177: index into the page-ordered highlights for next/prev navigation
+  const scaleRef = useRef(scale);          // B5 (inc 239): current scale for the once-attached pinch listener
+  useEffect(() => { scaleRef.current = scale; }, [scale]);
 
   // Surface a transient message (e.g. a failed save) so API errors aren't silent.
   const flashNotice = useCallback((msg) => {
@@ -274,6 +279,13 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
     return () => { if (ro) ro.disconnect(); };
   }, [pageView, state.status]);
 
+  // B5 (inc 239): pinch-to-zoom on touch (mobile-only). The gesture logic lives in usePinchZoom (30f_pdf_gestures.jsx,
+  // hoisted); on release it commits the final scale here (crisp re-render) + drops out of fit mode.
+  const commitZoom = useCallback((s) => {
+    setPageView("page"); _saveLayout("callosum.pageView", "page"); setScale(s);
+  }, []);
+  usePinchZoom({ scrollRef, pagesRef, scaleRef, active: !!mobile && state.status === "ready", onCommit: commitZoom });
+
   // On text selection, map the selection's per-line client rects into the
   // increment-29 coordinate basis (page-relative PDF points) and offer a color.
   const onPagesMouseUp = useCallback(() => {
@@ -488,9 +500,10 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
             <button className={"pdf-annot-toggle" + (pageView === "width" ? " active" : "")}
                     onClick={() => changePageView(pageView === "width" ? "page" : "width")}
                     title="Fit the page width to the window">Fit width</button>
-            <button className={"pdf-annot-toggle" + (pageView === "two" ? " active" : "")}
-                    onClick={() => changePageView(pageView === "two" ? "page" : "two")}
-                    title="Two pages side by side">Two-up</button>
+            {!mobile &&
+              <button className={"pdf-annot-toggle" + (pageView === "two" ? " active" : "")}
+                      onClick={() => changePageView(pageView === "two" ? "page" : "two")}
+                      title="Two pages side by side">Two-up</button>}
             <span className="pdf-pageind">Page {page} / {state.numPages}</span>
             {annotations.length > 0 && <>
               <button className="pdf-annot-toggle" onClick={() => stepMark(-1)} title="Jump to the previous highlight ( [ )">◂ Mark</button>
@@ -503,7 +516,8 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
           </>}
       </div>
       <div className="pdf-body">
-        <div className="pdf-scroll" ref={scrollRef} onScroll={onScroll} onMouseUp={onPagesMouseUp} onClick={onPagesClick}>
+        <div className="pdf-scroll" ref={scrollRef} onScroll={onScroll} onMouseUp={onPagesMouseUp} onClick={onPagesClick}
+             style={mobile ? { touchAction: "pan-x pan-y" } : undefined}>
           {state.status === "loading" &&
             <div className="state"><div className="big">Opening PDF…</div>Streaming and rendering the document.</div>}
           {state.status === "unavailable" &&
@@ -554,27 +568,6 @@ function PdfViewer({ paperId, title, target, annoRefresh }) {
   );
 }
 
-// inc 215: a thin scrollbar-side minimap — one tick per highlight at its page's vertical fraction; click to jump.
-// Positioned by PAGE (numPages), not pixel offset, so it never touches the fragile render-core geometry (inc 34/35);
-// the equal-page-height approximation is fine for a navigation aid. Shown when the Notes panel is closed (the panel
-// already lists + jumps). Tinted by the highlight's own color.
-function MinimapTrack({ annotations, numPages, onJump }) {
-  if (!numPages) return null;
-  return (
-    <div className="pdf-minimap" title="Highlights — click a mark to jump to it">
-      {annotations.map((a) => {
-        const pct = Math.max(0, Math.min(100, ((a.page - 1 + 0.5) / numPages) * 100));
-        const label = a.note ? `p.${a.page} — ${a.note}` : `Highlight on p.${a.page}`;
-        return (
-          <button key={a.id} className="pdf-minimap-tick" title={label}
-                  style={{ top: pct + "%", background: a.color || "var(--flag)" }}
-                  onClick={() => onJump(a)} />
-        );
-      })}
-    </div>
-  );
-}
-
-// LibraryFrame (the center tab shell) lives in 30c_frame.jsx (extracted inc 182 for the 600-line cap + the
-// discovery Search tab). PdfViewer (above) is rendered by it via the shared IIFE scope.
+// MinimapTrack + usePinchZoom were extracted to 30f_pdf_gestures.jsx (inc 239, rule #1). LibraryFrame (the center
+// tab shell) lives in 30c_frame.jsx (inc 182). PdfViewer (above) references all three via the shared IIFE scope.
 

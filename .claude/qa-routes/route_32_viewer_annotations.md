@@ -1,7 +1,13 @@
 <!-- qa-coverage
 api: GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, POST /papers/{paper_id}/annotations, PATCH /annotations/{annotation_id}, DELETE /annotations/{annotation_id}
-fe: 30_viewer.jsx, 30b_notes.jsx
+fe: 30_viewer.jsx, 30b_notes.jsx, 30f_pdf_gestures.jsx
 -->
+
+<!-- B5 mobile reader (inc 239): the highlight minimap (`MinimapTrack`) + pinch-to-zoom (`usePinchZoom`) live in
+30f_pdf_gestures.jsx (split from 30_viewer.jsx, rule #1). On mobile the PDF defaults to fit-width, two-up is hidden,
+and pinch-to-zoom drives the scale; a "← Synthesis" back pill (40_app.jsx) returns to the synthesis after a citation
+jump. Coordinate honesty is unchanged — the minimap positions by page fraction, never a fabricated exact rect. -->
+
 
 # ROUTE 32 - Viewer and annotations
 

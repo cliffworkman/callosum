@@ -213,6 +213,12 @@ component itself predates it.)
 - **Pattern:** a read-only companion **hides** write controls (via a `readOnly` flag threaded through the panels +
   a `DetailReadOnly` React context for the Details fields) and **never fires a write on load** — the on-launch rescan
   + the CiteRow render only run when read-write is confirmed. The enforcement is the server method gate, not the UI.
+- **`.pdf-back-pill`** (inc 239) — a fixed "← Synthesis" pill floating above the bottom nav on the mobile reader after
+  a citation jump; `--accent` fill + `--on-fill` + `--radius-pill`, `z-index: 55` (below the read-only badge's 60).
+- **Mobile reader (inc 239):** on a phone the PDF **defaults to fit-width** (`pageView="width"`; Two-up hidden) and
+  **pinch-to-zoom** drives the scale — `.pdf-scroll` gets `touch-action: pan-x pan-y` (mobile) so single-finger pan
+  works but the browser's own pinch-zoom is off; the gesture applies a CSS `transform` to `.pdf-pages` then commits a
+  crisp re-render on release. Desktop is untouched (the `mobile` branch never runs >760px).
 
 ## 3. Consistency findings + proposed consolidations (Pass 2 — a worklist)
 

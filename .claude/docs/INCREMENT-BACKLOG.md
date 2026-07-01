@@ -543,14 +543,17 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   the sentence is always the evidence; a signal not a verdict; no accusation. Spec
   `.claude/docs/specs/2026-07-01-citation-context-design.md`. **Possible later:** Semantic Scholar intents as a
   supplementary tag; a library-wide most-contested/most-supported facet; report caching.
-- **B5 — mobile / tablet reading** — **[COMPLETE — SP1 inc 237 + SP2 inc 238]** the desktop app is **responsive**
-  (single-column + a bottom nav on a phone-width viewport, built on the inc-101 read mode) and reachable **read-only**
-  over the cloudflared tunnel: a **`CALLOSUM_READ_ONLY=1` method gate** (403 on every write — the real boundary) + a
-  **read-only ingress allowlist** (`adapters/mobile/`, defense in depth) + the bearer token; and the app **reads clean
-  read-only** — a "Read-only" badge, every write control hidden (Details render as static text; the METHODS analysis
-  sections + Discover/Feed tabs drop), and no doomed writes on load (via a `read_only` flag on `/health`). Run a 2nd
-  read-only callosum for the tunnel (`tools/run_tunnel.py --mobile`; `adapters/mobile/README.md`). **B1–B5 all done.**
-  **Deferred (own increment if wanted):** a mobile-tuned PDF reader + synthesis→PDF exact-highlight overlays on mobile.
+- **B5 — mobile / tablet reading** — **[COMPLETE — SP1 inc 237 + SP2 inc 238 + SP3 inc 239]** the desktop app is
+  **responsive** (single-column + a bottom nav on a phone-width viewport, built on the inc-101 read mode) and reachable
+  **read-only** over the cloudflared tunnel: a **`CALLOSUM_READ_ONLY=1` method gate** (403 on every write — the real
+  boundary) + a **read-only ingress allowlist** (`adapters/mobile/`, defense in depth) + the bearer token; the app
+  **reads clean read-only** — a "Read-only" badge, every write control hidden (Details render as static text; the
+  METHODS analysis sections + Discover/Feed tabs drop), and no doomed writes on load (via a `read_only` flag on
+  `/health`); and the **PDF reader is phone-native** — fit-width by default, **pinch-to-zoom** (`30f_pdf_gestures.jsx`),
+  and a citation jump pulls the reader into view with a one-tap **"← Synthesis"** back pill. Run a 2nd read-only
+  callosum for the tunnel (`tools/run_tunnel.py --mobile`; `adapters/mobile/README.md`). **B1–B5 all done.**
+  **Further-deferred nicety (own increment if ever wanted):** a mobile-tuned *annotation authoring* flow (creating
+  highlights by touch, vs the current tap-a-citation *reading*).
 
 **C — reserved / declined (recorded; do NOT build or re-propose):** folders/collections hierarchy (**superseded by
 axes** — coherent set → axis, arbitrary flat set → tag, "read this week" → needs-review filter; the A7 Curated Axis is

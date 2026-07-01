@@ -146,6 +146,12 @@
   .mobile-nav-btn.active { color: var(--accent); }
   .mobile-nav-icon { font-size: 18px; line-height: 1; }
   .mobile-nav-label { font-size: 10.5px; }
+  /* B5 (inc 239): the mobile reader's "← Synthesis" back pill after a citation jump (floats above the bottom nav). */
+  .pdf-back-pill {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 62px; z-index: 55;
+    background: var(--accent); color: var(--on-fill); border: none; border-radius: var(--radius-pill);
+    padding: 7px 16px; font-size: 12.5px; font-weight: 600; box-shadow: 0 2px 8px rgba(0,0,0,0.18); cursor: pointer;
+  }
 
   /* B5 SP2 (inc 238): read-only companion. A fixed badge marks the read-only instance; write controls hide via the
      `readOnly` context flag threaded into each panel. Tokens only (rule #8). */
@@ -6643,7 +6649,7 @@
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "p = ", t.p)
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: p-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal test, and conservatively drops results so significant their p rounds to \u22480. Run it on a small, curated set for the most meaningful curve.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " p-curve \u2014 Simonsohn, Nelson & Simmons (2014), ", /* @__PURE__ */ React.createElement("i", null, "J. Exp. Psychol. Gen."), " 143(2):534\u2013547.", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " (Lukas Jung). Surfaced via D. Lakens' automated-review catalog."))));
   }
-  function PdfViewer({ paperId, title, target, annoRefresh }) {
+  function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
     const [state, setState] = useState({ status: "loading" });
     const [scale, setScale] = useState(1.15);
     const [page, setPage] = useState(1);
@@ -6654,6 +6660,7 @@
     const [notice, setNotice] = useState(null);
     const [dpr, setDpr] = useState(() => typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1);
     const [pageView, setPageView] = useState(() => {
+      if (mobile) return "width";
       const v = _loadLayout("callosum.pageView", "page");
       return v === "width" || v === "two" ? v : "page";
     });
@@ -6667,6 +6674,10 @@
     const restoredPaperRef = useRef(null);
     const lastScrollSaveRef = useRef(0);
     const markCursorRef = useRef(-1);
+    const scaleRef = useRef(scale);
+    useEffect(() => {
+      scaleRef.current = scale;
+    }, [scale]);
     const flashNotice = useCallback((msg) => {
       setNotice(msg);
       if (noticeTimer.current) clearTimeout(noticeTimer.current);
@@ -6910,6 +6921,12 @@
         if (ro) ro.disconnect();
       };
     }, [pageView, state.status]);
+    const commitZoom = useCallback((s) => {
+      setPageView("page");
+      _saveLayout("callosum.pageView", "page");
+      setScale(s);
+    }, []);
+    usePinchZoom({ scrollRef, pagesRef, scaleRef, active: !!mobile && state.status === "ready", onCommit: commitZoom });
     const onPagesMouseUp = useCallback(() => {
       const host = pagesRef.current;
       if (!host) return;
@@ -7115,7 +7132,7 @@
         title: "Fit the page width to the window"
       },
       "Fit width"
-    ), /* @__PURE__ */ React.createElement(
+    ), !mobile && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "pdf-annot-toggle" + (pageView === "two" ? " active" : ""),
@@ -7133,14 +7150,28 @@
       "Notes (",
       annotations.length,
       ")"
-    ))), /* @__PURE__ */ React.createElement("div", { className: "pdf-body" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-scroll", ref: scrollRef, onScroll, onMouseUp: onPagesMouseUp, onClick: onPagesClick }, state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Opening PDF\u2026"), "Streaming and rendering the document."), state.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "PDF not available locally"), "This paper has no local PDF file \u2014 it may be a URL-only or metadata-only entry."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "18px" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't open this PDF."), /* @__PURE__ */ React.createElement("br", null), state.error), /* @__PURE__ */ React.createElement(
+    ))), /* @__PURE__ */ React.createElement("div", { className: "pdf-body" }, /* @__PURE__ */ React.createElement(
       "div",
       {
-        className: "pdf-pages" + (pageView === "two" ? " pdf-two-up" : ""),
-        ref: pagesRef,
-        style: { display: state.status === "ready" ? "flex" : "none" }
-      }
-    )), state.status === "ready" && annotations.length > 0 && !panelOpen && /* @__PURE__ */ React.createElement(MinimapTrack, { annotations, numPages: state.numPages, onJump: jumpToAnnotation }), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement(
+        className: "pdf-scroll",
+        ref: scrollRef,
+        onScroll,
+        onMouseUp: onPagesMouseUp,
+        onClick: onPagesClick,
+        style: mobile ? { touchAction: "pan-x pan-y" } : void 0
+      },
+      state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Opening PDF\u2026"), "Streaming and rendering the document."),
+      state.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "PDF not available locally"), "This paper has no local PDF file \u2014 it may be a URL-only or metadata-only entry."),
+      state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "18px" } }, /* @__PURE__ */ React.createElement("b", null, "Couldn't open this PDF."), /* @__PURE__ */ React.createElement("br", null), state.error),
+      /* @__PURE__ */ React.createElement(
+        "div",
+        {
+          className: "pdf-pages" + (pageView === "two" ? " pdf-two-up" : ""),
+          ref: pagesRef,
+          style: { display: state.status === "ready" ? "flex" : "none" }
+        }
+      )
+    ), state.status === "ready" && annotations.length > 0 && !panelOpen && /* @__PURE__ */ React.createElement(MinimapTrack, { annotations, numPages: state.numPages, onJump: jumpToAnnotation }), panelOpen && state.status === "ready" && /* @__PURE__ */ React.createElement(
       AnnotationsPanel,
       {
         annotations,
@@ -7180,23 +7211,6 @@
       }
     ))), /* @__PURE__ */ React.createElement("div", { className: "hl-editor-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost danger", onClick: () => deleteAnnotation(editor.id) }, "Delete"), /* @__PURE__ */ React.createElement("span", { style: { flex: 1 } }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setEditor(null) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveEdit }, "Save"))), notice && /* @__PURE__ */ React.createElement("div", { className: "pdf-toast", role: "alert", onClick: () => setNotice(null) }, notice));
   }
-  function MinimapTrack({ annotations, numPages, onJump }) {
-    if (!numPages) return null;
-    return /* @__PURE__ */ React.createElement("div", { className: "pdf-minimap", title: "Highlights \u2014 click a mark to jump to it" }, annotations.map((a) => {
-      const pct = Math.max(0, Math.min(100, (a.page - 1 + 0.5) / numPages * 100));
-      const label = a.note ? `p.${a.page} \u2014 ${a.note}` : `Highlight on p.${a.page}`;
-      return /* @__PURE__ */ React.createElement(
-        "button",
-        {
-          key: a.id,
-          className: "pdf-minimap-tick",
-          title: label,
-          style: { top: pct + "%", background: a.color || "var(--flag)" },
-          onClick: () => onJump(a)
-        }
-      );
-    }));
-  }
   function AnnotationsPanel({ annotations, onCopy, onExport, onJump, onEdit, onDelete }) {
     const [notedOnly, setNotedOnly] = useState(false);
     const [query, setQuery] = useState("");
@@ -7216,7 +7230,7 @@
       }
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
-  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading }) {
+  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading, mobile }) {
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -7266,7 +7280,7 @@
         onClick: onToggleReading
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
-    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "search" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: onDiscoverSaved })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "feed" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(FeedPane, { onSaved: onDiscoverSaved, active: activeTab === "feed" })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh }))));
+    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "search" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: onDiscoverSaved })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "feed" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(FeedPane, { onSaved: onDiscoverSaved, active: activeTab === "feed" })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh, mobile }))));
   }
   function DiscoverPane({ onSaved }) {
     const [q, setQ] = useState("");
@@ -7565,6 +7579,59 @@
       e.stopPropagation();
       toggleExpand(it.id);
     } }, expanded.has(it.id) ? "Hide abstract" : "Abstract") : null), expanded.has(it.id) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null))));
+  }
+  function usePinchZoom({ scrollRef, pagesRef, scaleRef, active, onCommit }) {
+    useEffect(() => {
+      const el = scrollRef.current;
+      if (!active || !el) return;
+      const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+      let p = null;
+      const onStart = (e) => {
+        if (e.touches.length === 2) p = { startDist: dist(e.touches), startScale: scaleRef.current, target: null };
+      };
+      const onMove = (e) => {
+        if (!p || e.touches.length !== 2 || !pagesRef.current) return;
+        e.preventDefault();
+        const ratio = dist(e.touches) / p.startDist;
+        const t = Math.min(3, Math.max(0.4, Math.round(p.startScale * ratio * 100) / 100));
+        p.target = t;
+        pagesRef.current.style.transformOrigin = "center top";
+        pagesRef.current.style.transform = `scale(${t / p.startScale})`;
+      };
+      const onEnd = () => {
+        const pp = p;
+        p = null;
+        if (pagesRef.current) pagesRef.current.style.transform = "";
+        if (pp && pp.target != null && Math.abs(pp.target - pp.startScale) > 5e-3) onCommit(pp.target);
+      };
+      el.addEventListener("touchstart", onStart, { passive: true });
+      el.addEventListener("touchmove", onMove, { passive: false });
+      el.addEventListener("touchend", onEnd, { passive: true });
+      el.addEventListener("touchcancel", onEnd, { passive: true });
+      return () => {
+        el.removeEventListener("touchstart", onStart);
+        el.removeEventListener("touchmove", onMove);
+        el.removeEventListener("touchend", onEnd);
+        el.removeEventListener("touchcancel", onEnd);
+      };
+    }, [active, onCommit]);
+  }
+  function MinimapTrack({ annotations, numPages, onJump }) {
+    if (!numPages) return null;
+    return /* @__PURE__ */ React.createElement("div", { className: "pdf-minimap", title: "Highlights \u2014 click a mark to jump to it" }, annotations.map((a) => {
+      const pct = Math.max(0, Math.min(100, (a.page - 1 + 0.5) / numPages * 100));
+      const label = a.note ? `p.${a.page} \u2014 ${a.note}` : `Highlight on p.${a.page}`;
+      return /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          key: a.id,
+          className: "pdf-minimap-tick",
+          title: label,
+          style: { top: pct + "%", background: a.color || "var(--flag)" },
+          onClick: () => onJump(a)
+        }
+      );
+    }));
   }
   function MyPubsTile({ label, value }) {
     return /* @__PURE__ */ React.createElement("div", { className: "metric-tile" }, /* @__PURE__ */ React.createElement("div", { className: "metric-value" }, (value == null ? 0 : value).toLocaleString()), /* @__PURE__ */ React.createElement("div", { className: "metric-label" }, label));
@@ -9001,6 +9068,7 @@
     } = useFocusMode({ setActiveTab, onEnterClearFilters: clearViewFilters });
     cancelFocusRef.current = cancelFocus;
     setAxisRefreshRef.current = setAxisRefresh;
+    const [citationReturn, setCitationReturn] = useState(false);
     const openPdf = useCallback((paper, target) => {
       const key = "pdf:" + paper.id;
       const title = paper.title || "Paper " + paper.id;
@@ -9011,12 +9079,17 @@
         return prev.map((t) => t.key === key ? { ...t, title, target: nextTarget } : t);
       });
       setActiveTab(key);
-    }, []);
+      if (mobile) {
+        setMobilePane("library");
+        setCitationReturn(false);
+      }
+    }, [mobile, setMobilePane]);
     const openCitation = useCallback((citation) => {
       const target = citationTarget(citation);
       if (!target) return;
       openPdf({ id: target.paperId, title: target.paperTitle }, target);
-    }, [openPdf]);
+      if (mobile) setCitationReturn(true);
+    }, [openPdf, mobile]);
     const openMyPubsDashboard = useCallback((axis) => {
       const key = "dashboard:my-publications";
       setTabs((prev) => prev.some((t) => t.key === key) ? prev : [...prev, { key, type: "dashboard", title: "My Publications", axisId: axis && axis.id }]);
@@ -9136,7 +9209,8 @@
         onDiscoverSaved: () => setLibRefresh((n) => n + 1),
         annoRefresh,
         readingMode,
-        onToggleReading: toggleReading
+        onToggleReading: toggleReading,
+        mobile
       }
     );
     const detailEl = /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen }));
@@ -9164,7 +9238,12 @@
     const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;
     if (mobile) {
       const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
-      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: setMobilePane }), modals);
+      const selectMobilePane = (pane) => {
+        setMobilePane(pane);
+        setCitationReturn(false);
+      };
+      const backPill = citationReturn && mobilePane === "library" ? /* @__PURE__ */ React.createElement("button", { className: "pdf-back-pill", onClick: () => selectMobilePane("theory") }, "\u2190 Synthesis") : null;
+      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals);
     }
     return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
       Divider,

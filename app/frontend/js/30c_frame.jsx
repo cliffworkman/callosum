@@ -2,7 +2,7 @@
 // Extracted from 30_viewer.jsx (inc 182) to relieve the 600-line cap there and give the discovery Search tab (#28)
 // a home. PDF tabs stay mounted (hidden) so switching back doesn't re-stream them. Function declarations hoist
 // within the shared IIFE, so this references PdfViewer / PaperList / MyPubsDashboard regardless of chunk order.
-function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading }) {
+function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading, mobile }) {
   return (
     <div className="lib-frame">
       <div className="frame-tabs">
@@ -53,7 +53,7 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           {t.type === "dashboard"
             ? <MyPubsDashboard axisId={t.axisId} onSummarize={onSummarizePapers} onSelectPaper={onSelectPaper} onOpenPdf={onOpenPdf} />
-            : <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} />}
+            : <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} mobile={mobile} />}
         </div>
       ))}
     </div>
