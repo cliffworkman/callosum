@@ -528,11 +528,13 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   embeddable + citable with **exact** highlights + selectable text. No new pip dependency (system binary), no egress.
   *Follow-ups:* bundle Tesseract with the desktop shell (#21); a batch "OCR all scanned"; re-OCR of a partially-texted
   PDF (needs the deferred delete-chunks/vector-cleanup); non-English language packs.
-- **B4 — library-level citation-context classifier (scite analogue)** *(needs a detail doc; design home: §B4)* —
-  classify whether a *citing* paper supports/contrasts/mentions a claim across the citation graph, locally + grounded
-  in retrieved passages. **Distinct from** the gap-finder (#29, discovery) and Track C (#30, the user's own draft).
-  Sequenced **after Track C + A9**. THEORY contract + Auditability gate (#13): signal not verdict, verbatim quotes +
-  confidence.
+- **B4 — citation-context classifier (scite analogue)** — **[SP1 SHIPPED inc 232]** the *incoming* half ("how this
+  paper is cited"): fetch a paper's citing sentences from **Semantic Scholar** + classify each stance **locally** with
+  our NLI (support/contrast/mention). Counts, never a score; the citing sentence is always the evidence; a signal not
+  a verdict; no accusation. Spec `.claude/docs/specs/2026-07-01-citation-context-design.md`. **Remaining: SP2** = the
+  *outgoing* half ("how this paper cites its own sources") — detect each in-text citation, link it to a reference,
+  classify the stance; fiddlier (needs in-text-citation → reference parsing) → its own increment. Possible later:
+  Semantic Scholar intents as a supplementary tag; a library-wide most-contested/most-supported facet; report caching.
 - **B5 — mobile / tablet reading** — a read-only mobile companion built on inc-101 read mode; directional, post-V1.
 
 **C — reserved / declined (recorded; do NOT build or re-propose):** folders/collections hierarchy (**superseded by

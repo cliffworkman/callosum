@@ -510,6 +510,20 @@
   .cite-equity-field { font-size: 11px; color: var(--ink-3); margin: 4px 0 4px; }
   .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
   .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
+  /* inc 232 (B4): "how this paper is cited" — reuses .cite-stance (support/contrast/mention) + .method-credit. Tokens only. */
+  .citec-breakdown { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
+  .citec-count { font-size: 11px; font-weight: 600; border-radius: var(--radius-pill); padding: 2px 9px; }
+  .citec-count.support { color: var(--verified); background: var(--verified-soft); }
+  .citec-count.contrast { color: var(--flag); background: var(--flag-soft); }
+  .citec-count.mention { color: var(--ink-2); background: var(--line); }
+  .citec-coverage { font-size: 10.5px; color: var(--ink-3); margin: 0 0 8px; }
+  .citec-item { border-top: 1px solid var(--line); padding: 8px 0 4px; }
+  .citec-item-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .citec-conf { font-size: 10px; color: var(--ink-3); }
+  .citec-infl { font-size: 9.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 1px 7px; }
+  .citec-citer { font-size: 11.5px; color: var(--ink); margin: 3px 0 2px; }
+  .citec-who { color: var(--ink-3); }
+  .citec-sentence { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; font-style: italic; }
   .cite-equity-howto { font-size: 11px; color: var(--ink-2); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
   /* inc 228: overlooked-work remediation — candidate cards (add-only, topical-match "why"). Tokens only. */
   .cite-equity-overlooked { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
@@ -3082,6 +3096,100 @@
     paneId: "methods",
     order: 35,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitationEquitySection, { ctx })
+  });
+  const CITATION_CONTEXT_CSL = [
+    {
+      type: "article-journal",
+      title: "scite: A smart citations index that displays the context of citations and classifies their intent using deep learning",
+      author: [
+        { family: "Nicholson", given: "Josh M." },
+        { family: "Mordaunt", given: "Milo" },
+        { family: "Lopez", given: "Patrice" },
+        { family: "Uppala", given: "Ashish" },
+        { family: "Rosati", given: "Domenic" },
+        { family: "Rife", given: "Sean C." }
+      ],
+      "container-title": "Quantitative Science Studies",
+      volume: "2",
+      issue: "3",
+      page: "882-898",
+      issued: { "date-parts": [[2021]] },
+      DOI: "10.1162/qss_a_00146"
+    }
+  ];
+  function CitationContextCredit() {
+    const [added, setAdded] = useState("idle");
+    const addCredit = async () => {
+      setAdded("adding");
+      const r = await apiPost("/library/import", { content: JSON.stringify(CITATION_CONTEXT_CSL), format: "csl-json" });
+      setAdded(r && r.ok ? "added" : "idle");
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " smart citations (Nicholson et al. 2021, ", /* @__PURE__ */ React.createElement("i", null, "Quantitative Science Studies"), " \u2014 the ", /* @__PURE__ */ React.createElement("b", null, "scite"), " index this echoes).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Citing sentences from ", /* @__PURE__ */ React.createElement("b", null, "Semantic Scholar"), " (Allen Institute for AI); stance classified locally by callosum's own NLI \u2014 a signal to read, never a verdict."));
+  }
+  function CitationContextItem({ it }) {
+    const stance = it.stance || "unknown";
+    const who = [(it.citing_authors || []).slice(0, 3).join(", "), it.citing_year].filter(Boolean).join(" \xB7 ");
+    const href = it.citing_doi ? `https://doi.org/${it.citing_doi}` : null;
+    return /* @__PURE__ */ React.createElement("div", { className: "citec-item" }, /* @__PURE__ */ React.createElement("div", { className: "citec-item-head" }, /* @__PURE__ */ React.createElement("span", { className: "cite-stance " + stance, title: "callosum's local NLI stance over this citing sentence \u2014 a signal, not a verdict" }, it.stance || "unclassified"), it.confidence != null && /* @__PURE__ */ React.createElement("span", { className: "citec-conf" }, "conf ", it.confidence.toFixed(2)), it.is_influential && /* @__PURE__ */ React.createElement("span", { className: "citec-infl", title: "Semantic Scholar flags this as a highly-influential citation" }, "influential")), /* @__PURE__ */ React.createElement("div", { className: "citec-citer" }, href ? /* @__PURE__ */ React.createElement("a", { className: "btn-link", href, target: "_blank", rel: "noopener noreferrer" }, it.citing_title || "Untitled", " \u2197") : it.citing_title || "Untitled", who && /* @__PURE__ */ React.createElement("span", { className: "citec-who" }, " \u2014 ", who)), it.sentence && /* @__PURE__ */ React.createElement("div", { className: "citec-sentence" }, "\u201C", it.sentence, "\u201D"));
+  }
+  function CitationContextPaper({ paperId }) {
+    const [meta, setMeta] = useState(null);
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      setMeta(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const run = async () => {
+      setState({ status: "running", progress: null });
+      const poll = (jid) => api(`/papers/citation-context/run/${jid}`).then((r2) => {
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", report: d.report });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "Failed." });
+        else {
+          setState({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jid), 1500);
+        }
+      });
+      const r = await apiPost("/papers/citation-context/run", { paper_id: paperId });
+      if (!r.ok) {
+        setState({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to see how it's been cited.");
+    const rep = state.report;
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, "How the literature has responded to ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "this paper"), " \u2014 do later papers ", /* @__PURE__ */ React.createElement("b", null, "support"), ",", " ", /* @__PURE__ */ React.createElement("b", null, "contrast"), ", or just ", /* @__PURE__ */ React.createElement("b", null, "mention"), " it? A labeled signal to read, never a verdict."), meta && !meta.hasDoi && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so Semantic Scholar can't find its citations."), meta && meta.hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: run,
+        title: "Fetch the citing sentences from Semantic Scholar (public metadata) and classify each stance locally"
+      },
+      "Fetch citations"
+    ), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-egress-note" }, "Running sends this paper's DOI to Semantic Scholar (public metadata) and classifies the returned sentences on your machine \u2014 your library text never leaves.")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Fetching + classifying\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't fetch citations: ", state.error), state.status === "done" && rep && (rep.total_citations === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Semantic Scholar has no recorded citations for this paper yet.") : /* @__PURE__ */ React.createElement("div", { className: "cite-equity-report" }, /* @__PURE__ */ React.createElement("div", { className: "citec-breakdown" }, /* @__PURE__ */ React.createElement("span", { className: "citec-count support" }, rep.counts.support || 0, " supporting"), /* @__PURE__ */ React.createElement("span", { className: "citec-count contrast" }, rep.counts.contrast || 0, " contrasting"), /* @__PURE__ */ React.createElement("span", { className: "citec-count mention" }, rep.counts.mention || 0, " mentioning")), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-caption" }, `Counts of individual citing sentences \u2014 read the sentences below and decide; there's no single "score", and neither direction is a verdict.`), /* @__PURE__ */ React.createElement("div", { className: "citec-coverage" }, "Classified ", rep.classified, " of ", rep.total_citations, " citations", rep.total_citations > rep.with_context ? ` (${rep.total_citations - rep.with_context} had no citing sentence to read)` : "", ".", rep.total_citations >= 500 ? " Showing the first 500." : ""), rep.items.filter((i) => i.sentence).map((it, ix) => /* @__PURE__ */ React.createElement(CitationContextItem, { key: ix, it })), /* @__PURE__ */ React.createElement(CitationContextCredit, null))));
+  }
+  function CitationContextSection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationContextPaper, { paperId: ctx.selectedPaper }));
+  }
+  registerPaneSection({
+    id: "citation-context",
+    label: "How this paper is cited",
+    paneId: "methods",
+    order: 36,
+    render: (ctx) => /* @__PURE__ */ React.createElement(CitationContextSection, { ctx })
   });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));

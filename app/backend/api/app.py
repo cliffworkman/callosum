@@ -26,6 +26,7 @@ from app.backend.api.routers import (
     agent,
     annotations,
     axes,
+    citation_context,
     citation_counts,
     citation_equity,
     citations,
@@ -69,6 +70,7 @@ from integrations.crossref import CrossrefClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
 from integrations.retraction_watch import RetractionWatchClient
+from integrations.semantic_scholar.adapter import SemanticScholarClient
 
 DEFAULT_DB_URL = "sqlite:///.local/validation/validation.sqlite"
 FRONTEND_PATH_ENV = "CALLOSUM_FRONTEND_PATH"
@@ -93,6 +95,7 @@ def create_app(
     crossref_client: CrossrefClient | None = None,
     openalex_client: OpenAlexClient | None = None,
     openalex_author_client: OpenAlexAuthorClient | None = None,
+    semantic_scholar_client: SemanticScholarClient | None = None,
     research_summary_generator: ResearchSummaryGenerator | None = None,
     overview_generator: OverviewGenerator | None = None,
     help_assistant: HelpAssistant | None = None,
@@ -141,6 +144,7 @@ def create_app(
     api.state.overlooked_jobs = JobStore()  # inc 228 (#25 SP2): topical overlooked-work remediation
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
     api.state.ocr_jobs = JobStore()  # inc 231 (B3): per-paper OCR of a scanned PDF into a searchable copy
+    api.state.citation_context_jobs = JobStore()  # inc 232 (B4): per-paper "how this paper is cited" (scite analogue)
     api.state.enrich_registry = None  # inc 217 test seam: a fake EnrichmentRegistry (else built from the clients)
     api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
@@ -157,6 +161,7 @@ def create_app(
     api.state.axis_cluster_labeler = axis_cluster_labeler
     api.state.crossref_client = crossref_client
     api.state.openalex_client = openalex_client
+    api.state.semantic_scholar_client = semantic_scholar_client  # inc 232 (B4): citation-context data source
     api.state.openalex_author_client = openalex_author_client
     api.state.research_summary_generator = research_summary_generator
     api.state.overview_generator = overview_generator
@@ -208,6 +213,9 @@ def create_app(
         citation_counts.router
     )  # before papers so "/papers/citation-counts/*" wins over "/papers/{id}" (inc 210)
     api.include_router(ocr.router)  # before papers so "/papers/ocr/*" wins over "/papers/{paper_id}" (inc 231)
+    api.include_router(
+        citation_context.router
+    )  # before papers so "/papers/citation-context/*" wins over "/papers/{id}" (inc 232)
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
     api.include_router(

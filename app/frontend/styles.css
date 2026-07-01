@@ -486,6 +486,20 @@
   .cite-equity-field { font-size: 11px; color: var(--ink-3); margin: 4px 0 4px; }
   .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
   .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
+  /* inc 232 (B4): "how this paper is cited" — reuses .cite-stance (support/contrast/mention) + .method-credit. Tokens only. */
+  .citec-breakdown { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
+  .citec-count { font-size: 11px; font-weight: 600; border-radius: var(--radius-pill); padding: 2px 9px; }
+  .citec-count.support { color: var(--verified); background: var(--verified-soft); }
+  .citec-count.contrast { color: var(--flag); background: var(--flag-soft); }
+  .citec-count.mention { color: var(--ink-2); background: var(--line); }
+  .citec-coverage { font-size: 10.5px; color: var(--ink-3); margin: 0 0 8px; }
+  .citec-item { border-top: 1px solid var(--line); padding: 8px 0 4px; }
+  .citec-item-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .citec-conf { font-size: 10px; color: var(--ink-3); }
+  .citec-infl { font-size: 9.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border-radius: var(--radius-pill); padding: 1px 7px; }
+  .citec-citer { font-size: 11.5px; color: var(--ink); margin: 3px 0 2px; }
+  .citec-who { color: var(--ink-3); }
+  .citec-sentence { font-size: 11.5px; color: var(--ink-2); line-height: 1.5; font-style: italic; }
   .cite-equity-howto { font-size: 11px; color: var(--ink-2); line-height: 1.5; border-top: 1px solid var(--line); padding-top: 8px; margin-top: 10px; }
   /* inc 228: overlooked-work remediation — candidate cards (add-only, topical-match "why"). Tokens only. */
   .cite-equity-overlooked { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }

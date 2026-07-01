@@ -83,6 +83,17 @@ The data-consistency calculator implements the **GRIM** and **GRIMMER** methods:
 - Re-implemented from the papers (the reference R implementation is **`scrutiny`**, Lukas Jung,
   <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
 
+### Citation context / "smart citations" (inc 232, B4)
+The **"How this paper is cited"** panel (support / contrast / mention over a paper's citing sentences) is a
+**scite** analogue:
+- scite — Nicholson, J. M., Mordaunt, M., Lopez, P., Uppala, A., Rosati, D., Rodrigues, N. P., Grabitz, P., &
+  Rife, S. C. (2021). *scite: A smart citations index that displays the context of citations and classifies their
+  intent using deep learning.* Quantitative Science Studies, 2(3), 882–898.
+  <https://doi.org/10.1162/qss_a_00146>. Credited + one-click added to the library from the panel; the tool's name is
+  not appropriated and its model is not reused — callosum classifies stance with its own local NLI.
+- **Data source:** citing sentences (contexts) come from the **Semantic Scholar Academic Graph API**
+  (Allen Institute for AI, <https://www.semanticscholar.org/>) — public bibliographic metadata; credited in-panel.
+
 ---
 
 ## Runtime & build dependencies (inc 181)
