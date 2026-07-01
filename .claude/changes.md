@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-01 inc 239 — "Reading on your phone" now covers fit-width, pinch-zoom, the citation back pill -->
+<!-- HELP-DOCS-SYNCED 2026-07-01 inc 240 — "Reading on your phone" now covers touch highlighting -->
+## 2026-07-01 — Increment 240: touch-native highlighting on mobile (the last B5 nicety)
+- **Files:** `app/frontend/js/30f_pdf_gestures.jsx` (new `useTouchSelectionPicker` hook) + `30_viewer.jsx` (the hook call, mobile-gated); `styles.css` (`.app.mobile` finger-sized `.hl-swatch`/`.hl-note-add`); help corpus; DESIGN.md; CLAUDE; backlog; `INCREMENT-240-NOTES.md`. (callosum-app.html rebuilt.)
+- **What:** create highlights by touch — a long-press text selection on a phone now surfaces the same color-picker pill desktop shows (via a debounced `selectionchange`, since `mouseup` doesn't fire on touch), with finger-sized swatches; tap a color to highlight, or ＋ note.
+- **Why:** the last B5 nicety (touch-native annotation). Maintainer forks: contextual pill + swatch row (reuse everything).
+- **Verify:** frontend-only (no Python touched) → pytest 884 unchanged; `test_frontend_assembly` 5/5; ruff+format clean; QA 173/173 API + 761/761 FE, 0 uncovered. Headed-verified at 390×844 (DOM Selection → picker [5 swatches, +note, 28px] → tap → 1 annotation POST + highlight renders + picker closes; 0 errors). **No new endpoint/flow/migration/dependency.**
+- **Revert:** `git revert <sha>` (frontend-only; no destructive change; desktop untouched — the hook is mobile-gated).
+
 ## 2026-07-01 — Increment 239: B5 SP3 — the mobile PDF reader (fit-width + pinch-zoom + citation back pill)
 - **Files:** `app/frontend/js/30_viewer.jsx` (mobile fit-width default + Two-up hidden + touch-action + usePinchZoom call) + NEW `30f_pdf_gestures.jsx` (usePinchZoom + MinimapTrack, rule-#1 split) + `30c_frame.jsx` + `40_app.jsx` (mobile prop threading, region-switch on citation-open, `.pdf-back-pill`); `styles.css` (`.pdf-back-pill`, tokens); `route_32_viewer_annotations.md`; DESIGN.md; help corpus; CLAUDE; backlog; `INCREMENT-239-NOTES.md`. (callosum-app.html rebuilt.)
 - **What:** phone-native PDF reading — the page fits the screen by default, pinch-to-zoom works, and tapping a synthesis citation pulls the reader into view with a one-tap "← Synthesis" return.

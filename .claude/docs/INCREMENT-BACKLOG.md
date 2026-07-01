@@ -550,10 +550,10 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   **reads clean read-only** — a "Read-only" badge, every write control hidden (Details render as static text; the
   METHODS analysis sections + Discover/Feed tabs drop), and no doomed writes on load (via a `read_only` flag on
   `/health`); and the **PDF reader is phone-native** — fit-width by default, **pinch-to-zoom** (`30f_pdf_gestures.jsx`),
-  and a citation jump pulls the reader into view with a one-tap **"← Synthesis"** back pill. Run a 2nd read-only
-  callosum for the tunnel (`tools/run_tunnel.py --mobile`; `adapters/mobile/README.md`). **B1–B5 all done.**
-  **Further-deferred nicety (own increment if ever wanted):** a mobile-tuned *annotation authoring* flow (creating
-  highlights by touch, vs the current tap-a-citation *reading*).
+  and a citation jump pulls the reader into view with a one-tap **"← Synthesis"** back pill; and (inc 240) you can
+  **highlight by touch** — a long-press selection surfaces the same color-picker pill (via a mobile `selectionchange`
+  hook, since `mouseup` doesn't fire on touch), finger-sized. Run a 2nd read-only callosum for the tunnel
+  (`tools/run_tunnel.py --mobile`; `adapters/mobile/README.md`). **B1–B5 all done — nothing deferred.**
 
 **C — reserved / declined (recorded; do NOT build or re-propose):** folders/collections hierarchy (**superseded by
 axes** — coherent set → axis, arbitrary flat set → tag, "read this week" → needs-review filter; the A7 Curated Axis is

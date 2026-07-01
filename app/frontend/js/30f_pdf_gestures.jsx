@@ -42,6 +42,21 @@ function usePinchZoom({ scrollRef, pagesRef, scaleRef, active, onCommit }) {
   }, [active, onCommit]);
 }
 
+// B5 (inc 240): touch-native highlighting. On desktop the color-picker pill is triggered by mouseup, which never
+// fires on touch — so after a long-press text selection on a phone the pill never appears. This mobile-only hook
+// shows it by watching `selectionchange` (debounced past the drag), then calls the SAME onSelection builder the
+// mouseup path uses (it reads window.getSelection() → bboxes → picker, and clears the picker if the selection
+// collapsed). No new endpoint/flow — just a touch trigger for the existing create path.
+function useTouchSelectionPicker({ active, onSelection }) {
+  useEffect(() => {
+    if (!active) return;
+    let timer = null;
+    const onChange = () => { if (timer) clearTimeout(timer); timer = setTimeout(onSelection, 350); };
+    document.addEventListener("selectionchange", onChange);
+    return () => { document.removeEventListener("selectionchange", onChange); if (timer) clearTimeout(timer); };
+  }, [active, onSelection]);
+}
+
 // inc 215: a thin scrollbar-side minimap — one tick per highlight at its page's vertical fraction; click to jump.
 // Positioned by PAGE (numPages), not pixel offset, so it never touches the fragile render-core geometry (inc 34/35);
 // the equal-page-height approximation is fine for a navigation aid. Shown when the Notes panel is closed (the panel

@@ -333,6 +333,10 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
     });
   }, []);
 
+  // B5 (inc 240): on a phone, a long-press text selection has no mouseup — surface the same picker via
+  // selectionchange (usePinchZoom's chunk). onPagesMouseUp is stable (deps []), so the listener never re-attaches.
+  useTouchSelectionPicker({ active: !!mobile && state.status === "ready", onSelection: onPagesMouseUp });
+
   const createHighlight = useCallback(async (color) => {
     if (!picker) return;
     const body = {

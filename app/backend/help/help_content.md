@@ -111,6 +111,8 @@ When callosum is running read-only, it shows a small **Read-only** badge and hid
 
 On a phone the PDF reader is tuned for touch: pages fit the screen width by default, **pinch to zoom** in and out, and the zoom buttons still work if you prefer. When you tap a verified citation in a synthesis, callosum jumps to the source PDF on the highlighted page and shows a **"← Synthesis"** pill — one tap takes you back to the exact synthesis you came from, so you can read a claim, check its source, and return without losing your place.
 
+You can also **highlight by touch**: long-press to select a passage in the PDF (drag the handles to extend it), and the color-picker pill appears next to your selection — tap a color to highlight it, or **＋ note** to highlight and jot a note. It's the same highlights you make on the desktop; tap a highlight later to recolor it or edit its note.
+
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library
 The Library is for quickly finding papers and opening the ones you want to read. It shows each paper's title, authors, year, venue, processing tier, and file count.

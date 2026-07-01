@@ -219,6 +219,9 @@ component itself predates it.)
   **pinch-to-zoom** drives the scale — `.pdf-scroll` gets `touch-action: pan-x pan-y` (mobile) so single-finger pan
   works but the browser's own pinch-zoom is off; the gesture applies a CSS `transform` to `.pdf-pages` then commits a
   crisp re-render on release. Desktop is untouched (the `mobile` branch never runs >760px).
+- **Touch highlighting (inc 240):** the existing `.hl-picker` pill is finger-sized on a phone — `.app.mobile .hl-swatch`
+  is 28px (vs 18px), with roomier padding + a bigger `.hl-note-add`. Triggered by a mobile-only `selectionchange` hook
+  (the touch analogue of desktop's mouseup); no new UI, just the same picker reached by touch.
 
 ## 3. Consistency findings + proposed consolidations (Pass 2 — a worklist)
 

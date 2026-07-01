@@ -1445,6 +1445,10 @@
     border-radius: var(--radius-sm); padding: 3px 8px; font-size: 11.5px; cursor: pointer; font-family: var(--sans);
   }
   .hl-note-add:hover { border-color: var(--accent); color: var(--accent); }
+  /* B5 (inc 240): touch-native highlighting — finger-sized tap targets for the picker on a phone. */
+  .app.mobile .hl-picker { gap: 10px; padding: 9px 12px; }
+  .app.mobile .hl-swatch { width: 28px; height: 28px; border-radius: 6px; }
+  .app.mobile .hl-note-add { padding: 7px 12px; font-size: 13px; }
   .hl-remove button {
     border: 1px solid var(--line-2); background: var(--bg); color: var(--ink-2);
     border-radius: var(--radius-sm); padding: 3px 9px; font-size: 12px; cursor: pointer;
