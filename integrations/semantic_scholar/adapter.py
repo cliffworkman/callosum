@@ -23,10 +23,7 @@ from integrations.api_cache import get_cached, put_cached
 
 S2_PROVIDER = "semantic-scholar"
 S2_BASE_URL = "https://api.semanticscholar.org/graph/v1"
-S2_CITATION_FIELDS = (
-    "contexts,isInfluential,citingPaper.title,citingPaper.year,citingPaper.authors,citingPaper.externalIds"
-)
-MAX_CITATIONS = 500  # cap on citing papers pulled per focal paper (rule #4; also a documented coverage limit)
+MAX_CITATIONS = 500  # cap on papers pulled per focal paper, either edge (rule #4; also a documented coverage limit)
 S2_PAGE_SIZE = 1000  # Semantic Scholar's max page size for the citations endpoint
 _DOI_RE = re.compile(
     r"^10\.\d+/\S+$"
@@ -35,7 +32,10 @@ _DOI_RE = re.compile(
 
 @dataclass(frozen=True)
 class CitingContext:
-    """One paper that cites the focal paper, with the sentence(s) where it does so (may be empty if S2 has none)."""
+    """One paper on the other end of a citation edge (the citing paper for the ``citations`` edge; the cited paper
+    for the ``references`` edge), with the sentence(s) of the edge (may be empty if S2 has none). ``claim`` is that
+    paper's own claim (title/abstract) to classify the sentence against — set only for the ``references`` edge, where
+    each cited paper has its own claim; for ``citations`` it's None and the constant focal claim is used instead."""
 
     citing_title: str | None
     citing_year: int | None
@@ -43,6 +43,7 @@ class CitingContext:
     citing_doi: str | None
     sentences: list[str]
     is_influential: bool
+    claim: str | None = None
 
 
 class S2Fetcher(Protocol):
@@ -64,23 +65,38 @@ class SemanticScholarClient:
         self._resolved_key = self.api_key or os.environ.get("CALLOSUM_S2_API_KEY")
 
     def fetch_citation_contexts(self, conn: Connection, doi: str) -> list[CitingContext]:
-        """The papers that cite this DOI, each with its citing sentence(s). Cached; capped; fail-closed → []."""
+        """The papers that CITE this DOI, each with its citing sentence(s) — "how this paper is cited" (SP1)."""
+        return self._fetch_edge(conn, doi, edge="citations")
+
+    def fetch_reference_contexts(self, conn: Connection, doi: str) -> list[CitingContext]:
+        """The papers this DOI CITES, each with the focal paper's citing sentence(s) + that cited paper's own claim —
+        "how this paper cites its sources" (SP2). Semantic Scholar has already linked each in-text citation to its
+        reference, so no local citation parsing is needed."""
+        return self._fetch_edge(conn, doi, edge="references")
+
+    def _fetch_edge(self, conn: Connection, doi: str, *, edge: str) -> list[CitingContext]:
+        """Shared paginate + cache + fail-closed fetch of a citation edge (``citations`` or ``references``)."""
         doi = (doi or "").strip().lower().replace("https://doi.org/", "")
         if not _DOI_RE.match(doi):
             return []  # not a DOI-shaped id → no request is made (no SSRF)
-        cache_key = f"contexts:{doi}"
+        other = "citingPaper" if edge == "citations" else "citedPaper"
+        want_claim = edge == "references"  # the cited paper's own claim is the per-item hypothesis for SP2
+        fields = f"contexts,isInfluential,{other}.title,{other}.year,{other}.authors,{other}.externalIds" + (
+            f",{other}.abstract" if want_claim else ""
+        )
+        cache_key = f"{edge}:{doi}"
         cached = get_cached(conn, S2_PROVIDER, cache_key)
         if cached is not None and cached["response_json"] is not None:
-            return _parse(cached["response_json"])
+            return _parse(cached["response_json"], other_key=other, want_claim=want_claim)
 
         headers = {"x-api-key": self._resolved_key} if self._resolved_key else {}
         results: list[dict[str, Any]] = []
         offset = 0
         got_ok = False
         while len(results) < MAX_CITATIONS:
-            path = f"/paper/DOI:{quote(doi, safe='')}/citations"
+            path = f"/paper/DOI:{quote(doi, safe='')}/{edge}"
             params = {
-                "fields": S2_CITATION_FIELDS,
+                "fields": fields,
                 "offset": str(offset),
                 "limit": str(min(S2_PAGE_SIZE, MAX_CITATIONS - len(results))),
             }
@@ -101,28 +117,33 @@ class SemanticScholarClient:
         payload = {"data": results[:MAX_CITATIONS]}
         if got_ok:  # only cache a real answer (a transient failure must be retryable, not cached as "0 citations")
             put_cached(conn, S2_PROVIDER, cache_key, request_json={"doi": doi}, response_json=payload, status_code=200)
-        return _parse(payload)
+        return _parse(payload, other_key=other, want_claim=want_claim)
 
 
-def _parse(payload: dict[str, Any]) -> list[CitingContext]:
+def _parse(payload: dict[str, Any], *, other_key: str = "citingPaper", want_claim: bool = False) -> list[CitingContext]:
     out: list[CitingContext] = []
     for item in payload.get("data") or []:
         if not isinstance(item, dict):
             continue
-        cp = item.get("citingPaper") or {}
-        authors = [str((a or {}).get("name") or "").strip() for a in (cp.get("authors") or []) if isinstance(a, dict)]
-        ext = cp.get("externalIds") or {}
+        op = item.get(other_key) or {}
+        authors = [str((a or {}).get("name") or "").strip() for a in (op.get("authors") or []) if isinstance(a, dict)]
+        ext = op.get("externalIds") or {}
         doi = ext.get("DOI") if isinstance(ext, dict) else None
         sentences = [str(s).strip() for s in (item.get("contexts") or []) if str(s).strip()]
-        year = cp.get("year")
+        year = op.get("year")
+        title = str(op.get("title")) if op.get("title") else None
+        claim = None
+        if want_claim:  # S2 abstracts are plain text — no cleaning needed
+            claim = (str(op.get("abstract") or "").strip()) or (title or "")
         out.append(
             CitingContext(
-                citing_title=str(cp.get("title")) if cp.get("title") else None,
+                citing_title=title,
                 citing_year=int(year) if isinstance(year, int) else None,
                 citing_authors=[a for a in authors if a][:6],
                 citing_doi=str(doi).lower().replace("https://doi.org/", "") if doi else None,
                 sentences=sentences[:5],
                 is_influential=bool(item.get("isInfluential")),
+                claim=claim,
             )
         )
     return out

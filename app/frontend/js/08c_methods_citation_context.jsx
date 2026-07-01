@@ -72,6 +72,15 @@ function CitationContextPaper({ paperId }) {
     api(`/papers/${paperId}`).then(r => { if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi }); });
     return () => { live = false; };
   }, [paperId]);
+  const [dir, setDir] = useState("citations"); // citations = incoming (how OTHERS cite this); references = outgoing
+  const D = dir === "references"
+    ? { noun: "references", verb: "Fetch references",
+        intro: <>How <b>{meta ? meta.title : "this paper"}</b> cites its own sources — does it <b>support</b>, <b>contrast</b>, or just <b>mention</b> each? A labeled signal to read, never a verdict.</>,
+        empty: "Semantic Scholar has no reference data for this paper." }
+    : { noun: "citations", verb: "Fetch citations",
+        intro: <>How the later literature has responded to <b>{meta ? meta.title : "this paper"}</b> — do later papers <b>support</b>, <b>contrast</b>, or just <b>mention</b> it? A labeled signal to read, never a verdict.</>,
+        empty: "Semantic Scholar has no recorded citations for this paper yet." };
+  const switchDir = (d) => { if (d !== dir) { setDir(d); setState({ status: "idle" }); } };
   const run = async () => {
     setState({ status: "running", progress: null });
     const poll = (jid) => api(`/papers/citation-context/run/${jid}`).then(r => {
@@ -81,7 +90,7 @@ function CitationContextPaper({ paperId }) {
       else if (d.status === "error") setState({ status: "error", error: d.detail || "Failed." });
       else { setState({ status: "running", progress: d.progress }); setTimeout(() => poll(jid), 1500); }
     });
-    const r = await apiPost("/papers/citation-context/run", { paper_id: paperId });
+    const r = await apiPost("/papers/citation-context/run", { paper_id: paperId, direction: dir });
     if (!r.ok) { setState({ status: "error", error: r.error }); return; }
     poll(r.data.job_id);
   };
@@ -89,24 +98,27 @@ function CitationContextPaper({ paperId }) {
   const rep = state.report;
   return (
     <div className="cite-equity">
-      <div className="cite-equity-intro">
-        How the literature has responded to <b>{meta ? meta.title : "this paper"}</b> — do later papers <b>support</b>,
-        {" "}<b>contrast</b>, or just <b>mention</b> it? A labeled signal to read, never a verdict.
+      <div className="citec-toggle">
+        <button className={"citec-toggle-btn" + (dir === "citations" ? " on" : "")} onClick={() => switchDir("citations")}
+          title="How other papers cite THIS one">How it's cited</button>
+        <button className={"citec-toggle-btn" + (dir === "references" ? " on" : "")} onClick={() => switchDir("references")}
+          title="How this paper cites ITS OWN sources">How it cites its sources</button>
       </div>
+      <div className="cite-equity-intro">{D.intro}</div>
       {meta && !meta.hasDoi &&
-        <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't find its citations.</div>}
+        <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't look up its citation graph.</div>}
       {meta && meta.hasDoi && state.status === "idle" &&
         <React.Fragment>
           <button className="btn btn-primary" onClick={run}
             title="Fetch the citing sentences from Semantic Scholar (public metadata) and classify each stance locally">
-            Fetch citations
+            {D.verb}
           </button>
           <div className="cite-equity-egress-note">Running sends this paper's DOI to Semantic Scholar (public metadata) and classifies the returned sentences on your machine — your library text never leaves.</div>
         </React.Fragment>}
       {state.status === "running" && <ProgressBar progress={state.progress} label="Fetching + classifying…" />}
-      {state.status === "error" && <div className="axis-err">Couldn't fetch citations: {state.error}</div>}
+      {state.status === "error" && <div className="axis-err">Couldn't fetch {D.noun}: {state.error}</div>}
       {state.status === "done" && rep && (rep.total_citations === 0
-        ? <div className="tag-suggest-empty">Semantic Scholar has no recorded citations for this paper yet.</div>
+        ? <div className="tag-suggest-empty">{D.empty}</div>
         : <div className="cite-equity-report">
             <div className="citec-breakdown">
               <span className="citec-count support">{rep.counts.support || 0} supporting</span>
@@ -115,7 +127,7 @@ function CitationContextPaper({ paperId }) {
             </div>
             <div className="cite-equity-caption">Counts of individual citing sentences — read the sentences below and decide; there's no single "score", and neither direction is a verdict.</div>
             <div className="citec-coverage">
-              Classified {rep.classified} of {rep.total_citations} citations
+              Classified {rep.classified} of {rep.total_citations} {D.noun}
               {rep.total_citations > rep.with_context ? ` (${rep.total_citations - rep.with_context} had no citing sentence to read)` : ""}.
               {rep.total_citations >= 500 ? " Showing the first 500." : ""}
             </div>

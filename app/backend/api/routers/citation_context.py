@@ -65,6 +65,8 @@ class CitationContextResponse(BaseModel):
 
 class CitationContextRequest(BaseModel):
     paper_id: int
+    # "citations" = how OTHERS cite this paper (SP1, incoming); "references" = how THIS paper cites its sources (SP2).
+    direction: Literal["citations", "references"] = "citations"
 
 
 def _stance_scorer(app: FastAPI) -> StanceScorer:
@@ -94,10 +96,10 @@ def citation_context_run(
         raise HTTPException(status_code=404, detail="Paper not found")
     if not row["doi"]:
         raise HTTPException(
-            status_code=422, detail="This paper has no DOI, so Semantic Scholar can't find its citations."
+            status_code=422, detail="This paper has no DOI, so Semantic Scholar can't look up its citation graph."
         )
     job_id = request.app.state.citation_context_jobs.create()
-    background_tasks.add_task(_run_citation_context_job, request.app, job_id, body.paper_id)
+    background_tasks.add_task(_run_citation_context_job, request.app, job_id, body.paper_id, body.direction)
     return CitationContextResponse(job_id=job_id, status="pending")
 
 
@@ -121,7 +123,7 @@ def citation_context_status(job_id: str, request: Request) -> CitationContextRes
     return CitationContextResponse(job_id=job_id, status=job.status, detail=job.detail, progress=progress)
 
 
-def _run_citation_context_job(app: FastAPI, job_id: str, paper_id: int) -> None:
+def _run_citation_context_job(app: FastAPI, job_id: str, paper_id: int, direction: str = "citations") -> None:
     jobs: JobStore[CitationContextResponse] = app.state.citation_context_jobs
     jobs.mark_running(job_id)
     client: SemanticScholarClient = app.state.semantic_scholar_client or SemanticScholarClient()
@@ -135,9 +137,17 @@ def _run_citation_context_job(app: FastAPI, job_id: str, paper_id: int) -> None:
             if row is None or not row["doi"]:
                 jobs.mark_error(job_id, "Paper not found or has no DOI.")
                 return
-            jobs.mark_progress(job_id, 0, 1, "Fetching citations from Semantic Scholar")
-            contexts = client.fetch_citation_contexts(conn, row["doi"])
-            focal_claim = (abstract_plain_text(row["abstract"]) or "").strip() or (row["title"] or "")
+            if direction == "references":
+                # SP2 (outgoing): how THIS paper cites its sources. Each cited paper carries its OWN claim (set on
+                # the context), so the constant focal_claim is unused ("").
+                jobs.mark_progress(job_id, 0, 1, "Fetching references from Semantic Scholar")
+                contexts = client.fetch_reference_contexts(conn, row["doi"])
+                focal_claim = ""
+            else:
+                # SP1 (incoming): how OTHERS cite this paper. Classify each citing sentence against the focal claim.
+                jobs.mark_progress(job_id, 0, 1, "Fetching citations from Semantic Scholar")
+                contexts = client.fetch_citation_contexts(conn, row["doi"])
+                focal_claim = (abstract_plain_text(row["abstract"]) or "").strip() or (row["title"] or "")
             jobs.mark_progress(job_id, 1, 1, "Classifying citation stance")
             report = classify_citation_contexts(
                 contexts=contexts, focal_claim=focal_claim, stance_scorer=_stance_scorer(app)

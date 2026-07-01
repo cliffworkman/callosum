@@ -81,13 +81,16 @@ def classify_citation_contexts(
     for ctx in contexts[:max_items]:
         sentences = list(getattr(ctx, "sentences", []) or [])
         sentence = " ".join(s.strip() for s in sentences if s.strip()).strip()[:CONTEXT_MAX]
+        # The hypothesis is the *cited* paper's own claim per-item (SP2, references) if present, else the constant
+        # focal-paper claim (SP1, citations). The citing sentence is always the premise/evidence.
+        hypothesis = (getattr(ctx, "claim", None) or claim).strip()
         stance: str | None = None
         confidence: float | None = None
         if sentence:
             with_context += 1
             result = (
-                stance_scorer.classify_stance(sentence=claim, passage=sentence)
-                if (stance_scorer is not None and claim)
+                stance_scorer.classify_stance(sentence=hypothesis, passage=sentence)
+                if (stance_scorer is not None and hypothesis)
                 else None
             )
             if result is not None and result.label in counts:

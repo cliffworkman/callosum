@@ -487,6 +487,10 @@
   .cite-equity-caption { font-size: 10.5px; color: var(--ink-3); font-style: italic; margin: 0 0 6px; }
   .cite-equity-egress-note { font-size: 10.5px; color: var(--ink-3); margin-top: 6px; line-height: 1.45; }
   /* inc 232 (B4): "how this paper is cited" — reuses .cite-stance (support/contrast/mention) + .method-credit. Tokens only. */
+  .citec-toggle { display: flex; gap: 0; margin: 0 0 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; width: fit-content; }
+  .citec-toggle-btn { font-size: 11px; padding: 4px 10px; background: var(--panel); color: var(--ink-2); border: none; cursor: pointer; }
+  .citec-toggle-btn + .citec-toggle-btn { border-left: 1px solid var(--line); }
+  .citec-toggle-btn.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
   .citec-breakdown { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
   .citec-count { font-size: 11px; font-weight: 600; border-radius: var(--radius-pill); padding: 2px 9px; }
   .citec-count.support { color: var(--verified); background: var(--verified-soft); }

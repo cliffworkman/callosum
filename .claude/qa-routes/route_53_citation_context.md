@@ -41,10 +41,13 @@ regardless. Register listeners before navigation.
 
 ## Steps
 
-1. Select a DOI'd paper → open METHODS → **How this paper is cited** (order 36). Confirm the intro frames it as
-   "do later papers support, contrast, or mention it? A labeled signal to read, never a verdict."
-2. Click **Fetch citations** (`POST /papers/citation-context/run`); poll (`GET .../run/{job_id}`) with the
-   `ProgressBar`. Confirm **no genai-host request**.
+1. Select a DOI'd paper → open METHODS → the citation-context section (order 36). It has an **[How it's cited | How
+   it cites its sources]** toggle: **Incoming** (`direction=citations`, SP1 — how others cite this paper) and
+   **Outgoing** (`direction=references`, SP2 — how this paper cites its own sources). Confirm the intro + button
+   label adapt to the selected direction, and switching the toggle resets to the idle (pre-run) state.
+2. On **Incoming**, click **Fetch citations** (`POST /papers/citation-context/run {direction:"citations"}`); on
+   **Outgoing**, click **Fetch references** (`{direction:"references"}`). Poll (`GET .../run/{job_id}`) with the
+   `ProgressBar`. Confirm **no genai-host request** in either direction.
 3. Confirm the **breakdown as counts** (N supporting · M contrasting · K mentioning) — **not** a single score — and
    the coverage line ("classified M of N citations …").
 4. Confirm each citing item shows a **stance pill** (support/contrast/mention, the `.cite-stance` colors) + a

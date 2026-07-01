@@ -90,6 +90,37 @@ def test_client_validates_doi_and_fails_closed(temp_db_url):
     engine.dispose()
 
 
+def _cited(title, sentence, *, abstract=None, doi=None, year=2019):
+    return {
+        "isInfluential": False,
+        "contexts": [sentence] if sentence else [],
+        "citedPaper": {
+            "title": title,
+            "year": year,
+            "authors": [{"name": "B Author"}],
+            "externalIds": {"DOI": doi} if doi else {},
+            **({"abstract": abstract} if abstract is not None else {}),
+        },
+    }
+
+
+def test_client_fetch_references_parses_cited_paper_and_claim(temp_db_url):
+    def fetcher(path, *, params, headers, timeout):
+        assert path == "/paper/DOI:10.1%2Ffocal/references"  # the references edge, DOI path-encoded
+        assert "citedPaper.abstract" in params["fields"]  # SP2 requests the cited paper's claim
+        return 200, {
+            "data": [_cited("Ref A", "We build on this.", abstract="Ref A's abstract", doi="10.1/r")],
+            "next": None,
+        }
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        out = SemanticScholarClient(fetcher=fetcher).fetch_reference_contexts(conn, "10.1/focal")
+        assert len(out) == 1 and out[0].citing_title == "Ref A" and out[0].citing_doi == "10.1/r"
+        assert out[0].claim == "Ref A's abstract"  # the per-item hypothesis for SP2 (abstract else title)
+    engine.dispose()
+
+
 # --- the pure classifier ----------------------------------------------------
 
 
@@ -114,6 +145,14 @@ def test_classifier_no_scorer_or_no_claim_leaves_unclassified():
     # no focal claim → nothing to classify against
     rep = classify_citation_contexts(contexts=contexts, focal_claim="", stance_scorer=_FakeStance())
     assert rep.with_context == 1 and rep.classified == 0 and rep.items[0].stance is None
+
+
+def test_classifier_uses_per_item_claim_when_present():
+    # SP2 (references): each cited paper carries its OWN claim; the constant focal_claim is empty.
+    contexts = [CitingContext("Ref", 2020, ["A"], "10.1/r", ["We build on this."], False, claim="the cited claim")]
+    rep = classify_citation_contexts(contexts=contexts, focal_claim="", stance_scorer=_FakeStance())
+    # the fake NLI reads the sentence ("build on" → mention) using the per-item claim as the hypothesis
+    assert rep.classified == 1 and rep.items[0].stance == "mention"
 
 
 # --- the async endpoint -----------------------------------------------------
@@ -181,3 +220,33 @@ def test_endpoint_404_422_and_empty(temp_db_url):
     assert client.get("/papers/citation-context/run/nope").status_code == 404
     done = _drive(client, has_doi)  # no citations → honest empty
     assert done["status"] == "done" and done["report"]["total_citations"] == 0
+
+
+def test_endpoint_references_direction_classifies_outgoing(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _seed(conn, "Focal", "10.1/focal")
+    engine.dispose()
+
+    def fetcher(path, *, params, headers, timeout):
+        assert path.endswith("/references")  # SP2 hits the references edge
+        return 200, {
+            "data": [
+                _cited("Ref A", "Consistent with prior work, we replicate it.", abstract="A", doi="10.1/a"),
+                _cited("Ref B", "However, this fails under our conditions.", abstract="B", doi="10.1/b"),
+            ],
+            "next": None,
+        }
+
+    client = TestClient(_app(temp_db_url, fetcher=fetcher))
+    r = client.post("/papers/citation-context/run", json={"paper_id": pid, "direction": "references"})
+    assert r.status_code == 202
+    jid = r.json()["job_id"]
+    data = {}
+    for _ in range(40):
+        data = client.get(f"/papers/citation-context/run/{jid}").json()
+        if data["status"] in ("done", "error"):
+            break
+    assert data["status"] == "done"
+    rep = data["report"]
+    assert rep["total_citations"] == 2 and rep["counts"]["support"] == 1 and rep["counts"]["contrast"] == 1

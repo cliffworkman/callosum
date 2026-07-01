@@ -50,3 +50,16 @@ triggered:** a new file-ingestion path (#3) or a new pip dependency (#6 — http
 (shape-validated + fully url-encoded DOI, constant host); bounded/paginated/capped; fail-closed with honest,
 non-poisoning caching; local classification; no new dependency. Re-audit if a library-wide batch or a non-DOI lookup
 path is added.
+
+---
+
+## inc 233 addendum — SP2 (the `references` edge / "how this paper cites its sources")
+
+SP2 adds the outgoing direction via a `direction` param (`citations`|`references`) on the existing endpoint and a
+second S2 edge `fetch_reference_contexts` → `GET /paper/DOI:{doi}/references?fields=…,citedPaper.abstract`. **No new
+attack surface:** the same constant host, the **same DOI shape-validation + `quote(safe='')` url-encoding** (the edge
+name — `citations`/`references` — is a fixed literal, never request-derived), the same bounded/paginated/capped fetch
+with non-poisoning caching (keyed `references:{doi}`, separate from `citations:{doi}`). The cited paper's abstract is
+requested only as the per-item NLI **hypothesis** (classified locally); it is not persisted or re-emitted beyond the
+ephemeral report. The `direction` param is a strict `Literal` (422 on anything else). Classification stays fully
+local; egress is still only the DOI → Semantic Scholar (public metadata), not the Gemini gate. **Still PASS.**
