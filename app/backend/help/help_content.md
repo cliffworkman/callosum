@@ -105,7 +105,9 @@ Everything stays on your machine — the file is read in your browser and merged
 
 callosum's window is **responsive** — open it on a phone-width screen and the three-pane layout collapses to a single column with a bottom nav (**Library · Panels · Details**). You browse and search the library, open a paper (its metadata, abstract, and the PDF, rendered by your phone's own viewer), and read its verified syntheses. On a wider screen the usual desktop layout returns.
 
-To reach it from your phone you use a **cloudflared tunnel** (the same outbound-only bridge the Google Docs add-on uses), configured **read-only**. Read-only is not a UI mode — it's a deployment: you run a second callosum instance for the tunnel with **`CALLOSUM_READ_ONLY=1`** (which makes the server reject *every* change — scan, edit, tag, delete — with a 403) and Remote access on (so an access token gates all access). Your desktop instance stays fully editable; the phone reads the same library. The full runbook is `adapters/mobile/README.md`. You can't accidentally change anything from your phone.
+To reach it from your phone you use a **cloudflared tunnel** (the same outbound-only bridge the Google Docs add-on uses), configured **read-only**. Read-only is a deployment: you run a second callosum instance for the tunnel with **`CALLOSUM_READ_ONLY=1`** (which makes the server reject *every* change — scan, edit, tag, delete — with a 403) and Remote access on (so an access token gates all access). Your desktop instance stays fully editable; the phone reads the same library. The full runbook is `adapters/mobile/README.md`. You can't accidentally change anything from your phone.
+
+When callosum is running read-only, it shows a small **Read-only** badge and hides the write controls — no "+ Add", no edit fields (bibliographic details show as plain text), no scan/import/enrich, no tag or axis editing, no synthesis-generate. You browse, read PDFs, and read your saved syntheses; everything is view-only, so nothing you tap can change your library.
 
 <!-- section: browsing-and-searching -->
 ## Browsing and searching the Library

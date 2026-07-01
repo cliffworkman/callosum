@@ -18,10 +18,13 @@ tunnel: <TUNNEL_ID>
 credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
-  # read-only: GET / (the app shell), /health, /papers (search), /papers/{id}, /papers/{id}/pdf, /summaries,
-  # /summaries/{id}, /help/corpus. Query strings (e.g. /papers?q=) are not part of the path match.
+  # read-only: the app shell + the core library READ GETs so the panels load read-only over the tunnel — / , /health,
+  # /papers (search) + /papers/{id} (+ /pdf, /annotations, /chunks), /summaries(/{id}), /axes(/{id}/clusters), /tags
+  # (+ /colors), /reading-queue, /help/corpus. Every write on these paths is still 403'd by CALLOSUM_READ_ONLY (the
+  # method gate); the analysis/config routes (/settings, /library/*, /methods/*, /discovery/*, /gaps, /agent/*) are 404
+  # here. Query strings (e.g. /papers?q=) are not part of the path match.
   - hostname: callosum-mobile.clffwrkmn.net
-    path: ^/(|health|papers|papers/[^/]+|papers/[^/]+/pdf|summaries|summaries/[^/]+|help/corpus)$
+    path: ^/(|health|papers|papers/[^/]+|papers/[^/]+/(pdf|annotations|chunks)|summaries|summaries/[^/]+|axes|axes/[^/]+/clusters|tags|tags/colors|reading-queue|help/corpus)$
     service: http://localhost:8080
   # everything else on the hostname → 404 (/settings, the scan/import routes, /axes, /tags, edit/delete, …)
   - hostname: callosum-mobile.clffwrkmn.net

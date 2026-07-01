@@ -12,7 +12,7 @@ function MyPubsPrompt() {
   );
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -303,12 +303,12 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
             <option value="count">most papers</option>
             <option value="recent">newest</option>
           </select>}
-        <button className="axis-suggest" title="Suggest axes from your library" onClick={() => setSuggesting(true)}>✨</button>
-        <button className="axis-new" title="New curated axis (hand-picked, hand-ordered)" onClick={createCurated}>📌</button>
-        <button className="axis-new" title={quickName != null ? "Cancel" : "New keyword axis"} onClick={() => { setQuickName(q => q == null ? "" : null); setNotice(null); }}>{quickName != null ? "×" : "+"}</button>
+        {!readOnly && <button className="axis-suggest" title="Suggest axes from your library" onClick={() => setSuggesting(true)}>✨</button>}
+        {!readOnly && <button className="axis-new" title="New curated axis (hand-picked, hand-ordered)" onClick={createCurated}>📌</button>}
+        {!readOnly && <button className="axis-new" title={quickName != null ? "Cancel" : "New keyword axis"} onClick={() => { setQuickName(q => q == null ? "" : null); setNotice(null); }}>{quickName != null ? "×" : "+"}</button>}
       </div>
 
-      {quickName != null &&
+      {!readOnly && quickName != null &&
         <div className="axis-quickname">
           <input className="axis-add-input" autoFocus placeholder="New axis name…" value={quickName}
             onChange={e => setQuickName(e.target.value)}
@@ -336,7 +336,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
       {axes && (myPubsAxis
         ? <AxisItem key="mypubs" axis={myPubsAxis} detail={details[myPubsAxis.id]} job={jobs[myPubsAxis.id]}
             expanded={expanded === myPubsAxis.id} selected={false} selectedPaper={selectedPaper}
-            handlers={handlers} hideUncertainDefault={false} />
+            handlers={handlers} hideUncertainDefault={false} readOnly={readOnly} />
         : <MyPubsPrompt />)}
       {standardVisible && standardVisible.map(axis => (
         <AxisItem
@@ -350,6 +350,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
           selected={selectedIds.has(axis.id)}
           selectedPaper={selectedPaper}
           handlers={handlers}
+          readOnly={readOnly}
         />
       ))}
 
@@ -390,6 +391,6 @@ registerPaneTab(
   { id: "axes-tab", label: "Axes", order: 10,
     render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
       onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
-      onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh}
+      onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh} readOnly={ctx.readOnly}
       hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault} /> },
 );

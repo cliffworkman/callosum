@@ -260,6 +260,6 @@ function CitationEquitySection({ ctx }) {
 }
 
 registerPaneSection({
-  id: "citation-equity", label: "Citation concentration", paneId: "methods", order: 35,
+  id: "citation-equity", label: "Citation concentration", paneId: "methods", order: 35, hideInReadOnly: true,
   render: (ctx) => <CitationEquitySection ctx={ctx} />,
 });

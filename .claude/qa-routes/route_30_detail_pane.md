@@ -1,7 +1,13 @@
 <!-- qa-coverage
 api: GET /papers/{paper_id}, PATCH /papers/{paper_id}, POST /papers/{paper_id}/re-resolve, GET /papers/{paper_id}/suggested-tags, POST /papers/{paper_id}/tags, DELETE /papers/{paper_id}/tags/{tag_id}, POST /papers/export, POST /citations/render
-fe: 25_detail.jsx
+fe: 24_detail_fields.jsx, 25_detail.jsx
 -->
+
+<!-- B5 SP2 (inc 238): the inline-editable field primitives (EditableRow/EditableText/TypeSelect/IdentifierRow) live
+in 24_detail_fields.jsx (split from 25_detail.jsx, rule #1). On a read-only companion they render as static text and
+the write controls (Fill / re-resolve / +Queue / OCR / tag add-remove) are hidden — see readOnly threading + the
+`/health.read_only` flag. -->
+
 
 # ROUTE 30 — Editable Detail pane (bibliographic edit, tags, DOI re-resolve, cite)
 

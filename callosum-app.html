@@ -147,6 +147,18 @@
   .mobile-nav-icon { font-size: 18px; line-height: 1; }
   .mobile-nav-label { font-size: 10.5px; }
 
+  /* B5 SP2 (inc 238): read-only companion. A fixed badge marks the read-only instance; write controls hide via the
+     `readOnly` context flag threaded into each panel. Tokens only (rule #8). */
+  .read-only-badge {
+    position: fixed; top: 8px; right: 10px; z-index: 60; pointer-events: none;
+    font-size: 10.5px; font-weight: 600; color: var(--flag-ink); background: var(--flag-soft);
+    border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 3px 9px;
+  }
+  /* a Details field rendered as static text on a read-only companion (no input chrome). */
+  .detail-ro { color: var(--ink); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .detail-ro.mono { font-family: ui-monospace, monospace; }
+  .detail-title-input.detail-ro { font-size: 20px; font-weight: 600; white-space: normal; padding: 6px 0; }
+
   .pane { overflow-y: auto; height: 100vh; }
   .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); }
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
@@ -2017,7 +2029,9 @@
       setSettingsOpen,
       setTagRefresh,
       setAxisRefresh,
-      autoScanWatched
+      autoScanWatched,
+      readOnly,
+      healthLoaded
     } = opts;
     const [listState, setListState] = useState({ status: "loading", papers: [] });
     const [query, setQuery] = useState("");
@@ -2325,7 +2339,7 @@
     const rescanInFlight = useRef(false);
     const lastRescan = useRef(0);
     const triggerWatchedRescan = useCallback(() => {
-      if (!autoScanWatched || rescanInFlight.current) return;
+      if (!healthLoaded || !autoScanWatched || readOnly || rescanInFlight.current) return;
       if (Date.now() - lastRescan.current < 2e4) return;
       rescanInFlight.current = true;
       lastRescan.current = Date.now();
@@ -2351,7 +2365,7 @@
         });
         poll(r.data.job_id);
       });
-    }, [autoScanWatched, setTagRefresh]);
+    }, [autoScanWatched, readOnly, healthLoaded, setTagRefresh]);
     useEffect(() => {
       triggerWatchedRescan();
       const onFocus = () => triggerWatchedRescan();
@@ -2634,14 +2648,14 @@
   const PANE_SECTIONS = [];
   function registerPaneSection(section) {
     registerPaneTab(
-      { id: section.id, label: section.label, paneId: section.paneId, order: section.order },
+      { id: section.id, label: section.label, paneId: section.paneId, order: section.order, hideInReadOnly: section.hideInReadOnly },
       { id: section.id, label: section.label, order: 0, render: section.render }
     );
   }
   function registerPaneTab(host, tab) {
     let section = PANE_SECTIONS.find((s) => s.id === host.id);
     if (!section) {
-      section = { id: host.id, label: host.label, paneId: host.paneId, order: host.order, tabs: [] };
+      section = { id: host.id, label: host.label, paneId: host.paneId, order: host.order, hideInReadOnly: host.hideInReadOnly, tabs: [] };
       PANE_SECTIONS.push(section);
     }
     if (!section.tabs.some((t) => t.id === tab.id)) section.tabs.push(tab);
@@ -2662,6 +2676,7 @@
       {
         paperId: ctx.selectedPaper,
         onOpenPaper: ctx.onOpenPaper,
+        readOnly: ctx.readOnly,
         onFilterToTag: ctx.onFilterToTag,
         onTagsChanged: ctx.onTagsChanged,
         onQueueChanged: ctx.onQueueChanged
@@ -2669,7 +2684,7 @@
     ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
   });
   function PaneAccordion({ paneId, ctx, openId, onOpen }) {
-    const sections = paneSections(paneId);
+    const sections = paneSections(paneId).filter((s) => !(ctx && ctx.readOnly && s.hideInReadOnly));
     const [tabState, setTabState] = useState({});
     if (sections.length === 0) return null;
     const active = sections.some((s) => s.id === openId) ? openId : sections[0].id;
@@ -2810,6 +2825,7 @@
     label: "Statistics check",
     paneId: "methods",
     order: 30,
+    hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(StatcheckSection, { ctx })
   });
   const GRIM_CSL = {
@@ -2849,7 +2865,7 @@
     const d = state.data;
     return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check whether a reported mean (and SD) of ", /* @__PURE__ */ React.createElement("b", null, "integer-scale"), " data \u2014 counts or Likert-type items \u2014 is mathematically possible for the sample size. Enter a value you're reading; local, no AI."), /* @__PURE__ */ React.createElement("div", { className: "grim-form" }, /* @__PURE__ */ React.createElement("label", null, "Mean ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.mean, onChange: set("mean"), placeholder: "3.45", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "SD ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.sd, onChange: set("sd"), placeholder: "(optional)", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "N ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.n, onChange: set("n"), placeholder: "50", spellCheck: false })), /* @__PURE__ */ React.createElement("label", null, "items ", /* @__PURE__ */ React.createElement("input", { className: "grim-in", value: f.items, onChange: set("items"), title: "scale items averaged per score; 1 for a single integer measure" })), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: state.status === "running" || !f.mean.trim() || !f.n.trim(), onClick: run }, "Check")), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, null), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement("div", { className: "grim-result" }, /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIM"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grim.consistent ? "verified" : "flagged") }, d.grim.consistent ? "consistent" : "impossible"), !d.grim.consistent && /* @__PURE__ */ React.createElement("span", { className: "grim-near" }, "nearest possible: ", d.grim.nearest.join(" / "))), d.grim.no_power && /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "N is large for this precision \u2014 GRIM has little power here (most means are achievable)."), d.grimmer && /* @__PURE__ */ React.createElement("div", { className: "grim-line" }, /* @__PURE__ */ React.createElement("span", { className: "grim-k" }, "GRIMMER"), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (d.grimmer.consistent ? "verified" : "flagged") }, d.grimmer.consistent ? "consistent" : "impossible")), /* @__PURE__ */ React.createElement("div", { className: "grim-caveat" }, "GRIM/GRIMMER assume integer-scale data \u2014 they don't apply to continuous measures. An inconsistency is a prompt to look, not a verdict or an accusation.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " GRIM \u2014 Brown & Heathers (2017); GRIMMER \u2014 Anaya (2016) / Allard (2018).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; cf. the ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.")));
   }
-  registerPaneSection({ id: "grim", label: "Data consistency (GRIM)", paneId: "methods", order: 20, render: () => /* @__PURE__ */ React.createElement(GrimSection, null) });
+  registerPaneSection({ id: "grim", label: "Data consistency (GRIM)", paneId: "methods", order: 20, hideInReadOnly: true, render: () => /* @__PURE__ */ React.createElement(GrimSection, null) });
   function findingText(f) {
     const p = f.payload || {};
     return p.desc || p.label || p.text || p.title || JSON.stringify(p);
@@ -2986,7 +3002,7 @@
     const candidates = state.status === "ready" ? state.data.candidates : [];
     return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, /* @__PURE__ */ React.createElement(RetractionBatch, { ctx }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), pid == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RetractionStatusLine, { paperId: pid }), state.status !== "ready" ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026") : facts.length || candidates.length ? /* @__PURE__ */ React.createElement(React.Fragment, null, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper }))) : /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.")));
   }
-  registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
+  registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
   const CITATION_EQUITY_CSL = [
     {
       type: "article-journal",
@@ -3167,6 +3183,7 @@
     label: "Citation concentration",
     paneId: "methods",
     order: 35,
+    hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitationEquitySection, { ctx })
   });
   const CITATION_CONTEXT_CSL = [
@@ -3295,6 +3312,7 @@
     label: "How this paper is cited",
     paneId: "methods",
     order: 36,
+    hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitationContextSection, { ctx })
   });
   function ComingSoon({ title, body, builds }) {
@@ -3305,6 +3323,7 @@
     label: "Mixed-model reporting",
     paneId: "methods",
     order: 50,
+    hideInReadOnly: true,
     render: () => /* @__PURE__ */ React.createElement(
       ComingSoon,
       {
@@ -3319,6 +3338,7 @@
     label: "Bayesian statistics",
     paneId: "methods",
     order: 60,
+    hideInReadOnly: true,
     render: () => /* @__PURE__ */ React.createElement(
       ComingSoon,
       {
@@ -3333,6 +3353,7 @@
     label: "Meta-analysis",
     paneId: "methods",
     order: 70,
+    hideInReadOnly: true,
     render: () => /* @__PURE__ */ React.createElement(
       ComingSoon,
       {
@@ -3566,7 +3587,7 @@
       copied ? /* @__PURE__ */ React.createElement(CheckIcon, null) : /* @__PURE__ */ React.createElement(ClipboardIcon, null)
     );
   }
-  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo }) {
+  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo, readOnly }) {
     const unresolved = needsMetadata(p);
     return /* @__PURE__ */ React.createElement(
       "div",
@@ -3615,7 +3636,7 @@
         },
         citeInfo.count,
         " cited-by"
-      )), footExtra, /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p }), "  ")
+      )), footExtra, !readOnly && /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p }), "  ")
     );
   }
   function PaperList({
@@ -3687,13 +3708,14 @@
     savedSearches,
     onApplySavedSearch,
     onSaveSearch,
-    onDeleteSavedSearch
+    onDeleteSavedSearch,
+    readOnly
   }) {
     const [bulkFocus, setBulkFocus] = useState("");
     const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
     const pendingAdd = pendingOps.filter((o) => o === "add").length;
     const pendingRemove = pendingOps.filter((o) => o === "remove").length;
-    const selecting = !focusAxis && !trashView;
+    const selecting = !focusAxis && !trashView && !readOnly;
     const selCount = selectedLibraryIds ? selectedLibraryIds.size : 0;
     const fulltextMode = librarySearchField === "fulltext" && !!(query || "").trim();
     const maxCitedAsOf = (state.papers || []).reduce((m, p) => p.cited_by_as_of && (!m || p.cited_by_as_of > m) ? p.cited_by_as_of : m, null);
@@ -3703,7 +3725,7 @@
         if (r.ok) setCiteStyles(r.data.styles || []);
       });
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -3851,7 +3873,8 @@
           onToggleCheck: onToggleLibrarySelect,
           findings: findingsByPaper && findingsByPaper[p.id],
           citeInfo: p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : void 0,
-          footExtra
+          footExtra,
+          readOnly
         }
       );
     }), state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: state.papers.length < PAGE_SIZE, onClick: () => onPage(page + 1) }, "Next \u2192"))));
@@ -4106,7 +4129,7 @@
   function MyPubsPrompt() {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-prompt", title: "Set your name / ORCID in Settings to auto-gather your own papers" }, "\u{1F4C4} ", /* @__PURE__ */ React.createElement("b", null, "My Publications"), " \u2014 set your name / ORCID in Settings (\u2699) to auto-gather your own papers.");
   }
-  function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault }) {
+  function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
     const [axes, setAxes] = useState(null);
     const [expanded, setExpanded] = useState(null);
     const [details, setDetails] = useState({});
@@ -4387,10 +4410,10 @@
     const visibleAxes = sortedAxes && filter.trim() ? sortedAxes.filter((a) => ((a.label || "") + " " + (a.description || "")).toLowerCase().includes(filter.trim().toLowerCase())) : sortedAxes;
     const myPubsAxis = (axes || []).find((a) => a.kind === "my_publications") || null;
     const standardVisible = visibleAxes ? visibleAxes.filter((a) => a.kind !== "my_publications") : visibleAxes;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "most papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "newest")), /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: "New curated axis (hand-picked, hand-ordered)", onClick: createCurated }, "\u{1F4CC}"), /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New keyword axis", onClick: () => {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-group" }, /* @__PURE__ */ React.createElement("div", { className: "axis-controls" }, axes && axes.length > 1 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter axes\u2026", value: filter, onChange: (e) => setFilter(e.target.value) }), axes && axes.length > 1 && /* @__PURE__ */ React.createElement("select", { className: "axis-sort", value: sortBy, onChange: (e) => setSortBy(e.target.value), title: "Sort axes" }, /* @__PURE__ */ React.createElement("option", { value: "name" }, "A\u2013Z"), /* @__PURE__ */ React.createElement("option", { value: "count" }, "most papers"), /* @__PURE__ */ React.createElement("option", { value: "recent" }, "newest")), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-suggest", title: "Suggest axes from your library", onClick: () => setSuggesting(true) }, "\u2728"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: "New curated axis (hand-picked, hand-ordered)", onClick: createCurated }, "\u{1F4CC}"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-new", title: quickName != null ? "Cancel" : "New keyword axis", onClick: () => {
       setQuickName((q) => q == null ? "" : null);
       setNotice(null);
-    } }, quickName != null ? "\xD7" : "+")), quickName != null && /* @__PURE__ */ React.createElement("div", { className: "axis-quickname" }, /* @__PURE__ */ React.createElement(
+    } }, quickName != null ? "\xD7" : "+")), !readOnly && quickName != null && /* @__PURE__ */ React.createElement("div", { className: "axis-quickname" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "axis-add-input",
@@ -4425,7 +4448,8 @@
         selected: false,
         selectedPaper,
         handlers,
-        hideUncertainDefault: false
+        hideUncertainDefault: false,
+        readOnly
       }
     ) : /* @__PURE__ */ React.createElement(MyPubsPrompt, null)), standardVisible && standardVisible.map((axis) => /* @__PURE__ */ React.createElement(
       AxisItem,
@@ -4439,7 +4463,8 @@
         expanded: expanded === axis.id,
         selected: selectedIds.has(axis.id),
         selectedPaper,
-        handlers
+        handlers,
+        readOnly
       }
     )), editor && /* @__PURE__ */ React.createElement(
       AxisEditModal,
@@ -4486,6 +4511,7 @@
           onFilterToAxis: ctx.onFilterToAxis,
           onOpenMyPubsDashboard: ctx.onOpenMyPubsDashboard,
           axisRefresh: ctx.axisRefresh,
+          readOnly: ctx.readOnly,
           hideUncertainDefault: ctx.hideUncertainDefault,
           axisCutoffDefault: ctx.axisCutoffDefault
         }
@@ -4501,8 +4527,8 @@
     const label = status === "uncertain" ? "uncertain" : "manual";
     return /* @__PURE__ */ React.createElement("span", { className: "axis-tier axis-tier-" + label }, label);
   }
-  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"), onStar && /* @__PURE__ */ React.createElement(
+  function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated, readOnly }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-paper" + (selected ? " sel" : "") }, curated && !readOnly && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"), onStar && !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-star" + (paper.starred ? " on" : ""),
@@ -4510,7 +4536,7 @@
         onClick: () => onStar(paper.id, !paper.starred)
       },
       paper.starred ? "\u2605" : "\u2606"
-    ), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-title", onClick: () => onOpen(paper), title: "Open " + paper.title }, paper.title), !curated && /* @__PURE__ */ React.createElement(AxisTierBadge, { status: paper.status }), !curated && /* @__PURE__ */ React.createElement("span", { className: "axis-paper-conf", title: paper.manual ? "Manually added by you" : "Embedding-similarity confidence" }, axisConfidenceLabel(paper)), !curated && paper.status === "uncertain" && /* @__PURE__ */ React.createElement("button", { className: "axis-confirm", title: "Confirm \u2014 keep this paper on the axis (a manual override)", onClick: () => onConfirm(paper.id) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "axis-x", title: "Remove from this axis", onClick: () => onRemove(paper.id) }, "\xD7"));
+    ), /* @__PURE__ */ React.createElement("span", { className: "axis-paper-title", onClick: () => onOpen(paper), title: "Open " + paper.title }, paper.title), !curated && /* @__PURE__ */ React.createElement(AxisTierBadge, { status: paper.status }), !curated && /* @__PURE__ */ React.createElement("span", { className: "axis-paper-conf", title: paper.manual ? "Manually added by you" : "Embedding-similarity confidence" }, axisConfidenceLabel(paper)), !readOnly && !curated && paper.status === "uncertain" && /* @__PURE__ */ React.createElement("button", { className: "axis-confirm", title: "Confirm \u2014 keep this paper on the axis (a manual override)", onClick: () => onConfirm(paper.id) }, "\u2713"), !readOnly && /* @__PURE__ */ React.createElement("button", { className: "axis-x", title: "Remove from this axis", onClick: () => onRemove(paper.id) }, "\xD7"));
   }
   function AxisCutoffFlipper({ value, onChange, disabled }) {
     return /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff", title: "Assigned = similarity at or above this cutoff (lower includes more)" }, /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-name" }, "Cutoff"), /* @__PURE__ */ React.createElement(
@@ -4527,7 +4553,7 @@
       }
     ), /* @__PURE__ */ React.createElement("span", { className: "axis-cutoff-val" }, value.toFixed(2)));
   }
-  function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
+  function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35, readOnly }) {
     const scoring = job && job.status === "running";
     const isMyPubs = axis.kind === "my_publications";
     const isCurated = axis.kind === "curated";
@@ -4536,7 +4562,7 @@
     const [collapsedDomains, setCollapsedDomains] = useState(() => /* @__PURE__ */ new Set());
     const [dragOver, setDragOver] = useState(false);
     const [dragMemberOver, setDragMemberOver] = useState(null);
-    const canDrop = !isMyPubs;
+    const canDrop = !isMyPubs && !readOnly;
     const stop = (fn) => (e) => {
       e.stopPropagation();
       fn();
@@ -4551,6 +4577,7 @@
         key: p.id,
         paper: p,
         selected: selectedPaper === p.id,
+        readOnly,
         onOpen: handlers.openPaper,
         onConfirm: (pid) => handlers.confirmPaper(axis.id, pid),
         onRemove: (pid) => handlers.removePaper(axis.id, pid),
@@ -4571,21 +4598,21 @@
           {
             key: p.id,
             className: "axis-member-drag" + (dragMemberOver === p.id ? " dragover" : ""),
-            draggable: true,
-            onDragStart: (e) => {
+            draggable: !readOnly,
+            onDragStart: readOnly ? void 0 : ((e) => {
               e.stopPropagation();
               e.dataTransfer.setData(MEMBER_MIME, String(p.id));
               e.dataTransfer.effectAllowed = "move";
-            },
-            onDragOver: (e) => {
+            }),
+            onDragOver: readOnly ? void 0 : ((e) => {
               if (e.dataTransfer.types.includes(MEMBER_MIME)) {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
                 setDragMemberOver(p.id);
               }
-            },
-            onDragLeave: () => setDragMemberOver((o) => o === p.id ? null : o),
-            onDrop: (e) => {
+            }),
+            onDragLeave: readOnly ? void 0 : (() => setDragMemberOver((o) => o === p.id ? null : o)),
+            onDrop: readOnly ? void 0 : ((e) => {
               setDragMemberOver(null);
               const dragged = parseInt(e.dataTransfer.getData(MEMBER_MIME), 10);
               if (dragged && dragged !== p.id) {
@@ -4593,7 +4620,7 @@
                 e.stopPropagation();
                 handlers.reorderToIndex(axis.id, dragged, p.id);
               }
-            }
+            })
           },
           /* @__PURE__ */ React.createElement(
             AxisPaperRow,
@@ -4601,6 +4628,7 @@
               paper: p,
               selected: selectedPaper === p.id,
               curated: true,
+              readOnly,
               onOpen: handlers.openPaper,
               onRemove: (pid) => handlers.removePaper(axis.id, pid)
             }
@@ -4642,7 +4670,7 @@
           }
         }) : void 0
       },
-      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !isMyPubs && /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "axis-row-head" }, !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement(
         "input",
         {
           type: "checkbox",
@@ -4652,7 +4680,7 @@
           onClick: (e) => e.stopPropagation(),
           onChange: () => handlers.toggleSelect(axis.id)
         }
-      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
+      ), /* @__PURE__ */ React.createElement("span", { className: "axis-label" }, isMyPubs ? "\u{1F4C4} " + axis.label : isCurated ? "\u{1F4CC} " + axis.label : axis.label), /* @__PURE__ */ React.createElement("span", { className: "axis-card-actions" }, !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Edit axis", onClick: stop(() => handlers.openEdit(axis)) }, "\u270E"), !readOnly && !isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Add papers from the library", onClick: stop(() => handlers.enterFocus(axis)) }, "\uFF0B"), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn",
@@ -4660,7 +4688,7 @@
           onClick: stop(() => handlers.freeze(axis.id))
         },
         "\u2744"
-      ), isCurated && /* @__PURE__ */ React.createElement(
+      ), !readOnly && isCurated && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn",
@@ -4668,7 +4696,7 @@
           onClick: stop(() => handlers.convertToKeyword(axis.id))
         },
         "\u21A9"
-      ), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), /* @__PURE__ */ React.createElement(
+      ), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), !readOnly && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn axis-icon-danger",
@@ -4685,7 +4713,7 @@
         },
         badgeCount
       )))
-    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-curated-hint" }, "Hand-picked set \u2014 drag papers from the library onto this card to add them; reorder with \u2191/\u2193."), !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
+    ), expanded && /* @__PURE__ */ React.createElement("div", { className: "axis-body" }, !readOnly && isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-curated-hint" }, "Hand-picked set \u2014 drag papers from the library onto this card to add them; reorder with \u2191/\u2193."), !readOnly && !isMyPubs && !isCurated && /* @__PURE__ */ React.createElement("div", { className: "axis-rescore-row" }, /* @__PURE__ */ React.createElement("span", { className: "axis-rescore-label" }, "Re-score:"), /* @__PURE__ */ React.createElement(AxisCutoffFlipper, { value: cutoff, onChange: setCutoff, disabled: scoring }), /* @__PURE__ */ React.createElement("button", { className: "axis-btn axis-rescore-btn", disabled: scoring, onClick: () => handlers.score(axis.id, cutoff) }, scoring ? "Scoring\u2026" : axis.scored ? "Re-score" : "Score"), uncertainCount > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "axis-icon-btn axis-eye" + (hideUncertain ? " off" : ""),
@@ -4791,7 +4819,7 @@
   }
   const QUEUE_ITEM_MIME = "application/x-callosum-queueitem";
   const PAPER_CARD_MIME = "application/x-callosum-paper";
-  function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, onQueueChanged }) {
+  function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, onQueueChanged, readOnly }) {
     const [items, setItems] = useState([]);
     const [cardOver, setCardOver] = useState(false);
     const [rowOver, setRowOver] = useState(null);
@@ -4845,54 +4873,54 @@
       "div",
       {
         className: "queue-pane" + (cardOver ? " queue-drop" : ""),
-        onDragOver: (e) => {
+        onDragOver: readOnly ? void 0 : ((e) => {
           if (e.dataTransfer.types.includes(PAPER_CARD_MIME)) {
             e.preventDefault();
             e.dataTransfer.dropEffect = "copy";
             setCardOver(true);
           }
-        },
-        onDragLeave: (e) => {
+        }),
+        onDragLeave: readOnly ? void 0 : ((e) => {
           if (e.currentTarget === e.target) setCardOver(false);
-        },
-        onDrop: (e) => {
+        }),
+        onDrop: readOnly ? void 0 : ((e) => {
           if (!e.dataTransfer.types.includes(PAPER_CARD_MIME)) return;
           e.preventDefault();
           setCardOver(false);
           const pid = parseInt(e.dataTransfer.getData(PAPER_CARD_MIME), 10);
           if (pid) addPaper(pid);
-        }
+        })
       },
-      /* @__PURE__ */ React.createElement("div", { className: "queue-head" }, items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"} \xB7 drag to reorder` : "Reading queue"),
+      /* @__PURE__ */ React.createElement("div", { className: "queue-head" }, items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"}${readOnly ? "" : " \xB7 drag to reorder"}` : "Reading queue"),
       notice && /* @__PURE__ */ React.createElement("div", { className: "axis-err", onClick: () => setNotice(null) }, notice),
       items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Your reading queue is empty \u2014 drag a paper here, or use ", /* @__PURE__ */ React.createElement("b", null, "+ Reading queue"), " in a paper's details.") : items.map((it) => /* @__PURE__ */ React.createElement(
         "div",
         {
           key: it.id,
           className: "queue-row" + (selectedPaper === it.id ? " sel" : "") + (rowOver === it.id ? " dragover" : ""),
-          draggable: true,
-          onDragStart: (e) => {
+          draggable: !readOnly,
+          onDragStart: readOnly ? void 0 : ((e) => {
             e.dataTransfer.setData(QUEUE_ITEM_MIME, String(it.id));
             e.dataTransfer.effectAllowed = "move";
-          },
-          onDragOver: (e) => {
+          }),
+          onDragOver: readOnly ? void 0 : ((e) => {
             if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) {
               e.preventDefault();
               e.dataTransfer.dropEffect = "move";
               setRowOver(it.id);
             }
-          },
-          onDragLeave: () => setRowOver((o) => o === it.id ? null : o),
-          onDrop: (e) => {
+          }),
+          onDragLeave: readOnly ? void 0 : (() => setRowOver((o) => o === it.id ? null : o)),
+          onDrop: readOnly ? void 0 : ((e) => {
             if (!e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) return;
             e.preventDefault();
             e.stopPropagation();
             setRowOver(null);
             const dragged = parseInt(e.dataTransfer.getData(QUEUE_ITEM_MIME), 10);
             if (dragged) reorderToIndex(dragged, it.id);
-          }
+          })
         },
-        /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"),
+        !readOnly && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"),
         /* @__PURE__ */ React.createElement(
           "button",
           {
@@ -4906,8 +4934,8 @@
           /* @__PURE__ */ React.createElement("span", { className: "queue-title" }, it.title),
           /* @__PURE__ */ React.createElement("span", { className: "queue-meta" }, [(it.authors || []).slice(0, 2).join(", "), it.year].filter(Boolean).join(" \xB7 "))
         ),
-        /* @__PURE__ */ React.createElement("button", { className: "queue-done", title: "Mark as read \u2014 removes it from the queue", onClick: () => remove(it.id, "Marked done") }, "\u2713"),
-        /* @__PURE__ */ React.createElement("button", { className: "queue-x", title: "Remove from the queue", onClick: () => remove(it.id, "Removed") }, "\xD7")
+        !readOnly && /* @__PURE__ */ React.createElement("button", { className: "queue-done", title: "Mark as read \u2014 removes it from the queue", onClick: () => remove(it.id, "Marked done") }, "\u2713"),
+        !readOnly && /* @__PURE__ */ React.createElement("button", { className: "queue-x", title: "Remove from the queue", onClick: () => remove(it.id, "Removed") }, "\xD7")
       ))
     );
   }
@@ -4922,6 +4950,7 @@
         {
           onOpenPaper: ctx.onOpenPaper,
           onSelectPaper: ctx.onSelectPaper,
+          readOnly: ctx.readOnly,
           selectedPaper: ctx.selectedPaper,
           queueRefresh: ctx.queueRefresh,
           onQueueChanged: ctx.onQueueChanged
@@ -5261,7 +5290,7 @@
       /* @__PURE__ */ React.createElement("span", { className: "overview-trace" }, (item.claim_ordinals || []).map((o) => "[" + (o + 1) + "]").join(" "))
     )));
   }
-  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce }) {
+  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce, readOnly }) {
     const [query, setQuery] = useState("");
     const [state, setState] = useState({ status: "idle" });
     const [scopeNote, setScopeNote] = useState(null);
@@ -5388,7 +5417,7 @@
       return ids.size;
     })();
     const egressNudge = /* @__PURE__ */ React.createElement("div", { className: "synth-nudge" }, /* @__PURE__ */ React.createElement("span", null, "AI summaries are off. Turn on ", /* @__PURE__ */ React.createElement("b", null, "AI features"), " in Settings to generate a verified synthesis."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: () => onOpenSettings && onOpenSettings() }, "Enable in Settings \u2192"));
-    return /* @__PURE__ */ React.createElement("div", { className: "synth" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "synth" }, !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "textarea",
       {
         className: "synth-input",
@@ -5397,7 +5426,7 @@
         onChange: (e) => setQuery(e.target.value),
         disabled: busy
       }
-    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null), egressOff && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && (String(state.error || "").includes("DataEgressDisabledError") ? egressNudge : /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Summary could not be generated."), /* @__PURE__ */ React.createElement("br", null), state.error)), state.status === "done" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "summary-meta" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("div", { className: "synth-actions" }, /* @__PURE__ */ React.createElement("button", { disabled: busy || !query.trim(), onClick: start }, "Synthesize"), /* @__PURE__ */ React.createElement("span", { className: "synth-status" + (busy ? " running" : "") }, busy ? state.message || "Generating and verifying" : "query scope \xB7 top 8 chunks")), busy && /* @__PURE__ */ React.createElement(ProgressBar, null)), !readOnly && egressOff && state.status !== "error" && egressNudge, scopeNote && /* @__PURE__ */ React.createElement("div", { className: "synth-scope-note" }, "Summary of ", /* @__PURE__ */ React.createElement("b", null, scopeNote), " from the library selection."), state.status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "30px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "Verified synthesis"), "Ask a question. Callosum will generate a summary and independently verify each citation."), state.status === "error" && (String(state.error || "").includes("DataEgressDisabledError") ? egressNudge : /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "14px 0 0" } }, /* @__PURE__ */ React.createElement("b", null, "Summary could not be generated."), /* @__PURE__ */ React.createElement("br", null), state.error)), state.status === "done" && /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { className: "summary-meta" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-link summary-close",
@@ -5408,7 +5437,7 @@
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.imported && /* @__PURE__ */ React.createElement("div", { className: "synth-imported", title: "This synthesis came from a shared bundle \u2014 its statuses are the sender's, computed against their PDFs, not re-checked here." }, "Imported \u2014 the sender's assessment, not re-checked in your library. Sources open at the page (region precision).", /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.imported && /* @__PURE__ */ React.createElement("div", { className: "synth-imported", title: "This synthesis came from a shared bundle \u2014 its statuses are the sender's, computed against their PDFs, not re-checked here." }, "Imported \u2014 the sender's assessment, not re-checked in your library. Sources open at the page (region precision).", !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-link",
@@ -5417,9 +5446,10 @@
         onClick: () => reverify(state.result.summary_id)
       },
       reverifying ? "Re-verifying\u2026" : "Re-verify against my library"
-    )), scopeMeta && scopeMeta.total != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Drew from ", /* @__PURE__ */ React.createElement("b", null, drewFromPapers), " of ", scopeMeta.total, " selected paper", scopeMeta.total === 1 ? "" : "s", " \xB7 top ", scopeMeta.topK, " chunks", drewFromPapers < scopeMeta.total ? ` \xB7 ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""), sentences.length > 0 && verifiedCount === 0 && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage synth-coverage-warn" }, "No claim cleared local verification \u2014 your question may not be well-addressed in these papers."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
+    )), scopeMeta && scopeMeta.total != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Drew from ", /* @__PURE__ */ React.createElement("b", null, drewFromPapers), " of ", scopeMeta.total, " selected paper", scopeMeta.total === 1 ? "" : "s", " \xB7 top ", scopeMeta.topK, " chunks", drewFromPapers < scopeMeta.total ? ` \xB7 ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""), sentences.length > 0 && verifiedCount === 0 && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage synth-coverage-warn" }, "No claim cleared local verification \u2014 your question may not be well-addressed in these papers."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight: readOnly ? null : onSaveHighlight })), /* @__PURE__ */ React.createElement(
       SummaryHistory,
       {
+        readOnly,
         state: history,
         activeSummaryId: state.result && state.result.summary_id,
         onLoad: loadSummary,
@@ -5427,10 +5457,10 @@
       }
     ));
   }
-  function SummaryHistory({ state, activeSummaryId, onLoad, onDelete }) {
+  function SummaryHistory({ state, activeSummaryId, onLoad, onDelete, readOnly }) {
     return /* @__PURE__ */ React.createElement("div", { className: "history" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "History"), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, "Loading saved syntheses..."), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "8px 0 0" } }, "Couldn't load synthesis history.", /* @__PURE__ */ React.createElement("br", null), state.error), state.status === "ready" && state.items.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "history-meta" }, "No saved syntheses yet."), state.status === "ready" && state.items.map((item) => {
       const verified = item.status === "verified";
-      return /* @__PURE__ */ React.createElement("button", { key: item.summary_id, className: "history-row", onClick: () => onLoad(item.summary_id) }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "history-title" }, item.scope_label || `Summary ${item.summary_id}`), /* @__PURE__ */ React.createElement("span", { className: "history-meta" }, "#", item.summary_id, " \xB7 ", fmtDateTime(item.created_at), " \xB7 ", item.sentence_count, " sentences \xB7 ", item.verified_sentence_count, " verified \xB7 ", item.flagged_sentence_count, " flagged"), activeSummaryId === item.summary_id && /* @__PURE__ */ React.createElement("span", { className: "history-meta", style: { color: "var(--accent)" } }, "current")), /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { className: "cite-status " + citeStatusClass(item.status) }, item.status), /* @__PURE__ */ React.createElement("span", { className: "history-delete", onClick: (event) => onDelete(item.summary_id, event) }, "Delete")));
+      return /* @__PURE__ */ React.createElement("button", { key: item.summary_id, className: "history-row", onClick: () => onLoad(item.summary_id) }, /* @__PURE__ */ React.createElement("span", null, /* @__PURE__ */ React.createElement("span", { className: "history-title" }, item.scope_label || `Summary ${item.summary_id}`), /* @__PURE__ */ React.createElement("span", { className: "history-meta" }, "#", item.summary_id, " \xB7 ", fmtDateTime(item.created_at), " \xB7 ", item.sentence_count, " sentences \xB7 ", item.verified_sentence_count, " verified \xB7 ", item.flagged_sentence_count, " flagged"), activeSummaryId === item.summary_id && /* @__PURE__ */ React.createElement("span", { className: "history-meta", style: { color: "var(--accent)" } }, "current")), /* @__PURE__ */ React.createElement("span", { style: { display: "flex", alignItems: "center", gap: 6 } }, /* @__PURE__ */ React.createElement("span", { className: "cite-status " + citeStatusClass(item.status) }, item.status), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "history-delete", onClick: (event) => onDelete(item.summary_id, event) }, "Delete")));
     }));
   }
   function GroupedSummarySentences({ sentences, onOpenCitation, onSaveHighlight }) {
@@ -5491,10 +5521,148 @@
         onSaveHighlight: ctx.onSaveHighlight,
         pendingSummarize: ctx.pendingSummarize,
         onOpenSettings: ctx.onOpenSettings,
-        settingsNonce: ctx.settingsNonce
+        settingsNonce: ctx.settingsNonce,
+        readOnly: ctx.readOnly
       }
     )
   });
+  const DetailReadOnly = React.createContext(false);
+  function EditableRow({ label, value, placeholder, onSave, mono, numeric }) {
+    const ro = React.useContext(DetailReadOnly);
+    const [v, setV] = useState(value == null ? "" : String(value));
+    useEffect(() => {
+      setV(value == null ? "" : String(value));
+    }, [value]);
+    if (ro) {
+      return /* @__PURE__ */ React.createElement("div", { className: "detail-row" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v detail-ro" + (mono ? " mono" : "") }, value == null || value === "" ? "\u2014" : String(value)));
+    }
+    const commit = () => {
+      const current = value == null ? "" : String(value);
+      if (v === current) return;
+      if (numeric) {
+        const t = v.trim();
+        if (t === "") {
+          onSave(null);
+          return;
+        }
+        const n = parseInt(t, 10);
+        if (Number.isNaN(n)) {
+          setV(current);
+          return;
+        }
+        onSave(n);
+        return;
+      }
+      onSave(v.trim() === "" ? null : v);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-row" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "detail-edit" + (mono ? " mono" : ""),
+        value: v,
+        placeholder: placeholder || "Add " + label.toLowerCase(),
+        onChange: (e) => setV(e.target.value),
+        onBlur: commit,
+        onKeyDown: (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.target.blur();
+          }
+        }
+      }
+    )));
+  }
+  function EditableText({ label, value, placeholder, onSave, rows, variant, expandable }) {
+    const ro = React.useContext(DetailReadOnly);
+    const [v, setV] = useState(value == null ? "" : String(value));
+    const [expanded, setExpanded] = useState(false);
+    useEffect(() => {
+      setV(value == null ? "" : String(value));
+    }, [value]);
+    const commit = () => {
+      const current = value == null ? "" : String(value);
+      if (v !== current) onSave(v.trim() === "" ? null : v);
+    };
+    if (ro) {
+      const text = value == null || value === "" ? variant === "title" ? "Untitled" : "\u2014" : String(value);
+      if (variant === "title") return /* @__PURE__ */ React.createElement("div", { className: "detail-title-input detail-ro" }, text);
+      return /* @__PURE__ */ React.createElement("div", { className: "detail-row detail-row-text" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v detail-ro" }, text));
+    }
+    if (variant === "title") {
+      return /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "detail-edit detail-title-input",
+          rows: 1,
+          value: v,
+          placeholder: placeholder || "Add title",
+          onChange: (e) => setV(e.target.value),
+          onBlur: commit
+        }
+      );
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-row detail-row-text" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v" }, /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "detail-edit detail-edit-text",
+        rows: expandable ? expanded ? 12 : 3 : rows || 2,
+        value: v,
+        placeholder: placeholder || "Add " + label.toLowerCase(),
+        onChange: (e) => setV(e.target.value),
+        onBlur: commit
+      }
+    ), expandable && (v.length > 180 || expanded) && /* @__PURE__ */ React.createElement("button", { className: "detail-expand", onClick: () => setExpanded((x) => !x) }, expanded ? "Collapse" : "Expand")));
+  }
+  function TypeSelect({ value, onSave }) {
+    const known = LIT_TYPES.some(([v]) => v === value);
+    return /* @__PURE__ */ React.createElement("select", { className: "detail-type", value: value || "document", onChange: (e) => onSave("item_type", e.target.value) }, !known && value ? /* @__PURE__ */ React.createElement("option", { value }, value) : null, LIT_TYPES.map(([v, label]) => /* @__PURE__ */ React.createElement("option", { key: v, value: v }, label)));
+  }
+  const _RESOLVE_SOURCE_NAME = { crossref: "Crossref", pmid: "PubMed (via OpenAlex)", arxiv: "OpenAlex" };
+  function IdentifierRow({ label, value, fieldKey, source, paper, onSave, onResolve, resolving }) {
+    const ro = React.useContext(DetailReadOnly);
+    const [v, setV] = useState(value || "");
+    useEffect(() => {
+      setV(value || "");
+    }, [value]);
+    if (ro) {
+      return /* @__PURE__ */ React.createElement("div", { className: "detail-row" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v detail-ro mono" }, value == null || value === "" ? "\u2014" : String(value)));
+    }
+    const commit = async () => {
+      if (v.trim() !== (value || "")) await onSave(fieldKey, v.trim() === "" ? null : v.trim());
+    };
+    const resolve = async () => {
+      if (paper.imported_source === "user-edited" && !window.confirm("This paper has hand-edited metadata. Re-fetching will overwrite your edits. Continue?")) {
+        return;
+      }
+      await commit();
+      onResolve(source);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-row" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v detail-doi-row" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "detail-edit mono",
+        value: v,
+        placeholder: "Add " + label,
+        onChange: (e) => setV(e.target.value),
+        onBlur: commit,
+        onKeyDown: (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            resolve();
+          }
+        }
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "detail-reresolve",
+        disabled: !v.trim() || resolving != null,
+        title: v.trim() ? `Re-fetch metadata from ${_RESOLVE_SOURCE_NAME[source]} using this ${label}` : `Enter a ${label} first`,
+        onClick: resolve
+      },
+      resolving === source ? "\u2026" : "\u{1F50E}"
+    )));
+  }
   const LIT_TYPES = [
     ["bill", "Bill"],
     ["book", "Book"],
@@ -5570,143 +5738,24 @@
   function isScalarValue(v) {
     return typeof v === "string" || typeof v === "number";
   }
-  function EditableRow({ label, value, placeholder, onSave, mono, numeric }) {
-    const [v, setV] = useState(value == null ? "" : String(value));
-    useEffect(() => {
-      setV(value == null ? "" : String(value));
-    }, [value]);
-    const commit = () => {
-      const current = value == null ? "" : String(value);
-      if (v === current) return;
-      if (numeric) {
-        const t = v.trim();
-        if (t === "") {
-          onSave(null);
-          return;
-        }
-        const n = parseInt(t, 10);
-        if (Number.isNaN(n)) {
-          setV(current);
-          return;
-        }
-        onSave(n);
-        return;
-      }
-      onSave(v.trim() === "" ? null : v);
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-row" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v" }, /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "detail-edit" + (mono ? " mono" : ""),
-        value: v,
-        placeholder: placeholder || "Add " + label.toLowerCase(),
-        onChange: (e) => setV(e.target.value),
-        onBlur: commit,
-        onKeyDown: (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            e.target.blur();
-          }
-        }
-      }
-    )));
-  }
-  function EditableText({ label, value, placeholder, onSave, rows, variant, expandable }) {
-    const [v, setV] = useState(value == null ? "" : String(value));
-    const [expanded, setExpanded] = useState(false);
-    useEffect(() => {
-      setV(value == null ? "" : String(value));
-    }, [value]);
-    const commit = () => {
-      const current = value == null ? "" : String(value);
-      if (v !== current) onSave(v.trim() === "" ? null : v);
-    };
-    if (variant === "title") {
-      return /* @__PURE__ */ React.createElement(
-        "textarea",
-        {
-          className: "detail-edit detail-title-input",
-          rows: 1,
-          value: v,
-          placeholder: placeholder || "Add title",
-          onChange: (e) => setV(e.target.value),
-          onBlur: commit
-        }
-      );
-    }
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-row detail-row-text" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v" }, /* @__PURE__ */ React.createElement(
-      "textarea",
-      {
-        className: "detail-edit detail-edit-text",
-        rows: expandable ? expanded ? 12 : 3 : rows || 2,
-        value: v,
-        placeholder: placeholder || "Add " + label.toLowerCase(),
-        onChange: (e) => setV(e.target.value),
-        onBlur: commit
-      }
-    ), expandable && (v.length > 180 || expanded) && /* @__PURE__ */ React.createElement("button", { className: "detail-expand", onClick: () => setExpanded((x) => !x) }, expanded ? "Collapse" : "Expand")));
-  }
-  function TypeSelect({ value, onSave }) {
-    const known = LIT_TYPES.some(([v]) => v === value);
-    return /* @__PURE__ */ React.createElement("select", { className: "detail-type", value: value || "document", onChange: (e) => onSave("item_type", e.target.value) }, !known && value ? /* @__PURE__ */ React.createElement("option", { value }, value) : null, LIT_TYPES.map(([v, label]) => /* @__PURE__ */ React.createElement("option", { key: v, value: v }, label)));
-  }
-  const _RESOLVE_SOURCE_NAME = { crossref: "Crossref", pmid: "PubMed (via OpenAlex)", arxiv: "OpenAlex" };
-  function IdentifierRow({ label, value, fieldKey, source, paper, onSave, onResolve, resolving }) {
-    const [v, setV] = useState(value || "");
-    useEffect(() => {
-      setV(value || "");
-    }, [value]);
-    const commit = async () => {
-      if (v.trim() !== (value || "")) await onSave(fieldKey, v.trim() === "" ? null : v.trim());
-    };
-    const resolve = async () => {
-      if (paper.imported_source === "user-edited" && !window.confirm("This paper has hand-edited metadata. Re-fetching will overwrite your edits. Continue?")) {
-        return;
-      }
-      await commit();
-      onResolve(source);
-    };
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-row" }, /* @__PURE__ */ React.createElement("span", { className: "k" }, label), /* @__PURE__ */ React.createElement("span", { className: "v detail-doi-row" }, /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "detail-edit mono",
-        value: v,
-        placeholder: "Add " + label,
-        onChange: (e) => setV(e.target.value),
-        onBlur: commit,
-        onKeyDown: (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            resolve();
-          }
-        }
-      }
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "detail-reresolve",
-        disabled: !v.trim() || resolving != null,
-        title: v.trim() ? `Re-fetch metadata from ${_RESOLVE_SOURCE_NAME[source]} using this ${label}` : `Enter a ${label} first`,
-        onClick: resolve
-      },
-      resolving === source ? "\u2026" : "\u{1F50E}"
-    )));
-  }
   function DetailSection({ title, open, onToggle, children }) {
     return /* @__PURE__ */ React.createElement("div", { className: "detail-section" }, /* @__PURE__ */ React.createElement("button", { className: "detail-section-head", onClick: onToggle }, /* @__PURE__ */ React.createElement("span", { className: "detail-section-chevron" }, open ? "\u25BE" : "\u25B8"), " ", title), open && /* @__PURE__ */ React.createElement("div", { className: "detail-section-body" }, children));
   }
   function CiteRow({ paperId }) {
+    const ro = React.useContext(DetailReadOnly);
     const [copied, setCopied] = useState(null);
     const [styles, setStyles] = useState([]);
     const [style, setStyle] = useState("apa");
     const [rendered, setRendered] = useState(null);
     const [fmtCopied, setFmtCopied] = useState(false);
     useEffect(() => {
+      if (ro !== false) return;
       api("/citations/styles").then((r) => {
         if (r.ok) setStyles(r.data.styles || []);
       });
-    }, []);
+    }, [ro]);
     useEffect(() => {
+      if (ro !== false) return;
       let alive = true;
       setRendered(null);
       apiPost("/citations/render", { paper_ids: [paperId], style }).then((r) => {
@@ -5715,7 +5764,8 @@
       return () => {
         alive = false;
       };
-    }, [paperId, style]);
+    }, [paperId, style, ro]);
+    if (ro === true) return null;
     const copyExport = async (format) => {
       try {
         const res = await fetch(API_BASE + "/papers/export", {
@@ -5886,7 +5936,7 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy || !name.trim() || !value.trim(), onClick: add }, "+ add"));
   }
-  function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged }) {
+  function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged, readOnly }) {
     const [state, setState] = useState({ status: "idle" });
     const [savingField, setSavingField] = useState(null);
     const [note, setNote] = useState(null);
@@ -5995,7 +6045,7 @@
       (k) => !CORE_CSL_KEYS.has(k) && isScalarValue(p.csl_json[k])
     );
     const hasPdf = (p.attachments || []).some((a) => a.attachment_type === "pdf" && a.availability === "available");
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "12px 18px 32px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(DetailReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "12px 18px 32px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), !readOnly && savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link detail-fill",
@@ -6004,7 +6054,7 @@
         title: "Fetch any MISSING fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 fills only blanks, never overwrites what you typed"
       },
       filling ? "Filling\u2026" : "Fill missing fields"
-    ), /* @__PURE__ */ React.createElement(
+    ), !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link detail-queue",
@@ -6049,7 +6099,7 @@
         onSave: (t) => saveField("abstract", t),
         expandable: true
       }
-    ), /* @__PURE__ */ React.createElement(TagsRow, { key: p.id, paperId: p.id, initialTags: p.tags, onFilterToTag, onTagsChanged }), /* @__PURE__ */ React.createElement(DetailSection, { title: "Identifiers", open: idOpen, onToggle: () => setIdOpen((o) => !o) }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement(TagsRow, { key: p.id, paperId: p.id, initialTags: p.tags, onFilterToTag, onTagsChanged, readOnly }), /* @__PURE__ */ React.createElement(DetailSection, { title: "Identifiers", open: idOpen, onToggle: () => setIdOpen((o) => !o) }, /* @__PURE__ */ React.createElement(
       IdentifierRow,
       {
         label: "DOI",
@@ -6093,7 +6143,7 @@
         value: String(p.csl_json[k]),
         onSave: (v) => saveField("csl", { [k]: v })
       }
-    )), /* @__PURE__ */ React.createElement(AddFieldRow, { onSave: saveField })), !hasPdf && /* @__PURE__ */ React.createElement(AcquireOaRow, { paperId: p.id, onAcquired }), hasPdf && p.chunk_count === 0 && /* @__PURE__ */ React.createElement(OcrRow, { paperId: p.id, onOcred: onAcquired }), p.attachments && p.attachments.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-files" }, /* @__PURE__ */ React.createElement("span", { className: "detail-files-label" }, "Files"), /* @__PURE__ */ React.createElement("div", { className: "detail-files-list" }, p.attachments.map((a) => /* @__PURE__ */ React.createElement(
+    )), !readOnly && /* @__PURE__ */ React.createElement(AddFieldRow, { onSave: saveField })), !readOnly && !hasPdf && /* @__PURE__ */ React.createElement(AcquireOaRow, { paperId: p.id, onAcquired }), !readOnly && hasPdf && p.chunk_count === 0 && /* @__PURE__ */ React.createElement(OcrRow, { paperId: p.id, onOcred: onAcquired }), p.attachments && p.attachments.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "detail-files" }, /* @__PURE__ */ React.createElement("span", { className: "detail-files-label" }, "Files"), /* @__PURE__ */ React.createElement("div", { className: "detail-files-list" }, p.attachments.map((a) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: a.id,
@@ -6112,9 +6162,9 @@
         a.oa_color
       ) : null,
       a.oa_version ? /* @__PURE__ */ React.createElement("span", { className: "oa-meta" }, a.oa_version, a.oa_source ? " \xB7 " + a.oa_source : "") : null
-    )))), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier))));
+    )))), /* @__PURE__ */ React.createElement(CiteRow, { paperId: p.id }), /* @__PURE__ */ React.createElement("div", { className: "prov" }, /* @__PURE__ */ React.createElement("b", null, "Metadata source."), " ", p.imported_source ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Currently ", /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, p.imported_source), ".") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Source not recorded."), " ", /* @__PURE__ */ React.createElement("span", { className: "detail-tierline" }, p.chunk_count, " chunks \xB7 ", tierLabel(p.processing_tier)))));
   }
-  function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
+  function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly }) {
     const [tags, setTags] = useState(initialTags || []);
     const [all, setAll] = useState([]);
     const [input, setInput] = useState("");
@@ -6177,7 +6227,7 @@
         key: t.id,
         className: "tag-chip" + (t.color ? " tag-colored tag-color-" + t.color : tagIsImported(t.source) ? " tag-chip-imported" : "")
       },
-      /* @__PURE__ */ React.createElement(
+      !readOnly && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "tag-chip-dot",
@@ -6195,8 +6245,8 @@
         },
         t.name
       ),
-      /* @__PURE__ */ React.createElement("button", { className: "tag-chip-x", title: "Remove this tag", onClick: () => remove(t.id) }, "\xD7"),
-      picking === t.id && /* @__PURE__ */ React.createElement("span", { className: "tag-swatches", role: "listbox", "aria-label": "Tag color" }, palette.map((c) => /* @__PURE__ */ React.createElement(
+      !readOnly && /* @__PURE__ */ React.createElement("button", { className: "tag-chip-x", title: "Remove this tag", onClick: () => remove(t.id) }, "\xD7"),
+      !readOnly && picking === t.id && /* @__PURE__ */ React.createElement("span", { className: "tag-swatches", role: "listbox", "aria-label": "Tag color" }, palette.map((c) => /* @__PURE__ */ React.createElement(
         "button",
         {
           key: c,
@@ -6215,7 +6265,7 @@
         },
         "\xD7"
       ))
-    )), /* @__PURE__ */ React.createElement(
+    )), !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "tag-add",
@@ -6250,7 +6300,7 @@
       },
       "+ ",
       name
-    )), suggested && suggestions.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no new suggestions")));
+    )), suggested && suggestions.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no new suggestions"))));
   }
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";
@@ -7174,14 +7224,14 @@
         onClick: () => onActivate("library")
       },
       "Library"
-    ), /* @__PURE__ */ React.createElement(
+    ), !libraryProps.readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "search" ? " active" : ""),
         onClick: () => onActivate("search")
       },
       "Discover"
-    ), /* @__PURE__ */ React.createElement(
+    ), !libraryProps.readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "feed" ? " active" : ""),
@@ -8901,6 +8951,8 @@
     });
     const setAxisRefreshRef = useRef(() => {
     });
+    const [readOnly, setReadOnly] = useState(void 0);
+    const [healthLoaded, setHealthLoaded] = useState(false);
     const lib = useLibrary({
       selected,
       setSelected,
@@ -8912,7 +8964,9 @@
       setSettingsOpen,
       setTagRefresh,
       setAxisRefresh: (fn) => setAxisRefreshRef.current(fn),
-      autoScanWatched
+      autoScanWatched,
+      readOnly,
+      healthLoaded
     });
     const {
       libraryBits,
@@ -8990,8 +9044,11 @@
     }, []);
     useEffect(() => {
       api("/health").then((r) => {
-        if (r.ok) setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
-        else setConn({ state: "bad" });
+        if (r.ok) {
+          setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
+          setReadOnly(!!(r.data && r.data.read_only));
+        } else setConn({ state: "bad" });
+        setHealthLoaded(true);
       });
     }, []);
     const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
@@ -9005,6 +9062,8 @@
     }, [readingMode, anyModalOpen, toggleReading]);
     const cols = readingMode ? "0px 0px minmax(340px, 1fr) 0px 0px" : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
     const paneCtx = {
+      readOnly,
+      // B5 SP2: hide write controls in every section when the instance is read-only
       conn,
       selectedPaper: selected,
       onSelectPaper: setSelected,
@@ -9050,6 +9109,7 @@
       {
         libraryProps: {
           ...libraryBits,
+          readOnly,
           selected,
           onSelect: setSelected,
           focusAxis,
@@ -9101,11 +9161,12 @@
         }
       }
     ));
+    const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;
     if (mobile) {
       const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
-      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: setMobilePane }), modals);
+      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: setMobilePane }), modals);
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
       Divider,
       {
         side: "left",

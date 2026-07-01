@@ -11,7 +11,7 @@ function useLibrary(opts) {
   const {
     selected, setSelected, setActiveTab, cancelFocus,
     setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen,
-    setTagRefresh, setAxisRefresh, autoScanWatched,
+    setTagRefresh, setAxisRefresh, autoScanWatched, readOnly, healthLoaded,
   } = opts;
 
   const [listState, setListState] = useState({ status: "loading", papers: [] });
@@ -239,7 +239,8 @@ function useLibrary(opts) {
   const rescanInFlight = useRef(false);
   const lastRescan = useRef(0);
   const triggerWatchedRescan = useCallback(() => {
-    if (!autoScanWatched || rescanInFlight.current) return;
+    // B5 SP2: wait for /health, then never write on a read-only companion (else the launch rescan 403s before readOnly is known).
+    if (!healthLoaded || !autoScanWatched || readOnly || rescanInFlight.current) return;
     if (Date.now() - lastRescan.current < 20000) return;  // at most once per 20s
     rescanInFlight.current = true;
     lastRescan.current = Date.now();
@@ -256,7 +257,7 @@ function useLibrary(opts) {
       });
       poll(r.data.job_id);
     });
-  }, [autoScanWatched, setTagRefresh]);
+  }, [autoScanWatched, readOnly, healthLoaded, setTagRefresh]);
   useEffect(() => {
     triggerWatchedRescan();  // on launch
     const onFocus = () => triggerWatchedRescan();

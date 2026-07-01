@@ -17,13 +17,13 @@ function AxisTierBadge({ status }) {
   return <span className={"axis-tier axis-tier-" + label}>{label}</span>;
 }
 
-function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated }) {
+function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, curated, readOnly }) {
   // A7: a curated row shows a drag grip (inc 212 — reorder by dragging) + title + remove — no tier/confidence
   // (every member is a hand-pick by definition, so the "manual" badge would be noise). Keyword rows keep the tiers.
   return (
     <div className={"axis-paper" + (selected ? " sel" : "")}>
-      {curated && <span className="axis-grip" title="Drag to reorder">⠿</span>}
-      {onStar &&
+      {curated && !readOnly && <span className="axis-grip" title="Drag to reorder">⠿</span>}
+      {onStar && !readOnly &&
         <button className={"axis-star" + (paper.starred ? " on" : "")}
           title={paper.starred ? "Starred — click to unstar" : "Star this key publication (scopes the AI summary)"}
           onClick={() => onStar(paper.id, !paper.starred)}>{paper.starred ? "★" : "☆"}</button>}
@@ -33,9 +33,9 @@ function AxisPaperRow({ paper, selected, onOpen, onRemove, onConfirm, onStar, cu
         <span className="axis-paper-conf" title={paper.manual ? "Manually added by you" : "Embedding-similarity confidence"}>
           {axisConfidenceLabel(paper)}
         </span>}
-      {!curated && paper.status === "uncertain" &&
+      {!readOnly && !curated && paper.status === "uncertain" &&
         <button className="axis-confirm" title="Confirm — keep this paper on the axis (a manual override)" onClick={() => onConfirm(paper.id)}>✓</button>}
-      <button className="axis-x" title="Remove from this axis" onClick={() => onRemove(paper.id)}>×</button>
+      {!readOnly && <button className="axis-x" title="Remove from this axis" onClick={() => onRemove(paper.id)}>×</button>}
     </div>
   );
 }
@@ -52,7 +52,7 @@ function AxisCutoffFlipper({ value, onChange, disabled }) {
   );
 }
 
-function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35 }) {
+function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handlers, hideUncertainDefault, axisCutoffDefault = 0.35, readOnly }) {
   const scoring = job && job.status === "running";
   const isMyPubs = axis.kind === "my_publications";  // inc 78: the pinned own-papers axis (variant UI, no scoring)
   const isCurated = axis.kind === "curated";  // A7 (inc 211): hand-populated + hand-ordered (no scoring UI; drag-droppable)
@@ -66,7 +66,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   // resolved (✓/✕ only), so it's never a drop target. The drag payload rides the native dataTransfer (cross-pane).
   const [dragOver, setDragOver] = useState(false);
   const [dragMemberOver, setDragMemberOver] = useState(null);  // A7 SP2 (inc 212): the member row a drag is hovering
-  const canDrop = !isMyPubs;
+  const canDrop = !isMyPubs && !readOnly;  // B5 SP2: no drop-to-add on a read-only companion
   const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   const readyPapers = detail && detail.status === "ready" ? detail.papers : [];
   const uncertainCount = readyPapers.filter(p => p.status === "uncertain").length;
@@ -75,7 +75,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
   const badgeCount = hideUncertain ? Math.max(0, total - (axis.uncertain_count || 0)) : total;
 
   const renderRow = (p) => (
-    <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id}
+    <AxisPaperRow key={p.id} paper={p} selected={selectedPaper === p.id} readOnly={readOnly}
       onOpen={handlers.openPaper}
       onConfirm={(pid) => handlers.confirmPaper(axis.id, pid)}
       onRemove={(pid) => handlers.removePaper(axis.id, pid)}
@@ -93,16 +93,16 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
       return allPapers.map((p) => (
         <div key={p.id}
           className={"axis-member-drag" + (dragMemberOver === p.id ? " dragover" : "")}
-          draggable
-          onDragStart={e => { e.stopPropagation(); e.dataTransfer.setData(MEMBER_MIME, String(p.id)); e.dataTransfer.effectAllowed = "move"; }}
-          onDragOver={e => { if (e.dataTransfer.types.includes(MEMBER_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragMemberOver(p.id); } }}
-          onDragLeave={() => setDragMemberOver(o => (o === p.id ? null : o))}
-          onDrop={e => {
+          draggable={!readOnly}
+          onDragStart={readOnly ? undefined : (e => { e.stopPropagation(); e.dataTransfer.setData(MEMBER_MIME, String(p.id)); e.dataTransfer.effectAllowed = "move"; })}
+          onDragOver={readOnly ? undefined : (e => { if (e.dataTransfer.types.includes(MEMBER_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragMemberOver(p.id); } })}
+          onDragLeave={readOnly ? undefined : (() => setDragMemberOver(o => (o === p.id ? null : o)))}
+          onDrop={readOnly ? undefined : (e => {
             setDragMemberOver(null);
             const dragged = parseInt(e.dataTransfer.getData(MEMBER_MIME), 10);
             if (dragged && dragged !== p.id) { e.preventDefault(); e.stopPropagation(); handlers.reorderToIndex(axis.id, dragged, p.id); }
-          }}>
-          <AxisPaperRow paper={p} selected={selectedPaper === p.id} curated
+          })}>
+          <AxisPaperRow paper={p} selected={selectedPaper === p.id} curated readOnly={readOnly}
             onOpen={handlers.openPaper}
             onRemove={(pid) => handlers.removePaper(axis.id, pid)} />
         </div>
@@ -144,7 +144,7 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
           if (pid) { e.preventDefault(); handlers.dropPaper(axis.id, pid); }
         }) : undefined}>
         <div className="axis-row-head">
-          {!isMyPubs &&
+          {!readOnly && !isMyPubs &&
             <input
               type="checkbox" className="axis-select" checked={selected}
               title="Select for bulk delete / merge"
@@ -153,18 +153,18 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
             />}
           <span className="axis-label">{isMyPubs ? "📄 " + axis.label : isCurated ? "📌 " + axis.label : axis.label}</span>
           <span className="axis-card-actions">
-            {!isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
-            {!isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
-            {!isMyPubs && !isCurated &&
+            {!readOnly && !isMyPubs && <button className="axis-icon-btn" title="Edit axis" onClick={stop(() => handlers.openEdit(axis))}>✎</button>}
+            {!readOnly && !isMyPubs && <button className="axis-icon-btn" title="Add papers from the library" onClick={stop(() => handlers.enterFocus(axis))}>＋</button>}
+            {!readOnly && !isMyPubs && !isCurated &&
               <button className="axis-icon-btn" title="Freeze to a curated set — snapshot the current members + unlock manual ordering"
                 onClick={stop(() => handlers.freeze(axis.id))}>❄</button>}
-            {isCurated &&
+            {!readOnly && isCurated &&
               <button className="axis-icon-btn" title="Convert to a keyword axis — needs search terms and replaces your manual order with fit order; members are kept"
                 onClick={stop(() => handlers.convertToKeyword(axis.id))}>↩</button>}
             {isMyPubs && <button className="axis-icon-btn" title="Open the impact dashboard" onClick={stop(() => handlers.openMyPubsDashboard(axis))}>📊</button>}
-            <button className="axis-icon-btn axis-icon-danger"
+            {!readOnly && <button className="axis-icon-btn axis-icon-danger"
               title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
-              onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>
+              onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>}
             <button
               className={"axis-count-badge" + (isMyPubs ? " is-scored" : isCurated ? " is-curated" : axis.scored ? (axis.stale ? " is-stale" : " is-scored") : "")}
               title={isMyPubs
@@ -182,9 +182,9 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
 
       {expanded &&
         <div className="axis-body">
-          {isCurated &&
+          {!readOnly && isCurated &&
             <div className="axis-curated-hint">Hand-picked set — drag papers from the library onto this card to add them; reorder with ↑/↓.</div>}
-          {!isMyPubs && !isCurated &&
+          {!readOnly && !isMyPubs && !isCurated &&
             <div className="axis-rescore-row">
               <span className="axis-rescore-label">Re-score:</span>
               <AxisCutoffFlipper value={cutoff} onChange={setCutoff} disabled={scoring} />

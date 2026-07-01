@@ -7,7 +7,7 @@
 // paper id so it remounts on paper switch); add via POST, remove via DELETE, datalist suggests existing
 // tags. Clicking a chip's name filters the library to that tag. inc-207: an optional per-tag color (a swatch
 // popover off each chip's color dot; colored chips override the inc-100 provenance styling).
-function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
+function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly }) {
   const [tags, setTags] = useState(initialTags || []);
   const [all, setAll] = useState([]);
   const [input, setInput] = useState("");
@@ -61,12 +61,12 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
         {tags.map(t => (
           <span key={t.id}
             className={"tag-chip" + (t.color ? " tag-colored tag-color-" + t.color : (tagIsImported(t.source) ? " tag-chip-imported" : ""))}>
-            <button className="tag-chip-dot" title="Set a color for this tag"
-              onClick={() => setPicking(p => (p === t.id ? null : t.id))}>●</button>
+            {!readOnly && <button className="tag-chip-dot" title="Set a color for this tag"
+              onClick={() => setPicking(p => (p === t.id ? null : t.id))}>●</button>}
             <button className="tag-chip-name" title={tagSourceLabel(t.source) + " · click to filter the library"}
               onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>{t.name}</button>
-            <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>
-            {picking === t.id &&
+            {!readOnly && <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>}
+            {!readOnly && picking === t.id &&
               <span className="tag-swatches" role="listbox" aria-label="Tag color">
                 {palette.map(c => (
                   <button key={c} className={"tag-swatch tag-color-" + c + (t.color === c ? " on" : "")}
@@ -77,18 +77,20 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged }) {
               </span>}
           </span>
         ))}
-        <input className="tag-add" list="tag-suggestions" placeholder="add tag…" value={input} spellCheck={false}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-          onBlur={() => add()} />
-        <datalist id="tag-suggestions">{all.map(t => <option key={t.id} value={t.name} />)}</datalist>
-        <button className="btn-link" title="Suggest tags from this paper's text (local, no AI sent off-device)"
-          onClick={suggest}>✨ Suggest</button>
-        {suggestions.map(name => (
-          <button key={"sug-" + name} className="term-chip tag-suggest-chip" title="Add this suggested tag"
-            onClick={() => add(name)}>+ {name}</button>
-        ))}
-        {suggested && suggestions.length === 0 && <span className="tag-suggest-empty">no new suggestions</span>}
+        {!readOnly && <React.Fragment>
+          <input className="tag-add" list="tag-suggestions" placeholder="add tag…" value={input} spellCheck={false}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
+            onBlur={() => add()} />
+          <datalist id="tag-suggestions">{all.map(t => <option key={t.id} value={t.name} />)}</datalist>
+          <button className="btn-link" title="Suggest tags from this paper's text (local, no AI sent off-device)"
+            onClick={suggest}>✨ Suggest</button>
+          {suggestions.map(name => (
+            <button key={"sug-" + name} className="term-chip tag-suggest-chip" title="Add this suggested tag"
+              onClick={() => add(name)}>+ {name}</button>
+          ))}
+          {suggested && suggestions.length === 0 && <span className="tag-suggest-empty">no new suggestions</span>}
+        </React.Fragment>}
       </div>
     </div>
   );

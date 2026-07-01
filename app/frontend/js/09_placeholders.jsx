@@ -24,21 +24,21 @@ function ComingSoon({ title, body, builds }) {
 
 // ── METHODS: future evaluation modules (after Review @40), ordered by cognitive task (DESIGN.md §5).
 registerPaneSection({
-  id: "lmm", label: "Mixed-model reporting", paneId: "methods", order: 50,
+  id: "lmm", label: "Mixed-model reporting", paneId: "methods", order: 50, hideInReadOnly: true,
   render: () => <ComingSoon
     title="A reader's checklist for mixed-model (LMM) papers"
     body="Flags what to look for in a mixed-model paper — random-effects structure, df method, convergence, REML vs ML, ICC/R², missing-data sensitivity — read from the reported text. It tells you what to check; it never runs a model."
     builds="A consumer-side reporting auditor. (Backlog #23)" />,
 });
 registerPaneSection({
-  id: "bayesian", label: "Bayesian statistics", paneId: "methods", order: 60,
+  id: "bayesian", label: "Bayesian statistics", paneId: "methods", order: 60, hideInReadOnly: true,
   render: () => <ComingSoon
     title="Recompute Bayes factors + audit completeness"
     body="Recompute default Bayes factors for canonical designs (t / F / r + N) and audit reporting completeness. A signal to inspect — never a 'BF > 3 = significant' verdict."
     builds="A deterministic recompute + completeness pass. (Backlog #24)" />,
 });
 registerPaneSection({
-  id: "meta-analysis", label: "Meta-analysis", paneId: "methods", order: 70,
+  id: "meta-analysis", label: "Meta-analysis", paneId: "methods", order: 70, hideInReadOnly: true,
   render: () => <ComingSoon
     title="Surface a meta-analysis's choices"
     body="Extract and structure a meta-analysis's effect sizes, model, heterogeneity, and sensitivity choices so you can inspect them. It extracts and structures — it never pools, models, or adjudicates."

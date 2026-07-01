@@ -10,14 +10,15 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}
           onClick={() => onActivate("library")}
         >Library</button>
-        <button
+        {/* B5 SP2: Discover + Feed need write/non-forwarded endpoints — hidden on a read-only companion. */}
+        {!libraryProps.readOnly && <button
           className={"frame-tab" + (activeTab === "search" ? " active" : "")}
           onClick={() => onActivate("search")}
-        >Discover</button>
-        <button
+        >Discover</button>}
+        {!libraryProps.readOnly && <button
           className={"frame-tab" + (activeTab === "feed" ? " active" : "")}
           onClick={() => onActivate("feed")}
-        >Feed</button>
+        >Feed</button>}
         {tabs.map(t => (
           <span
             key={t.key}

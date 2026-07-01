@@ -75,142 +75,6 @@ function isScalarValue(v) {
   return typeof v === "string" || typeof v === "number";
 }
 
-// One inline-editable text row. Holds local state so typing never fights a re-render;
-// commits on blur only when the value actually changed (empty → null clears the field).
-function EditableRow({ label, value, placeholder, onSave, mono, numeric }) {
-  const [v, setV] = useState(value == null ? "" : String(value));
-  useEffect(() => { setV(value == null ? "" : String(value)); }, [value]);
-  const commit = () => {
-    const current = value == null ? "" : String(value);
-    if (v === current) return;
-    if (numeric) {
-      const t = v.trim();
-      if (t === "") { onSave(null); return; }
-      const n = parseInt(t, 10);
-      if (Number.isNaN(n)) { setV(current); return; }  // non-numeric → revert, don't save
-      onSave(n);
-      return;
-    }
-    onSave(v.trim() === "" ? null : v);
-  };
-  return (
-    <div className="detail-row">
-      <span className="k">{label}</span>
-      <span className="v">
-        <input
-          className={"detail-edit" + (mono ? " mono" : "")}
-          value={v}
-          placeholder={placeholder || "Add " + label.toLowerCase()}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); } }}
-        />
-      </span>
-    </div>
-  );
-}
-
-// Multi-line editable field (authors, abstract, title). variant="title" renders the
-// large serif heading; expandable adds an Expand/Collapse toggle for long abstracts.
-function EditableText({ label, value, placeholder, onSave, rows, variant, expandable }) {
-  const [v, setV] = useState(value == null ? "" : String(value));
-  const [expanded, setExpanded] = useState(false);
-  useEffect(() => { setV(value == null ? "" : String(value)); }, [value]);
-  const commit = () => {
-    const current = value == null ? "" : String(value);
-    if (v !== current) onSave(v.trim() === "" ? null : v);
-  };
-  if (variant === "title") {
-    return (
-      <textarea
-        className="detail-edit detail-title-input"
-        rows={1}
-        value={v}
-        placeholder={placeholder || "Add title"}
-        onChange={(e) => setV(e.target.value)}
-        onBlur={commit}
-      />
-    );
-  }
-  return (
-    <div className="detail-row detail-row-text">
-      <span className="k">{label}</span>
-      <span className="v">
-        <textarea
-          className="detail-edit detail-edit-text"
-          rows={expandable ? (expanded ? 12 : 3) : rows || 2}
-          value={v}
-          placeholder={placeholder || "Add " + label.toLowerCase()}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={commit}
-        />
-        {expandable && (v.length > 180 || expanded) && (
-          <button className="detail-expand" onClick={() => setExpanded((x) => !x)}>
-            {expanded ? "Collapse" : "Expand"}
-          </button>
-        )}
-      </span>
-    </div>
-  );
-}
-
-// Literature Type — a select over the Mendeley vocabulary; preserves an unknown stored value.
-function TypeSelect({ value, onSave }) {
-  const known = LIT_TYPES.some(([v]) => v === value);
-  return (
-    <select className="detail-type" value={value || "document"} onChange={(e) => onSave("item_type", e.target.value)}>
-      {!known && value ? <option value={value}>{value}</option> : null}
-      {LIT_TYPES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
-    </select>
-  );
-}
-
-// An identifier row with the 🔎 re-fetch button (inc 226, generalized from the inc-49 DoiRow). Persists a
-// freshly-typed identifier BEFORE re-fetching (so the source uses the corrected value, not the stale one).
-// `source` picks where the record is re-fetched from: crossref (DOI), pmid (PubMed via OpenAlex), arxiv (the
-// arXiv DOI via OpenAlex). `resolving` holds the in-flight source so only the clicked 🔎 spins.
-const _RESOLVE_SOURCE_NAME = { crossref: "Crossref", pmid: "PubMed (via OpenAlex)", arxiv: "OpenAlex" };
-
-function IdentifierRow({ label, value, fieldKey, source, paper, onSave, onResolve, resolving }) {
-  const [v, setV] = useState(value || "");
-  useEffect(() => { setV(value || ""); }, [value]);
-  const commit = async () => {
-    if (v.trim() !== (value || "")) await onSave(fieldKey, v.trim() === "" ? null : v.trim());
-  };
-  const resolve = async () => {
-    // inc 174: re-fetch force-overwrites. Guard hand-edited papers so edits aren't lost silently.
-    if (paper.imported_source === "user-edited" &&
-        !window.confirm("This paper has hand-edited metadata. Re-fetching will overwrite your edits. Continue?")) {
-      return;
-    }
-    await commit();
-    onResolve(source);
-  };
-  return (
-    <div className="detail-row">
-      <span className="k">{label}</span>
-      <span className="v detail-doi-row">
-        <input
-          className="detail-edit mono"
-          value={v}
-          placeholder={"Add " + label}
-          onChange={(e) => setV(e.target.value)}
-          onBlur={commit}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); resolve(); } }}
-        />
-        <button
-          className="detail-reresolve"
-          disabled={!v.trim() || resolving != null}
-          title={v.trim() ? `Re-fetch metadata from ${_RESOLVE_SOURCE_NAME[source]} using this ${label}` : `Enter a ${label} first`}
-          onClick={resolve}
-        >
-          {resolving === source ? "…" : "🔎"}
-        </button>
-      </span>
-    </div>
-  );
-}
-
 function DetailSection({ title, open, onToggle, children }) {
   return (
     <div className="detail-section">
@@ -227,21 +91,27 @@ function DetailSection({ title, open, onToggle, children }) {
 // (JSON); the export links use a raw fetch (apiPost forces .json()). Clipboard works on the 127.0.0.1 secure
 // context. reference_html is server-sanitized (allowlisted inline tags) — safe to render.
 function CiteRow({ paperId }) {
+  // B5 SP2: the cite/export controls POST to /citations/* + /papers/export (not forwarded / method-gated on a
+  // read-only companion), so hide them there rather than fire doomed requests.
+  const ro = React.useContext(DetailReadOnly);
   const [copied, setCopied] = useState(null);
   const [styles, setStyles] = useState([]);
   const [style, setStyle] = useState("apa");
   const [rendered, setRendered] = useState(null);   // { in_text, reference_text, reference_html }
   const [fmtCopied, setFmtCopied] = useState(false);
 
-  useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setStyles(r.data.styles || []); }); }, []);
+  // Only fetch once read-write is CONFIRMED (ro === false) — undefined = health not yet resolved, true = read-only.
+  useEffect(() => { if (ro !== false) return; api("/citations/styles").then(r => { if (r.ok) setStyles(r.data.styles || []); }); }, [ro]);
   useEffect(() => {
+    if (ro !== false) return;
     let alive = true;
     setRendered(null);
     apiPost("/citations/render", { paper_ids: [paperId], style }).then(r => {
       if (alive) setRendered(r.ok && r.data.items && r.data.items[0] ? r.data.items[0] : null);
     });
     return () => { alive = false; };
-  }, [paperId, style]);
+  }, [paperId, style, ro]);
+  if (ro === true) return null;
 
   const copyExport = async (format) => {
     try {
@@ -400,7 +270,7 @@ function AddFieldRow({ onSave }) {
   );
 }
 
-function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged }) {
+function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged, readOnly }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
@@ -528,16 +398,17 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
   const hasPdf = (p.attachments || []).some((a) => a.attachment_type === "pdf" && a.availability === "available");
 
   return (
+    <DetailReadOnly.Provider value={readOnly}>
     <div className="detail-edit-pane" style={{ padding: "12px 18px 32px" }}>
       <div className="detail-type-row">
         <TypeSelect value={p.item_type} onSave={saveField} />
-        {savingField && <span className="detail-saving">saving…</span>}
-        <button className="btn-link detail-fill" onClick={fillMetadata} disabled={filling}
+        {!readOnly && savingField && <span className="detail-saving">saving…</span>}
+        {!readOnly && <button className="btn-link detail-fill" onClick={fillMetadata} disabled={filling}
           title="Fetch any MISSING fields (DOI, abstract, venue…) from Crossref/OpenAlex — fills only blanks, never overwrites what you typed">
-          {filling ? "Filling…" : "Fill missing fields"}</button>
-        <button className="btn-link detail-queue" onClick={addToQueue} disabled={queuing}
+          {filling ? "Filling…" : "Fill missing fields"}</button>}
+        {!readOnly && <button className="btn-link detail-queue" onClick={addToQueue} disabled={queuing}
           title="Add this paper to your reading Queue (the Queue tab in the left pane)">
-          {queuing ? "Adding…" : "+ Reading queue"}</button>
+          {queuing ? "Adding…" : "+ Reading queue"}</button>}
       </div>
 
       <EditableText variant="title" value={p.title} placeholder="Add title" onSave={(t) => saveField("title", t)} />
@@ -568,7 +439,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       <EditableText label="Abstract" value={p.abstract_text != null ? p.abstract_text : p.abstract} placeholder="Add abstract"
         onSave={(t) => saveField("abstract", t)} expandable />
 
-      <TagsRow key={p.id} paperId={p.id} initialTags={p.tags} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} />
+      <TagsRow key={p.id} paperId={p.id} initialTags={p.tags} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} readOnly={readOnly} />
 
       <DetailSection title="Identifiers" open={idOpen} onToggle={() => setIdOpen((o) => !o)}>
         <IdentifierRow label="DOI" value={p.doi} fieldKey="doi" source="crossref"
@@ -587,11 +458,11 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
           <EditableRow key={k} label={CSL_LABELS[k] || humanizeKey(k)}
             value={String(p.csl_json[k])} onSave={(v) => saveField("csl", { [k]: v })} />
         ))}
-        <AddFieldRow onSave={saveField} />
+        {!readOnly && <AddFieldRow onSave={saveField} />}
       </DetailSection>
 
-      {!hasPdf && <AcquireOaRow paperId={p.id} onAcquired={onAcquired} />}
-      {hasPdf && p.chunk_count === 0 && <OcrRow paperId={p.id} onOcred={onAcquired} />}
+      {!readOnly && !hasPdf && <AcquireOaRow paperId={p.id} onAcquired={onAcquired} />}
+      {!readOnly && hasPdf && p.chunk_count === 0 && <OcrRow paperId={p.id} onOcred={onAcquired} />}
 
       {p.attachments && p.attachments.length > 0 &&
         <div className="detail-files">
@@ -620,5 +491,6 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
         <span className="detail-tierline">{p.chunk_count} chunks · {tierLabel(p.processing_tier)}</span>
       </div>
     </div>
+    </DetailReadOnly.Provider>
   );
 }

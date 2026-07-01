@@ -193,4 +193,4 @@ function FindingsSection({ ctx }) {
   );
 }
 
-registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, render: (ctx) => <FindingsSection ctx={ctx} /> });
+registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, hideInReadOnly: true, render: (ctx) => <FindingsSection ctx={ctx} /> });

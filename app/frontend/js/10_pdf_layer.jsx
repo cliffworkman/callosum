@@ -263,7 +263,7 @@ function PaperCopyButton({ paperId }) {
 // inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
 // render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
 // caller append context buttons (the library passes its focus/trash buttons here).
-function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo }) {
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo, readOnly }) {
   const unresolved = needsMetadata(p);
   return (
     <div
@@ -308,7 +308,7 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
           : <span className="paper-cite paper-cite-static"
               title={citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex · as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"}>{citeInfo.count} cited-by</span>)}
         {footExtra}
-        <ReadPriorityControl paper={p} />  {/* inc 220: read toggle + priority (user markers) */}
+        {!readOnly && <ReadPriorityControl paper={p} />}  {/* inc 220: read toggle + priority (user markers) */}
       </div>
     </div>
   );
@@ -326,12 +326,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched,
-                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch }) {
+                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
   const pendingRemove = pendingOps.filter(o => o === "remove").length;
-  const selecting = !focusAxis && !trashView;            // checkbox multi-select mode (inc 54)
+  // B5 SP2: a read-only companion drops multi-select (its bulk actions write) + the header write cluster + the
+  // per-card markers, so nothing on the reader dead-ends in a 403.
+  const selecting = !focusAxis && !trashView && !readOnly;  // checkbox multi-select mode (inc 54)
   const selCount = selectedLibraryIds ? selectedLibraryIds.size : 0;
   // inc-209 (A3): full-text PDF search mode — the "Full text" scope + a query swaps the library list for a
   // self-contained snippet-hit list (FulltextResults does its own fetch; 40_app is untouched).
@@ -345,7 +347,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
       <div className="pane-head">
         <div className="lib-head">
           <p className="eyebrow">{trashView ? "Trash" : "Library"}</p>
-          <span className="lib-head-actions">
+          {!readOnly && <span className="lib-head-actions">
             {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onExportBundle={onExportBundle} />}
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
             {!trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" &&
@@ -375,7 +377,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <button className="trash-toggle" onClick={onToggleTrash} title={trashView ? "Back to the library" : "View deleted papers"}>
               {trashView ? "← Library" : "Trash"}
             </button>
-          </span>
+          </span>}
         </div>
         {focusAxis &&
           <div className="focus-card">
@@ -575,7 +577,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             checked={selectedLibraryIds && selectedLibraryIds.has(p.id)} onToggleCheck={onToggleLibrarySelect}
             findings={findingsByPaper && findingsByPaper[p.id]}
             citeInfo={p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : undefined}
-            footExtra={footExtra}
+            footExtra={footExtra} readOnly={readOnly}
           />
         );
       })}

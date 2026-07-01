@@ -41,6 +41,14 @@ function App() {
   const cancelFocusRef = useRef(() => {});
   const setAxisRefreshRef = useRef(() => {});
 
+  // B5 SP2: read-only mode (from /health.read_only). Declared before useLibrary so the library hook can suppress its
+  // on-load watched-folder rescan (a write) — a read-only companion never fires a write. healthLoaded gates the
+  // launch rescan until /health has resolved, so it never fires the doomed write before readOnly is known.
+  // undefined until /health resolves (so a background read-implemented-as-POST like /citations/render doesn't fire
+  // before we know); then true (read-only) or false (read-write). The write-control gates treat undefined as falsy.
+  const [readOnly, setReadOnly] = useState(undefined);
+  const [healthLoaded, setHealthLoaded] = useState(false);
+
   // The library-list subsystem (inc 221). Cross-cutting setters go in via opts; cancelFocus + setAxisRefresh are
   // resolved through refs (set after useFocusMode) because useFocusMode is declared after useLibrary but its
   // onEnterClearFilters must call lib.clearViewFilters — breaking the cycle.
@@ -48,7 +56,7 @@ function App() {
     selected, setSelected, setActiveTab,
     cancelFocus: () => cancelFocusRef.current(),
     setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen,
-    setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), autoScanWatched,
+    setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), autoScanWatched, readOnly, healthLoaded,
   });
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
@@ -111,11 +119,14 @@ function App() {
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
 
-  // health check
+  // health check (readOnly declared above, before useLibrary, so the library hook can suppress its on-load write).
   useEffect(() => {
     api("/health").then(r => {
-      if (r.ok) setConn({ state: "ok", version: (r.data && (r.data.verification_version || r.data.version)) || null });
-      else setConn({ state: "bad" });
+      if (r.ok) {
+        setConn({ state: "ok", version: (r.data && (r.data.verification_version || r.data.version)) || null });
+        setReadOnly(!!(r.data && r.data.read_only));
+      } else setConn({ state: "bad" });
+      setHealthLoaded(true);
     });
   }, []);
 
@@ -135,6 +146,7 @@ function App() {
 
   // inc 121: one prop-bundle the accordion hands to each section's render(ctx).
   const paneCtx = {
+    readOnly,  // B5 SP2: hide write controls in every section when the instance is read-only
     conn, selectedPaper: selected, onSelectPaper: setSelected, onOpenPaper: openPdf,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
@@ -157,6 +169,7 @@ function App() {
     <LibraryFrame
       libraryProps={{
         ...libraryBits,
+        readOnly,
         selected, onSelect: setSelected,
         focusAxis, focusMembers, focusPending,
         onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
@@ -202,10 +215,13 @@ function App() {
     </React.Fragment>
   );
 
+  const readOnlyBadge = readOnly ? <div className="read-only-badge" title="This callosum instance rejects changes — reading only.">🔒 Read-only</div> : null;
+
   if (mobile) {
     const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
     return (
-      <div className="app mobile">
+      <div className={"app mobile" + (readOnly ? " read-only" : "")}>
+        {readOnlyBadge}
         <div className="mobile-body">{activeEl}</div>
         <MobileNav active={mobilePane} onSelect={setMobilePane} />
         {modals}
@@ -214,7 +230,8 @@ function App() {
   }
 
   return (
-    <div className={"app" + (readingMode ? " reading" : "")} style={{ gridTemplateColumns: cols }}>
+    <div className={"app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : "")} style={{ gridTemplateColumns: cols }}>
+      {readOnlyBadge}
       {leftOpen && !readingMode ? sidebarEl : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}

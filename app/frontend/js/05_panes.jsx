@@ -10,15 +10,17 @@
 const PANE_SECTIONS = [];
 function registerPaneSection(section) {
   // a single-content section = a section with one (implicit) tab; no tab strip is shown for it.
+  // B5 SP2: `hideInReadOnly` sections (analysis panels that write / need non-forwarded endpoints) drop off a read-only
+  // companion — they'd 404/403 over the read-only tunnel.
   registerPaneTab(
-    { id: section.id, label: section.label, paneId: section.paneId, order: section.order },
+    { id: section.id, label: section.label, paneId: section.paneId, order: section.order, hideInReadOnly: section.hideInReadOnly },
     { id: section.id, label: section.label, order: 0, render: section.render },
   );
 }
 function registerPaneTab(host, tab) {
   let section = PANE_SECTIONS.find(s => s.id === host.id);
   if (!section) {
-    section = { id: host.id, label: host.label, paneId: host.paneId, order: host.order, tabs: [] };
+    section = { id: host.id, label: host.label, paneId: host.paneId, order: host.order, hideInReadOnly: host.hideInReadOnly, tabs: [] };
     PANE_SECTIONS.push(section);
   }
   if (!section.tabs.some(t => t.id === tab.id)) section.tabs.push(tab);  // idempotent by tab id
@@ -37,13 +39,14 @@ function sectionTabs(section) {
 registerPaneSection({
   id: "details", label: "Details", paneId: "methods", order: 10,
   render: (ctx) => ctx.selectedPaper != null
-    ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper}
+    ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} readOnly={ctx.readOnly}
         onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} onQueueChanged={ctx.onQueueChanged} />
     : <div className="axis-hint">Select a paper to see its details.</div>,
 });
 
 function PaneAccordion({ paneId, ctx, openId, onOpen }) {
-  const sections = paneSections(paneId);
+  // B5 SP2: on a read-only instance, drop analysis sections that write / need non-forwarded endpoints.
+  const sections = paneSections(paneId).filter(s => !(ctx && ctx.readOnly && s.hideInReadOnly));
   const [tabState, setTabState] = useState({});  // sectionId -> active tabId (also persisted to localStorage)
   if (sections.length === 0) return null;
   // fall back to the first section if the persisted openId no longer matches a registered section

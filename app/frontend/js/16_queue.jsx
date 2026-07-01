@@ -7,7 +7,7 @@
 const QUEUE_ITEM_MIME = "application/x-callosum-queueitem";
 const PAPER_CARD_MIME = "application/x-callosum-paper";
 
-function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, onQueueChanged }) {
+function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, onQueueChanged, readOnly }) {
   const [items, setItems] = useState([]);
   const [cardOver, setCardOver] = useState(false); // dragging a library card over the panel (add)
   const [rowOver, setRowOver] = useState(null); // reorder drop-target row id
@@ -51,17 +51,17 @@ function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, o
   return (
     <div
       className={"queue-pane" + (cardOver ? " queue-drop" : "")}
-      onDragOver={(e) => { if (e.dataTransfer.types.includes(PAPER_CARD_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setCardOver(true); } }}
-      onDragLeave={(e) => { if (e.currentTarget === e.target) setCardOver(false); }}
-      onDrop={(e) => {
+      onDragOver={readOnly ? undefined : ((e) => { if (e.dataTransfer.types.includes(PAPER_CARD_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; setCardOver(true); } })}
+      onDragLeave={readOnly ? undefined : ((e) => { if (e.currentTarget === e.target) setCardOver(false); })}
+      onDrop={readOnly ? undefined : ((e) => {
         if (!e.dataTransfer.types.includes(PAPER_CARD_MIME)) return;
         e.preventDefault(); setCardOver(false);
         const pid = parseInt(e.dataTransfer.getData(PAPER_CARD_MIME), 10);
         if (pid) addPaper(pid);
-      }}
+      })}
     >
       <div className="queue-head">
-        {items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"} · drag to reorder` : "Reading queue"}
+        {items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"}${readOnly ? "" : " · drag to reorder"}` : "Reading queue"}
       </div>
       {notice && <div className="axis-err" onClick={() => setNotice(null)}>{notice}</div>}
       {items.length === 0 ? (
@@ -71,25 +71,25 @@ function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, o
           <div
             key={it.id}
             className={"queue-row" + (selectedPaper === it.id ? " sel" : "") + (rowOver === it.id ? " dragover" : "")}
-            draggable
-            onDragStart={(e) => { e.dataTransfer.setData(QUEUE_ITEM_MIME, String(it.id)); e.dataTransfer.effectAllowed = "move"; }}
-            onDragOver={(e) => { if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setRowOver(it.id); } }}
-            onDragLeave={() => setRowOver((o) => (o === it.id ? null : o))}
-            onDrop={(e) => {
+            draggable={!readOnly}
+            onDragStart={readOnly ? undefined : ((e) => { e.dataTransfer.setData(QUEUE_ITEM_MIME, String(it.id)); e.dataTransfer.effectAllowed = "move"; })}
+            onDragOver={readOnly ? undefined : ((e) => { if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setRowOver(it.id); } })}
+            onDragLeave={readOnly ? undefined : (() => setRowOver((o) => (o === it.id ? null : o)))}
+            onDrop={readOnly ? undefined : ((e) => {
               if (!e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) return;
               e.preventDefault(); e.stopPropagation(); setRowOver(null);
               const dragged = parseInt(e.dataTransfer.getData(QUEUE_ITEM_MIME), 10);
               if (dragged) reorderToIndex(dragged, it.id);
-            }}
+            })}
           >
-            <span className="axis-grip" title="Drag to reorder">⠿</span>
+            {!readOnly && <span className="axis-grip" title="Drag to reorder">⠿</span>}
             <button className="queue-open" title="Open this paper"
               onClick={() => { if (onOpenPaper) onOpenPaper({ id: it.id, title: it.title }); if (onSelectPaper) onSelectPaper(it.id); }}>
               <span className="queue-title">{it.title}</span>
               <span className="queue-meta">{[(it.authors || []).slice(0, 2).join(", "), it.year].filter(Boolean).join(" · ")}</span>
             </button>
-            <button className="queue-done" title="Mark as read — removes it from the queue" onClick={() => remove(it.id, "Marked done")}>✓</button>
-            <button className="queue-x" title="Remove from the queue" onClick={() => remove(it.id, "Removed")}>×</button>
+            {!readOnly && <button className="queue-done" title="Mark as read — removes it from the queue" onClick={() => remove(it.id, "Marked done")}>✓</button>}
+            {!readOnly && <button className="queue-x" title="Remove from the queue" onClick={() => remove(it.id, "Removed")}>×</button>}
           </div>
         ))
       )}
@@ -101,7 +101,7 @@ registerPaneTab(
   { id: "axes", label: "Axes", paneId: "theory", order: 10 },
   {
     id: "queue-tab", label: "Queue", order: 30,
-    render: (ctx) => <QueuePanel onOpenPaper={ctx.onOpenPaper} onSelectPaper={ctx.onSelectPaper}
+    render: (ctx) => <QueuePanel onOpenPaper={ctx.onOpenPaper} onSelectPaper={ctx.onSelectPaper} readOnly={ctx.readOnly}
       selectedPaper={ctx.selectedPaper} queueRefresh={ctx.queueRefresh} onQueueChanged={ctx.onQueueChanged} />,
   },
 );

@@ -203,6 +203,17 @@ component itself predates it.)
 
 ---
 
+## B5 read-only companion (inc 237/238)
+
+- **`.read-only-badge`** — a fixed top-right pill marking a read-only instance (`--flag-*` family, `--radius-pill`;
+  `pointer-events: none`). Shown when the app detects `/health.read_only` (the mobile read-only tunnel). Tokens only.
+- **`.detail-ro`** — a Details field rendered as **static text** (no input chrome) on a read-only companion; `.mono`
+  variant for identifiers; the `.detail-title-input.detail-ro` variant for the title. Reuses `--ink`.
+- **`.mobile-nav` / `.app.mobile`** (inc 237) — the phone-width single-column layout + bottom nav; `100dvh`, tokens.
+- **Pattern:** a read-only companion **hides** write controls (via a `readOnly` flag threaded through the panels +
+  a `DetailReadOnly` React context for the Details fields) and **never fires a write on load** — the on-launch rescan
+  + the CiteRow render only run when read-write is confirmed. The enforcement is the server method gate, not the UI.
+
 ## 3. Consistency findings + proposed consolidations (Pass 2 — a worklist)
 
 > **Status (inc 46):** the **color-token** consolidations below (#1 split destructive → `--danger`, #2

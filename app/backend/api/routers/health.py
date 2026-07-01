@@ -8,6 +8,7 @@ from sqlalchemy import Connection, text
 from sqlalchemy.exc import SQLAlchemyError
 
 from alembic.runtime.migration import MigrationContext
+from app.backend import app_settings
 from app.backend.api.dependencies import get_connection
 from app.backend.api.startup import _head_revision
 from app.backend.summarization.verification import VERIFICATION_VERSION
@@ -22,6 +23,10 @@ class HealthResponse(BaseModel):
     db_migrated: bool  # True only when the DB is at the latest revision (head)
     db_revision: str | None = None  # the DB's current Alembic revision (None if unstamped)
     db_head_revision: str | None = None  # the latest revision on disk (migration target)
+    # B5 SP2 (inc 238): this instance is read-only (CALLOSUM_READ_ONLY=1). The frontend reads it here — /health is the
+    # one endpoint forwarded over the read-only mobile tunnel AND token-exempt — to hide write controls (a clean
+    # companion). It's a UX signal; the actual read-only boundary is the method gate in AccessControlMiddleware.
+    read_only: bool = False
 
 
 def _database_status(conn: Connection) -> tuple[bool, bool, str | None, str | None]:
@@ -56,4 +61,5 @@ def health(conn: Connection = Depends(get_connection)) -> HealthResponse:
         db_migrated=at_head,
         db_revision=current,
         db_head_revision=head,
+        read_only=app_settings.read_only_mode(),
     )

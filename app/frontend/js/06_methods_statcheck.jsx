@@ -169,6 +169,6 @@ function StatcheckSection({ ctx }) {
 }
 
 registerPaneSection({
-  id: "statcheck", label: "Statistics check", paneId: "methods", order: 30,
+  id: "statcheck", label: "Statistics check", paneId: "methods", order: 30, hideInReadOnly: true,
   render: (ctx) => <StatcheckSection ctx={ctx} />,
 });

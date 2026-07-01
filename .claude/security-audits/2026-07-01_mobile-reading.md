@@ -46,3 +46,38 @@ fetch, no new dependency, no migration, no new served route (the responsive app 
 defense in depth; default-off + env-only; the token still gates; no new endpoint/dependency/migration/egress. Deferred
 (SP2): an app-side read-only *UI* that hides write controls for a clean companion (the tunnel already blocks writes, so
 this is UX, not security).
+
+## Addendum — SP2 (the read-only companion UI), inc 238
+
+**Change:** the app now advertises read-only via `GET /health` (an additive `read_only` field from
+`app_settings.read_only_mode()`) and, when true, hides its write controls + shows a "Read-only" badge — so a read-only
+companion reads clean instead of showing buttons that 403/404. Also broadened the read-only cloudflared ingress to
+forward the core library **read** GETs (`/axes`, `/axes/{id}/clusters`, `/tags`, `/tags/colors`, `/reading-queue`,
+`/papers/{id}/annotations`, `/papers/{id}/chunks`) so those panels *load* read-only over the tunnel; every write on
+those paths is still 403'd by the method gate.
+
+**Audit-gate triggers:** a changed response schema (`/health` gains `read_only`) — additive, non-secret; the widened
+ingress allowlist. **NOT triggered:** no new endpoint, external fetch, dependency, or migration; no new egress channel
+(the widened paths are the user's own library reads over the already-audited token'd tunnel).
+
+- **`/health.read_only` is a UX signal, not the boundary.** It only tells the client to hide controls; the enforcement
+  is the SP1 **method gate** (`CALLOSUM_READ_ONLY=1` → 403 on writes) + the ingress. It exposes no secret and is
+  additive/default-false. `/health` is already token-exempt + ingress-forwarded, which is *why* the client can read it
+  over the read-only tunnel to decide.
+- **No doomed writes on load.** A read-only companion must not *fire* a write it will 403. Verified: the on-launch
+  watched-folder rescan (`POST /library/watched/rescan`) is suppressed (gated on `healthLoaded && !readOnly`), and the
+  Details "Cite as…" render (`POST /citations/render`, a read-implemented-as-POST) only fetches once read-write is
+  confirmed (`readOnly === false`). Headed: **0 console/page errors** in read-only mode (was 2 × 403 before the gates)
+  — no request 403s on load.
+- **Widened ingress is still read-only + minimal.** The added paths are GET reads of the user's own library; every
+  mutating method on them is 403'd by the method gate (a `/papers/5` DELETE, an `/axes` POST, a `/reading-queue` PUT).
+  The analysis/config routes (`/settings`, `/library/*`, `/methods/*`, `/discovery/*`, `/gaps`, `/agent/*`) remain 404
+  at the tunnel. Verified by the enumerated regex checks in `tests/test_mobile_ingress.py`.
+- **Client-side hiding is comprehensive, not a substitute for the gate.** The `readOnly` flag hides write controls in
+  the library header + Details (fields render static) + Synthesis (run/re-verify/save/delete) + Axes + Tags + Queue,
+  hides the METHODS analysis sections + Discover/Feed tabs, and disables drop-to-add/reorder. This is UX; a write that
+  *did* leak is still 403'd by the method gate (defense in depth).
+
+**Security Audit (SP2): PASS.** The read-only *guarantee* is unchanged (the SP1 method gate + ingress); SP2 adds a
+default-false, non-secret `/health` flag + widened *read* ingress + client-side control-hiding; no doomed writes fire
+on load; no new endpoint/dependency/migration/egress channel.

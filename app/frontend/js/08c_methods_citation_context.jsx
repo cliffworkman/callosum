@@ -143,6 +143,6 @@ function CitationContextSection({ ctx }) {
 }
 
 registerPaneSection({
-  id: "citation-context", label: "How this paper is cited", paneId: "methods", order: 36,
+  id: "citation-context", label: "How this paper is cited", paneId: "methods", order: 36, hideInReadOnly: true,
   render: (ctx) => <CitationContextSection ctx={ctx} />,
 });

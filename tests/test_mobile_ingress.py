@@ -26,7 +26,24 @@ def _ingress_regex() -> re.Pattern[str]:
 
 
 @pytest.mark.parametrize(
-    "path", ["/", "/health", "/papers", "/papers/5", "/papers/5/pdf", "/summaries", "/summaries/7", "/help/corpus"]
+    "path",
+    [
+        "/",
+        "/health",
+        "/papers",
+        "/papers/5",
+        "/papers/5/pdf",
+        "/papers/5/annotations",
+        "/papers/5/chunks",
+        "/summaries",
+        "/summaries/7",
+        "/axes",
+        "/axes/3/clusters",
+        "/tags",
+        "/tags/colors",
+        "/reading-queue",
+        "/help/corpus",
+    ],
 )
 def test_mobile_ingress_forwards_read_paths(path: str) -> None:
     assert _ingress_regex().match(path), path
@@ -39,14 +56,18 @@ def test_mobile_ingress_forwards_read_paths(path: str) -> None:
         "/library/scan",
         "/library/import",
         "/library/enrich/refresh",
-        "/axes",
-        "/tags",
-        "/papers/5/re-resolve",
-        "/papers/5/read",
-        "/summaries/5/reverify",
+        "/methods/statcheck/run",
         "/discovery/save",
+        "/discovery/search",
+        "/feed",
+        "/gaps",
         "/agent/status",
-        "/reading-queue",
+        "/findings/overview",
+        "/papers/citation-counts/refresh",
+        "/papers/ocr/run",
+        "/axes/3/score",
+        "/axes/suggest",
+        "/citations/render",
     ],
 )
 def test_mobile_ingress_blocks_write_and_config_paths(path: str) -> None:
@@ -69,3 +90,11 @@ def test_read_only_off_by_default_lets_writes_reach_the_handler(
     monkeypatch.delenv("CALLOSUM_READ_ONLY", raising=False)
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.delete("/papers/999").status_code == 404  # reaches the handler (missing paper), not the 403 gate
+
+
+def test_health_advertises_read_only(temp_db_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    # B5 SP2: the frontend reads read_only off /health (forwarded + token-exempt over the read-only tunnel).
+    monkeypatch.setenv("CALLOSUM_READ_ONLY", "1")
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["read_only"] is True
+    monkeypatch.delenv("CALLOSUM_READ_ONLY", raising=False)
+    assert TestClient(create_app(db_url=temp_db_url)).get("/health").json()["read_only"] is False

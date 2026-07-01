@@ -35,7 +35,7 @@ function OverviewBlock({ overview }) {
   );
 }
 
-function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce }) {
+function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce, readOnly }) {
   const [query, setQuery] = useState("");
   const [state, setState] = useState({ status: "idle" });
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
@@ -190,22 +190,25 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
 
   return (
     <div className="synth">
-      <textarea
-        className="synth-input"
-        placeholder="Ask a synthesis question about the library..."
-        value={query}
-        onChange={e => setQuery(e.target.value)}
-        disabled={busy}
-      />
-      <div className="synth-actions">
-        <button disabled={busy || !query.trim()} onClick={start}>Synthesize</button>
-        <span className={"synth-status" + (busy ? " running" : "")}>
-          {busy ? (state.message || "Generating and verifying") : "query scope · top 8 chunks"}
-        </span>
-      </div>
-      {busy && <ProgressBar />}
+      {/* B5 SP2: on a read-only companion, hide the run controls — reading saved syntheses (below) still works. */}
+      {!readOnly && <React.Fragment>
+        <textarea
+          className="synth-input"
+          placeholder="Ask a synthesis question about the library..."
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          disabled={busy}
+        />
+        <div className="synth-actions">
+          <button disabled={busy || !query.trim()} onClick={start}>Synthesize</button>
+          <span className={"synth-status" + (busy ? " running" : "")}>
+            {busy ? (state.message || "Generating and verifying") : "query scope · top 8 chunks"}
+          </span>
+        </div>
+        {busy && <ProgressBar />}
+      </React.Fragment>}
 
-      {egressOff && state.status !== "error" && egressNudge}
+      {!readOnly && egressOff && state.status !== "error" && egressNudge}
 
       {scopeNote &&
         <div className="synth-scope-note">Summary of <b>{scopeNote}</b> from the library selection.</div>}
@@ -238,11 +241,12 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
           {state.result.imported &&
             <div className="synth-imported" title="This synthesis came from a shared bundle — its statuses are the sender's, computed against their PDFs, not re-checked here.">
               Imported — the sender's assessment, not re-checked in your library. Sources open at the page (region precision).
-              <button className="btn btn-link" disabled={reverifying}
-                title="Re-run local verification (retrieval + NLI + quote-location) against your own library — turns this into your verified synthesis. No egress."
-                onClick={() => reverify(state.result.summary_id)}>
-                {reverifying ? "Re-verifying…" : "Re-verify against my library"}
-              </button>
+              {!readOnly &&
+                <button className="btn btn-link" disabled={reverifying}
+                  title="Re-run local verification (retrieval + NLI + quote-location) against your own library — turns this into your verified synthesis. No egress."
+                  onClick={() => reverify(state.result.summary_id)}>
+                  {reverifying ? "Re-verifying…" : "Re-verify against my library"}
+                </button>}
             </div>}
           {scopeMeta && scopeMeta.total != null &&
             <div className="synth-coverage">
@@ -257,10 +261,11 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
               The generator returned no sentences — your question may not be addressed in this scope.
             </div>}
           {sentences.length > 0 && <OverviewBlock overview={state.result.overview} />}
-          {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={onSaveHighlight} />}
+          {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={readOnly ? null : onSaveHighlight} />}
         </div>}
 
       <SummaryHistory
+        readOnly={readOnly}
         state={history}
         activeSummaryId={state.result && state.result.summary_id}
         onLoad={loadSummary}
@@ -270,7 +275,7 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
   );
 }
 
-function SummaryHistory({ state, activeSummaryId, onLoad, onDelete }) {
+function SummaryHistory({ state, activeSummaryId, onLoad, onDelete, readOnly }) {
   return (
     <div className="history">
       <p className="eyebrow">History</p>
@@ -294,7 +299,7 @@ function SummaryHistory({ state, activeSummaryId, onLoad, onDelete }) {
             </span>
             <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span className={"cite-status " + citeStatusClass(item.status)}>{item.status}</span>
-              <span className="history-delete" onClick={(event) => onDelete(item.summary_id, event)}>Delete</span>
+              {!readOnly && <span className="history-delete" onClick={(event) => onDelete(item.summary_id, event)}>Delete</span>}
             </span>
           </button>
         );
@@ -447,5 +452,6 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
 registerPaneSection({
   id: "synthesis", label: "Synthesis", paneId: "theory", order: 20,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
-    pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce} />,
+    pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
+    readOnly={ctx.readOnly} />,
 });
