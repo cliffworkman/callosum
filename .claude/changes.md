@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-01 inc 240 — "Reading on your phone" now covers touch highlighting -->
+<!-- HELP-DOCS-SYNCED 2026-07-01 inc 241 — gained "Checking Bayes factors (the Bayesian auditor)" -->
+## 2026-07-01 — Increment 241: Bayesian auditor SP1 — recompute default JZS Bayes factors (statcheck sibling)
+- **Files:** `app/backend/methods/bayes.py` (NEW — JZS BF recompute + inline extraction) + `app/backend/api/routers/methods.py` (`GET /papers/{id}/bayes`) + `app/frontend/js/08d_methods_bayes.jsx` (NEW METHODS panel); `tests/test_bayes.py` (NEW, +10); `.claude/qa-routes/route_59_methods_bayes.md`; `.claude/security-audits/2026-07-01_bayes-auditor.md`; THIRD-PARTY-NOTICES; help corpus; CLAUDE; backlog; `INCREMENT-241-NOTES.md`. (callosum-app.html rebuilt.)
+- **What:** the Bayesian sibling of statcheck — recompute a paper's reported default (JZS) Bayes factors for inline t-test results (`t(df) = …, BF10 = …`) and flag where they don't reproduce under the default prior. Local, deterministic, no AI.
+- **Why:** the maintainer picked a new METHODS auditor (whole A+B lists done); AskUserQuestion → Bayesian auditor + SP1=recompute-only.
+- **Verify:** JZS math verified vs the pingouin anchor (26.744 vs 26.743). pytest 894 (+10); `test_frontend_assembly` 5/5; ruff+format clean; QA 174/174 API + 767/767 FE, 0 uncovered; audit PASS; Principles gate aligned (statcheck class; declined score/verdict). Headed-verified (a reproduces row + credit ＋add-to-library; 0 console/page/genai). **No egress/LLM/migration/dependency.**
+- **Revert:** `git revert <sha>` (additive; a new endpoint + panel + a pure module; no migration/destructive change).
+
 ## 2026-07-01 — Increment 240: touch-native highlighting on mobile (the last B5 nicety)
 - **Files:** `app/frontend/js/30f_pdf_gestures.jsx` (new `useTouchSelectionPicker` hook) + `30_viewer.jsx` (the hook call, mobile-gated); `styles.css` (`.app.mobile` finger-sized `.hl-swatch`/`.hl-note-add`); help corpus; DESIGN.md; CLAUDE; backlog; `INCREMENT-240-NOTES.md`. (callosum-app.html rebuilt.)
 - **What:** create highlights by touch — a long-press text selection on a phone now surfaces the same color-picker pill desktop shows (via a debounced `selectionchange`, since `mouseup` doesn't fire on touch), with finger-sized swatches; tap a color to highlight, or ＋ note.

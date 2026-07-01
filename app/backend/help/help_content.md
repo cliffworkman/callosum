@@ -757,6 +757,19 @@ Read it as a prompt, not a judgment:
 - Because *you* enter a specific value, it never scans, ranks, or labels papers or people.
 - The section credits the methods (Brown & Heathers; Anaya / Allard) and offers a one-click **add to library**.
 
+<!-- section: bayesian-statistics -->
+## Checking Bayes factors (the Bayesian auditor)
+The Bayesian auditor is the Bayesian sibling of statcheck. For a paper that reports **default Bayes factors** for t-tests inline (e.g. “t(19) = 2.53, BF₁₀ = 3.4”), it recomputes the **default JZS Bayes factor** (Rouder, Speckman, Sun, Morey & Iverson, 2009 — the closed form JASP and the *BayesFactor* R package use) from the reported *t* and *df*, and flags where the reported value doesn't reproduce. It's local, deterministic, and uses no AI — nothing leaves your machine.
+
+In the **METHODS** pane, open **Bayesian statistics** with a paper selected. It reads the paper's extracted text and recomputes each inline t-test Bayes factor, showing the **reported** value, the **recomputed** value, and whether it **reproduces** or **couldn't reproduce**.
+
+Read it honestly — it's a signal, not a verdict:
+
+- A Bayes factor depends on the **prior** the authors chose. The auditor recomputes under the *default* JZS prior (a Cauchy scale of about 0.71), under both a paired and a two-sample reading, and calls a value “reproduced” if it matches either within about a factor of 2. **If the paper used a different prior scale or a non-t design, a mismatch is expected** — it means “couldn't reproduce under the default prior”, never “wrong” and never an accusation.
+- It reads only **inline** t-test Bayes factors (a BF reported in a table, or without an adjacent t-statistic, is invisible), so a clean result is **not** a clean bill.
+- There is **no score and no rank** — only per-result outcomes with the recomputed number shown, so you can judge for yourself. Each result opens its page in the PDF.
+- The section credits Rouder et al. (2009) and offers a one-click **add to library**.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

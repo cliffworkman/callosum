@@ -281,9 +281,15 @@ reader should look for in a mixed-model paper (random-effects structure, df meth
 missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**. A self-contained
 sibling of statcheck under the findings subsystem.
 
-**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[future track]** Tier-1 recompute default
-Bayes factors for canonical designs (t/F/r + N) + Tier-2 completeness audit; signal-not-verdict, deliberately does
-**not** teach "BF>3 = significance". Sibling of statcheck under the findings subsystem.
+**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[SP1 SHIPPED inc 241]** the **Tier-1
+deterministic recompute**: recompute the default **JZS** Bayes factor (Rouder et al. 2009) for inline **t-test** BFs
+(`t(df) = …, BF10 = …`) via `methods/bayes.py::jzs_bf10` (scipy quadrature; verified vs the pingouin anchor) + `GET
+/papers/{id}/bayes` + the METHODS panel `08d_methods_bayes.jsx`. Signal-not-verdict, no score, no accusation (a
+mismatch = "couldn't reproduce under the default prior"; recomputes under both paired + two-sample readings,
+reproduces if either matches within ~2×). Local, no LLM/egress/migration; audit PASS; credited (Rouder et al. +
+BayesFactor). **Remaining — SP2:** the **Tier-2 completeness checklist** (prior stated? R-hat/ESS/convergence?
+sensitivity analysis? — presence/absence, never a verdict; BARG/WAMBS/JASP) + more designs (correlation / ANOVA
+default BFs). Sibling of statcheck. Deliberately does **not** teach "BF>3 = significance".
 
 **25. Citation concentration** (`…_citationequitytool.md`, METHODS) — **[DONE — SP1 inc 227 + SP2 inc 228 +
 values rework inc 229]** the **structural** reference-list audit (self-citation, Matthew concentration, venue +

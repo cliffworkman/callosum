@@ -3325,6 +3325,85 @@
     hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitationContextSection, { ctx })
   });
+  const BAYES_CSL = {
+    type: "article-journal",
+    title: "Bayesian t tests for accepting and rejecting the null hypothesis",
+    author: [
+      { family: "Rouder", given: "Jeffrey N." },
+      { family: "Speckman", given: "Paul L." },
+      { family: "Sun", given: "Dongchu" },
+      { family: "Morey", given: "Richard D." },
+      { family: "Iverson", given: "Geoffrey" }
+    ],
+    "container-title": "Psychonomic Bulletin & Review",
+    volume: "16",
+    issue: "2",
+    page: "225-237",
+    issued: { "date-parts": [[2009]] },
+    DOI: "10.3758/PBR.16.2.225"
+  };
+  function BayesPaper({ paperId, onOpenPaper, active }) {
+    const [meta, setMeta] = useState(null);
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      setMeta(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (!live || !r.ok) return;
+        setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const run = async () => {
+      setState({ status: "running" });
+      const r = await api(`/papers/${paperId}/bayes`);
+      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+    };
+    useEffect(() => {
+      if (active && meta && meta.hasText && state.status === "idle") run();
+    }, [active, meta]);
+    const open = (page) => {
+      if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" });
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to recompute its Bayes factors.");
+    const hasText = meta ? meta.hasText : false;
+    const d = state.data;
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported default Bayes factors from this paper's text \u2014 local, no AI", onClick: run }, "Check Bayes factors") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No inline t-test Bayes factors (e.g. \u201Ct(23) = 2.1, BF\u2081\u2080 = 3.4\u201D) found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.not_reproduced, " couldn't reproduce under the default prior"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list" }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item" + (r.consistency !== "reproduced" ? " flagged-row" : ""), title: r.page != null ? "Open page " + r.page : "", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "reported BF\u2081\u2080 = ", r.reported_bf10, " \xB7 recomputed ", reBfLabel(r)), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "reproduced" ? "verified" : "flagged") }, r.consistency === "reproduced" ? "reproduces" : "couldn't reproduce")))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Recomputed under the ", /* @__PURE__ */ React.createElement("b", null, "default JZS prior"), " (Cauchy scale r \u2248 ", d.prior_scale, ") for a t-test, under both a paired and a two-sample reading \u2014 a Bayes factor \u201Creproduces\u201D if it matches either within a factor of ~2. If the paper used a different prior scale or a non-t design, a mismatch is expected \u2014 a prompt to look, not a verdict or an accusation. It reads only inline t-test BFs, so a clean result isn't a clean bill."))));
+  }
+  function reBfLabel(r) {
+    if (r.consistency === "reproduced" && r.matched_design) {
+      const val = r.matched_design === "paired" ? r.computed_paired : r.computed_two_sample;
+      return `${val} (${r.matched_design})`;
+    }
+    const parts = [];
+    if (r.computed_paired != null) parts.push(`${r.computed_paired} (paired)`);
+    if (r.computed_two_sample != null) parts.push(`${r.computed_two_sample} (two-sample)`);
+    return parts.join(" / ") || "\u2014";
+  }
+  function BayesCredit() {
+    const [added, setAdded] = useState("idle");
+    const addCredit = async () => {
+      setAdded("adding");
+      const r = await apiPost("/library/import", { content: JSON.stringify([BAYES_CSL]), format: "csl-json" });
+      setAdded(r && r.ok ? "added" : "idle");
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " the default JZS Bayes factor \u2014 Rouder, Speckman, Sun, Morey & Iverson (2009), ", /* @__PURE__ */ React.createElement("i", null, "Psychonomic Bulletin & Review"), " 16(2):225\u2013237.", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python (the closed form JASP / the ", /* @__PURE__ */ React.createElement("i", null, "BayesFactor"), " R package [Morey & Rouder] use) \u2014 credited, not reused. Surfaced via D. Lakens' automated-review catalog."));
+  }
+  function BayesSection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute a paper's reported ", /* @__PURE__ */ React.createElement("b", null, "default Bayes factors"), " for inline t-test results \u2014 the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF\u2081\u2080 doesn't reproduce under the standard JZS prior; usually a different prior, not an error \u2014 a prompt to look, never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(BayesPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "bayes" }), /* @__PURE__ */ React.createElement(BayesCredit, null));
+  }
+  registerPaneSection({
+    id: "bayes",
+    label: "Bayesian statistics",
+    paneId: "methods",
+    order: 32,
+    hideInReadOnly: true,
+    render: (ctx) => /* @__PURE__ */ React.createElement(BayesSection, { ctx })
+  });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }

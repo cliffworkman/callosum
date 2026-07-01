@@ -25,6 +25,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.methods.bayes import DEFAULT_R, run_bayes
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.retraction import apply_retraction, detect_retraction
@@ -82,6 +83,55 @@ def paper_statcheck(paper_id: int, conn: Connection = Depends(get_connection)) -
                 reported_p=r.reported_p,
                 computed_p=r.computed_p,
                 consistency=r.consistency,
+                page=r.page,
+            )
+            for r in report.results
+        ],
+    )
+
+
+# ── Bayesian auditor (inc 241): recompute reported default (JZS) Bayes factors for inline t-test BFs (sync,
+# read-only, local, no egress, no LLM). A signal, not a verdict — see `methods/bayes.py`. ──
+
+
+class BayesResult(BaseModel):
+    raw: str
+    reported_bf10: float
+    computed_paired: float | None = None
+    computed_two_sample: float | None = None
+    consistency: str  # reproduced | not-reproduced
+    matched_design: str | None = None
+    page: int | None = None
+
+
+class BayesResponse(BaseModel):
+    checked: int
+    not_reproduced: int
+    prior_scale: float  # the assumed default JZS prior scale (r ≈ 0.707), shown for inspectability
+    results: list[BayesResult]
+
+
+@router.get("/papers/{paper_id}/bayes", response_model=BayesResponse)
+def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> BayesResponse:
+    # Deterministic, local recompute of default JZS Bayes factors over the paper's extracted text. No chunks →
+    # checked: 0, an honest "no extractable text" — never an error.
+    try:
+        get_paper(conn, paper_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Paper not found") from None
+    report = run_bayes(get_chunks_for_paper(conn, paper_id))
+    return BayesResponse(
+        checked=report.checked,
+        not_reproduced=report.not_reproduced,
+        prior_scale=round(DEFAULT_R, 4),
+        results=[
+            BayesResult(
+                raw=r.raw,
+                reported_bf10=r.reported_bf10,
+                computed_paired=r.computed_paired,
+                computed_two_sample=r.computed_two_sample,
+                consistency=r.consistency,
+                matched_design=r.matched_design,
                 page=r.page,
             )
             for r in report.results
