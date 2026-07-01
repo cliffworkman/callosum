@@ -114,3 +114,50 @@ bundle endpoints + the existing `/summaries*`), no new external fetch, no new de
 in the verification tables, clearly flagged) upholds invariants #1/#2/#4; additive/guarded migration; bound-param SQL;
 bounded + fail-closed; no egress, no PDFs, no new dependency, no new endpoint. Re-audit if imported syntheses ever
 become locally re-verifiable (SP3) or gain exact coordinates.
+
+---
+
+## Addendum 2 — B2 SP3: re-verify an imported synthesis against my library (inc 236)
+
+**Date:** 2026-07-01. **Change:** a **"Re-verify against my library"** action re-runs the LOCAL verifier over the
+recipient's chunks for an imported synthesis's claims and **converts it in place** to a native synthesis. Files:
+`summarization/reverify.py` (new), `summaries.py` (`POST /summaries/{id}/reverify`), `library_bundle.py`
+(`_import_syntheses` now stores each citation's `source` identity in the blob so re-verify can re-resolve),
+`20_synthesis.jsx` (the banner button).
+
+**Audit-gate triggers:** a new API endpoint (#1). **NOT triggered:** no external fetch, no new dependency, no
+migration, no LLM.
+
+### Threat review (delta)
+
+- **No egress (the load-bearing property).** Re-verify runs **only** the local verification stage — retrieval +
+  NLI + quote-location, all local models. It does **not** re-generate prose (no LLM), makes **no** network call. This
+  is not the Gemini gate and not any egress channel. Verified by the headed driver (0 off-machine requests).
+- **The honesty gate (invariants #1/#4) — aligned, not a new claim type.** Re-verify is exactly the existing
+  `LocalCitationVerifier` re-run over the recipient's chunks, so the resulting statuses are the **recipient's own**
+  verification — the honest native path (the imported blob's "sender's assessment" caveat is *removed* precisely
+  because it's now been re-checked locally). A claim the recipient's library doesn't support flips to **flagged**; a
+  citation whose source paper the recipient doesn't have becomes a **flagged sentence with no local citation**
+  (silence≠certificate — the claim shows, unverified, never silently "verified"). Coordinate honesty holds: `verify`
+  yields **exact** coordinates only when the sender's quote is verbatim in the recipient's PDF, else **region**.
+- **SQL / injection (rule #3).** All reads/writes are bound-param SQLAlchemy Core; the convert (delete old rows +
+  update `summaries` + insert native rows) is one transaction (`conn.commit()` at the end — all-or-nothing).
+- **Input / resource.** The endpoint is idempotent-safe by construction (**422** once native — `imported_json` NULL;
+  **404** on a missing id). The blob is already bounded (SP2 caps); re-verify iterates its sentences/citations. The
+  source is **re-resolved by identity** (`find_existing_paper_by_identity`, bound params) — no arbitrary lookup.
+- **Provenance.** The converted summary is stamped `generated_by="re-verified-from-bundle"` (kept out of the
+  enrich-clobber allowlist by construction — it's a summary, not a paper). The sender's `overview_json` is dropped
+  (it traced *their* verified set; not re-narrated — no LLM).
+
+### Negative-path checks (`tests/test_reverify.py`, hermetic — fake embed/vector/support models)
+
+- Re-verify converts an imported synthesis to native: `imported: false`, real chunk-backed citation, the row's
+  `imported_json` NULL + `generated_by="re-verified-from-bundle"`, no longer flagged in the history; **re-resolves by
+  identity** (blob `paper_id` None + a `source` DOI that now matches a library paper). ✔
+- A claim whose source paper isn't present → the sentence is **flagged with no citation** (the claim text kept). ✔
+- **422** re-verifying a now-native summary; **404** on a missing id. ✔
+
+**Security Audit: PASS (addendum 2).** Re-verify is the existing local verifier re-run — no egress, no LLM, no new
+dependency, no migration; bound-param SQL in one transaction; the honest native outcome (unsupported → flagged,
+absent source → flagged-no-citation, exact-only-when-the-quote-matches). Re-audit only if re-verify ever gains an
+external fetch or LLM step.

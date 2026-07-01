@@ -107,6 +107,22 @@
     overflow: hidden;
   }
 
+  /* B5 (inc 237): responsive mobile layout. When the viewport is phone-width the App renders `.app.mobile` — a
+     single column showing one region at a time, with a bottom nav. Desktop (`.app`, above) is untouched. dvh handles
+     the mobile browser's address bar; tokens only (rule #8). */
+  .app.mobile { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+  .app.mobile .mobile-body { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+  .app.mobile .mobile-body > * { flex: 1 1 auto; min-width: 0; height: 100%; }
+  .app.mobile .pane { height: 100%; }
+  .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
+  .mobile-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    padding: 8px 4px; background: none; border: none; cursor: pointer; color: var(--ink-3); font: inherit;
+  }
+  .mobile-nav-btn.active { color: var(--accent); }
+  .mobile-nav-icon { font-size: 18px; line-height: 1; }
+  .mobile-nav-label { font-size: 10.5px; }
+
   .pane { overflow-y: auto; height: 100vh; }
   .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); }
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }

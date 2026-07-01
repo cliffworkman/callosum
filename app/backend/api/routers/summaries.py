@@ -41,6 +41,7 @@ from app.backend.persistence.schema import (
 )
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
+from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
 from integrations.gemini import GeminiConfig, GeminiSummaryGenerator
 
 router = APIRouter()
@@ -168,6 +169,31 @@ def summary_delete(summary_id: int, conn: Connection = Depends(get_connection)) 
     delete_summary(conn, summary_id)
     conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/summaries/{summary_id}/reverify", response_model=SummarizeJobResponse)
+def summary_reverify(
+    summary_id: int, request: Request, conn: Connection = Depends(get_connection)
+) -> SummarizeJobResponse:
+    """B2 SP3: re-verify a RELAYED (imported) synthesis against the local library → convert it in place to native.
+    Fully local — retrieval + NLI + quote-location, no egress, no LLM. 422 if the summary isn't imported."""
+    try:
+        get_summary(conn, summary_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Summary not found") from None
+    api = request.app
+    try:
+        reverify_imported_summary(
+            conn,
+            summary_id,
+            model=_embedding_model(api),
+            vector_store=_vector_store(api),
+            support_scorer=api.state.support_scorer,
+        )
+    except NotImportedError:
+        raise HTTPException(status_code=422, detail="Only an imported synthesis can be re-verified.") from None
+    conn.commit()
+    return _persisted_summary_response(conn, summary_id=summary_id, job_id=f"summary:{summary_id}")
 
 
 def _validate_summary_request(request: SummarizeRequest) -> None:

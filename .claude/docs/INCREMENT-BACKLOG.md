@@ -519,16 +519,17 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   `add_tag` / `add_to_axis` / `save_reference` / `annotate`, each provenance-stamped (`imported_source="ai-agent"`),
   reversible (session undo / soft-delete), and gated (writes-enabled opt-in + per-write confirmation) + an agent
   audit log. The one genuinely-new architectural item; the defensive moat.
-- **B2 — collaboration / shared libraries** — **[SP1 inc 234 + SP2 inc 235 SHIPPED]** the file-based, copyright-safe
-  slice: a **portable library bundle** — export/import a versioned JSON file carrying metadata + tags + annotations +
-  axis definitions **+ syntheses** but **NO PDFs** (`metadata/library_bundle.py`; `POST /library/bundle/export` +
-  `POST/GET /library/bundle/import`). No server, no egress; merge is additive/non-destructive by identity; the recipient
-  re-acquires their own PDFs. SP2 relays syntheses as the sender's assessment (region precision, a `summaries.imported_json`
-  display blob, never re-verified / never in the verification tables, clearly flagged — invariants #1/#4). Specs
-  `.claude/docs/specs/2026-07-01-library-bundle-design.md` + `…-syntheses-sp2.md`. **Remaining: SP3** = a one-click
-  **"re-verify against my library"** on an imported synthesis (re-run the local retrieval + NLI + quote-location over
-  the recipient's chunks → turns the relayed artifact into a native one). **Beyond SP3 (deferred, own design):** a
-  *live* shared library on the account+sync layer (incs 194–202) under the E2E/consent discipline — ≈ accounts SP4.
+- **B2 — collaboration / shared libraries** — **[COMPLETE — SP1 inc 234 + SP2 inc 235 + SP3 inc 236]** the file-based,
+  copyright-safe slice: a **portable library bundle** — export/import a versioned JSON file carrying metadata + tags +
+  annotations + axis definitions **+ syntheses** but **NO PDFs** (`metadata/library_bundle.py`; `POST
+  /library/bundle/export` + `POST/GET /library/bundle/import`). No server, no egress; merge additive/non-destructive by
+  identity; the recipient re-acquires their own PDFs. **SP2** relays syntheses as the sender's assessment (region
+  precision, a `summaries.imported_json` display blob, never re-verified / never in the verification tables, clearly
+  flagged — invariants #1/#4). **SP3** adds **"Re-verify against my library"** (`POST /summaries/{id}/reverify`,
+  `summarization/reverify.py`) — re-runs the local verifier over the recipient's chunks + converts the synthesis in
+  place to native (no egress, no LLM). Specs `.claude/docs/specs/2026-07-01-library-bundle-{design,syntheses-sp2,
+  reverify-sp3}.md`. **Beyond B2 (deferred, own design):** a *live* shared library on the account+sync layer (incs
+  194–202) under the E2E/consent discipline — ≈ accounts SP4.
 - **B3 — OCR for scanned PDFs** — **[DONE inc 231]** a manual per-paper **"OCR this paper"** action (shown only for
   a PDF with no text layer): local **Tesseract** produces a **searchable PDF** (image + embedded OCR text layer),
   attached as the new primary + extracted through the normal pipeline → the scanned paper becomes searchable +
@@ -542,7 +543,13 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   the sentence is always the evidence; a signal not a verdict; no accusation. Spec
   `.claude/docs/specs/2026-07-01-citation-context-design.md`. **Possible later:** Semantic Scholar intents as a
   supplementary tag; a library-wide most-contested/most-supported facet; report caching.
-- **B5 — mobile / tablet reading** — a read-only mobile companion built on inc-101 read mode; directional, post-V1.
+- **B5 — mobile / tablet reading** — **[SP1 SHIPPED inc 237]** the desktop app is now **responsive** (single-column +
+  a bottom nav on a phone-width viewport, built on the inc-101 read mode) and reachable **read-only** over the
+  cloudflared tunnel: a **`CALLOSUM_READ_ONLY=1` method gate** (403 on every write — the real boundary) + a **read-only
+  ingress allowlist** (`adapters/mobile/`, defense in depth) + the bearer token. Run a 2nd read-only callosum for the
+  tunnel (`tools/run_tunnel.py --mobile`; `adapters/mobile/README.md`). Spec `…/specs/2026-07-01-mobile-reading-sp1.md`.
+  **Remaining: SP2** = an app-side read-only *UI* that hides write controls for a clean companion (the tunnel already
+  blocks writes — UX, not security) + a mobile-tuned PDF reader / citation highlights.
 
 **C — reserved / declined (recorded; do NOT build or re-propose):** folders/collections hierarchy (**superseded by
 axes** — coherent set → axis, arbitrary flat set → tag, "read this week" → needs-review filter; the A7 Curated Axis is

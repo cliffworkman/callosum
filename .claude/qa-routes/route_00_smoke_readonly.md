@@ -1,7 +1,12 @@
 <!-- qa-coverage
 api: GET /health, GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, GET /tags, GET /axes, GET /help/corpus, GET /citations/styles, GET /summaries
-fe: 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
+fe: 02_mobilenav.jsx, 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
 -->
+
+<!-- B5 (inc 237): at a phone-width viewport (≤760px) the app renders single-column with a bottom `.mobile-nav`
+(Library / Panels / Details); tapping a tab switches the region. Above 760px the desktop 3-pane grid is unchanged.
+Read-only over the tunnel is the CALLOSUM_READ_ONLY method gate (403 on writes) + the read-only cloudflared ingress
+allowlist — covered by tests/test_mobile_ingress.py + adapters/mobile/. -->
 
 # ROUTE 00 — Read-only smoke (every surface renders, nothing errors)
 

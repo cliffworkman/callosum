@@ -38,6 +38,13 @@ highlight, and one curated axis, so a round-trip is meaningful. Register listene
   imported synthesis as a locally-verified one (no banner / exact highlights / in the native verification tables) is
   **Critical** (invariants #1/#4). A citation whose source paper isn't present shows its **quote** + "Source not in
   your library" (evidence stays visible), no Open link. The history list flags imported syntheses (`imported: true`).
+- **Re-verify against my library (B2 SP3).** The `.synth-imported` banner offers **"Re-verify against my library"**
+  (`POST /summaries/{id}/reverify`) — re-runs the LOCAL verifier (retrieval + NLI + quote-location; **no egress, no
+  LLM**) over the recipient's chunks, converting the synthesis **in place** to native (`imported: false`, real
+  verification rows, the banner drops, `generated_by="re-verified-from-bundle"`). A claim whose source paper the
+  recipient doesn't have becomes a **flagged** sentence with no local citation (silence≠certificate; the claim still
+  shows) — never silently "verified". Re-verifying a native summary → **422**; an unknown id → **404**. Any off-machine
+  request during re-verify is **Critical**.
 - **Bounded input.** Oversized / malformed / unknown-version bundle text → a graceful job error (422 at the endpoint
   for empty/oversized `content`; the worker errors cleanly on bad JSON / unknown version), never a crash.
 

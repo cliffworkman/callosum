@@ -131,6 +131,22 @@
     overflow: hidden;
   }
 
+  /* B5 (inc 237): responsive mobile layout. When the viewport is phone-width the App renders `.app.mobile` — a
+     single column showing one region at a time, with a bottom nav. Desktop (`.app`, above) is untouched. dvh handles
+     the mobile browser's address bar; tokens only (rule #8). */
+  .app.mobile { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; }
+  .app.mobile .mobile-body { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
+  .app.mobile .mobile-body > * { flex: 1 1 auto; min-width: 0; height: 100%; }
+  .app.mobile .pane { height: 100%; }
+  .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
+  .mobile-nav-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    padding: 8px 4px; background: none; border: none; cursor: pointer; color: var(--ink-3); font: inherit;
+  }
+  .mobile-nav-btn.active { color: var(--accent); }
+  .mobile-nav-icon { font-size: 18px; line-height: 1; }
+  .mobile-nav-label { font-size: 10.5px; }
+
   .pane { overflow-y: auto; height: 100vh; }
   .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); }
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
@@ -1971,6 +1987,24 @@
     const n = parseInt(m[1], 16);
     return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${alpha})`;
   }
+  const MOBILE_TABS = [
+    { id: "library", label: "Library", icon: "\u{1F4DA}" },
+    { id: "theory", label: "Panels", icon: "\u{1F9ED}" },
+    { id: "methods", label: "Details", icon: "\u{1F4C4}" }
+  ];
+  function MobileNav({ active, onSelect }) {
+    return /* @__PURE__ */ React.createElement("nav", { className: "mobile-nav", "aria-label": "Sections" }, MOBILE_TABS.map((t) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: t.id,
+        className: "mobile-nav-btn" + (active === t.id ? " active" : ""),
+        "aria-current": active === t.id ? "page" : void 0,
+        onClick: () => onSelect(t.id)
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-icon", "aria-hidden": "true" }, t.icon),
+      /* @__PURE__ */ React.createElement("span", { className: "mobile-nav-label" }, t.label)
+    )));
+  }
   function useLibrary(opts) {
     const {
       selected,
@@ -2561,6 +2595,14 @@
     }, [methodsOpen]);
     const [readingMode, setReadingMode] = useState(false);
     const toggleReading = useCallback(() => setReadingMode((on) => !on), []);
+    const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 760px)").matches);
+    useEffect(() => {
+      const mq = window.matchMedia("(max-width: 760px)");
+      const onChange = () => setMobile(mq.matches);
+      mq.addEventListener("change", onChange);
+      return () => mq.removeEventListener("change", onChange);
+    }, []);
+    const [mobilePane, setMobilePane] = useState("library");
     return {
       theme,
       setTheme,
@@ -2583,7 +2625,10 @@
       methodsOpen,
       setMethodsOpen,
       readingMode,
-      toggleReading
+      toggleReading,
+      mobile,
+      mobilePane,
+      setMobilePane
     };
   }
   const PANE_SECTIONS = [];
@@ -5305,6 +5350,18 @@
         else setState({ status: "error", error: r.error });
       });
     }, []);
+    const [reverifying, setReverifying] = useState(false);
+    const reverify = useCallback((summaryId) => {
+      if (reverifying) return;
+      setReverifying(true);
+      apiPost(`/summaries/${summaryId}/reverify`, {}).then((r) => {
+        setReverifying(false);
+        if (r.ok) {
+          setState({ status: "done", result: r.data, loadedSummaryId: summaryId });
+          loadHistory();
+        } else setState((s) => ({ ...s, error: r.error }));
+      });
+    }, [reverifying, loadHistory]);
     const removeSummary = useCallback((summaryId, event) => {
       event.stopPropagation();
       if (!window.confirm("Delete this synthesis? This removes the saved summary and its citation evidence.")) return;
@@ -5351,7 +5408,16 @@
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.imported && /* @__PURE__ */ React.createElement("div", { className: "synth-imported", title: "This synthesis came from a shared bundle \u2014 its statuses are the sender's, computed against their PDFs, not re-checked here." }, "Imported \u2014 the sender's assessment, not re-checked in your library. Sources open at the page (region precision)."), scopeMeta && scopeMeta.total != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Drew from ", /* @__PURE__ */ React.createElement("b", null, drewFromPapers), " of ", scopeMeta.total, " selected paper", scopeMeta.total === 1 ? "" : "s", " \xB7 top ", scopeMeta.topK, " chunks", drewFromPapers < scopeMeta.total ? ` \xB7 ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""), sentences.length > 0 && verifiedCount === 0 && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage synth-coverage-warn" }, "No claim cleared local verification \u2014 your question may not be well-addressed in these papers."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.imported && /* @__PURE__ */ React.createElement("div", { className: "synth-imported", title: "This synthesis came from a shared bundle \u2014 its statuses are the sender's, computed against their PDFs, not re-checked here." }, "Imported \u2014 the sender's assessment, not re-checked in your library. Sources open at the page (region precision).", /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-link",
+        disabled: reverifying,
+        title: "Re-run local verification (retrieval + NLI + quote-location) against your own library \u2014 turns this into your verified synthesis. No egress.",
+        onClick: () => reverify(state.result.summary_id)
+      },
+      reverifying ? "Re-verifying\u2026" : "Re-verify against my library"
+    )), scopeMeta && scopeMeta.total != null && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage" }, "Drew from ", /* @__PURE__ */ React.createElement("b", null, drewFromPapers), " of ", scopeMeta.total, " selected paper", scopeMeta.total === 1 ? "" : "s", " \xB7 top ", scopeMeta.topK, " chunks", drewFromPapers < scopeMeta.total ? ` \xB7 ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""), sentences.length > 0 && verifiedCount === 0 && /* @__PURE__ */ React.createElement("div", { className: "synth-coverage synth-coverage-warn" }, "No claim cleared local verification \u2014 your question may not be well-addressed in these papers."), sentences.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state", style: { padding: "24px 10px" } }, /* @__PURE__ */ React.createElement("div", { className: "big" }, "No groundable summary produced."), "The generator returned no sentences \u2014 your question may not be addressed in this scope."), sentences.length > 0 && /* @__PURE__ */ React.createElement(OverviewBlock, { overview: state.result.overview }), sentences.length > 0 && /* @__PURE__ */ React.createElement(GroupedSummarySentences, { sentences, onOpenCitation, onSaveHighlight })), /* @__PURE__ */ React.createElement(
       SummaryHistory,
       {
         state: history,
@@ -8814,7 +8880,10 @@
       methodsOpen,
       setMethodsOpen,
       readingMode,
-      toggleReading
+      toggleReading,
+      mobile,
+      mobilePane,
+      setMobilePane
     } = useUiPrefs();
     const [selected, setSelected] = useState(null);
     const [tabs, setTabs] = useState([]);
@@ -8965,7 +9034,7 @@
       settingsNonce
       // inc 148: synthesis egress-off nudge → open Settings
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? /* @__PURE__ */ React.createElement(
+    const sidebarEl = /* @__PURE__ */ React.createElement(
       Sidebar,
       {
         conn,
@@ -8975,25 +9044,8 @@
         theoryOpen,
         onTheoryOpen: setTheoryOpen
       }
-    ) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
-      Divider,
-      {
-        side: "left",
-        open: leftOpen,
-        onToggle: () => setLeftOpen((o) => !o),
-        onDragStart: (e) => {
-          const sx = e.clientX, sw = leftW;
-          _beginDrag(e, (x) => {
-            const proposed = sw + (x - sx);
-            if (proposed < LEFT_COLLAPSE_AT) setLeftOpen(false);
-            else {
-              setLeftOpen(true);
-              setLeftW(_clampW(proposed, LEFT_MIN, LEFT_MAX));
-            }
-          });
-        }
-      }
-    ), /* @__PURE__ */ React.createElement(
+    );
+    const libraryFrame = /* @__PURE__ */ React.createElement(
       LibraryFrame,
       {
         libraryProps: {
@@ -9026,25 +9078,9 @@
         readingMode,
         onToggleReading: toggleReading
       }
-    ), /* @__PURE__ */ React.createElement(
-      Divider,
-      {
-        side: "right",
-        open: rightOpen,
-        onToggle: () => setRightOpen((o) => !o),
-        onDragStart: (e) => {
-          const sx = e.clientX, sw = rightW;
-          _beginDrag(e, (x) => {
-            const proposed = sw - (x - sx);
-            if (proposed < RIGHT_COLLAPSE_AT) setRightOpen(false);
-            else {
-              setRightOpen(true);
-              setRightW(_clampW(proposed, RIGHT_MIN, RIGHT_MAX));
-            }
-          });
-        }
-      }
-    ), rightOpen && !readingMode ? /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen })) : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => {
+    );
+    const detailEl = /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen }));
+    const modals = /* @__PURE__ */ React.createElement(React.Fragment, null, settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => {
       setSettingsOpen(false);
       setSettingsNonce((n) => n + 1);
     } }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
@@ -9065,6 +9101,47 @@
         }
       }
     ));
+    if (mobile) {
+      const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
+      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" }, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: setMobilePane }), modals);
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : ""), style: { gridTemplateColumns: cols } }, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
+      Divider,
+      {
+        side: "left",
+        open: leftOpen,
+        onToggle: () => setLeftOpen((o) => !o),
+        onDragStart: (e) => {
+          const sx = e.clientX, sw = leftW;
+          _beginDrag(e, (x) => {
+            const proposed = sw + (x - sx);
+            if (proposed < LEFT_COLLAPSE_AT) setLeftOpen(false);
+            else {
+              setLeftOpen(true);
+              setLeftW(_clampW(proposed, LEFT_MIN, LEFT_MAX));
+            }
+          });
+        }
+      }
+    ), libraryFrame, /* @__PURE__ */ React.createElement(
+      Divider,
+      {
+        side: "right",
+        open: rightOpen,
+        onToggle: () => setRightOpen((o) => !o),
+        onDragStart: (e) => {
+          const sx = e.clientX, sw = rightW;
+          _beginDrag(e, (x) => {
+            const proposed = sw - (x - sx);
+            if (proposed < RIGHT_COLLAPSE_AT) setRightOpen(false);
+            else {
+              setRightOpen(true);
+              setRightW(_clampW(proposed, RIGHT_MIN, RIGHT_MAX));
+            }
+          });
+        }
+      }
+    ), rightOpen && !readingMode ? detailEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), modals);
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
 })();

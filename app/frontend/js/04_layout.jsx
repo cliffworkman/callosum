@@ -95,6 +95,18 @@ function useUiPrefs() {
   const [readingMode, setReadingMode] = useState(false);
   const toggleReading = useCallback(() => setReadingMode(on => !on), []);
 
+  // B5 (inc 237): responsive mobile layout. `mobile` tracks a phone-width viewport (the inc-34 matchMedia-listener
+  // pattern); `mobilePane` is which region shows one-at-a-time on mobile. Transient (not persisted — it follows
+  // the device). The read-only guarantee lives at the cloudflared tunnel ingress, not here.
+  const [mobile, setMobile] = useState(() => window.matchMedia("(max-width: 760px)").matches);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 760px)");
+    const onChange = () => setMobile(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const [mobilePane, setMobilePane] = useState("library");
+
   return {
     theme, setTheme,
     hideUncertainDefault, setHideUncertainDefault,
@@ -103,5 +115,6 @@ function useUiPrefs() {
     leftW, setLeftW, rightW, setRightW, leftOpen, setLeftOpen, rightOpen, setRightOpen,
     theoryOpen, setTheoryOpen, methodsOpen, setMethodsOpen,
     readingMode, toggleReading,
+    mobile, mobilePane, setMobilePane,
   };
 }

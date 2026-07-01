@@ -141,6 +141,18 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
     });
   }, []);
 
+  // B2 SP3: re-verify an imported (relayed) synthesis against MY library → convert it in place to native.
+  const [reverifying, setReverifying] = useState(false);
+  const reverify = useCallback((summaryId) => {
+    if (reverifying) return;
+    setReverifying(true);
+    apiPost(`/summaries/${summaryId}/reverify`, {}).then(r => {
+      setReverifying(false);
+      if (r.ok) { setState({ status: "done", result: r.data, loadedSummaryId: summaryId }); loadHistory(); }
+      else setState(s => ({ ...s, error: r.error }));
+    });
+  }, [reverifying, loadHistory]);
+
   const removeSummary = useCallback((summaryId, event) => {
     event.stopPropagation();
     if (!window.confirm("Delete this synthesis? This removes the saved summary and its citation evidence.")) return;
@@ -226,6 +238,11 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
           {state.result.imported &&
             <div className="synth-imported" title="This synthesis came from a shared bundle — its statuses are the sender's, computed against their PDFs, not re-checked here.">
               Imported — the sender's assessment, not re-checked in your library. Sources open at the page (region precision).
+              <button className="btn btn-link" disabled={reverifying}
+                title="Re-run local verification (retrieval + NLI + quote-location) against your own library — turns this into your verified synthesis. No egress."
+                onClick={() => reverify(state.result.summary_id)}>
+                {reverifying ? "Re-verifying…" : "Re-verify against my library"}
+              </button>
             </div>}
           {scopeMeta && scopeMeta.total != null &&
             <div className="synth-coverage">

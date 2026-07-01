@@ -1,11 +1,13 @@
-"""Portable library bundle (B2 SP1): export/import metadata + tags + annotations + axis definitions — NO PDFs.
+"""Portable library bundle (B2): export/import metadata + tags + annotations + axis definitions + syntheses — NO PDFs.
 
 A versioned JSON file the user hands off — **no server, no automatic egress**; copyright-safe (no PDF bytes; the
 recipient re-acquires their own copies via the OA lane). Reuses the cross-library identity primitive
 (`find_existing_paper_by_identity`, keeping the matched row) + `create_paper` + the tags/annotations repos + the
 inc-211 curated-axis machinery. Merge on import is **additive & non-destructive** — an existing paper (matched by
-identity) keeps its own metadata and only *gains* the bundle's tags + annotations. Syntheses + PDFs are SP2/never
-(see the design spec). No new dependency, no migration.
+identity) keeps its own metadata and only *gains* the bundle's tags + annotations. **Syntheses (SP2, inc 235) travel
+as RELAYED artifacts** — imported as a self-contained display blob (`summaries.imported_json`, region precision,
+never re-verified), each citation carrying its source-paper identity so SP3 (inc 236) can re-verify it locally.
+PDFs never travel. No new dependency; the only migration is the SP2 `summaries.imported_json` column (0032).
 """
 
 from __future__ import annotations
@@ -489,6 +491,9 @@ def _import_syntheses(conn: Connection, entries: Any, summary: dict[str, int]) -
                             {
                                 "paper_id": pid,
                                 "paper_title": ptitle,
+                                "source": c.get("source")
+                                if isinstance(c.get("source"), dict)
+                                else None,  # SP3 re-resolve
                                 "quote": c.get("quote_text"),
                                 "page_start": c.get("page_start"),
                                 "page_end": c.get("page_end"),

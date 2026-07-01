@@ -31,6 +31,11 @@ from app.backend import app_settings
 # verifier (app/backend/api/auth/router.py), so exempting it is safe.
 _EXEMPT_PATHS = frozenset({"/", "/health", "/oauth/callback"})
 
+# B5 (inc 237): read-only mode (CALLOSUM_READ_ONLY=1) forbids every mutating method. GET/HEAD/OPTIONS pass; anything
+# else → 403. This is the METHOD-level read-only boundary the cloudflared path allowlist can't provide (a path like
+# `/papers/5` serves both GET read and DELETE/PATCH writes — cloudflared matches path, not method).
+_READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
 RATE_LIMIT_WINDOW = 60.0  # seconds
 RATE_LIMIT_MAX = 120  # requests per window (generous; only active when remote access is on)
 
@@ -73,6 +78,8 @@ class AccessControlMiddleware(BaseHTTPMiddleware):
         self._limiter = limiter or RateLimiter()
 
     async def dispatch(self, request: Request, call_next):
+        if app_settings.read_only_mode() and request.method not in _READ_METHODS:
+            return JSONResponse({"detail": "This callosum instance is read-only."}, status_code=403)
         if not app_settings.stored_remote_access():
             return await call_next(request)  # OFF (the default) → no-op
         if request.method == "OPTIONS" or request.url.path in _EXEMPT_PATHS:

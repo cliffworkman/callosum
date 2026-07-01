@@ -1,0 +1,30 @@
+# Callosum — cloudflared named-tunnel config for mobile reading (B5 SP1, inc 237).
+#
+# READ-ONLY ingress: forward ONLY the GET read endpoints the mobile reader uses; everything else → 404. This is the
+# tunnel-side path boundary. It is DEFENSE IN DEPTH, not the whole story — a path like /papers/5 serves both a GET
+# read and a DELETE/PATCH write, and cloudflared matches PATH, not method. So you MUST run the tunnel-facing callosum
+# with the METHOD-level read-only gate set:
+#
+#     CALLOSUM_READ_ONLY=1      (forbids every mutating method → 403; the real read-only boundary)
+#
+# and Remote access ON (Settings) so the bearer token gates access. Recommended: run a SECOND callosum instance
+# pointed at your library DB just for the tunnel, with CALLOSUM_READ_ONLY=1 + Remote access on (the inc-170 isolated-
+# instance pattern) — your desktop instance stays read-write; the phone reads the same library.
+#
+# Fill in <TUNNEL_ID> + the credentials path from `cloudflared tunnel create callosum` (see README.md). Your filled
+# copy lives beside this as cloudflared-config.local.yml (gitignored) and is preferred by tools/run_tunnel.py --mobile.
+
+tunnel: <TUNNEL_ID>
+credentials-file: <HOME>/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  # read-only: GET / (the app shell), /health, /papers (search), /papers/{id}, /papers/{id}/pdf, /summaries,
+  # /summaries/{id}, /help/corpus. Query strings (e.g. /papers?q=) are not part of the path match.
+  - hostname: callosum-mobile.clffwrkmn.net
+    path: ^/(|health|papers|papers/[^/]+|papers/[^/]+/pdf|summaries|summaries/[^/]+|help/corpus)$
+    service: http://localhost:8080
+  # everything else on the hostname → 404 (/settings, the scan/import routes, /axes, /tags, edit/delete, …)
+  - hostname: callosum-mobile.clffwrkmn.net
+    service: http_status:404
+  # required catch-all
+  - service: http_status:404

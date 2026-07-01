@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 235** (see Increment workflow) with **848 pytest tests
+It is currently at **Increment 237** (see Increment workflow) with **872 pytest tests
 passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`
@@ -222,7 +222,8 @@ callosum/
 ├── app/
 │   ├── backend/                   ← all backend implementation
 │   │   ├── api/                   (app.py [thin create_app factory + lifespan + CORS + frontend route],
-│   │   │                          access_control.py [remote-access bearer-token gate + rate limiter, opt-in, inc 168],
+│   │   │                          access_control.py [remote-access bearer-token gate + rate limiter, opt-in, inc 168;
+│   │                          + CALLOSUM_READ_ONLY method gate (403 on writes) for B5 mobile reading, inc 237],
 │   │   │                          auth/ [OIDC "Sign in with ORCID" client + router — optional account, SP1, inc 194],
 │   │   │                          startup.py [logging + Alembic auto-migrate], dependencies.py,
 │   │   │                          job_store.py [generic async-job store: Job/JobStore[R]],
@@ -284,7 +285,7 @@ callosum/
 │   │   │                          render_document (position-aware, inc 107) + style manifest + HTML sanitizer],
 │   │   │                          suggest.py [highlight-to-suggest/evaluate engine: retrieval-in-reverse + NLI stance, inc 156],
 │   │   │                          citeproc_runner.js [Node sidecar; per-item + mode:"document"], csl/{styles,locales} [bundled CSL data, CC-BY-SA])
-│   │   ├── summarization/         (pipeline.py, generators.py, verification.py)
+│   │   ├── summarization/         (pipeline.py, generators.py, verification.py, reverify.py [B2 SP3: re-verify an imported synthesis locally → convert in place to native, inc 236])
 │   │   ├── llm/                   (egress.py [provider-neutral DataEgressDisabledError + seam-gate wrappers, inc 58];
 │   │   │                          cache.py [content-addressed summary-generation cache, inc 61]; usage.py [token logging])
 │   │   ├── help/                  (help_content.md [served corpus, inc 59], corpus.py [loader + allowlisted
@@ -306,7 +307,7 @@ callosum/
 │   │   │                          paper_merge.py [non-destructive duplicate merge, inc 161],
 │   │   │                          citation_export.py [→BibTeX/RIS/CSL-JSON, inc 70],
 │   │   │                          citation_import.py [←parse BibTeX/RIS/CSL-JSON, inc 93],
-│   │   │                          library_bundle.py [portable library bundle: export/import metadata+tags+annotations+axis-defs+syntheses, NO PDFs; B2 SP1 inc 234 + SP2 syntheses inc 235])
+│   │   │                          library_bundle.py [portable library bundle: export/import metadata+tags+annotations+axis-defs+syntheses, NO PDFs; B2 SP1 inc 234 + SP2 relayed-syntheses inc 235 + SP3 re-verify inc 236])
 │   │   └── acquisition/           (registry.py [OaLocation OA-only seam + cascade], fetch.py [download/validate/
 │   │                              name/import], wanted.py [wanted-list re-check service, inc 76], resolvers/{openalex,
 │   │                              doaj,europepmc,crossref,core,arxiv,biorxiv,osf}_resolver.py; the OA acquisition
@@ -340,6 +341,11 @@ callosum/
 │                                  (/citations/suggest) + Flatten (live→static). inc 193: callosum-gdocs.gs [the 3 sources
 │                                  bundled to one paste, built by tools/build_gdocs_addon.py] + a --quick Quick-Tunnel path.
 │                                  README.md = the setup runbook (leads with the easy path).
+│   └── mobile/                     B5 SP1 (inc 237): read-only mobile reading over the tunnel — cloudflared-config.yml
+│                                  [READ-ONLY ingress allowlist: forward only GET read paths, else 404] + README.md
+│                                  [runbook: a 2nd callosum with CALLOSUM_READ_ONLY=1 + Remote access on]. tools/run_tunnel.py
+│                                  --mobile runs it; the responsive layout lives in app/frontend (02_mobilenav.jsx + the
+│                                  04_layout mobile flag). The read-only *guarantee* = the CALLOSUM_READ_ONLY method gate.
 ├── integrations/                  (external adapters: zotero, crossref, gemini, openalex, doaj, europepmc, core,
 │                                  arxiv, biorxiv, osf, retraction_watch [RW DB download, inc 132],
 │                                  semantic_scholar [citation contexts → "how this paper is cited", inc 232] [impl];
@@ -655,6 +661,13 @@ work is called done:
   SP1 control** so the file-read/scan routes + `/` are unreachable via the tunnel (recorded in the inc-168 audit).
   Re-audit before a *general* hosted deployment (this foundation targets the single-user add-on tunnel, not
   multi-tenant hosting).
+- **Read-only mobile reading (B5 SP1, inc 237, default-OFF):** `CALLOSUM_READ_ONLY=1` (an env var) makes the
+  `AccessControlMiddleware` return **403** for every mutating method (anything but GET/HEAD/OPTIONS) — the *method*
+  boundary the cloudflared path allowlist can't provide (a path like `/papers/5` serves both a GET read and a DELETE
+  write; cloudflared matches path only). The recommended deploy runs a **second, read-only callosum** for the tunnel
+  (the inc-170 isolated-instance pattern) with `CALLOSUM_READ_ONLY=1` + Remote access on, behind the read-only
+  cloudflared ingress (`adapters/mobile/`, defense in depth) — the desktop instance stays read-write. Audit
+  `2026-07-01_mobile-reading.md` PASS.
 - The localhost-only CORS + PDF/file-serving paths must be re-reviewed for a hosted context.
 - **`POST /library/scan` reads a user-supplied folder server-side** (inc 87), **watched folders (inc 98)
   persist those paths + auto-read them on launch** (`POST /library/watched/rescan`), and **the library folder
@@ -785,6 +798,8 @@ before large design changes:
 
 | Decision | Rationale |
 |---|---|
+| B5 SP1 — responsive mobile reading; read-only over the tunnel = a method gate + a read-only ingress (inc 237) | Read your library on a phone. **Maintainer forks (AskUserQuestion):** **make the desktop app responsive** (one app, not a separate `/m` companion) + **full reader** (browse + paper metadata/abstract + PDF + read-only syntheses). **Responsive layout:** `04_layout.jsx::useUiPrefs` gains a `mobile` flag (`matchMedia("(max-width: 760px)")`, the inc-34 listener pattern) + a `mobilePane`; `40_app.jsx` computes the three region nodes + the modals once, then branches — desktop = the unchanged 5-cell grid; **mobile = single column showing one region at a time + a bottom `MobileNav`** (Library / Panels / Details), built on the inc-101 collapse. New `02_mobilenav.jsx` (leaf, hoists) + `styles.css` `.app.mobile`/`.mobile-nav` (`100dvh`, tokens only). Desktop is byte-for-byte unchanged (the branch never runs >760px). **The read-only GUARANTEE = two layers** (the app can't tell tunnel from local — inc 168): (1) **the method gate** `CALLOSUM_READ_ONLY=1` → `AccessControlMiddleware` 403s every non-GET/HEAD/OPTIONS (the *real* boundary; a path like `/papers/5` serves both a GET read and a DELETE write, and cloudflared matches path only); (2) **the read-only cloudflared ingress allowlist** (`adapters/mobile/cloudflared-config.yml` — forward only `/`, `/papers`, `/papers/{id}`, `/papers/{id}/pdf`, `/summaries*`, `/help/corpus`; else 404 — defense in depth). Recommended deploy = a **second, read-only callosum** for the tunnel (inc-170 isolated-instance pattern; same DB, WAL readers) with Remote access on; the desktop instance stays read-write. `tools/run_tunnel.py --mobile` + `adapters/mobile/README.md`. **Default-off, env-only** (a remote caller can't set env). **No new endpoint** (a middleware gate + config), no migration, no new dependency, no new served route (the responsive app is the same `/`). Audit `2026-07-01_mobile-reading.md` PASS. **SP2 (deferred):** an app-side read-only *UI* that hides write controls for a clean companion (the tunnel already blocks writes — UX, not security). pytest **872** (+22: `test_mobile_ingress.py` — the ingress regex forwards read paths + blocks write/config paths; `CALLOSUM_READ_ONLY` 403s writes incl. a path-matched POST, off-by-default lets writes reach the handler); QA **173/173 API + 758/758 FE, 0 uncovered** (`route_00` claims `02_mobilenav.jsx`); headed-verified (`drive_inc237_mobile.py` — phone: 3-tab nav, 0 dividers, tab switching; desktop: the 3-pane grid restored; 0 console/page errors). **This starts B5 (the last B-item); B1–B4 complete, B2 fully complete.** |
+| Library bundle SP3 — "Re-verify against my library" turns a relayed synthesis native (local verification, no egress); B2 fully complete (inc 236) | A **"Re-verify against my library"** button on an imported (relayed) synthesis re-runs the **local** verifier — retrieval + NLI + quote-location — over the recipient's chunks for the same claims and **converts the synthesis in place to native**. **Fully local — no egress, no LLM** (the sentences already exist; only verification runs). **Maintainer forks (AskUserQuestion):** **convert in place** (the same summary becomes native — `imported_json` cleared, real verification rows, status recomputed, stamped `generated_by="re-verified-from-bundle"`) + scope = **the synthesis's source papers** (faithful — re-check the sender's evidence in my copy). **The load-bearing reuse:** the SP2 blob already keeps, per citation, the **sender's quote** + the source **identity** (SP3 added the identity to the blob), so `reverify.py` per citation: re-resolve the source by identity → `_best_chunk_for` (the local chunk containing the sender's quote, else best-by-similarity) → `LocalCitationVerifier.verify(sentence, CandidateCitation(local_chunk, sender_quote), source_chunks=[])`. **exact coordinates** when the sender's quote is verbatim in my PDF (same edition), else **region**; NLI support/contradiction → verified/weak/contradicted. **A claim whose source paper I don't have → a flagged sentence with no local citation** (silence≠certificate — the claim shows, unverified, never silently "verified"). New `summarization/reverify.py` (reuses `LocalCitationVerifier`/`_persist_verification`/`_combined_*`) + `POST /summaries/{id}/reverify` (sync; 404/422; reuses the app's cached embed/vector/support models over one `engine.begin()`) + the `.synth-imported` banner button (`20_synthesis.jsx`). **The honesty is aligned, not a new claim type** — it's the *existing* local verifier re-run, so the statuses become the recipient's own (invariants #1/#4 satisfied; the "sender's assessment" caveat is *removed* precisely because it's now been re-checked locally). **No egress, no new dependency, no migration** (reuses the SP2 `imported_json` column). Audit **addendum 2** to `2026-07-01_library-bundle.md` **PASS**. Principles gate run — aligned. pytest **850** (+2 hermetic: convert-to-native via re-resolve-by-identity + 422/404; source-not-in-library → flagged-no-citation); QA **173/173 API + 755/755 FE, 0 uncovered** (`route_54` extended; the endpoint rides `/summaries*`, the button rides `20_synthesis.jsx`); headed-verified (`drive_inc236_reverify.py` — banner→Re-verify→banner-gone+native-citation; 0 off-machine). **This completes B2 (SP1 234 + SP2 235 + SP3 236).** |
 | Library bundle SP2 — syntheses travel as RELAYED artifacts (the sender's assessment, region precision, never re-verified); completes B2 (inc 235) | A synthesis is a **verification artifact** — its verified/contrasted/flagged statuses were computed against the **sender's** chunks — so importing it must **not** present it as the recipient's verified synthesis (invariants #1/#4). **Maintainer forks (AskUserQuestion):** **relay + flag** (re-verify-against-my-library deferred to SP3) + syntheses in **both** whole-library + selection exports. **The honest structural design:** an imported synthesis is stored as a **self-contained display blob** (`summaries.imported_json`, **migration 0032** additive/guarded; `status="imported"`) — **never** written to `summary_sentences`/`citation_mappings`/`evidence_quotes`, so it can't be read as, or mistaken for, a locally-verified one; `_persisted_summary_response` branches on the blob → `imported=True`; the pane shows the **"Imported — the sender's assessment, not re-checked in your library"** banner (`.synth-imported`, `--flag`); every citation opens at **region precision** (never a fabricated exact box — the sender's bbox is for the sender's PDF); a citation whose source paper the recipient lacks shows its **quote** + "Source not in your library" (evidence shown, no link — silence≠certificate). **Export** = `_synthesis_entries` (NATIVE only — `imported_json IS NULL`, never re-relays; selection keeps only fully-contained papers-scope syntheses); each citation travels **by source identity** (resolved through the summaries.py chunks→papers join), not chunk id. **Import** = `_import_syntheses` (resolve each source by identity, build the region blob, insert one `summaries` row; **idempotent by content**). `SummaryCitationResponse` ids (mapping/evidence/chunk/paper) become **Optional**; `SummarizeJobResponse.imported` + `SummaryListItem.imported` added. **No egress, no PDFs, no new dependency, no new endpoint** (rides the SP1 `/library/bundle/*` + existing `/summaries*`). Audit **addendum** to `2026-07-01_library-bundle.md` **PASS** (the relay-not-re-verify separation upholds #1/#2/#4; bound-param SQL; additive migration; bounded/fail-closed). **Principles gate run — aligned** (declined the misaligned "import as a native verified synthesis"). pytest **848** (+6 hermetic: export-carries-source-identity, imported-relayed-read-via-API [region + `imported:true`], reimport-idempotent, source-not-in-library [quote still shown], native-only-not-re-exported, selection-fully-contained); QA **172/172 API + 753/753 FE, 0 uncovered** (`route_54` extended); headed-verified (`drive_inc235_syntheses.py` — banner + REGION coord + quote; 0 console/page/off-machine). **This completes B2 (SP1 inc 234 + SP2 inc 235). SP3 (deferred):** a one-click "re-verify against my library" (re-run the local NLI over the recipient's chunks). |
 | Portable library bundle — file-based, PDF-less, no-server library sharing (backlog B2 SP1; inc 234) | Export a library (or a selection) to a **versioned JSON file** carrying **metadata + tags + annotations + axis definitions but NO PDFs**, and import/merge such a file into another library. A file the user hands off — **no server, no automatic egress**; **copyright-safe** (the recipient re-acquires their own PDFs via the OA lane). **Maintainer forks (AskUserQuestion):** syntheses **deferred to SP2** (they need citation re-anchoring to travel honestly — SP1 is the clean "annotated bibliography" bundle); **axis definitions included** (whole-library only; curated members travel, keyword axes are definition-only + re-scored locally); **both whole-library + selection** export. **Reuses two proven anchors:** the inc-93 citation-import async-job pattern (`find_existing_paper_by_identity` — **keeping the matched row** as the merge target, the correction vs. citation-import which discards it) + the inc-70 export download (raw `Response` + `_downloadBlob`). New `metadata/library_bundle.py` (`build_bundle` + `import_bundle`, keyed on **natural identifiers** — paper by identity, tag by name, axis by label — borrowing the sync identity *idea* not its crypto/transport engine) + 3 endpoints on `routers/library.py` (`POST /library/bundle/export` [sync raw file], `POST/GET /library/bundle/import` [async job → embeds new papers]) + a `BundleImportModal` (`28b_bundle.jsx`, clones `28_import.jsx`) + "+ Add ▾" Import/Export items + a selection bulk-bar **bundle** action. **Merge is additive & non-destructive:** an existing paper (by identity) keeps its own metadata + provenance, only *gains* the bundle's tags + annotations; new papers stamped `imported_source="bundle-import"` (out of the enrich-clobber allowlist); imported annotations drop `attachment_id` (the box renders once the same PDF exists — coordinate honesty #2); re-import is idempotent. **No egress at all** (a local file), **no PDF bytes** (honors the acquisition/no-paywall veto), **no new dependency, no migration**. Audit `2026-07-01_library-bundle.md` PASS; Principles non-triggering (no claim/signal) + the emergent "collaboration/sharing" value adopted deliberately (the file-based, copyright-safe slice of accounts-SP4; strengthens A5 sovereignty — portable open-JSON, no lock-in). pytest **842** (+8 hermetic `test_library_bundle.py` — two throwaway DBs: round-trip/idempotent/non-destructive/selection-no-axes/curated-vs-keyword/attachment-dropped/parse-caps); QA **172/172 API + 753/753 FE, 0 uncovered** (`route_54_library_bundle.md`); headed-verified (`drive_inc234_bundle.py` — export→file→import→merged, NO pdf, 0 console/page/off-machine). **SP2 = syntheses (re-anchored citations).** |
 | Citation context SP2 — "how this paper cites its sources" via the S2 `references` edge + a direction toggle; completes B4 (inc 233) | The outgoing mirror of SP1. **The key realization:** Semantic Scholar's **`/references`** edge returns, for each paper the focal cites, the **context sentences** — i.e. the sentences *in the focal paper* where it cites that reference. **S2 has already linked each in-text citation to its reference**, so SP2 needs **no local citation-marker parsing** (the thing that made it look hard) — it's a near-mirror of SP1 (`/citations`). The S2 client was generalized into `_fetch_edge(edge=…)` (`fetch_citation_contexts` = `citations`, new `fetch_reference_contexts` = `references`; the edge name is a fixed literal → no SSRF); `CitingContext` gained a `claim` field (for `references`, the **cited paper's own** title/abstract — requested via `citedPaper.abstract` — is the per-item NLI hypothesis; for `citations` it's None and the constant focal claim is used). The classifier's hypothesis = `ctx.claim or focal_claim` (SP1 unchanged). The endpoint gained a strict `direction: Literal["citations","references"]` param (worker branches; references → per-item claims, focal_claim=""); the panel gained an **[How it's cited | How it cites its sources]** toggle (`.citec-toggle`) that resets on switch. **Same honesty** as SP1 (counts not a score, evidence shown, signal not verdict, no accusation — describing the focal paper's *own* rhetorical move in a shown sentence). **Public-metadata egress** (DOI → S2, cached under `references:{doi}`), NOT the Gemini gate; classification local. **No new dependency, no migration.** Audit **addendum** to `2026-07-01_citation-context.md` PASS (same posture, second edge). pytest **834** (+3 hermetic); QA **169/169 API + 737/737 FE, 0 uncovered** (`direction` rides the existing endpoint; the toggle claimed by `route_53`). **This completes B4 (SP1 inc 232 + SP2 inc 233).** The live S2 round-trip is the maintainer's spot-check. |
@@ -964,7 +979,96 @@ When starting any non-trivial work:
 
 ---
 
-*Last updated: 2026-07-01 — increment 235 (library bundle SP2 — syntheses travel as **relayed artifacts**;
+*Last updated: 2026-07-01 — increment 237 (B5 SP1 — **responsive mobile reading**, read-only over the tunnel; the
+last B-item, started; brainstormed → forks → spec → built). **Read your library on a phone.** **Maintainer forks
+(AskUserQuestion):** **make the desktop app responsive** (one app, not a separate `/m` companion) + **full reader**
+(browse + paper metadata/abstract + PDF + read-only syntheses). **The responsive layout** (the deliverable):
+`04_layout.jsx::useUiPrefs` gains a `mobile` flag (`window.matchMedia("(max-width: 760px)")` + a change listener — the
+inc-34 DPR-listener pattern) + a transient `mobilePane`; `40_app.jsx` computes the three region nodes (Sidebar =
+THEORY accordion, LibraryFrame = center/reader, pane-detail = METHODS) + the modals **once**, then branches —
+**desktop** = the unchanged 5-cell grid + dividers; **mobile** = `.app.mobile`, a single column showing **one region
+at a time** (`mobilePane`) + a bottom **`MobileNav`** (Library / Panels / Details), built on the inc-101
+reading-mode collapse. New `02_mobilenav.jsx` (a presentational leaf; hoists in the IIFE) + `styles.css`
+`.app.mobile`/`.mobile-body`/`.mobile-nav` (`height: 100dvh` for the mobile address bar; tokens only, rule #8).
+Desktop is **byte-for-byte unchanged** (the `mobile` branch never runs above 760px). **The read-only GUARANTEE = two
+boundaries** (the app **cannot** tell tunnel from local — the inc-168 lesson): **(1) the METHOD gate** —
+`CALLOSUM_READ_ONLY=1` (an env var → `app_settings.read_only_mode()`) makes `AccessControlMiddleware` return **403**
+for every mutating method (anything but GET/HEAD/OPTIONS), *before* the remote-access check; this is the **real**
+boundary, because a path like `/papers/5` serves both a GET read and a DELETE/PATCH write and cloudflared matches
+**path**, not method. **(2) the read-only cloudflared ingress allowlist** (`adapters/mobile/cloudflared-config.yml` —
+forward only `/`, `/health`, `/papers`, `/papers/{id}`, `/papers/{id}/pdf`, `/summaries*`, `/help/corpus`; everything
+else → **404** — defense in depth, keeping `/settings`, the scan/import routes, `/axes`, `/tags` unreachable at the
+tunnel). Plus the inc-168 **bearer token** (Remote access) gating all access. **Recommended deploy:** a **second,
+read-only callosum** for the tunnel (the inc-170 isolated-instance pattern) pointed at the library DB (SQLite WAL →
+concurrent readers safe) with `CALLOSUM_READ_ONLY=1` + Remote access on — the desktop instance stays read-write.
+`tools/run_tunnel.py --mobile` runs the read-only tunnel; `adapters/mobile/README.md` is the runbook (a `--quick
+--mobile` Quick-Tunnel path drops the ingress allowlist → the method gate + token are then the sole boundaries,
+documented). **Default-off, env-only** (a remote caller can't set env — the `CALLOSUM_DISABLE_REMOTE_ACCESS` hatch
+pattern); unset → zero change. **No new API endpoint** (a middleware gate + a config file), **no migration, no new
+dependency, no new served route** (the responsive app is the same `/`). **Audit
+`.claude/security-audits/2026-07-01_mobile-reading.md` PASS** (read-only enforced at the method level with the ingress
+allowlist as defense in depth; default-off + env-only; the token still gates; no new endpoint/dependency/migration/
+egress). **Principles non-triggering** (responsive layout + a read-only deployment; no claim/signal); the **values
+layer** applies — mobile reading is an *extended* value (the existing "read your library" made available on another
+device, under the existing consent/egress discipline). pytest **872 passed, 1 skipped** (+22 `tests/test_mobile_ingress.py`,
+hermetic: the ingress regex **forwards** each read path [`/`, `/papers`, `/papers/5`, `/papers/5/pdf`, `/summaries`,
+`/summaries/7`, `/help/corpus`] and **does not match** the write/config paths [`/settings`, `/library/scan`, `/axes`,
+`/tags`, `/papers/5/re-resolve`, `/summaries/5/reverify`, `/reading-queue`, `/agent/status`]; `CALLOSUM_READ_ONLY=1`
+→ GET 200 but POST `/summarize` + DELETE `/papers/999` + a **path-matched** POST `/papers/export` → **403**;
+off-by-default → DELETE reaches the handler [404, not 403]); `ruff` + `format` clean; frontend rebuilt
+(`test_frontend_assembly` 5/5); **QA surface 173/173 API + 758/758 FE, 0 uncovered** (`route_00_smoke_readonly.md`
+claims `02_mobilenav.jsx`; no new API surface — the gate is middleware, the ingress is config). **Headed-verified**
+(`.local/visual/drive_inc237_mobile.py` — at 390×844: `.app.mobile` single-column, a bottom `.mobile-nav` with 3
+tabs, **0 dividers**; tap Details → the pane-detail region + the active tab; tap Library → the library search; resize
+to 1280×900 → the 3-pane grid restored + no mobile nav; 0 console/page errors). Notes: `INCREMENT-237-NOTES.md`; spec
+`.claude/docs/specs/2026-07-01-mobile-reading-sp1.md`. **This starts B5 — the last B-item** (B1–B4 done; B2 fully
+complete). **SP2 (deferred):** an app-side read-only *UI* that hides write controls for a clean companion (the tunnel
+already blocks writes, so this is UX, not security), and a mobile-tuned PDF reader / citation highlights.
+
+Earlier — increment 236 (library bundle SP3 — **"Re-verify against my library"** turns a relayed
+synthesis native; **B2 fully complete**; brainstormed → forks → spec → built). A **"Re-verify against my library"**
+button on an imported (relayed) synthesis re-runs the **local** verifier — retrieval + NLI + quote-location — over
+the recipient's chunks for the same claims and **converts the synthesis in place to native**. **Fully local — no
+egress, no LLM** (the sentences already exist; only verification runs; this is the aligned outcome of the SP2 relay —
+verification becomes the recipient's substrate's job, invariants #1/#4). **Maintainer forks (AskUserQuestion):**
+**convert in place** (the same summary becomes native — `imported_json` cleared, real verification rows,
+`generated_by="re-verified-from-bundle"`) + scope = **the synthesis's source papers** (faithful — re-check the
+sender's evidence in my copy). **The load-bearing reuse:** the SP2 blob already keeps the **sender's quote** + the
+source **identity** per citation (SP3 added the identity to the blob), so `summarization/reverify.py` per citation:
+re-resolve the source by identity (`find_existing_paper_by_identity` — picks up a paper added since import) →
+`_best_chunk_for` (the local chunk containing the sender's quote, else best-by-similarity) →
+`LocalCitationVerifier.verify(sentence, CandidateCitation(local_chunk, sender_quote), source_chunks=[])` → **exact
+coordinates** when the sender's quote is verbatim in my PDF (same edition), else **region**; NLI
+support/contradiction → verified/weak/contradicted. **A claim whose source paper I don't have → a flagged sentence
+with no local citation** (silence≠certificate — the claim shows, unverified, never silently "verified"). Persist =
+convert in place: delete any old rows, `update summaries` (`imported_json=NULL`, recomputed status,
+`generated_by="re-verified-from-bundle"`, `overview_json=NULL` — the sender's overview traced *their* verified set,
+not re-narrated/no-LLM, version stamps from `_combined_*`), write native `summary_sentences`/`citation_mappings`/
+`evidence_quotes` (reuse `_persist_verification`). **`POST /summaries/{id}/reverify`** (sync — verification of a few
+sentences is fast, no generation/egress; **404** unknown, **422** if not imported; reuses `_embedding_model` +
+`_vector_store` + `api.state.support_scorer` over one `engine.begin()`) + a **"Re-verify against my library"** button
+in the `.synth-imported` banner (`20_synthesis.jsx`) → on success the banner drops (`imported:false`), the pane shows
+**my own** verified/flagged statuses (exact highlights where the quote matched). **The honesty is aligned, not a new
+claim type** — it's the *existing* local verifier re-run, so the statuses become the recipient's own; the "sender's
+assessment" caveat is *removed* precisely because it's now been re-checked locally. **No egress, no new dependency, no
+migration** (reuses the SP2 `imported_json` column). **Audit addendum 2 to
+`.claude/security-audits/2026-07-01_library-bundle.md` PASS** (no egress/LLM/dependency/migration; bound-param SQL in
+one transaction; the honest native outcome — unsupported→flagged, absent-source→flagged-no-citation, exact-only-when-
+the-quote-matches). **Principles gate run — aligned.** pytest **850 passed, 1 skipped** (+2 hermetic
+`tests/test_reverify.py` — fake embed/vector/support models: convert-to-native [`imported:false`, a chunk-backed
+citation, the row `imported_json` NULL + `generated_by="re-verified-from-bundle"`, no-longer-flagged, **re-resolved by
+identity** from a blob `paper_id:None` + a `source` DOI now in the library] + **422** on a native summary + **404** on
+a missing id; a claim whose source isn't present → a **flagged sentence with no citation**, the text kept); `ruff` +
+`format` clean; frontend rebuilt (`test_frontend_assembly` 5/5); **QA surface 173/173 API + 755/755 FE, 0 uncovered**
+(`route_54_library_bundle.md` extended; the endpoint rides `/summaries*`, the button rides `20_synthesis.jsx`); help
+corpus's "Sharing a library" now covers the re-verify action (`HELP-DOCS-SYNCED` → 236). **Headed-verified, no egress**
+(`.local/visual/drive_inc236_reverify.py` — a dest with a paper + an imported synthesis citing it, fake models: open
+THEORY → Synthesis → load it → the imported banner shows → **Re-verify against my library** → the banner **disappears**
+[now native] + a native citation renders; 0 console/page errors, 0 off-machine requests). Notes: `INCREMENT-236-NOTES.md`;
+spec `.claude/docs/specs/2026-07-01-library-bundle-reverify-sp3.md`. **This completes B2 (SP1 234 + SP2 235 + SP3 236).**
+**NEXT — the last unstarted B-item is B5** (mobile reading — responsive, read-only, over the tunnel; its own brainstorm).
+
+Earlier — increment 235 (library bundle SP2 — syntheses travel as **relayed artifacts**;
 **completes B2**; brainstormed → forks → spec → built). A synthesis is a **verification artifact** — its
 verified/contrasted/flagged statuses were computed against the **sender's** chunks — so importing one must **not**
 present it as the recipient's verified synthesis (that would violate invariant #1: external output is never

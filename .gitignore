@@ -37,6 +37,7 @@ adapters/libreoffice/dist/
 # --- Google Docs bridge (inc 169): your FILLED cloudflared config (carries your tunnel id + creds path) ---
 # The committed cloudflared-config.yml stays a placeholder template; run_tunnel.py prefers this local copy.
 adapters/googledocs/cloudflared-config.local.yml
+adapters/mobile/cloudflared-config.local.yml
 
 # --- Large local data (not code) ---
 library/

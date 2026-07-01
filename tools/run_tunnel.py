@@ -30,11 +30,15 @@ ROOT = Path(__file__).resolve().parents[1]
 # cloudflared-config.local.yml (gitignored) and wins when present — so your tunnel id + creds path never get committed.
 CONFIG_TEMPLATE = ROOT / "adapters" / "googledocs" / "cloudflared-config.yml"
 CONFIG_LOCAL = ROOT / "adapters" / "googledocs" / "cloudflared-config.local.yml"
+# B5 (inc 237): the read-only mobile-reading ingress (a separate hostname + allowlist).
+MOBILE_TEMPLATE = ROOT / "adapters" / "mobile" / "cloudflared-config.yml"
+MOBILE_LOCAL = ROOT / "adapters" / "mobile" / "cloudflared-config.local.yml"
 _WIN_DEFAULT = r"C:\Program Files (x86)\cloudflared\cloudflared.exe"
 
 
-def _config() -> Path:
-    return CONFIG_LOCAL if CONFIG_LOCAL.is_file() else CONFIG_TEMPLATE
+def _config(mobile: bool = False) -> Path:
+    template, local = (MOBILE_TEMPLATE, MOBILE_LOCAL) if mobile else (CONFIG_TEMPLATE, CONFIG_LOCAL)
+    return local if local.is_file() else template
 
 
 def _cloudflared() -> str | None:
@@ -62,6 +66,9 @@ def _run_quick(cf: str, port: int) -> int:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run a cloudflared tunnel for the Google Docs add-on.")
     parser.add_argument("--quick", action="store_true", help="zero-setup Cloudflare Quick Tunnel (throwaway URL)")
+    parser.add_argument(
+        "--mobile", action="store_true", help="read-only mobile-reading ingress (B5) instead of cite-only"
+    )
     parser.add_argument("--port", type=int, default=8080, help="local callosum port for --quick (default 8080)")
     args = parser.parse_args()
 
@@ -71,19 +78,26 @@ def main() -> int:
         return 1
     if args.quick:
         return _run_quick(cf, args.port)
-    config = _config()
+    config = _config(mobile=args.mobile)
+    subdir = "adapters/mobile" if args.mobile else "adapters/googledocs"
     if not config.is_file():
         print(f"Missing tunnel config: {config}", file=sys.stderr)
         return 1
     if "<TUNNEL_ID>" in config.read_text(encoding="utf-8"):
         print(
             f"Fill in your tunnel id + credentials path in a local copy:\n"
-            f"    copy {CONFIG_TEMPLATE.name} -> {CONFIG_LOCAL.name}  (in adapters/googledocs/, gitignored)\n"
-            "Run `cloudflared tunnel create callosum` first — see adapters/googledocs/README.md.",
+            f"    copy {config.name} -> {config.stem}.local.yml  (in {subdir}/, gitignored)\n"
+            f"Run `cloudflared tunnel create callosum` first — see {subdir}/README.md.",
             file=sys.stderr,
         )
         return 1
-    print("Starting the cloudflared tunnel for callosum-tunnel.clffwrkmn.net (cite-only). Ctrl-C to stop.")
+    if args.mobile:
+        print("Starting the READ-ONLY mobile tunnel. Make sure the tunnel-facing callosum runs with", file=sys.stderr)
+        print(
+            "CALLOSUM_READ_ONLY=1 + Remote access ON (see adapters/mobile/README.md). Ctrl-C to stop.", file=sys.stderr
+        )
+    else:
+        print("Starting the cloudflared tunnel for callosum-tunnel.clffwrkmn.net (cite-only). Ctrl-C to stop.")
     return subprocess.call([cf, "tunnel", "--config", str(config), "run"])
 
 

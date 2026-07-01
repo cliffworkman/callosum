@@ -17,6 +17,7 @@ function App() {
     leftW, setLeftW, rightW, setRightW, leftOpen, setLeftOpen, rightOpen, setRightOpen,
     theoryOpen, setTheoryOpen, methodsOpen, setMethodsOpen,
     readingMode, toggleReading,
+    mobile, mobilePane, setMobilePane,
   } = useUiPrefs();
 
   const [selected, setSelected] = useState(null);
@@ -146,50 +147,38 @@ function App() {
     onOpenSettings: () => setSettingsOpen(true), settingsNonce,  // inc 148: synthesis egress-off nudge → open Settings
   };
 
-  return (
-    <div className={"app" + (readingMode ? " reading" : "")} style={{ gridTemplateColumns: cols }}>
-      {leftOpen && !readingMode
-        ? <Sidebar conn={conn} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)}
-            ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
-        : <div className="pane-collapsed" />}
-      <Divider
-        side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
-        onDragStart={(e) => { const sx = e.clientX, sw = leftW; _beginDrag(e, (x) => {
-          const proposed = sw + (x - sx);
-          if (proposed < LEFT_COLLAPSE_AT) setLeftOpen(false);
-          else { setLeftOpen(true); setLeftW(_clampW(proposed, LEFT_MIN, LEFT_MAX)); }
-        }); }}
-      />
-      <LibraryFrame
-        libraryProps={{
-          ...libraryBits,
-          selected, onSelect: setSelected,
-          focusAxis, focusMembers, focusPending,
-          onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
-          onFindDuplicates: () => setDuplicatesOpen(true),
-          onOpenWanted: () => setWantedOpen(true),
-          onOpenGaps: () => setGapsOpen(true),
-          onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
-          onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
-        }}
-        tabs={tabs} activeTab={activeTab}
-        onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
-        onSummarizePapers={summarizePaperIds} onSelectPaper={setSelected}
-        onDiscoverSaved={() => setLibRefresh(n => n + 1)}
-        annoRefresh={annoRefresh}
-        readingMode={readingMode} onToggleReading={toggleReading}
-      />
-      <Divider
-        side="right" open={rightOpen} onToggle={() => setRightOpen(o => !o)}
-        onDragStart={(e) => { const sx = e.clientX, sw = rightW; _beginDrag(e, (x) => {
-          const proposed = sw - (x - sx);
-          if (proposed < RIGHT_COLLAPSE_AT) setRightOpen(false);
-          else { setRightOpen(true); setRightW(_clampW(proposed, RIGHT_MIN, RIGHT_MAX)); }
-        }); }}
-      />
-      {rightOpen && !readingMode
-        ? <div className="pane pane-detail"><PaneAccordion paneId="methods" ctx={paneCtx} openId={methodsOpen} onOpen={setMethodsOpen} /></div>
-        : <div className="pane-collapsed" />}
+  // B5 (inc 237): compute the three region nodes + the modals once, then render either the desktop grid or the
+  // single-column mobile stack. Only one layout branch renders per pass, so reusing an element instance is safe.
+  const sidebarEl = (
+    <Sidebar conn={conn} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)}
+      ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
+  );
+  const libraryFrame = (
+    <LibraryFrame
+      libraryProps={{
+        ...libraryBits,
+        selected, onSelect: setSelected,
+        focusAxis, focusMembers, focusPending,
+        onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
+        onFindDuplicates: () => setDuplicatesOpen(true),
+        onOpenWanted: () => setWantedOpen(true),
+        onOpenGaps: () => setGapsOpen(true),
+        onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
+        onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
+      }}
+      tabs={tabs} activeTab={activeTab}
+      onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
+      onSummarizePapers={summarizePaperIds} onSelectPaper={setSelected}
+      onDiscoverSaved={() => setLibRefresh(n => n + 1)}
+      annoRefresh={annoRefresh}
+      readingMode={readingMode} onToggleReading={toggleReading}
+    />
+  );
+  const detailEl = (
+    <div className="pane pane-detail"><PaneAccordion paneId="methods" ctx={paneCtx} openId={methodsOpen} onOpen={setMethodsOpen} /></div>
+  );
+  const modals = (
+    <React.Fragment>
       {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} onClose={() => { setSettingsOpen(false); setSettingsNonce(n => n + 1); }} />}
       {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {duplicatesOpen &&
@@ -210,6 +199,42 @@ function App() {
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); }} />}
+    </React.Fragment>
+  );
+
+  if (mobile) {
+    const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
+    return (
+      <div className="app mobile">
+        <div className="mobile-body">{activeEl}</div>
+        <MobileNav active={mobilePane} onSelect={setMobilePane} />
+        {modals}
+      </div>
+    );
+  }
+
+  return (
+    <div className={"app" + (readingMode ? " reading" : "")} style={{ gridTemplateColumns: cols }}>
+      {leftOpen && !readingMode ? sidebarEl : <div className="pane-collapsed" />}
+      <Divider
+        side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
+        onDragStart={(e) => { const sx = e.clientX, sw = leftW; _beginDrag(e, (x) => {
+          const proposed = sw + (x - sx);
+          if (proposed < LEFT_COLLAPSE_AT) setLeftOpen(false);
+          else { setLeftOpen(true); setLeftW(_clampW(proposed, LEFT_MIN, LEFT_MAX)); }
+        }); }}
+      />
+      {libraryFrame}
+      <Divider
+        side="right" open={rightOpen} onToggle={() => setRightOpen(o => !o)}
+        onDragStart={(e) => { const sx = e.clientX, sw = rightW; _beginDrag(e, (x) => {
+          const proposed = sw - (x - sx);
+          if (proposed < RIGHT_COLLAPSE_AT) setRightOpen(false);
+          else { setRightOpen(true); setRightW(_clampW(proposed, RIGHT_MIN, RIGHT_MAX)); }
+        }); }}
+      />
+      {rightOpen && !readingMode ? detailEl : <div className="pane-collapsed" />}
+      {modals}
     </div>
   );
 }

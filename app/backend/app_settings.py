@@ -321,6 +321,13 @@ def stored_remote_access() -> bool:
     return bool(load_settings().get("remote_access_enabled", False))
 
 
+def read_only_mode() -> bool:
+    """Whether this callosum instance is READ-ONLY (B5 mobile reading): CALLOSUM_READ_ONLY=1 makes the middleware
+    reject every mutating method (anything but GET/HEAD/OPTIONS) with 403 — the method-level boundary for a
+    tunnel-facing read-only deployment (an env var a remote caller can't set). Off by default → zero change."""
+    return os.getenv("CALLOSUM_READ_ONLY", "").strip().lower() in {"1", "true", "yes"}
+
+
 def set_agent_writes_enabled(enabled: bool) -> None:
     data = load_settings()
     data["agent_writes_enabled"] = bool(enabled)
