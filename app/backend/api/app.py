@@ -58,6 +58,7 @@ from app.backend.api.routers import (
     transparency,
     wanted,
     word,
+    workbench,
 )
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
 from app.backend.discovery.feed import FeedRegistry, build_default_feed_registry
@@ -234,6 +235,7 @@ def create_app(
     api.include_router(
         paper_enrich.router
     )  # /papers/{id}/re-resolve + /fill-metadata — split out of papers.py (inc 226)
+    api.include_router(workbench.router)  # /workbench/* — the meta-analysis extraction workspace (inc 253)
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
