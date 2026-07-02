@@ -518,11 +518,22 @@ and how do they line up with the published report?* Gated by the Principles gate
   in-context `basis`. NO gate (every paper gets the 7 checks). "not found" = "not detected in the extracted text — check
   the paper", never "concealed"/"absent" (silence≠certificate, test-pinned `test_no_accusatory_language`); signal-not-
   verdict; no composite "transparency score". Local, regex, no new dependency. Audit PASS; Principles+A-A aligned; QA
-  route_63; headed-verified. **Increment 1b (next, deferred):** feed the findings subsystem (inc 130 — persist
-  detected-present as FACTs) + the **#19 tags→system-facts** problem (read-only `system:transparency:*` tags) + a
-  library-wide "open data not detected" filter; + the cross-method chip (F1) + credit-footer-on-n/a (F2) filed from the
-  experience pass. Credit-the-lineage in NOTICES: ODDPub (Riedel et al. 2020), rtransparent (Serghiou et al. 2021),
-  Nosek et al. (2018).
+  route_63; headed-verified.
+- **✅ Increment 1b — SHIPPED inc 251 (persist transparency):** `methods/transparency_findings.py` (present-only FACTs +
+  per-disclosure status) + `signals_repo.store_transparency_status`/`count_transparency_review` + `POST/GET
+  /methods/transparency/run` + `/summary` + the `repository.SIGNAL_FILTERS` generalization to `(type, source|None,
+  status)` with **7 transparency review queues** + the `08h` **Check all papers** batch + a **🔎 N · open data not
+  detected** Library-header chip (indigo work-queue). A batch persists each paper's *detected-present* disclosures as
+  findings-FACTs (inc 130 — render as Review-pane marks) + every disclosure's check status (inc 97), powering the review
+  queues. **The A-A no-accusation boundary is structural + test-pinned:** present-only FACTs (an absence is NEVER a
+  fact); review-queue-not-verdict wording ("not detected — go look", never "hides data"); no score/rank; precondition-
+  scoped filters (registration n/a excluded, upon-request is the present case). No migration; local/no-egress/no-LLM/no-
+  dependency. pytest +8; QA 182/182 API + 814/814 FE, 0 uncovered; audit PASS; headed-verified. This delivered the
+  inc-250 experience-pass **F4** (library surfacing + a review queue). **Still deferred within 1b:** the **#19
+  tags→system-facts** thread (read-only `system:transparency:*` tags — the tag-provenance model is an open design
+  problem); + the standing cross-method **F1** on-paper report-card chip (the panel batch trigger is still METHODS-
+  buried) + **F2** credit-footer-on-n/a, both filed to #23. Credit-the-lineage in NOTICES: ODDPub (Riedel et al. 2020),
+  rtransparent (Serghiou et al. 2021), Nosek et al. (2018).
 - **Increment 2 (infra):** **DocumentTextProvider** adapters for JATS/XML, DOCX, HTML (PyMuPDF/Tesseract stay the
   primary PDF path) — unlocks better table/stat extraction + PMC transparency detection + registration comparison.
 - **Increment 3 (fraught — gated):** **RegCheck** — a registration↔paper **delta table with source-paired quotes**

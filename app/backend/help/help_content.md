@@ -844,6 +844,8 @@ Read it as a prompt, not a report card:
 - There is **no transparency score, no rank, and no verdict**; a present check opens its evidence in the PDF.
 - The section credits each detector's source and offers a one-click **add methods sources to library**.
 
+**Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. It also fills a set of **review queues** — lists of papers where the auditor *didn't* detect a given disclosure in the text. When the data queue isn't empty, the Library header shows a **🔎 N · open data not detected** chip that jumps to it. A review queue is a prompt to look — *the paper may still share its data elsewhere* — never a claim that it hides anything, and there is no score or ranking.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

@@ -1,5 +1,8 @@
 <!-- qa-coverage
 api: /papers/{paper_id}/transparency
+api: /methods/transparency/run
+api: /methods/transparency/run/{job_id}
+api: /methods/transparency/summary
 fe: 08h_methods_transparency.jsx
 -->
 
@@ -33,6 +36,13 @@ genai-host request regardless). Register listeners before navigation.
   appendix / footnote / structured metadata this reader doesn't fully see") is stated.
 - **Weak signal, not a flag.** The `upon_request` row (when present) is shown as a legibility note ("a weaker signal
   than an open link, not a concern in itself"), never an accusation.
+- **Persistence is present-only + review-queue-not-verdict (inc 251, Critical if violated).** The library batch
+  (`POST /methods/transparency/run`) persists a paper's *detected-present* disclosures as evidence-carrying FACTs in
+  its Review section — an **absence is NEVER persisted as a fact**. The review-queue chip + panel links list papers
+  where the auditor **didn't detect** a disclosure, worded "not detected — go look" / "it may still share elsewhere",
+  NEVER "papers that hide their data / have no open data". The chip is an indigo work-queue color (`.transparency-chip`
+  = `--accent`), never the amber status-flag or red destructive. `GET /methods/transparency/summary` returns a plain
+  `data_not_detected` COUNT, no score/rank.
 - **Precondition scoping.** **Registration** shows **n/a** for a non-trial / non-review design (a registration flag on
   every paper is the failure mode). **Available upon request** shows **n/a** when the phrase is absent (never
   "not found").
@@ -69,6 +79,18 @@ genai-host request regardless). Register listeners before navigation.
 7. Confirm the **credit** block (ODDPub — Riedel et al. 2020; rtransparent — Serghiou et al. 2021; preregistration —
    Nosek et al. 2018) + a working **＋ add methods sources to library**.
 8. Adversarial: a metadata-only paper -> "Process a PDF first"; 999999 -> 404-class.
+9. **Library persistence (inc 251).** In the panel's **Whole library** part, click **Check all papers** ->
+   `POST /methods/transparency/run` 202 -> poll `GET .../run/{job_id}` to done. Confirm the summary reads
+   "N papers checked · M with ≥1 disclosure detected". Confirm the 7 review-queue links render ("not detected in the
+   text — go look" framing, NEVER "hides data").
+10. Confirm a paper whose text HAS an open-data disclosure now shows a transparency FACT mark in its **Review** section
+    (METHODS -> Review). Confirm a bare paper (no disclosures) shows **no** transparency fact (an absence is never a
+    fact).
+11. In the Library header, if any paper lacks a detected data disclosure, confirm the **🔎 N · open data not detected**
+    chip (indigo work-queue color) -> click -> the library narrows to that review queue + a non-accusatory banner;
+    `GET /papers?signal=transparency-data-not-detected` returns only checked papers lacking a data FACT. Confirm the
+    registration queue excludes non-trial (n/a) papers.
+12. Adversarial: `GET /methods/transparency/run/nope` -> 404-class, no crash.
 
 ## Pass criteria
 
@@ -77,7 +99,10 @@ genai-host request regardless). Register listeners before navigation.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No verdict/score/rank/accusation; "not detected" ≠ "absent"; registration + upon-request are precondition-scoped
   (n/a where inapplicable); the upon-request row reads as a weak signal, not a flag.
-- No-chunks / unknown-id fail closed honestly; mobile viewport has no horizontal overflow.
+- **Persistence:** the batch persists present-only FACTs (an absence is never a fact); the review-queue chip + links +
+  banner are worded "not detected — go look", never a "hides data" verdict; the chip is the indigo work-queue color;
+  the summary is a plain count. The registration queue excludes n/a (non-trial) papers.
+- No-chunks / unknown-id / unknown-job fail closed honestly; mobile viewport has no horizontal overflow.
 
 ## Deposit
 
