@@ -46,6 +46,7 @@ from app.backend.api.routers import (
     paper_enrich,
     paper_files,
     papers,
+    publishers,
     reading_queue,
     saved_searches,
     settings,
@@ -67,8 +68,10 @@ from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.overview import OverviewGenerator
 from app.backend.summarization.verification import StanceScorer, SupportScorer, VerificationConfig
 from integrations.crossref import CrossrefClient
+from integrations.doaj.journals import DoajJournalsClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
+from integrations.openalex.sources import OpenAlexSourcesClient
 from integrations.retraction_watch import RetractionWatchClient
 from integrations.semantic_scholar.adapter import SemanticScholarClient
 
@@ -95,6 +98,8 @@ def create_app(
     crossref_client: CrossrefClient | None = None,
     openalex_client: OpenAlexClient | None = None,
     openalex_author_client: OpenAlexAuthorClient | None = None,
+    openalex_sources_client: OpenAlexSourcesClient | None = None,
+    doaj_journals_client: DoajJournalsClient | None = None,
     semantic_scholar_client: SemanticScholarClient | None = None,
     research_summary_generator: ResearchSummaryGenerator | None = None,
     overview_generator: OverviewGenerator | None = None,
@@ -146,6 +151,7 @@ def create_app(
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
     api.state.ocr_jobs = JobStore()  # inc 231 (B3): per-paper OCR of a scanned PDF into a searchable copy
     api.state.citation_context_jobs = JobStore()  # inc 232 (B4): per-paper "how this paper is cited" (scite analogue)
+    api.state.publishers_jobs = JobStore()  # #40: PUBLISHERS "where to submit" journal-finder (SP1a)
     api.state.enrich_registry = None  # inc 217 test seam: a fake EnrichmentRegistry (else built from the clients)
     api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
@@ -162,6 +168,8 @@ def create_app(
     api.state.axis_cluster_labeler = axis_cluster_labeler
     api.state.crossref_client = crossref_client
     api.state.openalex_client = openalex_client
+    api.state.openalex_sources_client = openalex_sources_client  # #40: OpenAlex journals for the where-to-submit tool
+    api.state.doaj_journals_client = doaj_journals_client  # #40: DOAJ journal facts (APC/waiver/Seal/license)
     api.state.semantic_scholar_client = semantic_scholar_client  # inc 232 (B4): citation-context data source
     api.state.openalex_author_client = openalex_author_client
     api.state.research_summary_generator = research_summary_generator
@@ -226,6 +234,7 @@ def create_app(
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
+    api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)

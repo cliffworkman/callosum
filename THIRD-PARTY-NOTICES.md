@@ -108,6 +108,17 @@ The **"How this paper is cited"** panel (support / contrast / mention over a pap
 - **Data source:** citing sentences (contexts) come from the **Semantic Scholar Academic Graph API**
   (Allen Institute for AI, <https://www.semanticscholar.org/>) — public bibliographic metadata; credited in-panel.
 
+### PUBLISHERS "where to submit" journal-finder (inc 245, #40)
+The journal-matching tool draws on public bibliographic metadata + a scientific-paper embedding model:
+- **OpenAlex** (<https://openalex.org/>, CC0) — journal/source metadata (OA color, APC, open-impact stats, ISSNs,
+  topics) via the `/topics`, `/works`, and `/sources` endpoints. Public metadata; polite-pool `mailto`.
+- **DOAJ — Directory of Open Access Journals** (<https://doaj.org/>) — journal-level facts (APC, waiver, license,
+  the DOAJ Seal) via the public journals API.
+- **SPECTER** — the scientific-document embedding model (`sentence-transformers/allenai-specter`, Allen Institute for
+  AI; Cohan, Feldman, Beltagy, Downey & Weld, *SPECTER: Document-level Representation Learning using Citation-informed
+  Transformers*, ACL 2020) — runs **locally** to match the abstract to candidate journals; the abstract is never
+  transmitted. Distributed by its authors on the Hugging Face Hub under its own license; Callosum does not redistribute it.
+
 ---
 
 ## Runtime & build dependencies (inc 181)
@@ -127,8 +138,9 @@ with each project). Grouped by license:
 - **Apache-2.0** — pdf.js (PDF rendering, CDN)
 - **AGPL-3.0** — citeproc-js (the citation engine; full credit in the *Citation & bibliography engine* section above)
 
-**Models** Callosum downloads at first run (`all-MiniLM-L6-v2`, `cross-encoder/nli-MiniLM2-L6-H768`) are
-distributed by their authors on the Hugging Face Hub under their own licenses; Callosum does not redistribute them.
+**Models** Callosum downloads at first run (`all-MiniLM-L6-v2`, `cross-encoder/nli-MiniLM2-L6-H768`, and
+`sentence-transformers/allenai-specter` for the overlooked-work + where-to-submit tools) are distributed by their
+authors on the Hugging Face Hub under their own licenses; Callosum does not redistribute them.
 
 ---
 

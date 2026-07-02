@@ -431,13 +431,25 @@ help-toggle + OS-keychain). Relocated to DONE. Truly deferred: real cloud/Ollama
 spot-checks.)*
 
 **40. PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
-`…_publisherschoicegate.md`) — **[future track — DO NOT BUILD YET]** at submission time, surface **verifiable,
-fully-sourced facts** per candidate journal (OA color, APC + waiver, green route, license, RR/data policy, TOP
-factor, open impact, multi-route legitimacy **incl. regional indexes**) under a **user-set open-science weighting** —
-the author weighs them; **never a verdict**. Veto: **no composite score, no "predatory" label** (A-A no-accusation),
-abstract + preferences **local, never transmitted**, **equity** first-class. The **first-use choice gate** (no
-pre-selected default; the weighting one forced choice among peers) is the near-term enhancement. **More controversial
-than most** — build only this principled shape; gate through Principles + A-A at graduation. **Do not build yet.**
+`…_publisherschoicegate.md`) — **[GRADUATED — SP1a SHIPPED inc 245; SP1b NEXT]** at submission time, surface
+**verifiable, fully-sourced facts** per candidate journal (OA color, APC + waiver, green route, license, RR/data
+policy, TOP factor, open impact, multi-route legitimacy **incl. regional indexes**) under a **user-set open-science
+weighting** — the author weighs them; **never a verdict**. Veto: **no composite score, no "predatory" label** (A-A
+no-accusation), abstract + preferences **local, never transmitted**, **equity** first-class.
+- **SP1a — the backend engine + endpoint (✅ SHIPPED inc 245):** two clients (`integrations/openalex/sources.py` +
+  `integrations/doaj/journals.py`) + a pure `methods/publishers.py` + async `POST/GET /methods/publishers/run`. From
+  an abstract → a topic-seeded candidate pool (abstract embedded **locally**, never transmitted) → uniform factual
+  profiles ranked by fit + an optional open-science `weighting` (request param). Vetoes structural + test-pinned (no
+  composite score, no "predatory", every candidate listed incl. closed, elevate-don't-denigrate). Audit + QA
+  `route_60` PASS. Legitimacy SP1 subset = DOAJ inclusion + Seal; the rest deferred + named honestly.
+- **SP1b — NEXT: the panel + the weighting + the first-use choice gate:** `08e_methods_publishers.jsx` (paper-picker
+  OR abstract+subject → profile cards, each fact links to its source) + a visible **open-science weighting** slider
+  (always shows its state inline) + the **first-use no-pre-selected-default choice gate** (local `app_settings`
+  `publisher_weighting`/`publisher_sort`/`publisher_defaults_set`, never transmitted; force the weighting AND ≥1
+  other publisher default together so the weighting isn't the lone forced choice; PUBLISHERS-scoped). Headed-verified;
+  help corpus "Where to submit"; audit addendum (settings never transmitted).
+- **Deferred within #40 (no data source yet):** green-route / TOP-factor / regional-index (AJOL/SciELO/Redalyc/
+  Latindex) legitimacy signals; user exclusion/filtering; thumb auditability; a real field self-citation baseline.
 
 **41. User-authored modules** (`…_plugins.md`) — **[future track — record only]** **deferred record only** — capture
 the extension-point idea + open questions; do NOT build a plugin system until a dedicated design pass.
