@@ -1345,6 +1345,47 @@
   .pane-list-body .pane-head { background: var(--panel); }
 
   /* ---- Discover (Search) tab (inc 184) — mirrors the .paper card recipe; tokens only ---- */
+  /* inc 253: the "Extract" meta-analysis workspace (a center-pane sibling of Discover/Feed; tokens only). */
+  .wb-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto; background: var(--panel); padding: 16px 18px; font-size: 12px; font-family: var(--sans); gap: 10px; }
+  .wb-intro, .wb-note { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+  .wb-newproj { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .wb-in { font-size: 12px; padding: 4px 7px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .wb-projects { list-style: none; margin: 0; padding: 0; }
+  .wb-project-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .wb-open { font-size: 13px; font-weight: 600; }
+  .wb-meta { font-size: 11px; color: var(--ink-3); }
+  .wb-del { margin-left: auto; color: var(--ink-3); }
+  .wb-empty { padding: 20px 0; color: var(--ink-3); }
+  .wb-head { display: flex; align-items: center; gap: 10px; }
+  .wb-name { font-size: 15px; font-weight: 600; border: none; border-bottom: 1px dashed transparent; background: transparent; color: var(--ink); padding: 2px 0; }
+  .wb-name:hover, .wb-name:focus { border-bottom-color: var(--line-2); outline: none; }
+  .wb-spacer { flex: 1; }
+  .wb-protocol { width: 100%; min-height: 42px; font-size: 12px; font-family: var(--sans); padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); resize: vertical; }
+  .wb-gridwrap { overflow-x: auto; }
+  .wb-grid { border-collapse: collapse; font-size: 12px; }
+  .wb-grid th { text-align: left; font-size: 10px; color: var(--ink-3); font-weight: 600; padding: 5px 7px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+  .wb-grid td { padding: 3px 5px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .wb-src { min-width: 150px; max-width: 240px; }
+  .wb-cell { white-space: nowrap; }
+  .wb-cellin { width: 74px; font-family: var(--mono); font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .wb-label { width: 130px; font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .wb-anchor { margin-left: 3px; border: none; background: none; cursor: pointer; opacity: 0.35; font-size: 11px; }
+  .wb-anchor.set { opacity: 1; }
+  .wb-anchor:hover { opacity: 1; }
+  .wb-conv { font-family: var(--mono); font-size: 11px; color: var(--verified); white-space: nowrap; }
+  .wb-rowx { border: none; background: none; color: var(--ink-3); cursor: pointer; font-size: 14px; }
+  .wb-rowx:hover { color: var(--danger); }
+  .wb-add { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .wb-addpaper { position: relative; }
+  .wb-addresults { position: absolute; z-index: 5; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 4px 14px rgba(0,0,0,.12); max-width: 340px; }
+  .wb-addhit { display: block; width: 100%; text-align: left; padding: 6px 9px; border: none; background: none; color: var(--ink); font-size: 12px; cursor: pointer; }
+  .wb-addhit:hover { background: var(--hover); }
+  .wb-anchor-pop { position: fixed; inset: 0; background: rgba(0,0,0,.28); display: flex; align-items: center; justify-content: center; z-index: 40; }
+  .wb-anchor-box { background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 300px; }
+  .wb-anchor-title { font-size: 13px; font-weight: 600; }
+  .wb-anchor-box label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--ink-3); }
+  .wb-anchor-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+
   .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
   .discover .pane-head { background: var(--panel); }
   .discover-hint { margin-top: 8px; font-size: 11px; color: var(--ink-3); font-family: var(--sans); }
@@ -8205,6 +8246,13 @@
         onClick: () => onActivate("feed")
       },
       "Feed"
+    ), !libraryProps.readOnly && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "frame-tab" + (activeTab === "extract" ? " active" : ""),
+        onClick: () => onActivate("extract")
+      },
+      "Extract"
     ), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "span",
       {
@@ -8233,7 +8281,7 @@
         onClick: onToggleReading
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
-    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "search" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: onDiscoverSaved })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "feed" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(FeedPane, { onSaved: onDiscoverSaved, active: activeTab === "feed" })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh, mobile }))));
+    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "search" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: onDiscoverSaved })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "feed" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(FeedPane, { onSaved: onDiscoverSaved, active: activeTab === "feed" })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkbenchPane, { active: activeTab === "extract", onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(PdfViewer, { paperId: t.paperId, title: t.title, target: t.target || null, annoRefresh, mobile }))));
   }
   function DiscoverPane({ onSaved }) {
     const [q, setQ] = useState("");
@@ -10275,6 +10323,184 @@
     ), rightOpen && !readingMode ? detailEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), modals);
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
+  const WB_DESIGNS = [
+    { key: "two_group_continuous", label: "Two-group continuous (means + SDs \u2192 Hedges' g)" },
+    { key: "binary_2x2", label: "Binary 2\xD72 (\u2192 log OR / RR / risk difference)" },
+    { key: "correlation", label: "Correlation (\u2192 Fisher's z)" }
+  ];
+  function WorkbenchPane({ active, onOpenPdf }) {
+    const [projects, setProjects] = useState([]);
+    const [project, setProject] = useState(null);
+    const [newName, setNewName] = useState("");
+    const [newDesign, setNewDesign] = useState("two_group_continuous");
+    const [addQuery, setAddQuery] = useState("");
+    const [addResults, setAddResults] = useState([]);
+    const [anchor, setAnchor] = useState(null);
+    const [err, setErr] = useState("");
+    const loadProjects = async () => {
+      const r = await api("/workbench/projects");
+      if (r.ok) setProjects(r.data);
+    };
+    const openProject = async (id) => {
+      const r = await api("/workbench/projects/" + id);
+      if (r.ok) setProject(r.data);
+    };
+    useEffect(() => {
+      if (active && !project) loadProjects();
+    }, [active]);
+    const fail = (r) => {
+      if (!r.ok) setErr(r.error || "Something went wrong.");
+      return r.ok;
+    };
+    const createProject = async () => {
+      if (!newName.trim()) return;
+      const r = await apiPost("/workbench/projects", { name: newName.trim(), design: newDesign });
+      if (fail(r)) {
+        setNewName("");
+        setProject(r.data);
+        loadProjects();
+      }
+    };
+    const removeProject = async (id) => {
+      if (!window.confirm("Delete this project and all its rows?")) return;
+      const r = await apiDelete("/workbench/projects/" + id);
+      if (fail(r)) {
+        setProject(null);
+        loadProjects();
+      }
+    };
+    const patchCellLocal = (rowId, key, patch) => setProject((p) => ({
+      ...p,
+      rows: p.rows.map((r) => r.id !== rowId ? r : { ...r, cells: { ...r.cells, [key]: { ...r.cells[key] || {}, ...patch } } })
+    }));
+    const putCell = async (rowId, key, patch) => {
+      const row = project.rows.find((r) => r.id === rowId);
+      const cur = row && row.cells[key] || {};
+      const merged = { value: cur.value ?? null, page: cur.page ?? null, quote: cur.quote ?? null, bbox_json: cur.bbox_json ?? null, ...patch };
+      patchCellLocal(rowId, key, merged);
+      fail(await apiPut(`/workbench/rows/${rowId}/cells/${key}`, merged));
+    };
+    const addRow = async (paperId) => {
+      const r = await apiPost(`/workbench/projects/${project.id}/rows`, paperId ? { paper_id: paperId } : {});
+      if (fail(r)) {
+        setProject(r.data);
+        setAddResults([]);
+        setAddQuery("");
+      }
+    };
+    const removeRow = async (rowId) => {
+      const r = await apiDelete("/workbench/rows/" + rowId);
+      if (fail(r)) openProject(project.id);
+    };
+    const convertRow = async (rowId) => {
+      const r = await apiPost(`/workbench/rows/${rowId}/convert`, {});
+      if (r.ok) setProject((p) => ({ ...p, rows: p.rows.map((x) => x.id === rowId ? { ...x, converted: r.data } : x) }));
+      else setErr(r.error || "Fill the required fields with valid numbers first.");
+    };
+    const searchPapers = async (q) => {
+      setAddQuery(q);
+      if (!q.trim()) {
+        setAddResults([]);
+        return;
+      }
+      const r = await api("/papers?q=" + encodeURIComponent(q.trim()) + "&limit=8");
+      if (r.ok) setAddResults(r.data.items || r.data || []);
+    };
+    const saveAnchor = async () => {
+      const page = anchor.page === "" ? null : Number(anchor.page);
+      await putCell(anchor.rowId, anchor.key, { page: Number.isFinite(page) ? page : null, quote: anchor.quote || null });
+      setAnchor(null);
+    };
+    const openAnchor = (row, key, cell) => {
+      if (cell && cell.page != null && row.paper_id != null) {
+        onOpenPdf(
+          { id: row.paper_id, title: row.paper_title || "Paper " + row.paper_id },
+          { id: `wb:${row.id}:${key}`, paperId: row.paper_id, page: cell.page, precision: "region" }
+        );
+      } else {
+        setAnchor({ rowId: row.id, key, page: cell && cell.page || "", quote: cell && cell.quote || "" });
+      }
+    };
+    const addColumn = async () => {
+      const label = window.prompt("New column label (a moderator / notes column):");
+      if (!label || !label.trim()) return;
+      const key = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60) || "c" + Date.now();
+      const template = [...project.template, { key, label: label.trim(), type: "text", role: null }];
+      fail(await apiPatch("/workbench/projects/" + project.id, { template }));
+      openProject(project.id);
+    };
+    if (!project) {
+      return /* @__PURE__ */ React.createElement("div", { className: "wb-pane" }, /* @__PURE__ */ React.createElement("div", { className: "wb-intro" }, "Assemble a meta-analysis dataset from your library, anchor each value to its source, and convert + export it. It ", /* @__PURE__ */ React.createElement("b", null, "extracts and converts one study at a time"), " \u2014 pooling, heterogeneity, and forest plots belong to your synthesis tool (metafor / JASP / RevMan)."), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "wb-newproj" }, /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          className: "wb-in",
+          placeholder: "New project name\u2026",
+          value: newName,
+          onChange: (e) => setNewName(e.target.value),
+          onKeyDown: (e) => e.key === "Enter" && createProject()
+        }
+      ), /* @__PURE__ */ React.createElement("select", { className: "wb-in", value: newDesign, onChange: (e) => setNewDesign(e.target.value) }, WB_DESIGNS.map((d) => /* @__PURE__ */ React.createElement("option", { key: d.key, value: d.key }, d.label))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: createProject }, "Create project")), /* @__PURE__ */ React.createElement("ul", { className: "wb-projects" }, projects.length === 0 && /* @__PURE__ */ React.createElement("li", { className: "wb-empty" }, "No projects yet \u2014 create one above."), projects.map((p) => /* @__PURE__ */ React.createElement("li", { key: p.id, className: "wb-project-row" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link wb-open", onClick: () => openProject(p.id) }, p.name), /* @__PURE__ */ React.createElement("span", { className: "wb-meta" }, p.design.replace(/_/g, " "), " \xB7 ", p.row_count, " row", p.row_count === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("button", { className: "btn-link wb-del", onClick: () => removeProject(p.id) }, "delete")))));
+    }
+    const fields = project.template;
+    return /* @__PURE__ */ React.createElement("div", { className: "wb-pane" }, /* @__PURE__ */ React.createElement("div", { className: "wb-head" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => {
+      setProject(null);
+      loadProjects();
+    } }, "\u2190 Projects"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "wb-name",
+        defaultValue: project.name,
+        key: "name" + project.id,
+        onBlur: (e) => e.target.value.trim() && apiPatch("/workbench/projects/" + project.id, { name: e.target.value.trim() })
+      }
+    ), /* @__PURE__ */ React.createElement("span", { className: "wb-meta" }, project.design.replace(/_/g, " ")), /* @__PURE__ */ React.createElement("span", { className: "wb-spacer" }), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset(`/workbench/projects/${project.id}/export?format=csv`, `extraction-${project.id}.csv`) }, "Export CSV"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => downloadAsset(`/workbench/projects/${project.id}/export?format=audit`, `extraction-${project.id}-provenance.json`) }, "Provenance JSON")), /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        className: "wb-protocol",
+        placeholder: "Protocol note (question, inclusion criteria)\u2026",
+        defaultValue: project.protocol_note || "",
+        key: "proto" + project.id,
+        onBlur: (e) => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })
+      }
+    ), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "wb-gridwrap" }, /* @__PURE__ */ React.createElement("table", { className: "wb-grid" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "wb-src" }, "Source"), fields.map((f) => /* @__PURE__ */ React.createElement("th", { key: f.key, title: f.role ? "converter input" : "moderator/notes" }, f.label)), /* @__PURE__ */ React.createElement("th", { className: "wb-eff" }, "Effect size"), /* @__PURE__ */ React.createElement("th", { className: "wb-colbtn" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Add a moderator/notes column", onClick: addColumn }, "+ col")))), /* @__PURE__ */ React.createElement("tbody", null, project.rows.map((row) => /* @__PURE__ */ React.createElement("tr", { key: row.id }, /* @__PURE__ */ React.createElement("td", { className: "wb-src" }, row.paper_id != null ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Open the PDF", onClick: () => onOpenPdf({ id: row.paper_id, title: row.paper_title }) }, row.paper_title || "Paper " + row.paper_id) : /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "wb-label",
+        defaultValue: row.label || "",
+        placeholder: "(label)",
+        key: "lbl" + row.id,
+        onBlur: (e) => apiPatch("/workbench/rows/" + row.id, { label: e.target.value })
+      }
+    )), fields.map((f) => {
+      const cell = row.cells[f.key] || {};
+      return /* @__PURE__ */ React.createElement("td", { key: f.key, className: "wb-cell" }, f.type === "choice" ? /* @__PURE__ */ React.createElement(
+        "select",
+        {
+          className: "wb-cellin",
+          value: cell.value || f.options && f.options[0] || "",
+          onChange: (e) => putCell(row.id, f.key, { value: e.target.value })
+        },
+        (f.options || []).map((o) => /* @__PURE__ */ React.createElement("option", { key: o, value: o }, o))
+      ) : /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          className: "wb-cellin",
+          defaultValue: cell.value || "",
+          key: "c" + row.id + f.key + (cell.value || ""),
+          inputMode: f.type === "number" ? "decimal" : "text",
+          onBlur: (e) => e.target.value !== (cell.value || "") && putCell(row.id, f.key, { value: e.target.value || null })
+        }
+      ), row.paper_id != null && /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "wb-anchor" + (cell.page != null ? " set" : ""),
+          title: cell.page != null ? `p. ${cell.page}${cell.quote ? " \xB7 " + cell.quote : ""} \u2014 open` : "Anchor to a page + quote",
+          onClick: () => openAnchor(row, f.key, cell)
+        },
+        "\u{1F4CE}"
+      ));
+    }), /* @__PURE__ */ React.createElement("td", { className: "wb-eff" }, row.converted ? /* @__PURE__ */ React.createElement("span", { className: "wb-conv", title: `Var ${row.converted.variance}` }, row.converted.metric, " = ", /* @__PURE__ */ React.createElement("b", null, row.converted.value)) : /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => convertRow(row.id) }, "Convert \u2192")), /* @__PURE__ */ React.createElement("td", { className: "wb-colbtn" }, /* @__PURE__ */ React.createElement("button", { className: "wb-rowx", title: "Remove row", onClick: () => removeRow(row.id) }, "\xD7"))))))), /* @__PURE__ */ React.createElement("div", { className: "wb-add" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => addRow(null) }, "+ Add row (no paper)"), /* @__PURE__ */ React.createElement("span", { className: "wb-addpaper" }, /* @__PURE__ */ React.createElement("input", { className: "wb-in", placeholder: "+ Add paper \u2014 search your library\u2026", value: addQuery, onChange: (e) => searchPapers(e.target.value) }), addResults.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "wb-addresults" }, addResults.map((p) => /* @__PURE__ */ React.createElement("button", { key: p.id, className: "wb-addhit", onClick: () => addRow(p.id) }, p.title))))), /* @__PURE__ */ React.createElement("div", { className: "wb-note" }, "Every value is yours to enter and anchor to its source \u2014 the workspace converts and exports the dataset, it never pools or synthesizes."), anchor && /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-pop", onClick: () => setAnchor(null) }, /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-box", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-title" }, "Anchor this value to its source"), /* @__PURE__ */ React.createElement("label", null, "Page ", /* @__PURE__ */ React.createElement("input", { className: "wb-in", type: "number", min: "1", value: anchor.page, onChange: (e) => setAnchor((a) => ({ ...a, page: e.target.value })) })), /* @__PURE__ */ React.createElement("label", null, "Quote ", /* @__PURE__ */ React.createElement("input", { className: "wb-in", placeholder: "the reported text\u2026", value: anchor.quote, onChange: (e) => setAnchor((a) => ({ ...a, quote: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveAnchor }, "Save anchor"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setAnchor(null) }, "Cancel")))));
+  }
 })();
 </script>
 </body>

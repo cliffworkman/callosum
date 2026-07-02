@@ -19,6 +19,11 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
           className={"frame-tab" + (activeTab === "feed" ? " active" : "")}
           onClick={() => onActivate("feed")}
         >Feed</button>}
+        {/* inc 253: the meta-analysis extraction workspace — a write surface, hidden on a read-only companion. */}
+        {!libraryProps.readOnly && <button
+          className={"frame-tab" + (activeTab === "extract" ? " active" : "")}
+          onClick={() => onActivate("extract")}
+        >Extract</button>}
         {tabs.map(t => (
           <span
             key={t.key}
@@ -48,6 +53,9 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
       </div>
       <div className="frame-pane" style={{ display: activeTab === "feed" ? "flex" : "none" }}>
         <FeedPane onSaved={onDiscoverSaved} active={activeTab === "feed"} />
+      </div>
+      <div className="frame-pane" style={{ display: activeTab === "extract" ? "flex" : "none" }}>
+        <WorkbenchPane active={activeTab === "extract"} onOpenPdf={onOpenPdf} />
       </div>
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>

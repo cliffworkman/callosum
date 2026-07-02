@@ -1321,6 +1321,47 @@
   .pane-list-body .pane-head { background: var(--panel); }
 
   /* ---- Discover (Search) tab (inc 184) — mirrors the .paper card recipe; tokens only ---- */
+  /* inc 253: the "Extract" meta-analysis workspace (a center-pane sibling of Discover/Feed; tokens only). */
+  .wb-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: auto; background: var(--panel); padding: 16px 18px; font-size: 12px; font-family: var(--sans); gap: 10px; }
+  .wb-intro, .wb-note { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+  .wb-newproj { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .wb-in { font-size: 12px; padding: 4px 7px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .wb-projects { list-style: none; margin: 0; padding: 0; }
+  .wb-project-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .wb-open { font-size: 13px; font-weight: 600; }
+  .wb-meta { font-size: 11px; color: var(--ink-3); }
+  .wb-del { margin-left: auto; color: var(--ink-3); }
+  .wb-empty { padding: 20px 0; color: var(--ink-3); }
+  .wb-head { display: flex; align-items: center; gap: 10px; }
+  .wb-name { font-size: 15px; font-weight: 600; border: none; border-bottom: 1px dashed transparent; background: transparent; color: var(--ink); padding: 2px 0; }
+  .wb-name:hover, .wb-name:focus { border-bottom-color: var(--line-2); outline: none; }
+  .wb-spacer { flex: 1; }
+  .wb-protocol { width: 100%; min-height: 42px; font-size: 12px; font-family: var(--sans); padding: 6px 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); resize: vertical; }
+  .wb-gridwrap { overflow-x: auto; }
+  .wb-grid { border-collapse: collapse; font-size: 12px; }
+  .wb-grid th { text-align: left; font-size: 10px; color: var(--ink-3); font-weight: 600; padding: 5px 7px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
+  .wb-grid td { padding: 3px 5px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .wb-src { min-width: 150px; max-width: 240px; }
+  .wb-cell { white-space: nowrap; }
+  .wb-cellin { width: 74px; font-family: var(--mono); font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .wb-label { width: 130px; font-size: 12px; padding: 3px 5px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink); }
+  .wb-anchor { margin-left: 3px; border: none; background: none; cursor: pointer; opacity: 0.35; font-size: 11px; }
+  .wb-anchor.set { opacity: 1; }
+  .wb-anchor:hover { opacity: 1; }
+  .wb-conv { font-family: var(--mono); font-size: 11px; color: var(--verified); white-space: nowrap; }
+  .wb-rowx { border: none; background: none; color: var(--ink-3); cursor: pointer; font-size: 14px; }
+  .wb-rowx:hover { color: var(--danger); }
+  .wb-add { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .wb-addpaper { position: relative; }
+  .wb-addresults { position: absolute; z-index: 5; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 4px 14px rgba(0,0,0,.12); max-width: 340px; }
+  .wb-addhit { display: block; width: 100%; text-align: left; padding: 6px 9px; border: none; background: none; color: var(--ink); font-size: 12px; cursor: pointer; }
+  .wb-addhit:hover { background: var(--hover); }
+  .wb-anchor-pop { position: fixed; inset: 0; background: rgba(0,0,0,.28); display: flex; align-items: center; justify-content: center; z-index: 40; }
+  .wb-anchor-box { background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-lg); padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 300px; }
+  .wb-anchor-title { font-size: 13px; font-weight: 600; }
+  .wb-anchor-box label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--ink-3); }
+  .wb-anchor-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+
   .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
   .discover .pane-head { background: var(--panel); }
   .discover-hint { margin-top: 8px; font-size: 11px; color: var(--ink-3); font-family: var(--sans); }
