@@ -618,3 +618,10 @@ from app.backend.persistence.schema_sync import (  # noqa: E402,F401
     sync_identity,
     sync_state,
 )
+
+# Meta-analysis extraction workspace tables (workbench SP2a, inc 253) — same split rationale.
+from app.backend.persistence.schema_workbench import (  # noqa: E402,F401
+    ma_cells,
+    ma_projects,
+    ma_rows,
+)
