@@ -337,6 +337,22 @@ inside STATISTICS CHECK**, not new sections; and **order sections by cognitive t
 for a one-tab section (no strip shown). The tab strip **reuses the `.tags-srcfilter` segmented-chip recipe**
 (`.pane-tabs`, no new tokens); tabs **mount-but-hide** like sections (`.pane-tab:not(.active){display:none}`) so an
 open axis / running action survives a tab switch; the active tab persists (`callosum.panetab.<sectionId>`).
+**Per-tab read-only (inc 248):** a tab may carry `hideInReadOnly` (a mobile read-only companion hides just that tab —
+e.g. Cite → the analysis tabs drop while **Suggest** stays); a section is hidden read-only only when it's explicitly
+`hideInReadOnly` OR *every* tab is. **Section-definer owns metadata (inc 248):** `registerPaneSection` sets the
+section's label/order/paneId authoritatively regardless of chunk-load order, so a tab-adding chunk that loads first
+only seeds a placeholder; `registerPaneSection({…, tabLabel})` names the section's own first tab (e.g. Cite's is
+"Suggest"). **Cite = `[Suggest | Citation concentration | How it's cited]`** — the citation tools grouped under one
+category (inc 248 moved the two analysis panels here from METHODS).
+
+**Accordion pane layout (inc 248) — headers always visible.** The two accordion panes (`.pane-sidebar`, `.pane-detail`)
+are `display:flex; flex-direction:column; overflow:hidden` (they do NOT scroll as a whole — only the center `.pane-list`
+keeps normal scroll). `.pane-accordion` is `flex:1; min-height:0`; a collapsed `.acc-section` is `flex:0 0 auto` (just
+its header) and the **open** section is `flex:0 1 auto` — natural height when short (headers sit right below it),
+shrinkable when the pane is full, at which point `.acc-section.open .acc-body{overflow-y:auto}` scrolls the body
+internally. So a long section (Details) never buries the other section headers. `.acc-body` carries `padding: 2px 14px
+14px` (tokens; matches the header's 14px) so section bodies aren't flush to the resize bar; DETAILS' `.detail-edit-pane`
+uses vertical-only inline padding to avoid doubling. All values are tokens/px-position, no new tokens.
 
 **"Coming soon" placeholders (inc 163) — honest roadmap stubs.** Planned-but-unbuilt sections/tabs may be
 scaffolded ahead of time (a visible roadmap), but only **honestly**: a stub must (1) name a **genuine,

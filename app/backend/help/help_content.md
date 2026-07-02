@@ -878,7 +878,7 @@ After a Refresh it tells you how many papers it scanned ("scanned M of N — the
 
 <!-- section: citation-equity -->
 ## Checking citation concentration
-The **Citation concentration** section (METHODS, with a paper selected) describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open the section, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
+The **Citation concentration** tab (in the **THEORY → Cite** section, with a paper selected) describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open the section, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
 
 - **Self-citation** — how many references include an author of the paper (King et al. 2017).
 - **Reliance on highly-cited work** — how much the list leans on already-famous papers, against the field (the Matthew effect; Merton 1968 / Perc 2014).
@@ -891,7 +891,7 @@ Every signal shows its **basis** (expand to see the exact references / venues / 
 
 <!-- section: citation-context -->
 ## Seeing how a paper is cited (and how it cites)
-The citation-context section (METHODS, with a DOI'd paper selected) has a two-way toggle:
+The **How it's cited** tab (in the **THEORY → Cite** section, with a DOI'd paper selected) has a two-way toggle:
 - **How it's cited** — how the *later literature* responded to this paper: do subsequent papers **support** it, **contrast** it, or just **mention** it?
 - **How it cites its sources** — how *this paper* uses each of its own references: does it support, contrast, or mention each cited work?
 

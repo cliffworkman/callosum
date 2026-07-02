@@ -8,7 +8,8 @@ fe: 37_cite.jsx
 **Tier:** 1 local-stateful
 **Goal:** Exercise the in-app Cite pane — paste a draft sentence, get ranked library suggestions with stance +
 evidence, and confirm the honesty invariants (region-not-exact, stance-with-quote, candidates-not-verdicts,
-local/no-egress).
+local/no-egress). **inc 248:** Cite is the FIRST **tab** ("Suggest") of a tabbed THEORY "Cite" section — the strip
+also carries **Citation concentration** (route_51) + **How it's cited** (route_53); this route covers the Suggest tab.
 
 ## Environment
 

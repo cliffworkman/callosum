@@ -142,24 +142,29 @@
   .detail-title-input.detail-ro { font-size: 20px; font-weight: 600; white-space: normal; padding: 6px 0; }
 
   .pane { overflow-y: auto; height: 100vh; }
-  .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); }
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
-  .pane-detail { background: var(--panel-2); }
   .pane-collapsed { overflow: hidden; }
+  /* inc 248: the accordion panes are flex columns that DON'T scroll as a whole — the open section's body scrolls
+     internally (below) so every collapsed section header stays visible (the center .pane-list keeps normal scroll). */
+  .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+  .pane-detail { background: var(--panel-2); display: flex; flex-direction: column; overflow: hidden; }
+  .pane-sidebar > .pane-head { flex: 0 0 auto; }
 
-  /* inc 121: accordion side panes (THEORY/METHODS shell). One section body visible per pane; headers stacked. */
-  .pane-accordion { display: flex; flex-direction: column; min-height: 0; }
-  .acc-section { display: flex; flex-direction: column; border-top: 1px solid var(--line); min-height: 0; }
+  /* inc 121/248: accordion side panes (THEORY/METHODS shell). Every header is always visible; the OPEN section's
+     body scrolls internally so a long section (e.g. Details) never buries the headers below it. */
+  .pane-accordion { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+  .acc-section { display: flex; flex-direction: column; border-top: 1px solid var(--line); min-height: 0; flex: 0 0 auto; }
+  .acc-section.open { flex: 0 1 auto; }  /* grows to its content, shrinks (→ body scrolls) when the pane is full; a short section keeps its natural height */
   .acc-section:first-child { border-top: none; }
   .acc-header {
-    display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; cursor: pointer; flex: 0 0 auto;
     background: none; border: none; font-family: var(--sans); font-size: 11px; font-weight: 600;
     letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); padding: 9px 14px;
   }
   .acc-header:hover { color: var(--accent); }
   .acc-chevron { color: var(--ink-3); }
-  .acc-body { display: none; min-height: 0; }
-  .acc-section.open .acc-body { display: block; }
+  .acc-body { display: none; min-height: 0; padding: 2px 14px 14px; }  /* inc 248: horizontal padding so section bodies aren't flush to the resize bar */
+  .acc-section.open .acc-body { display: block; overflow-y: auto; }  /* inc 248: only the open body scrolls */
   /* inc 139: tabs-within-a-section (like-with-like submenus). The strip reuses the .tags-srcfilter segmented-chip
      recipe; inactive tabs stay mounted-but-hidden so their in-progress state survives a tab switch (DESIGN.md §5). */
   .pane-tabs { margin: 2px 0 8px; }

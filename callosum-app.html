@@ -166,24 +166,29 @@
   .detail-title-input.detail-ro { font-size: 20px; font-weight: 600; white-space: normal; padding: 6px 0; }
 
   .pane { overflow-y: auto; height: 100vh; }
-  .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); }
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
-  .pane-detail { background: var(--panel-2); }
   .pane-collapsed { overflow: hidden; }
+  /* inc 248: the accordion panes are flex columns that DON'T scroll as a whole — the open section's body scrolls
+     internally (below) so every collapsed section header stays visible (the center .pane-list keeps normal scroll). */
+  .pane-sidebar { background: var(--panel-2); border-right: 1px solid var(--line); display: flex; flex-direction: column; overflow: hidden; }
+  .pane-detail { background: var(--panel-2); display: flex; flex-direction: column; overflow: hidden; }
+  .pane-sidebar > .pane-head { flex: 0 0 auto; }
 
-  /* inc 121: accordion side panes (THEORY/METHODS shell). One section body visible per pane; headers stacked. */
-  .pane-accordion { display: flex; flex-direction: column; min-height: 0; }
-  .acc-section { display: flex; flex-direction: column; border-top: 1px solid var(--line); min-height: 0; }
+  /* inc 121/248: accordion side panes (THEORY/METHODS shell). Every header is always visible; the OPEN section's
+     body scrolls internally so a long section (e.g. Details) never buries the headers below it. */
+  .pane-accordion { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+  .acc-section { display: flex; flex-direction: column; border-top: 1px solid var(--line); min-height: 0; flex: 0 0 auto; }
+  .acc-section.open { flex: 0 1 auto; }  /* grows to its content, shrinks (→ body scrolls) when the pane is full; a short section keeps its natural height */
   .acc-section:first-child { border-top: none; }
   .acc-header {
-    display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; cursor: pointer;
+    display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; cursor: pointer; flex: 0 0 auto;
     background: none; border: none; font-family: var(--sans); font-size: 11px; font-weight: 600;
     letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-2); padding: 9px 14px;
   }
   .acc-header:hover { color: var(--accent); }
   .acc-chevron { color: var(--ink-3); }
-  .acc-body { display: none; min-height: 0; }
-  .acc-section.open .acc-body { display: block; }
+  .acc-body { display: none; min-height: 0; padding: 2px 14px 14px; }  /* inc 248: horizontal padding so section bodies aren't flush to the resize bar */
+  .acc-section.open .acc-body { display: block; overflow-y: auto; }  /* inc 248: only the open body scrolls */
   /* inc 139: tabs-within-a-section (like-with-like submenus). The strip reuses the .tags-srcfilter segmented-chip
      recipe; inactive tabs stay mounted-but-hidden so their in-progress state survives a tab switch (DESIGN.md §5). */
   .pane-tabs { margin: 2px 0 8px; }
@@ -2716,25 +2721,41 @@
     };
   }
   const PANE_SECTIONS = [];
+  function _ensureSection(id) {
+    let s = PANE_SECTIONS.find((x) => x.id === id);
+    if (!s) {
+      s = { id, label: id, paneId: "theory", order: 0, hideInReadOnly: false, tabs: [], defined: false };
+      PANE_SECTIONS.push(s);
+    }
+    return s;
+  }
+  function _addPaneTab(section, tab) {
+    if (!section.tabs.some((t) => t.id === tab.id)) section.tabs.push(tab);
+  }
   function registerPaneSection(section) {
-    registerPaneTab(
-      { id: section.id, label: section.label, paneId: section.paneId, order: section.order, hideInReadOnly: section.hideInReadOnly },
-      { id: section.id, label: section.label, order: 0, render: section.render }
-    );
+    const s = _ensureSection(section.id);
+    s.label = section.label;
+    s.paneId = section.paneId;
+    s.order = section.order;
+    s.hideInReadOnly = section.hideInReadOnly;
+    s.defined = true;
+    _addPaneTab(s, { id: section.id, label: section.tabLabel || section.label, order: 0, render: section.render, hideInReadOnly: section.hideInReadOnly });
   }
   function registerPaneTab(host, tab) {
-    let section = PANE_SECTIONS.find((s) => s.id === host.id);
-    if (!section) {
-      section = { id: host.id, label: host.label, paneId: host.paneId, order: host.order, hideInReadOnly: host.hideInReadOnly, tabs: [] };
-      PANE_SECTIONS.push(section);
+    const s = _ensureSection(host.id);
+    if (!s.defined) {
+      s.label = host.label;
+      s.paneId = host.paneId;
+      s.order = host.order;
+      if (host.hideInReadOnly != null) s.hideInReadOnly = host.hideInReadOnly;
     }
-    if (!section.tabs.some((t) => t.id === tab.id)) section.tabs.push(tab);
+    _addPaneTab(s, tab);
   }
   function paneSections(paneId) {
     return PANE_SECTIONS.filter((s) => s.paneId === paneId).sort((a, b) => (a.order || 0) - (b.order || 0));
   }
-  function sectionTabs(section) {
-    return [...section.tabs].sort((a, b) => (a.order || 0) - (b.order || 0));
+  function sectionTabs(section, readOnly) {
+    return [...section.tabs].filter((t) => !(readOnly && t.hideInReadOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
   }
   registerPaneSection({
     id: "details",
@@ -2754,12 +2775,13 @@
     ) : /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to see its details.")
   });
   function PaneAccordion({ paneId, ctx, openId, onOpen }) {
-    const sections = paneSections(paneId).filter((s) => !(ctx && ctx.readOnly && s.hideInReadOnly));
+    const readOnly = !!(ctx && ctx.readOnly);
+    const sections = paneSections(paneId).filter((s) => !(readOnly && (s.hideInReadOnly || sectionTabs(s, true).length === 0)));
     const [tabState, setTabState] = useState({});
     if (sections.length === 0) return null;
     const active = sections.some((s) => s.id === openId) ? openId : sections[0].id;
     const activeTabId = (s) => {
-      const tabs = sectionTabs(s);
+      const tabs = sectionTabs(s, readOnly);
       const cur = tabState[s.id] ?? _loadLayout("callosum.panetab." + s.id, tabs[0].id);
       return tabs.some((t) => t.id === cur) ? cur : tabs[0].id;
     };
@@ -2768,7 +2790,7 @@
       _saveLayout("callosum.panetab." + sid, tid);
     };
     return /* @__PURE__ */ React.createElement("div", { className: "pane-accordion" }, sections.map((s) => {
-      const tabs = sectionTabs(s);
+      const tabs = sectionTabs(s, readOnly);
       const at = activeTabId(s);
       return /* @__PURE__ */ React.createElement("section", { key: s.id, className: "acc-section" + (s.id === active ? " open" : "") }, /* @__PURE__ */ React.createElement(
         "button",
@@ -3248,14 +3270,10 @@
   function CitationEquitySection({ ctx }) {
     return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId: ctx.selectedPaper }), /* @__PURE__ */ React.createElement(OverlookedWork, { paperId: ctx.selectedPaper }));
   }
-  registerPaneSection({
-    id: "citation-equity",
-    label: "Citation concentration",
-    paneId: "methods",
-    order: 35,
-    hideInReadOnly: true,
-    render: (ctx) => /* @__PURE__ */ React.createElement(CitationEquitySection, { ctx })
-  });
+  registerPaneTab(
+    { id: "cite", label: "Cite", paneId: "theory", order: 25 },
+    { id: "citation-equity", label: "Citation concentration", order: 20, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(CitationEquitySection, { ctx }) }
+  );
   const CITATION_CONTEXT_CSL = [
     {
       type: "article-journal",
@@ -3377,14 +3395,10 @@
   function CitationContextSection({ ctx }) {
     return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationContextPaper, { paperId: ctx.selectedPaper }));
   }
-  registerPaneSection({
-    id: "citation-context",
-    label: "How this paper is cited",
-    paneId: "methods",
-    order: 36,
-    hideInReadOnly: true,
-    render: (ctx) => /* @__PURE__ */ React.createElement(CitationContextSection, { ctx })
-  });
+  registerPaneTab(
+    { id: "cite", label: "Cite", paneId: "theory", order: 25 },
+    { id: "citation-context", label: "How it's cited", order: 30, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(CitationContextSection, { ctx }) }
+  );
   const BAYES_CSL = [
     {
       type: "article-journal",
@@ -3800,36 +3814,6 @@
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
-  registerPaneSection({
-    id: "lmm",
-    label: "Mixed-model reporting",
-    paneId: "methods",
-    order: 50,
-    hideInReadOnly: true,
-    render: () => /* @__PURE__ */ React.createElement(
-      ComingSoon,
-      {
-        title: "A reader's checklist for mixed-model (LMM) papers",
-        body: "Flags what to look for in a mixed-model paper \u2014 random-effects structure, df method, convergence, REML vs ML, ICC/R\xB2, missing-data sensitivity \u2014 read from the reported text. It tells you what to check; it never runs a model.",
-        builds: "A consumer-side reporting auditor. (Backlog #23)"
-      }
-    )
-  });
-  registerPaneSection({
-    id: "bayesian",
-    label: "Bayesian statistics",
-    paneId: "methods",
-    order: 60,
-    hideInReadOnly: true,
-    render: () => /* @__PURE__ */ React.createElement(
-      ComingSoon,
-      {
-        title: "Recompute Bayes factors + audit completeness",
-        body: "Recompute default Bayes factors for canonical designs (t / F / r + N) and audit reporting completeness. A signal to inspect \u2014 never a 'BF > 3 = significant' verdict.",
-        builds: "A deterministic recompute + completeness pass. (Backlog #24)"
-      }
-    )
-  });
   registerPaneSection({
     id: "meta-analysis",
     label: "Meta-analysis",
@@ -6527,7 +6511,7 @@
       (k) => !CORE_CSL_KEYS.has(k) && isScalarValue(p.csl_json[k])
     );
     const hasPdf = (p.attachments || []).some((a) => a.attachment_type === "pdf" && a.availability === "available");
-    return /* @__PURE__ */ React.createElement(DetailReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "12px 18px 32px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), !readOnly && savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), !readOnly && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(DetailReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "10px 0 24px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), !readOnly && savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link detail-fill",
@@ -9262,6 +9246,7 @@
   registerPaneSection({
     id: "cite",
     label: "Cite",
+    tabLabel: "Suggest",
     paneId: "theory",
     order: 25,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitePane, { ctx })

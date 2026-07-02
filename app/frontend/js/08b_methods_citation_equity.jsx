@@ -259,7 +259,9 @@ function CitationEquitySection({ ctx }) {
   );
 }
 
-registerPaneSection({
-  id: "citation-equity", label: "Citation concentration", paneId: "methods", order: 35, hideInReadOnly: true,
-  render: (ctx) => <CitationEquitySection ctx={ctx} />,
-});
+// inc 248: moved from a standalone METHODS section to a tab of the THEORY "Cite" section (citation-related, grouped
+// with Suggest + How-it's-cited). hideInReadOnly is now per-TAB (hidden on a read-only companion; Suggest stays).
+registerPaneTab(
+  { id: "cite", label: "Cite", paneId: "theory", order: 25 },
+  { id: "citation-equity", label: "Citation concentration", order: 20, hideInReadOnly: true, render: (ctx) => <CitationEquitySection ctx={ctx} /> },
+);

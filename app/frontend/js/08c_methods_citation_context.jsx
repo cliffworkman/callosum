@@ -142,7 +142,8 @@ function CitationContextSection({ ctx }) {
   return <div className="cite-equity-section"><CitationContextPaper paperId={ctx.selectedPaper} /></div>;
 }
 
-registerPaneSection({
-  id: "citation-context", label: "How this paper is cited", paneId: "methods", order: 36, hideInReadOnly: true,
-  render: (ctx) => <CitationContextSection ctx={ctx} />,
-});
+// inc 248: moved from a standalone METHODS section to a tab of the THEORY "Cite" section. hideInReadOnly per-TAB.
+registerPaneTab(
+  { id: "cite", label: "Cite", paneId: "theory", order: 25 },
+  { id: "citation-context", label: "How it's cited", order: 30, hideInReadOnly: true, render: (ctx) => <CitationContextSection ctx={ctx} /> },
+);

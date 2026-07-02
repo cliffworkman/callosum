@@ -158,7 +158,9 @@ function CitePane({ ctx }) {
 }
 
 // inc 156: register CITE as a THEORY-pane accordion section, after SYNTHESIS (order 20).
+// inc 248: Cite now holds tabs — [Suggest | Citation concentration | How it's cited]; this defines the section +
+// its first tab (labeled "Suggest"); 08b/08c add the two citation-analysis tabs (registerPaneTab).
 registerPaneSection({
-  id: "cite", label: "Cite", paneId: "theory", order: 25,
+  id: "cite", label: "Cite", tabLabel: "Suggest", paneId: "theory", order: 25,
   render: (ctx) => <CitePane ctx={ctx} />,
 });

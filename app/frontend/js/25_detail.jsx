@@ -399,7 +399,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
 
   return (
     <DetailReadOnly.Provider value={readOnly}>
-    <div className="detail-edit-pane" style={{ padding: "12px 18px 32px" }}>
+    <div className="detail-edit-pane" style={{ padding: "10px 0 24px" }}>
       <div className="detail-type-row">
         <TypeSelect value={p.item_type} onSave={saveField} />
         {!readOnly && savingField && <span className="detail-saving">saving…</span>}
