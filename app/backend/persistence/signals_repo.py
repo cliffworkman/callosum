@@ -20,6 +20,47 @@ STATCHECK_SOURCE = "statcheck"
 RETRACTION_SIGNAL = "retraction"
 RETRACTION_SOURCE = "retraction"
 
+TRANSPARENCY_SIGNAL = "transparency"
+# inc 250 status -> the persisted per-disclosure check status (a check RESULT, not a claim about the paper).
+_TRANSPARENCY_STATUS = {"present": "detected", "not-found": "not-detected", "not-applicable": "not-applicable"}
+
+
+def store_transparency_status(conn: Connection, paper_id: int, report) -> None:
+    """Upsert a paper's per-disclosure transparency check status (inc 251), ONE `open_science_signals` row per
+    disclosure (`signal_type='transparency'`, `source=<disclosure_key>`). `status` ∈ detected / not-detected /
+    not-applicable — a check RESULT (the auditor ran and did/didn't find it in the text), NEVER a claim that the
+    paper lacks the artifact (silence≠certificate; the A-A no-accusation boundary). The present-disclosure FACT
+    (with evidence) lives in `paper_findings`; this row carries the status for the library review-queue filter
+    (`repository.SIGNAL_FILTERS['transparency-*']`) + the chip. OR-REPLACE on the unique (paper, signal_type,
+    source) → idempotent re-runs. `report` is a `methods.transparency.TransparencyReport`."""
+    for check in report.checks:
+        conn.execute(
+            insert(open_science_signals)
+            .prefix_with("OR REPLACE")
+            .values(
+                paper_id=paper_id,
+                signal_type=TRANSPARENCY_SIGNAL,
+                source=check.key,
+                status=_TRANSPARENCY_STATUS.get(check.status, check.status),
+                evidence_snippet=check.evidence if check.status == "present" else None,
+            )
+        )
+
+
+def count_transparency_review(conn: Connection, disclosure_key: str = "data_availability") -> int:
+    """How many papers have a `not-detected` status for a disclosure — drives the review-queue chip. A count of a
+    REVIEW QUEUE ('the auditor ran and didn't surface it — go look'), never 'papers that hide their data'."""
+    total = conn.execute(
+        select(func.count())
+        .select_from(open_science_signals)
+        .where(
+            open_science_signals.c.signal_type == TRANSPARENCY_SIGNAL,
+            open_science_signals.c.source == disclosure_key,
+            open_science_signals.c.status == "not-detected",
+        )
+    ).scalar()
+    return int(total or 0)
+
 
 def store_statcheck(conn: Connection, paper_id: int, *, checked: int, inconsistent: int, decision_errors: int) -> None:
     """Upsert a paper's statcheck summary. `status='inconsistent'` iff any test flagged (inconsistent OR
