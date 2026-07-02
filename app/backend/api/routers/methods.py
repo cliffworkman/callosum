@@ -26,6 +26,7 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.methods.bayes import DEFAULT_R, audit_completeness, run_bayes
+from app.backend.methods.effectsize import convert as convert_effect_size
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.retraction import apply_retraction, detect_retraction
@@ -230,6 +231,41 @@ def grim_compute(payload: GrimRequest) -> GrimComputeResponse:
         grim=GrimResultModel(**vars(grim)),
         grimmer=GrimmerResultModel(**vars(grimmer)) if grimmer else None,
     )
+
+
+# ── effect-size converter (inc 252, meta-analysis workbench SP1): convert ONE study's stats → a common metric ──
+
+
+class EffectSizeRequest(BaseModel):
+    # family ∈ smd / sd_derivation / correlation / binary / cross; inputs is family-specific (validated in the module).
+    family: Literal["smd", "sd_derivation", "correlation", "binary", "cross"]
+    inputs: dict
+
+
+class EffectSizeResponse(BaseModel):
+    metric: str
+    value: float
+    variance: float
+    se: float
+    ci_low: float
+    ci_high: float
+    path: list[str]
+    formula_source: str
+    caveats: list[str]
+    choices: list[str]
+
+
+@router.post("/methods/effect-size", response_model=EffectSizeResponse)
+def effect_size_convert(payload: EffectSizeRequest) -> EffectSizeResponse:
+    # Deterministic, stateless, local — no DB, no egress, no LLM. Converts one study at a time (never pools/models).
+    try:
+        result = convert_effect_size(payload.family, payload.inputs)
+    except (ValueError, KeyError, TypeError, ArithmeticError):
+        raise HTTPException(
+            status_code=422,
+            detail="Invalid effect-size inputs for this family (check the required numeric fields).",
+        ) from None
+    return EffectSizeResponse(**result.to_dict())
 
 
 # ── library-wide batch (inc 97): persist a per-paper summary so the library can be filtered to inconsistencies ──

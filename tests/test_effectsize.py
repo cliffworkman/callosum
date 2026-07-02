@@ -9,7 +9,6 @@ function). Degenerate inputs raise.
 from __future__ import annotations
 
 import ast
-import math
 from pathlib import Path
 
 import pytest
