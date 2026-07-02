@@ -150,10 +150,69 @@ function TransparencyCredit() {
   );
 }
 
+// inc 251: batch-detect transparency signals across the whole library, then jump to a review queue. The queues are
+// "not detected — go look", never "papers that hide their data" (the A-A no-accusation boundary).
+function TransparencyLibrary({ onReview, onRan }) {
+  const [run, setRun] = useState({ status: "idle" });  // idle | running | done | error
+  const start = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/transparency/run/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setRun({ status: "done", summary: d.summary }); if (onRan) onRan(); }
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Detection failed." });
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    const r = await apiPost("/methods/transparency/run", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const s = run.summary;
+  return (
+    <div className="statcheck-lib">
+      <div className="settings-sub">Detect open-science disclosures across your whole library — local, no AI. Present disclosures become evidence-carrying marks in each paper's Review section; the review queues below list papers where the auditor <i>didn't</i> detect a disclosure in the text (it may still share elsewhere — a prompt to look, never a claim it hides anything).</div>
+      <div className="settings-actions">
+        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+          {run.status === "running" ? "Detecting…" : "Check all papers"}
+        </button>
+      </div>
+      {run.status === "running" && <ProgressBar label="Detecting transparency signals…" />}
+      {run.status === "error" && <div className="settings-note settings-note-err">Detection failed: {run.error}</div>}
+      {run.status === "done" && s &&
+        <div className="settings-note">
+          {s.total} paper{s.total === 1 ? "" : "s"} checked · <b>{s.with_disclosures}</b> with ≥1 disclosure detected.
+          {onReview && <div className="transparency-queues">
+            Review queues (not detected in the text — go look):{" "}
+            {TRANSPARENCY_QUEUES.map((q, i) => (
+              <React.Fragment key={q.key}>
+                {i > 0 && " · "}
+                <button className="btn-link" onClick={() => onReview(q.key)}>{q.label}</button>
+              </React.Fragment>
+            ))}
+          </div>}
+        </div>}
+    </div>
+  );
+}
+
+// The 7 review-queue signal keys (repository.SIGNAL_FILTERS). Registration is a `not-detected` queue (n/a papers are
+// excluded upstream — precondition scoping); upon-request is the PRESENT case (a weaker-openness prompt, not an absence).
+const TRANSPARENCY_QUEUES = [
+  { key: "transparency-data-not-detected", label: "data" },
+  { key: "transparency-code-not-detected", label: "code" },
+  { key: "transparency-coi-not-detected", label: "COI" },
+  { key: "transparency-funding-not-detected", label: "funding" },
+  { key: "transparency-registration-not-detected", label: "registration" },
+  { key: "transparency-preregistration-not-detected", label: "preregistration" },
+  { key: "transparency-upon-request", label: "available upon request" },
+];
+
 function TransparencySection({ ctx }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Detect a paper's <b>open-science disclosures</b> — does it state where the data &amp; code live, declare conflicts of interest &amp; funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's <i>reported</i>, with the matched sentence — never a transparency score, and “not detected” never means the artifact is absent.</div>
+      <p className="eyebrow">Whole library</p>
+      <TransparencyLibrary onReview={ctx.onShowTransparencyReview} onRan={ctx.onTransparencyRan} />
       <p className="eyebrow">This paper</p>
       <TransparencyPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "transparency"} />
       <TransparencyCredit />

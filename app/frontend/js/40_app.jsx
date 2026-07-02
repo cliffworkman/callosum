@@ -61,7 +61,7 @@ function App() {
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, refreshStatcheckChip, refreshRetractionChip, setFindingsRefresh,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
   } = lib;
 
@@ -161,6 +161,7 @@ function App() {
     methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
+    onShowTransparencyReview: showTransparencyReview, onTransparencyRan: refreshTransparencyChip,  // inc 251
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
     onOpenSettings: () => setSettingsOpen(true), settingsNonce,  // inc 148: synthesis egress-off nudge → open Settings
   };

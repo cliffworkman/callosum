@@ -29,6 +29,7 @@ function useLibrary(opts) {
   const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });  // inc-221: read/priority facet ("" = no filter)
   const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
   const [retractionFlagged, setRetractionFlagged] = useState(0);  // inc-131: # papers a registry records retracted → header chip
+  const [transparencyReview, setTransparencyReview] = useState(0);  // inc-251: # papers where open data wasn't detected → review-queue chip
   const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
     try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
   });
@@ -166,6 +167,13 @@ function useLibrary(opts) {
     setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
+  // inc-251: jump to a transparency review queue (the chip → data-availability; the panel's per-disclosure links pass
+  // each of the 7 keys). A review queue ("not detected — go look"), never a "hides data" verdict.
+  const showTransparencyReview = useCallback((signalKey = "transparency-data-not-detected") => {
+    setLibrarySignalFilter(signalKey);
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); cancelFocus();
+    setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
+  }, [cancelFocus, setSettingsOpen, setActiveTab]);
 
   // Clear just the view filters — wired to useFocusMode's onEnterClearFilters (breaks the focus↔library cycle).
   const clearViewFilters = useCallback(() => { setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibrarySignalFilter(null); }, []);
@@ -176,6 +184,9 @@ function useLibrary(opts) {
   }, []);
   const refreshRetractionChip = useCallback(() => {
     api("/methods/retraction/summary").then(r => { if (r.ok) setRetractionFlagged(r.data.retracted || 0); });
+  }, []);
+  const refreshTransparencyChip = useCallback(() => {
+    api("/methods/transparency/summary").then(r => { if (r.ok) setTransparencyReview(r.data.data_not_detected || 0); });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -320,6 +331,7 @@ function useLibrary(opts) {
   // inc-100/122: the statcheck / retraction header chips — fetched on mount.
   useEffect(() => { refreshStatcheckChip(); }, [refreshStatcheckChip]);
   useEffect(() => { refreshRetractionChip(); }, [refreshRetractionChip]);
+  useEffect(() => { refreshTransparencyChip(); }, [refreshTransparencyChip]);
 
   // The LibraryFrame prop bundle (minus the focus + selected props App still owns + spreads in).
   const libraryBits = {
@@ -338,6 +350,7 @@ function useLibrary(opts) {
     librarySignalFilter, onClearSignalFilter: clearSignalFilter,
     statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
     retractionFlagged, onShowRetractionFlagged: showRetractionFlagged,
+    transparencyReview, onShowTransparencyReview: showTransparencyReview,
     findingsToReview, onShowFindingsToReview: showFindingsToReview,
     findingsByPaper,
     onToggleTrash: toggleTrash, onRestore: restorePaper,
@@ -350,8 +363,8 @@ function useLibrary(opts) {
     libraryBits, setLibRefresh,
     pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged,
-    refreshStatcheckChip, refreshRetractionChip, setFindingsRefresh,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview,
+    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
   };
 }

@@ -323,6 +323,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
+                    transparencyReview, onShowTransparencyReview,
                     findingsToReview, onShowFindingsToReview, findingsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched,
@@ -359,6 +360,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             {!trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review" &&
               <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
                 title="Findings you haven't reviewed yet — open each paper's Review section">📋 {findingsToReview} to review</button>}
+            {!trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-") &&
+              <button className="trash-toggle transparency-chip" onClick={() => onShowTransparencyReview()}
+                title="Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text — a list to review (it may still share data elsewhere), never a claim that they hide it">🔎 {transparencyReview} · open data not detected</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
                 title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>

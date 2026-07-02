@@ -320,6 +320,7 @@
   .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
+  .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
   /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
   .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
   .agent-activity-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -886,6 +887,7 @@
   .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
   .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
+  .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* "open data not detected" — a review queue (go look), indigo work-state, NEVER a "hides data" verdict (inc 251) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -2122,6 +2124,7 @@
     const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });
     const [statcheckFlagged, setStatcheckFlagged] = useState(0);
     const [retractionFlagged, setRetractionFlagged] = useState(0);
+    const [transparencyReview, setTransparencyReview] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -2321,6 +2324,18 @@
       setActiveTab("library");
       setPage(0);
     }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const showTransparencyReview = useCallback((signalKey = "transparency-data-not-detected") => {
+      setLibrarySignalFilter(signalKey);
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
     const clearViewFilters = useCallback(() => {
       setLibraryAxisFilter(null);
       setLibraryTagFilter(null);
@@ -2334,6 +2349,11 @@
     const refreshRetractionChip = useCallback(() => {
       api("/methods/retraction/summary").then((r) => {
         if (r.ok) setRetractionFlagged(r.data.retracted || 0);
+      });
+    }, []);
+    const refreshTransparencyChip = useCallback(() => {
+      api("/methods/transparency/summary").then((r) => {
+        if (r.ok) setTransparencyReview(r.data.data_not_detected || 0);
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -2503,6 +2523,9 @@
     useEffect(() => {
       refreshRetractionChip();
     }, [refreshRetractionChip]);
+    useEffect(() => {
+      refreshTransparencyChip();
+    }, [refreshTransparencyChip]);
     const libraryBits = {
       state: listState,
       query,
@@ -2550,6 +2573,8 @@
       onShowStatcheckFlagged: showStatcheckFlagged,
       retractionFlagged,
       onShowRetractionFlagged: showRetractionFlagged,
+      transparencyReview,
+      onShowTransparencyReview: showTransparencyReview,
       findingsToReview,
       onShowFindingsToReview: showFindingsToReview,
       findingsByPaper,
@@ -2575,8 +2600,10 @@
       showNeedsReview,
       showStatcheckFlagged,
       showRetractionFlagged,
+      showTransparencyReview,
       refreshStatcheckChip,
       refreshRetractionChip,
+      refreshTransparencyChip,
       setFindingsRefresh,
       pcurvePapers,
       setPcurvePapers,
@@ -4109,8 +4136,43 @@
     };
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Detectors:"), " data & code availability \u2014 ODDPub (Riedel et al. 2020); conflict-of-interest, funding & registration indicators \u2014 rtransparent (Serghiou et al. 2021); preregistration \u2014 Nosek et al. (2018).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add methods sources to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 a rule-based text detector, never a transparency score or a judgment of the authors. Surfaced via D. Lakens' automated-review catalog."));
   }
+  function TransparencyLibrary({ onReview, onRan }) {
+    const [run, setRun] = useState({ status: "idle" });
+    const start = async () => {
+      setRun({ status: "running" });
+      const poll = (jobId) => api(`/methods/transparency/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRun({ status: "done", summary: d.summary });
+          if (onRan) onRan();
+        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Detection failed." });
+        else setTimeout(() => poll(jobId), 1500);
+      });
+      const r = await apiPost("/methods/transparency/run", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const s = run.summary;
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Detect open-science disclosures across your whole library \u2014 local, no AI. Present disclosures become evidence-carrying marks in each paper's Review section; the review queues below list papers where the auditor ", /* @__PURE__ */ React.createElement("i", null, "didn't"), " detect a disclosure in the text (it may still share elsewhere \u2014 a prompt to look, never a claim it hides anything)."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Detecting\u2026" : "Check all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Detecting transparency signals\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Detection failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.total, " paper", s.total === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.with_disclosures), " with \u22651 disclosure detected.", onReview && /* @__PURE__ */ React.createElement("div", { className: "transparency-queues" }, "Review queues (not detected in the text \u2014 go look):", " ", TRANSPARENCY_QUEUES.map((q, i) => /* @__PURE__ */ React.createElement(React.Fragment, { key: q.key }, i > 0 && " \xB7 ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => onReview(q.key) }, q.label))))));
+  }
+  const TRANSPARENCY_QUEUES = [
+    { key: "transparency-data-not-detected", label: "data" },
+    { key: "transparency-code-not-detected", label: "code" },
+    { key: "transparency-coi-not-detected", label: "COI" },
+    { key: "transparency-funding-not-detected", label: "funding" },
+    { key: "transparency-registration-not-detected", label: "registration" },
+    { key: "transparency-preregistration-not-detected", label: "preregistration" },
+    { key: "transparency-upon-request", label: "available upon request" }
+  ];
   function TransparencySection({ ctx }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Detect a paper's ", /* @__PURE__ */ React.createElement("b", null, "open-science disclosures"), " \u2014 does it state where the data & code live, declare conflicts of interest & funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's ", /* @__PURE__ */ React.createElement("i", null, "reported"), ", with the matched sentence \u2014 never a transparency score, and \u201Cnot detected\u201D never means the artifact is absent."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(TransparencyPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "transparency" }), /* @__PURE__ */ React.createElement(TransparencyCredit, null));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Detect a paper's ", /* @__PURE__ */ React.createElement("b", null, "open-science disclosures"), " \u2014 does it state where the data & code live, declare conflicts of interest & funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's ", /* @__PURE__ */ React.createElement("i", null, "reported"), ", with the matched sentence \u2014 never a transparency score, and \u201Cnot detected\u201D never means the artifact is absent."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(TransparencyLibrary, { onReview: ctx.onShowTransparencyReview, onRan: ctx.onTransparencyRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(TransparencyPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "transparency" }), /* @__PURE__ */ React.createElement(TransparencyCredit, null));
   }
   registerPaneSection({
     id: "transparency",
@@ -4449,6 +4511,8 @@
     onShowStatcheckFlagged,
     retractionFlagged,
     onShowRetractionFlagged,
+    transparencyReview,
+    onShowTransparencyReview,
     findingsToReview,
     onShowFindingsToReview,
     findingsByPaper,
@@ -4515,6 +4579,16 @@
       "\u{1F4CB} ",
       findingsToReview,
       " to review"
+    ), !trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-") && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle transparency-chip",
+        onClick: () => onShowTransparencyReview(),
+        title: "Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text \u2014 a list to review (it may still share data elsewhere), never a claim that they hide it"
+      },
+      "\u{1F50E} ",
+      transparencyReview,
+      " \xB7 open data not detected"
     ), !trashView && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -9834,8 +9908,10 @@
       showNeedsReview,
       showStatcheckFlagged,
       showRetractionFlagged,
+      showTransparencyReview,
       refreshStatcheckChip,
       refreshRetractionChip,
+      refreshTransparencyChip,
       setFindingsRefresh,
       pcurvePapers,
       setPcurvePapers,
@@ -9949,6 +10025,9 @@
       onStatcheckRan: refreshStatcheckChip,
       onShowRetractionFlagged: showRetractionFlagged,
       onRetractionRan: refreshRetractionChip,
+      onShowTransparencyReview: showTransparencyReview,
+      onTransparencyRan: refreshTransparencyChip,
+      // inc 251
       onFindingsChanged: () => setFindingsRefresh((n) => n + 1),
       onOpenSettings: () => setSettingsOpen(true),
       settingsNonce

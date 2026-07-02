@@ -296,6 +296,7 @@
   .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
+  .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
   /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
   .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
   .agent-activity-row { display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -862,6 +863,7 @@
   .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
   .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
+  .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* "open data not detected" — a review queue (go look), indigo work-state, NEVER a "hides data" verdict (inc 251) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
