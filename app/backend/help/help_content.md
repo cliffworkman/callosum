@@ -846,6 +846,22 @@ Read it as a prompt, not a report card:
 
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. It also fills a set of **review queues** — lists of papers where the auditor *didn't* detect a given disclosure in the text. When the data queue isn't empty, the Library header shows a **🔎 N · open data not detected** chip that jumps to it. A review queue is a prompt to look — *the paper may still share its data elsewhere* — never a claim that it hides anything, and there is no score or ranking.
 
+<!-- section: converting-effect-sizes -->
+## Converting effect sizes
+When you're preparing a meta-analysis, studies report their results in different currencies — some give group means and SDs, some a *t* or *F*, some a 2×2 table, some a correlation. The **Effect-size converter** turns *one study's* reported statistics into a common metric you can pool downstream, and shows its work.
+
+In the **METHODS** pane, open **Effect-size converter** and pick a family:
+
+- **SMD → Hedges' g** — from group means + SDs + Ns, or from a *t* + group Ns, or a two-group one-way *F*.
+- **SD derivation** — recover a standard deviation from an SE, a 95% CI, or an IQR (each derivation is recorded, because *how* you got the SD is a decision worth auditing).
+- **Correlation → Fisher's z**.
+- **Binary 2×2** — a log odds ratio, log risk ratio, or risk difference (a zero cell triggers the Haldane–Anscombe continuity correction, and that's recorded).
+- **Cross-metric** — d↔r or log OR→d, clearly flagged as **approximations**.
+
+Every result shows the metric + its **variance** + a **95% CI**, the step-by-step **conversion path**, the **formula source** (Borenstein et al. 2009 and the primary papers), and any **choices** it had to make. A **copy value + variance** button gives you a tab-separated pair to paste into a metafor/JASP row.
+
+It **converts one study at a time — it never pools studies, models heterogeneity (I²/τ²), meta-regresses, or does publication-bias inference.** Those are your synthesis tool's job (metafor, JASP, RevMan); Callosum hands off the converted dataset with its provenance.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

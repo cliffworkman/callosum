@@ -454,11 +454,27 @@ producer-side extraction workbench is the deferred remainder]**
   (no score/verdict; **never pools/models/re-computes** — structural + test-pinned); precondition-scoped (search = n/a
   for a within-study mini-meta); local/no-egress/no-LLM. Experience-pass deferrals folded into #23's cross-method
   chip/persist/credit-footer item.
-- **DEFERRED — the producer-side extraction workbench** (its **own** REVIEW/SYNTHESIS workspace, a bigger future
+- **DEFERRED → the producer-side extraction workbench** (its **own** REVIEW/SYNTHESIS workspace, a bigger future
   track): protocol → embedding-screened queue → LLM-drafted **provenance-anchored, human-verified** extraction →
   double-coding/IRR → deterministic effect-size conversion → export (metafor/JASP/RevMan) + audit trail.
   **Extracts/structures, never pools/models/adjudicates**; LLM is never an independent coder. Its own spec +
   workspace + heavy Principles/A-A pass (the maintainer chose "reporting auditor now, workbench next").
+- **✅ SP1 — SHIPPED inc 252 (the deterministic effect-size converter):** the workbench's first buildable slice, sliced
+  converter-first (AskUserQuestion). `methods/effectsize.py` (a `Conversion` dataclass + SMD→Hedges' g / SD-derivation /
+  correlation→Fisher's z / binary 2×2→log OR/RR/RD [+ Haldane zero-cell] / cross-metric d↔r, log OR→d + a `convert`
+  dispatch) + `POST /methods/effect-size` (sync, mirrors `/methods/grim`) + `08i_methods_effectsize.jsx`. Hand-enter one
+  study's stats → a common metric + variance + a 95% CI, via **cited formulas**, with the **path shown**, the
+  **formula source cited**, and every **derivation/continuity/approximation choice recorded** + a **copy value + variance**
+  extract button. **The convert-never-synthesize boundary is structural + test-pinned** (`test_no_aggregation_code_path` —
+  no pooling/heterogeneity/meta-regression/bias-inference def, no aggregation import; the endpoint takes one study). No
+  score/opaque-number (#7); cross-metric flagged as an approximation. Verified against Borenstein-et-al.-(2009) formula
+  anchors. Local/no-egress/no-LLM/no-migration/no-dependency. pytest +12; QA 183/183 API + 828/828 FE, 0 uncovered;
+  audit PASS; headed-verified. **Filed follow-up:** a copy-full-row / accumulating-dataset affordance once SP2's dataset
+  exists (SP1's copy button is a per-study bridge). **NEXT within #36 = SP2:** the extraction **workspace** (a
+  REVIEW/SYNTHESIS surface + a user-defined included set + an extraction template + **LLM-drafted, provenance-anchored,
+  human-verified** extraction [the egress + heavy-A-A slice] + a persisted dataset that feeds *this* converter + export
+  to metafor/JASP/RevMan + an audit log); further deferred: screening/PRISMA, double-coding/IRR, RoB instruments, figure
+  extraction (point at WebPlotDigitizer, don't build).
 
 **37. Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived) — **[future track — most
 needs the values layer]** inspectable, **non-accusatory** prestige/credit/attention lenses (overlooked-work /

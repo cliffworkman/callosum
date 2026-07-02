@@ -157,6 +157,27 @@ authors; a not-detected row is a prompt to look. The rule-based detectors are de
   <https://doi.org/10.1073/pnas.1708274114>.
 - Credited + one-click added to the library from the panel. Surfaced via Daniël Lakens' automated-review catalog.
 
+### Effect-size converter (inc 252) — meta-analysis workbench SP1
+The effect-size converter turns one study's reported statistics into a common meta-analytic metric + variance + a 95%
+CI, using standard formulas, with the conversion path shown and the source cited in-context. It converts one study at
+a time — it never pools, models heterogeneity, or does bias inference. Formula lineage (credited + one-click library-
+addable from the panel):
+- **The conversion formulas + variances** — Borenstein, M., Hedges, L. V., Higgins, J. P. T., & Rothstein, H. R.
+  (2009). *Introduction to Meta-Analysis.* Wiley. ISBN 978-0-470-05724-7.
+- **The `metafor` R package** (the standard implementation these formulas underlie) — Viechtbauer, W. (2010).
+  *Conducting meta-analyses in R with the metafor package.* Journal of Statistical Software, 36(3), 1–48.
+  <https://doi.org/10.18637/jss.v036.i03>. Credited, not reused — Callosum re-implements the formulas in Python.
+- **Fisher's z transform** — Fisher, R. A. (1915). *Frequency distribution of the values of the correlation
+  coefficient in samples from an indefinitely large population.* Biometrika, 10(4), 507–521.
+- **The Hedges small-sample correction (J)** — Hedges, L. V. (1981). *Distribution theory for Glass's estimator of
+  effect size and related estimators.* Journal of Educational Statistics, 6(2), 107–128.
+- **Estimating an SD from an IQR** — the normal-quantile rule (Cochrane Handbook; Higgins et al.), with Wan, X., Wang,
+  X., Liu, J., & Tong, T. (2014). *Estimating the sample mean and standard deviation from the sample size, median,
+  range and/or interquartile range.* BMC Medical Research Methodology, 14, 135. <https://doi.org/10.1186/1471-2288-14-135>.
+- **The zero-cell continuity correction** — Haldane, J. B. S. (1940) / Anscombe, F. J. (1956).
+- **The log-odds↔d approximation** — Hasselblad, V., & Hedges, L. V. (1995). *Meta-analysis of screening and
+  diagnostic tests.* Psychological Bulletin, 117(1), 167–178.
+
 ### Citation context / "smart citations" (inc 232, B4)
 The **"How this paper is cited"** panel (support / contrast / mention over a paper's citing sentences) is a
 **scite** analogue:

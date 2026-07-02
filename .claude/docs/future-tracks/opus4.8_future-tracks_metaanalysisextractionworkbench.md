@@ -1,5 +1,13 @@
 # Future track — Meta-analysis extraction workbench (the systematic-extraction front end)
 
+> **✅ SP1 SHIPPED (inc 252) — the deterministic effect-size converter.** The safe, egress-free core of v1 (pipeline
+> step 6) was sliced out and built first as a METHODS-panel calculator: hand-enter one study's stats → a common metric
+> (Hedges' g / Fisher's z / log OR/RR / RD) + variance + a 95% CI, via cited formulas, with the path shown + choices
+> recorded. `methods/effectsize.py` + `POST /methods/effect-size` + `08i_methods_effectsize.jsx`; the convert-never-
+> synthesize boundary is structural + test-pinned. See the CLAUDE decision-log / `INCREMENT-252-NOTES.md`. **The
+> remaining v1 (SP2) is the extraction WORKSPACE** (steps 1–5, 7, 8: included set → template → LLM-drafted provenance-
+> anchored human-verified extraction → this converter → export) — its own increment + a heavy A-A pass.
+
 **Disposition for CC:** Capture + `.claude/docs/future-tracks/`. Broad; **scope a deliberate v1** (see Scope). The
 most consequence-laden tool in the suite — its output flows into published meta-analyses, so the
 **verify-everything / human-in-the-loop / never-synthesize** design is load-bearing, not decoration. Likely
