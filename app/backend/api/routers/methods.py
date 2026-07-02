@@ -114,9 +114,18 @@ class BayesCompletenessItem(BaseModel):
     note: str | None = None
 
 
+class BayesAdvisoryNote(BaseModel):
+    key: str  # credible-confidence | bf-direction
+    label: str
+    note: str
+    evidence: str | None = None
+    page: int | None = None
+
+
 class BayesCompletenessOut(BaseModel):
     is_bayesian: bool  # the checklist runs only on a paper that detectably does Bayesian analysis
     items: list[BayesCompletenessItem]
+    advisories: list[BayesAdvisoryNote] = []  # SP4: Tier-3 advisory prompts (requires expert judgment)
 
 
 class BayesResponse(BaseModel):
@@ -162,6 +171,10 @@ def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> Ba
                     key=i.key, label=i.label, status=i.status, evidence=i.evidence, page=i.page, note=i.note
                 )
                 for i in completeness.items
+            ],
+            advisories=[
+                BayesAdvisoryNote(key=a.key, label=a.label, note=a.note, evidence=a.evidence, page=a.page)
+                for a in completeness.advisories
             ],
         ),
     )

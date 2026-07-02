@@ -213,8 +213,51 @@ def test_bayes_endpoint(temp_db_url):
     # SP2: the paper (an inline BF10 present) is detectably Bayesian → the checklist runs
     assert data["completeness"]["is_bayesian"] is True
     assert {i["key"] for i in data["completeness"]["items"]} == {"prior", "convergence", "sensitivity"}
+    assert data["completeness"]["advisories"] == []  # SP4: none for a clean paper
 
     empty = client.get(f"/papers/{empty_id}/bayes").json()  # no chunks → honest empty, not an error
     assert empty["checked"] == 0 and empty["results"] == []
-    assert empty["completeness"] == {"is_bayesian": False, "items": []}
+    assert empty["completeness"] == {"is_bayesian": False, "items": [], "advisories": []}
     assert client.get("/papers/999999/bayes").status_code == 404
+
+
+# ── SP4 (inc 244): Tier-3 textual-coherence advisory prompts ──
+
+
+def _advkeys(comp):
+    return {a.key for a in comp.advisories}
+
+
+def test_advisory_credible_vs_confidence():
+    # a Bayesian paper that mentions "confidence interval" but never "credible interval" → an advisory prompt
+    comp = audit_completeness([_chunk("A Bayesian t-test (BF10 = 3). We report the 95% confidence interval [.1, .5].")])
+    assert "credible-confidence" in _advkeys(comp)
+    note = next(a for a in comp.advisories if a.key == "credible-confidence")
+    assert "credible interval" in note.note and note.evidence
+
+
+def test_advisory_credible_suppressed_when_both_present():
+    # if the paper distinguishes them (says "credible interval" too), no advisory — conservative, prefer false negatives
+    comp = audit_completeness(
+        [_chunk("A Bayesian analysis (posterior). We report a 95% credible interval and a confidence interval.")]
+    )
+    assert "credible-confidence" not in _advkeys(comp)
+
+
+def test_advisory_bf_direction():
+    # a BF01 near a claim of support for the alternative → an advisory (BF01 favors the null)
+    comp = audit_completeness(
+        [_chunk("The Bayesian t-test gave BF01 = 6.2, which supported the alternative hypothesis.")]
+    )
+    assert "bf-direction" in _advkeys(comp)
+
+
+def test_advisory_none_for_clean_bayesian():
+    comp = audit_completeness([_chunk("A Bayesian t-test with a Cauchy prior, t(19) = 2.5, BF10 = 3.")])
+    assert comp.advisories == []
+
+
+def test_advisory_none_for_non_bayesian():
+    # advisories run only on a Bayesian paper — a non-Bayesian paper mentioning a confidence interval is untouched
+    comp = audit_completeness([_chunk("An OLS regression; we report the 95% confidence interval.")])
+    assert comp.is_bayesian is False and comp.advisories == []

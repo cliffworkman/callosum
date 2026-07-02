@@ -287,6 +287,17 @@ _SENSITIVITY = re.compile(
 )
 
 
+# SP4 (inc 244): Tier-3 *advisory* textual-coherence prompts — exploratory, requires-expert-judgment, never a flag or
+# verdict, kept visually separate from the Tier-1/Tier-2 signals (the doc's Stage 3). Conservatively gated to minimise
+# false positives (prefer false negatives). Only two documented misuses that are textually detectable:
+_CONFIDENCE_INTERVAL = re.compile(r"\bconfidence intervals?\b", re.I)
+_CREDIBLE_INTERVAL = re.compile(r"\bcredible intervals?\b", re.I)
+_BF01 = re.compile(r"\bBF\s*(?:01|₀₁)\b", re.I)
+# "…support(s|ed) / favour / evidence for … the alternative" — a BF01 near this is a likely direction/label error.
+_ALT_SUPPORT = re.compile(r"(?:support|favou?rs?|favou?red|evidence for)[^.]{0,40}\balternative\b", re.I)
+_BF_DIR_WINDOW = 120  # a BF01 is "near" an alternative-support phrase only within this many characters
+
+
 @dataclass(frozen=True)
 class CompletenessItem:
     key: str  # prior | convergence | sensitivity
@@ -298,9 +309,19 @@ class CompletenessItem:
 
 
 @dataclass(frozen=True)
+class AdvisoryNote:
+    key: str  # credible-confidence | bf-direction
+    label: str
+    note: str  # an exploratory prompt — never a verdict
+    evidence: str | None  # the matched snippet
+    page: int | None
+
+
+@dataclass(frozen=True)
 class BayesCompleteness:
     is_bayesian: bool
     items: list  # list[CompletenessItem]
+    advisories: list  # list[AdvisoryNote] — Tier-3, requires expert judgment
 
 
 def _snippet(text: str, start: int, end: int, pad: int = 60) -> str:
@@ -362,13 +383,52 @@ def _convergence_breach(rows: list[tuple[str, int | None]]) -> tuple[str, int | 
     return None
 
 
+def _advisory_notes(rows: list[tuple[str, int | None]]) -> list[AdvisoryNote]:
+    """Tier-3 advisory prompts (conservative, requires-expert-judgment; never a verdict). Runs only on a Bayesian
+    paper (the caller gates). Two textually-detectable documented misuses."""
+    out: list[AdvisoryNote] = []
+    # credible-vs-confidence: a Bayesian paper that mentions "confidence interval" but never "credible interval"
+    # (a likely conflation). If it also says "credible interval", assume it distinguishes them → no advisory.
+    ci = _first(_CONFIDENCE_INTERVAL, rows)
+    if ci and not _has(_CREDIBLE_INTERVAL, rows):
+        out.append(
+            AdvisoryNote(
+                "credible-confidence",
+                "Interval terminology",
+                "mentions a “confidence interval” but no “credible interval” — verify whether a credible interval was "
+                "intended (a common Bayesian/frequentist conflation)",
+                ci[0],
+                ci[1],
+            )
+        )
+    # BF-direction: a BF01 reported near a claim of support for the alternative — BF01 quantifies evidence for the
+    # NULL, so this is a likely direction/label error worth an expert's eye.
+    for text, page in rows:
+        for m in _BF01.finditer(text):
+            lo, hi = max(0, m.start() - _BF_DIR_WINDOW), min(len(text), m.end() + _BF_DIR_WINDOW)
+            if _ALT_SUPPORT.search(text[lo:hi]):
+                out.append(
+                    AdvisoryNote(
+                        "bf-direction",
+                        "Bayes-factor direction",
+                        "a BF₀₁ appears near a claim of support for the alternative — BF₀₁ quantifies evidence for the "
+                        "null, so verify the direction or label",
+                        _snippet(text, m.start(), m.end()),
+                        page,
+                    )
+                )
+                return out  # one is enough — this is an advisory prompt, not an exhaustive scan
+    return out
+
+
 def audit_completeness(chunks: list) -> BayesCompleteness:
-    """A presence/absence + coherence checklist over a paper's extracted text, keyed to BARG / WAMBS / JASP. Runs
-    only if the paper detectably does Bayesian analysis. Each item is present / not-found / not-applicable / a
-    coherence-flag; "not found" = "not detected in the text — check the paper", never "missing"."""
+    """A presence/absence + coherence checklist over a paper's extracted text, keyed to BARG / WAMBS / JASP, plus
+    Tier-3 advisory prompts (inc 244). Runs only if the paper detectably does Bayesian analysis. Each checklist item
+    is present / not-found / not-applicable / a coherence-flag; "not found" = "not detected in the text — check the
+    paper", never "missing". Advisories are exploratory and require expert judgment — never verdicts."""
     rows = _chunk_rows(chunks)
     if not _has(_BAYESIAN, rows):
-        return BayesCompleteness(is_bayesian=False, items=[])
+        return BayesCompleteness(is_bayesian=False, items=[], advisories=[])
 
     items: list[CompletenessItem] = []
 
@@ -443,4 +503,4 @@ def audit_completeness(chunks: list) -> BayesCompleteness:
         )
     )
 
-    return BayesCompleteness(is_bayesian=True, items=items)
+    return BayesCompleteness(is_bayesian=True, items=items, advisories=_advisory_notes(rows))

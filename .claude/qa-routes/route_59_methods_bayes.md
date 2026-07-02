@@ -12,7 +12,8 @@ signal-not-verdict + no-accusation framing. **SP1:** recompute a paper's reporte
 **SP2:** a **Tier-2 completeness checklist** (BARG/WAMBS/JASP) — presence/absence of the prior, convergence
 diagnostics, and a sensitivity analysis, plus a coherence flag when a *reported* diagnostic breaches a convention.
 **SP3 (inc 243):** the **correlation** recompute — inline `r(df) = …, BF10 = …` recomputed under the default
-correlation prior (Ly et al. 2016). Local, deterministic, no AI.
+correlation prior (Ly et al. 2016). **SP4 (inc 244):** Tier-3 **advisory** prompts (credible-vs-confidence mislabel;
+BF-direction) — clearly demarcated, exploratory, requires-expert-judgment, never a flag. Local, deterministic, no AI.
 
 ## Environment
 
@@ -63,6 +64,11 @@ genai-host request regardless). Register listeners before navigation.
    / `n/a` / `⚠ check` (coherence). A present/coherence row shows the **matched evidence snippet** (opens its page at
    region precision). Confirm the guidelines-credit (BARG/WAMBS/JASP) + the "not detected in the text, not a verdict"
    caveat. Confirm convergence is **n/a** for a closed-form BF paper (no MCMC).
+   - **SP4 — Advisory notes (if present).** A Bayesian paper that mentions a "confidence interval" (with no "credible
+     interval"), or a BF₀₁ near "support for the alternative", shows an **Advisory** block — clearly demarcated from
+     the checklist (neutral tint, NOT amber), headed "requires expert judgment", worded as an exploratory prompt
+     ("verify…", "a common conflation"), **never a flag/verdict** (Critical if it reads as a verdict). It runs only on
+     a Bayesian paper.
 7. Confirm the **credit** block (Rouder, Speckman, Sun, Morey & Iverson 2009) + a working **＋ add to library**.
 8. Adversarial: a metadata-only paper -> "Process a PDF first"; a non-Bayesian paper -> "doesn't appear to report a
    Bayesian analysis"; 999999 -> 404-class.

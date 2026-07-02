@@ -128,3 +128,41 @@ The panel + docstring state this coverage limit honestly (silence≠certificate 
 
 **Security Audit (SP3 addendum): PASS.** Additive read-only field; verified recompute (exact pingouin anchor); local,
 bounded, no egress/dependency; ANOVA correctly declined as an unverifiable/false-flag risk (a finding, not shipped).
+
+---
+
+## Addendum 3 — SP4: Tier-3 textual-coherence advisory prompts (inc 244)
+
+**Change.** The `completeness` block on the **same** read-only `GET /papers/{id}/bayes` gains an additive
+`advisories` list — two conservatively-gated **Tier-3 advisory** prompts (never flags/verdicts):
+**credible-vs-confidence** (a Bayesian paper that mentions "confidence interval" but never "credible interval") and
+**BF-direction** (a `BF01` reported near a claim of support for the alternative — BF01 favors the null).
+`methods/bayes.py::_advisory_notes`. No new endpoint, no request-schema change.
+
+**Audit trigger.** An additive response field + a new pure text-scan on an existing read-only endpoint.
+
+- **Input / SQL / injection.** Unchanged — reads the same `get_chunks_for_paper` text; the advisory regexes are
+  literal/anchored (`confidence intervals?`, `BF\s*(?:01|₀₁)`, a bounded `[^.]{0,40}` alternation — no catastrophic
+  backtracking); the BF-direction window is a fixed ±120-char slice. No SQL written.
+- **Output.** Additive JSON; the frontend renders the note + evidence as plain React text.
+- **SSRF / egress / secrets / dependency.** None. Fully local; **no new dependency**.
+- **Resource caps.** `_first`/`finditer` over the same chunk rows; the BF-direction scan returns after the first hit
+  (advisory, not exhaustive). No unbounded work. Coordinate honesty preserved (region page-open).
+
+**Principles posture (recorded).** These are the future-track doc's **Stage 3 advisory annotations**, built to its
+prescription: **clearly demarcated** from the Tier-1/Tier-2 signals (a separate block, neutral `--accent-soft` tint —
+**not** the amber flag; headed "requires expert judgment"), worded as **exploratory prompts** ("verify whether…",
+"a common conflation") — **never a flag or verdict** (#2 signal-not-verdict; the A-A no-accusation veto). Gated
+**conservatively** (the doc's prefer-false-negatives guidance): they run **only on a Bayesian paper**; credible-vs-
+confidence is **suppressed** if the paper also says "credible interval" (assume it distinguishes them); BF-direction
+fires only on the specific `BF01`-near-"alternative-support" co-occurrence. A non-Bayesian paper → no advisories.
+
+**Negative-path.** Non-Bayesian paper → `advisories: []`. A Bayesian paper reporting both interval types → no
+credible-confidence advisory. A clean Bayesian paper → `advisories: []`.
+
+**Verification.** pytest `tests/test_bayes.py` (+5 SP4: credible-vs-confidence fires / suppressed-when-both-present;
+BF-direction fires; none for a clean Bayesian paper; none for a non-Bayesian paper; + the endpoint `advisories` field).
+
+**Security Audit (SP4 addendum): PASS.** Additive read-only field; local, bounded, no egress/dependency; the
+advisory prompts are clearly-demarcated Tier-3, conservatively gated, and worded as prompts-not-verdicts — upholding
+the signal-not-verdict + no-accusation posture.

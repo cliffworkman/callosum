@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-01 — Increment 244: Bayesian auditor SP4 — Tier-3 textual-coherence advisory prompts (FULLY CLOSES #24)
+- **Files:** `app/backend/methods/bayes.py` (`_advisory_notes` + `AdvisoryNote` + `advisories` on `BayesCompleteness`) + `app/backend/api/routers/methods.py` (additive `advisories`) + `app/frontend/js/08d_methods_bayes.jsx` (`BayesAdvisories` block) + `styles.css` (`.bayes-advisory*`, neutral not amber); `tests/test_bayes.py` (+5); `route_59`; the audit addendum 3; CLAUDE; backlog; `INCREMENT-244-NOTES.md`. (callosum-app.html rebuilt.)
+- **What:** two conservatively-gated **Tier-3 advisory** prompts (never flags/verdicts) — credible-vs-confidence mislabel + BF-direction — clearly demarcated from the checklist, worded as "requires expert judgment" exploratory prompts (the future-track doc's Stage 3).
+- **Why:** the last "build all three" thread to close out #24.
+- **Verify:** honesty made structural — Bayesian-gated, suppressed when both interval types appear, BF-direction only on the specific co-occurrence, neutral (not amber) styling, prompt-not-verdict wording. pytest 909 (+5); `test_frontend_assembly` 5/5; ruff+format clean; QA 174/174 API + 771/771 FE, 0 uncovered; audit addendum PASS; Principles aligned. Headed-verified (2 prompts + "requires expert judgment" + neutral border; 0 console/page/genai). **No egress/LLM/migration/dependency. FULLY CLOSES future-track #24.**
+- **Revert:** `git revert <sha>` (additive response field + a pure function + panel block; no migration/destructive change).
+
 <!-- HELP-DOCS-SYNCED 2026-07-01 inc 243 — "Checking Bayes factors" now covers correlation + the ANOVA caveat -->
 ## 2026-07-01 — Increment 243: Bayesian auditor SP3 — Pearson-correlation recompute (Ly 2016); ANOVA declined as a finding
 - **Files:** `app/backend/methods/bayes.py` (`corr_bf10` + `_RSTAT` + `_scan_text` branches on t/r) + `app/backend/api/routers/methods.py` (additive `computed_correlation`) + `app/frontend/js/08d_methods_bayes.jsx` (correlation label + 2-paper credit); `tests/test_bayes.py` (+5); `route_59_methods_bayes.md`; the audit addendum 2; THIRD-PARTY-NOTICES (Ly 2016); help corpus; CLAUDE; backlog; `INCREMENT-243-NOTES.md`. (callosum-app.html rebuilt.)

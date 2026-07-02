@@ -281,23 +281,23 @@ reader should look for in a mixed-model paper (random-effects structure, df meth
 missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**. A self-contained
 sibling of statcheck under the findings subsystem.
 
-**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[DONE — SP1 inc 241 + SP2 inc 242 + SP3 inc
-243; SP4 in progress]** the **Tier-1 deterministic recompute** (SP1): default **JZS** t-test BF (Rouder et al. 2009)
-for inline `t(df) = …, BF10 = …` via `methods/bayes.py::jzs_bf10` (scipy quadrature; verified vs pingouin) + the
+**24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[FULLY DONE — SP1 inc 241 + SP2 inc 242 +
+SP3 inc 243 + SP4 inc 244]** the **Tier-1 deterministic recompute** (SP1): default **JZS** t-test BF (Rouder et al.
+2009) for inline `t(df) = …, BF10 = …` via `methods/bayes.py::jzs_bf10` (scipy quadrature; verified vs pingouin) + the
 **Tier-2 completeness checklist** (SP2): presence/absence of the prior + convergence diagnostics + sensitivity
 analysis (BARG/WAMBS/JASP) + a coherence flag on a breaching *reported* diagnostic (R-hat > 1.1 / ESS < 400 /
-divergences) + the **correlation recompute** (SP3, inc 243): default **correlation** BF (Ly et al. 2016) for inline
-`r(df) = …, BF10 = …` via `corr_bf10` (exact ₂F₁ closed form; **verified exactly vs pingouin `bayesfactor_pearson`**).
-All on `GET /papers/{id}/bayes` + the METHODS panel `08d_methods_bayes.jsx`. Signal-not-verdict, no score, no
-accusation; the checklist runs only on a Bayesian paper, convergence is n/a for closed-form BFs, "not found" =
-not-detected-in-text, thresholds cited as conventions. Local, no LLM/egress/migration/dependency; audits PASS;
-credited (Rouder et al. + Ly et al. + BayesFactor + BARG/WAMBS/JASP). Deliberately does **not** teach "BF>3 =
-significance". **SP4 (inc 244, remaining):** the fuzzier **textual-coherence** advisory flags (credible-vs-confidence
-mislabel, BF-direction error) as clearly-demarcated **Tier-3 advisory** annotations (the doc's Stage 3). **ANOVA /
-regression BFs — DEFERRED as a documented finding (inc 243 audit addendum 2):** the default ANOVA/regression BF is
-**not faithfully recomputable from F+df+N alone** (design-dependent) and has **no in-env anchor**; a candidate failed
-the J=2 → two-sample-t reduction check, so shipping it would fabricate false flags — declined per rule #2 + the A-A
-veto until a trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) exists. Sibling of statcheck.
+divergences) + the **correlation recompute** (SP3): default **correlation** BF (Ly et al. 2016) for inline `r(df) = …,
+BF10 = …` via `corr_bf10` (exact ₂F₁ closed form; **verified exactly vs pingouin `bayesfactor_pearson`**) + **Tier-3
+advisory prompts** (SP4, inc 244): conservatively-gated, clearly-demarcated (neutral, not amber; "requires expert
+judgment") credible-vs-confidence + BF-direction prompts (`_advisory_notes`) — never flags/verdicts. All on `GET
+/papers/{id}/bayes` + the METHODS panel `08d_methods_bayes.jsx`. Signal-not-verdict, no score, no accusation; the
+checklist runs only on a Bayesian paper, convergence is n/a for closed-form BFs, "not found" = not-detected-in-text,
+thresholds cited as conventions, advisories are exploratory prompts. Local, no LLM/egress/migration/dependency; audits
+PASS; credited (Rouder + Ly + BayesFactor + BARG/WAMBS/JASP). Deliberately does **not** teach "BF>3 = significance".
+**ANOVA / regression BFs — DEFERRED as a documented finding (inc 243 audit addendum 2):** the default ANOVA/regression
+BF is **not faithfully recomputable from F+df+N alone** (design-dependent) and has **no in-env anchor**; a candidate
+failed the J=2 → two-sample-t reduction check, so shipping it would fabricate false flags — declined per rule #2 + the
+A-A veto until a trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) exists. Sibling of statcheck.
 
 **25. Citation concentration** (`…_citationequitytool.md`, METHODS) — **[DONE — SP1 inc 227 + SP2 inc 228 +
 values rework inc 229]** the **structural** reference-list audit (self-citation, Matthew concentration, venue +

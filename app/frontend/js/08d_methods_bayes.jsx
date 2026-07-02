@@ -98,7 +98,30 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
                   </div>
                 </>}
             {d.completeness && d.completeness.is_bayesian && <BayesChecklist items={d.completeness.items} onOpen={open} />}
+            {d.completeness && d.completeness.advisories && d.completeness.advisories.length > 0 &&
+              <BayesAdvisories notes={d.completeness.advisories} onOpen={open} />}
           </div>)}
+    </div>
+  );
+}
+
+// SP4: Tier-3 advisory prompts — clearly demarcated from the Tier-1/Tier-2 flags; exploratory, requires expert judgment.
+function BayesAdvisories({ notes, onOpen }) {
+  return (
+    <div className="bayes-advisory">
+      <p className="eyebrow">Advisory — requires expert judgment</p>
+      {notes.map((a, i) => (
+        <div key={i} className="bayes-advisory-item">
+          <div><span className="bayes-advisory-label">{a.label}:</span> {a.note}.</div>
+          {a.evidence &&
+            <button className="bayes-check-ev" title={a.page != null ? "Open page " + a.page : ""} onClick={() => a.page != null && onOpen(a.page)}>
+              “{a.evidence}”
+            </button>}
+        </div>
+      ))}
+      <div className="statcheck-caveat">
+        Exploratory prompts, not verdicts or flags — the text merely *suggests* a possible mislabel; a human should confirm. Deliberately conservative (many are false alarms).
+      </div>
     </div>
   );
 }
