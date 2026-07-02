@@ -40,6 +40,7 @@ from app.backend.api.routers import (
     help,
     library,
     libreoffice,
+    lmm,
     methods,
     my_publications,
     ocr,
@@ -235,6 +236,7 @@ def create_app(
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
+    api.include_router(lmm.router)  # /papers/{id}/lmm — LMM-reporting completeness auditor (#23, inc 247)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)
