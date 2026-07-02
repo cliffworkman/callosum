@@ -4011,6 +4011,115 @@
     hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(MetaSection, { ctx })
   });
+  const TRANSPARENCY_CSL = [
+    {
+      type: "article-journal",
+      title: "ODDPub \u2014 a text-mining algorithm to detect data sharing in biomedical publications",
+      author: [
+        { family: "Riedel", given: "Nico" },
+        { family: "Kip", given: "Miriam" },
+        { family: "Bobrov", given: "Evgeny" }
+      ],
+      "container-title": "Data Science Journal",
+      volume: "19",
+      page: "42",
+      issued: { "date-parts": [[2020]] },
+      DOI: "10.5334/dsj-2020-042"
+    },
+    {
+      type: "article-journal",
+      title: "Assessment of transparency indicators across the biomedical literature: How open is open?",
+      author: [
+        { family: "Serghiou", given: "Stylianos" },
+        { family: "Contopoulos-Ioannidis", given: "Despina G." },
+        { family: "Boyack", given: "Kevin W." },
+        { family: "Riedel", given: "Nico" },
+        { family: "Wallach", given: "Joshua D." },
+        { family: "Ioannidis", given: "John P. A." }
+      ],
+      "container-title": "PLOS Biology",
+      volume: "19",
+      issue: "3",
+      page: "e3001107",
+      issued: { "date-parts": [[2021]] },
+      DOI: "10.1371/journal.pbio.3001107"
+    },
+    {
+      type: "article-journal",
+      title: "The preregistration revolution",
+      author: [
+        { family: "Nosek", given: "Brian A." },
+        { family: "Ebersole", given: "Charles R." },
+        { family: "DeHaven", given: "Alexander C." },
+        { family: "Mellor", given: "David T." }
+      ],
+      "container-title": "Proceedings of the National Academy of Sciences",
+      volume: "115",
+      issue: "11",
+      page: "2600-2606",
+      issued: { "date-parts": [[2018]] },
+      DOI: "10.1073/pnas.1708274114"
+    }
+  ];
+  function TransparencyPaper({ paperId, onOpenPaper, active }) {
+    const [meta, setMeta] = useState(null);
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      setMeta(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (!live || !r.ok) return;
+        setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const run = async () => {
+      setState({ status: "running" });
+      const r = await api(`/papers/${paperId}/transparency`);
+      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+    };
+    useEffect(() => {
+      if (active && meta && meta.hasText && state.status === "idle") run();
+    }, [active, meta]);
+    const open = (page) => {
+      if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" });
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to check its transparency disclosures.");
+    const hasText = meta ? meta.hasText : false;
+    const d = state.data;
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Detect this paper's open-science disclosures \u2014 local, no AI", onClick: run }, "Check disclosures") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && /* @__PURE__ */ React.createElement(TransparencyChecklist, { checks: d.checks, onOpen: open }));
+  }
+  function TransparencyChecklist({ checks, onOpen }) {
+    if (!checks || !checks.length) return null;
+    const present = checks.filter((c) => c.status === "present").length;
+    const notFound = checks.filter((c) => c.status === "not-found").length;
+    const na = checks.filter((c) => c.status === "not-applicable").length;
+    return /* @__PURE__ */ React.createElement("div", { className: "bayes-checklist" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Open-science disclosures"), /* @__PURE__ */ React.createElement("div", { className: "lmm-summary" }, present, " disclosed \xB7 ", notFound, " not detected \xB7 ", na, " not applicable \xB7 ", checks.length, " checks"), checks.map((c) => /* @__PURE__ */ React.createElement("div", { key: c.key, className: "bayes-check-item" + (c.status === "not-applicable" ? " lmm-na" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, c.label), c.status === "present" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 detected") : /* @__PURE__ */ React.createElement("span", { className: "bayes-check-muted" }, c.status === "not-applicable" ? "n/a" : "not detected")), c.note && /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.note), c.explainer && /* @__PURE__ */ React.createElement("div", { className: "lmm-explainer" }, c.explainer), c.basis && /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "basis: ", c.basis), c.evidence && /* @__PURE__ */ React.createElement("button", { className: "bayes-check-ev", title: c.page != null ? "Open page " + c.page : "", onClick: () => c.page != null && onOpen(c.page) }, "\u201C", c.evidence, "\u201D"))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Detects ", /* @__PURE__ */ React.createElement("b", null, "reported disclosures"), " in the extracted text \u2014 it does not judge a paper's openness. ", /* @__PURE__ */ React.createElement("b", null, "\u201CNot detected\u201D means not found in the text, NOT that the artifact is absent"), " \u2014 a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never a score, and never an accusation of the authors. \u201CAvailable upon request\u201D is shown as a weaker signal than an open link, not a concern in itself."));
+  }
+  function TransparencyCredit() {
+    const [added, setAdded] = useState("idle");
+    const addCredit = async () => {
+      setAdded("adding");
+      const r = await apiPost("/library/import", { content: JSON.stringify(TRANSPARENCY_CSL), format: "csl-json" });
+      setAdded(r && r.ok ? "added" : "idle");
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Detectors:"), " data & code availability \u2014 ODDPub (Riedel et al. 2020); conflict-of-interest, funding & registration indicators \u2014 rtransparent (Serghiou et al. 2021); preregistration \u2014 Nosek et al. (2018).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add methods sources to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 a rule-based text detector, never a transparency score or a judgment of the authors. Surfaced via D. Lakens' automated-review catalog."));
+  }
+  function TransparencySection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Detect a paper's ", /* @__PURE__ */ React.createElement("b", null, "open-science disclosures"), " \u2014 does it state where the data & code live, declare conflicts of interest & funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's ", /* @__PURE__ */ React.createElement("i", null, "reported"), ", with the matched sentence \u2014 never a transparency score, and \u201Cnot detected\u201D never means the artifact is absent."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(TransparencyPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "transparency" }), /* @__PURE__ */ React.createElement(TransparencyCredit, null));
+  }
+  registerPaneSection({
+    id: "transparency",
+    label: "Transparency signals",
+    paneId: "methods",
+    order: 36,
+    hideInReadOnly: true,
+    render: (ctx) => /* @__PURE__ */ React.createElement(TransparencySection, { ctx })
+  });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
