@@ -92,7 +92,31 @@ transactions) is UNSAFE here**: `_run_scan_job` (+ embed/import/enrich workers) 
 `engine.begin()` transaction, so forcing every transaction to grab the write lock up front would block all other requests
 for the whole job. So this needs its **own focused increment** — e.g. a transaction-level retry-on-busy scoped to the
 short request-path write endpoints, or splitting the long jobs into incremental commits first (then BEGIN IMMEDIATE
-becomes safe). Low user-impact; do it as part of a pre-public concurrency pass.
+becomes safe). Low user-impact; do it as part of a pre-public concurrency pass. **▲ Elevated (QA run 20260702, tiers
+1+2 before the credit wall):** the Codex-exec QA driver reproduced this **broadly**, not just as a rare edge — the
+axes route (`route_15`: `POST /axes` create → 500, `POST /axes/{id}/score` → job `error` "database is locked while
+inserting an axis embedding", then every subsequent axis write [edit/merge/delete/curated] 500 on the same locked
+fixture) and the reading-markers route (`route_50`: `POST /papers/{id}/read` → 500). The endpoints themselves are
+correct (the read-marker handler is a clean set+commit+return; the axis-score job is the long-held `engine.begin()`
+write lock the note above describes). The QA harness's rapid concurrent API calls against the throwaway server (plus a
+background embed/score job holding the write transaction) provoke it far more readily than a human. Confirms this is
+the highest-value pre-public concurrency item — the fix is still the deferred transaction-splitting / retry-on-busy
+increment (the naive `BEGIN IMMEDIATE` is still unsafe for the long jobs), NOT an in-session patch.
+
+**Citation-equity: the "Find overlooked work" control shows on a no-DOI paper but 422s** *(Medium; QA run 20260702
+`route_51`).* The Citation-concentration panel (THEORY → Cite; inc 227/228) resolves a paper's reference list via its
+OpenAlex DOI, so a no-DOI paper has nothing to audit — but the **Find overlooked work** button still renders and, when
+clicked, returns 422 (graceful, no crash). A control that can't complete through the UI is a small gating gap: hide or
+disable the audit + overlooked-work controls when the selected paper has no DOI (with an honest "needs a DOI" hint),
+the way OCR/re-resolve gate on their preconditions. Frontend-only (`08b_methods_citation_equity.jsx`).
+
+**QA seed gap: `_seed_library` doesn't set the `item_type` column** *(Low / test-infra; QA run 20260702 `route_00`).*
+The seed papers carry `csl_json: {"type": "article-journal"}` but not the `item_type=` column, so `GET
+/papers/item-types` returns `[]` and the Library **Type filter** dropdown is suppressed — so the route can't exercise
+it. This is a **fixture** gap, not a product bug (the real citation-import path DOES set `item_type` from the CSL
+type, inc 93). Fix = pass `item_type="article-journal"` on the two `create_paper` calls in `tests/api_helpers.py::
+_seed_library` so the Type filter renders in the QA fixture. (Deliberately deferred out of the inc-250 session to
+avoid touching the shared seed helper without re-running the full 25-min suite.)
 
 **Superuser *capabilities* — what the flag gates** — **[decision — deferred by the maintainer]** the **flag shipped
 inc 195**: a `CALLOSUM_SUPERUSER_ORCIDS` env allowlist → `app_settings.is_superuser_orcid` → an `is_superuser` flag

@@ -22,8 +22,10 @@ register console/pageerror/request listeners on any opened page.
 - **Read & priority are USER labels, never an AI signal.** Nothing computes or suggests them; the user sets them
   by hand. A "read" marker is workflow state; "priority" is the user's triage order — neither is a quality/rank
   verdict about the paper (the inc-207 declined-ratings logic: a hand label, not a composite score).
-- **Local-only, no egress.** `POST /papers/{id}/read` + `POST /papers/{id}/priority` touch only the local DB; no
-  request goes to any external/genai host. Any egress is **Critical**.
+- **Local-only, no library-text egress.** `POST /papers/{id}/read` + `POST /papers/{id}/priority` touch only the
+  local DB. The egress invariant (#3) is about *library text leaving to a remote LLM* — ANY request to a
+  Gemini / `generativelanguage` / genai host with egress unset is **Critical**. (The app loads React/ReactDOM +
+  pdf.js from the cdnjs CDN by design — a framework CDN fetch is expected, NOT an egress violation; do not flag it.)
 - **Priority is allowlist-validated.** `priority` must be `"high"`/`"normal"`/`"low"` or `null` (clear); any other
   value → **422** (the stored value is unchanged). A nonexistent paper → **404** for both endpoints.
 - **Read is a timestamp, idempotent-safe.** `{read:true}` stamps `read_at`; `{read:false}` clears it. Marking an
@@ -50,4 +52,5 @@ register console/pageerror/request listeners on any opened page.
 
 - Both endpoints behave (read set/clear + filters; priority set/clear/filter + 422 off-allowlist + 404; the
   By-priority sort); the card toggle + priority popover work and don't trigger card select/open.
-- 0 console/page errors and 0 external/genai-host requests across any opened page.
+- 0 console/page errors and 0 Gemini/`generativelanguage`/genai-host requests across any opened page (a cdnjs
+  React/pdf.js CDN fetch is the app's by-design framework load, not an egress violation).
