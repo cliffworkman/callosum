@@ -204,6 +204,8 @@ def put_cell(row_id: int, field_key: str, payload: CellPut, conn: Connection = D
         quote=payload.quote,
         bbox_json=payload.bbox_json,
     )
+    # A cell changed → the stored effect size is now stale; drop it so it must be re-converted (never silently stale).
+    wr.set_converted(conn, row_id, None)
     conn.commit()
     return {"ok": True}
 

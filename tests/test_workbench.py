@@ -149,6 +149,14 @@ def test_project_crud_and_convert_and_export(temp_db_url):
     assert audit["rows"][0]["cells"]["m1"]["page"] == 7
     assert client.get(f"/workbench/projects/{pid}/export", params={"format": "bogus"}).status_code == 422
 
+    # editing a cell drops the stale effect size (never a silently-stale g) — checked last (it mutates the row)
+    def _converted():
+        return client.get(f"/workbench/projects/{pid}").json()["rows"][0]["converted"]
+
+    assert _converted() is not None
+    client.put(f"/workbench/rows/{row_id}/cells/m1", json={"value": "104"})
+    assert _converted() is None
+
 
 def test_template_patch_guards_role_columns(temp_db_url):
     client = TestClient(create_app(db_url=temp_db_url))

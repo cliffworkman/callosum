@@ -36,16 +36,16 @@ function WorkbenchPane({ active, onOpenPdf }) {
     if (fail(r)) { setProject(null); loadProjects(); }
   };
 
-  // --- rows + cells (optimistic local updates; PUT replaces the whole cell, so we merge to preserve the anchor) ---
-  const patchCellLocal = (rowId, key, patch) => setProject(p => ({
-    ...p,
-    rows: p.rows.map(r => r.id !== rowId ? r : { ...r, cells: { ...r.cells, [key]: { ...(r.cells[key] || {}), ...patch } } }),
-  }));
+  // --- rows + cells (optimistic local updates; PUT replaces the whole cell, so we merge to preserve the anchor).
+  // A cell edit also drops the row's stored effect size (the server clears it too) — never a silently-stale g. ---
   const putCell = async (rowId, key, patch) => {
     const row = project.rows.find(r => r.id === rowId);
     const cur = (row && row.cells[key]) || {};
     const merged = { value: cur.value ?? null, page: cur.page ?? null, quote: cur.quote ?? null, bbox_json: cur.bbox_json ?? null, ...patch };
-    patchCellLocal(rowId, key, merged);
+    setProject(p => ({
+      ...p,
+      rows: p.rows.map(r => r.id !== rowId ? r : { ...r, converted: null, cells: { ...r.cells, [key]: { ...(r.cells[key] || {}), ...merged } } }),
+    }));
     fail(await apiPut(`/workbench/rows/${rowId}/cells/${key}`, merged));
   };
   const addRow = async (paperId) => {
