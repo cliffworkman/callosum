@@ -1,21 +1,31 @@
-"""Transparency-signals auditor endpoint (backlog #44, inc 250).
+"""Transparency-signals auditor endpoint (backlog #44, inc 250/251).
 
 GET /papers/{id}/transparency — deterministic, local, read-only. Reads the paper's extracted text and returns 7
 open-science-disclosure detectors (present / not-found / not-applicable). No score, no verdict; "not-found" ≠ "absent"
 (silence≠certificate). No chunks → all detectors run over empty text (the frontend gates the "process a PDF first"
-state). Mirrors GET /papers/{id}/meta-analysis. See methods/transparency.py.
+state). Mirrors GET /papers/{id}/meta-analysis.
+
+inc 251 adds the library-wide **persistence** layer (the statcheck inc-97 pattern): POST /methods/transparency/run
+batch-runs every live paper, persisting present-disclosure FACTs + per-disclosure check statuses (see
+methods/transparency_findings.py); GET /methods/transparency/summary drives the review-queue chip. See
+methods/transparency.py (the detector) + methods/transparency_findings.py (the producer).
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Literal
+
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
+from app.backend.api.job_store import JobStore
 from app.backend.methods.transparency import detect_transparency
-from app.backend.persistence.repository import get_chunks_for_paper, get_paper
+from app.backend.methods.transparency_findings import persist_transparency
+from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
+from app.backend.persistence.signals_repo import count_transparency_review
 
 router = APIRouter()
 
@@ -57,3 +67,73 @@ def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)
             for c in report.checks
         ],
     )
+
+
+# --- inc 251: the library-wide persistence batch + the review-queue chip -------------------------------------------
+
+
+class TransparencyRunSummary(BaseModel):
+    total: int = 0  # live papers checked
+    with_disclosures: int = 0  # papers with ≥1 detected disclosure
+
+
+class TransparencyRunResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    detail: str | None = None
+    summary: TransparencyRunSummary | None = None
+
+
+class TransparencyLibrarySummary(BaseModel):
+    data_not_detected: int  # papers where data-availability wasn't detected — a REVIEW QUEUE count, not a verdict
+
+
+def _run_transparency_all_job(app: FastAPI, job_id: str) -> None:
+    jobs: JobStore[TransparencyRunResponse] = app.state.transparency_jobs
+    jobs.mark_running(job_id)
+    try:
+        total = with_disclosures = 0
+        with app.state.engine.begin() as conn:
+            paper_ids = list_live_paper_ids(conn)
+            for i, paper_id in enumerate(paper_ids):
+                total += 1
+                result = persist_transparency(conn, paper_id, get_chunks_for_paper(conn, paper_id))
+                if result["present"] > 0:
+                    with_disclosures += 1
+                jobs.mark_progress(job_id, i + 1, len(paper_ids), "Detecting transparency signals")
+        jobs.mark_done(
+            job_id,
+            TransparencyRunResponse(
+                job_id=job_id,
+                status="done",
+                summary=TransparencyRunSummary(total=total, with_disclosures=with_disclosures),
+            ),
+        )
+    except Exception as exc:
+        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+
+
+@router.post("/methods/transparency/run", response_model=TransparencyRunResponse, status_code=202)
+def transparency_run(background_tasks: BackgroundTasks, request: Request) -> TransparencyRunResponse:
+    # Batch-detect transparency signals over every live paper (async) — persists present-disclosure FACTs +
+    # per-disclosure check statuses; re-running overwrites. Local, no egress, no LLM. NEVER writes an absence as a FACT.
+    job_id = request.app.state.transparency_jobs.create()
+    background_tasks.add_task(_run_transparency_all_job, request.app, job_id)
+    return TransparencyRunResponse(job_id=job_id, status="pending")
+
+
+@router.get("/methods/transparency/run/{job_id}", response_model=TransparencyRunResponse)
+def transparency_run_status(job_id: str, request: Request) -> TransparencyRunResponse:
+    job = request.app.state.transparency_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Transparency run job not found")
+    if job.status == "done" and job.result is not None:
+        return job.result
+    return TransparencyRunResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+@router.get("/methods/transparency/summary", response_model=TransparencyLibrarySummary)
+def transparency_library_summary(conn: Connection = Depends(get_connection)) -> TransparencyLibrarySummary:
+    # Drives the Library-header review-queue chip: # papers where the auditor ran but didn't detect a data-availability
+    # disclosure. A review queue ("go look"), NEVER "papers that hide their data" (the A-A no-accusation boundary).
+    return TransparencyLibrarySummary(data_not_detected=count_transparency_review(conn, "data_availability"))

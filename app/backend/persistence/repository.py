@@ -177,11 +177,25 @@ NEEDS_REVIEW_SOURCES = ("pdf-scaffold", "crossref-unresolved")
 SEARCH_FIELDS = ("all", "title", "author", "journal")
 
 # Library signal filters (inc 97). The `signal` param value indexes this allowlist (never interpolated — rule #3)
-# → a fixed (signal_type, status) subquery against open_science_signals. A *filter* (papers to review), NOT a
-# rank or score; unknown values are ignored.
+# → a fixed (signal_type, source|None, status) subquery against open_science_signals. A *filter* (papers to review),
+# NOT a rank or score; unknown values are ignored. `source=None` matches any source (the inc-97/131 one-row-per-paper
+# producers); a per-disclosure producer (transparency, inc 251 — one row per (paper, disclosure)) pins the source.
 SIGNAL_FILTERS = {
-    "statcheck-inconsistent": ("statcheck", "inconsistent"),
-    "retraction-retracted": ("retraction", "retracted"),  # inc 131: filter to papers a registry records retracted
+    "statcheck-inconsistent": ("statcheck", None, "inconsistent"),
+    "retraction-retracted": ("retraction", None, "retracted"),  # inc 131: papers a registry records retracted
+    # inc 251 (#44): transparency review queues — papers where the auditor RAN but didn't detect a disclosure in the
+    # text ("not detected — go look"), NEVER "papers that hide their data" (the A-A no-accusation boundary). Each pins
+    # (signal_type, disclosure_key, status). A `not-applicable` row (e.g. registration for a non-trial paper) is never
+    # in a `not-detected` queue — precondition-scoping for free.
+    "transparency-data-not-detected": ("transparency", "data_availability", "not-detected"),
+    "transparency-code-not-detected": ("transparency", "code_availability", "not-detected"),
+    "transparency-coi-not-detected": ("transparency", "conflict_of_interest", "not-detected"),
+    "transparency-funding-not-detected": ("transparency", "funding", "not-detected"),
+    "transparency-registration-not-detected": ("transparency", "registration", "not-detected"),
+    "transparency-preregistration-not-detected": ("transparency", "preregistration", "not-detected"),
+    # upon_request has no "not detected" meaning (its absence is the norm) — the review signal is its PRESENCE
+    # ("data/code offered only upon request", a weaker-openness prompt to review), not an accusation.
+    "transparency-upon-request": ("transparency", "upon_request", "detected"),
 }
 
 # Findings review-queue filters (inc 133). `finding` value → the paper_findings.review_state to match. A *work
@@ -294,15 +308,14 @@ def list_papers(
         # Filter to papers carrying a Methods-producer signal of a given status (inc 97) — e.g. statcheck
         # reporting inconsistencies. A bound IN-subquery (rule #3) over a fixed allowlisted (type, status) pair;
         # a *view of papers to review*, never a rank. Composes with the deleted/q/axis/tag clauses above.
-        sig_type, sig_status = SIGNAL_FILTERS[signal]
-        stmt = stmt.where(
-            papers.c.id.in_(
-                select(open_science_signals.c.paper_id).where(
-                    open_science_signals.c.signal_type == sig_type,
-                    open_science_signals.c.status == sig_status,
-                )
-            )
-        )
+        sig_type, sig_source, sig_status = SIGNAL_FILTERS[signal]
+        conds = [
+            open_science_signals.c.signal_type == sig_type,
+            open_science_signals.c.status == sig_status,
+        ]
+        if sig_source is not None:  # a per-disclosure producer (transparency) pins the source; inc-97/131 don't
+            conds.append(open_science_signals.c.source == sig_source)
+        stmt = stmt.where(papers.c.id.in_(select(open_science_signals.c.paper_id).where(*conds)))
     if finding in FINDING_FILTERS:
         # The unified "to review" queue (inc 133): papers carrying a CANDIDATE finding in a given review state
         # (v1: 'unreviewed'). The user's *work state*, never a rank. Bound IN-subquery (rule #3); composes above.
