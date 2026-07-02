@@ -140,6 +140,33 @@ made them coexist on purpose).
 `.claude/media/` correctly [inc 109 moved the source]; the "silent no-op" was a stale pre-inc-109 sandbox note.
 #2 PDF page-view options [fit-width / two-up] — ✅ SHIPPED inc 110. Both relocated to DONE.)*
 
+**45. Watched-rescan write-lock hardening + content-hash dedup** — **[infra/reliability]** surfaced 2026-07-02
+diagnosing a live "library repopulated + metadata won't fetch" report. Root cause was a DB-selection footgun (a
+shell without `CALLOSUM_DB_URL` fell back to the thin validation-harness DB), but it exposed two real latent bugs
+in the inc-160 watched-rescan: **(a)** concurrent `POST /library/watched/rescan` background jobs writing to SQLite
+self-contend → a cascade of `sqlite3.OperationalError: database is locked` on `INSERT INTO papers` /
+`external_api_cache` (enrichment *fetches* fine — Crossref 200s — but the *persist* fails, so metadata never lands).
+Fix: **serialize rescans** (a single-flight guard so only one runs at a time) and/or set SQLite `busy_timeout` +
+WAL so writers wait instead of erroring. **(b)** the rescan dedups by library source-path, so a DB whose rows came
+from a *different* provenance (the harness) gets **duplicate scaffold rows** re-imported every launch → the
+"repopulated" appearance + `UNIQUE constraint failed: papers.doi` on enrich. Fix: **dedup by content hash** so
+foreign-provenance rows are recognized. Neither threatens a properly-scanned library; both only bit when pointed at
+the wrong DB — but the lock hardening (a) is a general robustness win (two servers on one SQLite file, big imports).
+_Also flag (non-code): the `.local/` SQLite DBs live inside the synced Dropbox folder — worsens lock contention +
+syncs a 280 MB binary constantly; relocating `.local/` out of Dropbox is the healthier fix (needs Cliff's call)._
+
+**46. QA supervisor: isolate the disposable QA instance from the shared Remote-access setting** —
+**[infra/reliability/qa]** surfaced 2026-07-02 from a dead QA run (`qa-inbox/20260702_171244`, route_20_tags)
+that never produced a `run-summary.md`. Root cause (Codex self-diagnosed it mid-run): **Remote access is a
+per-user *shared* setting** (`~/.callosum/app-settings.json`), so when it's toggled ON — e.g. the inc-254
+lockout scenario — it **leaks into the disposable QA callosum instance** the supervisor spins up (inc-170
+isolated-instance pattern), 401ing every request. The headed browser then sees an empty library and
+`page.waitForSelector('.paper')` times out (30 s) → the run stalls (compounded on Windows by repeated
+`codex exec` command timeouts [exit 124] + a `cp1252` stdout `OSError: [Errno 22]`). Fix: **`tools/qa/supervisor.py`
+should set `CALLOSUM_DISABLE_REMOTE_ACCESS=1` in the env of every disposable QA instance** (and ideally point it
+at a throwaway `CALLOSUM_SETTINGS_PATH`) so a user's Remote-access toggle can never gate the QA runs. Pairs with
+inc 254 (lockout recovery). **Not a security finding** — the gate worked as designed; this is QA-harness isolation.
+
 **3. Protect imported/system tags from silent clobber** — **inc 143 (Librarian pass) shipped the core:** deleting
 an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
 backfill no longer silently re-adds a removed keyword; re-adding it clears the suppression). **inc 174** shipped the

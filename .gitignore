@@ -62,3 +62,8 @@ library/
 tools/qa/surface-map.json
 # the QA bundle drop itself (transient; its files now live in tools/qa/ + .claude/)
 qa_routes.zip
+
+# --- Personal machine-local launchers (personal DB path; not for the public repo — the portable
+# per-OS setup lives in the README) ---
+/run-callosum.ps1
+/run-callosum.sh

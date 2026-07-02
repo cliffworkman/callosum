@@ -93,6 +93,34 @@ Everything is local by default. The only data that can leave your machine is **A
 Public-metadata lookups (Crossref/OpenAlex) are not the AI gate — set a contact email in **Settings → Metadata
 access** for the polite pool.
 
+### Choosing a stable database location
+
+By default Callosum stores its library in a SQLite file under `.local/`. Two things are worth setting up early:
+
+- **Persist `CALLOSUM_DB_URL`** so *every* launch opens the same library. If you start `uvicorn` from a shell that
+  hasn't set it, Callosum falls back to the default path — which can look like your library "reset" when you
+  normally point it elsewhere.
+- **Keep the database out of a cloud-synced folder** (Dropbox / OneDrive / iCloud Drive). A sync client holding the
+  `.sqlite`/`-wal` files open contends with SQLite's write lock and can surface as `database is locked` during large
+  imports.
+
+Persist it per your shell (use an absolute path):
+
+**Windows (PowerShell)** — applies to every new terminal:
+```powershell
+[Environment]::SetEnvironmentVariable('CALLOSUM_DB_URL','sqlite:///C:/Users/you/callosum-data/library.sqlite','User')
+```
+
+**macOS (zsh) / Linux (bash)** — a Unix **absolute** path takes **four** slashes after `sqlite:` (three for the
+scheme + the path's leading `/`):
+```bash
+echo 'export CALLOSUM_DB_URL="sqlite:////home/you/callosum-data/library.sqlite"' >> ~/.bashrc  # or ~/.zshrc
+source ~/.bashrc   # or open a new terminal
+```
+
+A small launcher that exports the variable and runs `uvicorn` (a `run-callosum.ps1` / `run-callosum.sh` in the
+project root, kept out of git) gives you a one-command start on any OS.
+
 ## Cite from your word processor
 
 Callosum can place live, formatted citations directly in **LibreOffice Writer**, **Microsoft Word** (desktop), and

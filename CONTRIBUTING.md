@@ -26,6 +26,10 @@ uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080   # then open http:
 Secrets come from the environment or a **gitignored `.env`** — never commit keys. Optional Gemini summary
 generation is **off by default** and requires `CALLOSUM_ALLOW_DATA_EGRESS=1` + `GOOGLE_API_KEY`.
 
+The library database is a SQLite file under `.local/` by default; set **`CALLOSUM_DB_URL`** to persist a stable
+location (and ideally keep it out of a cloud-synced folder) — see
+[Choosing a stable database location](README.md#choosing-a-stable-database-location).
+
 ## Before you open a PR
 
 - **Lint + format:** `ruff check .` and `ruff format .` (config in `pyproject.toml`; line-length 120).
