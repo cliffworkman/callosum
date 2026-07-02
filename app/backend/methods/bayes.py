@@ -1,9 +1,12 @@
-"""Bayesian auditor SP1 — recompute reported default Bayes factors from a paper's extracted text (inc 241).
+"""Bayesian auditor — recompute reported default Bayes factors from a paper's extracted text (inc 241; SP1 recompute
++ inc 242 completeness checklist + inc 243 Pearson-correlation recompute).
 
-The deterministic sibling of statcheck (PRINCIPLES Example 3), for Bayesian t-tests. It scans the running prose for
-an inline t-test result reported *with* its Bayes factor (``t(df) = …, BF10 = …``), recomputes the **default JZS**
-Bayes factor (Rouder, Speckman, Sun, Morey & Iverson, 2009 — a Cauchy prior on effect size, scale r = √2/2) from the
-reported ``t`` + ``df`` via ``scipy.integrate.quad``, and reports where the reported and recomputed values disagree.
+The deterministic sibling of statcheck (PRINCIPLES Example 3), for Bayesian t-tests and Pearson correlations. It scans
+the running prose for an inline result reported *with* its Bayes factor (``t(df) = …, BF10 = …`` or ``r(df) = …,
+BF10 = …``), recomputes the **default** Bayes factor — the **JZS** t-test BF (Rouder, Speckman, Sun, Morey & Iverson,
+2009 — a Cauchy prior on effect size, scale r = √2/2) via ``scipy.integrate.quad``, or the default **correlation** BF
+(Ly, Verhagen & Wagenmakers, 2016 — a stretched-beta prior, κ = 1) via the exact ₂F₁ closed form — from the reported
+statistic + df, and reports where the reported and recomputed values disagree.
 
 It is a **signal, never a verdict** (PRINCIPLES #2) and **never an accusation** (the A-A veto): a mismatch is most
 often innocent — the paper may have used a *different prior scale* (which we cannot know from the text), a different
@@ -14,12 +17,14 @@ BF definition, or a design we couldn't determine. So the recompute is honest abo
 - ``t(df)`` alone doesn't reveal whether the test was one-sample/paired (n = df+1) or two-sample (needs the group
   sizes). We recompute under **both** standard interpretations (paired; two-sample assuming equal groups) and mark
   the BF **reproduced if it matches either** — erring toward "reproduced", the non-accusatory direction (like
-  statcheck's one-tailed leniency). Only a BF matching *neither* is flagged.
+  statcheck's one-tailed leniency). Only a BF matching *neither* is flagged. A correlation ``r(df)`` is unambiguous
+  (n = df+2), so it has a single recomputed value.
 
 Results carry the **verbatim matched string** + the **recomputed value(s)** + the **assumed prior** + the **page**
-(#8/#1/#4). Coverage is stated honestly (#6): this reads only inline ``t(df) = …, BF = …`` — BFs in tables, ANOVA/
-correlation BFs, and BFs reported without an adjacent test statistic are invisible, so a clean result is not a clean
-bill. There is **no composite score** (#7) — only per-BF results + transparent counts. Fully local, no LLM, no egress.
+(#8/#1/#4). Coverage is stated honestly (#6): this reads only inline ``t(df) = …`` / ``r(df) = …`` reported with an
+adjacent BF — BFs in tables, ANOVA/regression BFs (the default BF is not faithfully recoverable from F + df alone —
+see inc 243 notes), and BFs with no adjacent statistic are invisible, so a clean result is not a clean bill. There is
+**no composite score** (#7) — only per-BF results + transparent counts. Fully local, no LLM, no egress.
 """
 
 from __future__ import annotations
@@ -29,8 +34,10 @@ import re
 from dataclasses import dataclass, field
 
 from scipy.integrate import quad
+from scipy.special import betaln, hyp2f1
 
 DEFAULT_R = math.sqrt(2) / 2  # ≈ 0.7071 — the JZS/Cauchy default prior scale (Rouder et al. 2009)
+DEFAULT_KAPPA = 1.0  # the default stretched-beta prior width for the correlation test (JASP/BayesFactor default)
 MAX_RESULTS = 500  # bound the work on an untrusted/huge text (rule #4)
 # A reproduction tolerance on the log10 scale: BFs are reported to ~2–3 sig figs and are prior-scale-sensitive, so we
 # flag only gross discrepancies. 0.3 ≈ a factor of 2 — a reported 3 that recomputes to 30 is a real mismatch; 3 vs 4
@@ -45,17 +52,22 @@ _BF = re.compile(
 )
 # A t-test statistic with its df: t(19) = 2.53  (df must be a positive number; the t value may be negative).
 _TSTAT = re.compile(r"(?<![A-Za-z])t\s*\(\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*(-?" + _NUM + r")")
-_WINDOW = 90  # a BF is associated with a t-stat only if their matched spans are within this many characters
+# A Pearson correlation with its df (APA `r(df)`, df = n − 2): r(48) = .42  (r ∈ [-1, 1], value may be a leading-dot).
+_RSTAT = re.compile(r"(?<![A-Za-z])r\s*\(\s*(\d+)\s*\)\s*=\s*(-?" + _NUM + r")")
+_WINDOW = 90  # a BF is associated with a statistic only if their matched spans are within this many characters
 
 
 @dataclass(frozen=True)
 class BayesResult:
-    raw: str  # the verbatim matched region (t-stat + BF)
+    raw: str  # the verbatim matched region (statistic + BF)
     reported_bf10: float  # the reported BF, normalized to BF10 (BF01 inverted)
-    computed_paired: float | None  # recomputed BF10 assuming a one-sample/paired design (n = df+1)
-    computed_two_sample: float | None  # recomputed BF10 assuming a two-sample equal-groups design
+    computed_paired: float | None  # recomputed BF10 assuming a one-sample/paired t-test (n = df+1)
+    computed_two_sample: float | None  # recomputed BF10 assuming a two-sample equal-groups t-test
+    computed_correlation: float | None  # recomputed default correlation BF10 (Ly et al. 2016; n = df+2)
     consistency: str  # "reproduced" | "not-reproduced"
-    matched_design: str | None  # which interpretation reproduced it ("paired" | "two-sample") — None if neither
+    matched_design: (
+        str | None
+    )  # which interpretation reproduced it ("paired" | "two-sample" | "correlation") — None if neither
     page: int | None
 
 
@@ -94,6 +106,24 @@ def jzs_bf10(t: float, n: float, df: float, r: float = DEFAULT_R) -> float | Non
         return None
 
 
+def corr_bf10(r: float, n: float, kappa: float = DEFAULT_KAPPA) -> float | None:
+    """The default (Jeffreys) Bayes factor (BF10) for a Pearson correlation — the exact Ly, Verhagen & Wagenmakers
+    (2016) / Wetzels & Wagenmakers (2012, eq. 25) closed form via the Gaussian hypergeometric ₂F₁. `n` is the sample
+    size (from an APA `r(df)`, n = df+2); `kappa` is the stretched-beta prior width (JASP/BayesFactor default 1).
+    Returns None on a degenerate input. Verified exactly against the pingouin `bayesfactor_pearson` anchor."""
+    if not (-1.0 <= r <= 1.0) or n < 3:
+        return None
+    k = kappa
+    try:
+        log_pre = ((k - 2) / k) * math.log(2) + 0.5 * math.log(math.pi) - betaln(1 / k, 1 / k)
+        log_gamma_ratio = math.lgamma((2 + k * (n - 1)) / (2 * k)) - math.lgamma((2 + n * k) / (2 * k))
+        hyp = float(hyp2f1((n - 1) / 2.0, (n - 1) / 2.0, (2 + n * k) / (2 * k), r * r))
+        bf = math.exp(log_pre + log_gamma_ratio) * hyp
+        return bf if math.isfinite(bf) and bf > 0 else None
+    except (ValueError, OverflowError, ZeroDivisionError):
+        return None
+
+
 def _bf_candidates(t: float, df: float) -> tuple[float | None, float | None]:
     """Recompute BF10 under the two standard t-test interpretations of a bare `t(df)`:
     paired/one-sample (n = df+1) and two-sample assuming equal groups (n1 = n2 = (df+2)/2 → n_eff = (df+2)/4)."""
@@ -118,8 +148,12 @@ def _normalize_bf10(subscript: str | None, value: float) -> float | None:
 
 
 def _scan_text(text: str, page: int | None, out: list[BayesResult]) -> None:
-    tstats = [(m.start(), m.end(), float(m.group(1)), float(m.group(2))) for m in _TSTAT.finditer(text)]
-    if not tstats:
+    # Collect both t-test and correlation statistics; each BF is checked against whichever is nearest (within the
+    # window), and recomputed under the matching design — t-test (paired/two-sample) or correlation (n = df+2).
+    stats: list[tuple[int, int, str, float, float]] = [
+        (m.start(), m.end(), "t", float(m.group(1)), float(m.group(2))) for m in _TSTAT.finditer(text)
+    ] + [(m.start(), m.end(), "r", float(m.group(1)), float(m.group(2))) for m in _RSTAT.finditer(text)]
+    if not stats:
         return
     for bf in _BF.finditer(text):
         if len(out) >= MAX_RESULTS:
@@ -132,31 +166,42 @@ def _scan_text(text: str, page: int | None, out: list[BayesResult]) -> None:
         reported_bf10 = _normalize_bf10(bf.group(1), reported)
         if reported_bf10 is None:
             continue
-        # associate the nearest t-stat whose span is within the window
+        # associate the nearest statistic whose span is within the window
         bf_start = bf.start()
-        near = [ts for ts in tstats if abs(ts[0] - bf_start) <= _WINDOW or abs(ts[1] - bf_start) <= _WINDOW]
+        near = [st for st in stats if abs(st[0] - bf_start) <= _WINDOW or abs(st[1] - bf_start) <= _WINDOW]
         if not near:
             continue
-        ts = min(near, key=lambda ts: min(abs(ts[0] - bf_start), abs(ts[1] - bf_start)))
-        _, _, df, tval = ts
+        st = min(near, key=lambda s: min(abs(s[0] - bf_start), abs(s[1] - bf_start)))
+        _, _, kind, df, val = st
         if df <= 0:
             continue
-        paired, two_sample = _bf_candidates(tval, df)
-        if paired is None and two_sample is None:
-            continue
-        if _reproduces(reported_bf10, paired):
-            consistency, design = "reproduced", "paired"
-        elif _reproduces(reported_bf10, two_sample):
-            consistency, design = "reproduced", "two-sample"
-        else:
-            consistency, design = "not-reproduced", None
-        lo, hi = sorted((min(ts[0], bf.start()), max(ts[1], bf.end())))
+        paired = two_sample = correlation = None
+        if kind == "t":
+            paired, two_sample = _bf_candidates(val, df)
+            if _reproduces(reported_bf10, paired):
+                consistency, design = "reproduced", "paired"
+            elif _reproduces(reported_bf10, two_sample):
+                consistency, design = "reproduced", "two-sample"
+            else:
+                consistency, design = "not-reproduced", None
+            if paired is None and two_sample is None:
+                continue
+        else:  # correlation: n = df + 2 (APA r(df)), a single unambiguous recompute
+            correlation = corr_bf10(val, n=df + 2)
+            if correlation is None:
+                continue
+            if _reproduces(reported_bf10, correlation):
+                consistency, design = "reproduced", "correlation"
+            else:
+                consistency, design = "not-reproduced", None
+        lo, hi = sorted((min(st[0], bf.start()), max(st[1], bf.end())))
         out.append(
             BayesResult(
                 raw=re.sub(r"\s+", " ", text[lo:hi]).strip()[:200],
                 reported_bf10=round(reported_bf10, 4),
                 computed_paired=round(paired, 4) if paired is not None else None,
                 computed_two_sample=round(two_sample, 4) if two_sample is not None else None,
+                computed_correlation=round(correlation, 4) if correlation is not None else None,
                 consistency=consistency,
                 matched_design=design,
                 page=page,

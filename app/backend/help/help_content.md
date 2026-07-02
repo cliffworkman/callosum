@@ -759,16 +759,16 @@ Read it as a prompt, not a judgment:
 
 <!-- section: bayesian-statistics -->
 ## Checking Bayes factors (the Bayesian auditor)
-The Bayesian auditor is the Bayesian sibling of statcheck. For a paper that reports **default Bayes factors** for t-tests inline (e.g. “t(19) = 2.53, BF₁₀ = 3.4”), it recomputes the **default JZS Bayes factor** (Rouder, Speckman, Sun, Morey & Iverson, 2009 — the closed form JASP and the *BayesFactor* R package use) from the reported *t* and *df*, and flags where the reported value doesn't reproduce. It's local, deterministic, and uses no AI — nothing leaves your machine.
+The Bayesian auditor is the Bayesian sibling of statcheck. For a paper that reports **default Bayes factors** inline — for a t-test (e.g. “t(19) = 2.53, BF₁₀ = 3.4”) or a Pearson correlation (e.g. “r(58) = .42, BF₁₀ = 37”) — it recomputes the **default Bayes factor** (the JZS t-test BF of Rouder et al. 2009, or the default correlation BF of Ly et al. 2016 — the closed forms JASP and the *BayesFactor* R package use) from the reported statistic and *df*, and flags where the reported value doesn't reproduce. It's local, deterministic, and uses no AI — nothing leaves your machine.
 
-In the **METHODS** pane, open **Bayesian statistics** with a paper selected. It reads the paper's extracted text and recomputes each inline t-test Bayes factor, showing the **reported** value, the **recomputed** value, and whether it **reproduces** or **couldn't reproduce**.
+In the **METHODS** pane, open **Bayesian statistics** with a paper selected. It reads the paper's extracted text and recomputes each inline t-test or correlation Bayes factor, showing the **reported** value, the **recomputed** value, and whether it **reproduces** or **couldn't reproduce**.
 
 Read it honestly — it's a signal, not a verdict:
 
-- A Bayes factor depends on the **prior** the authors chose. The auditor recomputes under the *default* JZS prior (a Cauchy scale of about 0.71), under both a paired and a two-sample reading, and calls a value “reproduced” if it matches either within about a factor of 2. **If the paper used a different prior scale or a non-t design, a mismatch is expected** — it means “couldn't reproduce under the default prior”, never “wrong” and never an accusation.
-- It reads only **inline** t-test Bayes factors (a BF reported in a table, or without an adjacent t-statistic, is invisible), so a clean result is **not** a clean bill.
+- A Bayes factor depends on the **prior** the authors chose. The auditor recomputes under the *default* prior — for a t-test, under both a paired and a two-sample reading; for a correlation, the single value that *r(df)* determines — and calls a value “reproduced” if it matches within about a factor of 2. **If the paper used a different prior or a design the text can't reveal (e.g. an ANOVA, whose default BF isn't recoverable from F and df alone), a mismatch is expected** — it means “couldn't reproduce under the default prior”, never “wrong” and never an accusation.
+- It reads only **inline** t-test and correlation Bayes factors (a BF in a table, or without an adjacent statistic, is invisible), so a clean result is **not** a clean bill.
 - There is **no score and no rank** — only per-result outcomes with the recomputed number shown, so you can judge for yourself. Each result opens its page in the PDF.
-- The section credits Rouder et al. (2009) and offers a one-click **add to library**.
+- The section credits Rouder et al. (2009) and Ly et al. (2016) and offers a one-click **add to library**.
 
 Below the recompute, for a paper that reports Bayesian analysis, a **Reporting checklist** flags whether the core reporting elements from the Bayesian guidelines (BARG, WAMBS, and the JASP guidelines) are present in the text: whether the **prior** is stated (family and scale), whether **convergence diagnostics** (R-hat, effective sample size) are reported, and whether a **prior sensitivity / robustness analysis** is reported. Each item shows the matched sentence (which opens its page) so you can see the evidence.
 

@@ -99,6 +99,7 @@ class BayesResult(BaseModel):
     reported_bf10: float
     computed_paired: float | None = None
     computed_two_sample: float | None = None
+    computed_correlation: float | None = None
     consistency: str  # reproduced | not-reproduced
     matched_design: str | None = None
     page: int | None = None
@@ -147,6 +148,7 @@ def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> Ba
                 reported_bf10=r.reported_bf10,
                 computed_paired=r.computed_paired,
                 computed_two_sample=r.computed_two_sample,
+                computed_correlation=r.computed_correlation,
                 consistency=r.consistency,
                 matched_design=r.matched_design,
                 page=r.page,

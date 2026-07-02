@@ -89,3 +89,42 @@ priors" → present-under-specified; good MCMC diagnostics → present; + the en
 **Security Audit (SP2 addendum): PASS.** Additive read-only response field; local, bounded, no egress/dependency; the
 honesty controls (Bayesian-gated, convergence-n/a, not-found≠missing, conventions-not-laws) uphold the no-accusation
 boundary.
+
+---
+
+## Addendum 2 — SP3: Pearson-correlation recompute (inc 243)
+
+**Change.** `run_bayes` (on the **same** read-only `GET /papers/{id}/bayes` endpoint) now also recognizes an inline
+`r(df) = …, BF10 = …` and recomputes the **default correlation Bayes factor** (Ly, Verhagen & Wagenmakers 2016 — the
+exact ₂F₁ closed form, `methods/bayes.py::corr_bf10`). `BayesResult` / the response gain an additive
+`computed_correlation` field; `matched_design` can now be `"correlation"`. No new endpoint, no request-schema change.
+
+**Audit trigger.** An additive response field + a new pure recompute function on an existing read-only endpoint.
+
+- **Input / SQL / injection.** Unchanged — reads the same `get_chunks_for_paper` text; the `_RSTAT` regex is anchored
+  (`(?<![A-Za-z])r\(\d+\)=…`) and bounded by `MAX_RESULTS`; every numeric parse is wrapped. No SQL written.
+- **SSRF / egress / secrets / dependency.** None — `corr_bf10` uses `scipy.special.betaln`/`hyp2f1` (**scipy already
+  an explicit dep**; no new dependency). Fully local.
+- **Resource caps / correctness.** `corr_bf10` is a single closed-form evaluation (no unbounded loop), guards
+  `|r| ≤ 1` and `n ≥ 3`, and returns `None` on any non-finite/degenerate result (skipped, never crashes).
+- **Coordinate honesty.** Unchanged — correlation rows open the page at `region` precision.
+
+**Verification anchor (the load-bearing point).** `corr_bf10` was verified **exactly against `pingouin.bayesfactor_pearson`**
+(the `ly` method — the same Ly 2016 formula JASP + the BayesFactor R package use) at 7 points, incl. negative r:
+(0.6, 20)=10.634, (0.5, 30)=9.904, (0.3, 50)=1.5555, (0.0, 40)=0.19693, (0.8, 25)=12721, (0.42, 60)=37.389. pingouin
+is a **dev-only verification tool** — its anchor values are baked into `tests/test_bayes.py` as constants; it is **not
+a runtime dependency**. Same posture as the SP1 t-test anchor.
+
+**Finding — ANOVA / regression deliberately NOT shipped.** The maintainer asked for ANOVA too, but the default
+Bayesian **ANOVA/regression** Bayes factor is **not faithfully recomputable from `F(df1, df2)` + N alone** — it
+depends on the design (balance, cell sizes, the g-prior structure), and no in-env anchor exists (pingouin has no ANOVA
+BF; no R BayesFactor). A candidate g-prior/R² recompute was tested against the only available check — the J=2 → two-
+sample-t reduction against the *verified* `jzs_bf10` — and it **did not reduce** (ratios 0.63 → 0.52, not 1.0),
+confirming an unverified/incorrect form. Shipping an unverified statistical recompute would produce **false "couldn't
+reproduce" flags** — exactly the accusation this whole design forbids (rule #2: no claim of done without verification;
+the A-A no-accusation veto). Per the charter, this is a **finding about the feature, not a reason to relax the bar**:
+ANOVA/regression is deferred until a trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) is available.
+The panel + docstring state this coverage limit honestly (silence≠certificate #6).
+
+**Security Audit (SP3 addendum): PASS.** Additive read-only field; verified recompute (exact pingouin anchor); local,
+bounded, no egress/dependency; ANOVA correctly declined as an unverifiable/false-flag risk (a finding, not shipped).

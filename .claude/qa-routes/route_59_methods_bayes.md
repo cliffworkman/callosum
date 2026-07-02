@@ -6,12 +6,13 @@ fe: 08d_methods_bayes.jsx
 # ROUTE 59 - Methods: Bayesian auditor (default JZS Bayes-factor recompute + Tier-2 reporting checklist)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the per-paper Bayesian auditor (the statcheck sibling for t-test Bayes factors) while preserving
+**Goal:** Exhaust the per-paper Bayesian auditor (the statcheck sibling for Bayesian Bayes factors) while preserving
 signal-not-verdict + no-accusation framing. **SP1:** recompute a paper's reported **default JZS** Bayes factors
 (Rouder et al. 2009) from inline `t(df) = …, BF10 = …` and flag where they don't reproduce under the default prior.
 **SP2:** a **Tier-2 completeness checklist** (BARG/WAMBS/JASP) — presence/absence of the prior, convergence
 diagnostics, and a sensitivity analysis, plus a coherence flag when a *reported* diagnostic breaches a convention.
-Local, deterministic, no AI.
+**SP3 (inc 243):** the **correlation** recompute — inline `r(df) = …, BF10 = …` recomputed under the default
+correlation prior (Ly et al. 2016). Local, deterministic, no AI.
 
 ## Environment
 
@@ -51,8 +52,9 @@ genai-host request regardless). Register listeners before navigation.
 2. Select a paper whose text has an inline `t(df) = …, BF10 = …`. The section auto-runs `GET /papers/{id}/bayes`
    (or click **Check Bayes factors**). Confirm the counts line ("N checked · M couldn't reproduce under the default
    prior") + per-BF rows.
-3. Confirm a **reproduces** row shows `reported BF₁₀ = …` + `recomputed … (paired|two-sample)` + a green pill; a
-   **couldn't reproduce** row shows the amber pill + the recomputed candidate(s).
+3. Confirm a **reproduces** row shows `reported BF₁₀ = …` + `recomputed … (paired|two-sample|correlation)` + a green
+   pill; a **couldn't reproduce** row shows the amber pill + the recomputed candidate(s). A **correlation** `r(df)`
+   BF has a single recomputed value (`(correlation)`), no paired/two-sample fork.
 4. Click a per-BF row -> the PDF opens at that page at **region** precision (no exact rect).
 5. Confirm the **default-prior caveat** (r ≈ 0.71; a different prior → an expected mismatch; inline-only coverage;
    "not a verdict or an accusation").

@@ -1,27 +1,40 @@
-// inc 241: Bayesian auditor SP1 — recompute reported default (JZS) Bayes factors for a paper's inline t-test BFs.
-// The deterministic sibling of statcheck (Rouder et al. 2009): read the paper's extracted text, recompute the
-// default BF10 from each `t(df) = …, BF10 = …`, and flag where it doesn't reproduce under the default prior.
-// Local, no AI, no egress. A signal, never a verdict; never an accusation (a mismatch is most often a different
-// prior scale, which the text doesn't reveal). See app/backend/methods/bayes.py.
+// inc 241/243: Bayesian auditor — recompute reported default Bayes factors for a paper's inline t-test (JZS, Rouder
+// et al. 2009) and Pearson-correlation (Ly et al. 2016) BFs. The deterministic sibling of statcheck: read the paper's
+// extracted text, recompute the default BF10 from each `t(df) = …, BF10 = …` / `r(df) = …, BF10 = …`, and flag where
+// it doesn't reproduce under the default prior. Local, no AI, no egress. A signal, never a verdict; never an
+// accusation (a mismatch is most often a different prior, which the text doesn't reveal). See methods/bayes.py.
 
-// inc 241 (credit-the-lineage): the source paper, one-click added to the library (matches statcheck/GRIM/p-curve).
-const BAYES_CSL = {
-  type: "article-journal",
-  title: "Bayesian t tests for accepting and rejecting the null hypothesis",
-  author: [
-    { family: "Rouder", given: "Jeffrey N." },
-    { family: "Speckman", given: "Paul L." },
-    { family: "Sun", given: "Dongchu" },
-    { family: "Morey", given: "Richard D." },
-    { family: "Iverson", given: "Geoffrey" },
-  ],
-  "container-title": "Psychonomic Bulletin & Review",
-  volume: "16",
-  issue: "2",
-  page: "225-237",
-  issued: { "date-parts": [[2009]] },
-  DOI: "10.3758/PBR.16.2.225",
-};
+// inc 241/243 (credit-the-lineage): the source papers, one-click added to the library (matches statcheck/GRIM/p-curve).
+const BAYES_CSL = [
+  {
+    type: "article-journal",
+    title: "Bayesian t tests for accepting and rejecting the null hypothesis",
+    author: [
+      { family: "Rouder", given: "Jeffrey N." },
+      { family: "Speckman", given: "Paul L." },
+      { family: "Sun", given: "Dongchu" },
+      { family: "Morey", given: "Richard D." },
+      { family: "Iverson", given: "Geoffrey" },
+    ],
+    "container-title": "Psychonomic Bulletin & Review",
+    volume: "16", issue: "2", page: "225-237",
+    issued: { "date-parts": [[2009]] },
+    DOI: "10.3758/PBR.16.2.225",
+  },
+  {
+    type: "article-journal",
+    title: "Harold Jeffreys's default Bayes factor hypothesis tests: Explanation, extension, and application in psychology",
+    author: [
+      { family: "Ly", given: "Alexander" },
+      { family: "Verhagen", given: "Josine" },
+      { family: "Wagenmakers", given: "Eric-Jan" },
+    ],
+    "container-title": "Journal of Mathematical Psychology",
+    volume: "72", page: "19-32",
+    issued: { "date-parts": [[2016]] },
+    DOI: "10.1016/j.jmp.2015.06.004",
+  },
+];
 
 // Per-paper recompute. The section gets only the paper id via ctx, so it self-fetches title + chunk_count (the
 // auditor needs extracted text). Each row routes to its page at region precision (page-open, never a fake exact
@@ -68,7 +81,7 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
         ? <div className="tag-suggest-empty">This paper doesn't appear to report a Bayesian analysis — nothing to recompute or check.</div>
         : <div className="statcheck-result">
             {d.checked === 0
-              ? <div className="tag-suggest-empty">No inline t-test Bayes factors to recompute (the paper still reports Bayesian analysis — see the reporting checklist below).</div>
+              ? <div className="tag-suggest-empty">No inline t-test or correlation Bayes factors to recompute (the paper still reports Bayesian analysis — see the reporting checklist below).</div>
               : <>
                   <div className="statcheck-summary">{d.checked} checked · {d.not_reproduced} couldn't reproduce under the default prior</div>
                   <div className="statcheck-list">
@@ -81,7 +94,7 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
                     ))}
                   </div>
                   <div className="statcheck-caveat">
-                    Recomputed under the <b>default JZS prior</b> (Cauchy scale r ≈ {d.prior_scale}) for a t-test, under both a paired and a two-sample reading — a Bayes factor “reproduces” if it matches either within a factor of ~2. If the paper used a different prior scale or a non-t design, a mismatch is expected — a prompt to look, not a verdict or an accusation. It reads only inline t-test BFs, so a clean result isn't a clean bill.
+                    Recomputed under each test's <b>default prior</b> — the JZS prior (Cauchy scale r ≈ {d.prior_scale}) for a t-test (under both a paired and a two-sample reading), or the default correlation prior (Ly et al. 2016) for an <code>r(df)</code>. A Bayes factor “reproduces” if it matches within a factor of ~2. If the paper used a different prior or a design we can't read (e.g. ANOVA), a mismatch is expected — a prompt to look, not a verdict or an accusation. It reads only inline t-test / correlation BFs, so a clean result isn't a clean bill.
                   </div>
                 </>}
             {d.completeness && d.completeness.is_bayesian && <BayesChecklist items={d.completeness.items} onOpen={open} />}
@@ -120,15 +133,16 @@ function BayesChecklist({ items, onOpen }) {
   );
 }
 
-// "recomputed" label: show the interpretation that reproduced it, else both candidates.
+// "recomputed" label: show the interpretation that reproduced it, else the candidate value(s).
 function reBfLabel(r) {
-  if (r.consistency === "reproduced" && r.matched_design) {
-    const val = r.matched_design === "paired" ? r.computed_paired : r.computed_two_sample;
-    return `${val} (${r.matched_design})`;
+  const byDesign = { paired: r.computed_paired, "two-sample": r.computed_two_sample, correlation: r.computed_correlation };
+  if (r.consistency === "reproduced" && r.matched_design && byDesign[r.matched_design] != null) {
+    return `${byDesign[r.matched_design]} (${r.matched_design})`;
   }
   const parts = [];
   if (r.computed_paired != null) parts.push(`${r.computed_paired} (paired)`);
   if (r.computed_two_sample != null) parts.push(`${r.computed_two_sample} (two-sample)`);
+  if (r.computed_correlation != null) parts.push(`${r.computed_correlation} (correlation)`);
   return parts.join(" / ") || "—";
 }
 
@@ -136,16 +150,16 @@ function BayesCredit() {
   const [added, setAdded] = useState("idle");
   const addCredit = async () => {
     setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify([BAYES_CSL]), format: "csl-json" });
+    const r = await apiPost("/library/import", { content: JSON.stringify(BAYES_CSL), format: "csl-json" });
     setAdded(r && r.ok ? "added" : "idle");
   };
   return (
     <div className="method-credit">
-      <b>Method:</b> the default JZS Bayes factor — Rouder, Speckman, Sun, Morey &amp; Iverson (2009), <i>Psychonomic Bulletin &amp; Review</i> 16(2):225–237.{" "}
+      <b>Methods:</b> the default JZS t-test Bayes factor — Rouder, Speckman, Sun, Morey &amp; Iverson (2009), <i>Psychonomic Bulletin &amp; Review</i> 16(2):225–237; and the default correlation Bayes factor — Ly, Verhagen &amp; Wagenmakers (2016), <i>Journal of Mathematical Psychology</i> 72:19–32.{" "}
       <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
         {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
       </button>
-      <div className="method-credit-sub">Re-implemented in Python (the closed form JASP / the <i>BayesFactor</i> R package [Morey &amp; Rouder] use) — credited, not reused. Surfaced via D. Lakens' automated-review catalog.</div>
+      <div className="method-credit-sub">Re-implemented in Python (the closed forms JASP / the <i>BayesFactor</i> R package [Morey &amp; Rouder] use) — credited, not reused. Surfaced via D. Lakens' automated-review catalog.</div>
     </div>
   );
 }
@@ -153,7 +167,7 @@ function BayesCredit() {
 function BayesSection({ ctx }) {
   return (
     <div className="statcheck-section">
-      <div className="settings-sub">Recompute a paper's reported <b>default Bayes factors</b> for inline t-test results — the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF₁₀ doesn't reproduce under the standard JZS prior; usually a different prior, not an error — a prompt to look, never a verdict.</div>
+      <div className="settings-sub">Recompute a paper's reported <b>default Bayes factors</b> for inline t-test and correlation results — the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF₁₀ doesn't reproduce under the standard default prior; usually a different prior, not an error — a prompt to look, never a verdict.</div>
       <p className="eyebrow">This paper</p>
       <BayesPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "bayes"} />
       <BayesCredit />

@@ -7,7 +7,7 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.methods.bayes import _normalize_bf10, audit_completeness, jzs_bf10, run_bayes
+from app.backend.methods.bayes import _normalize_bf10, audit_completeness, corr_bf10, jzs_bf10, run_bayes
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 
@@ -74,6 +74,48 @@ def test_bf_without_adjacent_t_is_not_checked():
 
 def test_no_bayes_factors_text():
     assert run_bayes([_chunk("Prose about the design and sampling, with no statistics.")]).checked == 0
+
+
+# ── SP3 (inc 243): Pearson-correlation Bayes factors ──
+
+
+def test_corr_bf10_anchor():
+    # verified against pingouin bayesfactor_pearson: (0.6, 20) = 10.634, (0.5, 30) = 9.904, (0.0, 40) = 0.197
+    assert abs(corr_bf10(0.6, 20) - 10.6336) < 0.01
+    assert abs(corr_bf10(0.5, 30) - 9.90396) < 0.01
+    assert abs(corr_bf10(0.0, 40) - 0.196932) < 0.001
+    assert corr_bf10(1.5, 30) is None  # |r| > 1 → None
+    assert corr_bf10(0.4, 2) is None  # n < 3 → None (df < 1)
+
+
+def test_reproduces_correlation():
+    # r(58) → n = 60; corr_bf10(.42, 60) ≈ 37.39; a reported 37.4 reproduces (single, unambiguous recompute)
+    rep = run_bayes([_chunk("There was a correlation, r(58) = .42, p < .001, BF10 = 37.4.")])
+    assert rep.checked == 1 and rep.not_reproduced == 0
+    r = rep.results[0]
+    assert r.consistency == "reproduced" and r.matched_design == "correlation"
+    assert abs(r.computed_correlation - 37.39) < 0.1
+    assert r.computed_paired is None and r.computed_two_sample is None
+
+
+def test_flags_a_correlation_mismatch():
+    # a reported correlation BF that doesn't reproduce under the default prior is flagged
+    rep = run_bayes([_chunk("r(58) = .42, BF10 = 900.")])
+    assert rep.checked == 1 and rep.not_reproduced == 1
+    assert rep.results[0].consistency == "not-reproduced" and rep.results[0].matched_design is None
+
+
+def test_correlation_leading_dot_and_negative():
+    # a leading-dot r value parses; a negative r reproduces the same (BF uses r²)
+    rep = run_bayes([_chunk("A negative association, r(58) = -.42, BF10 = 37.4.")])
+    assert rep.results[0].consistency == "reproduced" and rep.results[0].matched_design == "correlation"
+
+
+def test_nearest_statistic_wins_correlation_over_t():
+    # a t-stat far away, an r-stat adjacent to the BF → the correlation recompute is used, not the t-test
+    text = "t(30) = 1.1 " + ("x" * 90) + " and here r(58) = .42, BF10 = 37.4"
+    rep = run_bayes([_chunk(text)])
+    assert rep.results[0].matched_design == "correlation"
 
 
 # ── SP2: the Tier-2 completeness/coherence checklist ──

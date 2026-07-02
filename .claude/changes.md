@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-01 inc 242 — "Checking Bayes factors" now covers the Tier-2 reporting checklist -->
+<!-- HELP-DOCS-SYNCED 2026-07-01 inc 243 — "Checking Bayes factors" now covers correlation + the ANOVA caveat -->
+## 2026-07-01 — Increment 243: Bayesian auditor SP3 — Pearson-correlation recompute (Ly 2016); ANOVA declined as a finding
+- **Files:** `app/backend/methods/bayes.py` (`corr_bf10` + `_RSTAT` + `_scan_text` branches on t/r) + `app/backend/api/routers/methods.py` (additive `computed_correlation`) + `app/frontend/js/08d_methods_bayes.jsx` (correlation label + 2-paper credit); `tests/test_bayes.py` (+5); `route_59_methods_bayes.md`; the audit addendum 2; THIRD-PARTY-NOTICES (Ly 2016); help corpus; CLAUDE; backlog; `INCREMENT-243-NOTES.md`. (callosum-app.html rebuilt.)
+- **What:** the "more designs" close-out — recompute the default **correlation** Bayes factor (Ly et al. 2016) for inline `r(df) = …, BF10 = …`; ANOVA/regression **declined as a finding** (not faithfully recomputable/verifiable from F+df → would produce false flags).
+- **Why:** maintainer asked to close out #24; AskUserQuestion → "build all three" remaining threads.
+- **Verify:** `corr_bf10` verified EXACTLY against pingouin `bayesfactor_pearson` (7 anchors incl. −r); no new dep (scipy). ANOVA candidate failed the J=2→two-sample-t reduction (0.63→0.52) → declined per rule #2 + the A-A veto. pytest 904 (+5); `test_frontend_assembly` 5/5; ruff+format clean; QA 174/174 API + 769/769 FE, 0 uncovered; audit addendum PASS; Principles aligned. Headed-verified (a correlation reproduces row + both credit papers; 0 console/page/genai). **No egress/LLM/migration/dependency.**
+- **Revert:** `git revert <sha>` (additive response field + a pure function + panel copy; no migration/destructive change).
+
 ## 2026-07-01 — Increment 242: Bayesian auditor SP2 — a Tier-2 BARG/WAMBS/JASP reporting checklist (completes #24)
 - **Files:** `app/backend/methods/bayes.py` (`audit_completeness` + the BARG/WAMBS/JASP detection) + `app/backend/api/routers/methods.py` (additive `completeness` block on `GET /papers/{id}/bayes`) + `app/frontend/js/08d_methods_bayes.jsx` (a Reporting checklist section) + `styles.css` (`.bayes-check-*`, tokens); `tests/test_bayes.py` (+5); `route_59_methods_bayes.md`; the audit addendum; help corpus; CLAUDE; backlog; `INCREMENT-242-NOTES.md`. (callosum-app.html rebuilt.)
 - **What:** the completeness half of the Bayesian auditor — presence/absence of the prior, convergence diagnostics, and a sensitivity analysis (BARG/WAMBS/JASP), plus a coherence flag when a reported diagnostic breaches a convention. Runs only on a Bayesian paper; never a verdict.

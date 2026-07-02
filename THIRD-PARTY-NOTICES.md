@@ -83,13 +83,19 @@ The data-consistency calculator implements the **GRIM** and **GRIMMER** methods:
 - Re-implemented from the papers (the reference R implementation is **`scrutiny`**, Lukas Jung,
   <https://lhdjung.github.io/scrutiny/>) — credited, not reused by name or code.
 
-### Bayesian auditor — default JZS Bayes factor (inc 241)
-The Bayesian auditor recomputes reported **default (JZS) Bayes factors** for inline t-test results:
-- Rouder, J. N., Speckman, P. L., Sun, D., Morey, R. D., & Iverson, G. (2009). *Bayesian t tests for accepting and
-  rejecting the null hypothesis.* Psychonomic Bulletin & Review, 16(2), 225–237.
-  <https://doi.org/10.3758/PBR.16.2.225>. Credited + one-click added to the library from the panel.
-- Re-implemented in Python from the paper (the closed form JASP and the **`BayesFactor`** R package — Morey, R. D.,
-  & Rouder, J. N. — use) — credited, not reused by name or code. Surfaced via Daniël Lakens' automated-review catalog.
+### Bayesian auditor — default Bayes factors (inc 241 / 243)
+The Bayesian auditor recomputes reported **default Bayes factors** for inline t-test and correlation results:
+- **t-test** — Rouder, J. N., Speckman, P. L., Sun, D., Morey, R. D., & Iverson, G. (2009). *Bayesian t tests for
+  accepting and rejecting the null hypothesis.* Psychonomic Bulletin & Review, 16(2), 225–237.
+  <https://doi.org/10.3758/PBR.16.2.225>.
+- **Pearson correlation** — Ly, A., Verhagen, J., & Wagenmakers, E.-J. (2016). *Harold Jeffreys's default Bayes factor
+  hypothesis tests: Explanation, extension, and application in psychology.* Journal of Mathematical Psychology, 72,
+  19–32. <https://doi.org/10.1016/j.jmp.2015.06.004> (the exact closed form of Wetzels, R., & Wagenmakers, E.-J.
+  (2012), Psychonomic Bulletin & Review, 19, 1057–1064).
+- Both credited + one-click added to the library from the panel. Re-implemented in Python from the papers (the closed
+  forms JASP and the **`BayesFactor`** R package — Morey, R. D., & Rouder, J. N. — use) — credited, not reused by name
+  or code. The correlation recompute is verified exactly against the **`pingouin`** `bayesfactor_pearson` value
+  (a dev-only verification tool, not a runtime dependency). Surfaced via Daniël Lakens' automated-review catalog.
 
 ### Citation context / "smart citations" (inc 232, B4)
 The **"How this paper is cited"** panel (support / contrast / mention over a paper's citing sentences) is a
