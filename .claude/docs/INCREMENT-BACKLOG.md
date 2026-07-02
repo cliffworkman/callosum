@@ -479,6 +479,36 @@ no-accusation), abstract + preferences **local, never transmitted**, **equity** 
 **41. User-authored modules** (`…_plugins.md`) — **[future track — record only]** **deferred record only** — capture
 the extension-point idea + open questions; do NOT build a plugin system until a dedicated design pass.
 
+**44. Transparency & registration alignment — the Lakens-catalog integration** (`chatgpt5.5_future-tracks_integratinglakens.md`,
+folded from the inbox 2026-07-02) — **[future track; increment 1 buildable-now, later increments gated]** a survey of
+Daniël Lakens' automated-review tool catalog (the same one our statcheck/GRIM/Bayesian/meta credits cite) + a concrete
+5-increment integration order. Its thesis is right: **callosum has a strong statistical-auditing spine; the biggest
+missing category is transparency & registration alignment** — *does the paper make its open-science artifacts visible,
+and how do they line up with the published report?* Gated by the Principles gate **and** the A-A **no-accusation veto**
+(this track lives right on it). The concrete order:
+- **▲ Increment 1 (buildable-now, lowest-risk, most aligned):** a **`methods/transparency.py`** consumer-side METHODS
+  auditor (the exact statcheck/LMM/meta pattern, incs 95/247/249) — ODDPub/rtransparent/OIF-derived detectors over
+  existing chunks: data availability, code availability, repository links, COI, funding, protocol/preregistration
+  language, "upon request" statements → **evidence-carrying findings** (kind / status / matched_sentence / source_page
+  / confidence_basis / **detector_credit**), NEVER author accusations. "not located" is an honest status, never
+  "concealed" (silence≠certificate); signal-not-verdict; no composite "transparency score". Local, regex/phrase-list,
+  **no new dependency**; feeds the findings subsystem (inc 130) + the open **#19 tags→system-facts** problem (project
+  as read-only `system:transparency:*` tags). Credit-the-lineage: ODDPub (Riedel et al.), rtransparent, output-it-forward.
+- **Increment 2 (infra):** **DocumentTextProvider** adapters for JATS/XML, DOCX, HTML (PyMuPDF/Tesseract stay the
+  primary PDF path) — unlocks better table/stat extraction + PMC transparency detection + registration comparison.
+- **Increment 3 (fraught — gated):** **RegCheck** — a registration↔paper **delta table with source-paired quotes**
+  labeled *reported match / possible divergence / not located / ambiguous*, **never "QRP"**, human-verified, behind the
+  **auditability gate** (LLM-assisted). An **emergent value + a divergent tension** in A-A terms — needs the unresolved
+  "how auditable is auditable enough?" question answered before build.
+- **Increment 4 (overlaps existing):** CRediT builder/extractor → folds into the CRediT track (tenzing builder +
+  ContriBOT extractor).
+- **Increment 5 (overlaps existing):** extend consistency checks toward a **registry** (DEBIT, table-aware stat
+  extraction, more statcheck forms — **#27**; opt-in collection-level **z-curve**, disclosure-table-first + human-verified
+  focal-statistic extraction, beside p-curve).
+- Overlaps flagged as cross-references, not new work: CRediT (the `creditcontributionsbuilder` track), meta-analysis
+  extraction (**#36**), equity/integrity (**#37**), more statcheck forms (**#27**). Not-prioritized (per the doc):
+  QuartoReview (manuscript editor, out of scope), coarse (causal-inference-specialized), open_peer_review (study-specific).
+
 > **Shared infra these unlock (kept as README-only `integrations/` stubs on purpose):** **OpenAlex** (my-pubs →
 > gap-finder → discovery → acquisition; the acquisition slice is built), **Unpaywall** (Track D — superseded by
 > OpenAlex in inc 74), **Semantic Scholar** (Track C, discovery), **GROBID** (Track C section-scoping).
