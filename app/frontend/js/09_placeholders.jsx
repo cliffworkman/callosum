@@ -22,17 +22,10 @@ function ComingSoon({ title, body, builds }) {
 // Discover/Search (inc 184) + Feed (inc 188) shipped as center-pane tabs in the library frame (30c_frame.jsx), which
 // is their home; per the inc-163 convention, a stub is dropped in the increment its real feature lands.
 
-// ── METHODS: future evaluation modules (after Review @40), ordered by cognitive task (DESIGN.md §5).
-// NB: the "Mixed-model reporting" (real: inc 247, 08f) + "Bayesian statistics" (real: inc 241, 08d) stubs were
-// removed in inc 248 — per the inc-163 convention a stub is dropped in the increment its real feature lands (they
-// were left behind + surfaced as a mis-ordered / duplicate section).
-registerPaneSection({
-  id: "meta-analysis", label: "Meta-analysis", paneId: "methods", order: 70, hideInReadOnly: true,
-  render: () => <ComingSoon
-    title="Surface a meta-analysis's choices"
-    body="Extract and structure a meta-analysis's effect sizes, model, heterogeneity, and sensitivity choices so you can inspect them. It extracts and structures — it never pools, models, or adjudicates."
-    builds="An extraction/structuring aid, never a re-analysis. (Backlog #37)" />,
-});
+// ── METHODS: NB — the "Mixed-model reporting" (real: inc 247, 08f) + "Bayesian statistics" (real: inc 241, 08d)
+// stubs were removed in inc 248, and the "Meta-analysis" stub in inc 249 (real: 08g_methods_metaanalysis.jsx, the
+// consumer-side reporting auditor, order 35 among the real tools) — per the inc-163 convention a stub is dropped in
+// the increment its real feature lands. (The producer-side extraction workbench, the full #36 future-track, is next.)
 // NB: the METHODS → Citation-equity placeholder was removed in inc 227 — the real structural audit shipped
 // (08b_methods_citation_equity.jsx, order 35, among the real tools); per the inc-163 convention a stub is dropped
 // in the increment its feature lands. (The SP2 topical "overlooked work" remediation is the remaining backlog #25.)

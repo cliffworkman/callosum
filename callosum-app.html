@@ -3811,24 +3811,209 @@
     hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(LmmSection, { ctx })
   });
+  const META_CSL = [
+    {
+      type: "article-journal",
+      title: "Measuring inconsistency in meta-analyses",
+      author: [
+        { family: "Higgins", given: "Julian P. T." },
+        { family: "Thompson", given: "Simon G." },
+        { family: "Deeks", given: "Jonathan J." },
+        { family: "Altman", given: "Douglas G." }
+      ],
+      "container-title": "BMJ",
+      volume: "327",
+      issue: "7414",
+      page: "557-560",
+      issued: { "date-parts": [[2003]] },
+      DOI: "10.1136/bmj.327.7414.557"
+    },
+    {
+      type: "article-journal",
+      title: "Bias in meta-analysis detected by a simple, graphical test",
+      author: [
+        { family: "Egger", given: "Matthias" },
+        { family: "Davey Smith", given: "George" },
+        { family: "Schneider", given: "Martin" },
+        { family: "Minder", given: "Christoph" }
+      ],
+      "container-title": "BMJ",
+      volume: "315",
+      issue: "7109",
+      page: "629-634",
+      issued: { "date-parts": [[1997]] },
+      DOI: "10.1136/bmj.315.7109.629"
+    },
+    {
+      type: "article-journal",
+      title: "Trim and fill: A simple funnel-plot-based method of testing and adjusting for publication bias in meta-analysis",
+      author: [
+        { family: "Duval", given: "Sue" },
+        { family: "Tweedie", given: "Richard" }
+      ],
+      "container-title": "Biometrics",
+      volume: "56",
+      issue: "2",
+      page: "455-463",
+      issued: { "date-parts": [[2e3]] },
+      DOI: "10.1111/j.0006-341X.2000.00455.x"
+    },
+    {
+      type: "article-journal",
+      title: "Recommendations for examining and interpreting funnel plot asymmetry in meta-analyses of randomised controlled trials",
+      author: [
+        { family: "Sterne", given: "Jonathan A. C." },
+        { family: "Sutton", given: "Alex J." },
+        { family: "Ioannidis", given: "John P. A." }
+      ],
+      "container-title": "BMJ",
+      volume: "343",
+      page: "d4002",
+      issued: { "date-parts": [[2011]] },
+      DOI: "10.1136/bmj.d4002"
+    },
+    {
+      type: "article-journal",
+      title: "Meta-analysis in clinical trials",
+      author: [
+        { family: "DerSimonian", given: "Rebecca" },
+        { family: "Laird", given: "Nan" }
+      ],
+      "container-title": "Controlled Clinical Trials",
+      volume: "7",
+      issue: "3",
+      page: "177-188",
+      issued: { "date-parts": [[1986]] },
+      DOI: "10.1016/0197-2456(86)90046-2"
+    },
+    {
+      type: "article-journal",
+      title: "The Hartung-Knapp-Sidik-Jonkman method for random effects meta-analysis is straightforward and considerably outperforms the standard DerSimonian-Laird method",
+      author: [
+        { family: "IntHout", given: "Joanna" },
+        { family: "Ioannidis", given: "John P. A." },
+        { family: "Borm", given: "George F." }
+      ],
+      "container-title": "BMC Medical Research Methodology",
+      volume: "14",
+      page: "25",
+      issued: { "date-parts": [[2014]] },
+      DOI: "10.1186/1471-2288-14-25"
+    },
+    {
+      type: "article-journal",
+      title: "Conducting meta-analyses in R with the metafor package",
+      author: [{ family: "Viechtbauer", given: "Wolfgang" }],
+      "container-title": "Journal of Statistical Software",
+      volume: "36",
+      issue: "3",
+      page: "1-48",
+      issued: { "date-parts": [[2010]] },
+      DOI: "10.18637/jss.v036.i03"
+    },
+    {
+      type: "article-journal",
+      title: "Outlier and influence diagnostics for meta-analysis",
+      author: [
+        { family: "Viechtbauer", given: "Wolfgang" },
+        { family: "Cheung", given: "Mike W.-L." }
+      ],
+      "container-title": "Research Synthesis Methods",
+      volume: "1",
+      issue: "2",
+      page: "112-125",
+      issued: { "date-parts": [[2010]] },
+      DOI: "10.1002/jrsm.11"
+    },
+    {
+      type: "article-journal",
+      title: "The PRISMA 2020 statement: an updated guideline for reporting systematic reviews",
+      author: [
+        { family: "Page", given: "Matthew J." },
+        { family: "McKenzie", given: "Joanne E." },
+        { family: "Bossuyt", given: "Patrick M." }
+      ],
+      "container-title": "BMJ",
+      volume: "372",
+      page: "n71",
+      issued: { "date-parts": [[2021]] },
+      DOI: "10.1136/bmj.n71"
+    },
+    {
+      type: "book",
+      title: "Introduction to Meta-Analysis",
+      author: [
+        { family: "Borenstein", given: "Michael" },
+        { family: "Hedges", given: "Larry V." },
+        { family: "Higgins", given: "Julian P. T." },
+        { family: "Rothstein", given: "Hannah R." }
+      ],
+      publisher: "Wiley",
+      issued: { "date-parts": [[2009]] }
+    }
+  ];
+  function MetaPaper({ paperId, onOpenPaper, active }) {
+    const [meta, setMeta] = useState(null);
+    const [state, setState] = useState({ status: "idle" });
+    useEffect(() => {
+      setState({ status: "idle" });
+      setMeta(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (!live || !r.ok) return;
+        setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    const run = async () => {
+      setState({ status: "running" });
+      const r = await api(`/papers/${paperId}/meta-analysis`);
+      setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
+    };
+    useEffect(() => {
+      if (active && meta && meta.hasText && state.status === "idle") run();
+    }, [active, meta]);
+    const open = (page) => {
+      if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" });
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to audit its meta-analysis reporting.");
+    const hasText = meta ? meta.hasText : false;
+    const d = state.data;
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Audit this paper's meta-analysis reporting \u2014 local, no AI", onClick: run }, "Audit reporting") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "auditing\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't audit: ", state.error), state.status === "done" && d && (!d.is_meta_analysis ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper doesn't appear to report a meta-analysis \u2014 nothing to audit.") : /* @__PURE__ */ React.createElement(MetaChecklist, { checks: d.checks, onOpen: open })));
+  }
+  function MetaChecklist({ checks, onOpen }) {
+    if (!checks || !checks.length) return null;
+    const present = checks.filter((c) => c.status === "present").length;
+    const notFound = checks.filter((c) => c.status === "not-found").length;
+    const na = checks.filter((c) => c.status === "not-applicable").length;
+    return /* @__PURE__ */ React.createElement("div", { className: "bayes-checklist" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Reporting checklist"), /* @__PURE__ */ React.createElement("div", { className: "lmm-summary" }, present, " reported \xB7 ", notFound, " not detected \xB7 ", na, " not applicable \xB7 ", checks.length, " checks"), checks.map((c) => /* @__PURE__ */ React.createElement("div", { key: c.key, className: "bayes-check-item" + (c.status === "not-applicable" ? " lmm-na" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, c.label), c.status === "present" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 present") : /* @__PURE__ */ React.createElement("span", { className: "bayes-check-muted" }, c.status === "not-applicable" ? "n/a" : "not found")), c.note && /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.note), c.explainer && /* @__PURE__ */ React.createElement("div", { className: "lmm-explainer" }, c.explainer), c.basis && /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "basis: ", c.basis), c.evidence && /* @__PURE__ */ React.createElement("button", { className: "bayes-check-ev", title: c.page != null ? "Open page " + c.page : "", onClick: () => c.page != null && onOpen(c.page) }, "\u201C", c.evidence, "\u201D"))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Audits reporting ", /* @__PURE__ */ React.createElement("b", null, "completeness"), ", not analysis ", /* @__PURE__ */ React.createElement("b", null, "correctness"), " \u2014 a meta-analysis can report everything and still pool badly, or omit an item and be fine. This flags what a careful reader should check, not what's wrong. It reads the extracted text, so ", /* @__PURE__ */ React.createElement("b", null, "\u201Cnot found\u201D means not detected there"), " \u2014 check the paper (tables/figures aren't fully read). It never pools, models, re-computes, scores, or accuses."));
+  }
+  function MetaCredit() {
+    const [added, setAdded] = useState("idle");
+    const addCredit = async () => {
+      setAdded("adding");
+      const r = await apiPost("/library/import", { content: JSON.stringify(META_CSL), format: "csl-json" });
+      setAdded(r && r.ok ? "added" : "idle");
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " effect sizes & general \u2014 Borenstein et al. (2009), Viechtbauer (2010, ", /* @__PURE__ */ React.createElement("i", null, "metafor"), "); model \u2014 DerSimonian & Laird (1986), IntHout et al. (2014); heterogeneity \u2014 Higgins et al. (2003); publication bias \u2014 Egger et al. (1997), Duval & Tweedie (2000), Sterne et al. (2011); influence \u2014 Viechtbauer & Cheung (2010); reporting \u2014 PRISMA 2020 (Page et al. 2021).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add methods sources to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 it never pools, models, or re-computes a meta-analysis. Surfaced via D. Lakens' automated-review catalog."));
+  }
+  function MetaSection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a published ", /* @__PURE__ */ React.createElement("b", null, "meta-analysis's reporting"), " \u2014 does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search & selection? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict, and it never pools or re-computes."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(MetaPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "meta" }), /* @__PURE__ */ React.createElement(MetaCredit, null));
+  }
+  registerPaneSection({
+    id: "meta",
+    label: "Meta-analysis reporting",
+    paneId: "methods",
+    order: 35,
+    hideInReadOnly: true,
+    render: (ctx) => /* @__PURE__ */ React.createElement(MetaSection, { ctx })
+  });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
-  registerPaneSection({
-    id: "meta-analysis",
-    label: "Meta-analysis",
-    paneId: "methods",
-    order: 70,
-    hideInReadOnly: true,
-    render: () => /* @__PURE__ */ React.createElement(
-      ComingSoon,
-      {
-        title: "Surface a meta-analysis's choices",
-        body: "Extract and structure a meta-analysis's effect sizes, model, heterogeneity, and sensitivity choices so you can inspect them. It extracts and structures \u2014 it never pools, models, or adjudicates.",
-        builds: "An extraction/structuring aid, never a re-analysis. (Backlog #37)"
-      }
-    )
-  });
   registerPaneTab(
     { id: "statcheck", label: "Statistics check", paneId: "methods", order: 30 },
     {
