@@ -823,6 +823,27 @@ Read it as a prompt, not a report card:
 - There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
 - The section credits each check's source and offers a one-click **add methods sources to library**.
 
+<!-- section: auditing-transparency-signals -->
+## Auditing transparency signals
+Before relying on a paper it helps to see what it *discloses* — where its data and code live, whether it declares conflicts and funding, and whether a trial or review was registered. The transparency-signals auditor reads a paper's extracted text and detects whether it *reports* seven open-science artifacts. It's local, rule-based (derived from the published **ODDPub** and **rtransparent** tools), and uses no AI.
+
+In the **METHODS** pane, open **Transparency signals** with a paper selected. The section shows **Open-science disclosures**; each check is **detected**, **not detected**, or **n/a**:
+
+- **Data availability** — a data-availability statement and/or a repository link (OSF, Zenodo, Dryad, figshare) — ODDPub (Riedel et al. 2020).
+- **Code / software availability** — an analysis-code statement and/or a repository (GitHub, GitLab, Code Ocean) — ODDPub.
+- **Conflict-of-interest statement** — a competing-interests / conflict-of-interest declaration — rtransparent (Serghiou et al. 2021).
+- **Funding statement** — the funding sources reported (or a statement that none was received) — rtransparent.
+- **Protocol / trial registration** — a registry ID or registration statement (ClinicalTrials.gov, PROSPERO, OSF Registries); shown **n/a** unless the paper looks like a trial/review where a registration is expected.
+- **Preregistration** — the hypotheses/analysis plan preregistered before data collection (AsPredicted, OSF) — Nosek et al. 2018.
+- **“Available upon request”** — a weaker availability signal than an open link; shown as a note, not a concern in itself.
+
+Read it as a prompt, not a report card:
+
+- It detects **reported disclosures in the text** — it does not judge a paper's openness, and it never runs anything.
+- **“Not detected” means we didn't find it in the extracted text, NOT that the artifact is absent** — a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never an accusation of the authors.
+- There is **no transparency score, no rank, and no verdict**; a present check opens its evidence in the PDF.
+- The section credits each detector's source and offers a one-click **add methods sources to library**.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

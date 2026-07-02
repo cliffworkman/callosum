@@ -141,6 +141,22 @@ credits its methodological basis in-context and offers the source to the library
   <https://doi.org/10.1136/bmj.n71>.
 - Credited + one-click added to the library from the panel. Surfaced via Daniël Lakens' automated-review catalog.
 
+### Transparency-signals auditor (inc 250, #44)
+The transparency-signals auditor is a consumer-side reading aid — it reads a paper's reported text only and detects
+whether it *discloses* seven open-science artifacts (data/code availability, conflict-of-interest, funding, protocol/
+trial registration, preregistration, "available upon request"). It never runs anything, scores a paper, or accuses the
+authors; a not-detected row is a prompt to look. The rule-based detectors are derived from published, credited tools:
+- Data & code availability detection — Riedel, N., Kip, M., & Bobrov, E. (2020). *ODDPub — a text-mining algorithm to
+  detect data sharing in biomedical publications.* Data Science Journal, 19, 42. <https://doi.org/10.5334/dsj-2020-042>.
+- Conflict-of-interest, funding & registration indicators — Serghiou, S., Contopoulos-Ioannidis, D. G., Boyack, K. W.,
+  Riedel, N., Wallach, J. D., & Ioannidis, J. P. A. (2021). *Assessment of transparency indicators across the
+  biomedical literature: How open is open?* PLOS Biology, 19(3), e3001107.
+  <https://doi.org/10.1371/journal.pbio.3001107> (the *rtransparent* tool).
+- Preregistration — Nosek, B. A., Ebersole, C. R., DeHaven, A. C., & Mellor, D. T. (2018). *The preregistration
+  revolution.* Proceedings of the National Academy of Sciences, 115(11), 2600–2606.
+  <https://doi.org/10.1073/pnas.1708274114>.
+- Credited + one-click added to the library from the panel. Surfaced via Daniël Lakens' automated-review catalog.
+
 ### Citation context / "smart citations" (inc 232, B4)
 The **"How this paper is cited"** panel (support / contrast / mention over a paper's citing sentences) is a
 **scite** analogue:

@@ -486,14 +486,19 @@ Daniël Lakens' automated-review tool catalog (the same one our statcheck/GRIM/B
 missing category is transparency & registration alignment** — *does the paper make its open-science artifacts visible,
 and how do they line up with the published report?* Gated by the Principles gate **and** the A-A **no-accusation veto**
 (this track lives right on it). The concrete order:
-- **▲ Increment 1 (buildable-now, lowest-risk, most aligned):** a **`methods/transparency.py`** consumer-side METHODS
-  auditor (the exact statcheck/LMM/meta pattern, incs 95/247/249) — ODDPub/rtransparent/OIF-derived detectors over
-  existing chunks: data availability, code availability, repository links, COI, funding, protocol/preregistration
-  language, "upon request" statements → **evidence-carrying findings** (kind / status / matched_sentence / source_page
-  / confidence_basis / **detector_credit**), NEVER author accusations. "not located" is an honest status, never
-  "concealed" (silence≠certificate); signal-not-verdict; no composite "transparency score". Local, regex/phrase-list,
-  **no new dependency**; feeds the findings subsystem (inc 130) + the open **#19 tags→system-facts** problem (project
-  as read-only `system:transparency:*` tags). Credit-the-lineage: ODDPub (Riedel et al.), rtransparent, output-it-forward.
+- **✅ Increment 1 — SHIPPED inc 250:** `methods/transparency.py` + `GET /papers/{id}/transparency` +
+  `08h_methods_transparency.jsx` — a consumer-side METHODS **"Transparency signals"** auditor (the exact statcheck/LMM/
+  meta pattern) over existing chunks: 7 ODDPub/rtransparent/Nosek-derived detectors (data availability, code/software
+  availability, conflict-of-interest, funding, protocol/trial registration, preregistration, "available upon request")
+  → **present / not-found / not-applicable**, each with the matched sentence (region page-open), an explainer, and the
+  in-context `basis`. NO gate (every paper gets the 7 checks). "not found" = "not detected in the extracted text — check
+  the paper", never "concealed"/"absent" (silence≠certificate, test-pinned `test_no_accusatory_language`); signal-not-
+  verdict; no composite "transparency score". Local, regex, no new dependency. Audit PASS; Principles+A-A aligned; QA
+  route_63; headed-verified. **Increment 1b (next, deferred):** feed the findings subsystem (inc 130 — persist
+  detected-present as FACTs) + the **#19 tags→system-facts** problem (read-only `system:transparency:*` tags) + a
+  library-wide "open data not detected" filter; + the cross-method chip (F1) + credit-footer-on-n/a (F2) filed from the
+  experience pass. Credit-the-lineage in NOTICES: ODDPub (Riedel et al. 2020), rtransparent (Serghiou et al. 2021),
+  Nosek et al. (2018).
 - **Increment 2 (infra):** **DocumentTextProvider** adapters for JATS/XML, DOCX, HTML (PyMuPDF/Tesseract stay the
   primary PDF path) — unlocks better table/stat extraction + PMC transparency detection + registration comparison.
 - **Increment 3 (fraught — gated):** **RegCheck** — a registration↔paper **delta table with source-paired quotes**
