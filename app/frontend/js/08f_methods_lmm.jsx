@@ -156,11 +156,16 @@ function LmmPaper({ paperId, onOpenPaper, active }) {
 
 function LmmChecklist({ checks, onOpen }) {
   if (!checks || !checks.length) return null;
+  const present = checks.filter(c => c.status === "present").length;
+  const notFound = checks.filter(c => c.status === "not-found").length;
+  const na = checks.filter(c => c.status === "not-applicable").length;
   return (
     <div className="bayes-checklist">
       <p className="eyebrow">Reporting checklist</p>
+      {/* A factual tally of the statuses below — not a score or a grade. */}
+      <div className="lmm-summary">{present} reported · {notFound} not detected · {na} not applicable · {checks.length} checks</div>
       {checks.map((c) => (
-        <div key={c.key} className="bayes-check-item">
+        <div key={c.key} className={"bayes-check-item" + (c.status === "not-applicable" ? " lmm-na" : "")}>
           <div className="bayes-check-head">
             <span className="bayes-check-label">{c.label}</span>
             {c.status === "present"

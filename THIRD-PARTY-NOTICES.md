@@ -97,6 +97,26 @@ The Bayesian auditor recomputes reported **default Bayes factors** for inline t-
   or code. The correlation recompute is verified exactly against the **`pingouin`** `bayesfactor_pearson` value
   (a dev-only verification tool, not a runtime dependency). Surfaced via Daniël Lakens' automated-review catalog.
 
+### LMM-reporting completeness auditor (inc 247, #23)
+The mixed-model reporting auditor is a consumer-side reading aid — it reads reported text only and never runs a model,
+an imputation, or a sensitivity analysis. Each check credits its methodological basis in-context and offers the source
+to the library:
+- Random-effects structure — Barr, D. J., Levy, R., Scheepers, C., & Tily, H. J. (2013). *Keep it maximal.* Journal of
+  Memory and Language, 68(3), 255–278. <https://doi.org/10.1016/j.jml.2012.11.001>; and Matuschek, H., Kliegl, R.,
+  Vasishth, S., Baayen, H., & Bates, D. (2017). *Balancing Type I error and power in linear mixed models.* Journal of
+  Memory and Language, 94, 305–315. <https://doi.org/10.1016/j.jml.2017.01.001>.
+- Degrees-of-freedom / inference method — Luke, S. G. (2017). *Evaluating significance in linear mixed-effects models
+  in R.* Behavior Research Methods, 49(4), 1494–1502. <https://doi.org/10.3758/s13428-016-0809-y>.
+- Convergence & estimation — Bates, D., Mächler, M., Bolker, B., & Walker, S. (2015). *Fitting Linear Mixed-Effects
+  Models Using lme4.* Journal of Statistical Software, 67(1), 1–48. <https://doi.org/10.18637/jss.v067.i01>.
+- Marginal vs conditional R² — Nakagawa, S., & Schielzeth, H. (2013). *A general and simple method for obtaining R²
+  from generalized linear mixed-effects models.* Methods in Ecology and Evolution, 4(2), 133–142.
+  <https://doi.org/10.1111/j.2041-210X.2012.00261.x>.
+- Missing-data sensitivity — FDA / ICH E9(R1) addendum (*Estimands and Sensitivity Analysis in Clinical Trials*);
+  Troendle et al. (2025); Cro, S., Morris, T. P., Kenward, M. G., & Carpenter, J. R. (2020), Statistics in Medicine;
+  Moreno-Betancur, M., & Chavance, M. (2016), Statistical Methods in Medical Research.
+- Credited + one-click added to the library from the panel. Surfaced via Daniël Lakens' automated-review catalog.
+
 ### Citation context / "smart citations" (inc 232, B4)
 The **"How this paper is cited"** panel (support / contrast / mention over a paper's citing sentences) is a
 **scite** analogue:

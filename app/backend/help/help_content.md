@@ -779,6 +779,28 @@ Read the checklist as a prompt, not a report card:
 - **Convergence diagnostics show “n/a”** when the paper uses a closed-form Bayes factor (there are no MCMC chains to diagnose) — that's not a gap.
 - The **⚠ check** flag appears only when a *reported* value breaches a convention (e.g. an R-hat above 1.1, or an effective sample size below 400); those thresholds are widely-used **conventions**, cited as such, not laws.
 
+<!-- section: auditing-mixed-model-reporting -->
+## Auditing mixed-model reporting
+Papers that fit a **linear mixed model** (a mixed-effects / multilevel model — `lmer`, `nlme`, and the like) rely on choices a careful reader needs to see. The LMM-reporting auditor reads a paper's extracted text and flags whether it *reports* seven such things — it never runs a model, an imputation, or a sensitivity analysis, and never touches raw data. It's local, deterministic, and uses no AI.
+
+In the **METHODS** pane, open **Mixed-model reporting** with a paper selected. If the paper detectably uses a mixed model it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+
+- **Random-effects structure** — which grouping factors carry random intercepts/slopes (Barr et al. 2013; Matuschek et al. 2017).
+- **Degrees-of-freedom / inference method** — Satterthwaite, Kenward-Roger, Wald, or a likelihood-ratio test (Luke 2017).
+- **Convergence / singular fit** — did the model converge; was the fit singular (Bates et al. 2015, *lme4*).
+- **Estimation method** — REML vs ML.
+- **ICC** — the intraclass correlation, shown only when the paper claims a multilevel/clustering structure.
+- **Marginal vs conditional R²** — variance explained by fixed vs fixed + random effects (Nakagawa & Schielzeth 2013).
+- **Missing-data sensitivity analysis** — shown only for a longitudinal design with evident dropout; whether the paper checked robustness to the missing-at-random assumption (FDA ICH E9(R1); Troendle et al. 2025; Cro et al. 2020; Moreno-Betancur & Chavance 2016).
+
+Read it as a prompt, not a report card:
+
+- It audits **reporting completeness, not analysis correctness** — a paper can report everything and still model badly, or omit an item and be fine. It flags what a careful reader should check, not what's wrong.
+- **“Not found” means we didn't detect it in the extracted text** — tables aren't fully read, so check the paper. It is never “missing” and never an accusation.
+- **ICC and the missing-data check show “n/a”** unless their precondition holds (a clustering claim; a longitudinal design with dropout) — a flag that fired on every mixed model would be noise.
+- There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
+- The section credits each check's source and offers a one-click **add methods sources to library**.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

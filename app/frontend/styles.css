@@ -1060,6 +1060,8 @@
   /* LMM-reporting auditor (inc 247): the always-on literacy explainer + the in-context source, reusing .bayes-check-* rows. */
   .lmm-explainer { font-size: 11px; color: var(--ink-2); margin-top: 4px; line-height: 1.45; }
   .lmm-basis { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
+  .lmm-summary { font-size: 11px; color: var(--ink-2); margin-bottom: 6px; }
+  .bayes-check-item.lmm-na { opacity: 0.62; }  /* preconditions not met — de-emphasized, not a gap */
   /* Bayesian auditor SP4 (inc 244): Tier-3 advisory prompts — neutral/accent tint, deliberately NOT the amber flag. */
   .bayes-advisory { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
   .bayes-advisory-item { padding: 6px 8px; border-left: 2px solid var(--accent-soft); margin-bottom: 6px; font-size: 12px; color: var(--ink-2); }

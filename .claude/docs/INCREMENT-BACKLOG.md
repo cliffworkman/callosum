@@ -276,10 +276,18 @@ well below the cut; each needs its own design + my graduation call.)*
 cascade + wanted list shipped inc 74–76 (relocated to DONE). **Remaining only:** institutional / author-contact
 resolvers + the honest "not found" UX polish. **Explicitly excludes paywall circumvention.**
 
-**23. LMM-reporting auditor** (`…_lmmreportingauditor.md`, METHODS, consumer-side) — **[future track]** flags what a
-reader should look for in a mixed-model paper (random-effects structure, df method, convergence, REML/ML, ICC, R²,
-missing-data sensitivity); **reads reported text only — never runs a model or touches raw data**. A self-contained
-sibling of statcheck under the findings subsystem.
+**23. LMM-reporting auditor** (`…_lmmreportingauditor.md`, METHODS, consumer-side) — **[SHIPPED inc 247 — all 7
+checks + literacy explainers; deferrals below]** the METHODS "Mixed-model reporting" panel flags what a reader should
+look for in a mixed-model paper (random-effects structure, df method, convergence, REML/ML, ICC, R², missing-data
+sensitivity); **reads reported text only — never runs a model or touches raw data**. `methods/lmm.py` +
+`GET /papers/{id}/lmm` + `08f_methods_lmm.jsx`; FLAG-not-ADJUDICATE (present/not-found/n-a, no score/verdict);
+precondition-scoped (ICC + missing-data n/a when not applicable); grounded cited recommendations + add-to-library.
+- **Deferred (experience pass, inc 247):** (F1) an on-paper **discoverability affordance** — a "runs an LMM · report
+  card →" chip / library signal mirroring statcheck's inc-141 chip→section path, so a citer reaches the panel in the
+  moment without knowing it exists (the panel's own reception gap; a bigger, design-gated follow-up). (F4) let the
+  audit **persist as a candidate** in the findings/review store (inc 130) so the judgment survives closing the pane.
+- **Deferred (SP2, no data source / bigger design):** LLM-assisted detection for fuzzier reporting (consent-gated);
+  a per-check precision/recall pass on real mixed-model papers.
 
 **24. Bayesian-statistics auditor** (`…_bayesianauditing.md`, METHODS) — **[FULLY DONE — SP1 inc 241 + SP2 inc 242 +
 SP3 inc 243 + SP4 inc 244]** the **Tier-1 deterministic recompute** (SP1): default **JZS** t-test BF (Rouder et al.
