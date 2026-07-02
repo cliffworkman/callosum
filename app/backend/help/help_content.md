@@ -801,6 +801,28 @@ Read it as a prompt, not a report card:
 - There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
 - The section credits each check's source and offers a one-click **add methods sources to library**.
 
+<!-- section: auditing-meta-analysis-reporting -->
+## Auditing meta-analysis reporting
+A **meta-analysis** pools results across studies, and the reader needs to see the choices behind the pooled number. The meta-analysis reporting auditor reads a *published* meta-analysis's extracted text and flags whether it *reports* seven such things — it never pools, models heterogeneity, re-computes an effect size, or does bias inference (that's metafor / JASP / RevMan territory). It's local, deterministic, and uses no AI.
+
+In the **METHODS** pane, open **Meta-analysis reporting** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+
+- **Effect-size metric** — the index the study effects were converted to (Hedges' g, log odds ratio, Fisher's z, …) — Borenstein et al. 2009; Viechtbauer 2010 (*metafor*).
+- **Model (fixed vs random-effects)** — and the between-study variance estimator (DerSimonian-Laird, REML, Hartung-Knapp) — DerSimonian & Laird 1986; IntHout et al. 2014.
+- **Heterogeneity** — I² / τ² / Cochran's Q (Higgins, Thompson, Deeks & Altman 2003).
+- **Publication-bias assessment** — funnel plot, Egger's test, trim-and-fill, PET-PEESE (Egger et al. 1997; Duval & Tweedie 2000; Sterne et al. 2011).
+- **Sensitivity / influence analysis** — leave-one-out, outlier/influence diagnostics, robustness to an included study (Viechtbauer & Cheung 2010).
+- **Number of studies (k) and participants** — the first thing needed to weigh the pooled result (PRISMA 2020).
+- **Search & selection reporting** — databases searched, inclusion/eligibility criteria, a PRISMA flow, a registered protocol; shown **n/a** for a within-study "mini meta-analysis" that isn't a systematic review (PRISMA 2020).
+
+Read it as a prompt, not a report card:
+
+- It audits **reporting completeness, not analysis correctness** — a meta-analysis can report everything and still pool badly, or omit an item and be fine. It flags what a careful reader should check, not what's wrong.
+- **“Not found” means we didn't detect it in the extracted text** — tables/figures aren't fully read, so check the paper. It is never “missing” and never an accusation.
+- The publication-bias note points out that for fewer than ~10 studies a funnel-based check is underpowered, so absence there may be appropriate; the search & selection check is **n/a** for a within-study meta-analysis.
+- There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
+- The section credits each check's source and offers a one-click **add methods sources to library**.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:

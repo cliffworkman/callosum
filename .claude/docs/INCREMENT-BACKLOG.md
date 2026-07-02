@@ -282,10 +282,16 @@ look for in a mixed-model paper (random-effects structure, df method, convergenc
 sensitivity); **reads reported text only — never runs a model or touches raw data**. `methods/lmm.py` +
 `GET /papers/{id}/lmm` + `08f_methods_lmm.jsx`; FLAG-not-ADJUDICATE (present/not-found/n-a, no score/verdict);
 precondition-scoped (ICC + missing-data n/a when not applicable); grounded cited recommendations + add-to-library.
-- **Deferred (experience pass, inc 247):** (F1) an on-paper **discoverability affordance** — a "runs an LMM · report
-  card →" chip / library signal mirroring statcheck's inc-141 chip→section path, so a citer reaches the panel in the
-  moment without knowing it exists (the panel's own reception gap; a bigger, design-gated follow-up). (F4) let the
-  audit **persist as a candidate** in the findings/review store (inc 130) so the judgment survives closing the pane.
+- **Deferred — CROSS-METHOD (experience passes, inc 247 LMM + inc 249 meta-analysis; consolidate as one item across
+  the auto-detected-method METHODS auditors — LMM / meta-analysis / and by extension statcheck / bayes):**
+  (F1) an **on-paper "report card" chip** — a "runs an LMM · report card →" / "reports a meta-analysis · report card →"
+  library-card signal mirroring statcheck's inc-141 chip→section path, so a citer reaches the panel in the moment
+  without knowing it exists (each auto-detects for free — `_LMM` / `_META` — so the same gate can drive a chip; the
+  auditors' shared reception gap; a bigger, design-gated follow-up). (F4) let each audit **persist as a candidate** in
+  the findings/review store (inc 130) so the judgment survives closing the pane + feeds the library-wide review queue
+  (cross-method triage). (F2, inc 249) suppress the **methods-credit footer** on the explicit "not applicable to this
+  paper" state (a `MetaSection`/`LmmSection`/statcheck/bayes footer renders even on a non-applicable paper, reading as
+  if the audit found methods) — a small state-lift, uniform across the four siblings.
 - **Deferred (SP2, no data source / bigger design):** LLM-assisted detection for fuzzier reporting (consent-gated);
   a per-check precision/recall pass on real mixed-model papers.
 
@@ -414,11 +420,21 @@ citing articles + per-paper citation counts** (inc 119). **Remaining only:** **L
 (citation gaps, emerging citing-topics, candidate collaborators — LLM narration over graph data only). The
 author-resolution infra also powered the gap-finder (#29).
 
-**36. Meta-analysis extraction workbench** (`…_metaanalysisextractionworkbench.md`, its **own** REVIEW/SYNTHESIS
-workspace) — **[future track]** protocol → embedding-screened queue → LLM-drafted **provenance-anchored,
-human-verified** extraction → double-coding/IRR → deterministic effect-size conversion → export
-(metafor/JASP/RevMan) + audit trail. **Extracts/structures, never pools/models/adjudicates**; LLM is never an
-independent coder.
+**36. Meta-analysis** (`…_metaanalysisextractionworkbench.md`) — **[consumer-side reporting auditor SHIPPED inc 249;
+producer-side extraction workbench is the deferred remainder]**
+- **SHIPPED (inc 249) — the consumer-side reporting auditor:** a METHODS "Meta-analysis reporting" panel (the
+  statcheck/LMM sibling) that reads a *published* meta-analysis's extracted text and flags whether it *reports* 7 key
+  choices (effect-size metric, model, heterogeneity I²/τ²/Q, publication bias, sensitivity/influence, study count
+  k+participants, search & selection) — present/not-found/not-applicable, evidence + cited recommendation + explainer.
+  `methods/metaanalysis.py` + `GET /papers/{id}/meta-analysis` + `08g_methods_metaanalysis.jsx`; FLAG-not-ADJUDICATE
+  (no score/verdict; **never pools/models/re-computes** — structural + test-pinned); precondition-scoped (search = n/a
+  for a within-study mini-meta); local/no-egress/no-LLM. Experience-pass deferrals folded into #23's cross-method
+  chip/persist/credit-footer item.
+- **DEFERRED — the producer-side extraction workbench** (its **own** REVIEW/SYNTHESIS workspace, a bigger future
+  track): protocol → embedding-screened queue → LLM-drafted **provenance-anchored, human-verified** extraction →
+  double-coding/IRR → deterministic effect-size conversion → export (metafor/JASP/RevMan) + audit trail.
+  **Extracts/structures, never pools/models/adjudicates**; LLM is never an independent coder. Its own spec +
+  workspace + heavy Principles/A-A pass (the maintainer chose "reporting auditor now, workbench next").
 
 **37. Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived) — **[future track — most
 needs the values layer]** inspectable, **non-accusatory** prestige/credit/attention lenses (overlooked-work /

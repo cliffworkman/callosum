@@ -117,6 +117,30 @@ to the library:
   Moreno-Betancur, M., & Chavance, M. (2016), Statistical Methods in Medical Research.
 - Credited + one-click added to the library from the panel. Surfaced via Daniël Lakens' automated-review catalog.
 
+### Meta-analysis reporting auditor (inc 249, #36)
+The meta-analysis reporting auditor is a consumer-side reading aid — it reads a published meta-analysis's reported text
+only and never pools, models heterogeneity, meta-regresses, computes an effect size, or does bias inference. Each check
+credits its methodological basis in-context and offers the source to the library:
+- Effect sizes & general — Borenstein, M., Hedges, L. V., Higgins, J. P. T., & Rothstein, H. R. (2009). *Introduction
+  to Meta-Analysis.* Wiley; and Viechtbauer, W. (2010). *Conducting meta-analyses in R with the metafor package.*
+  Journal of Statistical Software, 36(3), 1–48. <https://doi.org/10.18637/jss.v036.i03>.
+- Model (fixed vs random-effects) — DerSimonian, R., & Laird, N. (1986). *Meta-analysis in clinical trials.* Controlled
+  Clinical Trials, 7(3), 177–188. <https://doi.org/10.1016/0197-2456(86)90046-2>; and IntHout, J., Ioannidis, J. P. A.,
+  & Borm, G. F. (2014). *The Hartung-Knapp-Sidik-Jonkman method …* BMC Medical Research Methodology, 14, 25.
+  <https://doi.org/10.1186/1471-2288-14-25>.
+- Heterogeneity (I² / τ² / Q) — Higgins, J. P. T., Thompson, S. G., Deeks, J. J., & Altman, D. G. (2003). *Measuring
+  inconsistency in meta-analyses.* BMJ, 327(7414), 557–560. <https://doi.org/10.1136/bmj.327.7414.557>.
+- Publication bias — Egger, M., Davey Smith, G., Schneider, M., & Minder, C. (1997). *Bias in meta-analysis detected by
+  a simple, graphical test.* BMJ, 315(7109), 629–634. <https://doi.org/10.1136/bmj.315.7109.629>; Duval, S., & Tweedie,
+  R. (2000). *Trim and fill.* Biometrics, 56(2), 455–463. <https://doi.org/10.1111/j.0006-341X.2000.00455.x>; and
+  Sterne, J. A. C., et al. (2011). *Recommendations for examining and interpreting funnel plot asymmetry …* BMJ, 343,
+  d4002. <https://doi.org/10.1136/bmj.d4002>.
+- Sensitivity / influence — Viechtbauer, W., & Cheung, M. W.-L. (2010). *Outlier and influence diagnostics for
+  meta-analysis.* Research Synthesis Methods, 1(2), 112–125. <https://doi.org/10.1002/jrsm.11>.
+- Study count & search/selection reporting — Page, M. J., et al. (2021). *The PRISMA 2020 statement.* BMJ, 372, n71.
+  <https://doi.org/10.1136/bmj.n71>.
+- Credited + one-click added to the library from the panel. Surfaced via Daniël Lakens' automated-review catalog.
+
 ### Citation context / "smart citations" (inc 232, B4)
 The **"How this paper is cited"** panel (support / contrast / mention over a paper's citing sentences) is a
 **scite** analogue:
