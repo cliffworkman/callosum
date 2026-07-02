@@ -8,8 +8,9 @@ Google Docs add-on — every request must carry a valid ``Authorization: Bearer 
 
 When remote access is OFF (the default), the middleware is a pure pass-through: **zero change** for localhost-only
 users (and the whole existing test suite). The flag + token are read fresh per request from ``app_settings`` so the
-Settings toggle takes effect live. Recovery if the token is lost: ``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` (a local-only
-hatch) or edit the settings file.
+Settings toggle takes effect live. Recovery if the token is lost: the in-app lockout screen
+(``POST /access/recover``, inc 254 — proves local possession via a local-file code, then disables the gate),
+``CALLOSUM_DISABLE_REMOTE_ACCESS=1`` (a local-only hatch), or edit the settings file.
 """
 
 from __future__ import annotations
@@ -30,6 +31,12 @@ from app.backend import app_settings
 # header (the inc-172 navigation gotcha); it carries only an opaque code+state validated against the stored PKCE
 # verifier (app/backend/api/auth/router.py), so exempting it is safe.
 _EXEMPT_PATHS = frozenset({"/", "/health", "/oauth/callback"})
+
+# inc 254: the lockout-recovery endpoint is reachable WITHOUT a token (the user is locked out and can't supply
+# one), but — unlike the static-shell exemptions above — it is RATE-LIMITED, and local-machine possession (a
+# one-time code the server writes to a local file; see access_recovery.py), not the token, is what authorizes
+# it. It only ever DISABLES remote access. Keep it OUT of _EXEMPT_PATHS so it still passes through the limiter.
+_RECOVERY_PATHS = frozenset({"/access/recover"})
 
 # B5 (inc 237): read-only mode (CALLOSUM_READ_ONLY=1) forbids every mutating method. GET/HEAD/OPTIONS pass; anything
 # else → 403. This is the METHOD-level read-only boundary the cloudflared path allowlist can't provide (a path like
@@ -84,6 +91,16 @@ class AccessControlMiddleware(BaseHTTPMiddleware):
             return await call_next(request)  # OFF (the default) → no-op
         if request.method == "OPTIONS" or request.url.path in _EXEMPT_PATHS:
             return await call_next(request)  # CORS preflight + the static shell / liveness
+        if request.url.path in _RECOVERY_PATHS:
+            # Lockout recovery (inc 254): no token (the user can't supply one), but rate-limited — and it can
+            # ONLY disable remote access, gated on a code written to a local file a tunnel caller can't read.
+            if not self._limiter.allow("recover"):
+                return JSONResponse(
+                    {"detail": "Too many recovery attempts — wait a minute."},
+                    status_code=429,
+                    headers={"Retry-After": str(int(RATE_LIMIT_WINDOW))},
+                )
+            return await call_next(request)
         token = app_settings.stored_access_token()
         provided = _bearer(request.headers.get("authorization"))
         if not token or not provided or not secrets.compare_digest(provided, token):

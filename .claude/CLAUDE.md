@@ -21,8 +21,8 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 253** (see Increment workflow) with **991 pytest tests
-passing** (+ opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
+It is currently at **Increment 254** (see Increment workflow) with **992 pytest tests
+passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
 the full per-increment narrative for all other increments now lives in the relocated
@@ -365,7 +365,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 253). Each increment of real work
+callosum is built in **numbered increments** (currently at 254). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -469,7 +469,11 @@ work is called done:
   `GET /` (the static shell), plus a hand-rolled sliding-window **rate limiter** (429). Default-off → a pure
   pass-through (zero change for localhost-only users). The token is stored like the BYOK key (keychain/file,
   write-only over the wire); the frontend sends it via a same-origin fetch shim (`00_lib.jsx`, token in
-  localStorage, never injected into HTML). Recovery hatch: `CALLOSUM_DISABLE_REMOTE_ACCESS=1`. **The cloudflared
+  localStorage, never injected into HTML). Recovery hatch: `CALLOSUM_DISABLE_REMOTE_ACCESS=1` — **or the in-app
+  lockout recovery (inc 254):** a 401 raises one honest `AccessLockOverlay` (`01_recovery.jsx`) offering paste-the-token
+  or `POST /access/recover` — a **gate-exempt-but-rate-limited, disable-only** path that proves local-machine possession
+  via a one-time code written to `~/.callosum/recovery-code.txt` (returns only the path; only ever turns Remote access
+  OFF; never reveals the token). Audit `2026-07-02_access-recovery.md` PASS. **The cloudflared
   ingress allowlist (forward ONLY the cite endpoints — `/papers`, `/papers/export`, `/citations/*`) is a REQUIRED
   SP1 control** so the file-read/scan routes + `/` are unreachable via the tunnel (recorded in the inc-168 audit).
   Re-audit before a *general* hosted deployment (this foundation targets the single-user add-on tunnel, not

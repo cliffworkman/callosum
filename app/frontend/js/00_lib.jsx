@@ -45,6 +45,18 @@ function setAccessToken(token) {
   };
 })();
 
+// inc 254: remote-access LOCKOUT recovery. When Remote access is on but this browser holds no valid token, every
+// data call 401s (including GET /settings) — a dead-end the old "start the backend" error box wrongly blamed on a
+// dead server. The api* helpers below flag a 401 as `authRequired` and notify ONE registered handler, so the App
+// raises a single honest recovery overlay (AccessLockOverlay) instead of N panes each erroring. Recovery is either:
+// paste the token (client-side), or the local-possession reset (POST /access/recover — disable-only).
+let _authRequiredHandler = null;
+function onAuthRequired(fn) { _authRequiredHandler = fn; }
+function _notifyAuthRequired() { try { if (_authRequiredHandler) _authRequiredHandler(); } catch (e) { /* ignore */ } }
+function clearAccessToken() { setAccessToken(""); }
+async function startAccessRecovery() { return apiPost("/access/recover", {}); }        // phase 1 → writes the code to a local file
+async function submitAccessRecovery(code) { return apiPost("/access/recover", { code }); }  // phase 2 → verify → disable remote access
+
 // inc-100: tag provenance. A tag carries an import_source; imported author/index keywords are styled distinctly
 // from tags you added (aesthetic only — no extra labels), with the specific source shown in the tooltip.
 function tagIsImported(source) { return !!source && source !== "user"; }
@@ -62,7 +74,10 @@ const PAGE_SIZE = 50;
 async function api(path) {
   try {
     const res = await fetch(API_BASE + path, { headers: { "Accept": "application/json" } });
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status} on ${path}` };
+    if (!res.ok) {
+      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` }; }
+      return { ok: false, error: `HTTP ${res.status} on ${path}` };
+    }
     return { ok: true, data: await res.json() };
   } catch (e) {
     return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
@@ -79,6 +94,7 @@ async function apiPost(path, body) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const detail = data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `HTTP ${res.status} on ${path}`;
+      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: detail }; }
       console.warn("[callosum] request failed:", path, detail);
       return { ok: false, error: detail };
     }
@@ -94,6 +110,7 @@ async function apiDelete(path) {
     if (!res.ok) {
       const data = await res.json().catch(() => null);
       const detail = data && data.detail ? data.detail : `HTTP ${res.status} on ${path}`;
+      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: detail }; }
       console.warn("[callosum] request failed:", path, detail);
       return { ok: false, error: detail };
     }
@@ -113,6 +130,7 @@ async function apiPatch(path, body) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const detail = data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `HTTP ${res.status} on ${path}`;
+      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: detail }; }
       console.warn("[callosum] request failed:", path, detail);
       return { ok: false, error: detail };
     }
@@ -132,6 +150,7 @@ async function apiPut(path, body) {
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       const detail = data && data.detail ? (typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail)) : `HTTP ${res.status} on ${path}`;
+      if (res.status === 401) { _notifyAuthRequired(); return { ok: false, status: 401, authRequired: true, error: detail }; }
       console.warn("[callosum] request failed:", path, detail);
       return { ok: false, error: detail };
     }

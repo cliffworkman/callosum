@@ -505,6 +505,27 @@
   }
   .axis-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 8px; }
   .axis-modal-note { font-size: 11.5px; color: var(--ink-3); line-height: 1.45; margin: 8px 0 6px; }
+  /* inc 254: remote-access LOCKOUT recovery overlay. Reuses the .axis-modal shell (backdrop/card/shadow/radius);
+     only the lockout-specific bits are new. Amber (--flag) = the unresolved/locked status color (DESIGN §4). */
+  .lockout-card { width: min(520px, 94vw); }
+  .lockout-head { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 4px; }
+  .lockout-icon { font-size: 20px; line-height: 1.25; }
+  .lockout-title { font-size: 14px; margin: 0 0 3px; color: var(--ink); }
+  .lockout-sub { font-size: 12px; color: var(--ink-2); line-height: 1.5; margin: 0; }
+  .lockout-tabs { display: flex; gap: 6px; margin: 12px 0; }
+  .lockout-tab { flex: 1; font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--panel-2); color: var(--ink-2); cursor: pointer; }
+  .lockout-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .lockout-body { font-size: 12px; color: var(--ink-2); line-height: 1.5; display: flex; flex-direction: column; gap: 9px; }
+  .lockout-body p { margin: 0; }
+  .lockout-actions { display: flex; gap: 8px; }
+  .lockout-step { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .lockout-path { display: block; margin-top: 5px; font-family: var(--mono); font-size: 11px; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px 8px; word-break: break-all; }
+  .lockout-hint { margin-top: 6px; font-size: 11px; color: var(--ink-3); line-height: 1.45; }
+  .lockout-hint .btn-link { font-size: 11px; }
+  .lockout-msg { margin-top: 10px; font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 9px; }
+  .lockout-msg.ok { color: var(--verified); background: var(--verified-soft); border-color: var(--verified); }   /* success (green), not the amber error tint */
+  .lockout-foot { margin-top: 12px; font-size: 11px; color: var(--ink-3); line-height: 1.45; }
+  .lockout-foot code, .lockout-step code { font-family: var(--mono); font-size: 10.5px; }
   /* inc 126: p-curve modal (collection-level evidential-value check). Tokens only. */
   .pcurve-modal { width: min(560px, 94vw); }
   .pcurve-framing { font-size: 12px; color: var(--ink-2); line-height: 1.5; background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 8px 10px; margin: 4px 0 10px; }
@@ -1824,6 +1845,25 @@
       return orig(input, init);
     };
   })();
+  let _authRequiredHandler = null;
+  function onAuthRequired(fn) {
+    _authRequiredHandler = fn;
+  }
+  function _notifyAuthRequired() {
+    try {
+      if (_authRequiredHandler) _authRequiredHandler();
+    } catch (e) {
+    }
+  }
+  function clearAccessToken() {
+    setAccessToken("");
+  }
+  async function startAccessRecovery() {
+    return apiPost("/access/recover", {});
+  }
+  async function submitAccessRecovery(code) {
+    return apiPost("/access/recover", { code });
+  }
   function tagIsImported(source) {
     return !!source && source !== "user";
   }
@@ -1839,7 +1879,13 @@
   async function api(path) {
     try {
       const res = await fetch(API_BASE + path, { headers: { "Accept": "application/json" } });
-      if (!res.ok) return { ok: false, error: `HTTP ${res.status} on ${path}` };
+      if (!res.ok) {
+        if (res.status === 401) {
+          _notifyAuthRequired();
+          return { ok: false, status: 401, authRequired: true, error: `HTTP 401 on ${path}` };
+        }
+        return { ok: false, error: `HTTP ${res.status} on ${path}` };
+      }
       return { ok: true, data: await res.json() };
     } catch (e) {
       return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
@@ -1855,6 +1901,10 @@
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const detail = data && data.detail ? typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail) : `HTTP ${res.status} on ${path}`;
+        if (res.status === 401) {
+          _notifyAuthRequired();
+          return { ok: false, status: 401, authRequired: true, error: detail };
+        }
         console.warn("[callosum] request failed:", path, detail);
         return { ok: false, error: detail };
       }
@@ -1869,6 +1919,10 @@
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         const detail = data && data.detail ? data.detail : `HTTP ${res.status} on ${path}`;
+        if (res.status === 401) {
+          _notifyAuthRequired();
+          return { ok: false, status: 401, authRequired: true, error: detail };
+        }
         console.warn("[callosum] request failed:", path, detail);
         return { ok: false, error: detail };
       }
@@ -1887,6 +1941,10 @@
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const detail = data && data.detail ? typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail) : `HTTP ${res.status} on ${path}`;
+        if (res.status === 401) {
+          _notifyAuthRequired();
+          return { ok: false, status: 401, authRequired: true, error: detail };
+        }
         console.warn("[callosum] request failed:", path, detail);
         return { ok: false, error: detail };
       }
@@ -1905,6 +1963,10 @@
       const data = await res.json().catch(() => null);
       if (!res.ok) {
         const detail = data && data.detail ? typeof data.detail === "string" ? data.detail : JSON.stringify(data.detail) : `HTTP ${res.status} on ${path}`;
+        if (res.status === 401) {
+          _notifyAuthRequired();
+          return { ok: false, status: 401, authRequired: true, error: detail };
+        }
         console.warn("[callosum] request failed:", path, detail);
         return { ok: false, error: detail };
       }
@@ -2128,6 +2190,94 @@
     if (!m) return `rgba(255, 213, 74, ${alpha})`;
     const n = parseInt(m[1], 16);
     return `rgba(${n >> 16 & 255}, ${n >> 8 & 255}, ${n & 255}, ${alpha})`;
+  }
+  function AccessLockOverlay() {
+    const [tab, setTab] = useState("token");
+    const [tokenInput, setTokenInput] = useState("");
+    const [codePath, setCodePath] = useState("");
+    const [codeInput, setCodeInput] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const [ok, setOk] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const applyToken = () => {
+      const t = tokenInput.trim();
+      if (!t) {
+        setMsg("Paste the access token first.");
+        return;
+      }
+      setAccessToken(t);
+      window.location.reload();
+    };
+    const startReset = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await startAccessRecovery();
+      setBusy(false);
+      if (r.ok && r.data) {
+        setCodePath(r.data.code_path || "");
+        setCodeInput("");
+      } else setMsg("Couldn't start recovery: " + (r.error || "unknown error"));
+    };
+    const submitReset = async () => {
+      const c = codeInput.trim();
+      if (!c) {
+        setMsg("Enter the code from the file first.");
+        return;
+      }
+      setBusy(true);
+      setMsg("");
+      const r = await submitAccessRecovery(c);
+      if (r.ok && r.data && r.data.status === "recovered") {
+        clearAccessToken();
+        setOk(true);
+        setMsg(r.data && r.data.detail || "Remote access is off \u2014 your library is available locally again.");
+        setTimeout(() => window.location.reload(), 1400);
+      } else {
+        setBusy(false);
+        setMsg(r.data && r.data.detail || r.error || "That code didn't work. Get a new code and try again.");
+      }
+    };
+    const copyPath = () => {
+      navigator.clipboard.writeText(codePath).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      });
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", role: "dialog", "aria-modal": "true", "aria-label": "Remote access locked" }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal lockout-card" }, /* @__PURE__ */ React.createElement("div", { className: "lockout-head" }, /* @__PURE__ */ React.createElement("span", { className: "lockout-icon", "aria-hidden": "true" }, "\u{1F512}"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { className: "lockout-title" }, "Remote access is on \u2014 this browser isn't authorized"), /* @__PURE__ */ React.createElement("p", { className: "lockout-sub" }, "Your library and the server are fine. callosum is holding back every request because of the ", /* @__PURE__ */ React.createElement("b", null, "Allow citing from Google Docs"), " (Remote access) setting you turned on \u2014 and this browser isn't sending the access token it now expects, so nothing loads. Pick a way back in:"))), /* @__PURE__ */ React.createElement("div", { className: "lockout-tabs" }, /* @__PURE__ */ React.createElement("button", { className: "lockout-tab" + (tab === "token" ? " active" : ""), onClick: () => {
+      setTab("token");
+      setMsg("");
+      setOk(false);
+    } }, "I have the token"), /* @__PURE__ */ React.createElement("button", { className: "lockout-tab" + (tab === "reset" ? " active" : ""), onClick: () => {
+      setTab("reset");
+      setMsg("");
+      setOk(false);
+    } }, "I lost it \u2014 turn remote access off")), tab === "token" && /* @__PURE__ */ React.createElement("div", { className: "lockout-body" }, /* @__PURE__ */ React.createElement("p", null, "Paste the access token you copied when you turned Remote access on. It's kept only in this browser and sent securely with each request."), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        placeholder: "Access token",
+        value: tokenInput,
+        autoFocus: true,
+        onChange: (e) => setTokenInput(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") applyToken();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "lockout-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-primary", onClick: applyToken }, "Unlock"))), tab === "reset" && /* @__PURE__ */ React.createElement("div", { className: "lockout-body" }, /* @__PURE__ */ React.createElement("p", null, "This turns Remote access ", /* @__PURE__ */ React.createElement("b", null, "off"), " and returns callosum to local-only \u2014 its default. To prove you're at the computer running callosum (not reaching it remotely), you'll copy a one-time code from a file only you can open."), !codePath && /* @__PURE__ */ React.createElement("div", { className: "lockout-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-primary", disabled: busy, onClick: startReset }, busy ? "Working\u2026" : "Get my recovery code")), codePath && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "lockout-step" }, "On the computer running callosum, open this file \u2014 it's a plain text file, so Notepad (Windows) or TextEdit (Mac) will open it \u2014 and copy the code inside:", /* @__PURE__ */ React.createElement("code", { className: "lockout-path" }, codePath), /* @__PURE__ */ React.createElement("div", { className: "lockout-hint" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: copyPath }, copied ? "Copied \u2713" : "Copy path"), /* @__PURE__ */ React.createElement("span", null, " \u2014 paste it into your File Explorer / Finder address bar to jump straight to the file."))), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "Paste the code from the file",
+        value: codeInput,
+        autoFocus: true,
+        onChange: (e) => setCodeInput(e.target.value),
+        onKeyDown: (e) => {
+          if (e.key === "Enter") submitReset();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "lockout-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-primary", disabled: busy, onClick: submitReset }, busy ? "Working\u2026" : "Turn off remote access"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: busy, onClick: startReset }, "New code")))), msg && /* @__PURE__ */ React.createElement("div", { className: "lockout-msg" + (ok ? " ok" : "") }, msg), /* @__PURE__ */ React.createElement("div", { className: "lockout-foot" }, "Still stuck? Ask whoever helped you set up remote access \u2014 or, on the callosum machine, restart it with ", /* @__PURE__ */ React.createElement("code", null, "CALLOSUM_DISABLE_REMOTE_ACCESS=1"), " set.")));
   }
   const MOBILE_TABS = [
     { id: "library", label: "Library", icon: "\u{1F4DA}" },
@@ -2554,7 +2704,7 @@
             pendingSelectTopRef.current = false;
             setSelected(r.data.length ? r.data[0].id : null);
           }
-        } else setListState({ status: "error", error: r.error, papers: [] });
+        } else setListState({ status: "error", error: r.error, authRequired: r.authRequired, papers: [] });
       });
       return () => {
         live = false;
@@ -4822,7 +4972,7 @@
       },
       /* @__PURE__ */ React.createElement("option", { value: "", disabled: true }, "bibliography\u2026"),
       citeStyles.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.id, value: s.id }, s.title))
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBulkDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearLibrarySelect }, "clear")), state.status === "loading" && Array.from({ length: 8 }).map((_, i) => /* @__PURE__ */ React.createElement("div", { className: "skel", key: i }, /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "70%", marginBottom: 8 } }), /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "45%" } }))), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load the library."), /* @__PURE__ */ React.createElement("br", null), state.error, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), "Start the backend, then reload:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("code", null, "uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080")), state.status === "ready" && state.papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, trashView ? "Trash is empty." : `No papers${query ? " match that search" : " in this library"}.`), trashView ? "Deleted papers appear here and can be restored." : query ? "Try a different term." : "Ingest PDFs or import a Zotero library to begin."), state.status === "ready" && state.papers.map((p) => {
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link axis-danger", onClick: onBulkDelete }, "delete"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearLibrarySelect }, "clear")), state.status === "loading" && Array.from({ length: 8 }).map((_, i) => /* @__PURE__ */ React.createElement("div", { className: "skel", key: i }, /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "70%", marginBottom: 8 } }), /* @__PURE__ */ React.createElement("div", { className: "bar", style: { width: "45%" } }))), state.status === "error" && state.authRequired && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Remote access is locked."), /* @__PURE__ */ React.createElement("br", null), "This browser isn't authorized. Use the recovery panel above to paste your access token, or turn Remote access off."), state.status === "error" && !state.authRequired && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load the library."), /* @__PURE__ */ React.createElement("br", null), state.error, /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("br", null), "Start the backend, then reload:", /* @__PURE__ */ React.createElement("br", null), /* @__PURE__ */ React.createElement("code", null, "uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080")), state.status === "ready" && state.papers.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, trashView ? "Trash is empty." : `No papers${query ? " match that search" : " in this library"}.`), trashView ? "Deleted papers appear here and can be restored." : query ? "Try a different term." : "Ingest PDFs or import a Zotero library to begin."), state.status === "ready" && state.papers.map((p) => {
       const fStaged = focusAxis ? (focusPending || {})[p.id] : void 0;
       const fIn = fStaged ? fStaged === "add" : !!(focusAxis && focusMembers && focusMembers.has(p.id));
       const footExtra = /* @__PURE__ */ React.createElement(React.Fragment, null, focusAxis && /* @__PURE__ */ React.createElement(
@@ -9484,7 +9634,7 @@
         onClick: on ? disable : enable
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), on && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: regenerate }, "Regenerate token")), token && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Access token \u2014 shown once; copy it into the add-on", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Stored on this machine; sent to your tunnel as a Bearer token. It is never shown again or returned by the app.")), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: token, onFocus: (e) => e.target.select() })), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Locked out locally after losing the token? Set ", /* @__PURE__ */ React.createElement("code", null, "CALLOSUM_DISABLE_REMOTE_ACCESS=1"), " and restart, or remove the token from ", /* @__PURE__ */ React.createElement("code", null, "~/.callosum/app-settings.json"), "."));
+    )), on && /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: regenerate }, "Regenerate token")), token && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Access token \u2014 shown once; copy it into the add-on", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Stored on this machine; sent to your tunnel as a Bearer token. It is never shown again or returned by the app.")), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: token, onFocus: (e) => e.target.select() })), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Locked out after losing the token? Just reload \u2014 callosum shows a recovery panel that lets you paste the token or turn Remote access back off (a code written to a local file proves you're at this machine). Or restart with ", /* @__PURE__ */ React.createElement("code", null, "CALLOSUM_DISABLE_REMOTE_ACCESS=1"), " set."));
   }
   function AgentSettings() {
     const [on, setOn] = useState(false);
@@ -10009,6 +10159,7 @@
     const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsNonce, setSettingsNonce] = useState(0);
     const [helpOpen, setHelpOpen] = useState(false);
+    const [authLocked, setAuthLocked] = useState(false);
     const {
       theme,
       setTheme,
@@ -10152,6 +10303,9 @@
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
     useEffect(() => {
+      onAuthRequired(() => setAuthLocked(true));
+    }, []);
+    useEffect(() => {
       api("/health").then((r) => {
         if (r.ok) {
           setConn({ state: "ok", version: r.data && (r.data.verification_version || r.data.version) || null });
@@ -10273,7 +10427,7 @@
           setAxisRefresh((n) => n + 1);
         }
       }
-    ));
+    ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null));
     const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;
     if (mobile) {
       const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;

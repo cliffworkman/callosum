@@ -1,6 +1,6 @@
 <!-- qa-coverage
-api: /settings, /settings/test-key, /settings/access-token, /integrations/libreoffice/*, /integrations/word/*
-fe: 35_settings.jsx
+api: /settings, /settings/test-key, /settings/access-token, /access/recover, /integrations/libreoffice/*, /integrations/word/*
+fe: 35_settings.jsx, 01_recovery.jsx
 -->
 
 # ROUTE 35 - Settings
@@ -28,6 +28,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   /settings` must report `access_token_set` but **never the token value** (the value in the GET body is **Critical**).
   With remote access ON, a data request with no/wrong bearer token → **401** (`GET /health` + `GET /` stay exempt).
   The egress posture is unchanged for everyone who leaves it off.
+- **Lockout recovery is disable-only + local-possession-gated (inc 254).** With remote access ON and no valid
+  token, a data call 401s and the app shows ONE honest recovery overlay (`AccessLockOverlay`), never a "start the
+  backend / uvicorn" box. `POST /access/recover` with `{}` writes a one-time code to a LOCAL file and returns
+  **only its path** — the code value appearing in the response body is **Critical** (it would let a remote/tunnel
+  caller recover). A valid code turns remote access **OFF**; a wrong/expired code leaves the gate **ON**. The path
+  never reveals the token and can only DISABLE remote access. It is gate-exempt (the user is locked out) but
+  rate-limited (429).
 - **Word add-in is local-only + zero-egress (inc 164).** The `/integrations/word/*` routes serve FIXED bundled task-pane files + the manifest from `adapters/word/`; an undefined filename must be a plain 404 (no traversal). The served `taskpane.html`/`taskpane.js` may reference Microsoft's `appsforoffice.microsoft.com` office.js (the required Office SDK) but **must not** reference any AI/library host (`generativelanguage`/`openai`/`anthropic`/`clffwrkmn.net`) — such a reference is **Critical**. `POST /integrations/word/install` opens a local folder and degrades to `{opened:false}`, never 500. (The in-Word task-pane round-trip is desktop-Word-only and is the user's MANUAL check — not Playwright-drivable.)
 
 ## Adversarial checklist
@@ -57,7 +64,16 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    still works in this browser (the token was saved to `localStorage`). Toggle OFF → back to frictionless. (Direct
    API: `PUT /settings {remote_access_enabled:true}` with no token minted → 422; with remote ON, `GET /papers` with
    no/`wrong` bearer → 401; `GET /health` → 200.) No genai/external request from any of this.
-13. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
+13. **Lockout recovery (inc 254).** With Remote access ON, clear this browser's token
+   (`localStorage.removeItem('callosum.accessToken')`) and reload → the app shows the **AccessLockOverlay**
+   ("Remote access is on — this browser isn't authorized"), **not** a "start the backend" error, and the library
+   errbox behind it reads "Remote access is locked." Tab **I have the token** → paste the token → Unlock → the app
+   reloads and loads normally. Tab **I lost it — turn remote access off** → **Start reset** (`POST /access/recover
+   {}`) returns a `code_path` (the response body must NOT contain the code); read the code from that file, paste
+   it, **Turn off remote access** (`POST /access/recover {code}`) → `recovered`, the app reloads, `GET /settings`
+   reports `remote_access_enabled:false`. Direct API negatives: `{code:"wrong"}` → `invalid` + gate stays ON
+   (`GET /papers` still 401); an oversized code → 422; rapid repeats → 429. No genai/external request from any of it.
+14. Resize to mobile while settings is open; confirm controls remain reachable and labels do not overflow.
 
 ## Pass criteria
 

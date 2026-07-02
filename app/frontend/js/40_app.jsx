@@ -7,6 +7,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsNonce, setSettingsNonce] = useState(0);  // bumped on Settings close → panes re-read egress state (inc 148)
   const [helpOpen, setHelpOpen] = useState(false);
+  const [authLocked, setAuthLocked] = useState(false);  // inc 254: a 401 (Remote access on, no valid token) → AccessLockOverlay
 
   // theme + axis/scan prefs + side-panel layout + accordion-open + Reading mode (all in 04_layout.jsx).
   const {
@@ -125,6 +126,10 @@ function App() {
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
 
+  // inc 254: any 401 from the api* helpers means Remote access is on but this browser holds no valid token — a
+  // lockout. Register ONE handler (the api* layer notifies it) that raises the honest recovery overlay.
+  useEffect(() => { onAuthRequired(() => setAuthLocked(true)); }, []);
+
   // health check (readOnly declared above, before useLibrary, so the library hook can suppress its on-load write).
   useEffect(() => {
     api("/health").then(r => {
@@ -220,6 +225,7 @@ function App() {
       {bundleImportOpen &&
         <BundleImportModal onClose={() => setBundleImportOpen(false)}
           onImported={() => { setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); }} />}
+      {authLocked && <AccessLockOverlay />}
     </React.Fragment>
   );
 

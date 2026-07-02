@@ -407,7 +407,7 @@ function RemoteAccessSettings() {
           <input className="settings-input" readOnly value={token} onFocus={e => e.target.select()} />
         </div>}
       {msg && <div className="settings-note">{msg}</div>}
-      <div className="settings-sub">Locked out locally after losing the token? Set <code>CALLOSUM_DISABLE_REMOTE_ACCESS=1</code> and restart, or remove the token from <code>~/.callosum/app-settings.json</code>.</div>
+      <div className="settings-sub">Locked out after losing the token? Just reload — callosum shows a recovery panel that lets you paste the token or turn Remote access back off (a code written to a local file proves you're at this machine). Or restart with <code>CALLOSUM_DISABLE_REMOTE_ACCESS=1</code> set.</div>
     </>
   );
 }

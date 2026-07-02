@@ -541,7 +541,13 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           </div>
         ))}
 
-      {state.status === "error" &&
+      {state.status === "error" && state.authRequired &&
+        <div className="errbox">
+          <b>Remote access is locked.</b><br />
+          This browser isn't authorized. Use the recovery panel above to paste your access token, or turn Remote access off.
+        </div>}
+
+      {state.status === "error" && !state.authRequired &&
         <div className="errbox">
           <b>Can't load the library.</b><br />
           {state.error}<br /><br />

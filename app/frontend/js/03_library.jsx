@@ -311,7 +311,7 @@ function useLibrary(opts) {
           setSelected(r.data.length ? r.data[0].id : null);
         }
       }
-      else setListState({ status: "error", error: r.error, papers: [] });
+      else setListState({ status: "error", error: r.error, authRequired: r.authRequired, papers: [] });  // inc 254: 401 → honest lockout copy
     });
     return () => { live = false; };
   }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryReading, librarySort, findingsRefresh, setSelected]);
