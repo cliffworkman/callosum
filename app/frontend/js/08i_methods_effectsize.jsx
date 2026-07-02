@@ -56,6 +56,7 @@ function EffectSizeSection() {
   const [inputs, setInputs] = useState({});
   const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
   const [added, setAdded] = useState("idle");
+  const [copied, setCopied] = useState(false);
 
   const form = ES_FORMS.find((f) => f.family === family);
   const sub = form.sub ? form.sub.opts.find((o) => o.val === subVal) || form.sub.opts[0] : null;
@@ -68,6 +69,7 @@ function EffectSizeSection() {
     setChoiceVal(f.choice ? f.choice.opts[0].val : "");
     setInputs({});
     setState({ status: "idle" });
+    setCopied(false);
   };
   const setIn = (k) => (e) => setInputs({ ...inputs, [k]: e.target.value });
 
@@ -132,7 +134,11 @@ function EffectSizeSection() {
       {state.status === "error" && <div className="axis-err">Couldn't convert: {state.error}</div>}
       {state.status === "done" && d &&
         <div className="es-result">
-          <div className="es-value">{d.metric} = <b>{d.value}</b> <span className="es-var">(Var {d.variance}, SE {d.se})</span></div>
+          <div className="es-value">{d.metric} = <b>{d.value}</b> <span className="es-var">(Var {d.variance}, SE {d.se})</span>
+            <button className="btn-link es-copy" title="Copy value + variance (tab-separated) for a metafor/JASP row" onClick={() => {
+              navigator.clipboard.writeText(`${d.value}\t${d.variance}`).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
+            }}>{copied ? "✓ copied" : "copy value + variance"}</button>
+          </div>
           <div className="es-ci">95% CI [{d.ci_low}, {d.ci_high}]</div>
           {d.path.length > 0 &&
             <ol className="es-path">{d.path.map((p, i) => <li key={i}>{p}</li>)}</ol>}
