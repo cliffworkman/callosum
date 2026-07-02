@@ -862,6 +862,18 @@ Every result shows the metric + its **variance** + a **95% CI**, the step-by-ste
 
 It **converts one study at a time — it never pools studies, models heterogeneity (I²/τ²), meta-regresses, or does publication-bias inference.** Those are your synthesis tool's job (metafor, JASP, RevMan); Callosum hands off the converted dataset with its provenance.
 
+<!-- section: extraction-workspace -->
+## Extracting a meta-analysis dataset (the Extract workspace)
+The **Extract** tab (in the center pane, alongside Library and Discover) is where you assemble a meta-analysis dataset from your library and keep every number tied to its source.
+
+- **Create a project** and pick a **design** (two-group continuous, binary 2×2, or correlation). The design seeds the columns the effect-size converter needs; you can add your own **moderator/notes columns** with **+ col**.
+- **Add rows** — one row per effect/comparison. **+ Add paper** links a row to a library paper (a paper can appear in several rows, one per outcome); **+ Add row** makes an unlinked row.
+- **Enter each value** in the grid and, on a linked row, **📎 anchor** a cell to the page and quote it came from. An anchored cell's 📎 opens the paper's PDF at that page, so you (or a co-author) can check it against the source.
+- **Convert →** on a row runs the effect-size converter and shows the result (e.g. Hedges' g + its variance) as a column. If you later change one of a row's cells, its effect size is cleared — so you never keep a silently-stale number; just Convert again.
+- **Export** the dataset as a **CSV** (metafor/JASP-ready: your columns + the converted effect size + variance) and a **Provenance JSON** (the per-cell page and quote — your audit trail).
+
+Every value is **yours to enter and anchor** — the workspace extracts, structures, converts, and exports the dataset; it does not pool studies or run the meta-analysis. Hand the exported dataset to metafor / JASP / RevMan for the synthesis.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:
