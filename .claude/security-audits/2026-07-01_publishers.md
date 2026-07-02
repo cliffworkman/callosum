@@ -63,3 +63,29 @@ validating every id before the request + constant hosts + the subject as a bound
 locally and provably absent from all outbound requests; egress is public bibliographic metadata (not the Gemini gate),
 cached + fail-closed; the Principles/A-A vetoes (no composite score, no "predatory" label, every candidate listed,
 elevate-don't-denigrate) are enforced structurally and pinned by tests; no new dependency; no migration.
+
+---
+
+## Addendum — SP1b (the panel + the local publisher prefs), inc 246
+
+SP1b adds the METHODS panel (`08e_methods_publishers.jsx`), the first-use choice gate, and two **local
+preferences** (`publisher_weighting` + `publisher_breadth`) on the existing `/settings` endpoint. **No new external
+fetch, no new endpoint beyond the additive `/settings` fields, no migration, no new dependency.**
+
+- **Preferences are local + never transmitted externally.** They live in the gitignored `app_settings` file store
+  (like `data_egress_enabled` / `contact_email`), are returned only to the local UI over loopback `GET /settings`
+  (not off-machine transmission), and the weighting reaches **only** the local `/methods/publishers/run` endpoint,
+  where it is a `build_profiles` ordering param — **never forwarded to OpenAlex/DOAJ**. The SP1a recording-transport
+  test (`test_abstract_never_transmitted`) already proves the outbound requests carry only topic/subject/ids — the
+  weighting appears in none of them.
+- **The prefs are not secrets** (a ranking preference, not a credential) → file store + returned by `GET /settings`,
+  the `contact_email` posture; there is no key-leak surface.
+- **Input validation at the boundary** (`PUT /settings`): the weighting must be `0.0 ≤ w ≤ 1.0` (else 422); the
+  breadth is allowlisted to `{focused, broad}` (else 422); a rejected PUT writes nothing (tested).
+- **The choice gate is a UX + honesty control, not a security boundary** — it withholds *output*, not access; no
+  privilege or egress decision hangs on it.
+
+## Result (SP1b)
+**Security Audit: PASS (addendum).** SP1b introduces no new external fetch / endpoint / dependency / migration; the
+new prefs are local, validated at the boundary, and never transmitted externally (the weighting never reaches a
+fetch — proven by the SP1a recording-transport test). The Principles/A-A vetoes remain structural + test-pinned.

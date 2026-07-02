@@ -431,7 +431,7 @@ help-toggle + OS-keychain). Relocated to DONE. Truly deferred: real cloud/Ollama
 spot-checks.)*
 
 **40. PUBLISHERS — where-to-submit METHODS tool** (`…_publishersmethodstool.md` + its child gate
-`…_publisherschoicegate.md`) — **[GRADUATED — SP1a SHIPPED inc 245; SP1b NEXT]** at submission time, surface
+`…_publisherschoicegate.md`) — **[SP1 COMPLETE — SP1a inc 245 + SP1b inc 246; deferred signals remain]** at submission time, surface
 **verifiable, fully-sourced facts** per candidate journal (OA color, APC + waiver, green route, license, RR/data
 policy, TOP factor, open impact, multi-route legitimacy **incl. regional indexes**) under a **user-set open-science
 weighting** — the author weighs them; **never a verdict**. Veto: **no composite score, no "predatory" label** (A-A
@@ -442,12 +442,13 @@ no-accusation), abstract + preferences **local, never transmitted**, **equity** 
   profiles ranked by fit + an optional open-science `weighting` (request param). Vetoes structural + test-pinned (no
   composite score, no "predatory", every candidate listed incl. closed, elevate-don't-denigrate). Audit + QA
   `route_60` PASS. Legitimacy SP1 subset = DOAJ inclusion + Seal; the rest deferred + named honestly.
-- **SP1b — NEXT: the panel + the weighting + the first-use choice gate:** `08e_methods_publishers.jsx` (paper-picker
-  OR abstract+subject → profile cards, each fact links to its source) + a visible **open-science weighting** slider
-  (always shows its state inline) + the **first-use no-pre-selected-default choice gate** (local `app_settings`
-  `publisher_weighting`/`publisher_sort`/`publisher_defaults_set`, never transmitted; force the weighting AND ≥1
-  other publisher default together so the weighting isn't the lone forced choice; PUBLISHERS-scoped). Headed-verified;
-  help corpus "Where to submit"; audit addendum (settings never transmitted).
+- **SP1b — the panel + the weighting + the first-use choice gate (✅ SHIPPED inc 246):** `08e_methods_publishers.jsx`
+  (paper-picker OR abstract+subject → the SP1a run → profile cards, each fact links to its source) + a visible
+  **open-science weighting** control (always shows its state inline via the output thumb; adjust + re-run) + the
+  **first-use no-pre-selected-default choice gate** (local `app_settings` `publisher_weighting` + `publisher_breadth`,
+  never transmitted; the weighting AND the breadth are forced **together** so the weighting isn't the lone choice;
+  PUBLISHERS-scoped; fires once). No SP1a endpoint change (the panel reads `/settings` + maps breadth→top_k).
+  Headed-verified; help corpus "Where to submit"; audit addendum (prefs never transmitted).
 - **Deferred within #40 (no data source yet):** green-route / TOP-factor / regional-index (AJOL/SciELO/Redalyc/
   Latindex) legitimacy signals; user exclusion/filtering; thumb auditability; a real field self-citation baseline.
 

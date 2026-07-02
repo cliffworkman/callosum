@@ -1648,3 +1648,44 @@
   /* inc 160: the library folder is the always-watched default — subtle accent border + a "default" pill, no remove. */
   .watched-row.is-default { border-color: var(--accent-line); background: var(--accent-soft); }
   .watched-default-note { flex: 0 0 auto; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: var(--panel); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 7px; }
+
+  /* PUBLISHERS "where to submit" (#40 SP1b) — facts to weigh, never a verdict. Tokens only (DESIGN.md rule #8):
+     OA-color badges are NEUTRAL chips (green = verified/grounded, a different semantic — not borrowed for openness);
+     `elevated_for` uses --accent-soft (the one structural highlight, apt for what the weighting rewarded);
+     the legitimacy-absent note is muted --ink-3 (absence is neutral fact, never the amber --flag status). */
+  .pub-panel { display: flex; flex-direction: column; gap: 10px; }
+  .pub-intro, .pub-gate-intro { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .pub-mode, .pub-panel .btn-primary { align-self: flex-start; }
+  .pub-input { display: flex; flex-direction: column; gap: 6px; }
+  .pub-input-note { font-size: 12px; color: var(--ink-2); }
+  /* first-use choice gate */
+  .pub-gate { display: flex; flex-direction: column; gap: 12px; }
+  .pub-gate-field { display: flex; flex-direction: column; gap: 5px; }
+  .pub-gate-label { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .pub-gate-privacy { font-size: 11px; color: var(--ink-3); }
+  /* the always-visible output thumb (weighting legibility) */
+  .pub-thumb { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius); }
+  .pub-thumb-state { font-size: 11.5px; color: var(--ink-2); }
+  /* per-journal profile card */
+  .pub-results { display: flex; flex-direction: column; gap: 8px; }
+  .pub-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 9px 11px;
+    display: flex; flex-direction: column; gap: 4px; }
+  .pub-card-title { font-family: var(--serif); font-size: 14px; color: var(--ink); }
+  .pub-card-title a { color: var(--accent); text-decoration: none; }
+  .pub-card-title a:hover { text-decoration: underline; }
+  .pub-card-facts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pub-oa { font-size: 10.5px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius-pill); padding: 1px 8px; }
+  .pub-fit { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .pub-card-row { font-size: 12px; color: var(--ink-2); }
+  .pub-caveat { font-size: 10.5px; color: var(--ink-3); }
+  .pub-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .pub-chip { font-size: 10.5px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius-pill); padding: 1px 8px; }
+  .pub-elevated { font-size: 11px; color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 3px 8px; align-self: flex-start; }
+  .pub-sources { font-size: 10.5px; color: var(--ink-3); }
+  .pub-sources a { color: var(--accent); text-decoration: none; }
+  .pub-sources a:hover { text-decoration: underline; }
+  .pub-absent { font-size: 11px; color: var(--ink-3); line-height: 1.5; margin-top: 2px; }

@@ -208,6 +208,51 @@ def set_local_base_url(url: str | None) -> None:
     _write(data)
 
 
+# --- PUBLISHERS "where to submit" preferences (#40 SP1b): the open-science weighting + result breadth ---
+# Local prefs, NOT secrets, and NEVER transmitted externally (the weighting reaches only the local
+# /methods/publishers/run endpoint; it is never forwarded to OpenAlex/DOAJ). Stored in the file (returnable by
+# GET /settings for the local UI). The first-use choice gate needs "no pre-selection", so both start as None
+# (unset) — `publisher_defaults_set()` is False until the user actively sets BOTH (never a pre-filled default).
+
+
+def set_publisher_weighting(value: float | None) -> None:
+    """The open-science weighting (0.0 = fit only … 1.0 = strongly favor open). None clears it (→ unset)."""
+    data = load_settings()
+    if value is None:
+        data.pop("publisher_weighting", None)
+    else:
+        data["publisher_weighting"] = float(value)
+    _write(data)
+
+
+def stored_publisher_weighting() -> float | None:
+    val = load_settings().get("publisher_weighting")
+    return float(val) if isinstance(val, (int, float)) else None
+
+
+def set_publisher_breadth(value: str | None) -> None:
+    """Result breadth ("focused" | "broad"). Empty/whitespace clears it (→ unset)."""
+    data = load_settings()
+    v = (value or "").strip()
+    if v:
+        data["publisher_breadth"] = v
+    else:
+        data.pop("publisher_breadth", None)
+    _write(data)
+
+
+def stored_publisher_breadth() -> str | None:
+    val = load_settings().get("publisher_breadth")
+    return val if isinstance(val, str) and val.strip() else None
+
+
+def publisher_defaults_set() -> bool:
+    """True once the user has actively set BOTH consequential publisher defaults (the first-use gate is satisfied).
+    Nothing is pre-selected — neither is set until the user chooses, so the weighting is one forced choice among
+    peers (never the lone spotlighted one)."""
+    return stored_publisher_weighting() is not None and stored_publisher_breadth() is not None
+
+
 # --- OS-keychain storage (inc 152): optional `keyring`, file fallback ---
 # Per-provider keys go to the OS vault when `keyring` is installed with a working backend; otherwise they stay in
 # the gitignored settings file (the inc-146 behavior). `keyring` is an OPTIONAL dependency — the app + tests work

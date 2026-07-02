@@ -36,6 +36,46 @@ def test_agent_writes_toggle_defaults_off_and_round_trips(temp_db_url: str) -> N
     assert client.get("/settings").json()["agent_writes_enabled"] is False
 
 
+def test_publisher_prefs_gate_and_roundtrip(temp_db_url: str) -> None:
+    # #40 SP1b: the first-use choice gate is satisfied only when BOTH consequential defaults are set — neither is
+    # pre-selected, so the weighting is one forced choice among peers (never the lone spotlighted one).
+    client = TestClient(create_app(db_url=temp_db_url))
+    s = client.get("/settings").json()
+    assert s["publisher_defaults_set"] is False and s["publisher_weighting"] is None and s["publisher_breadth"] is None
+
+    # setting only the weighting does NOT satisfy the gate (both are required together)
+    client.put("/settings", json={"set_publisher_weighting": True, "publisher_weighting": 0.5})
+    assert client.get("/settings").json()["publisher_defaults_set"] is False
+
+    # setting the breadth too flips the gate
+    client.put("/settings", json={"set_publisher_breadth": True, "publisher_breadth": "focused"})
+    s = client.get("/settings").json()
+    assert s["publisher_defaults_set"] is True
+    assert s["publisher_weighting"] == 0.5 and s["publisher_breadth"] == "focused"
+
+    # clearing one re-gates
+    client.put("/settings", json={"set_publisher_breadth": True, "publisher_breadth": ""})
+    assert client.get("/settings").json()["publisher_defaults_set"] is False
+
+
+def test_publisher_prefs_validation(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    # weighting must be 0..1
+    assert (
+        client.put("/settings", json={"set_publisher_weighting": True, "publisher_weighting": 5.0}).status_code == 422
+    )
+    assert (
+        client.put("/settings", json={"set_publisher_weighting": True, "publisher_weighting": -0.1}).status_code == 422
+    )
+    # breadth is allowlisted
+    assert (
+        client.put("/settings", json={"set_publisher_breadth": True, "publisher_breadth": "enormous"}).status_code
+        == 422
+    )
+    # a rejected PUT leaves the store unset (nothing partially written)
+    assert client.get("/settings").json()["publisher_weighting"] is None
+
+
 def test_get_settings_never_returns_the_key(temp_db_url: str) -> None:
     app_settings.set_api_key("sk-super-secret-value")
     client = TestClient(create_app(db_url=temp_db_url))

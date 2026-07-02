@@ -1,5 +1,6 @@
 <!-- qa-coverage
 api: /methods/publishers*
+fe: 08e_methods_publishers.jsx
 -->
 
 # ROUTE 60 - Methods: PUBLISHERS "where to submit" journal-finder (backlog #40, SP1a backend)
@@ -8,8 +9,9 @@ api: /methods/publishers*
 **Goal:** Exercise the backend of the "where to submit" tool: from an abstract, match candidate journals **locally**
 and return a uniform factual profile per journal, ranked by fit and optionally moved by an open-science weighting —
 while preserving the veto-level lines (no composite score, no "predatory" label, every candidate appears, the
-abstract never leaves the machine). SP1a is backend-only (the METHODS panel + the weighting slider + the first-use
-choice gate are SP1b — this route's `fe:` claim lands then).
+abstract never leaves the machine). SP1a shipped the backend (2 API endpoints); **SP1b (inc 246)** adds the METHODS
+panel (`08e_methods_publishers.jsx`) — the first-use choice gate, the paper/abstract input, the profile cards, and
+the always-visible open-science weighting thumb.
 
 ## Environment
 
@@ -57,6 +59,25 @@ network is available; the hermetic pytest suite (`tests/test_publishers.py`) cov
 5. Re-run with `weighting: 1.0` -> the order shifts to elevate open goods; elevated journals carry a non-empty
    `elevated_for`; a closed journal's `elevated_for` is empty. (SP1b will expose this via the visible weighting slider.)
 
+## Frontend — the "Where to submit" panel (SP1b, `08e_methods_publishers.jsx`)
+
+Open METHODS → **Where to submit**. Assert:
+- **First-use choice gate.** On a fresh instance the panel shows a "set your preferences" step with **two** segmented
+  controls (open-science weighting + result breadth) and **no option pre-selected** — no output/run controls appear
+  until BOTH are set. **Save preferences** is disabled until both are chosen. Any pre-highlighted default is
+  **Critical** (the veto). The weighting appearing as the *lone* forced choice is **High** (it re-singularizes it).
+- **Local-only note at the point of choice** ("stored on this machine only — never transmitted"). Missing it is Medium.
+- **Once set, the gate does not re-fire** — the panel shows the input (Selected paper / Paste abstract) + Find journals.
+  The prefs stay editable in Settings → **Where to submit** (and via the output thumb).
+- **Output legibility (non-negotiable).** After a run, the results view **always** shows the weighting's state inline
+  ("Open-science weighting: <level> — N journals elevated for <goods> · adjust") with a segmented control that re-runs
+  on change. Missing/absent output thumb is **High**.
+- **Profile cards** show fit / OA color / cost (APC + waiver) / license / open impact (with the Matthew-bias caveat) /
+  legitimacy signals / `elevated_for`; each links to its source (journal homepage, OpenAlex, DOAJ). A closed journal
+  renders with its facts (not filtered). A "predatory" label or a composite/openness **score** shown per journal is
+  **Critical**. Framing must be positive (goods offered), never a deficit of the others.
+- **0 genai-host requests** during the flow; the abstract text is in no outbound request (SP1a's guarantee, unchanged).
+
 ## Pass criteria
 
 - The endpoint resolves a topic, returns uniform per-journal profiles ranked by local fit, and applies the weighting
@@ -67,5 +88,5 @@ network is available; the hermetic pytest suite (`tests/test_publishers.py`) cov
 
 ## Deposit
 
-Write `.claude/qa-inbox/<RUN_ID>/route_60_publishers.md` + `screenshots/` (see `_TEMPLATE.md`). (No UI yet — SP1a is
-backend; the screenshots section applies once SP1b lands the panel.)
+Write `.claude/qa-inbox/<RUN_ID>/route_60_publishers.md` + `screenshots/` (see `_TEMPLATE.md`) — capture the
+first-use choice gate (nothing pre-selected), a results view with the output thumb, and a profile card.

@@ -256,6 +256,36 @@ function MetadataSettings() {
   );
 }
 
+// Where to submit (#40 SP1b) — the two consequential publisher prefs, editable anytime (the panel's first-use gate
+// forces them on first use; this is where they live thereafter). Reuses PubSegmented / PUB_WEIGHTS / PUB_BREADTHS
+// (hoisted from 08e_methods_publishers.jsx). Local-only — never transmitted.
+function PublishersSettings() {
+  const [status, setStatus] = useState(null);
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setStatus(r.data); }); }, []);
+  const put = async (body) => { const r = await apiPut("/settings", body); if (r.ok) setStatus(r.data); };
+  const setW = (id) => put({ set_publisher_weighting: true, publisher_weighting: PUB_WEIGHTS.find(x => x.id === id).value });
+  const setB = (id) => put({ set_publisher_breadth: true, publisher_breadth: id });
+  const wId = status ? pubWeightId(status.publisher_weighting) : null;
+  const bId = status ? status.publisher_breadth : null;
+  return (
+    <>
+      <p className="eyebrow">Where to submit</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Open-science weighting
+          <span className="settings-sub">How much a journal's openness moves the ranking in Methods → Where to submit. Neither on nor off is a neutral default — you choose. Stored locally, never transmitted.</span>
+        </label>
+        <PubSegmented options={PUB_WEIGHTS} value={wId} onChange={setW} ariaLabel="Open-science weighting" />
+      </div>
+      <div className="settings-field">
+        <label className="settings-field-label">Result breadth
+          <span className="settings-sub">How many candidate journals to shortlist.</span>
+        </label>
+        <PubSegmented options={PUB_BREADTHS} value={bId} onChange={setB} ariaLabel="Result breadth" />
+      </div>
+    </>
+  );
+}
+
 function LibreOfficeSettings() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -552,6 +582,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         </div>
 
         <MetadataSettings />
+
+        <PublishersSettings />
 
         <LibreOfficeSettings />
 

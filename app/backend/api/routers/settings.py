@@ -23,6 +23,9 @@ router = APIRouter()
 # Per-provider env-var fallback (gemini's is GOOGLE_API_KEY). Stored keys live in app_settings (keychain or file).
 _KEY_ENV = {"gemini": "GOOGLE_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY"}
 
+# PUBLISHERS "where to submit" (#40 SP1b) result-breadth allowlist (the panel maps these to a top_k).
+PUBLISHER_BREADTHS = {"focused", "broad"}
+
 
 class AccountStatus(BaseModel):
     """SP1 optional-account status — the VERIFIED identity only, never the tokens."""
@@ -53,6 +56,11 @@ class SettingsStatus(BaseModel):
     remote_access_enabled: bool = False  # inc 168: gate callosum behind a bearer token (for the Google Docs tunnel)
     access_token_set: bool = False  # is a remote-access token stored? — NEVER the token value
     agent_writes_enabled: bool = False  # B1 SP2: allow the MCP agent write tools (default off)
+    # PUBLISHERS "where to submit" (#40 SP1b) — local prefs, never transmitted externally. Both None until the
+    # user sets them (the first-use choice gate; no pre-selection); publisher_defaults_set gates the panel's output.
+    publisher_weighting: float | None = None
+    publisher_breadth: str | None = None
+    publisher_defaults_set: bool = False
     account: AccountStatus  # SP1: optional "Sign in with ORCID" status — the verified identity, never tokens
 
 
@@ -71,6 +79,11 @@ class SettingsUpdate(BaseModel):
     contact_email: str | None = Field(default=None, max_length=app_settings.CONTACT_EMAIL_MAX_LEN)
     remote_access_enabled: bool | None = None
     agent_writes_enabled: bool | None = None  # B1 SP2
+    # PUBLISHERS prefs (#40 SP1b) — each gated by its set_* flag so the first-use gate can persist both together.
+    set_publisher_weighting: bool = False
+    publisher_weighting: float | None = None
+    set_publisher_breadth: bool = False
+    publisher_breadth: str | None = None
 
 
 def _stored_key(provider: str) -> bool:
@@ -120,6 +133,9 @@ def _status() -> SettingsStatus:
         remote_access_enabled=app_settings.stored_remote_access(),
         access_token_set=app_settings.stored_access_token() is not None,
         agent_writes_enabled=app_settings.stored_agent_writes(),
+        publisher_weighting=app_settings.stored_publisher_weighting(),
+        publisher_breadth=app_settings.stored_publisher_breadth(),
+        publisher_defaults_set=app_settings.publisher_defaults_set(),
         account=AccountStatus(configured=app_settings.oidc_configured(), **app_settings.oauth_account_status()),
     )
 
@@ -167,6 +183,16 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         app_settings.set_remote_access_enabled(update.remote_access_enabled)
     if update.agent_writes_enabled is not None:
         app_settings.set_agent_writes_enabled(update.agent_writes_enabled)
+    if update.set_publisher_weighting:
+        w = update.publisher_weighting
+        if w is not None and not (0.0 <= w <= 1.0):
+            raise HTTPException(status_code=422, detail="The open-science weighting must be between 0.0 and 1.0.")
+        app_settings.set_publisher_weighting(w)
+    if update.set_publisher_breadth:
+        b = (update.publisher_breadth or "").strip()
+        if b and b not in PUBLISHER_BREADTHS:
+            raise HTTPException(status_code=422, detail=f"Unknown result breadth: {b}")
+        app_settings.set_publisher_breadth(b or None)
     return _status()
 
 

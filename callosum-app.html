@@ -1672,6 +1672,47 @@
   /* inc 160: the library folder is the always-watched default — subtle accent border + a "default" pill, no remove. */
   .watched-row.is-default { border-color: var(--accent-line); background: var(--accent-soft); }
   .watched-default-note { flex: 0 0 auto; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: var(--panel); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 7px; }
+
+  /* PUBLISHERS "where to submit" (#40 SP1b) — facts to weigh, never a verdict. Tokens only (DESIGN.md rule #8):
+     OA-color badges are NEUTRAL chips (green = verified/grounded, a different semantic — not borrowed for openness);
+     `elevated_for` uses --accent-soft (the one structural highlight, apt for what the weighting rewarded);
+     the legitimacy-absent note is muted --ink-3 (absence is neutral fact, never the amber --flag status). */
+  .pub-panel { display: flex; flex-direction: column; gap: 10px; }
+  .pub-intro, .pub-gate-intro { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .pub-mode, .pub-panel .btn-primary { align-self: flex-start; }
+  .pub-input { display: flex; flex-direction: column; gap: 6px; }
+  .pub-input-note { font-size: 12px; color: var(--ink-2); }
+  /* first-use choice gate */
+  .pub-gate { display: flex; flex-direction: column; gap: 12px; }
+  .pub-gate-field { display: flex; flex-direction: column; gap: 5px; }
+  .pub-gate-label { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .pub-gate-privacy { font-size: 11px; color: var(--ink-3); }
+  /* the always-visible output thumb (weighting legibility) */
+  .pub-thumb { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius); }
+  .pub-thumb-state { font-size: 11.5px; color: var(--ink-2); }
+  /* per-journal profile card */
+  .pub-results { display: flex; flex-direction: column; gap: 8px; }
+  .pub-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 9px 11px;
+    display: flex; flex-direction: column; gap: 4px; }
+  .pub-card-title { font-family: var(--serif); font-size: 14px; color: var(--ink); }
+  .pub-card-title a { color: var(--accent); text-decoration: none; }
+  .pub-card-title a:hover { text-decoration: underline; }
+  .pub-card-facts { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .pub-oa { font-size: 10.5px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius-pill); padding: 1px 8px; }
+  .pub-fit { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  .pub-card-row { font-size: 12px; color: var(--ink-2); }
+  .pub-caveat { font-size: 10.5px; color: var(--ink-3); }
+  .pub-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+  .pub-chip { font-size: 10.5px; color: var(--ink-2); background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius-pill); padding: 1px 8px; }
+  .pub-elevated { font-size: 11px; color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-line); border-radius: var(--radius-sm); padding: 3px 8px; align-self: flex-start; }
+  .pub-sources { font-size: 10.5px; color: var(--ink-3); }
+  .pub-sources a { color: var(--accent); text-decoration: none; }
+  .pub-sources a:hover { text-decoration: underline; }
+  .pub-absent { font-size: 11px; color: var(--ink-3); line-height: 1.5; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -3441,6 +3482,147 @@
     order: 32,
     hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(BayesSection, { ctx })
+  });
+  const PUB_WEIGHTS = [
+    { id: "off", label: "Off \u2014 best fit only", value: 0 },
+    { id: "balanced", label: "Balanced", value: 0.5 },
+    { id: "strong", label: "Strongly favor open", value: 1 }
+  ];
+  const PUB_BREADTHS = [
+    { id: "focused", label: "Focused (top 10)", topK: 10 },
+    { id: "broad", label: "Broad (top 25)", topK: 25 }
+  ];
+  function pubWeightId(value) {
+    if (value == null) return null;
+    let best = PUB_WEIGHTS[0];
+    for (const w of PUB_WEIGHTS) if (Math.abs(w.value - value) < Math.abs(best.value - value)) best = w;
+    return best.id;
+  }
+  function pubWeightLabel(value) {
+    const id = pubWeightId(value);
+    const w = PUB_WEIGHTS.find((x) => x.id === id);
+    return w ? w.label : "unset";
+  }
+  function PubSegmented({ options, value, onChange, ariaLabel }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter", role: "group", "aria-label": ariaLabel }, options.map((o) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: o.id,
+        type: "button",
+        className: "tags-srcfilter-btn" + (o.id === value ? " on" : ""),
+        onClick: () => onChange(o.id)
+      },
+      o.label
+    )));
+  }
+  function PublishersGate({ onSaved }) {
+    const [w, setW] = useState(null);
+    const [b, setB] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const ready = w != null && b != null;
+    const save = async () => {
+      setBusy(true);
+      const weight = PUB_WEIGHTS.find((x) => x.id === w).value;
+      const r = await apiPut("/settings", {
+        set_publisher_weighting: true,
+        publisher_weighting: weight,
+        set_publisher_breadth: true,
+        publisher_breadth: b
+      });
+      setBusy(false);
+      if (r.ok) onSaved();
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "pub-gate" }, /* @__PURE__ */ React.createElement("div", { className: "pub-gate-intro" }, "Before Where-to-submit runs, set your preferences \u2014 each choice is yours to make, none is pre-selected. (You can change them anytime here or in Settings.)"), /* @__PURE__ */ React.createElement("div", { className: "pub-gate-field" }, /* @__PURE__ */ React.createElement("div", { className: "pub-gate-label" }, "Open-science weighting", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How much a journal's openness (diamond/gold OA, a DOAJ Seal) moves the ranking. Off ranks by topical fit alone \u2014 itself a value choice, so neither is a neutral default.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: w, onChange: setW, ariaLabel: "Open-science weighting" })), /* @__PURE__ */ React.createElement("div", { className: "pub-gate-field" }, /* @__PURE__ */ React.createElement("div", { className: "pub-gate-label" }, "Result breadth", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How many candidate journals to shortlist.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_BREADTHS, value: b, onChange: setB, ariaLabel: "Result breadth" })), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !ready || busy, onClick: save }, busy ? "Saving\u2026" : "Save preferences")), /* @__PURE__ */ React.createElement("div", { className: "pub-gate-privacy" }, "Stored on this machine only \u2014 your preferences are never transmitted."));
+  }
+  const OA_LABEL = {
+    diamond: "Diamond OA \u2014 free to publish + free to read",
+    gold: "Gold OA \u2014 free to read",
+    "oa-other": "Open access",
+    closed: "Closed access"
+  };
+  function PubProfileCard({ p, weightingOn }) {
+    const issn = p.issn_l || p.issns && p.issns[0] || null;
+    const doajUrl = p.is_in_doaj && issn ? `https://doaj.org/toc/${issn}` : null;
+    const oaUrl = p.source_id ? `https://openalex.org/${p.source_id}` : null;
+    const apcText = p.oa_color === "diamond" || p.apc_amount === 0 ? "No APC \u2014 free to publish" : p.apc_amount != null ? `APC: ${p.apc_amount}${p.apc_currency ? " " + p.apc_currency : ""}` : "APC: not listed";
+    return /* @__PURE__ */ React.createElement("div", { className: "pub-card" }, /* @__PURE__ */ React.createElement("div", { className: "pub-card-title" }, p.homepage_url ? /* @__PURE__ */ React.createElement("a", { href: p.homepage_url, target: "_blank", rel: "noopener noreferrer" }, p.display_name || "Untitled journal") : p.display_name || "Untitled journal"), /* @__PURE__ */ React.createElement("div", { className: "pub-card-facts" }, /* @__PURE__ */ React.createElement("span", { className: "pub-oa", title: "Open-access category, from OpenAlex/DOAJ (a labeled fact, not a verdict)" }, OA_LABEL[p.oa_color] || p.oa_color), /* @__PURE__ */ React.createElement("span", { className: "pub-fit", title: "callosum's own local embedding cosine between your abstract and this journal's scope \u2014 a topical match, not a recommendation" }, "topical fit ", Number(p.fit).toFixed(2))), /* @__PURE__ */ React.createElement("div", { className: "pub-card-row" }, /* @__PURE__ */ React.createElement("b", null, "Cost:"), " ", apcText, p.apc_waiver ? " \xB7 waiver policy available" : ""), p.license && p.license.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-card-row" }, /* @__PURE__ */ React.createElement("b", null, "License:"), " ", p.license.join(", ")), (p.two_year_mean_citedness != null || p.h_index != null) && /* @__PURE__ */ React.createElement("div", { className: "pub-card-row" }, /* @__PURE__ */ React.createElement("b", null, "Open impact:"), " ", p.two_year_mean_citedness != null ? `2-yr mean citedness ${Number(p.two_year_mean_citedness).toFixed(1)}` : "", p.h_index != null ? `${p.two_year_mean_citedness != null ? " \xB7 " : ""}h-index ${p.h_index}` : "", " ", /* @__PURE__ */ React.createElement("span", { className: "pub-caveat" }, "(one fact among many; impact metrics carry a Matthew-effect bias)")), p.legitimacy_signals && p.legitimacy_signals.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-chips" }, p.legitimacy_signals.map((s, i) => /* @__PURE__ */ React.createElement("span", { key: i, className: "pub-chip" }, s))), weightingOn && p.elevated_for && p.elevated_for.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-elevated", title: "Goods this journal offers that your open-science weighting rewarded \u2014 never a mark against the others" }, "Elevated for: ", p.elevated_for.join(", ")), (doajUrl || oaUrl) && /* @__PURE__ */ React.createElement("div", { className: "pub-sources" }, "Sources:", " ", oaUrl && /* @__PURE__ */ React.createElement("a", { href: oaUrl, target: "_blank", rel: "noopener noreferrer" }, "OpenAlex"), doajUrl && /* @__PURE__ */ React.createElement(React.Fragment, null, oaUrl ? " \xB7 " : "", /* @__PURE__ */ React.createElement("a", { href: doajUrl, target: "_blank", rel: "noopener noreferrer" }, "DOAJ"))));
+  }
+  function PublishersPanel({ ctx }) {
+    const [status, setStatus] = useState(null);
+    const [meta, setMeta] = useState(null);
+    const [mode, setMode] = useState(null);
+    const [abstract, setAbstract] = useState("");
+    const [subject, setSubject] = useState("");
+    const [state, setState] = useState({ status: "idle" });
+    const loadStatus = () => api("/settings").then((r) => {
+      if (r.ok) setStatus(r.data);
+    });
+    useEffect(() => {
+      loadStatus();
+    }, []);
+    useEffect(() => {
+      setMeta(null);
+      if (ctx.selectedPaper == null) return;
+      let live = true;
+      api(`/papers/${ctx.selectedPaper}`).then((r) => {
+        if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi });
+      });
+      return () => {
+        live = false;
+      };
+    }, [ctx.selectedPaper]);
+    useEffect(() => {
+      if (mode == null && status) setMode(ctx.selectedPaper != null ? "paper" : "abstract");
+    }, [status, ctx.selectedPaper]);
+    if (!status) return null;
+    if (!status.publisher_defaults_set) return /* @__PURE__ */ React.createElement(PublishersGate, { onSaved: loadStatus });
+    const breadth = PUB_BREADTHS.find((x) => x.id === status.publisher_breadth) || PUB_BREADTHS[1];
+    const weighting = status.publisher_weighting ?? 0;
+    const weightingOn = weighting > 0;
+    const run = async (overrideWeighting) => {
+      const w = overrideWeighting != null ? overrideWeighting : weighting;
+      const body = mode === "paper" ? { paper_id: ctx.selectedPaper, weighting: w, top_k: breadth.topK } : { abstract, subject, weighting: w, top_k: breadth.topK };
+      setState({ status: "running", progress: null });
+      const poll = (jobId) => api(`/methods/publishers/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setState({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") setState({ status: "done", report: d.report });
+        else if (d.status === "error") setState({ status: "error", error: d.detail || "Search failed." });
+        else {
+          setState({ status: "running", progress: d.progress });
+          setTimeout(() => poll(jobId), 1500);
+        }
+      });
+      const r = await apiPost("/methods/publishers/run", body);
+      if (!r.ok) {
+        setState({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const adjustWeighting = async (levelId) => {
+      const val = PUB_WEIGHTS.find((x) => x.id === levelId).value;
+      setStatus((s) => ({ ...s, publisher_weighting: val }));
+      await apiPut("/settings", { set_publisher_weighting: true, publisher_weighting: val });
+      if (state.status === "done") run(val);
+    };
+    const rep = state.report;
+    const canRun = mode === "paper" ? ctx.selectedPaper != null && (!meta || meta.hasDoi) : abstract.trim() && subject.trim();
+    const elevated = rep ? rep.profiles.filter((p) => p.elevated_for && p.elevated_for.length > 0) : [];
+    const elevatedGoods = [...new Set(elevated.flatMap((p) => p.elevated_for))];
+    const absent = rep && rep.profiles[0] ? rep.profiles[0].legitimacy_absent : [];
+    return /* @__PURE__ */ React.createElement("div", { className: "pub-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pub-intro" }, "Facts to weigh, never a verdict. Every candidate is shown (including closed journals); elevation underscores goods a journal offers, never flags the others. No composite score. Your abstract stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter pub-mode", role: "group", "aria-label": "Input" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "paper" ? " on" : ""), onClick: () => setMode("paper") }, "Selected paper"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "abstract" ? " on" : ""), onClick: () => setMode("abstract") }, "Paste an abstract")), mode === "paper" ? ctx.selectedPaper == null ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper in the library, or paste an abstract instead.") : meta && !meta.hasDoi ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so its research topic can't be resolved \u2014 paste its abstract + a subject instead.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input-note" }, "Matching ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "the selected paper"), " against candidate journals in its field.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input" }, /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 4, placeholder: "Paste your abstract\u2026", value: abstract, onChange: (e) => setAbstract(e.target.value) }), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "Subject / field (e.g. cognitive neuroscience)", value: subject, onChange: (e) => setSubject(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "The abstract is embedded locally and never sent; only the subject term (a coarse public keyword) is used to gather candidate journals.")), state.status !== "running" && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canRun, onClick: () => run() }, state.status === "done" ? "Search again" : "Find journals"), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Matching journals\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && /* @__PURE__ */ React.createElement("div", { className: "pub-results" }, /* @__PURE__ */ React.createElement("div", { className: "pub-thumb" }, /* @__PURE__ */ React.createElement("span", { className: "pub-thumb-state" }, "Open-science weighting: ", /* @__PURE__ */ React.createElement("b", null, pubWeightLabel(weighting)), weightingOn ? ` \u2014 ${elevated.length} journal${elevated.length === 1 ? "" : "s"} elevated${elevatedGoods.length ? " for " + elevatedGoods.join(", ") : ""}` : " \u2014 ranked by topical fit only", " \xB7 adjust:"), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: pubWeightId(weighting), onChange: adjustWeighting, ariaLabel: "Adjust open-science weighting" })), rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidate journals found for this topic.") : /* @__PURE__ */ React.createElement(React.Fragment, null, rep.profiles.map((p) => /* @__PURE__ */ React.createElement(PubProfileCard, { key: p.source_id, p, weightingOn })), absent && absent.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, "Not checked in this version: ", absent.join("; "), ". Absence of a signal is common for new + regional journals and is ", /* @__PURE__ */ React.createElement("b", null, "not"), " a mark against a journal."))));
+  }
+  registerPaneSection({
+    id: "publishers",
+    label: "Where to submit",
+    paneId: "methods",
+    order: 34,
+    hideInReadOnly: true,
+    render: (ctx) => /* @__PURE__ */ React.createElement(PublishersPanel, { ctx })
   });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
@@ -8498,6 +8680,23 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  function PublishersSettings() {
+    const [status, setStatus] = useState(null);
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) setStatus(r.data);
+      });
+    }, []);
+    const put = async (body) => {
+      const r = await apiPut("/settings", body);
+      if (r.ok) setStatus(r.data);
+    };
+    const setW = (id) => put({ set_publisher_weighting: true, publisher_weighting: PUB_WEIGHTS.find((x) => x.id === id).value });
+    const setB = (id) => put({ set_publisher_breadth: true, publisher_breadth: id });
+    const wId = status ? pubWeightId(status.publisher_weighting) : null;
+    const bId = status ? status.publisher_breadth : null;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Where to submit"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Open-science weighting", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How much a journal's openness moves the ranking in Methods \u2192 Where to submit. Neither on nor off is a neutral default \u2014 you choose. Stored locally, never transmitted.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: wId, onChange: setW, ariaLabel: "Open-science weighting" })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Result breadth", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How many candidate journals to shortlist.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_BREADTHS, value: bId, onChange: setB, ariaLabel: "Result breadth" })));
+  }
   function LibreOfficeSettings() {
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState("");
@@ -8716,7 +8915,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");
