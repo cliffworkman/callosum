@@ -25,6 +25,12 @@ def _egress_consent_default(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> 
     # BYOK (inc 146): isolate the local app-settings file per test so the suite never reads/writes the real
     # ~/.callosum/app-settings.json (and one test's writes can't leak into another).
     monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "app-settings.json"))
+    # inc 152: secrets (provider keys, the sealed sync keyring) are read from the OS keychain BEFORE the file,
+    # so on a dev machine with a real backend (e.g. Windows Credential Vault) the suite would otherwise read the
+    # maintainer's REAL Gemini key / sync passphrase — making hermetic settings/sync/auth tests fail (a 409
+    # "already set up" from a real sync keyring, a leaked stored key). Force `keyring` off so `_get_secret`/
+    # `_set_secret` fall back to the isolated temp file above — same hermeticity spirit as `skip_under_pytest`.
+    monkeypatch.setattr("app.backend.app_settings._keyring", lambda: None)
     # inc 160: isolate the library folder (the always-watched default + OA-acquire managed dir) to a per-test
     # temp dir, so the suite never scans/writes the real project `library/`. Non-existent by default → the
     # rescan skips it; a test that needs it real mkdirs + overrides this env var itself.

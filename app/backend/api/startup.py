@@ -73,6 +73,37 @@ def _current_revision(db_url: str) -> str | None:
         engine.dispose()
 
 
+def _ensure_sqlite_parent_dir(db_url: str) -> None:
+    """Create the parent directory of a SQLite file URL if it's missing.
+
+    A no-config launch defaults to a *relative* SQLite path; if that path's parent directory
+    doesn't exist, SQLite raises "unable to open database file" on the very first connect —
+    every DB-backed request then 500s while the server otherwise looks healthy (``/`` still
+    serves the static shell). Creating the parent lets the startup migration create + stamp a
+    fresh database, so a bare ``uvicorn ...`` boots a working (empty) library instead of a
+    console full of tracebacks. No-op for in-memory or non-SQLite URLs. Best-effort: a mkdir
+    failure (e.g. permissions) is left for the connect below to report actionably.
+
+    Relative paths resolve against the current working directory — the same base SQLAlchemy
+    uses for a ``sqlite:///relative/path`` URL — so the directory created matches the file
+    that will be opened.
+    """
+    prefix = "sqlite:///"
+    if not db_url.startswith(prefix):
+        return  # non-sqlite, or the in-memory 'sqlite://' form (no file to back)
+    path_part = db_url[len(prefix) :].split("?", 1)[0]  # drop any ?query params
+    if not path_part or path_part.lstrip("/").startswith(":memory:") or "mode=memory" in db_url:
+        return
+    parent = Path(path_part).parent
+    if parent.exists():
+        return
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+        _loud(logging.INFO, "created missing database directory: %s", parent)
+    except OSError as exc:
+        _loud(logging.WARNING, "could not create database directory %s (%s)", parent, exc)
+
+
 def _upgrade_database_to_head(db_url: str) -> None:
     """Bring the configured database up to the latest Alembic revision — LOUDLY.
 
@@ -85,6 +116,7 @@ def _upgrade_database_to_head(db_url: str) -> None:
     and /health reports the true state.
     """
     try:
+        _ensure_sqlite_parent_dir(db_url)  # a no-config launch → create the dir so a fresh DB can be made
         cfg = _alembic_config(db_url)
         head = _head_revision()
         current = _current_revision(db_url)
@@ -95,13 +127,19 @@ def _upgrade_database_to_head(db_url: str) -> None:
         command.upgrade(cfg, "head")
         _loud(logging.WARNING, "database auto-migrated (startup safety net): db=%s  %s -> %s", db_url, current, head)
     except Exception as exc:  # defensive: a migration hiccup must never crash startup
+        # One actionable line, not a traceback flood: name the DB and the fix. The most common
+        # cause is a missing/unwritable path, so point at CALLOSUM_DB_URL. The full trace stays
+        # at DEBUG for deep debugging (hidden at the default INFO level).
+        detail = str(exc).splitlines()[0] if str(exc).strip() else exc.__class__.__name__
         _loud(
             logging.ERROR,
-            "startup DB auto-migration FAILED: db=%s (%s); server continues, writes may fail until migrated",
+            "startup DB auto-migration FAILED: db=%s (%s). "
+            "If the path is missing or unwritable, set CALLOSUM_DB_URL to a valid SQLite path "
+            "(see CLAUDE.md); the server keeps serving but DB operations will fail until resolved.",
             db_url,
-            exc,
-            exc_info=True,
+            detail,
         )
+        logger.debug("startup DB auto-migration traceback", exc_info=True)
 
 
 def _parse_dotenv(text: str) -> dict[str, str]:

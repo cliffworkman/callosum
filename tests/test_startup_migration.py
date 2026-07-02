@@ -88,4 +88,32 @@ def test_startup_migration_failure_is_non_fatal(tmp_path: Path, monkeypatch) -> 
 
     errors = [r for r in handler.records if r.levelno == logging.ERROR and "FAILED" in r.getMessage()]
     assert errors, "expected a loud ERROR log on migration failure"
+    # One actionable line, not a traceback flood: names the fix, and no exc_info on the ERROR record.
+    assert "CALLOSUM_DB_URL" in errors[0].getMessage()
+    assert errors[0].exc_info is None, "the visible ERROR line must not carry a full traceback"
     assert app_module._current_revision(db_url) == BEHIND  # unchanged — failure was non-fatal
+
+
+def test_startup_creates_missing_sqlite_parent_dir(tmp_path: Path) -> None:
+    """A no-config launch whose DB dir doesn't exist should self-heal: create the dir, migrate a
+    fresh DB to head, and log no error (fixes the user's 'unable to open database file' flood)."""
+    missing = tmp_path / "does-not-exist-yet"
+    db_url = f"sqlite:///{(missing / 'fresh.sqlite').as_posix()}"
+    assert not missing.exists()
+
+    handler = _capture_callosum()
+    try:
+        app_module._upgrade_database_to_head(db_url)
+    finally:
+        logging.getLogger("callosum").removeHandler(handler)
+
+    assert missing.exists()  # parent dir auto-created
+    assert app_module._current_revision(db_url) == HEAD  # fresh DB migrated all the way to head
+    errors = [r for r in handler.records if r.levelno == logging.ERROR]
+    assert not errors, f"unexpected error logs: {[r.getMessage() for r in errors]}"
+
+
+def test_ensure_sqlite_parent_dir_noop_for_memory_and_nonsqlite() -> None:
+    """In-memory + non-sqlite URLs create nothing and never raise."""
+    for url in ("sqlite://", "sqlite:///:memory:", "postgresql://user@host/db"):
+        app_module._ensure_sqlite_parent_dir(url)  # must be a silent no-op
