@@ -55,6 +55,7 @@ from app.backend.api.routers import (
     summaries,
     sync,
     tags,
+    transparency,
     wanted,
     word,
 )
@@ -241,6 +242,7 @@ def create_app(
     api.include_router(
         metaanalysis.router
     )  # /papers/{id}/meta-analysis — meta-analysis reporting auditor (#36, inc 249)
+    api.include_router(transparency.router)  # /papers/{id}/transparency — transparency-signals auditor (#44, inc 250)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)
