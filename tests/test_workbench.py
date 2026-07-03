@@ -465,3 +465,96 @@ def test_propose_requires_linked_paper(temp_db_url, monkeypatch, tmp_path):
     row_id = client.post(f"/workbench/projects/{pid}/rows", json={"label": "external"}).json()["rows"][0]["id"]
     assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 422  # no linked paper
     assert client.post("/workbench/rows/999999/propose").status_code == 404
+
+
+def test_propose_short_circuits_no_model_call_when_all_fields_filled(temp_db_url, tmp_path, monkeypatch):
+    """Empty-fields short-circuit: when ALL structured cells are already filled, propose returns 200 + empty
+    proposals WITHOUT ever calling the model. Egress is enabled and PDF/text are stubbed so the bomb WOULD fire
+    (AssertionError) if the short-circuit ever stopped — proving no egress occurs when nothing is draftable."""
+    import app.backend.api.routers.workbench as wbmod
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    paper = _seed_paper(temp_db_url, "Delta")
+    pdf = _pdf_with(tmp_path, "any text here")
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(
+        wbmod,
+        "get_chunks_for_paper",
+        lambda conn, pid, **k: [{"page_start": 1, "page_end": 1, "text": "any text here"}],
+    )
+
+    class _BombAssistant:
+        def propose(self, *, text, fields):
+            raise AssertionError("model must not be called")
+
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=_BombAssistant()))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    # Fill ALL structured fields (r + n for the correlation design) → proposable_fields returns []
+    client.put(f"/workbench/rows/{row_id}/cells/r", json={"value": "0.42"})
+    client.put(f"/workbench/rows/{row_id}/cells/n", json={"value": "60"})
+
+    r = client.post(f"/workbench/rows/{row_id}/propose")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["proposals"] == []
+    assert body["truncated"] is False
+
+
+def test_propose_no_pdf_returns_422(temp_db_url, tmp_path, monkeypatch):
+    """No local PDF (primary_pdf_path returns None) → 422. The row has an empty structured field so the
+    short-circuit does not fire and the endpoint reaches the PDF-path check."""
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    paper = _seed_paper(temp_db_url, "Epsilon")
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: None)
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=_FakeAssistant([])))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    # Both structured fields are empty → past the short-circuit; no PDF → 422
+    assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 422
+
+
+def test_propose_no_extracted_text_returns_422(temp_db_url, tmp_path, monkeypatch):
+    """No extracted text (empty chunk list → page_tagged_text returns '') → 422."""
+    import app.backend.api.routers.workbench as wbmod
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    paper = _seed_paper(temp_db_url, "Zeta")
+    pdf = _pdf_with(tmp_path, "any text here")
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(wbmod, "get_chunks_for_paper", lambda conn, pid, **k: [])  # empty → "" → 422
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=_FakeAssistant([])))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    # Both structured fields are empty → past the short-circuit; PDF present; chunks empty → 422
+    assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 422
+
+
+def test_propose_provider_failure_returns_502(temp_db_url, tmp_path, monkeypatch):
+    """A ProviderError raised by the assistant is mapped to 502 Bad Gateway."""
+    import app.backend.api.routers.workbench as wbmod
+    from app.backend.llm.providers import ProviderError
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    paper = _seed_paper(temp_db_url, "Eta")
+    pdf = _pdf_with(tmp_path, "some extracted text on the page")
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(
+        wbmod,
+        "get_chunks_for_paper",
+        lambda conn, pid, **k: [{"page_start": 1, "page_end": 1, "text": "some extracted text on the page"}],
+    )
+
+    class _ProviderFailAssistant:
+        def propose(self, *, text, fields):
+            raise ProviderError("upstream timeout")
+
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=_ProviderFailAssistant()))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    # Both structured fields are empty → past the short-circuit; provider fails → 502
+    assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 502

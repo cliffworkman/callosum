@@ -6,7 +6,9 @@ converter (``POST …/convert``); the dataset exports to a metafor/JASP-ready CS
 
 The load-bearing boundary (extends SP1): extract / structure / convert / export — NEVER pool / model / adjudicate.
 No endpoint combines two rows; export carries data + provenance, never a synthesized estimate; a value is only ever
-set by a human. Fully local — no LLM, no egress. Bound-param SQL; typed/validated bodies (rule #3/#4).
+set by a human. SP2b (inc 259) adds an egress-gated assisted-extraction funnel (propose/accept/reject): the LLM only
+PROPOSES candidates into the isolated ma_proposals table and a human must accept each one into ma_cells — the trusted
+cells, converter, and exports remain human-only. Bound-param SQL; typed/validated bodies (rule #3/#4).
 """
 
 from __future__ import annotations
