@@ -76,20 +76,26 @@ def _union_rect(rectangles) -> dict:
 
 def anchor_proposal(pdf_path, value, quote, claimed_page) -> dict:
     """Deterministically anchor one proposal:
-    - quote located AND value literal in it → `exact` (bbox = the union rect on the located page).
-    - quote located, value not literal      → `region` (no bbox; reason value_not_in_quote).
-    - quote not found                        → `unanchored` (keep the model's claimed page; reason quote_not_found).
+    - quote located AND rectangles present AND value literal in it → `exact` (bbox = union rect on located page).
+    - quote located, but rectangles missing OR value not literal   → `region` (no bbox; known page preserved).
+      reason is "value_not_in_quote" when rectangles were present, "no_rects" when rectangles were empty.
+    - quote not found (or no quote)                                → `unanchored` (keep model's claimed page).
     """
     match = locate_quote(pdf_path, quote) if quote else None
-    if match is not None and match.found and match.rectangles:
-        if _value_in_quote(value, quote):
+    if match is not None and match.found:
+        if match.rectangles and _value_in_quote(value, quote):
             return {
                 "anchor_state": "exact",
                 "page": match.page_start,
                 "bbox_json": json.dumps([_union_rect(match.rectangles)]),
                 "reason": None,
             }
-        return {"anchor_state": "region", "page": match.page_start, "bbox_json": None, "reason": "value_not_in_quote"}
+        return {
+            "anchor_state": "region",
+            "page": match.page_start,
+            "bbox_json": None,
+            "reason": "value_not_in_quote" if match.rectangles else "no_rects",
+        }
     return {"anchor_state": "unanchored", "page": claimed_page, "bbox_json": None, "reason": "quote_not_found"}
 
 
