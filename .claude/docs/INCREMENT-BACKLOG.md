@@ -155,7 +155,11 @@ the wrong DB — but the lock hardening (a) is a general robustness win (two ser
 _Also flag (non-code): the `.local/` SQLite DBs live inside the synced Dropbox folder — worsens lock contention +
 syncs a 280 MB binary constantly; relocating `.local/` out of Dropbox is the healthier fix (needs Cliff's call)._
 
-**46. QA supervisor: isolate the disposable QA instance from the shared Remote-access setting** —
+**46. QA supervisor: isolate the disposable QA instance from the shared Remote-access setting** — **✅ SHIPPED
+2026-07-02** (`_qa_serve.qa_server()` now points the throwaway instance at its own `CALLOSUM_SETTINGS_PATH` in the
+temp dir + forces `CALLOSUM_DISABLE_REMOTE_ACCESS=1`; `supervisor.py` additionally scrubs `CALLOSUM_DB_URL` from the
+`codex exec` env as defense-in-depth so a stray direct `uvicorn` can never inherit the now-User-persisted curated DB
+pointer. Verified: the isolated instance boots healthy, `/papers`=200. → relocate to DONE on next tidy.) —
 **[infra/reliability/qa]** surfaced 2026-07-02 from a dead QA run (`qa-inbox/20260702_171244`, route_20_tags)
 that never produced a `run-summary.md`. Root cause (Codex self-diagnosed it mid-run): **Remote access is a
 per-user *shared* setting** (`~/.callosum/app-settings.json`), so when it's toggled ON — e.g. the inc-254

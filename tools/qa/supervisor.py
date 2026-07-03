@@ -121,6 +121,20 @@ def codex_command(sandbox: str, model: str | None, last_msg_file: Path) -> list[
     return cmd
 
 
+def _codex_env() -> dict[str, str]:
+    """Env for the ``codex exec`` child (which the agent's own subprocesses inherit). Defense-in-depth for the
+    fixture contract (backlog #46): **strip ``CALLOSUM_DB_URL``** so a stray *direct* ``uvicorn`` can never
+    inherit the user's real library — critical now that ``CALLOSUM_DB_URL`` may be persisted at User scope, so
+    its inherited value points at the curated DB; unset, callosum falls back to the throwaway default, never the
+    curated one. Also force the remote-access gate off so a shared Remote-access toggle can't 401 the QA
+    instance. The per-route server stands up via ``tools/qa/_qa_serve.py``, which sets its own throwaway
+    ``CALLOSUM_DB_URL`` + settings path regardless — this only bounds the blast radius of an off-contract run."""
+    env = dict(os.environ)
+    env.pop("CALLOSUM_DB_URL", None)
+    env["CALLOSUM_DISABLE_REMOTE_ACCESS"] = "1"
+    return env
+
+
 def dispatch(route: Route, state: RunState, *, sandbox: str, model: str | None, timeout_s: int, log_dir: Path) -> bool:
     route.attempts += 1
     prompt = build_prompt(route, state.run_id)
@@ -138,6 +152,7 @@ def dispatch(route: Route, state: RunState, *, sandbox: str, model: str | None, 
             proc = subprocess.run(
                 cmd,
                 cwd=str(REPO_ROOT),
+                env=_codex_env(),  # scrub CALLOSUM_DB_URL + force remote-access off (see _codex_env / #46)
                 input=prompt,  # the route prompt is piped to codex via stdin (see codex_command)
                 text=True,
                 encoding="utf-8",  # don't let Windows default the stdin pipe to cp1252

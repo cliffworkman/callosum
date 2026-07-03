@@ -80,6 +80,14 @@ def qa_server(*, egress: bool = False) -> Iterator[str]:
 
     port = _free_port()
     env = {**os.environ, "CALLOSUM_DB_URL": db_url, "PYTHONPATH": str(REPO_ROOT)}
+    # Isolate from the user's SHARED settings (~/.callosum/app-settings.json), not just their DB: point
+    # CALLOSUM_SETTINGS_PATH at a throwaway file so no stored BYOK key / remote token / Remote-access toggle
+    # leaks in, and force the remote-access gate OFF regardless. Without this, Remote access left enabled in
+    # the real settings 401s every QA request — the disposable DB doesn't help (settings are a separate file) —
+    # which stalled a whole run (backlog #46). A route that exercises Settings then mutates this temp file, not
+    # the user's real one.
+    env["CALLOSUM_SETTINGS_PATH"] = str(Path(tmp.name) / "qa-app-settings.json")
+    env["CALLOSUM_DISABLE_REMOTE_ACCESS"] = "1"
     if egress:
         env["CALLOSUM_ALLOW_DATA_EGRESS"] = "1"
     else:
