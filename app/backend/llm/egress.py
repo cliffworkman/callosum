@@ -36,6 +36,7 @@ if TYPE_CHECKING:
     from app.backend.summarization.overview import OverviewGenerator, OverviewSentence
     from integrations.gemini.axis_cluster_labeler import AxisClusterLabeler
     from integrations.gemini.axis_terms import AxisTermSuggester
+    from integrations.gemini.extraction_assistant import ExtractionAssistant
     from integrations.gemini.research_summary import ResearchSummaryGenerator
 
 
@@ -174,6 +175,23 @@ class EgressGatedAxisClusterLabeler:
         if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Axis-cluster labeling requires explicit data-egress consent.")
         return self.inner.label(titles=titles, terms=terms)
+
+
+@dataclass(frozen=True)
+class EgressGatedExtractionAssistant:
+    """SP2b funnel: gate the assisted-extraction LLM at the DI seam. A loopback/local provider is honestly no-egress;
+    a non-loopback endpoint requires consent, exactly like the summary generator (invariant #3)."""
+
+    inner: "ExtractionAssistant"
+    data_egress_enabled: bool
+    provider: str = "gemini"
+    wire_format: str | None = None
+    base_url: str | None = None
+
+    def propose(self, *, text: str, fields: list[dict]) -> list[dict]:
+        if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
+            raise DataEgressDisabledError("Assisted extraction requires explicit data-egress consent.")
+        return self.inner.propose(text=text, fields=fields)
 
 
 @dataclass(frozen=True)

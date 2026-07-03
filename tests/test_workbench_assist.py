@@ -1,0 +1,85 @@
+"""inc 259 — the assisted-extraction funnel's local, deterministic pieces: page-tagged text, proposable-field
+selection, the anchor-state derivation (via a real fitz PDF so locate_quote runs), and the untrusted-response parser.
+Hermetic — no DB, no network."""
+
+from __future__ import annotations
+
+import fitz  # PyMuPDF — build a tiny real PDF so locate_quote can anchor
+
+from app.backend import workbench_assist as wa
+from integrations.gemini.extraction_assistant import parse_proposals
+
+
+def _pdf(tmp_path, text: str) -> str:
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), text)
+    path = tmp_path / "study.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+def test_anchor_exact_when_value_literal_in_located_quote(tmp_path):
+    pdf = _pdf(tmp_path, "The correlation was r = 0.42 across the full sample.")
+    res = wa.anchor_proposal(pdf, "0.42", "The correlation was r = 0.42 across the full sample", claimed_page=9)
+    assert res["anchor_state"] == "exact"
+    assert res["bbox_json"] and res["reason"] is None
+    assert res["page"] is not None  # the LOCATED page, not the model's claimed 9
+
+
+def test_anchor_region_when_value_not_in_quote(tmp_path):
+    pdf = _pdf(tmp_path, "The correlation was r = 0.42 across the full sample.")
+    res = wa.anchor_proposal(pdf, "999", "The correlation was r = 0.42 across the full sample", claimed_page=9)
+    assert res["anchor_state"] == "region"
+    assert res["bbox_json"] is None and res["reason"] == "value_not_in_quote"
+
+
+def test_anchor_unanchored_when_quote_absent(tmp_path):
+    pdf = _pdf(tmp_path, "The correlation was r = 0.42 across the full sample.")
+    res = wa.anchor_proposal(pdf, "0.42", "this sentence does not occur anywhere in the pdf zzz", claimed_page=9)
+    assert res["anchor_state"] == "unanchored"
+    assert res["bbox_json"] is None and res["reason"] == "quote_not_found"
+    assert res["page"] == 9  # the model's claimed page is kept (rendered with a "?")
+
+
+def test_proposable_fields_only_empty_structured():
+    template = [
+        {"key": "r", "label": "r", "type": "number", "role": "r"},
+        {"key": "n", "label": "N", "type": "number", "role": "n"},
+        {"key": "measure", "label": "Measure", "type": "choice", "role": "measure", "options": ["or", "rr"]},
+        {"key": "notes", "label": "Notes", "type": "text", "role": None},
+    ]
+    cells = {"r": {"value": "0.5"}, "notes": {"value": ""}}  # r filled; n/measure empty; notes is text
+    keys = [f["key"] for f in wa.proposable_fields(template, cells)]
+    assert keys == ["n", "measure"]  # skip filled `r`, skip text `notes`
+
+
+def test_page_tagged_text_caps_and_flags_truncation():
+    chunks = [{"page_start": i, "page_end": i, "text": "x" * 100} for i in range(1, 40)]
+    text, truncated = wa.page_tagged_text(chunks, cap=500)
+    assert truncated is True and len(text) <= 500
+    assert text.startswith("[p.1] ")
+
+
+def test_parse_proposals_defensive():
+    allowed = {"r", "n"}
+    # strict JSON
+    good = '{"r": {"value": "0.42", "quote": "r = .42", "page": 3}, "bogus": {"value": "x"}}'
+    parsed = parse_proposals(good, allowed_keys=allowed)
+    assert parsed == [{"field_key": "r", "value": "0.42", "quote": "r = .42", "page": 3}]
+    # markdown code fence + surrounding junk is tolerated
+    fenced = 'Sure!\n```json\n{"n": {"value": 60, "quote": "N = 60", "page": 2}}\n```\n'
+    assert parse_proposals(fenced, allowed_keys=allowed) == [
+        {"field_key": "n", "value": "60", "quote": "N = 60", "page": 2}
+    ]
+    # junk → zero proposals, never a crash
+    assert parse_proposals("not json at all", allowed_keys=allowed) == []
+    assert parse_proposals("", allowed_keys=allowed) == []
+
+
+def test_parse_proposals_caps_lengths():
+    allowed = {"r"}
+    big = '{"r": {"value": "' + "9" * 900 + '", "quote": "' + "q" * 5000 + '", "page": "7"}}'
+    parsed = parse_proposals(big, allowed_keys=allowed)
+    assert len(parsed[0]["value"]) == 500 and len(parsed[0]["quote"]) == 4000 and parsed[0]["page"] == 7
