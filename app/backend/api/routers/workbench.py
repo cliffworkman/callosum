@@ -230,6 +230,9 @@ def put_cell(row_id: int, field_key: str, payload: CellPut, conn: Connection = D
         quote=payload.quote,
         bbox_json=payload.bbox_json,
     )
+    # A hand-entered value is a fact, not a candidate: drop any live proposal for this field so a stale candidate
+    # can't later be accepted over the human's value (the funnel fills gaps, it never contests a human).
+    wr.delete_proposals_for_field(conn, row_id, field_key)
     # A cell changed → the stored effect size is now stale; drop it so it must be re-converted (never silently stale).
     wr.set_converted(conn, row_id, None)
     conn.commit()

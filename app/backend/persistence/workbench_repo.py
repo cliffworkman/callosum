@@ -236,6 +236,14 @@ def delete_proposal(conn: Connection, proposal_id: int) -> bool:
     return conn.execute(delete(ma_proposals).where(ma_proposals.c.id == proposal_id)).rowcount > 0
 
 
+def delete_proposals_for_field(conn: Connection, row_id: int, field_key: str) -> int:
+    """Drop any live candidate for this (row, field). A human value supersedes it (fact != candidate): once the
+    cell is hand-entered, a stale candidate must not linger to be re-accepted over the human's value."""
+    return conn.execute(
+        delete(ma_proposals).where(ma_proposals.c.row_id == row_id, ma_proposals.c.field_key == field_key)
+    ).rowcount
+
+
 def proposals_for_row(conn: Connection, row_id: int) -> list[dict]:
     rows = (
         conn.execute(select(ma_proposals).where(ma_proposals.c.row_id == row_id).order_by(ma_proposals.c.id))

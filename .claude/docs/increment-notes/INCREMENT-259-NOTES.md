@@ -44,8 +44,10 @@ values from a paper's PDF as **candidates** for the human to verify, edit, or re
 ## Key technical detail
 
 **Precision is derived, never claimed — at two moments.** (1) *At open* — `openProposalAnchor` passes
-`precision:"exact"` + the `bbox_json` **only** when `anchor_state === "exact"`; a region/unanchored candidate opens at
-`precision:"region"` with `bboxJson:null` (scrolls to the page, draws no rect). (2) *At accept* —
+`precision:"exact"` + the `bbox_json` **only** when `anchor_state === "exact"`; a **region** candidate opens at
+`precision:"region"` with `bboxJson:null` (scrolls to the located page, an approximate-location note, no rect); an
+**unanchored** candidate — the quote was *not* found, so the model's page is an unverified claim — opens at
+`precision:null` (scroll only, no rect **and no "region" note** that would imply we had located it). (2) *At accept* —
 `keep_exact = anchor_state == "exact" and not edited`; the cell stores `bbox_json` only when `keep_exact`, so **editing
 the value before accepting drops the anchor to region** (the exact box marked the *original* number; a value you
 changed can't keep claiming it). Both honor invariant #2 end-to-end: an exact rect is drawn only when the app itself
@@ -55,6 +57,11 @@ located the quote and the value in it — the model's `page`/`quote` is a *claim
 (`cell_values`) and all four exports (CSV / metafor / RevMan / provenance) read `ma_cells`, which only ever holds
 human-accepted values. Accept is the sole promotion path. Proven by `test_propose_accept_reject_candidate_safety`
 (a drafted-but-unaccepted value never appears in the CSV).
+
+**A human value is never contested (post-review fix).** A hand-entered `put_cell` now drops any live proposal for
+that field (`delete_proposals_for_field`): a stale candidate can't be accepted over a human's value, and the
+resurfacing-stale-candidate footgun is closed — the funnel fills gaps, it never overwrites a fact. Proven by
+`test_manual_cell_write_clears_pending_candidate` (write a cell → the candidate is gone → accepting it 404s).
 
 ## Manual verification script (port 8888)
 
@@ -84,15 +91,31 @@ edit** non-destructively (was Enter-only; ✗ deleted the whole proposal); (3) t
 of truncating at 320px (a cut quote could hide the very number you're verifying); (4) an **honest note on accept** when
 an edit drops an exact anchor to region (explains *why* the highlight went away — invariant #2 transparency); (5) the
 disabled-Draft tooltip **names the exact toggle** (*Allow AI features*). **Backlogged** (need a considered pass, not
-one-liners; filed to #36 tagged to the persona): the "region" badge vocabulary for first-timers; the **unanchored**
-Open-at-anchor opening at the model's *claimed* page with no unverified-page note (a footgun); and a text label so the
-fact-vs-candidate distinction isn't amber-only (accessibility).
+one-liners; filed to #36 tagged to the persona): the "region" badge vocabulary for first-timers; and a text label so
+the fact-vs-candidate distinction isn't amber-only (accessibility). (The **unanchored** Open-at-anchor footgun this
+list had flagged — opening at the model's *claimed* page as if `region` — was **fixed in the post-review pass**: it
+now opens at `null` precision, drawing no rect and no approximate-location note.)
 
 ## Pytest
 
-`pytest --ignore=tests/test_mcp_server.py` → **1031 passed, 1 skipped** (+ the new `test_workbench.py` propose/accept/reject +
-candidate-safety + edit-drops-to-region + egress-off-403 + 422/404/502 paths, and `test_workbench_assist.py`
-anchor-state + defensive-parse + caps tests). `ruff check` / `ruff format --check` clean. All touched `app/` files
-under the 600-line cap (`workbench.py` 374, `45_workbench.jsx` 347, `46_workbench_propose.jsx` 60). Frontend built
-clean via esbuild. Security audit `2026-07-03_workbench-assisted-extraction.md` **PASS**; QA route 65 extended
-(0 uncovered — 203/203 API + 965/965 FE).
+`pytest --ignore=tests/test_mcp_server.py` → **1032 passed, 1 skipped** (+ the new `test_workbench.py` propose/accept/reject +
+candidate-safety + edit-drops-to-region + egress-off-403 + 422/404/502 paths + `test_manual_cell_write_clears_pending_candidate`,
+and `test_workbench_assist.py` anchor-state + defensive-parse + caps tests). `ruff check` / `ruff format --check` clean.
+All touched `app/` files under the 600-line cap (`workbench.py` 319, `45_workbench.jsx` 333, `workbench_repo.py` 250,
+`46_workbench_propose.jsx` 57). Frontend built clean via esbuild. Security audit
+`2026-07-03_workbench-assisted-extraction.md` **PASS**; QA route 65 extended (0 uncovered — 203/203 API + 965/965 FE).
+
+## Post-review fixes (final whole-branch review)
+
+The SDD final whole-branch review returned **Ready to push — with fixes** (2 Important, honesty-invariant-touching; 3
+Minor backlogged). Both Important fixes applied here, each strengthening (never relaxing) an invariant:
+- **#1 — a human value is never contested.** `put_cell` now clears any live proposal for the field it writes
+  (`delete_proposals_for_field`) — the reviewer's "simpler and cleaner" option. Closes the reachable clobber path
+  (type a value → the stale candidate is gone → a later accept 404s) **and** the resurfacing-stale-candidate footgun
+  (Minor #5). Test: `test_manual_cell_write_clears_pending_candidate`.
+- **#2 — unanchored open honesty (invariant #2).** `openProposalAnchor` now passes `precision:null` (not `region`)
+  for an unanchored candidate, so Open-at-anchor no longer implies we located an approximate region when the quote
+  was never found. (This also resolves the experience-pass unanchored footgun above.)
+
+Minors backlogged to #36 (filed to `INCREMENT-BACKLOG.md`): `_value_in_quote` substring vs. token match; keeping the
+model's `claimed_page` on an unanchored candidate; the "region" badge vocabulary + a non-color fact/candidate label.

@@ -438,6 +438,45 @@ def test_propose_edit_before_accept_drops_exact_to_region(temp_db_url, tmp_path,
     assert cell["value"] == "0.40" and cell["bbox_json"] is None and cell["origin"] == "assisted"
 
 
+def test_manual_cell_write_clears_pending_candidate(temp_db_url):
+    """A hand-entered value is a fact, not a candidate: writing a cell drops any live proposal for that field, so a
+    stale candidate can never be accepted over the human's value later (the funnel fills gaps, it never contests a
+    human). Also fixes the resurfacing-stale-candidate footgun."""
+    client = TestClient(create_app(db_url=temp_db_url))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"label": "S"}).json()["rows"][0]["id"]
+
+    # seed a live candidate for `r` (as a draft would leave one), then read its id back
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        wr.replace_row_proposals(
+            conn,
+            row_id,
+            [
+                {
+                    "field_key": "r",
+                    "value": "0.42",
+                    "quote": "r = .42",
+                    "page": 3,
+                    "bbox_json": None,
+                    "anchor_state": "region",
+                    "reason": None,
+                }
+            ],
+        )
+        prop_id = wr.proposals_for_row(conn, row_id)[0]["id"]
+    engine.dispose()
+
+    # a human hand-enters `r` → the candidate must vanish and the human value is what's stored (origin NULL)
+    assert client.put(f"/workbench/rows/{row_id}/cells/r", json={"value": "0.99"}).status_code == 200
+    row = next(rw for rw in client.get(f"/workbench/projects/{pid}").json()["rows"] if rw["id"] == row_id)
+    assert row["proposals"] == []  # the stale candidate is gone
+    assert row["cells"]["r"]["value"] == "0.99" and row["cells"]["r"]["origin"] is None  # the human fact is preserved
+
+    # accepting the now-deleted proposal is a 404 — it can never clobber the human value
+    assert client.post(f"/workbench/proposals/{prop_id}/accept", json={}).status_code == 404
+
+
 def test_propose_egress_off_returns_403(temp_db_url, tmp_path, monkeypatch):
     import app.backend.api.routers.workbench as wbmod
 

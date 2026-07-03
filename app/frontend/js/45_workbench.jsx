@@ -116,11 +116,13 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
     const r = await apiPost(`/workbench/proposals/${proposal.id}/reject`, {});
     if (r.ok) setProject(r.data); else setAiErr(r.error || "Couldn't reject the candidate.");
   };
-  // Verify a candidate against the source BEFORE accepting: exact draws the rect; region/unanchored scroll only.
+  // Verify a candidate against the source BEFORE accepting (invariant #2): exact draws the rect; region scrolls to
+  // the located page with an approximate-location note; unanchored — the quote was NOT found, so the model's page is
+  // an unverified claim — opens at null precision (scroll only, no rect, no "region" note that would imply we located it).
   const openProposalAnchor = (row, proposal) => {
     onOpenPdf({ id: row.paper_id, title: row.paper_title || ("Paper " + row.paper_id) },
       { id: `wbp:${proposal.id}`, paperId: row.paper_id, page: proposal.page,
-        precision: proposal.anchor_state === "exact" ? "exact" : "region",
+        precision: proposal.anchor_state === "exact" ? "exact" : proposal.anchor_state === "region" ? "region" : null,
         bboxJson: proposal.anchor_state === "exact" ? proposal.bbox_json : null, quote: proposal.quote || null });
   };
 

@@ -10948,7 +10948,7 @@
           id: `wbp:${proposal.id}`,
           paperId: row.paper_id,
           page: proposal.page,
-          precision: proposal.anchor_state === "exact" ? "exact" : "region",
+          precision: proposal.anchor_state === "exact" ? "exact" : proposal.anchor_state === "region" ? "region" : null,
           bboxJson: proposal.anchor_state === "exact" ? proposal.bbox_json : null,
           quote: proposal.quote || null
         }

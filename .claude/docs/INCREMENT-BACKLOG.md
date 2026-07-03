@@ -563,10 +563,14 @@ producer-side extraction workbench is the deferred remainder]**
   no-independent-coder veto — the AI is a funnel, never a second rater). **Experience-pass deferrals (inc 259, persona
   = deadline meta-analyst; the cheap edit-flow fixes were folded into the increment):** (a) the candidate anchor badge
   says **"region"** (app vocabulary) — a first-timer may not parse it; consider a self-explanatory gloss without
-  drifting the exact/region/null contract; (b) **unanchored** "Open at anchor" opens at the model's **claimed** page
-  with no note distinguishing "quote found here" from "the AI guessed this page" — a footgun (principle-relevant:
-  honest-gap-in-context); either suppress the open or mark the page unverified; (c) candidates are **amber-only** with
-  no text label — add a small "AI proposal" cue so fact-vs-candidate isn't color-alone (accessibility). **Known UX
+  drifting the exact/region/null contract; (b) ✅ **FIXED (post-review, inc 259):** the **unanchored** "Open at anchor"
+  now opens at `precision:null` (scroll only — no rect and no "region" note that would imply we located it), so it no
+  longer presents the AI's guessed page as a found region; the page shown is still the model's claim (see post-review
+  minor below); (c) candidates are **amber-only** with no text label — add a small "AI proposal" cue so
+  fact-vs-candidate isn't color-alone (accessibility). **Post-review minors (final whole-branch review, backlogged):**
+  (i) `workbench_assist._value_in_quote` uses a **substring** test (`"5" in "0.15"` → a spurious *exact* anchor) —
+  tighten to a numeric/token match; (ii) an **unanchored** candidate still stores the model's **`claimed_page`**
+  (unverified) — consider dropping it or marking it unverified in the badge (pairs with (a)/(c)). **Known UX
   limitation:** a **custom loopback** provider is conservatively treated as needing egress consent for the Draft
   button's enabled state (the `aiReady` gate keys on provider==local or egress+key), so a `127.0.0.1` custom endpoint
   won't enable Draft until AI features are on — safe-by-default, slightly over-conservative.
