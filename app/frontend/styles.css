@@ -1420,7 +1420,7 @@
   .wb-cand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 4px;
     border-left: 2px solid var(--flag); background: var(--flag-soft); font-size: 12px; }
   .wb-cand-quote { flex-basis: 100%; font-size: 11px; font-style: italic; color: var(--flag-ink);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+    white-space: normal; overflow-wrap: anywhere; }
   .wb-cand.unanchored { border-style: dashed; }
   .wb-cand-val { color: var(--flag-ink); font-weight: 600; }
   .wb-cand-in { max-width: 90px; }

@@ -104,7 +104,13 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   };
   const acceptProposal = async (proposal, value) => {
     const r = await apiPost(`/workbench/proposals/${proposal.id}/accept`, value === undefined ? {} : { value });
-    if (r.ok) { setConvMsg(""); setProject(r.data); } else setAiErr(r.error || "Couldn't accept the candidate.");
+    if (!r.ok) { setAiErr(r.error || "Couldn't accept the candidate."); return; }
+    setConvMsg(""); setProject(r.data);
+    // Honest note when editing dropped an exact-passage anchor to region (invariant #2): the highlight marked the
+    // ORIGINAL number, so a value you changed can't keep claiming it. Only fires when it actually downgraded.
+    setAiErr(value !== undefined && proposal.anchor_state === "exact"
+      ? "Accepted as region — you edited the value, so the exact-passage highlight was dropped (it marked the original number). The cell still anchors to its page."
+      : "");
   };
   const rejectProposal = async (proposal) => {
     const r = await apiPost(`/workbench/proposals/${proposal.id}/reject`, {});

@@ -1444,7 +1444,7 @@
   .wb-cand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 4px;
     border-left: 2px solid var(--flag); background: var(--flag-soft); font-size: 12px; }
   .wb-cand-quote { flex-basis: 100%; font-size: 11px; font-style: italic; color: var(--flag-ink);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+    white-space: normal; overflow-wrap: anywhere; }
   .wb-cand.unanchored { border-style: dashed; }
   .wb-cand-val { color: var(--flag-ink); font-weight: 600; }
   .wb-cand-in { max-width: 90px; }
@@ -10928,10 +10928,13 @@
     };
     const acceptProposal = async (proposal, value) => {
       const r = await apiPost(`/workbench/proposals/${proposal.id}/accept`, value === void 0 ? {} : { value });
-      if (r.ok) {
-        setConvMsg("");
-        setProject(r.data);
-      } else setAiErr(r.error || "Couldn't accept the candidate.");
+      if (!r.ok) {
+        setAiErr(r.error || "Couldn't accept the candidate.");
+        return;
+      }
+      setConvMsg("");
+      setProject(r.data);
+      setAiErr(value !== void 0 && proposal.anchor_state === "exact" ? "Accepted as region \u2014 you edited the value, so the exact-passage highlight was dropped (it marked the original number). The cell still anchors to its page." : "");
     };
     const rejectProposal = async (proposal) => {
       const r = await apiPost(`/workbench/proposals/${proposal.id}/reject`, {});
@@ -11151,7 +11154,7 @@
       {
         className: "wb-draft",
         disabled: !aiReady || busy,
-        title: aiReady ? "Ask the AI to propose values from this paper's PDF \u2014 you verify each one before it's saved" : "Enable AI features in Settings to draft from the PDF",
+        title: aiReady ? "Ask the AI to propose values from this paper's PDF \u2014 you verify each one before it's saved" : `Turn on "Allow AI features" in Settings to let the AI draft values from this paper's PDF`,
         onClick: onDraft
       },
       busy ? "Drafting\u2026" : "\u2728 Draft from PDF \u2192"
@@ -11181,12 +11184,18 @@
           autoFocus: true,
           value: val,
           onChange: (e) => setVal(e.target.value),
-          onKeyDown: (e) => e.key === "Enter" && onAccept(val)
+          onKeyDown: (e) => {
+            if (e.key === "Enter") onAccept(val);
+            else if (e.key === "Escape") {
+              setVal(proposal.value || "");
+              setEditing(false);
+            }
+          }
         }
       ) : /* @__PURE__ */ React.createElement("span", { className: "wb-cand-val" }, "\u270E ", proposal.value),
       /* @__PURE__ */ React.createElement(WbAnchorBadge, { p: proposal }),
       /* @__PURE__ */ React.createElement("span", { className: "wb-cand-acts" }, /* @__PURE__ */ React.createElement("button", { className: "wb-cand-open", title: "Open the PDF at this anchor \u2014 verify against the source", onClick: onOpen }, "\u{1F4CE}"), editing ? /* @__PURE__ */ React.createElement("button", { className: "wb-cand-ok", title: "Accept the edited value", onClick: () => onAccept(val) }, "\u2713") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "wb-cand-ok", title: "Accept into the cell", onClick: () => onAccept(void 0) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "wb-cand-edit", title: "Edit before accepting", onClick: () => setEditing(true) }, "\u270E")), /* @__PURE__ */ React.createElement("button", { className: "wb-cand-x", title: "Reject this candidate", onClick: onReject }, "\u2717")),
-      !editing && proposal.quote && /* @__PURE__ */ React.createElement("span", { className: "wb-cand-quote" }, '"', proposal.quote, '"')
+      proposal.quote && /* @__PURE__ */ React.createElement("span", { className: "wb-cand-quote" }, '"', proposal.quote, '"')
     );
   }
 })();

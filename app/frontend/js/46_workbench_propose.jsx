@@ -9,7 +9,7 @@ function WbDraftButton({ row, aiReady, busy, onDraft }) {
     <button className="wb-draft" disabled={!aiReady || busy}
       title={aiReady
         ? "Ask the AI to propose values from this paper's PDF — you verify each one before it's saved"
-        : "Enable AI features in Settings to draft from the PDF"}
+        : "Turn on \"Allow AI features\" in Settings to let the AI draft values from this paper's PDF"}
       onClick={onDraft}>{busy ? "Drafting…" : "✨ Draft from PDF →"}</button>
   );
 }
@@ -26,7 +26,8 @@ function WbAnchorBadge({ p }) {
 
 // The amber candidate on an empty structured cell: value + anchor badge + Open-at-anchor + accept / edit / reject.
 // Unanchored proposals get the `.unanchored` dashed treatment (DESIGN §5 `.speculative` precedent — invariant #2).
-// The verbatim quote is shown truncated below the controls (invariant #4: evidence always shown).
+// The verbatim quote is shown below the controls in BOTH view and edit modes (invariant #4: evidence always
+// shown — you keep the source in view while correcting a misread number).
 function WbCandidate({ proposal, onAccept, onReject, onOpen }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(proposal.value || "");
@@ -36,7 +37,11 @@ function WbCandidate({ proposal, onAccept, onReject, onOpen }) {
       title="AI candidate — verify against the source, then accept, edit, or reject">
       {editing
         ? <input className="wb-cellin wb-cand-in" autoFocus value={val}
-            onChange={e => setVal(e.target.value)} onKeyDown={e => e.key === "Enter" && onAccept(val)} />
+            onChange={e => setVal(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === "Enter") onAccept(val);
+              else if (e.key === "Escape") { setVal(proposal.value || ""); setEditing(false); }
+            }} />
         : <span className="wb-cand-val">✎ {proposal.value}</span>}
       <WbAnchorBadge p={proposal} />
       <span className="wb-cand-acts">
@@ -49,7 +54,7 @@ function WbCandidate({ proposal, onAccept, onReject, onOpen }) {
             </>)}
         <button className="wb-cand-x" title="Reject this candidate" onClick={onReject}>✗</button>
       </span>
-      {!editing && proposal.quote && <span className="wb-cand-quote">"{proposal.quote}"</span>}
+      {proposal.quote && <span className="wb-cand-quote">"{proposal.quote}"</span>}
     </div>
   );
 }

@@ -6,6 +6,7 @@ Additive + guarded (mirrors 0033); no down-migration by design.
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "0034_extraction_proposals"

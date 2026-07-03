@@ -546,10 +546,30 @@ producer-side extraction workbench is the deferred remainder]**
   certificate). (2) **field-level "why this row failed"** + distinguish blank-vs-invalid, and specifically catch the
   **comma-decimal** input trap (`float("12,5")` throws → a filled-looking cell silently won't convert). (3) optional
   page/quote columns in the *generic* CSV for supplement tables (keep metafor/RevMan clean); a **0-converted export
-  guard**; promote **Convert all →** to a real button (DESIGN-gated). — **NEXT within #36 = the assisted-extraction
-  funnel** (chosen for the next increment): an **egress-gated** assistant that *proposes* cell values from the PDF as
-  **candidates** for the human to verify/edit (AI = funnel, human = filter; never an independent coder). Needs the
-  egress-consent gate + a full Principles/A-A pass (fact-vs-candidate).
+  guard**; promote **Convert all →** to a real button (DESIGN-gated).
+- **✅ SP2b assisted-extraction funnel — SHIPPED inc 259 (AI proposes, the human filters):** an **egress-gated**
+  assistant (**Draft from PDF**) that *proposes* values for a row's empty **structured** cells as **candidates**
+  (`ma_proposals`, migration 0034; `ma_cells.origin`) — the LLM reads the paper's page-tagged text and returns
+  `{value, quote, page}`; the app **anchors each locally** (`workbench_assist.anchor_proposal`/`locate_quote` →
+  exact/region/unanchored, never the model's claim) and renders **amber candidates** with the verbatim quote + an
+  honest anchor badge. Accept / edit-then-accept / reject **per cell**; nothing enters `ma_cells`/Convert/exports until
+  accept (fact ≠ candidate isolation; `origin='assisted'` in provenance). Rides the existing `EgressGatedExtractionAssistant`
+  (403 with AI off; loopback = no egress); `parse_proposals` is defensive; text capped 50k. `routers/workbench.py` +
+  `integrations/gemini/extraction_assistant.py` + `46_workbench_propose.jsx`. Audit PASS; QA route 65 extended; full
+  Principles/A-A pass (fact-vs-candidate, egress, the-human-is-the-filter). **Next escalations within the funnel:**
+  (1) **batch "Draft all un-filled rows"** — one confirm, the SAME per-cell verify gate on every candidate (never a
+  bulk auto-accept); (2) **retrieval-narrowed text** — embed the field labels → send only the top-k relevant chunks
+  (cheaper + more accurate than the 50k head); (3) **double-coding / IRR** stays **human-only** (the track's
+  no-independent-coder veto — the AI is a funnel, never a second rater). **Experience-pass deferrals (inc 259, persona
+  = deadline meta-analyst; the cheap edit-flow fixes were folded into the increment):** (a) the candidate anchor badge
+  says **"region"** (app vocabulary) — a first-timer may not parse it; consider a self-explanatory gloss without
+  drifting the exact/region/null contract; (b) **unanchored** "Open at anchor" opens at the model's **claimed** page
+  with no note distinguishing "quote found here" from "the AI guessed this page" — a footgun (principle-relevant:
+  honest-gap-in-context); either suppress the open or mark the page unverified; (c) candidates are **amber-only** with
+  no text label — add a small "AI proposal" cue so fact-vs-candidate isn't color-alone (accessibility). **Known UX
+  limitation:** a **custom loopback** provider is conservatively treated as needing egress consent for the Draft
+  button's enabled state (the `aiReady` gate keys on provider==local or egress+key), so a `127.0.0.1` custom endpoint
+  won't enable Draft until AI features are on — safe-by-default, slightly over-conservative.
 
 **37. Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived) — **[future track — most
 needs the values layer]** inspectable, **non-accusatory** prestige/credit/attention lenses (overlooked-work /

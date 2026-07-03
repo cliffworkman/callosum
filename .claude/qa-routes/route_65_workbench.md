@@ -1,22 +1,26 @@
 <!-- qa-coverage
 api: /workbench*
-fe: 45_workbench.jsx
+fe: 45_workbench.jsx, 46_workbench_propose.jsx
 -->
 
-# ROUTE 65 - Extraction workspace (meta-analysis workbench SP2a-1 + SP2b dataset loop)
+# ROUTE 65 - Extraction workspace (meta-analysis workbench SP2a-1 + SP2b dataset loop + assisted-extraction funnel)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the "Extract" workspace — assemble a project (template) -> rows (one effect each, optionally linked
 to a paper) -> provenance-anchored cells -> **Convert all** the rows via the SP1 converter (the dataset loop) with an
 honest **"k of N converted"** readout -> export the accumulated dataset **stat-package-ready** (generic CSV, a
 **metafor** yi/vi table, a **RevMan** raw-data table) + a provenance audit. It **extracts / structures / converts /
-exports — it NEVER pools, models heterogeneity, meta-regresses, or does bias inference.** Fully local — no LLM, no
-egress. A value is only ever set by a human; the batch convert is the same audited per-study convert, N times.
+exports — it NEVER pools, models heterogeneity, meta-regresses, or does bias inference.** The core loop is fully local —
+no egress; the **one** egress channel is the opt-in **assisted-extraction funnel** (SP2b, inc 259: the LLM *proposes*
+candidate cell values, gated by the consent gate). **A value is only ever set by a human** — hand-typed, captured from
+the PDF, or **accepted** from an AI candidate; the batch convert is the same audited per-study convert, N times.
 
 ## Environment
 
-Clean seeded instance (`_TEMPLATE.md` -> Environment; ≥2 papers seeded). **Egress UNSET** (the workspace is local —
-assert no genai-host request regardless). Register listeners before navigation.
+Clean seeded instance (`_TEMPLATE.md` -> Environment; ≥2 papers seeded). **Egress UNSET for the core loop** (steps 1–11
+are local — assert no genai-host request there regardless). The **funnel** (step 12) needs AI features on: use a
+**loopback/local** provider (still no egress) or a **canned** assistant — never send library text to a real cloud host
+in QA. Register listeners before navigation.
 
 ## Standing assertions
 
@@ -44,6 +48,29 @@ assert no genai-host request regardless). Register listeners before navigation.
 - **Template spine is protected.** A design's converter-input (role) columns cannot be removed or hijacked (a 422 at
   the boundary); moderator/notes columns can be added.
 
+### Assisted-extraction funnel (SP2b, inc 259) — AI proposes, the human filters
+
+- **Egress gate on the Draft control (Critical if violated — invariant #3).** **Draft from PDF** proposes cell values
+  from the paper via the LLM — the consent-gated channel. With AI features OFF (a non-loopback provider without
+  `Allow AI features`), the button is **disabled with an honest tooltip** and `POST …/rows/{id}/propose` returns
+  **403** — **no `generativelanguage`/genai-host request** is made. A row with no empty proposable structured field
+  **short-circuits** (`{proposals:[], truncated:false}`) and contacts no provider even with AI on.
+- **Fact ≠ candidate — isolation (Critical if violated).** A proposal is a **candidate** in `ma_proposals`, never a
+  value. It renders as an **amber** card and **never** appears in a cell's trusted value, in `Convert`/`Convert all`,
+  or in ANY export (CSV / metafor / RevMan / provenance) until a human **accepts** it. A proposed value showing up in
+  a pre-accept export is a Critical fact/candidate breach.
+- **Every candidate carries its evidence (High if violated — invariant #4).** Each candidate shows its **verbatim
+  quote** inline (the passage the value was read from) + an **anchor badge** (exact / region / couldn't-verify) — the
+  human vets it without trusting the model. No candidate is shown as a bare number.
+- **Coordinate honesty on accept (Critical if violated — invariant #2).** A candidate's precision is derived from the
+  **local** anchor (`anchor_proposal`/`locate_quote`), never the model's claim. **Open at anchor** on a candidate draws
+  an **exact** rect ONLY when the anchor state is `exact`; a `region`/`unanchored` candidate opens the page with **no**
+  exact rect. On **accept**, `bbox_json` is stored ONLY when the anchor was `exact` AND the value was not edited —
+  editing the number before accepting drops it to **region** (no fake exact box on a human-changed value). `origin`
+  becomes `assisted` and surfaces in the provenance (audit) export **only after** accept.
+- **The model never asserts location/confidence.** The proposal's page/quote is the model's *claim*; the app's local
+  locator decides the anchor state and the drawn precision. No opaque score is shown on a candidate (Principle #7).
+
 ## Adversarial checklist
 
 - create a project with a blank name / unknown design -> 422-class, no crash
@@ -58,6 +85,11 @@ assert no genai-host request regardless). Register listeners before navigation.
 - export **RevMan** -> the per-design raw-data columns (continuous: Mean/SD/Total ×2; dichotomous: Events/Total ×2 with Total = events + non-events; correlation: Generic-IV Effect + SE); no computed pooled effect
 - a spreadsheet-formula string in a label/moderator (`=cmd`) exports `'`-prefixed in every format (injection-safe)
 - resize to `375x812`, no horizontal overflow of the whole pane (the grid may scroll horizontally on its own); the fuller header (Convert all + readout + Export CSV/metafor/RevMan/provenance) wraps rather than overflowing
+- **funnel — AI off:** with egress unset, the **Draft from PDF** control is disabled + carries an honest "enable AI features" tooltip; forcing `POST …/rows/{id}/propose` returns **403** and **0 genai-host requests** fire
+- **funnel — candidate isolation:** draft a row → amber candidates appear → **before accepting any**, run **Convert** and every **Export** (CSV/metafor/RevMan/provenance) → **no proposed value** appears in any of them; the cell's trusted value is still empty
+- **funnel — evidence shown:** every candidate shows its verbatim quote inline + an exact/region/couldn't-verify badge (never a bare number)
+- **funnel — coordinate honesty:** **Open at anchor** on an `exact` candidate draws a rect; on a `region`/`unanchored` candidate it opens the page with **no** rect; **edit** a candidate's number then accept → the stored anchor is region (no exact box on the changed number)
+- **funnel — accept/reject:** accept one candidate → it becomes the cell's value with `origin='assisted'` (visible in the provenance export); reject one → it disappears and nothing is written; malformed/empty model output → 0 candidates, clean 200, no crash
 
 ## Steps
 
@@ -91,6 +123,15 @@ assert no genai-host request regardless). Register listeners before navigation.
 11. Adversarial: blank-name / unknown-design create -> 422; unknown paper -> 404; convert an empty row -> 422 with a
    legible message; `?format=bogus` -> 422; convert-all on an unknown project -> 404; delete the project -> re-GET
    404. Confirm **no pool/aggregate/forest control** anywhere in the pane and **no pooled row** in any export.
+12. **Assisted-extraction funnel (SP2b, inc 259).** Enable AI features (a loopback/local provider = no egress, or a
+   canned assistant). On a paper-linked row with empty structured cells, click **Draft from PDF** -> a progress bar
+   -> **amber candidate** cards appear beside the empty cells, each with a **verbatim quote** + an **anchor badge**
+   (exact / region / couldn't-verify). Confirm the candidates are NOT in the cell's trusted value, in Convert, or in
+   any export yet. **Open at anchor** on an `exact` candidate draws the passage rect; on a `region`/`unanchored` one it
+   opens the page with no rect (invariant #2). **Accept** one (-> it becomes the cell value, `origin='assisted'` in the
+   provenance export), **edit** one's number then accept (-> stored anchor drops to region, no exact box), **reject**
+   one (-> gone, nothing written). Then **turn AI off** and confirm **Draft from PDF** is disabled with an honest
+   tooltip and a forced propose returns 403 with **0 genai-host requests**.
 
 ## Pass criteria
 
@@ -105,6 +146,11 @@ assert no genai-host request regardless). Register listeners before navigation.
 - **Anchor precision is honest:** a PDF-selected cell opens at **exact** (a drawn rect on the passage); a page-only
   cell opens at **region** (a note, no rect). No page-only anchor is ever drawn as an exact highlight.
 - Bad inputs fail closed (422/404-class) with legible messages; mobile viewport has no whole-pane horizontal overflow.
+- **The funnel is a candidate stream, never a value stream:** AI-proposed cell values render as amber candidates with
+  their verbatim quote + an honest exact/region/couldn't-verify anchor badge; they enter the dataset (cell value /
+  Convert / any export) **only** on a human **accept**, with precision derived from the local anchor (never the model's
+  claim) and `origin='assisted'` in the provenance. **Draft from PDF** is egress-gated (disabled + 403 with AI off, no
+  genai-host request); a fully-filled row makes no provider call. No opaque score is shown on a candidate.
 
 ## Deposit
 

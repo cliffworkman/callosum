@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 258** (see Increment workflow) with **1012 pytest tests
+It is currently at **Increment 259** (see Increment workflow) with **1031 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -55,7 +55,13 @@ the full per-increment narrative for all other increments now lives in the reloc
   no migration; the active selection reuses the flat inc-149 `provider`/`model` fields). `complete()` dispatches on
   `config.wire_format` (gemini-SDK / `{base}/v1/messages` / `{base}/v1/chat/completions` / `{base}/v1/responses`),
   all non-gemini via **httpx** (no new dep). LLM is **generation only** (summary, axis-terms, research summary,
-  overview, help) and **OFF by default** (egress gate, invariant #3). **Egress is endpoint-based** (inc 256):
+  overview, help, and — inc 259 — **assisted extraction**) and **OFF by default** (egress gate, invariant #3). The
+  **assisted-extraction funnel** (inc 259: `routers/workbench.py` propose/accept/reject
+  + `integrations/gemini/extraction_assistant.py` + `app/backend/workbench_assist.py`) has the LLM *propose* meta-analysis
+  cell values as **candidates** (the isolated `ma_proposals` table + `ma_cells.origin`, migration 0034) that a human
+  verifies/accepts before any enters the trusted `ma_cells`/converter/exports — **AI funnel, human filter**; each
+  candidate's anchor is decided **deterministically-locally** (`locate_quote` → exact/region/unanchored, invariant #2),
+  never by the model, and egress rides the same `EgressGatedExtractionAssistant`. **Egress is endpoint-based** (inc 256):
   `requires_egress(config)` gates any **non-loopback** base URL exactly like Gemini, while a **loopback** provider
   (local or a custom `127.0.0.1` endpoint) runs with **zero egress** — so an arbitrary user URL honors #3 for free.
   Verification NLI runs locally (`cross-encoder/nli-MiniLM2-L6-H768`).
@@ -376,7 +382,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 258). Each increment of real work
+callosum is built in **numbered increments** (currently at 259). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
