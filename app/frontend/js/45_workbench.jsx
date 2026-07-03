@@ -23,7 +23,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   const [draftingRow, setDraftingRow] = useState(null);
 
   const loadProjects = async () => { const r = await api("/workbench/projects"); if (r.ok) setProjects(r.data); };
-  const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setProject(r.data); } };
+  const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setAiErr(""); setProject(r.data); } };
 
   useEffect(() => { if (active && !project) loadProjects(); }, [active]);
   // AI readiness for the "Draft from PDF" funnel (the existing AI-surface pattern — 20_synthesis.jsx). A cloud
@@ -244,6 +244,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
       {convMsg && <div className="wb-note">{convMsg}</div>}
       {err && <div className="axis-err">{err}</div>}
       {aiErr && <div className="wb-note wb-ai-note">{aiErr}</div>}
+      {draftingRow && <ProgressBar />}
 
       <div className="wb-gridwrap">
         <table className="wb-grid">

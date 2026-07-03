@@ -3,10 +3,8 @@
 // 10b/35b precedent). Amber (`--flag`) = candidate / uncertain / region (DESIGN #8; no new color semantics). A
 // candidate NEVER enters the trusted cell until the human clicks ✓ — facts ≠ candidates (PRINCIPLES).
 
-// The per-row "Draft from PDF →" control: shown only for a paper-linked row; disabled (with a hint) when AI is off.
+// The per-row "Draft from PDF →" control: only rendered inside the paper_id != null branch in 45_workbench.jsx.
 function WbDraftButton({ row, aiReady, busy, onDraft }) {
-  if (row.paper_id == null)
-    return <span className="wb-draft-hint" title="Link a library paper to draft from its PDF">link a paper to draft</span>;
   return (
     <button className="wb-draft" disabled={!aiReady || busy}
       title={aiReady
@@ -28,6 +26,7 @@ function WbAnchorBadge({ p }) {
 
 // The amber candidate on an empty structured cell: value + anchor badge + Open-at-anchor + accept / edit / reject.
 // Unanchored proposals get the `.unanchored` dashed treatment (DESIGN §5 `.speculative` precedent — invariant #2).
+// The verbatim quote is shown truncated below the controls (invariant #4: evidence always shown).
 function WbCandidate({ proposal, onAccept, onReject, onOpen }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState(proposal.value || "");
@@ -50,6 +49,7 @@ function WbCandidate({ proposal, onAccept, onReject, onOpen }) {
             </>)}
         <button className="wb-cand-x" title="Reject this candidate" onClick={onReject}>✗</button>
       </span>
+      {!editing && proposal.quote && <span className="wb-cand-quote">"{proposal.quote}"</span>}
     </div>
   );
 }

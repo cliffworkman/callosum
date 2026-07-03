@@ -1413,13 +1413,15 @@
   .wb-anchor-select { align-self: stretch; justify-content: center; }
   .wb-anchor-or { font-size: 10px; color: var(--ink-3); text-align: center; margin: 2px 0; }
   /* inc 259 (SP2b): assisted-extraction funnel — candidate (amber) styling; no new color semantics (DESIGN #8).
-     --flag = unresolved/candidate status; --flag-soft = soft bg; --flag-line = border; --verified = accepted/ok. */
+     --flag = border + candidate status; --flag-soft = bg; --flag-ink = value text; --verified = accepted/ok. */
   .wb-src-linked { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
   .wb-draft { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; }
   .wb-draft:disabled { color: var(--ink-3); cursor: not-allowed; }
   .wb-draft-hint { font-size: 11px; color: var(--ink-3); font-style: italic; }
-  .wb-cand { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 4px;
+  .wb-cand { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 4px;
     border-left: 2px solid var(--flag); background: var(--flag-soft); font-size: 12px; }
+  .wb-cand-quote { flex-basis: 100%; font-size: 11px; font-style: italic; color: var(--flag-ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
   .wb-cand.unanchored { border-style: dashed; }
   .wb-cand-val { color: var(--flag-ink); font-weight: 600; }
   .wb-cand-in { max-width: 90px; }
