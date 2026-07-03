@@ -1379,7 +1379,7 @@
   .wb-meta { font-size: 11px; color: var(--ink-3); }
   .wb-del { margin-left: auto; color: var(--ink-3); }
   .wb-empty { padding: 20px 0; color: var(--ink-3); }
-  .wb-head { display: flex; align-items: center; gap: 10px; }
+  .wb-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .wb-name { font-size: 15px; font-weight: 600; border: none; border-bottom: 1px dashed transparent; background: transparent; color: var(--ink); padding: 2px 0; }
   .wb-name:hover, .wb-name:focus { border-bottom-color: var(--line-2); outline: none; }
   .wb-spacer { flex: 1; }

@@ -870,10 +870,14 @@ The **Extract** tab (in the center pane, alongside Library and Discover) is wher
 - **Add rows** — one row per effect/comparison. **+ Add paper** links a row to a library paper (a paper can appear in several rows, one per outcome); **+ Add row** makes an unlinked row.
 - **Enter each value**, or **capture it from the PDF**: on a linked row click a cell's **📎 anchor → ◎ Select the value in the PDF**, then highlight the reported number on the page. The selected text drops into the cell **verbatim and stays editable** (nothing is parsed or guessed — you still check and can overwrite it), and the exact spot you highlighted becomes the cell's anchor. You can also anchor a cell by hand (type a page + quote) when you'd rather not open the PDF.
 - **Open at anchor** (the 📎 hub, once a cell is anchored) jumps to the source so you or a co-author can re-check it. A value **captured from the PDF** opens with the exact passage highlighted; a value anchored only by a **hand-typed page** opens at that page with an approximate-location note (no highlight) — the app only draws an exact box when it actually has exact coordinates.
-- **Convert →** on a row runs the effect-size converter and shows the result (e.g. Hedges' g + its variance) as a column. If you later change one of a row's cells, its effect size is cleared — so you never keep a silently-stale number; just Convert again.
-- **Export** the dataset as a **CSV** (metafor/JASP-ready: your columns + the converted effect size + variance) and a **Provenance JSON** (the per-cell page and quote — your audit trail).
+- **Convert →** on a row runs the effect-size converter and shows the result (e.g. Hedges' g + its variance) as a column. If you later change one of a row's cells, its effect size is cleared — so you never keep a silently-stale number; just Convert again. **Convert all →** in the header runs the converter over every row at once; the header shows a **"k of N converted"** readout, and any row whose inputs aren't complete is left un-converted and named — never filled with a guessed number.
+- **Export** the dataset for your synthesis tool:
+  - **CSV** — the general dataset (your columns + the converted effect size + variance).
+  - **metafor** — a clean `yi/vi` table (one row per study: effect + variance + SE + 95% CI + your moderator columns), ready for `read.csv(...)` then `rma(yi, vi, data=dat)` in R. A row you haven't converted exports blank yi/vi (an honest gap, not a zero).
+  - **RevMan** — the *raw* study data in RevMan's import columns for your design (continuous: mean/SD/total per group; dichotomous: events/total per group; correlation: a generic-inverse-variance effect + SE). RevMan computes the effect from the raw numbers itself.
+  - **Provenance JSON** — the per-cell page and quote (your audit trail).
 
-Every value is **yours to enter and anchor** — the workspace extracts, structures, converts, and exports the dataset; it does not pool studies or run the meta-analysis. Hand the exported dataset to metafor / JASP / RevMan for the synthesis.
+Every value is **yours to enter and anchor** — the workspace extracts, structures, converts, and exports the dataset; it does not pool studies, weight them, or run the meta-analysis, and no export carries a synthesized/summary estimate. Hand the exported dataset to metafor / JASP / RevMan for the synthesis.
 
 <!-- section: reviewing-findings -->
 ## Reviewing findings

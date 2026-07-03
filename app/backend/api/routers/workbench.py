@@ -11,8 +11,6 @@ set by a human. Fully local — no LLM, no egress. Bound-param SQL; typed/valida
 
 from __future__ import annotations
 
-import csv
-import io
 import json
 import re
 
@@ -23,6 +21,7 @@ from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection
 from app.backend.methods.effectsize import convert
+from app.backend.persistence import workbench_export as wx
 from app.backend.persistence import workbench_repo as wr
 
 router = APIRouter()
@@ -231,43 +230,47 @@ def convert_row(row_id: int, conn: Connection = Depends(get_connection)) -> dict
     return conv
 
 
+@router.post("/workbench/projects/{project_id}/convert-all")
+def convert_all(project_id: int, conn: Connection = Depends(get_connection)) -> dict:
+    """Run the SP1 converter over every row (the dataset loop). A row with incomplete/invalid inputs is left
+    honestly un-converted and reported in ``incomplete`` — never a fabricated result. Still per-study only:
+    nothing is pooled, weighted, or aggregated across rows."""
+    view = _project_or_404(conn, project_id)
+    builder = wr.CONVERT_MAP.get(view["design"])
+    if builder is None:
+        raise HTTPException(status_code=422, detail="This design has no converter mapping.")
+    converted = 0
+    incomplete: list[dict] = []
+    for row in view["rows"]:
+        cell_vals = {k: (c or {}).get("value") for k, c in row["cells"].items()}
+        family, inputs = builder(cell_vals)
+        try:
+            result = convert(family, inputs)
+        except (ValueError, KeyError, TypeError, ArithmeticError):
+            wr.set_converted(conn, row["id"], None)  # leave it honestly un-converted, don't invent a number
+            incomplete.append({"row_id": row["id"], "label": row["label"] or row["paper_title"]})
+            continue
+        wr.set_converted(conn, row["id"], json.dumps(result.to_dict()))
+        converted += 1
+    conn.commit()
+    return {"total": len(view["rows"]), "converted": converted, "incomplete": incomplete}
+
+
 # --- export --------------------------------------------------------------------------------------------------------
-def _csv_safe(v) -> str:
-    s = "" if v is None else str(v)
-    return "'" + s if s and s[0] in ("=", "+", "-", "@") else s  # neutralize spreadsheet formula injection
-
-
 @router.get("/workbench/projects/{project_id}/export")
 def export_project(project_id: int, format: str = "csv", conn: Connection = Depends(get_connection)) -> Response:
-    if format not in ("csv", "audit"):
-        raise HTTPException(status_code=422, detail="format must be csv or audit")
+    if format not in ("csv", "metafor", "revman", "audit"):
+        raise HTTPException(status_code=422, detail="format must be csv, metafor, revman, or audit")
     view = _project_or_404(conn, project_id)
     if format == "audit":
-        body = json.dumps(view, indent=2)
         return Response(
-            content=body,
+            content=json.dumps(view, indent=2),
             media_type="application/json",
             headers={"Content-Disposition": f'attachment; filename="extraction-{project_id}-provenance.json"'},
         )
-    keys = [f["key"] for f in view["template"]]
-    labels = [f["label"] for f in view["template"]]
-    buf = io.StringIO()
-    w = csv.writer(buf)
-    w.writerow(["row_label", *labels, "metric", "effect_size", "variance"])
-    for row in view["rows"]:
-        cells = row["cells"]
-        conv = row["converted"] or {}
-        w.writerow(
-            [
-                _csv_safe(row["label"]),
-                *[_csv_safe(cells.get(k, {}).get("value")) for k in keys],
-                _csv_safe(conv.get("metric")),
-                _csv_safe(conv.get("value")),
-                _csv_safe(conv.get("variance")),
-            ]
-        )
+    suffix = "" if format == "csv" else f"-{format}"
     return Response(
-        content=buf.getvalue(),
+        content=wx.FORMATS[format](view),
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="extraction-{project_id}.csv"'},
+        headers={"Content-Disposition": f'attachment; filename="extraction-{project_id}{suffix}.csv"'},
     )

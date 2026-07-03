@@ -17,9 +17,10 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   const [addResults, setAddResults] = useState([]);
   const [anchor, setAnchor] = useState(null); // {rowId, key, page, quote} while the anchor popover is open
   const [err, setErr] = useState("");
+  const [convMsg, setConvMsg] = useState(""); // transient "Converted k of N" summary after Convert-all
 
   const loadProjects = async () => { const r = await api("/workbench/projects"); if (r.ok) setProjects(r.data); };
-  const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) setProject(r.data); };
+  const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setProject(r.data); } };
 
   useEffect(() => { if (active && !project) loadProjects(); }, [active]);
 
@@ -39,6 +40,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   // --- rows + cells (optimistic local updates; PUT replaces the whole cell, so we merge to preserve the anchor).
   // A cell edit also drops the row's stored effect size (the server clears it too) — never a silently-stale g. ---
   const putCell = async (rowId, key, patch) => {
+    setConvMsg("");  // editing a cell clears that row's effect → the batch note no longer reflects reality
     const row = project.rows.find(r => r.id === rowId);
     const cur = (row && row.cells[key]) || {};
     const merged = { value: cur.value ?? null, page: cur.page ?? null, quote: cur.quote ?? null, bbox_json: cur.bbox_json ?? null, ...patch };
@@ -57,9 +59,27 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
     if (fail(r)) openProject(project.id);
   };
   const convertRow = async (rowId) => {
+    setConvMsg("");  // a single-row convert changes the coverage — drop the batch note so it can't go stale
     const r = await apiPost(`/workbench/rows/${rowId}/convert`, {});
     if (r.ok) setProject(p => ({ ...p, rows: p.rows.map(x => x.id === rowId ? { ...x, converted: r.data } : x) }));
     else setErr(r.error || "Fill the required fields with valid numbers first.");
+  };
+  // Convert-all: run the SP1 converter across the whole dataset in one click. Rows lacking valid inputs are left
+  // honestly un-converted (named, never fabricated); nothing is pooled. Re-open to refresh, then show the summary.
+  const convertAll = async () => {
+    const r = await apiPost(`/workbench/projects/${project.id}/convert-all`, {});
+    if (!r.ok) { setErr(r.error || "Couldn't convert the dataset."); return; }
+    await openProject(project.id);
+    const incs = r.data.incomplete || [];
+    setErr("");
+    let msg = `Converted ${r.data.converted} of ${r.data.total} row${r.data.total === 1 ? "" : "s"}.`;
+    if (incs.length) {
+      // name the rows that still need inputs (the data's already here) — a count alone leaves you hunting.
+      const names = incs.slice(0, 6).map(it => it.label || "untitled row");
+      const more = incs.length > 6 ? ` +${incs.length - 6} more` : "";
+      msg += ` Still need valid inputs: ${names.join(", ")}${more}.`;
+    }
+    setConvMsg(msg);
   };
 
   const searchPapers = async (q) => {
@@ -159,6 +179,8 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
 
   // --- render: a project ----------------------------------------------------------------------------------------
   const fields = project.template;
+  const convertedCount = project.rows.filter(r => r.converted).length;
+  const exportUrl = (fmt) => `/workbench/projects/${project.id}/export?format=${fmt}`;
   return (
     <div className="wb-pane">
       <div className="wb-head">
@@ -166,12 +188,24 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
         <input className="wb-name" defaultValue={project.name} key={"name" + project.id}
           onBlur={e => e.target.value.trim() && apiPatch("/workbench/projects/" + project.id, { name: e.target.value.trim() })} />
         <span className="wb-meta">{project.design.replace(/_/g, " ")}</span>
+        {project.rows.length > 0 &&
+          <button className="btn-link" title="Convert every row that has valid inputs" onClick={convertAll}>Convert all →</button>}
+        {project.rows.length > 0 &&
+          <span className="wb-meta">{convertedCount} of {project.rows.length} converted</span>}
         <span className="wb-spacer" />
-        <button className="btn-link" onClick={() => downloadAsset(`/workbench/projects/${project.id}/export?format=csv`, `extraction-${project.id}.csv`)}>Export CSV</button>
-        <button className="btn-link" onClick={() => downloadAsset(`/workbench/projects/${project.id}/export?format=audit`, `extraction-${project.id}-provenance.json`)}>Provenance JSON</button>
+        <span className="wb-meta">Export</span>
+        <button className="btn-link" title="The general dataset: your columns + the converted effect size + variance"
+          onClick={() => downloadAsset(exportUrl("csv"), `extraction-${project.id}.csv`)}>CSV</button>
+        <button className="btn-link" title="Clean yi/vi table — in R: read.csv(...) then rma(yi, vi, data=dat)"
+          onClick={() => downloadAsset(exportUrl("metafor"), `extraction-${project.id}-metafor.csv`)}>metafor</button>
+        <button className="btn-link" title="Raw per-group study data in RevMan's import columns for this design (RevMan computes the effect)"
+          onClick={() => downloadAsset(exportUrl("revman"), `extraction-${project.id}-revman.csv`)}>RevMan</button>
+        <button className="btn-link" title="Provenance audit (JSON): every cell's page + quote — your source trail"
+          onClick={() => downloadAsset(exportUrl("audit"), `extraction-${project.id}-provenance.json`)}>provenance</button>
       </div>
       <textarea className="wb-protocol" placeholder="Protocol note (question, inclusion criteria)…" defaultValue={project.protocol_note || ""}
         key={"proto" + project.id} onBlur={e => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })} />
+      {convMsg && <div className="wb-note">{convMsg}</div>}
       {err && <div className="axis-err">{err}</div>}
 
       <div className="wb-gridwrap">

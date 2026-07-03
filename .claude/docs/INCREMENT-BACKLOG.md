@@ -531,6 +531,25 @@ producer-side extraction workbench is the deferred remainder]**
   human-verified** extraction [the egress + heavy-A-A slice] + a persisted dataset that feeds *this* converter + export
   to metafor/JASP/RevMan + an audit log); further deferred: screening/PRISMA, double-coding/IRR, RoB instruments, figure
   extraction (point at WebPlotDigitizer, don't build).
+- **✅ SP2a — SHIPPED inc 253 (the grid) + inc 255 (select-in-PDF capture):** the stateful **Extract** workspace —
+  `ma_projects`/`ma_rows`/`ma_cells` (migration 0033) + `workbench_repo` + `/workbench/*` router + `45_workbench.jsx`.
+  Projects (a design + template) → rows (one effect, optionally paper-linked) → provenance-anchored cells (hand-typed
+  **or** captured by selecting the number in the PDF → verbatim+editable, exact-bbox anchor) → per-row **Convert** hook.
+- **✅ SP2b — SHIPPED inc 258 (the dataset loop + stat-package exports):** **Convert all** (the audited per-study
+  converter over every row; honest "k of N converted"; incomplete rows named, never fabricated) + native exports —
+  **metafor** (per-study yi/vi + moderators; `rma()`-ready) / **RevMan** (raw per-group data per design) / generic CSV /
+  provenance JSON. `workbench_export.py`; number-aware `_csv_safe`. Convert-never-synthesize boundary preserved
+  (no pooling, no summary row). **Experience-pass deferrals (inc 258, persona = deadline meta-analyst):**
+  (1) **surface the converter's caveats/choices/CI on the converted cell** (an amber marker or tooltip) — Convert-all
+  paints N green `metric = value` cells silent about continuity corrections (Haldane +0.5) + approximation flags that
+  live only in the provenance JSON; **principle-relevant** (every claim carries its evidence / silence-is-not-a-
+  certificate). (2) **field-level "why this row failed"** + distinguish blank-vs-invalid, and specifically catch the
+  **comma-decimal** input trap (`float("12,5")` throws → a filled-looking cell silently won't convert). (3) optional
+  page/quote columns in the *generic* CSV for supplement tables (keep metafor/RevMan clean); a **0-converted export
+  guard**; promote **Convert all →** to a real button (DESIGN-gated). — **NEXT within #36 = the assisted-extraction
+  funnel** (chosen for the next increment): an **egress-gated** assistant that *proposes* cell values from the PDF as
+  **candidates** for the human to verify/edit (AI = funnel, human = filter; never an independent coder). Needs the
+  egress-consent gate + a full Principles/A-A pass (fact-vs-candidate).
 
 **37. Equity & integrity signals** (`…_equityintegritysignals.md`, HACKADEMIA-derived) — **[future track — most
 needs the values layer]** inspectable, **non-accusatory** prestige/credit/attention lenses (overlooked-work /
