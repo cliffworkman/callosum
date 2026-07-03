@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import json
 
+import fitz
 from fastapi.testclient import TestClient
 from sqlalchemy import delete
 
+from app.backend import workbench_assist as wa
 from app.backend.api import create_app
 from app.backend.methods.effectsize import convert
 from app.backend.persistence import workbench_repo as wr
@@ -300,7 +302,17 @@ def test_proposals_replace_get_delete_and_view(temp_db_url):
         wr.replace_row_proposals(
             conn,
             row,
-            [{"field_key": "n", "value": "60", "quote": None, "page": None, "bbox_json": None, "anchor_state": "unanchored", "reason": "quote_not_found"}],
+            [
+                {
+                    "field_key": "n",
+                    "value": "60",
+                    "quote": None,
+                    "page": None,
+                    "bbox_json": None,
+                    "anchor_state": "unanchored",
+                    "reason": "quote_not_found",
+                }
+            ],
         )
         after = wr.proposals_for_row(conn, row)
         deleted = wr.delete_proposal(conn, after[0]["id"])
@@ -324,3 +336,132 @@ def test_upsert_cell_origin_surfaces_in_view(temp_db_url):
     cells = view["rows"][0]["cells"]
     assert cells["r"]["origin"] == "assisted"
     assert cells["n"]["origin"] is None
+
+
+# ---- SP2b funnel: propose / accept / reject endpoints (candidate-safety + the egress gate) -------------------------
+
+
+class _FakeAssistant:
+    """A canned assistant injected at the create_app seam — returns already-parsed proposals; no network."""
+
+    def __init__(self, proposals):
+        self._proposals = proposals
+
+    def propose(self, *, text, fields):
+        return list(self._proposals)
+
+
+def _pdf_with(tmp_path, text) -> str:
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), text)
+    path = tmp_path / "study.pdf"
+    doc.save(str(path))
+    doc.close()
+    return str(path)
+
+
+def test_propose_accept_reject_candidate_safety(temp_db_url, tmp_path, monkeypatch):
+    import app.backend.api.routers.workbench as wbmod
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))  # isolate app-settings
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")  # so the gate delegates to the fake
+    paper = _seed_paper(temp_db_url, "Alpha")
+    pdf = _pdf_with(tmp_path, "The correlation was r = 0.42 across the full sample.")
+    fake = _FakeAssistant(
+        [{"field_key": "r", "value": "0.42", "quote": "The correlation was r = 0.42 across the full sample", "page": 9}]
+    )
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(
+        wbmod,
+        "get_chunks_for_paper",
+        lambda conn, pid, **k: [
+            {"page_start": 1, "page_end": 1, "text": "The correlation was r = 0.42 across the full sample."}
+        ],
+    )
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=fake))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper, "label": "A"}).json()["rows"][0][
+        "id"
+    ]
+
+    # propose → an amber candidate (only `r`; the fake omits `n`), located EXACT (value literal in the quote)
+    r = client.post(f"/workbench/rows/{row_id}/propose")
+    assert r.status_code == 200
+    props = r.json()["proposals"]
+    assert [p["field_key"] for p in props] == ["r"]
+    assert props[0]["anchor_state"] == "exact" and props[0]["bbox_json"]
+
+    # candidate-safety: NOTHING is in the trusted cell / convert / export yet
+    view = client.get(f"/workbench/projects/{pid}").json()
+    assert "r" not in view["rows"][0]["cells"]
+    assert "0.42" not in client.get(f"/workbench/projects/{pid}/export", params={"format": "csv"}).text
+
+    # accept → the value is promoted with exact provenance + origin=assisted; the proposal is consumed
+    prop_id = props[0]["id"]
+    acc = client.post(f"/workbench/proposals/{prop_id}/accept", json={})
+    assert acc.status_code == 200
+    cells = next(rw for rw in acc.json()["rows"] if rw["id"] == row_id)["cells"]
+    assert cells["r"]["value"] == "0.42" and cells["r"]["origin"] == "assisted" and cells["r"]["bbox_json"]
+    # now it IS a fact → it appears in the export; the proposal is gone
+    assert "0.42" in client.get(f"/workbench/projects/{pid}/export", params={"format": "csv"}).text
+    after = next(rw for rw in client.get(f"/workbench/projects/{pid}").json()["rows"] if rw["id"] == row_id)
+    assert after["proposals"] == []
+
+    # a 404 on an unknown proposal (accept + reject)
+    assert client.post("/workbench/proposals/999999/accept", json={}).status_code == 404
+    assert client.post("/workbench/proposals/999999/reject").status_code == 404
+
+
+def test_propose_edit_before_accept_drops_exact_to_region(temp_db_url, tmp_path, monkeypatch):
+    import app.backend.api.routers.workbench as wbmod
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.setenv("CALLOSUM_ALLOW_DATA_EGRESS", "1")
+    paper = _seed_paper(temp_db_url, "Gamma")
+    pdf = _pdf_with(tmp_path, "The correlation was r = 0.42 across the full sample.")
+    fake = _FakeAssistant(
+        [{"field_key": "r", "value": "0.42", "quote": "The correlation was r = 0.42 across the full sample", "page": 1}]
+    )
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(
+        wbmod, "get_chunks_for_paper", lambda conn, pid, **k: [{"page_start": 1, "page_end": 1, "text": "r = 0.42"}]
+    )
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=fake))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    prop = client.post(f"/workbench/rows/{row_id}/propose").json()["proposals"][0]
+    assert prop["anchor_state"] == "exact"
+    # edit-before-accept: an overridden value can't claim the exact bbox → precision honestly falls back to region
+    acc = client.post(f"/workbench/proposals/{prop['id']}/accept", json={"value": "0.40"})
+    cell = next(rw for rw in acc.json()["rows"] if rw["id"] == row_id)["cells"]["r"]
+    assert cell["value"] == "0.40" and cell["bbox_json"] is None and cell["origin"] == "assisted"
+
+
+def test_propose_egress_off_returns_403(temp_db_url, tmp_path, monkeypatch):
+    import app.backend.api.routers.workbench as wbmod
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)  # egress OFF, default gemini provider
+    paper = _seed_paper(temp_db_url, "Beta")
+    pdf = _pdf_with(tmp_path, "r = 0.5 was found.")
+    fake = _FakeAssistant([{"field_key": "r", "value": "0.5", "quote": "r = 0.5 was found", "page": 1}])
+    monkeypatch.setattr(wa, "primary_pdf_path", lambda conn, pid: __import__("pathlib").Path(pdf))
+    monkeypatch.setattr(
+        wbmod,
+        "get_chunks_for_paper",
+        lambda conn, pid, **k: [{"page_start": 1, "page_end": 1, "text": "r = 0.5 was found."}],
+    )
+    client = TestClient(create_app(db_url=temp_db_url, extraction_assistant=fake))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"paper_id": paper}).json()["rows"][0]["id"]
+    assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 403
+
+
+def test_propose_requires_linked_paper(temp_db_url, monkeypatch, tmp_path):
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "settings.json"))
+    client = TestClient(create_app(db_url=temp_db_url))
+    pid = client.post("/workbench/projects", json={"name": "R", "design": "correlation"}).json()["id"]
+    row_id = client.post(f"/workbench/projects/{pid}/rows", json={"label": "external"}).json()["rows"][0]["id"]
+    assert client.post(f"/workbench/rows/{row_id}/propose").status_code == 422  # no linked paper
+    assert client.post("/workbench/rows/999999/propose").status_code == 404

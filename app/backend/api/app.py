@@ -76,6 +76,7 @@ from app.backend.summarization.verification import StanceScorer, SupportScorer, 
 from integrations.crossref import CrossrefClient
 from integrations.doaj.journals import DoajJournalsClient
 from integrations.gemini import AxisClusterLabeler, AxisTermSuggester, ResearchSummaryGenerator
+from integrations.gemini.extraction_assistant import ExtractionAssistant
 from integrations.openalex import OpenAlexAuthorClient, OpenAlexClient
 from integrations.openalex.sources import OpenAlexSourcesClient
 from integrations.retraction_watch import RetractionWatchClient
@@ -109,6 +110,7 @@ def create_app(
     semantic_scholar_client: SemanticScholarClient | None = None,
     research_summary_generator: ResearchSummaryGenerator | None = None,
     overview_generator: OverviewGenerator | None = None,
+    extraction_assistant: ExtractionAssistant | None = None,
     help_assistant: HelpAssistant | None = None,
     discovery_registry: SourceRegistry | None = None,
     feed_registry: FeedRegistry | None = None,
@@ -181,6 +183,7 @@ def create_app(
     api.state.openalex_author_client = openalex_author_client
     api.state.research_summary_generator = research_summary_generator
     api.state.overview_generator = overview_generator
+    api.state.extraction_assistant = extraction_assistant  # SP2b: assisted-extraction funnel (None → built per-request)
     api.state.help_assistant = help_assistant
     # Optional account (SP1): the OIDC "Sign in with ORCID" client. None unless configured (issuer/client_id env) or
     # injected by a test. Identity-only — no library egress. Default-off: with no client, /auth/login → 503.

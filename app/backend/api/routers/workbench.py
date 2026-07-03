@@ -14,15 +14,21 @@ from __future__ import annotations
 import json
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection
 
+from app.backend import workbench_assist as wa
 from app.backend.api.dependencies import get_connection
+from app.backend.llm.egress import DataEgressDisabledError, EgressGatedExtractionAssistant
+from app.backend.llm.providers import ProviderError
 from app.backend.methods.effectsize import convert
 from app.backend.persistence import workbench_export as wx
 from app.backend.persistence import workbench_repo as wr
+from app.backend.persistence.repository import get_chunks_for_paper
+from integrations.gemini.extraction_assistant import GeminiExtractionAssistant
+from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
 
@@ -72,6 +78,11 @@ class CellPut(BaseModel):
     bbox_json: str | None = Field(default=None, max_length=2000)
 
 
+class ProposalAccept(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    value: str | None = Field(default=None, max_length=500)  # edit-before-accept override (drops exact → region)
+
+
 # --- helpers -------------------------------------------------------------------------------------------------------
 def _validate_template(design: str, submitted: list[dict]) -> None:
     """A submitted template must keep every role column of the design (key/role/type) and only add/edit non-role
@@ -112,6 +123,20 @@ def _row_or_404(conn: Connection, row_id: int) -> dict:
     if row is None:
         raise HTTPException(status_code=404, detail="Row not found")
     return row
+
+
+def _extraction_assistant(app: FastAPI) -> EgressGatedExtractionAssistant:
+    """Build the gated funnel assistant from the active provider (a test injects app.state.extraction_assistant).
+    The gate raises DataEgressDisabledError on a non-loopback provider without consent — mirrors _summary_generator."""
+    config = GeminiConfig.from_environment()
+    inner = app.state.extraction_assistant or GeminiExtractionAssistant(config=config)
+    return EgressGatedExtractionAssistant(
+        inner=inner,
+        data_egress_enabled=config.data_egress_enabled,
+        provider=config.provider,
+        wire_format=config.wire_format,
+        base_url=config.base_url,
+    )
 
 
 # --- projects ------------------------------------------------------------------------------------------------------
@@ -274,3 +299,76 @@ def export_project(project_id: int, format: str = "csv", conn: Connection = Depe
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="extraction-{project_id}{suffix}.csv"'},
     )
+
+
+# --- assisted extraction (SP2b funnel): the LLM PROPOSES candidates; a human accepts each into ma_cells ------------
+@router.post("/workbench/rows/{row_id}/propose")
+def propose_row(row_id: int, request: Request, conn: Connection = Depends(get_connection)) -> dict:
+    """Draft candidate values for a row's EMPTY STRUCTURED cells from its linked paper's PDF. Candidates land ONLY in
+    ma_proposals (never ma_cells) — convert/export stay candidate-safe until a human accepts. Egress rides the gate."""
+    row = _row_or_404(conn, row_id)
+    if row["paper_id"] is None:
+        raise HTTPException(status_code=422, detail="Link a library paper to this row before drafting.")
+    view = _project_or_404(conn, row["project_id"])
+    vrow = next((r for r in view["rows"] if r["id"] == row_id), None)
+    fields = wa.proposable_fields(view["template"], (vrow or {}).get("cells", {}))
+    if not fields:
+        return {"proposals": [], "truncated": False}  # nothing empty+structured to draft — no egress
+    pdf_path = wa.primary_pdf_path(conn, row["paper_id"])
+    if pdf_path is None:
+        raise HTTPException(status_code=422, detail="This paper has no processed local PDF to draft from.")
+    text, truncated = wa.page_tagged_text(get_chunks_for_paper(conn, row["paper_id"]))
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="This paper has no extracted text to draft from.")
+    assistant = _extraction_assistant(request.app)
+    try:
+        raw = assistant.propose(text=text, fields=fields)
+    except DataEgressDisabledError:
+        raise HTTPException(
+            status_code=403, detail="AI features are off. Enable data egress in Settings to draft from the PDF."
+        ) from None
+    except ProviderError as exc:
+        raise HTTPException(status_code=502, detail=f"The AI provider failed: {exc}") from None
+    proposals = wa.assemble_proposals(pdf_path, raw, {f["key"] for f in fields})
+    wr.replace_row_proposals(conn, row_id, proposals)
+    conn.commit()
+    return {"proposals": wr.proposals_for_row(conn, row_id), "truncated": truncated}
+
+
+@router.post("/workbench/proposals/{proposal_id}/accept")
+def accept_proposal(proposal_id: int, payload: ProposalAccept, conn: Connection = Depends(get_connection)) -> dict:
+    """Promote a candidate into the trusted cell. Precision is derived from anchor_state (invariant #2): keep the
+    exact bbox only when anchor_state == 'exact' AND the value wasn't overridden. Clears the stale g; deletes the
+    proposal."""
+    prop = wr.get_proposal(conn, proposal_id)
+    if prop is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    row = _row_or_404(conn, prop["row_id"])
+    edited = payload.value is not None
+    final_value = payload.value if edited else prop["value"]
+    keep_exact = prop["anchor_state"] == "exact" and not edited
+    wr.upsert_cell(
+        conn,
+        prop["row_id"],
+        prop["field_key"],
+        value=final_value,
+        page=prop["page"],
+        quote=prop["quote"],
+        bbox_json=prop["bbox_json"] if keep_exact else None,
+        origin="assisted",
+    )
+    wr.set_converted(conn, prop["row_id"], None)  # a new value invalidates the stale effect size (inc-256/258 rule)
+    wr.delete_proposal(conn, proposal_id)
+    conn.commit()
+    return _project_or_404(conn, row["project_id"])
+
+
+@router.post("/workbench/proposals/{proposal_id}/reject")
+def reject_proposal(proposal_id: int, conn: Connection = Depends(get_connection)) -> dict:
+    prop = wr.get_proposal(conn, proposal_id)
+    if prop is None:
+        raise HTTPException(status_code=404, detail="Proposal not found")
+    row = _row_or_404(conn, prop["row_id"])
+    wr.delete_proposal(conn, proposal_id)
+    conn.commit()
+    return _project_or_404(conn, row["project_id"])
