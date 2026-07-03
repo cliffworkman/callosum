@@ -183,6 +183,29 @@ def test_search_covers_all_authors_and_scopes(temp_db_url: str) -> None:
     assert ids(q="agriculture") == {other}
 
 
+def test_oversized_search_query_rejected_at_boundary(temp_db_url: str) -> None:
+    # A q longer than SQLite's SQLITE_MAX_LIKE_PATTERN_LENGTH (50000) becomes a LIKE pattern
+    # `%<q>%` that raised `OperationalError: LIKE or GLOB pattern too complex` -> HTTP 500 (QA route_22)
+    # — but only once SQLite actually evaluates the LIKE against a row, so seed one paper first.
+    # The boundary length cap (rule #4) rejects oversized input cleanly with a 422 before it reaches the
+    # DB, for every search scope — never a raw 500.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_paper(
+            conn,
+            title="Seed",
+            csl_json={"type": "article-journal", "title": "Seed", "author": [{"family": "Seed"}]},
+            first_author_family_name="Seed",
+        )
+    client = TestClient(create_app(db_url=temp_db_url))
+    huge = "a" * 50_001
+    for field in ("all", "fulltext", "title"):
+        r = client.get("/papers", params={"q": huge, "search_field": field})
+        assert r.status_code == 422, f"scope {field}: expected 422, got {r.status_code}"
+    # a normal-length query is unaffected
+    assert client.get("/papers", params={"q": "seed"}).status_code == 200
+
+
 def test_filter_by_item_type_and_item_types_endpoint(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

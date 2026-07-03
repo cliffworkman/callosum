@@ -102,6 +102,16 @@ write lock the note above describes). The QA harness's rapid concurrent API call
 background embed/score job holding the write transaction) provoke it far more readily than a human. Confirms this is
 the highest-value pre-public concurrency item — the fix is still the deferred transaction-splitting / retry-on-busy
 increment (the naive `BEGIN IMMEDIATE` is still unsafe for the long jobs), NOT an in-session patch.
+**◆ Refined (QA runs 20260702/03 triage, 2026-07-03):** the *dominant* amplifier turned out to be a **QA-harness
+fixture-isolation bug**, not the app — `_qa_serve.py` never set `CALLOSUM_LIBRARY_DIR`, so the disposable instance's
+launch rescan imported the user's real ~47-PDF library into the throwaway DB (`route_23`: 3 seeded → "50 shown"), and
+that heavy background import (extract→embed→enrich, all writes) monopolized the single WAL write slot for the whole
+run — starving the foreground UI writes (`route_15` axes, `route_30` `PATCH /papers`, `route_65` workbench cell) into
+`database is locked` 500s. **Fixed in-session** (`_qa_serve.py` now points `CALLOSUM_LIBRARY_DIR` at an empty temp
+dir; verified count stays 3→3 across a launch rescan) — this should remove most of the QA-amplified reproduction. The
+**underlying rare human-concurrency item above stands unchanged** (a real user's write+fetch collision, or a genuine
+background score/embed job vs. a foreground write) and is still the deferred transaction-splitting / retry-on-busy
+increment. The 20260702/03 re-run (post-fix) will show how much, if anything, still 500s on a clean fixture.
 
 **Citation-equity: the "Find overlooked work" control shows on a no-DOI paper but 422s** *(Medium; QA run 20260702
 `route_51`).* The Citation-concentration panel (THEORY → Cite; inc 227/228) resolves a paper's reference list via its
@@ -117,6 +127,21 @@ it. This is a **fixture** gap, not a product bug (the real citation-import path 
 type, inc 93). Fix = pass `item_type="article-journal"` on the two `create_paper` calls in `tests/api_helpers.py::
 _seed_library` so the Type filter renders in the QA fixture. (Deliberately deferred out of the inc-250 session to
 avoid touching the shared seed helper without re-running the full 25-min suite.)
+
+**QA runs 20260702/03 — assorted UX findings (triaged 2026-07-03; the write-lock + input-cap + fixture Criticals
+were handled separately — see the `database is locked` item above + changes.md).** The independent, real polish
+items (the ones NOT downstream of the now-fixed fixture-isolation pollution):
+- *(Medium; `route_20_tags`, `route_30_detail_pane`)* **A rejected tag value shows no visible UI error** — an invalid
+  tag name/color add is rejected by the API (proper 422/404) but the UI surfaces nothing beyond console/network noise;
+  add honest inline validation feedback (`25b_tags.jsx`), the way other inline edits do.
+- *(Medium; `route_33_methods_statcheck`)* **statcheck per-test rows hide the page/quote/context** — a row shows the
+  reported/recomputed *p* + status, but the page is only in the "Open page N" button tooltip and no verbatim
+  quote/context is shown inline. Surface the quote inline (evidence-always-shown; Principle #4-adjacent). Frontend.
+- *(Low; `route_23_citation_counts` 2nd finding)* **library header action row overflows horizontally at mobile
+  width** — should wrap/fit (relevant to the B5 read-only mobile surface). CSS-only.
+- The remaining Medium/Low from `route_24/27/30/32` are **held for re-triage against the post-fix re-run** — several
+  read as downstream of the fixture pollution (broken/duplicate seed papers, the detail-pane 500 cascade), so they
+  may not reproduce on a clean fixture; don't file ghosts.
 
 **Superuser *capabilities* — what the flag gates** — **[decision — deferred by the maintainer]** the **flag shipped
 inc 195**: a `CALLOSUM_SUPERUSER_ORCIDS` env allowlist → `app_settings.is_superuser_orcid` → an `is_superuser` flag

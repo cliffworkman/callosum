@@ -176,7 +176,9 @@ class ChunkResponse(BaseModel):
 def papers_index(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    q: str | None = Query(default=None),
+    q: str | None = Query(
+        default=None, max_length=500
+    ),  # rule #4: cap length so `%<q>%` can't exceed SQLite's SQLITE_MAX_LIKE_PATTERN_LENGTH (50000) → 500
     search_field: str = Query(default="all"),  # search scope: all / title / author / journal (allowlisted in repo)
     deleted: bool = Query(default=False),  # true → the Trash listing (soft-deleted papers)
     axis_id: int | None = Query(default=None),  # filter the listing to the papers assigned to this axis

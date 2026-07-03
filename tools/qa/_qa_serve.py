@@ -88,6 +88,15 @@ def qa_server(*, egress: bool = False) -> Iterator[str]:
     # the user's real one.
     env["CALLOSUM_SETTINGS_PATH"] = str(Path(tmp.name) / "qa-app-settings.json")
     env["CALLOSUM_DISABLE_REMOTE_ACCESS"] = "1"
+    # Isolate the *library folder* too. The library folder is default-watched and auto-rescanned on launch
+    # (inc 160); with CALLOSUM_LIBRARY_DIR unset, library_dir() falls back to PROJECT_ROOT/library, so the
+    # disposable instance imports the user's real PDFs into the throwaway DB (documented 3 seeded papers ->
+    # "50 shown") AND that background import starves the single WAL write slot, 500-ing foreground writes with
+    # "database is locked" (QA runs 20260702/03, routes 15/23/30/65). Point it at an empty temp dir so the
+    # launch rescan finds nothing to import and the fixture stays exactly the seeded library.
+    empty_library = Path(tmp.name) / "empty-library"
+    empty_library.mkdir(exist_ok=True)
+    env["CALLOSUM_LIBRARY_DIR"] = str(empty_library)
     if egress:
         env["CALLOSUM_ALLOW_DATA_EGRESS"] = "1"
     else:
