@@ -1412,6 +1412,25 @@
   .wb-anchor.arming { opacity: 1; background: var(--flag-soft); outline: 1px solid var(--flag); border-radius: var(--radius-sm); }
   .wb-anchor-select { align-self: stretch; justify-content: center; }
   .wb-anchor-or { font-size: 10px; color: var(--ink-3); text-align: center; margin: 2px 0; }
+  /* inc 259 (SP2b): assisted-extraction funnel — candidate (amber) styling; no new color semantics (DESIGN #8).
+     --flag = unresolved/candidate status; --flag-soft = soft bg; --flag-line = border; --verified = accepted/ok. */
+  .wb-src-linked { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+  .wb-draft { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; }
+  .wb-draft:disabled { color: var(--ink-3); cursor: not-allowed; }
+  .wb-draft-hint { font-size: 11px; color: var(--ink-3); font-style: italic; }
+  .wb-cand { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 4px;
+    border-left: 2px solid var(--flag); background: var(--flag-soft); font-size: 12px; }
+  .wb-cand.unanchored { border-style: dashed; }
+  .wb-cand-val { color: var(--flag-ink); font-weight: 600; }
+  .wb-cand-in { max-width: 90px; }
+  .wb-badge { font-size: 11px; padding: 0 4px; border-radius: var(--radius-sm); white-space: nowrap; }
+  .wb-badge.ok { color: var(--verified); }
+  .wb-badge.flag { color: var(--flag); }
+  .wb-cand-acts { display: inline-flex; gap: 2px; margin-left: auto; }
+  .wb-cand-acts button { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 12px; }
+  .wb-cand-ok { color: var(--verified); }
+  .wb-cand-x { color: var(--danger); }
+  .wb-ai-note { color: var(--flag-ink); }
 
   .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
   .discover .pane-head { background: var(--panel); }

@@ -1436,6 +1436,25 @@
   .wb-anchor.arming { opacity: 1; background: var(--flag-soft); outline: 1px solid var(--flag); border-radius: var(--radius-sm); }
   .wb-anchor-select { align-self: stretch; justify-content: center; }
   .wb-anchor-or { font-size: 10px; color: var(--ink-3); text-align: center; margin: 2px 0; }
+  /* inc 259 (SP2b): assisted-extraction funnel — candidate (amber) styling; no new color semantics (DESIGN #8).
+     --flag = unresolved/candidate status; --flag-soft = soft bg; --flag-line = border; --verified = accepted/ok. */
+  .wb-src-linked { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+  .wb-draft { font-size: 12px; color: var(--accent); background: none; border: none; cursor: pointer; padding: 0; }
+  .wb-draft:disabled { color: var(--ink-3); cursor: not-allowed; }
+  .wb-draft-hint { font-size: 11px; color: var(--ink-3); font-style: italic; }
+  .wb-cand { display: flex; align-items: center; gap: 6px; margin-top: 4px; padding: 2px 4px;
+    border-left: 2px solid var(--flag); background: var(--flag-soft); font-size: 12px; }
+  .wb-cand.unanchored { border-style: dashed; }
+  .wb-cand-val { color: var(--flag-ink); font-weight: 600; }
+  .wb-cand-in { max-width: 90px; }
+  .wb-badge { font-size: 11px; padding: 0 4px; border-radius: var(--radius-sm); white-space: nowrap; }
+  .wb-badge.ok { color: var(--verified); }
+  .wb-badge.flag { color: var(--flag); }
+  .wb-cand-acts { display: inline-flex; gap: 2px; margin-left: auto; }
+  .wb-cand-acts button { background: none; border: none; cursor: pointer; padding: 0 2px; font-size: 12px; }
+  .wb-cand-ok { color: var(--verified); }
+  .wb-cand-x { color: var(--danger); }
+  .wb-ai-note { color: var(--flag-ink); }
 
   .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
   .discover .pane-head { background: var(--panel); }
@@ -10801,6 +10820,9 @@
     const [anchor, setAnchor] = useState(null);
     const [err, setErr] = useState("");
     const [convMsg, setConvMsg] = useState("");
+    const [aiStatus, setAiStatus] = useState(null);
+    const [aiErr, setAiErr] = useState("");
+    const [draftingRow, setDraftingRow] = useState(null);
     const loadProjects = async () => {
       const r = await api("/workbench/projects");
       if (r.ok) setProjects(r.data);
@@ -10814,6 +10836,11 @@
     };
     useEffect(() => {
       if (active && !project) loadProjects();
+    }, [active]);
+    useEffect(() => {
+      if (active) api("/settings").then((r) => {
+        if (r.ok && r.data) setAiStatus(r.data);
+      });
     }, [active]);
     const fail = (r) => {
       if (!r.ok) setErr(r.error || "Something went wrong.");
@@ -10881,6 +10908,46 @@
         msg += ` Still need valid inputs: ${names.join(", ")}${more}.`;
       }
       setConvMsg(msg);
+    };
+    const aiReady = !!aiStatus && (aiStatus.provider === "local" || aiStatus.data_egress_enabled && aiStatus.api_key_set);
+    const draftRow = async (row) => {
+      setAiErr("");
+      setDraftingRow(row.id);
+      const r = await apiPost(`/workbench/rows/${row.id}/propose`, {});
+      setDraftingRow(null);
+      if (!r.ok) {
+        setAiErr(r.error || "Couldn't draft from the PDF.");
+        return;
+      }
+      const props = r.data.proposals || [];
+      setProject((p) => ({ ...p, rows: p.rows.map((x) => x.id === row.id ? { ...x, proposals: props } : x) }));
+      if (!props.length) setAiErr("No empty structured cells to draft \u2014 clear or add a cell first.");
+      else if (r.data.truncated) setAiErr("Note: this PDF is long, so only its first part was sent to the AI.");
+    };
+    const acceptProposal = async (proposal, value) => {
+      const r = await apiPost(`/workbench/proposals/${proposal.id}/accept`, value === void 0 ? {} : { value });
+      if (r.ok) {
+        setConvMsg("");
+        setProject(r.data);
+      } else setAiErr(r.error || "Couldn't accept the candidate.");
+    };
+    const rejectProposal = async (proposal) => {
+      const r = await apiPost(`/workbench/proposals/${proposal.id}/reject`, {});
+      if (r.ok) setProject(r.data);
+      else setAiErr(r.error || "Couldn't reject the candidate.");
+    };
+    const openProposalAnchor = (row, proposal) => {
+      onOpenPdf(
+        { id: row.paper_id, title: row.paper_title || "Paper " + row.paper_id },
+        {
+          id: `wbp:${proposal.id}`,
+          paperId: row.paper_id,
+          page: proposal.page,
+          precision: proposal.anchor_state === "exact" ? "exact" : "region",
+          bboxJson: proposal.anchor_state === "exact" ? proposal.bbox_json : null,
+          quote: proposal.quote || null
+        }
+      );
     };
     const searchPapers = async (q) => {
       setAddQuery(q);
@@ -11026,7 +11093,7 @@
         key: "proto" + project.id,
         onBlur: (e) => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })
       }
-    ), convMsg && /* @__PURE__ */ React.createElement("div", { className: "wb-note" }, convMsg), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), /* @__PURE__ */ React.createElement("div", { className: "wb-gridwrap" }, /* @__PURE__ */ React.createElement("table", { className: "wb-grid" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "wb-src" }, "Source"), fields.map((f) => /* @__PURE__ */ React.createElement("th", { key: f.key, title: f.role ? "converter input" : "moderator/notes" }, f.label)), /* @__PURE__ */ React.createElement("th", { className: "wb-eff" }, "Effect size"), /* @__PURE__ */ React.createElement("th", { className: "wb-colbtn" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Add a moderator/notes column", onClick: addColumn }, "+ col")))), /* @__PURE__ */ React.createElement("tbody", null, project.rows.map((row) => /* @__PURE__ */ React.createElement("tr", { key: row.id }, /* @__PURE__ */ React.createElement("td", { className: "wb-src" }, row.paper_id != null ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Open the PDF", onClick: () => onOpenPdf({ id: row.paper_id, title: row.paper_title }) }, row.paper_title || "Paper " + row.paper_id) : /* @__PURE__ */ React.createElement(
+    ), convMsg && /* @__PURE__ */ React.createElement("div", { className: "wb-note" }, convMsg), err && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, err), aiErr && /* @__PURE__ */ React.createElement("div", { className: "wb-note wb-ai-note" }, aiErr), /* @__PURE__ */ React.createElement("div", { className: "wb-gridwrap" }, /* @__PURE__ */ React.createElement("table", { className: "wb-grid" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", { className: "wb-src" }, "Source"), fields.map((f) => /* @__PURE__ */ React.createElement("th", { key: f.key, title: f.role ? "converter input" : "moderator/notes" }, f.label)), /* @__PURE__ */ React.createElement("th", { className: "wb-eff" }, "Effect size"), /* @__PURE__ */ React.createElement("th", { className: "wb-colbtn" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Add a moderator/notes column", onClick: addColumn }, "+ col")))), /* @__PURE__ */ React.createElement("tbody", null, project.rows.map((row) => /* @__PURE__ */ React.createElement("tr", { key: row.id }, /* @__PURE__ */ React.createElement("td", { className: "wb-src" }, row.paper_id != null ? /* @__PURE__ */ React.createElement("div", { className: "wb-src-linked" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Open the PDF", onClick: () => onOpenPdf({ id: row.paper_id, title: row.paper_title }) }, row.paper_title || "Paper " + row.paper_id), /* @__PURE__ */ React.createElement(WbDraftButton, { row, aiReady, busy: draftingRow === row.id, onDraft: () => draftRow(row) })) : /* @__PURE__ */ React.createElement(
       "input",
       {
         className: "wb-label",
@@ -11038,6 +11105,8 @@
     )), fields.map((f) => {
       const cell = row.cells[f.key] || {};
       const armed = capture && !capture.result && capture.rowId === row.id && capture.fieldKey === f.key;
+      const cand = (row.proposals || []).find((p) => p.field_key === f.key);
+      const showCand = cand && !(cell.value && String(cell.value).trim());
       return /* @__PURE__ */ React.createElement("td", { key: f.key, className: "wb-cell" }, f.type === "choice" ? /* @__PURE__ */ React.createElement(
         "select",
         {
@@ -11063,8 +11132,61 @@
           onClick: () => openAnchor(row, f.key, cell)
         },
         "\u{1F4CE}"
+      ), showCand && /* @__PURE__ */ React.createElement(
+        WbCandidate,
+        {
+          proposal: cand,
+          onAccept: (v) => acceptProposal(cand, v),
+          onReject: () => rejectProposal(cand),
+          onOpen: () => openProposalAnchor(row, cand)
+        }
       ));
     }), /* @__PURE__ */ React.createElement("td", { className: "wb-eff" }, row.converted ? /* @__PURE__ */ React.createElement("span", { className: "wb-conv", title: `Var ${row.converted.variance}` }, row.converted.metric, " = ", /* @__PURE__ */ React.createElement("b", null, row.converted.value)) : /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => convertRow(row.id) }, "Convert \u2192")), /* @__PURE__ */ React.createElement("td", { className: "wb-colbtn" }, /* @__PURE__ */ React.createElement("button", { className: "wb-rowx", title: "Remove row", onClick: () => removeRow(row.id) }, "\xD7"))))))), /* @__PURE__ */ React.createElement("div", { className: "wb-add" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => addRow(null) }, "+ Add row (no paper)"), /* @__PURE__ */ React.createElement("span", { className: "wb-addpaper" }, /* @__PURE__ */ React.createElement("input", { className: "wb-in", placeholder: "+ Add paper \u2014 search your library\u2026", value: addQuery, onChange: (e) => searchPapers(e.target.value) }), addResults.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "wb-addresults" }, addResults.map((p) => /* @__PURE__ */ React.createElement("button", { key: p.id, className: "wb-addhit", onClick: () => addRow(p.id) }, p.title))))), /* @__PURE__ */ React.createElement("div", { className: "wb-note" }, "Every value is yours to enter and anchor to its source \u2014 the workspace converts and exports the dataset, it never pools or synthesizes."), anchor && /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-pop", onClick: () => setAnchor(null) }, /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-box", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-title" }, "Anchor this value to its source"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary wb-anchor-select", onClick: armFromPopover }, "\u25CE Select the value in the PDF"), /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-or" }, "\u2014 or enter it by hand (page-level) \u2014"), /* @__PURE__ */ React.createElement("label", null, "Page ", /* @__PURE__ */ React.createElement("input", { className: "wb-in", type: "number", min: "1", value: anchor.page, onChange: (e) => setAnchor((a) => ({ ...a, page: e.target.value })) })), /* @__PURE__ */ React.createElement("label", null, "Quote ", /* @__PURE__ */ React.createElement("input", { className: "wb-in", placeholder: "the reported text\u2026", value: anchor.quote, onChange: (e) => setAnchor((a) => ({ ...a, quote: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { className: "wb-anchor-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: saveAnchor }, "Save anchor"), anchor.hasCell && /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: openAtAnchor }, "Open at anchor \u2192"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setAnchor(null) }, "Cancel")))));
+  }
+  function WbDraftButton({ row, aiReady, busy, onDraft }) {
+    if (row.paper_id == null)
+      return /* @__PURE__ */ React.createElement("span", { className: "wb-draft-hint", title: "Link a library paper to draft from its PDF" }, "link a paper to draft");
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "wb-draft",
+        disabled: !aiReady || busy,
+        title: aiReady ? "Ask the AI to propose values from this paper's PDF \u2014 you verify each one before it's saved" : "Enable AI features in Settings to draft from the PDF",
+        onClick: onDraft
+      },
+      busy ? "Drafting\u2026" : "\u2728 Draft from PDF \u2192"
+    );
+  }
+  function WbAnchorBadge({ p }) {
+    if (p.anchor_state === "exact")
+      return /* @__PURE__ */ React.createElement("span", { className: "wb-badge ok", title: "Quote located in the PDF; the value is in it" }, "\u2713 exact \xB7 p.", p.page);
+    if (p.anchor_state === "region")
+      return /* @__PURE__ */ React.createElement("span", { className: "wb-badge flag", title: "Quote located, but the value isn't literally in it \u2014 verify against the source" }, "region \xB7 p.", p.page);
+    return /* @__PURE__ */ React.createElement("span", { className: "wb-badge flag", title: "Couldn't find the quote in the PDF \u2014 verify before accepting" }, "p.", p.page == null ? "?" : p.page + "?", " \u2014 couldn't verify");
+  }
+  function WbCandidate({ proposal, onAccept, onReject, onOpen }) {
+    const [editing, setEditing] = useState(false);
+    const [val, setVal] = useState(proposal.value || "");
+    const isUnanchored = proposal.anchor_state === "unanchored";
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "wb-cand" + (isUnanchored ? " unanchored" : ""),
+        title: "AI candidate \u2014 verify against the source, then accept, edit, or reject"
+      },
+      editing ? /* @__PURE__ */ React.createElement(
+        "input",
+        {
+          className: "wb-cellin wb-cand-in",
+          autoFocus: true,
+          value: val,
+          onChange: (e) => setVal(e.target.value),
+          onKeyDown: (e) => e.key === "Enter" && onAccept(val)
+        }
+      ) : /* @__PURE__ */ React.createElement("span", { className: "wb-cand-val" }, "\u270E ", proposal.value),
+      /* @__PURE__ */ React.createElement(WbAnchorBadge, { p: proposal }),
+      /* @__PURE__ */ React.createElement("span", { className: "wb-cand-acts" }, /* @__PURE__ */ React.createElement("button", { className: "wb-cand-open", title: "Open the PDF at this anchor \u2014 verify against the source", onClick: onOpen }, "\u{1F4CE}"), editing ? /* @__PURE__ */ React.createElement("button", { className: "wb-cand-ok", title: "Accept the edited value", onClick: () => onAccept(val) }, "\u2713") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { className: "wb-cand-ok", title: "Accept into the cell", onClick: () => onAccept(void 0) }, "\u2713"), /* @__PURE__ */ React.createElement("button", { className: "wb-cand-edit", title: "Edit before accepting", onClick: () => setEditing(true) }, "\u270E")), /* @__PURE__ */ React.createElement("button", { className: "wb-cand-x", title: "Reject this candidate", onClick: onReject }, "\u2717"))
+    );
   }
 })();
 </script>

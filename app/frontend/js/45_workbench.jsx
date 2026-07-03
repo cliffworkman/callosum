@@ -18,11 +18,17 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   const [anchor, setAnchor] = useState(null); // {rowId, key, page, quote} while the anchor popover is open
   const [err, setErr] = useState("");
   const [convMsg, setConvMsg] = useState(""); // transient "Converted k of N" summary after Convert-all
+  const [aiStatus, setAiStatus] = useState(null); // GET /settings — gates the Draft button
+  const [aiErr, setAiErr] = useState("");
+  const [draftingRow, setDraftingRow] = useState(null);
 
   const loadProjects = async () => { const r = await api("/workbench/projects"); if (r.ok) setProjects(r.data); };
   const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setProject(r.data); } };
 
   useEffect(() => { if (active && !project) loadProjects(); }, [active]);
+  // AI readiness for the "Draft from PDF" funnel (the existing AI-surface pattern — 20_synthesis.jsx). A cloud
+  // provider needs egress consent + a key; the builtin `local` (loopback) needs neither.
+  useEffect(() => { if (active) api("/settings").then(r => { if (r.ok && r.data) setAiStatus(r.data); }); }, [active]);
 
   const fail = (r) => { if (!r.ok) setErr(r.error || "Something went wrong."); return r.ok; };
 
@@ -80,6 +86,36 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
       msg += ` Still need valid inputs: ${names.join(", ")}${more}.`;
     }
     setConvMsg(msg);
+  };
+
+  const aiReady = !!aiStatus && (aiStatus.provider === "local" || (aiStatus.data_egress_enabled && aiStatus.api_key_set));
+
+  // Draft candidates for a row's empty structured cells (one blocking egress-gated call). The proposals ride back on
+  // the row; nothing enters a trusted cell until the human accepts (facts ≠ candidates).
+  const draftRow = async (row) => {
+    setAiErr(""); setDraftingRow(row.id);
+    const r = await apiPost(`/workbench/rows/${row.id}/propose`, {});
+    setDraftingRow(null);
+    if (!r.ok) { setAiErr(r.error || "Couldn't draft from the PDF."); return; }
+    const props = r.data.proposals || [];
+    setProject(p => ({ ...p, rows: p.rows.map(x => x.id === row.id ? { ...x, proposals: props } : x) }));
+    if (!props.length) setAiErr("No empty structured cells to draft — clear or add a cell first.");
+    else if (r.data.truncated) setAiErr("Note: this PDF is long, so only its first part was sent to the AI.");
+  };
+  const acceptProposal = async (proposal, value) => {
+    const r = await apiPost(`/workbench/proposals/${proposal.id}/accept`, value === undefined ? {} : { value });
+    if (r.ok) { setConvMsg(""); setProject(r.data); } else setAiErr(r.error || "Couldn't accept the candidate.");
+  };
+  const rejectProposal = async (proposal) => {
+    const r = await apiPost(`/workbench/proposals/${proposal.id}/reject`, {});
+    if (r.ok) setProject(r.data); else setAiErr(r.error || "Couldn't reject the candidate.");
+  };
+  // Verify a candidate against the source BEFORE accepting: exact draws the rect; region/unanchored scroll only.
+  const openProposalAnchor = (row, proposal) => {
+    onOpenPdf({ id: row.paper_id, title: row.paper_title || ("Paper " + row.paper_id) },
+      { id: `wbp:${proposal.id}`, paperId: row.paper_id, page: proposal.page,
+        precision: proposal.anchor_state === "exact" ? "exact" : "region",
+        bboxJson: proposal.anchor_state === "exact" ? proposal.bbox_json : null, quote: proposal.quote || null });
   };
 
   const searchPapers = async (q) => {
@@ -207,6 +243,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
         key={"proto" + project.id} onBlur={e => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })} />
       {convMsg && <div className="wb-note">{convMsg}</div>}
       {err && <div className="axis-err">{err}</div>}
+      {aiErr && <div className="wb-note wb-ai-note">{aiErr}</div>}
 
       <div className="wb-gridwrap">
         <table className="wb-grid">
@@ -223,13 +260,18 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
               <tr key={row.id}>
                 <td className="wb-src">
                   {row.paper_id != null
-                    ? <button className="btn-link" title="Open the PDF" onClick={() => onOpenPdf({ id: row.paper_id, title: row.paper_title })}>{row.paper_title || ("Paper " + row.paper_id)}</button>
+                    ? <div className="wb-src-linked">
+                        <button className="btn-link" title="Open the PDF" onClick={() => onOpenPdf({ id: row.paper_id, title: row.paper_title })}>{row.paper_title || ("Paper " + row.paper_id)}</button>
+                        <WbDraftButton row={row} aiReady={aiReady} busy={draftingRow === row.id} onDraft={() => draftRow(row)} />
+                      </div>
                     : <input className="wb-label" defaultValue={row.label || ""} placeholder="(label)" key={"lbl" + row.id}
                         onBlur={e => apiPatch("/workbench/rows/" + row.id, { label: e.target.value })} />}
                 </td>
                 {fields.map(f => {
                   const cell = row.cells[f.key] || {};
                   const armed = capture && !capture.result && capture.rowId === row.id && capture.fieldKey === f.key;
+                  const cand = (row.proposals || []).find(p => p.field_key === f.key);
+                  const showCand = cand && !(cell.value && String(cell.value).trim());
                   return (
                     <td key={f.key} className="wb-cell">
                       {f.type === "choice"
@@ -246,6 +288,11 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
                             : cell.page != null ? `p. ${cell.page} · ${cell.bbox_json ? "exact" : "region"}${cell.quote ? " · " + cell.quote : ""} — anchor`
                             : "Anchor: select in the PDF, or enter a page"}
                           onClick={() => openAnchor(row, f.key, cell)}>📎</button>}
+                      {showCand &&
+                        <WbCandidate proposal={cand}
+                          onAccept={(v) => acceptProposal(cand, v)}
+                          onReject={() => rejectProposal(cand)}
+                          onOpen={() => openProposalAnchor(row, cand)} />}
                     </td>
                   );
                 })}
