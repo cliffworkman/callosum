@@ -1,6 +1,6 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
 
-function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
+function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture }) {
   const [state, setState] = useState({ status: "loading" });
   const [scale, setScale] = useState(1.15);
   const [page, setPage] = useState(1);
@@ -29,6 +29,8 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
   const markCursorRef = useRef(-1);        // inc 177: index into the page-ordered highlights for next/prev navigation
   const scaleRef = useRef(scale);          // B5 (inc 239): current scale for the once-attached pinch listener
   useEffect(() => { scaleRef.current = scale; }, [scale]);
+  const armedRef = useRef(null);           // inc 255: current workbench "select-in-PDF" arm ({cb}) or null — read in the stable onPagesMouseUp
+  useEffect(() => { armedRef.current = armedCapture && onCaptureAnchor ? { cb: onCaptureAnchor } : null; }, [armedCapture, onCaptureAnchor]);
 
   // Surface a transient message (e.g. a failed save) so API errors aren't silent.
   const flashNotice = useCallback((msg) => {
@@ -324,6 +326,18 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
     });
     if (bboxes.length === 0) { setPicker(null); return; }
 
+    // inc 255 (workbench SP2a-2): if a cell has armed "select in PDF", capture THIS selection as the cell's exact
+    // anchor — its verbatim text (the value the human vets + edits) + a single union bbox — and skip the highlight
+    // picker entirely. Nothing is parsed or inferred; the coordinate is a real drawn rectangle → exact precision.
+    const armed = armedRef.current;
+    if (armed) {
+      armed.cb({ page: pageNum, bbox: wbUnionRect(bboxes), quote: anchorText });
+      const sel2 = window.getSelection();
+      if (sel2) sel2.removeAllRanges();
+      setPicker(null);
+      return;
+    }
+
     const ctx = selectionContext(textLayer, range);
     const last = clientRects[clientRects.length - 1];
     setPicker({
@@ -519,6 +533,11 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile }) {
             </button>
           </>}
       </div>
+      {armedCapture &&
+        <div className="pdf-armed-note" role="status">
+          Select the reported value in the PDF to anchor <b>{armedCapture.fieldLabel}</b> — the text becomes the cell value (yours to edit).
+          <button className="pdf-armed-cancel" onClick={() => onCancelCapture && onCancelCapture()}>Cancel</button>
+        </div>}
       <div className="pdf-body">
         <div className="pdf-scroll" ref={scrollRef} onScroll={onScroll} onMouseUp={onPagesMouseUp} onClick={onPagesClick}
              style={mobile ? { touchAction: "pan-x pan-y" } : undefined}>

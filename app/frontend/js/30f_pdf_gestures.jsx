@@ -77,3 +77,22 @@ function MinimapTrack({ annotations, numPages, onJump }) {
     </div>
   );
 }
+
+// inc 255 (workbench SP2a-2): collapse a text selection's per-line rects (the inc-29 page-relative pdf-points that
+// onPagesMouseUp produces) into ONE bounding rectangle on the selection's first page. A meta-analysis cell anchors a
+// single reported number, so one small rect keeps the stored bbox_json well under the cell's 2000-char cap while
+// still drawing as an exact highlight (normalizeBboxes/applyPdfCitationTarget render it identically to a highlight's
+// bboxes). Coords are rounded to 0.1pt — sub-point precision is meaningless for an overlay and trims the JSON.
+function wbUnionRect(bboxes) {
+  if (!bboxes || !bboxes.length) return null;
+  const page = bboxes[0].page;
+  const rects = bboxes.filter(b => b.page === page);
+  const r1 = (n) => Math.round(n * 10) / 10;
+  return {
+    page,
+    x0: r1(Math.min(...rects.map(b => b.x0))),
+    y0: r1(Math.min(...rects.map(b => b.y0))),
+    x1: r1(Math.max(...rects.map(b => b.x1))),
+    y1: r1(Math.max(...rects.map(b => b.y1))),
+  };
+}

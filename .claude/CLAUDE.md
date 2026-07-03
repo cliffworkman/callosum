@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 254** (see Increment workflow) with **992 pytest tests
+It is currently at **Increment 255** (see Increment workflow) with **992 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -250,9 +250,9 @@ the enrichment-action endpoints (`reresolve_paper` + `fill_metadata` + `FillMeta
 **Watch (re-measure before trusting):** `clustering/my_publications.py` (~594 — now the **closest** backend file;
 split before the next addition there), `js/10_pdf_layer.jsx` (**594** — the closest frontend chunk after the inc-238
 read-only gates), `js/25_detail.jsx` (**492** — inc 238 split the inline-field primitives → `js/24_detail_fields.jsx`
-[159] when the read-only additions took it over the 600 cap [HEAD was already 624]), `js/30_viewer.jsx` (**573** —
-inc 239 split the minimap + pinch-zoom → `js/30f_pdf_gestures.jsx` [64] when the pinch effect took it over the 600 cap
-[629]), `repository.py` (**565**),
+[159] when the read-only additions took it over the 600 cap [HEAD was already 624]), `js/30_viewer.jsx` (**563** —
+inc 255 added the SP2a-2 armed-capture branch + banner; inc 239 had split the minimap + pinch-zoom →
+`js/30f_pdf_gestures.jsx` [now **94**, +the inc-255 `wbUnionRect` selection-union helper]), `repository.py` (**565**),
 `routers/papers.py` (**528**), `extraction.py` (~551), `routers/axes.py` (~537) — all under 600, but check `wc -l`
 before adding to them.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
@@ -365,7 +365,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 254). Each increment of real work
+callosum is built in **numbered increments** (currently at 255). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

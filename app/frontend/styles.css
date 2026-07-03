@@ -1382,6 +1382,10 @@
   .wb-anchor-title { font-size: 13px; font-weight: 600; }
   .wb-anchor-box label { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--ink-3); }
   .wb-anchor-actions { display: flex; gap: 10px; align-items: center; margin-top: 4px; }
+  /* inc 255 (SP2a-2): a cell "armed" for select-in-PDF capture — amber --flag = pending/unresolved status (§2). */
+  .wb-anchor.arming { opacity: 1; background: var(--flag-soft); outline: 1px solid var(--flag); border-radius: var(--radius-sm); }
+  .wb-anchor-select { align-self: stretch; justify-content: center; }
+  .wb-anchor-or { font-size: 10px; color: var(--ink-3); text-align: center; margin: 2px 0; }
 
   .discover { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
   .discover .pane-head { background: var(--panel); }
@@ -1436,6 +1440,13 @@
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .pdf-spacer { flex: 1 1 auto; }
+  /* inc 255 (SP2a-2): the "select the value to anchor" prompt shown while a workbench cell is armed — amber status. */
+  .pdf-armed-note {
+    flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 7px 14px;
+    font-family: var(--sans); font-size: 12px; color: var(--flag-ink);
+    background: var(--flag-soft); border-bottom: 1px solid var(--flag-line);
+  }
+  .pdf-armed-cancel { margin-left: auto; border: none; background: none; color: var(--flag-ink); text-decoration: underline; cursor: pointer; font-size: 12px; }
   .pdf-zoom { display: inline-flex; align-items: center; gap: 6px; }
   .pdf-zoom button {
     width: 24px; height: 24px; border: 1px solid var(--line-2); background: var(--bg);

@@ -8,7 +8,7 @@ const WB_DESIGNS = [
   { key: "correlation", label: "Correlation (→ Fisher's z)" },
 ];
 
-function WorkbenchPane({ active, onOpenPdf }) {
+function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureApplied }) {
   const [projects, setProjects] = useState([]);
   const [project, setProject] = useState(null); // the full view, or null on the picker
   const [newName, setNewName] = useState("");
@@ -71,17 +71,54 @@ function WorkbenchPane({ active, onOpenPdf }) {
 
   const saveAnchor = async () => {
     const page = anchor.page === "" ? null : Number(anchor.page);
-    await putCell(anchor.rowId, anchor.key, { page: Number.isFinite(page) ? page : null, quote: anchor.quote || null });
+    // a hand-entered anchor has no bbox → clear any stale bbox so precision honestly falls back to region.
+    await putCell(anchor.rowId, anchor.key, { page: Number.isFinite(page) ? page : null, quote: anchor.quote || null, bbox_json: null });
     setAnchor(null);
   };
+  // 📎 opens the cell's anchor hub: select-in-PDF (the primary capture), manual page+quote, and — once anchored —
+  // "Open at anchor" (exact if a bbox was captured, else region — invariant #2, derived from what provenance exists).
   const openAnchor = (row, key, cell) => {
-    if (cell && cell.page != null && row.paper_id != null) {
-      onOpenPdf({ id: row.paper_id, title: row.paper_title || ("Paper " + row.paper_id) },
-        { id: `wb:${row.id}:${key}`, paperId: row.paper_id, page: cell.page, precision: "region" });
-    } else {
-      setAnchor({ rowId: row.id, key, page: (cell && cell.page) || "", quote: (cell && cell.quote) || "" });
-    }
+    setAnchor({ rowId: row.id, key, page: (cell && cell.page) || "", quote: (cell && cell.quote) || "",
+      hasCell: !!(cell && (cell.page != null || cell.value)) });
   };
+  // Arm "select in PDF" for a cell: the parent opens the paper; the next text selection there flows back to putCell.
+  const armCapture = (row, key) => {
+    if (row.paper_id == null) return;
+    setAnchor(null);
+    const f = (project.template || []).find(x => x.key === key) || {};
+    onArmCapture({
+      paper: { id: row.paper_id, title: row.paper_title || ("Paper " + row.paper_id) },
+      paperId: row.paper_id, projectId: project.id, rowId: row.id, fieldKey: key,
+      fieldLabel: f.label || key, page: (row.cells[key] && row.cells[key].page) || null,
+    });
+  };
+  const armFromPopover = () => {
+    const row = project.rows.find(r => r.id === anchor.rowId);
+    if (row) armCapture(row, anchor.key);
+  };
+  const openAtAnchor = () => {
+    const row = project.rows.find(r => r.id === anchor.rowId);
+    if (!row || row.paper_id == null) return;
+    const cell = row.cells[anchor.key] || {};
+    onOpenPdf({ id: row.paper_id, title: row.paper_title || ("Paper " + row.paper_id) },
+      { id: `wb:${row.id}:${anchor.key}`, paperId: row.paper_id, page: cell.page,
+        precision: cell.bbox_json ? "exact" : "region", bboxJson: cell.bbox_json || null, quote: cell.quote || null });
+    setAnchor(null);
+  };
+  // A captured selection arrived for this project → write it into the cell: value = the verbatim selected text
+  // (capped + human-editable, never parsed/inferred), its page + quote, and the union bbox as bbox_json → an EXACT
+  // anchor. onCaptureApplied clears the shared state (→ this fires once; the guard no-ops on the clear).
+  useEffect(() => {
+    if (!capture || !capture.result || !project || capture.projectId !== project.id) return;
+    const { rowId, fieldKey, result } = capture;
+    putCell(rowId, fieldKey, {
+      value: (result.quote || "").slice(0, 500) || null,
+      page: result.page ?? null,
+      quote: (result.quote || "").slice(0, 4000) || null,
+      bbox_json: result.bbox ? JSON.stringify([result.bbox]) : null,
+    });
+    onCaptureApplied();
+  }, [capture]);
 
   const addColumn = async () => {
     const label = window.prompt("New column label (a moderator / notes column):");
@@ -158,6 +195,7 @@ function WorkbenchPane({ active, onOpenPdf }) {
                 </td>
                 {fields.map(f => {
                   const cell = row.cells[f.key] || {};
+                  const armed = capture && !capture.result && capture.rowId === row.id && capture.fieldKey === f.key;
                   return (
                     <td key={f.key} className="wb-cell">
                       {f.type === "choice"
@@ -169,8 +207,10 @@ function WorkbenchPane({ active, onOpenPdf }) {
                             inputMode={f.type === "number" ? "decimal" : "text"}
                             onBlur={e => e.target.value !== (cell.value || "") && putCell(row.id, f.key, { value: e.target.value || null })} />}
                       {row.paper_id != null &&
-                        <button className={"wb-anchor" + (cell.page != null ? " set" : "")}
-                          title={cell.page != null ? `p. ${cell.page}${cell.quote ? " · " + cell.quote : ""} — open` : "Anchor to a page + quote"}
+                        <button className={"wb-anchor" + (cell.page != null ? " set" : "") + (armed ? " arming" : "")}
+                          title={armed ? "Selecting in the PDF…"
+                            : cell.page != null ? `p. ${cell.page} · ${cell.bbox_json ? "exact" : "region"}${cell.quote ? " · " + cell.quote : ""} — anchor`
+                            : "Anchor: select in the PDF, or enter a page"}
                           onClick={() => openAnchor(row, f.key, cell)}>📎</button>}
                     </td>
                   );
@@ -203,10 +243,13 @@ function WorkbenchPane({ active, onOpenPdf }) {
         <div className="wb-anchor-pop" onClick={() => setAnchor(null)}>
           <div className="wb-anchor-box" onClick={e => e.stopPropagation()}>
             <div className="wb-anchor-title">Anchor this value to its source</div>
+            <button className="btn btn-primary wb-anchor-select" onClick={armFromPopover}>◎ Select the value in the PDF</button>
+            <div className="wb-anchor-or">— or enter it by hand (page-level) —</div>
             <label>Page <input className="wb-in" type="number" min="1" value={anchor.page} onChange={e => setAnchor(a => ({ ...a, page: e.target.value }))} /></label>
             <label>Quote <input className="wb-in" placeholder="the reported text…" value={anchor.quote} onChange={e => setAnchor(a => ({ ...a, quote: e.target.value }))} /></label>
             <div className="wb-anchor-actions">
               <button className="btn btn-primary" onClick={saveAnchor}>Save anchor</button>
+              {anchor.hasCell && <button className="btn-link" onClick={openAtAnchor}>Open at anchor →</button>}
               <button className="btn-link" onClick={() => setAnchor(null)}>Cancel</button>
             </div>
           </div>
