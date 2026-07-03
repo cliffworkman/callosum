@@ -31,7 +31,7 @@ class GeminiAxisTermSuggester:
     def suggest(self, *, label: str, description: str | None) -> list[str]:
         from app.backend.llm.providers import complete, requires_egress
 
-        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+        if requires_egress(self.config) and not self.config.data_egress_enabled:
             # Bail BEFORE the network call, so egress-off never touches a cloud provider.
             raise DataEgressDisabledError("Axis-term suggestion requires explicit data-egress consent.")
         result = complete(self.config, _prompt(label=label, description=description))

@@ -464,9 +464,13 @@ def _research_summary_generator(app: FastAPI) -> ResearchSummaryGenerator:
     if inner is None:
         inner = GeminiResearchSummaryGenerator(config=config)
     # Authoritative egress gate at the seam — covers the injected generator AND the default (invariant #3;
-    # provider-aware: a loopback local provider needs no egress consent).
+    # endpoint-aware: a loopback provider needs no egress consent).
     return EgressGatedResearchSummaryGenerator(
-        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
+        inner=inner,
+        data_egress_enabled=config.data_egress_enabled,
+        provider=config.provider,
+        wire_format=config.wire_format,
+        base_url=config.base_url,
     )
 
 

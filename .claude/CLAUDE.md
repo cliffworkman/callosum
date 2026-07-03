@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 255** (see Increment workflow) with **992 pytest tests
+It is currently at **Increment 256** (see Increment workflow) with **1008 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -45,13 +45,20 @@ the full per-increment narrative for all other increments now lives in the reloc
   a LibreOffice (UNO) cite-while-you-write macro (`adapters/libreoffice/`) that places ReferenceMark live fields +
   rides `render-document` — client-side, no server change.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
-- **LLM (selective, multi-provider — inc 149):** all generators route through one
-  `app/backend/llm/providers.py::complete(config, prompt)` seam — **Gemini** (`google-genai`, default
-  `gemini-2.5-flash-lite`) / **OpenAI** / **Anthropic** / a **local** OpenAI-compatible endpoint (Ollama etc.),
-  the latter three via **httpx** (no new dep). LLM is used for **generation only** (summary, axis-terms, research
-  summary, overview, help) and is **OFF by default** (egress gate, invariant #3); a **loopback local** provider
-  runs with **zero egress** (`requires_egress("local")` is False). Verification NLI runs locally
-  (`cross-encoder/nli-MiniLM2-L6-H768`).
+- **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
+  one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
+  (`app/backend/providers_store.py`): four pre-seeded builtins — **Gemini** (`google-genai`, default
+  `gemini-2.5-flash-lite`) / **OpenAI** / **Anthropic** / a **local** OpenAI-compatible endpoint (Ollama etc.) —
+  **plus user-added custom providers** `{name, base_url, api_key, wire_format ∈ messages|chat_completions|responses,
+  models[]}` (any OpenAI/Anthropic-compatible endpoint: DeepSeek, Together, Groq, OpenRouter, vLLM). The builtins
+  are **synthesized on read** (never persisted); only `custom_providers` + id-keyed secrets are stored (additive,
+  no migration; the active selection reuses the flat inc-149 `provider`/`model` fields). `complete()` dispatches on
+  `config.wire_format` (gemini-SDK / `{base}/v1/messages` / `{base}/v1/chat/completions` / `{base}/v1/responses`),
+  all non-gemini via **httpx** (no new dep). LLM is **generation only** (summary, axis-terms, research summary,
+  overview, help) and **OFF by default** (egress gate, invariant #3). **Egress is endpoint-based** (inc 256):
+  `requires_egress(config)` gates any **non-loopback** base URL exactly like Gemini, while a **loopback** provider
+  (local or a custom `127.0.0.1` endpoint) runs with **zero egress** — so an arbitrary user URL honors #3 for free.
+  Verification NLI runs locally (`cross-encoder/nli-MiniLM2-L6-H768`).
 - **Frontend:** modular source under `app/frontend/` (`index.html` shell + `styles.css` +
   ordered `js/*.jsx` React chunks, React/ReactDOM + pdf.js via CDN), assembled by
   `app/backend/api/frontend.py`: the JSX chunks are concatenated and **precompiled to plain JS by
@@ -247,6 +254,10 @@ read/priority feature landed in it): the paper-lifecycle cluster (trash/purge/ti
 **Inc 226** split `routers/papers.py` (598→**528**, was at the 600 cap when the per-identifier `source` field landed):
 the enrichment-action endpoints (`reresolve_paper` + `fill_metadata` + `FillMetadataResponse` + `_crossref`) → new
 `routers/paper_enrich.py` (113; imports `PaperDetailResponse`/`_detail_for` from papers.py, no cycle).
+**Inc 256** split `js/35_settings.jsx` (604→**471**, over the cap when the unified-provider-roster UI landed): the
+whole AI-features block (`AiSettings` + `ProviderRow` + `AddProviderForm`/`ProviderFields`/`ProviderModelsEditor`)
+→ new `js/35b_providers.jsx` (**362**) via the shared-IIFE function hoist (the inc-208/222 precedent — `AiSettings()`
+is called unchanged from `SettingsModal`).
 **Watch (re-measure before trusting):** `clustering/my_publications.py` (~594 — now the **closest** backend file;
 split before the next addition there), `js/10_pdf_layer.jsx` (**594** — the closest frontend chunk after the inc-238
 read-only gates), `js/25_detail.jsx` (**492** — inc 238 split the inline-field primitives → `js/24_detail_fields.jsx`
@@ -365,7 +376,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 255). Each increment of real work
+callosum is built in **numbered increments** (currently at 256). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

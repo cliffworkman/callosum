@@ -24,40 +24,35 @@ SUMMARY_PROMPT_VERSION = "summary-v1"
 # imports keep resolving unchanged.
 __all__ = ["DataEgressDisabledError", "GeminiConfig", "LLMConfig", "GeminiSummaryGenerator"]
 
-# Per-provider default models (inc 149). `local` has no default — the user names their own model.
-DEFAULT_MODELS = {
-    "gemini": "gemini-2.5-flash-lite",
-    "openai": "gpt-4o-mini",
-    "anthropic": "claude-3-5-haiku-latest",
-    "local": "",
-}
-
 
 @dataclass(frozen=True)
 class LLMConfig:
-    """Provider-neutral LLM config (inc 149). `provider` ∈ gemini/openai/anthropic/local; `api_key` is the
-    ACTIVE provider's resolved key; `base_url` is the loopback endpoint for the local provider. The generators
-    route every call through ``app.backend.llm.providers.complete(config, prompt)``."""
+    """Provider-neutral LLM config (inc 149; unified provider roster inc 256). `provider` is a roster id (a
+    builtin gemini/openai/anthropic/local OR a custom uuid); `wire_format` selects the transport
+    (gemini SDK / messages / chat_completions / responses); `api_key` is the ACTIVE provider's resolved key;
+    `base_url` is the provider's endpoint (None for the gemini SDK). Every call routes through
+    ``app.backend.llm.providers.complete(config, prompt)``; egress is decided endpoint-based from this config."""
 
     model: str = "gemini-2.5-flash-lite"
     api_key_env: str = "GOOGLE_API_KEY"
     api_key: str | None = None
     provider: str = "gemini"
-    base_url: str | None = None  # the local (OpenAI-compatible) endpoint
+    wire_format: str = "gemini"
+    base_url: str | None = None  # the provider's endpoint host (None for the gemini SDK)
     data_egress_enabled: bool = False
     help_assistant_enabled: bool = False
 
     @classmethod
     def from_environment(cls) -> "LLMConfig":
-        # BYOK (inc 146/149): the Settings UI stores the provider + per-provider key + egress consent in a local
-        # file; when present, the stored value OVERLAYS the env default (env stays the fallback). Lazy import keeps
-        # integrations/ loosely coupled to app.backend.
+        # BYOK (inc 146/149/256): the Settings UI stores the active provider id + per-provider key + egress
+        # consent; the provider roster (base_url/wire_format/model) is resolved via ``providers_store``. Stored
+        # values OVERLAY the env defaults (env stays the fallback). Lazy imports keep integrations/ loosely coupled.
+        from app.backend import providers_store
         from app.backend.app_settings import load_settings
 
         stored = load_settings()
-        provider = stored.get("provider")
-        if provider not in {"gemini", "openai", "anthropic", "local"}:
-            provider = "gemini"
+        record = providers_store.active_provider()
+        provider = record["id"]
         env_egress = os.getenv("CALLOSUM_ALLOW_DATA_EGRESS", "").strip().lower() in {"1", "true", "yes"}
         stored_egress = stored.get("data_egress_enabled")
         enabled = stored_egress if isinstance(stored_egress, bool) else env_egress
@@ -67,13 +62,12 @@ class LLMConfig:
         env_help = os.getenv("CALLOSUM_HELP_ASSISTANT_ENABLED", "").strip().lower() in {"1", "true", "yes"}
         stored_help = stored.get("help_assistant_enabled")
         help_enabled = stored_help if isinstance(stored_help, bool) else env_help
-        model = (stored.get("model") or "").strip() or DEFAULT_MODELS.get(provider, DEFAULT_MODELS["gemini"])
-        base_url = (stored.get("local_base_url") or "").strip() or None
         return cls(
             provider=provider,
-            model=model,
+            wire_format=record["wire_format"],
+            model=providers_store.active_model(),
             api_key=_resolve_key(provider),
-            base_url=base_url,
+            base_url=record["base_url"],
             data_egress_enabled=enabled,
             help_assistant_enabled=help_enabled,
         )
@@ -118,7 +112,7 @@ class GeminiSummaryGenerator:
     ) -> list[CandidateSummarySentence]:
         from app.backend.llm.providers import complete, requires_egress
 
-        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+        if requires_egress(self.config) and not self.config.data_egress_enabled:
             raise DataEgressDisabledError("Summary generation requires explicit data-egress consent.")
         result = complete(self.config, _prompt(source_chunks=source_chunks, scope_ref=scope_ref))
         log_usage("summary", self.config.model, result)

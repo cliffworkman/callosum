@@ -545,10 +545,14 @@ def _axis_term_suggester(app: FastAPI) -> AxisTermSuggester:
     inner = app.state.axis_term_suggester
     if inner is None:
         inner = GeminiAxisTermSuggester(config=config)
-    # Authoritative egress gate at the seam — covers the injected suggester AND the default (provider-aware: a
-    # loopback local provider needs no egress consent).
+    # Authoritative egress gate at the seam — covers the injected suggester AND the default (endpoint-aware: a
+    # loopback provider needs no egress consent).
     return EgressGatedAxisTermSuggester(
-        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
+        inner=inner,
+        data_egress_enabled=config.data_egress_enabled,
+        provider=config.provider,
+        wire_format=config.wire_format,
+        base_url=config.base_url,
     )
 
 
@@ -559,7 +563,11 @@ def _axis_cluster_labeler(app: FastAPI) -> AxisClusterLabeler:
         inner = GeminiAxisClusterLabeler(config=config)
     # Authoritative egress gate at the seam — covers the injected labeler AND the default.
     return EgressGatedAxisClusterLabeler(
-        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
+        inner=inner,
+        data_egress_enabled=config.data_egress_enabled,
+        provider=config.provider,
+        wire_format=config.wire_format,
+        base_url=config.base_url,
     )
 
 

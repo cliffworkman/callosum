@@ -320,6 +320,26 @@
   .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
+  /* Unified LLM provider roster (inc 256) — one editable list: the 4 presets + custom {name,base_url,wire_format,models}. Tokens only. */
+  .provider-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+  .provider-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 8px 10px; }
+  .provider-card.is-active { border-color: var(--accent); }
+  .provider-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .provider-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left; color: var(--ink); }
+  .provider-caret { flex: 0 0 auto; width: 10px; font-size: 10px; color: var(--ink-3); }
+  .provider-name { font-weight: 600; font-size: 13px; color: var(--ink); }
+  .provider-badge { flex: 0 0 auto; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--line); color: var(--ink-2); white-space: nowrap; }
+  .provider-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+  .provider-active { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); }
+  .provider-body { margin-top: 6px; }
+  .provider-endpoint { margin-bottom: 4px; }
+  /* Active provider is a cloud endpoint but AI features are off — an amber status nudge (DESIGN §4: --flag), not red. */
+  .provider-egress-warn { font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 9px; margin: 0 0 8px; }
+  .provider-models { display: flex; flex-direction: column; gap: 6px; }
+  /* "+ Add provider" — a green add affordance (DESIGN §2: add/create buttons are --verified). */
+  .provider-add-btn { border: 1px solid var(--verified); background: var(--bg); color: var(--verified); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; }
+  .provider-add-btn:not(:disabled):hover { background: var(--verified-soft); }
+  .provider-add-btn:disabled { opacity: .4; cursor: default; }
   .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
   /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
   .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }
@@ -9460,103 +9480,6 @@
     const summaryText = !s ? "" : s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` : s.status === "no-identity" ? "Add your name or ORCID first." : s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} \u2014 check the name / ORCID.` : "Done.";
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "My Publications"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Your name"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "e.g. Ada Lovelace", value: name, onChange: (e) => setName(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Other published names (one per line)"), /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 2, placeholder: "A. Lovelace\nAugusta Ada King", value: variants, onChange: (e) => setVariants(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "ORCID (recommended \u2014 gives an exact match)"), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "0000-0002-1825-0097", value: orcid, onChange: (e) => setOrcid(e.target.value) })), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: saving, onClick: save }, saving ? "Saving\u2026" : "Save"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: refresh.status === "running" || !name.trim() && !orcid.trim(), onClick: runRefresh }, refresh.status === "running" ? "Gathering\u2026" : "Refresh my papers")), refresh.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Resolving via OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Refresh failed: ", refresh.error), refresh.status === "done" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, summaryText), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Resolved via OpenAlex (public metadata \u2014 not the Gemini gate); never uses an LLM."));
   }
-  const AI_PROVIDERS = [
-    { id: "gemini", label: "Google Gemini", keyUrl: "https://aistudio.google.com/apikey" },
-    { id: "openai", label: "OpenAI", keyUrl: "https://platform.openai.com/api-keys" },
-    { id: "anthropic", label: "Anthropic (Claude)", keyUrl: "https://console.anthropic.com/settings/keys" },
-    { id: "local", label: "Local model (no data leaves)", keyUrl: null }
-  ];
-  function AiSettings() {
-    const [status, setStatus] = useState(null);
-    const [keyInput, setKeyInput] = useState("");
-    const [urlInput, setUrlInput] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [msg, setMsg] = useState("");
-    const [test, setTest] = useState(null);
-    const [testing, setTesting] = useState(false);
-    const refresh = (data) => {
-      setStatus(data);
-      setUrlInput(data.local_base_url || "");
-    };
-    useEffect(() => {
-      api("/settings").then((r) => {
-        if (r.ok) refresh(r.data);
-      });
-    }, []);
-    const provider = status ? status.provider : "gemini";
-    const meta = AI_PROVIDERS.find((p) => p.id === provider) || AI_PROVIDERS[0];
-    const isLocal = provider === "local";
-    const put = async (body, doneMsg) => {
-      setBusy(true);
-      setMsg("");
-      setTest(null);
-      const r = await apiPut("/settings", body);
-      setBusy(false);
-      if (r.ok) {
-        refresh(r.data);
-        if (doneMsg) setMsg(doneMsg);
-        return true;
-      }
-      setMsg("Couldn't save: " + (r.error || "error"));
-      return false;
-    };
-    const changeProvider = async (p) => {
-      setKeyInput("");
-      await put({ provider: p });
-    };
-    const saveKey = async () => {
-      const val = keyInput;
-      if (await put({ set_api_key: true, api_key: val, api_key_provider: provider }, val.trim() ? "Key saved." : "Key cleared.")) setKeyInput("");
-    };
-    const clearKey = () => put({ set_api_key: true, api_key: "", api_key_provider: provider }, "Key cleared.");
-    const saveUrl = () => put({ set_local_base_url: true, local_base_url: urlInput }, "Endpoint saved.");
-    const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
-    const toggleHelp = () => status && put({ help_assistant_enabled: !status.help_assistant_enabled });
-    const testActive = async () => {
-      setTesting(true);
-      setTest(null);
-      const r = await apiPost("/settings/test-key", {});
-      setTesting(false);
-      setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
-    };
-    const egressOn = !!(status && status.data_egress_enabled);
-    const helpOn = !!(status && status.help_assistant_enabled);
-    const keySet = !!(status && status.api_key_set);
-    const fromEnv = status && status.api_key_source === "env";
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI features"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Model provider"), /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: provider, disabled: busy, onChange: (e) => changeProvider(e.target.value) }, AI_PROVIDERS.map((p) => /* @__PURE__ */ React.createElement("option", { key: p.id, value: p.id }, p.label)))), isLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Local endpoint (OpenAI-compatible)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "e.g. Ollama / LM Studio at ", /* @__PURE__ */ React.createElement("code", null, "http://127.0.0.1:11434"), ". Must be a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ", so no data-egress consent is needed.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "http://127.0.0.1:11434", value: urlInput, onChange: (e) => setUrlInput(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !urlInput.trim(), onClick: saveUrl }, busy ? "Saving\u2026" : "Save")), status && status.local_base_url && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testActive }, testing ? "Testing\u2026" : "Test connection"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, meta.label, " API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via an environment variable." : status && status.key_storage === "keychain" ? "A key is saved in your OS keychain." : "A key is saved in a local file on this machine." : "Not set. AI features need a key \u2014 stored locally (your OS keychain if available), sent only to the provider.", meta.keyUrl ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { href: meta.keyUrl, target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192")) : null)), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        className: "settings-input",
-        type: "password",
-        autoComplete: "off",
-        placeholder: keySet && !fromEnv ? "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved) \u2014 type to replace" : "Paste your key",
-        value: keyInput,
-        onChange: (e) => setKeyInput(e.target.value)
-      }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: saveKey }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: clearKey }, "Clear")), keySet && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: testActive }, testing ? "Testing\u2026" : "Test key"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to ", meta.label, ")", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to ", meta.label, "; every sentence is still verified locally against your PDFs.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "settings-switch" + (egressOn ? " on" : ""),
-        role: "switch",
-        "aria-checked": egressOn,
-        "aria-label": "Allow AI features",
-        onClick: toggleEgress
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    ))), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "AI help assistant", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Answers questions about using Callosum (the \u201CAsk\u2026\u201D box in Help). Its ", /* @__PURE__ */ React.createElement("b", null, "own"), " switch \u2014 it sends only your question + the public help docs, never your library, so it works with any provider and is independent of the egress toggle above.", status && status.help_source === "env" ? " Currently set by the CALLOSUM_HELP_ASSISTANT_ENABLED environment variable." : "")), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        type: "button",
-        className: "settings-switch" + (helpOn ? " on" : ""),
-        role: "switch",
-        "aria-checked": helpOn,
-        "aria-label": "AI help assistant",
-        onClick: toggleHelp
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement("div", { className: "settings-ai-note" }, "Whichever provider you choose, every summary sentence is still ", /* @__PURE__ */ React.createElement("b", null, "verified locally"), " against your PDFs \u2014 your model choice affects draft quality + coverage, never which citations are accepted."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
-  }
   function MetadataSettings() {
     const [status, setStatus] = useState(null);
     const [email, setEmail] = useState("");
@@ -9830,6 +9753,306 @@
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
     )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+  }
+  const AI_KEY_URLS = {
+    gemini: "https://aistudio.google.com/apikey",
+    openai: "https://platform.openai.com/api-keys",
+    anthropic: "https://console.anthropic.com/settings/keys"
+  };
+  const WIRE_LABELS = {
+    gemini: "Gemini SDK",
+    messages: "Anthropic messages (/v1/messages)",
+    chat_completions: "Chat completions (/chat/completions)",
+    responses: "Responses (/responses)"
+  };
+  function isLoopbackUrl(u) {
+    try {
+      const h = new URL(u).hostname.replace(/^\[|\]$/g, "");
+      return h === "127.0.0.1" || h === "localhost" || h === "::1" || h === "0.0.0.0";
+    } catch (e) {
+      return false;
+    }
+  }
+  function ProviderModelsEditor({ models, setModels, disabled }) {
+    const update = (i, v) => setModels(models.map((m, j) => j === i ? v : m));
+    return /* @__PURE__ */ React.createElement("div", { className: "provider-models" }, models.map((m, i) => /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow", key: i }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "model name, e.g. gpt-4o-mini",
+        value: m,
+        disabled,
+        onChange: (e) => update(i, e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-ghost",
+        disabled,
+        onClick: () => setModels(models.filter((_, j) => j !== i)),
+        "aria-label": "Remove model"
+      },
+      "\xD7"
+    ))), /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled, onClick: () => setModels([...models, ""]) }, "+ Add model"));
+  }
+  function ProviderFields({ draft, setDraft, disabled, wireFormats }) {
+    const set = (k, v) => setDraft({ ...draft, [k]: v });
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Name"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "e.g. DeepSeek",
+        value: draft.name,
+        disabled,
+        onChange: (e) => set("name", e.target.value)
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Base URL", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Just the host \u2014 Callosum adds the API path (", /* @__PURE__ */ React.createElement("code", null, "/v1/\u2026"), ") itself. A trailing ", /* @__PURE__ */ React.createElement("code", null, "/v1"), " is fine; it's trimmed.")), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        placeholder: "https://api.deepseek.com",
+        value: draft.base_url,
+        disabled,
+        onChange: (e) => set("base_url", e.target.value)
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "API format", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How the provider expects the request. Most (DeepSeek, Together, Groq, OpenRouter, vLLM) use ", /* @__PURE__ */ React.createElement("b", null, "Chat completions"), "; pick ", /* @__PURE__ */ React.createElement("b", null, "Anthropic messages"), " only for a Claude-compatible endpoint.")), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "settings-input",
+        value: draft.wire_format,
+        disabled,
+        onChange: (e) => set("wire_format", e.target.value)
+      },
+      wireFormats.map((w) => /* @__PURE__ */ React.createElement("option", { key: w, value: w }, WIRE_LABELS[w] || w))
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Models"), /* @__PURE__ */ React.createElement(ProviderModelsEditor, { models: draft.models, setModels: (m) => set("models", m), disabled })));
+  }
+  function AddProviderForm({ busy, wireFormats, onCancel, onCreate }) {
+    const [draft, setDraft] = useState({ name: "", base_url: "", wire_format: "chat_completions", models: [""], api_key: "" });
+    const canSubmit = draft.name.trim() && draft.base_url.trim() && !busy;
+    const submit = () => onCreate({
+      name: draft.name.trim(),
+      base_url: draft.base_url.trim(),
+      wire_format: draft.wire_format,
+      models: draft.models.map((s) => s.trim()).filter(Boolean),
+      api_key: draft.api_key
+    });
+    return /* @__PURE__ */ React.createElement("div", { className: "provider-card provider-card-draft" }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, "New provider")), /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, /* @__PURE__ */ React.createElement(ProviderFields, { draft, setDraft, disabled: busy, wireFormats }), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "API key (optional)"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: "Paste the provider's key",
+        value: draft.api_key,
+        onChange: (e) => setDraft({ ...draft, api_key: e.target.value })
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: onCancel }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canSubmit, onClick: submit }, busy ? "Adding\u2026" : "Add provider"))));
+  }
+  function ProviderModelPicker({ p, activeModel, busy, onActivate }) {
+    const models = p.models || [];
+    const [text, setText] = useState(activeModel || "");
+    if (models.length > 0) {
+      const value = models.includes(activeModel) ? activeModel : models[0];
+      return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Model"), /* @__PURE__ */ React.createElement("select", { className: "settings-input", value, disabled: busy, onChange: (e) => onActivate(p.id, e.target.value) }, models.map((m) => /* @__PURE__ */ React.createElement("option", { key: m, value: m }, m))));
+    }
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Model", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The model name your endpoint serves (e.g. ", /* @__PURE__ */ React.createElement("code", null, "llama3.1"), ").")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "model name", value: text, onChange: (e) => setText(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !text.trim(), onClick: () => onActivate(p.id, text.trim()) }, "Set")));
+  }
+  function ProviderRow({
+    p,
+    active,
+    activeModel,
+    status,
+    busy,
+    testing,
+    test,
+    wireFormats,
+    egressOn,
+    onActivate,
+    onSaveKey,
+    onSaveUrl,
+    onTest,
+    onUpdate,
+    onDelete
+  }) {
+    const [open, setOpen] = useState(active);
+    const [keyInput, setKeyInput] = useState("");
+    const [urlInput, setUrlInput] = useState(p.base_url || "");
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(null);
+    const isLocal = p.id === "local";
+    const isLoopback = !isLocal && isLoopbackUrl(p.base_url);
+    const isCloud = !isLocal && !isLoopback;
+    const needsConsent = active && isCloud && !egressOn;
+    const keyUrl = AI_KEY_URLS[p.id];
+    const keySet = p.key_set;
+    const fromEnv = active && status && status.api_key_source === "env";
+    const saveKey = async () => {
+      if (await onSaveKey(p.id, keyInput)) setKeyInput("");
+    };
+    const startEdit = () => {
+      setDraft({ name: p.name, base_url: p.base_url || "", wire_format: p.wire_format, models: (p.models || []).slice() });
+      setEditing(true);
+    };
+    const saveEdit = async () => {
+      const patch = {
+        name: draft.name.trim(),
+        base_url: draft.base_url.trim(),
+        wire_format: draft.wire_format,
+        models: draft.models.map((s) => s.trim()).filter(Boolean)
+      };
+      if (await onUpdate(p.id, patch, "Saved.")) setEditing(false);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "provider-card" + (active ? " is-active" : "") }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("button", { className: "provider-toggle", onClick: () => setOpen(!open), "aria-expanded": open }, /* @__PURE__ */ React.createElement("span", { className: "provider-caret" }, open ? "\u25BE" : "\u25B8"), /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, p.name), /* @__PURE__ */ React.createElement("span", { className: "provider-badge" }, WIRE_LABELS[p.wire_format] || p.wire_format)), /* @__PURE__ */ React.createElement("span", { className: "provider-actions" }, active ? /* @__PURE__ */ React.createElement("span", { className: "provider-active" }, "Active") : /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: () => onActivate(p.id) }, "Use"), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link danger", disabled: busy, onClick: () => onDelete(p.id) }, "Delete"))), open && /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, needsConsent && !editing && /* @__PURE__ */ React.createElement("div", { className: "provider-egress-warn" }, "\u26A0 AI features are off \u2014 Callosum won't contact ", /* @__PURE__ */ React.createElement("b", null, p.name), " until you turn on ", /* @__PURE__ */ React.createElement("b", null, "Allow AI features"), " below."), isLocal ? /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Local endpoint (OpenAI-compatible)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "e.g. Ollama / LM Studio at ", /* @__PURE__ */ React.createElement("code", null, "http://127.0.0.1:11434"), ". Must be a loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ", so no data-egress consent is needed.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "http://127.0.0.1:11434", value: urlInput, onChange: (e) => setUrlInput(e.target.value) }), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !urlInput.trim(), onClick: () => onSaveUrl(urlInput) }, busy ? "Saving\u2026" : "Save"))) : editing ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(ProviderFields, { draft, setDraft, disabled: busy, wireFormats }), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => setEditing(false) }, "Cancel"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy || !draft.name.trim() || !draft.base_url.trim(), onClick: saveEdit }, busy ? "Saving\u2026" : "Save details"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, isCloud && p.base_url && /* @__PURE__ */ React.createElement("div", { className: "settings-sub provider-endpoint" }, "Sends to ", /* @__PURE__ */ React.createElement("code", null, p.base_url), " \u2014 your library text goes there when you generate a summary."), !p.builtin && isLoopback && /* @__PURE__ */ React.createElement("div", { className: "settings-sub provider-endpoint" }, "Loopback address \u2014 ", /* @__PURE__ */ React.createElement("b", null, "nothing leaves your machine"), ", so no data-egress consent is needed."), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "API key", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, keySet ? fromEnv ? "Set via an environment variable." : status && status.key_storage === "keychain" ? "A key is saved in your OS keychain." : "A key is saved locally on this machine." : "Not set. Stored locally (your OS keychain if available), sent only to this provider.", keyUrl ? /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("a", { href: keyUrl, target: "_blank", rel: "noopener noreferrer" }, "Get a key \u2192")) : null)), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: keySet && !fromEnv ? "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022 (saved) \u2014 type to replace" : "Paste your key",
+        value: keyInput,
+        onChange: (e) => setKeyInput(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !keyInput.trim(), onClick: saveKey }, busy ? "Saving\u2026" : "Save"), keySet && !fromEnv && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => onSaveKey(p.id, "") }, "Clear"))), !p.builtin && /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: busy, onClick: startEdit }, "Edit name / URL / models")), active && !editing && /* @__PURE__ */ React.createElement(ProviderModelPicker, { p, activeModel, busy, onActivate }), active && !editing && (isLocal ? !!(status && status.local_base_url) : keySet) && /* @__PURE__ */ React.createElement("div", { className: "settings-keytest" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: testing, onClick: onTest }, testing ? "Testing\u2026" : isLocal ? "Test connection" : "Test key"), test && /* @__PURE__ */ React.createElement("span", { className: "settings-keytest-result " + (test.ok ? "ok" : "err") }, test.detail))));
+  }
+  function AiSettings() {
+    const [roster, setRoster] = useState(null);
+    const [status, setStatus] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const [test, setTest] = useState(null);
+    const [testing, setTesting] = useState(false);
+    const [adding, setAdding] = useState(false);
+    const reload = async () => {
+      const [pr, st] = await Promise.all([api("/settings/providers"), api("/settings")]);
+      if (pr.ok) setRoster(pr.data);
+      if (st.ok) setStatus(st.data);
+    };
+    useEffect(() => {
+      reload();
+    }, []);
+    const put = async (body, doneMsg) => {
+      setBusy(true);
+      setMsg("");
+      setTest(null);
+      const r = await apiPut("/settings", body);
+      setBusy(false);
+      if (r.ok) {
+        await reload();
+        if (doneMsg) setMsg(doneMsg);
+        return true;
+      }
+      setMsg("Couldn't save: " + (r.error || "error"));
+      return false;
+    };
+    const activate = (id, model) => put({ provider: id, set_model: true, model: model || "" });
+    const saveKey = (id, val) => put({ set_api_key: true, api_key: val, api_key_provider: id }, val.trim() ? "Key saved." : "Key cleared.");
+    const saveUrl = (url) => put({ set_local_base_url: true, local_base_url: url }, "Endpoint saved.");
+    const toggleEgress = () => status && put({ data_egress_enabled: !status.data_egress_enabled });
+    const toggleHelp = () => status && put({ help_assistant_enabled: !status.help_assistant_enabled });
+    const testActive = async () => {
+      setTesting(true);
+      setTest(null);
+      const r = await apiPost("/settings/test-key", {});
+      setTesting(false);
+      setTest(r.ok ? r.data : { ok: false, detail: r.error || "Test failed." });
+    };
+    const createProvider = async (draft) => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPost("/settings/providers", {
+        name: draft.name,
+        base_url: draft.base_url,
+        wire_format: draft.wire_format,
+        models: draft.models
+      });
+      if (r.ok && draft.api_key && draft.api_key.trim()) {
+        await apiPut("/settings", { set_api_key: true, api_key: draft.api_key, api_key_provider: r.data.id });
+      }
+      if (r.ok) {
+        await apiPut("/settings", { provider: r.data.id, set_model: true, model: draft.models[0] || "" });
+      }
+      setBusy(false);
+      if (r.ok) {
+        setAdding(false);
+        await reload();
+        setMsg(`${draft.name} added and set as active.`);
+        return true;
+      }
+      setMsg("Couldn't add: " + (r.error || "error"));
+      return false;
+    };
+    const updateProvider = async (id, patch, doneMsg) => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut(`/settings/providers/${id}`, patch);
+      setBusy(false);
+      if (r.ok) {
+        await reload();
+        if (doneMsg) setMsg(doneMsg);
+        return true;
+      }
+      setMsg("Couldn't save: " + (r.error || "error"));
+      return false;
+    };
+    const deleteProvider = async (id) => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiDelete(`/settings/providers/${id}`);
+      setBusy(false);
+      if (r.ok) {
+        await reload();
+        setMsg("Provider removed.");
+      } else setMsg("Couldn't remove: " + (r.error || "error"));
+    };
+    const egressOn = !!(status && status.data_egress_enabled);
+    const helpOn = !!(status && status.help_assistant_enabled);
+    const providers = roster ? roster.providers : [];
+    const activeId = roster ? roster.active_provider : "gemini";
+    const activeModel = roster ? roster.active_model : "";
+    const wireFormats = roster ? roster.wire_formats : ["messages", "chat_completions", "responses"];
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI features"), /* @__PURE__ */ React.createElement("div", { className: "provider-list" }, providers.map((p) => /* @__PURE__ */ React.createElement(
+      ProviderRow,
+      {
+        key: p.id,
+        p,
+        active: p.id === activeId,
+        activeModel,
+        status,
+        busy,
+        testing,
+        test: p.id === activeId ? test : null,
+        wireFormats,
+        egressOn,
+        onActivate: activate,
+        onSaveKey: saveKey,
+        onSaveUrl: saveUrl,
+        onTest: testActive,
+        onUpdate: updateProvider,
+        onDelete: deleteProvider
+      }
+    ))), adding ? /* @__PURE__ */ React.createElement(AddProviderForm, { busy, wireFormats, onCancel: () => setAdding(false), onCreate: createProvider }) : /* @__PURE__ */ React.createElement("button", { className: "btn provider-add-btn", disabled: busy, onClick: () => setAdding(true) }, "+ Add provider"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Allow AI features (sends text to the active provider)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, generating a summary sends the relevant library text to your active cloud provider; every sentence is still verified locally against your PDFs. A loopback local provider needs no consent \u2014 nothing leaves your machine.", status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : "")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (egressOn ? " on" : ""),
+        role: "switch",
+        "aria-checked": egressOn,
+        "aria-label": "Allow AI features",
+        onClick: toggleEgress
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "AI help assistant", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Answers questions about using Callosum (the \u201CAsk\u2026\u201D box in Help). Its ", /* @__PURE__ */ React.createElement("b", null, "own"), " switch \u2014 it sends only your question + the public help docs, never your library, so it works with any provider and is independent of the egress toggle above.", status && status.help_source === "env" ? " Currently set by the CALLOSUM_HELP_ASSISTANT_ENABLED environment variable." : "")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (helpOn ? " on" : ""),
+        role: "switch",
+        "aria-checked": helpOn,
+        "aria-label": "AI help assistant",
+        onClick: toggleHelp
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), /* @__PURE__ */ React.createElement("div", { className: "settings-ai-note" }, "Whichever provider you choose, every summary sentence is still ", /* @__PURE__ */ React.createElement("b", null, "verified locally"), " against your PDFs \u2014 your model choice affects draft quality + coverage, never which citations are accepted."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");

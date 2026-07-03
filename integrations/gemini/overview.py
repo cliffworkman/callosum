@@ -30,7 +30,7 @@ class GeminiOverviewGenerator:
     def generate(self, *, verified_claims: list[str], scope_ref: dict[str, object]) -> list[OverviewSentence]:
         from app.backend.llm.providers import complete, requires_egress
 
-        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+        if requires_egress(self.config) and not self.config.data_egress_enabled:
             raise DataEgressDisabledError("Overview generation requires explicit data-egress consent.")
         result = complete(self.config, _prompt(verified_claims))
         log_usage("overview", self.config.model, result)

@@ -248,8 +248,8 @@ def _summary_generator(api: FastAPI) -> SummaryGenerator:
     config = GeminiConfig.from_environment()
     inner = api.state.summary_generator
     if inner is None:
-        # A loopback `local` provider needs neither egress consent nor an API key (inc 149).
-        if requires_egress(config.provider):
+        # A loopback provider (builtin `local` or a localhost custom) needs neither egress consent nor a key.
+        if requires_egress(config):
             if not config.data_egress_enabled:
                 raise RuntimeError("summary generation requires data-egress consent (Settings → AI features)")
             if not config.resolved_api_key():
@@ -261,6 +261,8 @@ def _summary_generator(api: FastAPI) -> SummaryGenerator:
         inner=CachedSummaryGenerator(inner=inner),
         data_egress_enabled=config.data_egress_enabled,
         provider=config.provider,
+        wire_format=config.wire_format,
+        base_url=config.base_url,
     )
 
 
@@ -273,12 +275,16 @@ def _overview_generator(api: FastAPI):
     inner = api.state.overview_generator
     if inner is None:
         # For a cloud provider, no overview without egress + a key (the verified claims stand alone); a loopback
-        # `local` provider needs neither.
-        if requires_egress(config.provider) and not (config.data_egress_enabled and config.resolved_api_key()):
+        # provider (builtin `local` or a localhost custom) needs neither.
+        if requires_egress(config) and not (config.data_egress_enabled and config.resolved_api_key()):
             return None
         inner = GeminiOverviewGenerator(config=config)
     return EgressGatedOverviewGenerator(
-        inner=inner, data_egress_enabled=config.data_egress_enabled, provider=config.provider
+        inner=inner,
+        data_egress_enabled=config.data_egress_enabled,
+        provider=config.provider,
+        wire_format=config.wire_format,
+        base_url=config.base_url,
     )
 
 

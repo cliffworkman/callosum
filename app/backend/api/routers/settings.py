@@ -14,8 +14,8 @@ import os
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from app.backend import app_settings
-from app.backend.llm.providers import ALL_PROVIDERS, is_loopback_url, requires_egress
+from app.backend import app_settings, providers_store
+from app.backend.llm.providers import is_loopback_url, requires_egress
 from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
@@ -93,7 +93,7 @@ def _stored_key(provider: str) -> bool:
 def _status() -> SettingsStatus:
     stored = app_settings.load_settings()
     provider = stored.get("provider")
-    if provider not in ALL_PROVIDERS:
+    if provider not in providers_store.provider_ids():
         provider = "gemini"
     ui_key = _stored_key(provider)
     env_key = bool(os.getenv(_KEY_ENV[provider])) if provider in _KEY_ENV else False
@@ -148,7 +148,7 @@ def get_settings() -> SettingsStatus:
 @router.put("/settings", response_model=SettingsStatus)
 def put_settings(update: SettingsUpdate) -> SettingsStatus:
     if update.provider is not None:
-        if update.provider not in ALL_PROVIDERS:
+        if update.provider not in providers_store.provider_ids():
             raise HTTPException(status_code=422, detail=f"Unknown provider: {update.provider}")
         app_settings.set_provider(update.provider)
     if update.set_local_base_url:
@@ -163,7 +163,7 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         app_settings.set_model(update.model)
     if update.set_api_key:
         target = update.api_key_provider or update.provider or app_settings.load_settings().get("provider") or "gemini"
-        if target not in ALL_PROVIDERS:
+        if target not in providers_store.provider_ids():
             target = "gemini"
         app_settings.set_provider_key(target, update.api_key)  # max_length on the field already 422s an oversized key
     if update.data_egress_enabled is not None:
@@ -221,11 +221,11 @@ def test_key() -> KeyTestResult:
     from app.backend.llm import providers  # late import so tests can monkeypatch providers.complete
 
     cfg = GeminiConfig.from_environment()
-    if requires_egress(cfg.provider) and not cfg.data_egress_enabled:
+    if requires_egress(cfg) and not cfg.data_egress_enabled:
         return KeyTestResult(
             ok=False, detail="Turn on “Allow AI features” first — Callosum won’t contact a provider while it’s off."
         )
-    if requires_egress(cfg.provider) and not cfg.resolved_api_key():
+    if requires_egress(cfg) and not cfg.resolved_api_key():
         return KeyTestResult(ok=False, detail="No API key is set for this provider. Paste one above and Save.")
     try:
         result = providers.complete(cfg, "Reply with the single word OK.")

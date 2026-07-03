@@ -16,8 +16,9 @@ from integrations.gemini.generator import GeminiConfig, GeminiSummaryGenerator
 class _Cfg:
     """A duck-typed config for complete() (avoids constructing a full LLMConfig)."""
 
-    def __init__(self, provider, model="m", api_key="k", base_url=None):
+    def __init__(self, provider, model="m", api_key="k", base_url=None, wire_format=None):
         self.provider, self.model, self._key, self.base_url = provider, model, api_key, base_url
+        self.wire_format = wire_format
 
     def resolved_api_key(self):
         return self._key
@@ -85,6 +86,53 @@ def test_complete_anthropic_request_and_parse():
     assert cap["url"] == "https://api.anthropic.com/v1/messages"
     assert cap["headers"]["x-api-key"] == "sk-ant" and "anthropic-version" in cap["headers"]
     assert cap["json"]["max_tokens"] >= 1
+
+
+def test_complete_responses_flat_output_text(monkeypatch: pytest.MonkeyPatch):
+    """The OpenAI Responses wire format (inc 256): POST {base}/v1/responses, body {model, input}, prefer output_text."""
+    cap = {}
+    client = _FakeClient({"output_text": "hi there", "usage": {"input_tokens": 5, "output_tokens": 2}}, cap)
+    cfg = _Cfg(
+        "deepseek", model="deepseek-chat", api_key="sk-ds", base_url="https://api.deepseek.com", wire_format="responses"
+    )
+    res = complete(cfg, "PROMPT", http_client=client)
+    assert res.text == "hi there" and res.usage_metadata.total_token_count == 7
+    assert cap["url"] == "https://api.deepseek.com/v1/responses"
+    assert cap["headers"]["Authorization"] == "Bearer sk-ds"
+    assert cap["json"] == {"model": "deepseek-chat", "input": "PROMPT"}  # {model, input}, not messages[]
+
+
+def test_complete_responses_walks_output_structure():
+    """When there's no flat output_text, the parser walks output[].content[].text (raw Responses shape)."""
+    cap = {}
+    data = {
+        "output": [
+            {"type": "reasoning", "content": [{"type": "text", "text": "IGNORED"}]},  # non-message item skipped
+            {
+                "type": "message",
+                "content": [
+                    {"type": "output_text", "text": "part-1 "},
+                    {"type": "output_text", "text": "part-2"},
+                ],
+            },
+        ],
+        "usage": {"total_tokens": 9},
+    }
+    client = _FakeClient(data, cap)
+    cfg = _Cfg("custom", base_url="https://api.example.com", wire_format="responses")
+    res = complete(cfg, "PROMPT", http_client=client)
+    assert res.text == "part-1 part-2" and res.usage_metadata.total_token_count == 9
+
+
+def test_requires_egress_config_is_endpoint_based():
+    """A config arg is decided by endpoint, so a custom CLOUD url is gated exactly like Gemini and a custom
+    LOOPBACK url is honestly no-egress — invariant #3 holds for an arbitrary user-supplied provider."""
+    assert requires_egress(_Cfg("gemini"))  # the SDK always egresses to Google
+    assert requires_egress(_Cfg("acme", base_url="https://api.acme.ai", wire_format="chat_completions"))
+    assert not requires_egress(_Cfg("acme", base_url="http://127.0.0.1:1234", wire_format="chat_completions"))
+    # No base_url → fall back to the provider name (a bare directly-built config).
+    assert requires_egress(_Cfg("openai", base_url=None))
+    assert not requires_egress(_Cfg("local", base_url=None))
 
 
 def test_complete_local_loopback_uses_openai_shape():

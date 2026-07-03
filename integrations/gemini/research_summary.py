@@ -33,7 +33,7 @@ class GeminiResearchSummaryGenerator:
     def generate(self, *, documents: list[dict[str, str]]) -> str:
         from app.backend.llm.providers import complete, requires_egress
 
-        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+        if requires_egress(self.config) and not self.config.data_egress_enabled:
             raise DataEgressDisabledError("Research-summary generation requires explicit data-egress consent.")
         result = complete(self.config, _prompt(documents))
         log_usage("research-summary", self.config.model, result)

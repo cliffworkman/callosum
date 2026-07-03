@@ -296,6 +296,26 @@
   .settings-ai-note { font-size: 11px; color: var(--ink-3); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line-2); }
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
+  /* Unified LLM provider roster (inc 256) — one editable list: the 4 presets + custom {name,base_url,wire_format,models}. Tokens only. */
+  .provider-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+  .provider-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 8px 10px; }
+  .provider-card.is-active { border-color: var(--accent); }
+  .provider-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .provider-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left; color: var(--ink); }
+  .provider-caret { flex: 0 0 auto; width: 10px; font-size: 10px; color: var(--ink-3); }
+  .provider-name { font-weight: 600; font-size: 13px; color: var(--ink); }
+  .provider-badge { flex: 0 0 auto; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--line); color: var(--ink-2); white-space: nowrap; }
+  .provider-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
+  .provider-active { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); }
+  .provider-body { margin-top: 6px; }
+  .provider-endpoint { margin-bottom: 4px; }
+  /* Active provider is a cloud endpoint but AI features are off — an amber status nudge (DESIGN §4: --flag), not red. */
+  .provider-egress-warn { font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 9px; margin: 0 0 8px; }
+  .provider-models { display: flex; flex-direction: column; gap: 6px; }
+  /* "+ Add provider" — a green add affordance (DESIGN §2: add/create buttons are --verified). */
+  .provider-add-btn { border: 1px solid var(--verified); background: var(--bg); color: var(--verified); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; }
+  .provider-add-btn:not(:disabled):hover { background: var(--verified-soft); }
+  .provider-add-btn:disabled { opacity: .4; cursor: default; }
   .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
   /* B1 SP2: the agent-activity review list (one row per agent write + a Revert action). */
   .agent-activity { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }

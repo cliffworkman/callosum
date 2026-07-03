@@ -56,6 +56,13 @@ def _write(data: dict) -> None:
         pass
 
 
+def save_settings(data: dict) -> None:
+    """Persist the full settings dict (atomic write, owner-only perms). Public wrapper over ``_write`` so the
+    provider roster (inc 256, ``providers_store``) can save its non-secret list; secrets still route through the
+    keychain/file secret store below, never this plaintext file."""
+    _write(data)
+
+
 def set_api_key(key: str | None) -> None:
     """Store the Gemini key (the inc-146 entry point) — routes through the per-provider keychain/file store."""
     set_provider_key("gemini", key)
@@ -179,6 +186,13 @@ _PROVIDER_KEY_FIELD = {
     "anthropic": "anthropic_api_key",
     "local": "local_api_key",
 }
+
+
+def _key_field(provider: str) -> str:
+    """The secret-store field for a provider's key. Builtins keep their fixed inc-149 fields (Decision A — no
+    keychain migration); a custom provider id (inc 256) maps to ``provider_key::<id>``, so a user-named
+    provider's key can never collide with (or overwrite) the shared ``api_key`` field."""
+    return _PROVIDER_KEY_FIELD.get(provider) or f"provider_key::{provider}"
 
 
 def set_provider(provider: str) -> None:
@@ -323,13 +337,14 @@ def _set_secret(field: str, value: str | None) -> None:
 
 
 def get_provider_key(provider: str) -> str | None:
-    """The stored key for a provider — keychain or file (inc 152)."""
-    return _get_secret(_PROVIDER_KEY_FIELD.get(provider, "api_key"))
+    """The stored key for a provider — keychain or file (inc 152); custom ids use ``provider_key::<id>``."""
+    return _get_secret(_key_field(provider))
 
 
 def set_provider_key(provider: str, key: str | None) -> None:
-    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field). Empty/whitespace clears it."""
-    _set_secret(_PROVIDER_KEY_FIELD.get(provider, "api_key"), key)
+    """Store a per-provider API key (gemini → the inc-146 ``api_key`` field; a custom id → ``provider_key::<id>``).
+    Empty/whitespace clears it."""
+    _set_secret(_key_field(provider), key)
 
 
 # --- Remote access (inc 168): an opt-in, default-OFF bearer token gating callosum when reached via a tunnel ---

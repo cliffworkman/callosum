@@ -53,6 +53,24 @@ class HelpAssistantDisabledError(RuntimeError):
 
 
 @dataclass(frozen=True)
+class _EgressProbe:
+    """A minimal duck-typed config so the wrappers can ask ``requires_egress`` its ENDPOINT-based question
+    (inc 256). Critical for custom providers: their id is a uuid, not a name in ``CLOUD_PROVIDERS``, so a
+    name-only check would wrongly pass a custom CLOUD endpoint as no-egress. ``wire_format``/``base_url`` left
+    None fall back to the name-based decision, so a wrapper constructed with only ``provider=`` (the existing
+    tests) keeps the exact legacy truth table."""
+
+    provider: str
+    wire_format: str | None
+    base_url: str | None
+
+
+def _egress_needed(provider: str, wire_format: str | None, base_url: str | None) -> bool:
+    """Endpoint-aware egress decision for the authoritative DI-seam gate."""
+    return requires_egress(_EgressProbe(provider=provider, wire_format=wire_format, base_url=base_url))
+
+
+@dataclass(frozen=True)
 class EgressGatedSummaryGenerator:
     """Egress gate around a ``SummaryGenerator`` (injected or default).
 
@@ -61,7 +79,9 @@ class EgressGatedSummaryGenerator:
 
     inner: SummaryGenerator
     data_egress_enabled: bool
-    provider: str = "gemini"  # a loopback `local` provider needs no egress consent (inc 149)
+    provider: str = "gemini"  # a loopback provider (builtin `local` or a localhost custom) needs no consent
+    wire_format: str | None = None
+    base_url: str | None = None
 
     @property
     def name(self) -> str:
@@ -79,9 +99,9 @@ class EgressGatedSummaryGenerator:
         conn: "Connection | None" = None,
     ) -> list[CandidateSummarySentence]:
         # Egress is checked FIRST (outermost), before the inner cache is ever consulted, so egress-off
-        # behaves exactly as before — a cache hit can never bypass the gate. A loopback `local` provider keeps
-        # text on the machine (requires_egress("local") is False), so consent-to-egress is correctly N/A.
-        if requires_egress(self.provider) and not self.data_egress_enabled:
+        # behaves exactly as before — a cache hit can never bypass the gate. A loopback endpoint keeps text on
+        # the machine (egress not required), so consent-to-egress is correctly N/A.
+        if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Summary generation requires explicit data-egress consent.")
         return self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref, conn=conn)
 
@@ -93,9 +113,11 @@ class EgressGatedAxisTermSuggester:
     inner: "AxisTermSuggester"
     data_egress_enabled: bool
     provider: str = "gemini"
+    wire_format: str | None = None
+    base_url: str | None = None
 
     def suggest(self, *, label: str, description: str | None) -> list[str]:
-        if requires_egress(self.provider) and not self.data_egress_enabled:
+        if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Axis-term suggestion requires explicit data-egress consent.")
         return self.inner.suggest(label=label, description=description)
 
@@ -108,9 +130,11 @@ class EgressGatedResearchSummaryGenerator:
     inner: "ResearchSummaryGenerator"
     data_egress_enabled: bool
     provider: str = "gemini"
+    wire_format: str | None = None
+    base_url: str | None = None
 
     def generate(self, *, documents: list[dict[str, str]]) -> str:
-        if requires_egress(self.provider) and not self.data_egress_enabled:
+        if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Research-summary generation requires explicit data-egress consent.")
         return self.inner.generate(documents=documents)
 
@@ -123,13 +147,15 @@ class EgressGatedOverviewGenerator:
     inner: "OverviewGenerator"
     data_egress_enabled: bool
     provider: str = "gemini"
+    wire_format: str | None = None
+    base_url: str | None = None
 
     @property
     def name(self) -> str:
         return self.inner.name
 
     def generate(self, *, verified_claims: list[str], scope_ref: dict[str, object]) -> list["OverviewSentence"]:
-        if requires_egress(self.provider) and not self.data_egress_enabled:
+        if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Overview generation requires explicit data-egress consent.")
         return self.inner.generate(verified_claims=verified_claims, scope_ref=scope_ref)
 
@@ -141,9 +167,11 @@ class EgressGatedAxisClusterLabeler:
     inner: "AxisClusterLabeler"
     data_egress_enabled: bool
     provider: str = "gemini"
+    wire_format: str | None = None
+    base_url: str | None = None
 
     def label(self, *, titles: list[str], terms: list[str]) -> dict:
-        if requires_egress(self.provider) and not self.data_egress_enabled:
+        if _egress_needed(self.provider, self.wire_format, self.base_url) and not self.data_egress_enabled:
             raise DataEgressDisabledError("Axis-cluster labeling requires explicit data-egress consent.")
         return self.inner.label(titles=titles, terms=terms)
 

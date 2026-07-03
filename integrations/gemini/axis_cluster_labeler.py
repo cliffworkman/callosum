@@ -33,7 +33,7 @@ class GeminiAxisClusterLabeler:
     def label(self, *, titles: list[str], terms: list[str]) -> dict:
         from app.backend.llm.providers import complete, requires_egress
 
-        if requires_egress(self.config.provider) and not self.config.data_egress_enabled:
+        if requires_egress(self.config) and not self.config.data_egress_enabled:
             # Bail BEFORE the network call, so egress-off never touches a cloud provider.
             raise DataEgressDisabledError("Axis-cluster labeling requires explicit data-egress consent.")
         result = complete(self.config, _prompt(titles=titles, terms=terms))
