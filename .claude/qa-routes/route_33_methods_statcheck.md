@@ -32,8 +32,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 ## Steps
 
 1. Open the **METHODS pane → "Statistics check"** section. Select a paper, then run its per-paper check ("This paper" → Check statistics; `GET /papers/{paper_id}/statcheck`).
-2. Confirm each row shows the reported statistic, recomputed p value, match status, page/quote when known, and counts. Assert there is no composite score and no accusation.
-3. Click each row with a location. Confirm coordinate honesty: exact bbox only for exact; approximate/null do not draw fake highlights (per-test rows open the page at region precision).
+2. Confirm each row shows the reported statistic (verbatim `raw`), recomputed p value, match status, and counts.
+   **inc 257: the page is now surfaced INLINE on each row** as a **`p. N`** locator (mono, indigo — it was
+   tooltip-only before); a test with no attributed page shows a muted **`p. —`** (`.statcheck-page-none`), never a
+   fabricated page. Assert there is no composite score and no accusation.
+3. Click each row with a location. Confirm coordinate honesty: the inline `p. N` opens that page at **region**
+   precision (page-open, no bbox rect — statcheck has no exact coordinates); a `p. —` row has no page to open. An
+   approximate/null location must never draw a fake exact highlight.
 4. In the same section's "Whole library" block, start library statcheck (Check all papers; `POST /methods/statcheck/run`) and poll (`GET /methods/statcheck/run/{job_id}`). Navigate away mid-run and return.
 5. After completion confirm the summary (`GET /methods/statcheck/summary`) drives the "N with inconsistencies" count and the library "⚠ N flagged" header chip; aggregate counts are transparent filters, not ranks. Click the **"⚠ N flagged" chip** (inc 141) → the library filters to flagged papers, the METHODS **Statistics check** section opens, the **top flagged paper is auto-selected**, and its per-test rows **auto-show** (no manual "Check statistics" click) — the citer lands on the specific inconsistent result, not just "which papers".
 6. Directly visit a fake job id and a paper without parseable methods text. Confirm clean empty/error states. Confirm statcheck no longer appears in Settings or the Details pane (it lives only in the METHODS section now).

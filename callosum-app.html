@@ -907,8 +907,10 @@
   .lib-select-all { font-family: var(--sans); font-size: 11px; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; margin-left: 8px; }
   .lib-select-all:hover { text-decoration: underline; }
 
-  .lib-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .lib-head-actions { display: flex; align-items: baseline; gap: 12px; }
+  .lib-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  /* inc 257: flex-wrap so the action chips (Add / saved-search / the signal-filter chips) wrap instead of
+     overflowing the pane at a narrow/mobile width — a no-op when they fit on one line (desktop unchanged). */
+  .lib-head-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
   /* duplicate-detection modal (inc 56) — reuses .axis-modal* / .axis-link / .axis-danger */
   .dup-group { border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); padding: 9px 11px; margin-bottom: 9px; }
   .dup-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -1130,6 +1132,10 @@
   .statcheck-item.flash { animation: statcheckflash 1.4s ease; }
   .statcheck-raw { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
   .statcheck-computed { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+  /* inc 257: the per-test page locator, surfaced inline (was tooltip-only). Mono; indigo = the page it opens
+     (provenance/citation jump, region precision). The p.— variant is a muted "no page attributed" note. */
+  .statcheck-page { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+  .statcheck-page-none { color: var(--ink-3); }
   .statcheck-caveat { font-size: 11px; color: var(--ink-3); margin-top: 8px; line-height: 1.45; }
   /* Bayesian auditor SP2 (inc 242): the Tier-2 reporting checklist — presence/absence rows + a coherence flag. */
   .bayes-checklist { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 8px; }
@@ -3159,7 +3165,7 @@
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to check its statistical reporting.");
     const hasText = meta ? meta.hasText : false;
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 statcheck reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from this paper's text \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No APA-format statistics found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list", ref: listRef }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : ""), title: r.page != null ? "Open page " + r.page : "", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "computed p = ", r.computed_p), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "consistent" ? "verified" : "flagged") }, label(r.consistency))))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "statcheck reads only inline APA-style tests and recomputes each p \u2014 it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) \u2014 a prompt to look, not a verdict."))));
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 statcheck reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Recompute reported p-values from this paper's text \u2014 local, no AI", onClick: run }, "Check statistics") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "checking\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't check: ", state.error), state.status === "done" && d && (d.checked === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No APA-format statistics found in the extracted text.") : /* @__PURE__ */ React.createElement("div", { className: "statcheck-result" }, /* @__PURE__ */ React.createElement("div", { className: "statcheck-summary" }, d.checked, " checked \xB7 ", d.inconsistent, " inconsistent \xB7 ", d.decision_errors, " decision error", d.decision_errors === 1 ? "" : "s"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-list", ref: listRef }, d.results.map((r, i) => /* @__PURE__ */ React.createElement("button", { key: i, className: "statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : ""), title: r.page != null ? "Open page " + r.page + " \u2014 the reported test above" : "No page recorded for this test", onClick: () => open(r.page) }, /* @__PURE__ */ React.createElement("span", { className: "statcheck-raw" }, r.raw), r.page != null ? /* @__PURE__ */ React.createElement("span", { className: "statcheck-page", title: "Open this page (region precision \u2014 the page, not an exact highlight)" }, "p. ", r.page) : /* @__PURE__ */ React.createElement("span", { className: "statcheck-page statcheck-page-none", title: "statcheck couldn't attribute this test to a page" }, "p. \u2014"), /* @__PURE__ */ React.createElement("span", { className: "statcheck-computed" }, "computed p = ", r.computed_p), /* @__PURE__ */ React.createElement("span", { className: "cite-status " + (r.consistency === "consistent" ? "verified" : "flagged") }, label(r.consistency))))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "statcheck reads only inline APA-style tests and recomputes each p \u2014 it can't see tables, Bayesian stats, or CIs, so a clean result isn't a clean bill. Inconsistencies are common and usually innocent (typos, rounding, one-tailed tests) \u2014 a prompt to look, not a verdict."))));
   }
   function StatcheckCredit() {
     const [added, setAdded] = useState("idle");
@@ -3422,21 +3428,10 @@
     };
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-howto" }, "Read this as a mirror, not a report card. If a concentration stands out, the move is to read more widely \u2014 never to drop a relevant citation, or add one to hit a number. Use ", /* @__PURE__ */ React.createElement("b", null, "Find overlooked work"), "(below) to surface topically-relevant papers your list may have missed."), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " self-citation (King et al. 2017, ", /* @__PURE__ */ React.createElement("i", null, "Socius"), "); the Matthew effect (Merton 1968, ", /* @__PURE__ */ React.createElement("i", null, "Science"), "; Perc 2014, ", /* @__PURE__ */ React.createElement("i", null, "J. R. Soc. Interface"), ").", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add to library"), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Computed structurally from OpenAlex metadata (public) \u2014 credited, not reused.")));
   }
-  function CitationEquityPaper({ paperId }) {
-    const [meta, setMeta] = useState(null);
+  function CitationEquityPaper({ paperId, meta }) {
     const [state, setState] = useState({ status: "idle" });
     useEffect(() => {
       setState({ status: "idle" });
-      setMeta(null);
-      if (paperId == null) return;
-      let live = true;
-      api(`/papers/${paperId}`).then((r) => {
-        if (!live || !r.ok) return;
-        setMeta({ title: r.data.title, hasDoi: !!r.data.doi });
-      });
-      return () => {
-        live = false;
-      };
     }, [paperId]);
     const run = async () => {
       setState({ status: "running", progress: null });
@@ -3489,7 +3484,7 @@
     const openHref = c.doi ? `https://doi.org/${c.doi}` : c.openalex_work_id ? `https://openalex.org/${c.openalex_work_id}` : null;
     return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-title" }, c.title), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-meta" }, (c.authors || []).slice(0, 3).join(", "), c.year ? ` \xB7 ${c.year}` : "", c.venue ? ` \xB7 ${c.venue}` : ""), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-foot" }, /* @__PURE__ */ React.createElement("span", { className: "cite-equity-match", title: "callosum's own local embedding cosine to this paper \u2014 a topical match, never a 'you must cite this'" }, "topical match: ", c.match.toFixed(2)), c.shared_concepts && c.shared_concepts.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "cite-equity-cand-why" }, " \xB7 shared: ", c.shared_concepts.join(", ")), openHref && /* @__PURE__ */ React.createElement("a", { className: "btn-link cite-equity-cand-open", href: openHref, target: "_blank", rel: "noopener noreferrer" }, "Open \u2197"), st === "in" ? /* @__PURE__ */ React.createElement("span", { className: "cite-equity-cand-inlib" }, "\u2713 in library") : /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: st !== "idle", onClick: add }, st === "added" ? "\u2713 in library" : st === "adding" ? "adding\u2026" : "\uFF0B Add to library")), c.abstract && /* @__PURE__ */ React.createElement("details", { className: "cite-equity-cand-abstract" }, /* @__PURE__ */ React.createElement("summary", null, "Abstract"), /* @__PURE__ */ React.createElement("p", null, c.abstract)));
   }
-  function OverlookedWork({ paperId }) {
+  function OverlookedWork({ paperId, hasDoi }) {
     const [state, setState] = useState({ status: "idle" });
     useEffect(() => {
       setState({ status: "idle" });
@@ -3518,7 +3513,7 @@
     };
     if (paperId == null) return null;
     const rep = state.report;
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overlooked work"), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked-intro" }, "Relevant work you may have missed \u2014 candidates to consider, ranked by topical match (callosum's own local embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite."), state.status === "idle" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overlooked work"), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked-intro" }, "Relevant work you may have missed \u2014 candidates to consider, ranked by topical match (callosum's own local embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite."), hasDoi === false && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so OpenAlex can't relate work to it \u2014 the overlooked-work search needs a DOI."), hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
@@ -3529,7 +3524,20 @@
     ), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Finding related work\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && (rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing clearly relevant that your reference list missed \u2014 or OpenAlex relates too few works to this paper. (Considered ", rep.considered, " candidates you don't already cite.)") : /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cands" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-cand-cov" }, rep.shown, " candidate", rep.shown === 1 ? "" : "s", " from ", rep.considered, " works related to your paper that you don't already cite", rep.field_topic ? /* @__PURE__ */ React.createElement(React.Fragment, null, " (field: ", /* @__PURE__ */ React.createElement("b", null, rep.field_topic.display_name), ")") : null, " \u2014 ranked by topical match; only clearly-relevant matches (cosine \u2265 0.55) are shown."), rep.candidates.map((c, i) => /* @__PURE__ */ React.createElement(OverlookedCard, { key: c.openalex_work_id || i, c })))));
   }
   function CitationEquitySection({ ctx }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId: ctx.selectedPaper }), /* @__PURE__ */ React.createElement(OverlookedWork, { paperId: ctx.selectedPaper }));
+    const paperId = ctx.selectedPaper;
+    const [meta, setMeta] = useState(null);
+    useEffect(() => {
+      setMeta(null);
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi });
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-section" }, /* @__PURE__ */ React.createElement(CitationEquityPaper, { paperId, meta }), /* @__PURE__ */ React.createElement(OverlookedWork, { paperId, hasDoi: meta ? meta.hasDoi : null }));
   }
   registerPaneTab(
     { id: "cite", label: "Cite", paneId: "theory", order: 25 },
@@ -7352,6 +7360,7 @@
     const [suggested, setSuggested] = useState(false);
     const [palette, setPalette] = useState([]);
     const [picking, setPicking] = useState(null);
+    const [error, setError] = useState("");
     const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
     const refreshSuggestions = () => api("/tags").then((r) => {
       if (r.ok) setAll(r.data);
@@ -7368,9 +7377,12 @@
       setPicking(null);
       const r = await apiPost(`/tags/${tagId}/color`, { color });
       if (r.ok) {
+        setError("");
         setTags((ts) => ts.map((t) => t.id === tagId ? { ...t, color } : t));
         refreshSuggestions();
         if (onTagsChanged) onTagsChanged();
+      } else {
+        setError(r.error || "Couldn't set that color.");
       }
     };
     useEffect(() => {
@@ -7382,19 +7394,23 @@
       if (nameArg == null) setInput("");
       const r = await apiPost(`/papers/${paperId}/tags`, { name });
       if (r.ok) {
+        setError("");
         setTags((ts) => ts.some((t) => t.id === r.data.id) ? ts : sortByName([...ts, r.data]));
         setSuggestions((s) => s.filter((x) => x.toLowerCase() !== name.toLowerCase()));
         refreshSuggestions();
         if (onTagsChanged) onTagsChanged();
+      } else {
+        setError(r.error || `Couldn't add "${name}".`);
       }
     };
     const remove = async (tagId) => {
       const r = await apiDelete(`/papers/${paperId}/tags/${tagId}`);
       if (r.ok) {
+        setError("");
         setTags((ts) => ts.filter((t) => t.id !== tagId));
         refreshSuggestions();
         if (onTagsChanged) onTagsChanged();
-      }
+      } else setError(r.error || "Couldn't remove that tag.");
     };
     const suggest = async () => {
       const r = await api(`/papers/${paperId}/suggested-tags`);
@@ -7453,7 +7469,10 @@
         placeholder: "add tag\u2026",
         value: input,
         spellCheck: false,
-        onChange: (e) => setInput(e.target.value),
+        onChange: (e) => {
+          setInput(e.target.value);
+          if (error) setError("");
+        },
         onKeyDown: (e) => {
           if (e.key === "Enter") {
             e.preventDefault();
@@ -7480,7 +7499,7 @@
       },
       "+ ",
       name
-    )), suggested && suggestions.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no new suggestions"))));
+    )), suggested && suggestions.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no new suggestions"))), error && /* @__PURE__ */ React.createElement("div", { className: "axis-err", role: "alert" }, error));
   }
   function _wantedTitle(it) {
     return it.paper_title || it.title || it.doi || "Untitled";

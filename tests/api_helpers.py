@@ -86,6 +86,7 @@ def _seed_library(db_url: str) -> dict[str, int]:
             first_author_family_name="Lovelace",
             citation_key="lovelace2024",
             processing_tier="fully-chunked",
+            item_type="article-journal",  # so GET /papers/item-types is non-empty → the Library Type filter renders
             csl_json={
                 "id": "lovelace2024",
                 "type": "article-journal",
@@ -101,6 +102,7 @@ def _seed_library(db_url: str) -> dict[str, int]:
             venue="Cognition",
             first_author_family_name="Turing",
             processing_tier="metadata-only",
+            item_type="article-journal",  # so GET /papers/item-types is non-empty → the Library Type filter renders
             csl_json={
                 "id": "turing2023",
                 "type": "article-journal",

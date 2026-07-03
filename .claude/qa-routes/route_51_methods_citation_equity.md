@@ -38,8 +38,10 @@ listeners before navigation.
 
 ## Adversarial checklist
 
-- run on a paper with **no DOI** -> the section says OpenAlex can't resolve its references; the run control is
-  absent (POST would 422)
+- run on a paper with **no DOI** -> **both** run controls are absent (inc 257): the audit shows "This paper has no
+  DOI, so OpenAlex can't resolve its references" with **no Run audit button**, and Overlooked work shows "This paper
+  has no DOI, so OpenAlex can't relate work to it — the overlooked-work search needs a DOI" with **no Find overlooked
+  work button** (previously the overlooked button was clickable → a silent 422). Neither POST is reachable from the UI.
 - run on a paper whose OpenAlex record has **no referenced_works** -> honest "nothing to audit" (no crash)
 - run on a paper with **no primary_topic** -> the report shows the list's own shape, no field comparison, no crash
 - deep-link / direct GET a non-existent citation-equity job id -> 404
@@ -69,8 +71,9 @@ listeners before navigation.
    **no "drop / remove this citation" control anywhere**; **no per-author identity** label and **no "gender balance"**
    number; **no quota / "add N to hit a target"** copy; candidates ranked by topical match, **never by citation
    count**. A no-candidate result shows an honest empty state.
-7. Adversarial: a no-DOI paper -> can't-resolve message (audit + overlooked both 422-class); a fake job id -> 404;
-   mobile viewport -> no overflow.
+7. Adversarial: a no-DOI paper -> **both** controls are gated OFF (inc 257) with their own honest no-DOI hints — no
+   Run-audit button AND no Find-overlooked-work button (neither POST is reachable, so no silent 422); a fake job id
+   -> 404; mobile viewport -> no overflow.
 
 ## Pass criteria
 
@@ -83,7 +86,8 @@ listeners before navigation.
 - **No people-categorization**: no gender/race/nationality label, no "gender balance" or "Global South" number,
   and no geography signal anywhere (audit or overlooked).
 - No composite score / rank / pass-fail / accusation; the field value is shown as context.
-- Empty/no-DOI/no-topic/error states are honest; mobile viewport has no horizontal overflow.
+- Empty/no-DOI/no-topic/error states are honest; a **no-DOI paper gates BOTH the Run-audit and Find-overlooked-work
+  controls off** (inc 257) with honest hints (no reachable 422); mobile viewport has no horizontal overflow.
 
 ## Deposit
 

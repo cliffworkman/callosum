@@ -41,7 +41,9 @@ listeners before navigation.
 - click "Citations ↻" repeatedly / while a run is in flight — the button disables; no duplicate runaway jobs
 - `POST /papers/citation-counts/refresh` with a stray body → still accepted (no body params) → 202
 - a library with no DOI papers → refresh completes with `summary.total == 0`, no error, no chips appear
-- resize to `375x812`, hard refresh — no horizontal overflow in the header action row
+- resize to `375x812`, hard refresh — the header action row **wraps to multiple lines** (inc 257: `flex-wrap` on
+  `.lib-head`/`.lib-head-actions`), no horizontal overflow or clipped/inaccessible chips (Add / saved-search / the
+  signal-filter chips all reachable)
 
 ## Steps
 

@@ -122,8 +122,11 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
             <div className="statcheck-summary">{d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}</div>
             <div className="statcheck-list" ref={listRef}>
               {d.results.map((r, i) => (
-                <button key={i} className={"statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
+                <button key={i} className={"statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page + " — the reported test above" : "No page recorded for this test"} onClick={() => open(r.page)}>
                   <span className="statcheck-raw">{r.raw}</span>
+                  {r.page != null
+                    ? <span className="statcheck-page" title="Open this page (region precision — the page, not an exact highlight)">p. {r.page}</span>
+                    : <span className="statcheck-page statcheck-page-none" title="statcheck couldn't attribute this test to a page">p. —</span>}
                   <span className="statcheck-computed">computed p = {r.computed_p}</span>
                   <span className={"cite-status " + (r.consistency === "consistent" ? "verified" : "flagged")}>{label(r.consistency)}</span>
                 </button>

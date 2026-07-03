@@ -103,19 +103,11 @@ function CiteEquityFoot() {
   );
 }
 
-function CitationEquityPaper({ paperId }) {
-  const [meta, setMeta] = useState(null);            // { title, hasDoi } | null
+function CitationEquityPaper({ paperId, meta }) {
+  // meta ({ title, hasDoi } | null) is fetched once by CitationEquitySection and shared with OverlookedWork, so a
+  // no-DOI paper gates BOTH controls off one source of truth (no duplicate /papers fetch).
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
-  useEffect(() => {
-    setState({ status: "idle" }); setMeta(null);
-    if (paperId == null) return;
-    let live = true;
-    api(`/papers/${paperId}`).then(r => {
-      if (!live || !r.ok) return;
-      setMeta({ title: r.data.title, hasDoi: !!r.data.doi });
-    });
-    return () => { live = false; };
-  }, [paperId]);
+  useEffect(() => { setState({ status: "idle" }); }, [paperId]);  // reset the audit when the paper changes
   const run = async () => {
     setState({ status: "running", progress: null });
     const poll = (jobId) => api(`/methods/citation-equity/run/${jobId}`).then(r => {
@@ -206,7 +198,7 @@ function OverlookedCard({ c }) {
   );
 }
 
-function OverlookedWork({ paperId }) {
+function OverlookedWork({ paperId, hasDoi }) {
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
   useEffect(() => { setState({ status: "idle" }); }, [paperId]);
   const run = async () => {
@@ -231,7 +223,9 @@ function OverlookedWork({ paperId }) {
         Relevant work you may have missed — candidates to consider, ranked by topical match (callosum's own local
         embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite.
       </div>
-      {state.status === "idle" &&
+      {hasDoi === false &&
+        <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't relate work to it — the overlooked-work search needs a DOI.</div>}
+      {hasDoi && state.status === "idle" &&
         <button className="btn btn-primary" onClick={run}
           title="Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)">
           Find overlooked work
@@ -251,10 +245,19 @@ function OverlookedWork({ paperId }) {
 }
 
 function CitationEquitySection({ ctx }) {
+  const paperId = ctx.selectedPaper;
+  const [meta, setMeta] = useState(null);  // { title, hasDoi } | null — fetched once, shared by both children
+  useEffect(() => {
+    setMeta(null);
+    if (paperId == null) return;
+    let live = true;
+    api(`/papers/${paperId}`).then(r => { if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi }); });
+    return () => { live = false; };
+  }, [paperId]);
   return (
     <div className="cite-equity-section">
-      <CitationEquityPaper paperId={ctx.selectedPaper} />
-      <OverlookedWork paperId={ctx.selectedPaper} />
+      <CitationEquityPaper paperId={paperId} meta={meta} />
+      <OverlookedWork paperId={paperId} hasDoi={meta ? meta.hasDoi : null} />
     </div>
   );
 }

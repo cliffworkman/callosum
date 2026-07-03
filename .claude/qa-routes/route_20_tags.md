@@ -35,6 +35,10 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 2. Filter by a tag. Confirm the paper list updates, empty states are explicit, and counts do not imply ranking or quality.
 3. Open a paper detail pane. Add a new tag (`POST /papers/{paper_id}/tags`); confirm the chip appears in detail and the global tag panel (the AXES → Tags tab) without switching papers.
 4. Add the same tag again by rapid double-submit. Confirm idempotent behavior or a clean duplicate message, never duplicate chips.
+   **inc 257: a rejected add/color/remove is no longer silent** — a failed `POST /papers/{id}/tags` (or `/color` or
+   the DELETE) renders an inline **`.axis-err`** message (`role="alert"`) below the chips (e.g. "Couldn't add …");
+   editing the input clears it. Force a rejection (oversized/invalid tag name) and confirm the honest inline message
+   appears rather than the input silently no-op'ing.
 5. Request suggested tags (`GET /papers/{paper_id}/suggested-tags`). Confirm suggestions are local, exclude existing tags, and accepting one creates exactly one chip.
 6. Remove a tag (`DELETE /papers/{paper_id}/tags/{tag_id}`). Confirm the chip disappears and orphaned tags are pruned from the global list. **inc 143 (Librarian):** removing an **imported keyword** tag (`keyword:*`, the muted chips) is **durable** — it is recorded as suppressed, so a later **🔎 re-resolve** / batch enrich does **not** silently re-add it (re-adding it by name clears the suppression). Removing a **user** tag does not suppress.
 7. **Tag colors (inc 207, A5):** click a chip's color dot in the Details Tags row → a swatch popover (the palette from `GET /tags/colors`). Pick a color → `POST /tags/{tag_id}/color` sets it; the chip recolors and the sidebar Tags-tab row shows a color dot. Clearing (the × swatch) sends `color:null`. An invalid color → **422** (allowlist). **A color is a user label, NOT a rating/score** — there is no per-paper rating field anywhere (ratings were deliberately declined: a star reduces a paper to one dimension; tags stay orthogonal + inspectable). Confirm no UI presents a numeric paper rating.
