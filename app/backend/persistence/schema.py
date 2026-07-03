@@ -623,5 +623,6 @@ from app.backend.persistence.schema_sync import (  # noqa: E402,F401
 from app.backend.persistence.schema_workbench import (  # noqa: E402,F401
     ma_cells,
     ma_projects,
+    ma_proposals,
     ma_rows,
 )

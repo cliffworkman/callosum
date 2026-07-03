@@ -70,6 +70,28 @@ ma_cells = Table(
     Column("page", Integer),
     Column("quote", Text),
     Column("bbox_json", Text),
+    Column("origin", String(20)),  # SP2b: NULL = manual/capture; "assisted" = accepted from an AI proposal (provenance)
     UniqueConstraint("row_id", "field_key", name="uq_ma_cells_row_field"),
     Index("ix_ma_cells_row_id", "row_id"),
+)
+
+# SP2b (inc 259) — an AI-drafted CANDIDATE for a cell, physically isolated from the trusted `ma_cells` so convert +
+# export stay candidate-safe with zero change. The model returns only value/quote/page; `anchor_state` is decided by
+# the deterministic local locator (never the model). bbox_json is set only when `exact`. UNIQUE(row, field) → one live
+# candidate per cell (a re-draft replaces it).
+ma_proposals = Table(
+    "ma_proposals",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("row_id", ForeignKey("ma_rows.id", ondelete="CASCADE"), nullable=False),
+    Column("field_key", String(80), nullable=False),
+    Column("value", Text),
+    Column("quote", Text),
+    Column("page", Integer),
+    Column("bbox_json", Text),
+    Column("anchor_state", String(20), nullable=False),  # exact | region | unanchored
+    Column("reason", String(40)),  # value_not_in_quote | quote_not_found (why not exact)
+    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
+    UniqueConstraint("row_id", "field_key", name="uq_ma_proposals_row_field"),
+    Index("ix_ma_proposals_row_id", "row_id"),
 )

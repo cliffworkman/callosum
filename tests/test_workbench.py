@@ -268,3 +268,59 @@ def test_revman_export_raw_study_data_by_design(temp_db_url):
     rlines = client.get(f"/workbench/projects/{rpid}/export", params={"format": "revman"}).text.strip().splitlines()
     assert rlines[0] == "Study,Effect,SE"
     assert rlines[1].startswith("S3,0.5493") and rlines[1].endswith(",0.2")  # z=atanh(.5); SE=√(1/25)=0.2
+
+
+# ---- SP2b funnel: proposals (candidates) + the origin audit column ------------------------------------------------
+
+
+def test_proposals_replace_get_delete_and_view(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = wr.create_project(conn, name="R", design="correlation")
+        row = wr.add_row(conn, pid, label="S")
+        wr.replace_row_proposals(
+            conn,
+            row,
+            [
+                {
+                    "field_key": "r",
+                    "value": "0.42",
+                    "quote": "r = .42",
+                    "page": 3,
+                    "bbox_json": '[{"page":3,"x0":1,"y0":2,"x1":3,"y1":4}]',
+                    "anchor_state": "exact",
+                    "reason": None,
+                }
+            ],
+        )
+        view = wr.project_view(conn, pid)
+        props = view["rows"][0]["proposals"]
+        got = wr.get_proposal(conn, props[0]["id"])
+        # re-drafting replaces the row's live proposals
+        wr.replace_row_proposals(
+            conn,
+            row,
+            [{"field_key": "n", "value": "60", "quote": None, "page": None, "bbox_json": None, "anchor_state": "unanchored", "reason": "quote_not_found"}],
+        )
+        after = wr.proposals_for_row(conn, row)
+        deleted = wr.delete_proposal(conn, after[0]["id"])
+        empty = wr.proposals_for_row(conn, row)
+    engine.dispose()
+    assert props[0]["field_key"] == "r" and props[0]["anchor_state"] == "exact"
+    assert got["row_id"] == row and got["value"] == "0.42" and got["page"] == 3
+    assert [p["field_key"] for p in after] == ["n"]  # the earlier `r` proposal was replaced
+    assert deleted is True and empty == []
+
+
+def test_upsert_cell_origin_surfaces_in_view(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = wr.create_project(conn, name="R", design="correlation")
+        row = wr.add_row(conn, pid, label="S")
+        wr.upsert_cell(conn, row, "r", value="0.5", origin="assisted")
+        wr.upsert_cell(conn, row, "n", value="60")  # manual → origin NULL
+        view = wr.project_view(conn, pid)
+    engine.dispose()
+    cells = view["rows"][0]["cells"]
+    assert cells["r"]["origin"] == "assisted"
+    assert cells["n"]["origin"] is None

@@ -12,7 +12,7 @@ import json
 from sqlalchemy import delete, func, insert, select, update
 from sqlalchemy.engine import Connection
 
-from app.backend.persistence.schema import ma_cells, ma_projects, ma_rows, papers
+from app.backend.persistence.schema import ma_cells, ma_projects, ma_proposals, ma_rows, papers
 
 # --- the preset templates (a project's `design` seeds template_json; the user may add non-role columns) ------------
 # Each field: {key, label, type in {number,text,choice}, role (a converter input key, or None for a moderator/notes
@@ -160,12 +160,12 @@ def set_converted(conn: Connection, row_id: int, converted_json: str | None) -> 
 
 # --- cells ---------------------------------------------------------------------------------------------------------
 def upsert_cell(
-    conn: Connection, row_id: int, field_key: str, *, value=None, page=None, quote=None, bbox_json=None
+    conn: Connection, row_id: int, field_key: str, *, value=None, page=None, quote=None, bbox_json=None, origin=None
 ) -> None:
     existing = conn.execute(
         select(ma_cells.c.id).where(ma_cells.c.row_id == row_id, ma_cells.c.field_key == field_key)
     ).scalar()
-    payload = {"value": value, "page": page, "quote": quote, "bbox_json": bbox_json}
+    payload = {"value": value, "page": page, "quote": quote, "bbox_json": bbox_json, "origin": origin}
     if existing is not None:
         conn.execute(update(ma_cells).where(ma_cells.c.id == existing).values(**payload))
     else:
@@ -189,7 +189,73 @@ def _cells_full(conn: Connection, row_ids: list[int]) -> dict[int, dict[str, dic
             "page": c["page"],
             "quote": c["quote"],
             "bbox_json": c["bbox_json"],
+            "origin": c["origin"],
         }
+    return out
+
+
+# --- proposals (SP2b funnel: AI-drafted candidates, isolated from the trusted cells) -------------------------------
+def _proposal_dict(p) -> dict:
+    return {
+        "id": p["id"],
+        "row_id": p["row_id"],
+        "field_key": p["field_key"],
+        "value": p["value"],
+        "quote": p["quote"],
+        "page": p["page"],
+        "bbox_json": p["bbox_json"],
+        "anchor_state": p["anchor_state"],
+        "reason": p["reason"],
+    }
+
+
+def replace_row_proposals(conn: Connection, row_id: int, proposals: list[dict]) -> None:
+    """Replace the row's live candidates with `proposals` (a re-draft supersedes the prior set)."""
+    conn.execute(delete(ma_proposals).where(ma_proposals.c.row_id == row_id))
+    for p in proposals:
+        conn.execute(
+            insert(ma_proposals).values(
+                row_id=row_id,
+                field_key=p["field_key"],
+                value=p.get("value"),
+                quote=p.get("quote"),
+                page=p.get("page"),
+                bbox_json=p.get("bbox_json"),
+                anchor_state=p["anchor_state"],
+                reason=p.get("reason"),
+            )
+        )
+
+
+def get_proposal(conn: Connection, proposal_id: int) -> dict | None:
+    p = conn.execute(select(ma_proposals).where(ma_proposals.c.id == proposal_id)).mappings().first()
+    return _proposal_dict(p) if p else None
+
+
+def delete_proposal(conn: Connection, proposal_id: int) -> bool:
+    return conn.execute(delete(ma_proposals).where(ma_proposals.c.id == proposal_id)).rowcount > 0
+
+
+def proposals_for_row(conn: Connection, row_id: int) -> list[dict]:
+    rows = (
+        conn.execute(select(ma_proposals).where(ma_proposals.c.row_id == row_id).order_by(ma_proposals.c.id))
+        .mappings()
+        .all()
+    )
+    return [_proposal_dict(p) for p in rows]
+
+
+def _proposals_for_rows(conn: Connection, row_ids: list[int]) -> dict[int, list[dict]]:
+    if not row_ids:
+        return {}
+    out: dict[int, list[dict]] = {rid: [] for rid in row_ids}
+    rows = (
+        conn.execute(select(ma_proposals).where(ma_proposals.c.row_id.in_(row_ids)).order_by(ma_proposals.c.id))
+        .mappings()
+        .all()
+    )
+    for p in rows:
+        out.setdefault(p["row_id"], []).append(_proposal_dict(p))
     return out
 
 
@@ -214,6 +280,7 @@ def project_view(conn: Connection, project_id: int) -> dict | None:
     )
     row_ids = [r["id"] for r in rows]
     cells = _cells_full(conn, row_ids)
+    proposals = _proposals_for_rows(conn, row_ids)
     titles = _paper_titles(conn, [r["paper_id"] for r in rows])
     view_rows = []
     for r in rows:
@@ -226,6 +293,7 @@ def project_view(conn: Connection, project_id: int) -> dict | None:
                 "position": r["position"],
                 "converted": json.loads(r["converted_json"]) if r["converted_json"] else None,
                 "cells": cells.get(r["id"], {}),
+                "proposals": proposals.get(r["id"], []),
             }
         )
     return {
