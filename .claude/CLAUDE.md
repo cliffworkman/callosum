@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 261** (see Increment workflow) with **1044 pytest tests
+It is currently at **Increment 262** (see Increment workflow) with **1044 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -264,14 +264,22 @@ the enrichment-action endpoints (`reresolve_paper` + `fill_metadata` + `FillMeta
 whole AI-features block (`AiSettings` + `ProviderRow` + `AddProviderForm`/`ProviderFields`/`ProviderModelsEditor`)
 → new `js/35b_providers.jsx` (**362**) via the shared-IIFE function hoist (the inc-208/222 precedent — `AiSettings()`
 is called unchanged from `SettingsModal`).
+**Inc 262** cleared two pre-existing violations (backlog #47; both had drifted over-cap through inc 261 while the
+watch-list stayed stale): `routers/methods.py` (619→**450**) peeled the retraction endpoint cluster (per-DOI
+detection + the Retraction Watch DB mirror) → new `routers/methods_retraction.py` (186; shares `request.app.state`,
+mounted beside `methods.router` in `app.py` — the inc-226 `paper_enrich.py` sibling-router pattern; also removed
+the dead `import logging`/`_log`), and `persistence/schema.py` (628→**558**) extracted the summary/citation-mapping/
+evidence-quote table group → new `persistence/schema_summaries.py` (107) on the shared `schema_base` `metadata`
+(the inc-137 pattern; the `enum_check`/`non_empty_check` helpers + `CITATION_MAPPING_STATUSES` moved to
+`schema_base` too so both files share one definition without a circular import; re-exported from `schema.py`).
 **Watch (re-measure before trusting):** `clustering/my_publications.py` (~594 — now the **closest** backend file;
 split before the next addition there), `js/10_pdf_layer.jsx` (**594** — the closest frontend chunk after the inc-238
 read-only gates), `js/25_detail.jsx` (**492** — inc 238 split the inline-field primitives → `js/24_detail_fields.jsx`
 [159] when the read-only additions took it over the 600 cap [HEAD was already 624]), `js/30_viewer.jsx` (**563** —
 inc 255 added the SP2a-2 armed-capture branch + banner; inc 239 had split the minimap + pinch-zoom →
 `js/30f_pdf_gestures.jsx` [now **94**, +the inc-255 `wbUnionRect` selection-union helper]), `repository.py` (**565**),
-`routers/papers.py` (**528**), `extraction.py` (~551), `routers/axes.py` (~537) — all under 600, but check `wc -l`
-before adding to them.
+`schema.py` (**558**), `routers/papers.py` (**528**), `extraction.py` (~551), `routers/axes.py` (~537) — all under
+600, but check `wc -l` before adding to them.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
 `app/backend/metadata/paper_edits.py`.)
 

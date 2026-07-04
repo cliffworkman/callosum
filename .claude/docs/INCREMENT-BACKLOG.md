@@ -173,31 +173,6 @@ the wrong DB — but the lock hardening (a) is a general robustness win (two ser
 _Also flag (non-code): the `.local/` SQLite DBs live inside the synced Dropbox folder — worsens lock contention +
 syncs a 280 MB binary constantly; relocating `.local/` out of Dropbox is the healthier fix (needs Cliff's call)._
 
-**46. QA supervisor: isolate the disposable QA instance from the shared Remote-access setting** — **✅ SHIPPED
-2026-07-02** (`_qa_serve.qa_server()` now points the throwaway instance at its own `CALLOSUM_SETTINGS_PATH` in the
-temp dir + forces `CALLOSUM_DISABLE_REMOTE_ACCESS=1`; `supervisor.py` additionally scrubs `CALLOSUM_DB_URL` from the
-`codex exec` env as defense-in-depth so a stray direct `uvicorn` can never inherit the now-User-persisted curated DB
-pointer. Verified: the isolated instance boots healthy, `/papers`=200. → relocate to DONE on next tidy.) —
-**[infra/reliability/qa]** surfaced 2026-07-02 from a dead QA run (`qa-inbox/20260702_171244`, route_20_tags)
-that never produced a `run-summary.md`. Root cause (Codex self-diagnosed it mid-run): **Remote access is a
-per-user *shared* setting** (`~/.callosum/app-settings.json`), so when it's toggled ON — e.g. the inc-254
-lockout scenario — it **leaks into the disposable QA callosum instance** the supervisor spins up (inc-170
-isolated-instance pattern), 401ing every request. The headed browser then sees an empty library and
-`page.waitForSelector('.paper')` times out (30 s) → the run stalls (compounded on Windows by repeated
-`codex exec` command timeouts [exit 124] + a `cp1252` stdout `OSError: [Errno 22]`). Fix: **`tools/qa/supervisor.py`
-should set `CALLOSUM_DISABLE_REMOTE_ACCESS=1` in the env of every disposable QA instance** (and ideally point it
-at a throwaway `CALLOSUM_SETTINGS_PATH`) so a user's Remote-access toggle can never gate the QA runs. Pairs with
-inc 254 (lockout recovery). **Not a security finding** — the gate worked as designed; this is QA-harness isolation.
-
-**47. Split two backend files back under the 600-line cap** — **[infra/hygiene]** surfaced inc 261 (planning the
-CRediT builder). Two `app/` files have drifted **over** the rule-#1 hard cap and the CLAUDE.md watch-list note is
-stale on both: **`app/backend/api/routers/methods.py` = 619** and **`app/backend/persistence/schema.py` = 628**.
-inc 261 deliberately avoided landing new code in either (the CRediT router is a *new* file, not an addition to
-methods.py) — but the next feature that touches either MUST split it first. `methods.py`: peel the per-auditor
-endpoint clusters into sibling routers (the inc-226 `paper_enrich.py` pattern). `schema.py`: continue the inc-137
-table-group extraction onto the shared `schema_base.py` metadata. Behavior-preserving, proven by before/after test
-runs. Update the CLAUDE.md "Watch (re-measure)" line when done.
-
 **3. Protect imported/system tags from silent clobber** — **inc 143 (Librarian pass) shipped the core:** deleting
 an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
 backfill no longer silently re-adds a removed keyword; re-adding it clears the suppression). **inc 174** shipped the

@@ -18,12 +18,15 @@ from sqlalchemy import (
     func,
 )
 
-from app.backend.persistence.schema_base import metadata
+from app.backend.persistence.schema_base import (
+    enum_check,
+    metadata,
+    non_empty_check,
+)
 
 PROCESSING_TIERS = ("metadata-only", "abstract-embedded", "fully-chunked")
 ATTACHMENT_STORAGE_MODES = ("managed", "linked", "url")
 ATTACHMENT_AVAILABILITY = ("available", "missing", "unresolved")
-CITATION_MAPPING_STATUSES = ("verified", "weak", "contradicted", "unverified")
 EMBEDDING_TARGET_TYPES = ("paper", "chunk", "axis", "summary_sentence", "claim")
 PROCESSING_VERSION_TYPES = (
     "extraction",
@@ -33,15 +36,6 @@ PROCESSING_VERSION_TYPES = (
     "verification",
 )
 JOB_STATUSES = ("queued", "running", "succeeded", "failed", "cancelled")
-
-
-def enum_check(column_name: str, values: tuple[str, ...], name: str) -> CheckConstraint:
-    quoted = ", ".join(f"'{value}'" for value in values)
-    return CheckConstraint(f"{column_name} IN ({quoted})", name=name)
-
-
-def non_empty_check(column_name: str, name: str) -> CheckConstraint:
-    return CheckConstraint(f"length(trim({column_name})) > 0", name=name)
 
 
 papers = Table(
@@ -360,80 +354,6 @@ cluster_node_papers = Table(
     ),
 )
 
-summaries = Table(
-    "summaries",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("scope_type", String(100), nullable=False),
-    Column("scope_ref_json", JSON),
-    Column("content", Text),
-    Column("overview_json", JSON),  # inc 124: per-sentence traceable Overview [{text, claim_ordinals:[int]}]
-    Column(
-        "imported_json", JSON
-    ),  # B2 SP2 (inc 235): a RELAYED synthesis's self-contained display blob (status="imported")
-    Column("generated_by", String(255)),
-    Column("chunk_version_verified_against", String(255), nullable=False),
-    Column("embedding_version_verified_against", String(255), nullable=False),
-    Column("verification_version", String(255)),
-    Column("status", String(100), nullable=False, server_default="created"),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    non_empty_check("chunk_version_verified_against", "summary_chunk_version_non_empty"),
-    non_empty_check("embedding_version_verified_against", "summary_embedding_version_non_empty"),
-)
-
-summary_sentences = Table(
-    "summary_sentences",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("summary_id", ForeignKey("summaries.id", ondelete="CASCADE"), nullable=False),
-    Column("ordinal", Integer, nullable=False),
-    Column("text", Text, nullable=False),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    UniqueConstraint("summary_id", "ordinal", name="uq_summary_sentences_summary_ordinal"),
-    CheckConstraint("ordinal >= 0", name="summary_sentence_ordinal_nonnegative"),
-)
-
-citation_mappings = Table(
-    "citation_mappings",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("summary_sentence_id", ForeignKey("summary_sentences.id", ondelete="CASCADE"), nullable=False),
-    Column("chunk_id", ForeignKey("chunks.id", ondelete="SET NULL")),
-    Column("status", String(50), nullable=False),
-    Column("chunk_version_verified_against", String(255), nullable=False),
-    Column("embedding_version_verified_against", String(255), nullable=False),
-    Column("verification_version", String(255)),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    enum_check("status", CITATION_MAPPING_STATUSES, "status_valid"),
-    non_empty_check("chunk_version_verified_against", "mapping_chunk_version_non_empty"),
-    non_empty_check("embedding_version_verified_against", "mapping_embedding_version_non_empty"),
-    Index("ix_citation_mappings_sentence_id", "summary_sentence_id"),
-    Index("ix_citation_mappings_chunk_id", "chunk_id"),
-)
-
-evidence_quotes = Table(
-    "evidence_quotes",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("citation_mapping_id", ForeignKey("citation_mappings.id", ondelete="CASCADE"), nullable=False),
-    Column("chunk_id", ForeignKey("chunks.id", ondelete="SET NULL")),
-    Column("quote_text", Text, nullable=False),
-    Column("page_start", Integer),
-    Column("page_end", Integer),
-    Column("bbox_json", JSON),
-    Column("retrieval_confidence", Float, nullable=False),
-    Column("quote_confidence", Float, nullable=False),
-    Column("support_confidence", Float, nullable=False),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    CheckConstraint("retrieval_confidence >= 0 AND retrieval_confidence <= 1", name="retrieval_confidence_0_1"),
-    CheckConstraint("quote_confidence >= 0 AND quote_confidence <= 1", name="quote_confidence_0_1"),
-    CheckConstraint("support_confidence >= 0 AND support_confidence <= 1", name="support_confidence_0_1"),
-    CheckConstraint(
-        "page_end IS NULL OR page_start IS NULL OR page_end >= page_start", name="evidence_page_end_after_start"
-    ),
-    Index("ix_evidence_quotes_mapping_id", "citation_mapping_id"),
-)
-
 external_api_cache = Table(
     "external_api_cache",
     metadata,
@@ -610,6 +530,16 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     paper_citation_counts,
     paper_findings,
     retraction_records,
+)
+
+# Summary / citation-mapping / evidence-quote tables (inc 262 split) — same split rationale; re-exported so
+# existing ``from app.backend.persistence.schema import summaries`` (etc.) imports keep working and importing this
+# module registers them on the shared metadata.
+from app.backend.persistence.schema_summaries import (  # noqa: E402,F401
+    citation_mappings,
+    evidence_quotes,
+    summaries,
+    summary_sentences,
 )
 
 # Sync bookkeeping tables (accounts SP3a/SP3b) — same split rationale; local-only change-tracking + identity + conflicts.

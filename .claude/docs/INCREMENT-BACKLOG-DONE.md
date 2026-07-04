@@ -139,3 +139,15 @@ new work goes in the open backlog.
 - [x] **Validation-lock disclaimer + help-assistant Settings toggle** (inc 151); **OS-keychain key storage**
   (inc 152, optional `keyring` + file fallback). Audit `2026-06-27_keychain-storage.md`. *(Truly deferred: real
   cloud/Ollama/OS-vault round-trips = manual spot-checks.)*
+
+## Infra / hygiene
+- [x] **QA supervisor: isolate the disposable QA instance from the shared Remote-access setting** (was #46,
+  shipped 2026-07-02) — `_qa_serve.qa_server()` points the throwaway instance at its own `CALLOSUM_SETTINGS_PATH` +
+  forces `CALLOSUM_DISABLE_REMOTE_ACCESS=1`; `supervisor.py` scrubs `CALLOSUM_DB_URL` from the `codex exec` env
+  (defense-in-depth). A user's Remote-access toggle can no longer leak into and 401 the disposable QA run. Not a
+  security finding — QA-harness isolation.
+- [x] **600-line-cap cleanup: split `routers/methods.py` + `persistence/schema.py`** (was #47, inc 262) — two `app/`
+  files had drifted over the rule-#1 hard cap by inc 261. `methods.py` 619→450 (retraction cluster →
+  `routers/methods_retraction.py`, the inc-226 sibling-router pattern) and `schema.py` 628→558 (summary table group →
+  `persistence/schema_summaries.py` on the shared `schema_base` metadata, the inc-137 pattern). Behavior-preserving;
+  1044 passed / 1 skipped unchanged.

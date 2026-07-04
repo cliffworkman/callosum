@@ -45,6 +45,7 @@ from app.backend.api.routers import (
     lmm,
     metaanalysis,
     methods,
+    methods_retraction,
     my_publications,
     ocr,
     paper_enrich,
@@ -245,6 +246,9 @@ def create_app(
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
     api.include_router(methods.router)  # /papers/{id}/statcheck — deterministic Methods producers (inc 95)
+    api.include_router(
+        methods_retraction.router
+    )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
     api.include_router(credit.router)  # /credit/* — CRediT contribution-statement builder (#26, inc 261)
