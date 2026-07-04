@@ -139,7 +139,7 @@ function PublishersSettings() {
       <p className="eyebrow">Where to submit</p>
       <div className="settings-field">
         <label className="settings-field-label">Open-science weighting
-          <span className="settings-sub">How much a journal's openness moves the ranking in Methods → Where to submit. Neither on nor off is a neutral default — you choose. Stored locally, never transmitted.</span>
+          <span className="settings-sub">How much a journal's openness moves the ranking in Theory → Where to submit. Neither on nor off is a neutral default — you choose. Stored locally, never transmitted.</span>
         </label>
         <PubSegmented options={PUB_WEIGHTS} value={wId} onChange={setW} ariaLabel="Open-science weighting" />
       </div>

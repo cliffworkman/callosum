@@ -39,9 +39,11 @@ listeners before navigation.
 ## Adversarial checklist
 
 - run on a paper with **no DOI** -> **both** run controls are absent (inc 257): the audit shows "This paper has no
-  DOI, so OpenAlex can't resolve its references" with **no Run audit button**, and Overlooked work shows "This paper
-  has no DOI, so OpenAlex can't relate work to it — the overlooked-work search needs a DOI" with **no Find overlooked
-  work button** (previously the overlooked button was clickable → a silent 422). Neither POST is reachable from the UI.
+  DOI, so OpenAlex can't resolve its references. Add one under Identifiers in the Detail pane to enable this audit."
+  with **no Run audit button**, and Overlooked work shows "This paper has no DOI, so OpenAlex can't relate work to it.
+  Add one under Identifiers in the Detail pane to enable the overlooked-work search." with **no Find overlooked work
+  button** (previously the overlooked button was clickable → a silent 422). Neither POST is reachable from the UI; the
+  hint points the user to the fix (add a DOI in the Detail pane) rather than dead-ending on the limitation (inc 260).
 - run on a paper whose OpenAlex record has **no referenced_works** -> honest "nothing to audit" (no crash)
 - run on a paper with **no primary_topic** -> the report shows the list's own shape, no field comparison, no crash
 - deep-link / direct GET a non-existent citation-equity job id -> 404

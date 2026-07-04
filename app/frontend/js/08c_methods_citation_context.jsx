@@ -106,7 +106,7 @@ function CitationContextPaper({ paperId }) {
       </div>
       <div className="cite-equity-intro">{D.intro}</div>
       {meta && !meta.hasDoi &&
-        <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't look up its citation graph.</div>}
+        <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't look up its citation graph. Add one under Identifiers in the Detail pane to enable it.</div>}
       {meta && meta.hasDoi && state.status === "idle" &&
         <React.Fragment>
           <button className="btn btn-primary" onClick={run}

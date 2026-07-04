@@ -53,11 +53,15 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    the whole document re-renders. The choice is saved in the document.
 5. **Flatten to static text** — convert the live citation fields to plain text for hand-off (e.g. journal
    submission). **One-way:** after flattening, the citations no longer update.
-6. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
+6. **Insert CRediT statement** — insert the **CRediT contribution statement** you built + staged in callosum
+   (Theory → CRediT statement → **Send to LibreOffice**) at the cursor, as plain static text. A contributorship
+   statement is prose the author asserts, not a live citation field, so it is inserted as literal text (no
+   ReferenceMark, unaffected by refresh/flatten). If nothing is staged, the macro tells you to build one first.
+7. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
-`CallosumSetStyle`, `CallosumFlatten`, `CallosumInsertCitation` (by id), `CallosumSetServerUrl` — are also runnable
-from the Python macro dialog if you installed by hand.)
+`CallosumSetStyle`, `CallosumFlatten`, `CallosumInsertStatement`, `CallosumInsertCitation` (by id),
+`CallosumSetServerUrl` — are also runnable from the Python macro dialog if you installed by hand.)
 
 The bibliography is a managed block at the **end** of the document (under a "References" heading); it is rebuilt on
 every refresh. Keep your citations above it.

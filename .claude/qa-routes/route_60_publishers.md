@@ -9,9 +9,9 @@ fe: 08e_methods_publishers.jsx
 **Goal:** Exercise the backend of the "where to submit" tool: from an abstract, match candidate journals **locally**
 and return a uniform factual profile per journal, ranked by fit and optionally moved by an open-science weighting —
 while preserving the veto-level lines (no composite score, no "predatory" label, every candidate appears, the
-abstract never leaves the machine). SP1a shipped the backend (2 API endpoints); **SP1b (inc 246)** adds the METHODS
-panel (`08e_methods_publishers.jsx`) — the first-use choice gate, the paper/abstract input, the profile cards, and
-the always-visible open-science weighting thumb.
+abstract never leaves the machine). SP1a shipped the backend (2 API endpoints); **SP1b (inc 246)** adds the THEORY
+panel (`08e_methods_publishers.jsx`; moved METHODS -> THEORY in inc 261's authoring-cluster reorg) — the first-use
+choice gate, the paper/abstract input, the profile cards, and the always-visible open-science weighting thumb.
 
 ## Environment
 
@@ -61,7 +61,7 @@ network is available; the hermetic pytest suite (`tests/test_publishers.py`) cov
 
 ## Frontend — the "Where to submit" panel (SP1b, `08e_methods_publishers.jsx`)
 
-Open METHODS → **Where to submit**. Assert:
+Open THEORY → **Where to submit**. Assert:
 - **First-use choice gate.** On a fresh instance the panel shows a "set your preferences" step with **two** segmented
   controls (open-science weighting + result breadth) and **no option pre-selected** — no output/run controls appear
   until BOTH are set. **Save preferences** is disabled until both are chosen. Any pre-highlighted default is

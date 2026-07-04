@@ -882,7 +882,7 @@ Every value is **yours to enter and anchor** — the workspace extracts, structu
 
 <!-- section: reviewing-findings -->
 ## Reviewing findings
-A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **METHODS** pane to see them. Findings come in two kinds, shown differently on purpose:
+A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **Theory** pane to see them. Findings come in two kinds, shown differently on purpose:
 
 - A **fact** is something established about the paper (for example, that it has been retracted). It shows as a small neutral **mark** — a statement, not something for you to act on.
 - A **candidate** is a *prompt to look*, not a verdict. It shows as a card you can resolve: **Confirmed** (you checked and agree), **Accepted** (you're recording it as relevant — a short reason is required), or **Noted** (acknowledged). A candidate that points at a page has a **show in paper** link that opens that page.
@@ -893,7 +893,7 @@ The library header also shows a **"📋 N to review"** chip counting *all* the p
 
 <!-- section: retraction-checks -->
 ## Checking for retractions
-Citing a retracted paper is a real hazard, so Callosum can check your library against public registries. In the **METHODS** pane's **Review** section, click **Check all papers for retractions**: each paper's DOI is looked up in **Crossref** and **OpenAlex** (public metadata, no AI), and any retraction, correction, or expression of concern is recorded as a **finding** on that paper.
+Citing a retracted paper is a real hazard, so Callosum can check your library against public registries. In the **Theory** pane's **Review** section, click **Check all papers for retractions**: each paper's DOI is looked up in **Crossref** and **OpenAlex** (public metadata, no AI), and any retraction, correction, or expression of concern is recorded as a **finding** on that paper.
 
 How results show up:
 
@@ -980,11 +980,30 @@ You get a **count** breakdown (N supporting · M contrasting · K mentioning) an
 
 <!-- section: where-to-submit -->
 ## Where to submit (choosing a journal)
-The **Where to submit** section (METHODS) matches your work against candidate journals and shows a **uniform, fully-sourced factual profile** for each — fit, open-access color, APC (fee) + waiver policy, license, DOAJ Seal, open impact — so you can weigh them yourself. It **never computes a verdict**: there's no composite score, no "predatory" label, and **every** candidate is shown (including closed-access journals). When open-aligned journals rank higher, that means *these carry goods worth underscoring* (e.g. diamond OA, a DOAJ Seal) — never that the others are bad.
+The **Where to submit** section (Theory) matches your work against candidate journals and shows a **uniform, fully-sourced factual profile** for each — fit, open-access color, APC (fee) + waiver policy, license, DOAJ Seal, open impact — so you can weigh them yourself. It **never computes a verdict**: there's no composite score, no "predatory" label, and **every** candidate is shown (including closed-access journals). When open-aligned journals rank higher, that means *these carry goods worth underscoring* (e.g. diamond OA, a DOAJ Seal) — never that the others are bad.
 
 **First use asks you to set two preferences** — an **open-science weighting** (how much a journal's openness moves the ranking: Off / Balanced / Strongly favor open) and a **result breadth** (Focused / Broad). Nothing is pre-selected: ranking by topical fit alone is itself a value choice, so neither "on" nor "off" is a neutral default — you decide. Both are asked together so the weighting is one choice among peers, not a singled-out purity test. They're **stored on your machine only and never transmitted**, and you can change them anytime here or in Settings → Where to submit.
 
 Give it a **selected library paper** (with a DOI) or **paste an abstract + a subject** keyword, then **Find journals**. Your abstract is embedded **locally and never leaves the machine** — only a coarse topic/subject term is used to gather the candidate pool. Each result links to its sources (the journal homepage, OpenAlex, DOAJ). The results view always shows your **open-science weighting's current state** with a control to adjust it right there (it re-runs), so the setting never operates unseen. High APC is shown as **cost information, not a flag**; impact metrics carry the caveat that they inherit a Matthew-effect bias; and a journal with no legitimacy signals still appears with its facts (absence is common for new + regional journals and is not a mark against them).
+
+<!-- section: credit-statement -->
+## Building a CRediT contribution statement
+When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **CRediT statement** section (Theory) builds one for you.
+
+It is an **authoring aid, not a verifier.** Callosum formats the contributions **you assert** — it never infers, scores, or judges who did what. You are the source of truth; there's no confidence number and no verdict.
+
+How to use it:
+
+- With a paper selected, click **⤵ pull authors from this paper** to seed the grid with its author names (non-destructive — it appends, keeping any rows you've already added). Or type authors in yourself with **＋ add author**; **✕** removes one.
+- For each author, click the roles they contributed. An active role can optionally carry a **degree** — **lead**, **equal**, or **supporting** — from the little selector that appears; leave it blank if you don't distinguish degrees.
+- The statement generates as you go, in **two layouts**: **By author** (a line per person listing their roles) and **By role** (a line per role listing the people). Flip between them with the toggle to match what your journal wants — both come from the same data, so switching is instant.
+
+Getting it into your manuscript:
+
+- **Copy** (the primary button) puts the statement on the clipboard to paste anywhere (Word, Google Docs, the submission portal — the universal path).
+- **Send to LibreOffice** stages it for the **LibreOffice** Callosum add-on: then in Writer run **Callosum → Insert CRediT statement** and it's inserted at your cursor as plain text. (If you edit the grid afterward, re-send — the staged copy is cleared so you never inject a stale statement.)
+
+The panel credits the standard it follows — the **CRediT / NISO taxonomy** (Brand et al. 2015) and the prior tool **tenzing** (Holcombe et al. 2020) — with a one-click **＋ add these sources to library** so you can cite them.
 
 <!-- section: discover-search -->
 ## Finding new papers (Discover)

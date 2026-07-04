@@ -130,7 +130,7 @@ function CitationEquityPaper({ paperId, meta }) {
         work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target.
       </div>
       {meta && !meta.hasDoi &&
-        <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't resolve its references.</div>}
+        <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't resolve its references. Add one under Identifiers in the Detail pane to enable this audit.</div>}
       {meta && meta.hasDoi && state.status === "idle" &&
         <React.Fragment>
           <button className="btn btn-primary" onClick={run}
@@ -224,7 +224,7 @@ function OverlookedWork({ paperId, hasDoi }) {
         embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite.
       </div>
       {hasDoi === false &&
-        <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't relate work to it — the overlooked-work search needs a DOI.</div>}
+        <div className="tag-suggest-empty">This paper has no DOI, so OpenAlex can't relate work to it. Add one under Identifiers in the Detail pane to enable the overlooked-work search.</div>}
       {hasDoi && state.status === "idle" &&
         <button className="btn btn-primary" onClick={run}
           title="Find topically-relevant work this paper's reference list omits (OpenAlex related work + a sample of the field, ranked locally)">

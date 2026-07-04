@@ -3,10 +3,10 @@ api: /papers/{paper_id}/findings, /findings/overview, /findings/{finding_id}/rev
 fe: 08_methods_findings.jsx
 -->
 
-# ROUTE 38 - Findings: FACT-vs-CANDIDATE review surface (METHODS "Review")
+# ROUTE 38 - Findings: FACT-vs-CANDIDATE review surface (THEORY "Review")
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the findings review surface (the METHODS "Review" section + the library work-state badge) while
+**Goal:** Exhaust the findings review surface (the THEORY "Review" section + the library work-state badge) while
 preserving FACT-vs-CANDIDATE, signal-not-verdict, and no-accusation framing. Findings are local data; **no LLM,
 no egress.**
 
@@ -57,7 +57,7 @@ with engine.begin() as conn:
 
 1. Baseline screenshot of the library. A paper with a seeded fact + unreviewed candidate shows **"&#9670; fact"** +
    an **"N to review"** badge in its card foot; a paper with none shows neither.
-2. Select that paper -> open the **METHODS** pane -> **Review** section (`GET /papers/{id}/findings`). Confirm the
+2. Select that paper -> open the **THEORY** pane -> **Review** section (`GET /papers/{id}/findings`). Confirm the
    **FactMark** (&#9670; retracted (demo)) renders separately from the **candidate card** (the t-test description +
    a **show in paper - p.4** anchor + Confirmed / Accepted... / Noted).
 3. Click the **show in paper** anchor -> the page opens at **region** precision (scroll + note, **no exact rect** —

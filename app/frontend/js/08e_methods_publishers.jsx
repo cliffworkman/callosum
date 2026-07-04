@@ -254,7 +254,8 @@ function PublishersPanel({ ctx }) {
   );
 }
 
+// inc 261: moved METHODS → THEORY (the authoring cluster: understand → cite → where to submit → credit → review).
 registerPaneSection({
-  id: "publishers", label: "Where to submit", paneId: "methods", order: 34, hideInReadOnly: true,
+  id: "publishers", label: "Where to submit", paneId: "theory", order: 30, hideInReadOnly: true,
   render: (ctx) => <PublishersPanel ctx={ctx} />,
 });

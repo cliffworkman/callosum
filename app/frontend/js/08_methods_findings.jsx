@@ -193,4 +193,5 @@ function FindingsSection({ ctx }) {
   );
 }
 
-registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, hideInReadOnly: true, render: (ctx) => <FindingsSection ctx={ctx} /> });
+// inc 261: moved METHODS → THEORY (the authoring cluster: understand → cite → where to submit → credit → review).
+registerPaneSection({ id: "findings", label: "Review", paneId: "theory", order: 40, hideInReadOnly: true, render: (ctx) => <FindingsSection ctx={ctx} /> });

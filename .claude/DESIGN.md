@@ -278,6 +278,13 @@ Ranked; "legit" = a context difference worth keeping.
 7. **One-off backgrounds (mostly legit):** toast `#43210f`/`#ffe9dc`, flagged-sentence `#fffaf6`,
    `.axis-preview #f1efe7`, `.pdf-scroll #eceae3`, skeleton gradient. Keep as documented one-offs, but pull
    any that recur into tokens.
+8. **`.credit-role-label` re-types the `.term-chip` off/on recipe (inc 261, CRediTer).** The CRediT builder's
+   role chips need the same dashed-off / solid-`--accent`-on look as `.term-chip`, but with the right-hand corners
+   **squared** so an optional degree `<select>` (`.credit-degree`) can fuse flush to the chip's right edge. It
+   therefore duplicates the recipe (tokens only — no new hex) instead of reusing the class. **Legit, minor:** a
+   real visual difference (fused pill vs. standalone pill). **Proposal (opportunistic):** if a third fused-control
+   chip ever appears, extract a shared `.chip`/`.chip.on` base and let `.term-chip` + `.credit-role-label` add only
+   their corner/border deltas. Not worth a refactor for two sites.
 
 ---
 

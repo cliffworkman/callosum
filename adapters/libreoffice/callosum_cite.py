@@ -667,6 +667,24 @@ def flatten_interactive(doc) -> None:
     _msgbox(f"Flattened {n} citation(s) to static text. Live updating is now off for this document.")
 
 
+def insert_statement(doc, base: str) -> None:
+    """Insert the CRediT contribution statement the user built + staged in the callosum web UI at the cursor.
+
+    The role grid lives in the web app; this macro can only reach the server over HTTP, so the UI stages the built
+    text (`POST /credit/pending`) and this pulls it (`GET /credit/pending`). Plain static text — a contributorship
+    statement is prose the author asserts, not a live citation field, so no ReferenceMark wrapper. Local, no egress.
+    """
+    resp = _get_json(f"{base}/credit/pending")
+    text = str((resp or {}).get("text") or "").strip()
+    if not text:
+        _msgbox(
+            "No staged CRediT statement — in callosum open Theory → CRediT statement, build one, and click "
+            '"Send to LibreOffice" first.'
+        )
+        return
+    doc.getText().insertString(_insertion_cursor(doc), text + "\n", False)
+
+
 def set_server_url_interactive(doc) -> None:
     url = _input_box(doc, "callosum server URL", "Server URL (e.g. http://127.0.0.1:8080):", get_server_url())
     if url is None:
@@ -685,6 +703,7 @@ _ACTIONS = {
     "refresh": refresh,
     "setStyle": set_style_interactive,
     "flatten": lambda doc, base: flatten_interactive(doc),
+    "insertStatement": insert_statement,
     "setServerUrl": lambda doc, base: set_server_url_interactive(doc),
 }
 
@@ -730,6 +749,10 @@ def CallosumFlatten(*_args):
     _macro("flatten")
 
 
+def CallosumInsertStatement(*_args):
+    _macro("insertStatement")
+
+
 def CallosumSetServerUrl(*_args):
     _macro("setServerUrl")
 
@@ -741,5 +764,6 @@ g_exportedScripts = (
     CallosumRefresh,
     CallosumSetStyle,
     CallosumFlatten,
+    CallosumInsertStatement,
     CallosumSetServerUrl,
 )

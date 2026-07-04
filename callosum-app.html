@@ -594,6 +594,44 @@
   .es-path { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0 6px 18px; line-height: 1.5; }
   .es-choice { font-size: 11px; color: var(--ink-3); margin: 2px 0; }
   .es-src { font-size: 11px; color: var(--ink-3); margin-top: 6px; }
+  /* inc 261: CRediT contribution-statement builder (CRediTer). The narrow THEORY sidebar can't hold a 14-column
+     matrix, so each author is a row with wrapping role toggle-chips (reuses .term-chip's dashed-off / solid-on
+     recipe; a chip's optional degree select fuses to its right edge). Tokens only. */
+  .credit-pull { font-size: 11px; margin: 2px 0 4px; }
+  .credit-grid { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+  .credit-author { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2); padding: 8px 9px; }
+  .credit-author-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .credit-name { flex: 1; width: auto; font-family: var(--sans); }
+  .credit-remove { flex: none; font-size: 12px; line-height: 1; }
+  .credit-roles { display: flex; flex-wrap: wrap; gap: 5px; }
+  .credit-role { display: inline-flex; align-items: stretch; }
+  .credit-role-label {
+    border: 1px dashed var(--line-2); background: var(--panel); color: var(--ink-2);
+    border-radius: var(--radius-pill); padding: 2px 9px; font-size: 11px; cursor: pointer; font-family: var(--sans);
+  }
+  .credit-role.on .credit-role-label {
+    border-style: solid; border-color: var(--accent); background: var(--accent-soft); color: var(--accent);
+    border-top-right-radius: 0; border-bottom-right-radius: 0;
+  }
+  .credit-degree {
+    font-size: 10px; font-family: var(--sans); color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent); border-left: none;
+    border-radius: 0 var(--radius-pill) var(--radius-pill) 0; padding: 0 4px; cursor: pointer;
+  }
+  .credit-add { align-self: flex-start; font-size: 11.5px; }
+  .credit-view { margin: 8px 0 6px; max-width: 220px; }
+  .credit-output {
+    font-family: var(--sans); font-size: 12px; color: var(--ink); line-height: 1.5;
+    background: var(--panel-2); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 8px 10px; margin: 2px 0 8px;
+  }
+  .credit-line { margin: 2px 0; }
+  .credit-output-empty { color: var(--ink-3); font-style: italic; }
+  .credit-actions { display: flex; gap: 8px; margin: 4px 0; }
+  .credit-staged {
+    font-size: 11px; color: var(--ink-2); background: var(--accent-soft); border: 1px solid var(--accent-line);
+    border-radius: var(--radius-sm); padding: 6px 8px; margin: 4px 0; line-height: 1.45;
+  }
   /* inc 180: canonical credit-the-lineage block, shared by every METHODS module (statcheck / GRIM / p-curve). */
   .method-credit { font-size: 11.5px; color: var(--ink-2); border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
   .method-credit-sub { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
@@ -3381,7 +3419,7 @@
     const candidates = state.status === "ready" ? state.data.candidates : [];
     return /* @__PURE__ */ React.createElement("div", { className: "findings-section" }, /* @__PURE__ */ React.createElement(RetractionBatch, { ctx }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), pid == null ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a paper to review its findings.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(RetractionStatusLine, { paperId: pid }), state.status !== "ready" ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, state.status === "error" ? state.error : "Loading\u2026") : facts.length || candidates.length ? /* @__PURE__ */ React.createElement(React.Fragment, null, facts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "findings-facts" }, facts.map((f) => /* @__PURE__ */ React.createElement(FactMark, { key: f.id, finding: f }))), candidates.map((c) => /* @__PURE__ */ React.createElement(FindingCard, { key: c.id, finding: c, onReviewed, onOpenPaper: ctx.onOpenPaper }))) : /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No findings for this paper yet.")));
   }
-  registerPaneSection({ id: "findings", label: "Review", paneId: "methods", order: 40, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
+  registerPaneSection({ id: "findings", label: "Review", paneId: "theory", order: 40, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(FindingsSection, { ctx }) });
   const CITATION_EQUITY_CSL = [
     {
       type: "article-journal",
@@ -3477,7 +3515,7 @@
     };
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to audit its reference list.");
     const rep = state.report;
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, "How concentrated ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "this paper"), "'s reference list is \u2014 does it lean on your own work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target."), meta && !meta.hasDoi && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so OpenAlex can't resolve its references."), meta && meta.hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity" }, /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, "How concentrated ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "this paper"), "'s reference list is \u2014 does it lean on your own work, famous work, a few venues, a few elite institutions? Descriptive context, never a score or a target."), meta && !meta.hasDoi && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so OpenAlex can't resolve its references. Add one under Identifiers in the Detail pane to enable this audit."), meta && meta.hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
@@ -3533,7 +3571,7 @@
     };
     if (paperId == null) return null;
     const rep = state.report;
-    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overlooked work"), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked-intro" }, "Relevant work you may have missed \u2014 candidates to consider, ranked by topical match (callosum's own local embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite."), hasDoi === false && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so OpenAlex can't relate work to it \u2014 the overlooked-work search needs a DOI."), hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Overlooked work"), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-overlooked-intro" }, "Relevant work you may have missed \u2014 candidates to consider, ranked by topical match (callosum's own local embedding). Nothing is dropped or auto-added, and an author's identity is never the reason to cite."), hasDoi === false && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so OpenAlex can't relate work to it. Add one under Identifiers in the Detail pane to enable the overlooked-work search."), hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
@@ -3671,7 +3709,7 @@
         title: "How this paper cites ITS OWN sources"
       },
       "How it cites its sources"
-    )), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, D.intro), meta && !meta.hasDoi && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so Semantic Scholar can't look up its citation graph."), meta && meta.hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "cite-equity-intro" }, D.intro), meta && !meta.hasDoi && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so Semantic Scholar can't look up its citation graph. Add one under Identifiers in the Detail pane to enable it."), meta && meta.hasDoi && state.status === "idle" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",
@@ -3927,8 +3965,8 @@
   registerPaneSection({
     id: "publishers",
     label: "Where to submit",
-    paneId: "methods",
-    order: 34,
+    paneId: "theory",
+    order: 30,
     hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(PublishersPanel, { ctx })
   });
@@ -9571,7 +9609,7 @@
     const setB = (id) => put({ set_publisher_breadth: true, publisher_breadth: id });
     const wId = status ? pubWeightId(status.publisher_weighting) : null;
     const bId = status ? status.publisher_breadth : null;
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Where to submit"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Open-science weighting", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How much a journal's openness moves the ranking in Methods \u2192 Where to submit. Neither on nor off is a neutral default \u2014 you choose. Stored locally, never transmitted.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: wId, onChange: setW, ariaLabel: "Open-science weighting" })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Result breadth", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How many candidate journals to shortlist.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_BREADTHS, value: bId, onChange: setB, ariaLabel: "Result breadth" })));
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Where to submit"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Open-science weighting", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How much a journal's openness moves the ranking in Theory \u2192 Where to submit. Neither on nor off is a neutral default \u2014 you choose. Stored locally, never transmitted.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: wId, onChange: setW, ariaLabel: "Open-science weighting" })), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Result breadth", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "How many candidate journals to shortlist.")), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_BREADTHS, value: bId, onChange: setB, ariaLabel: "Result breadth" })));
   }
   function LibreOfficeSettings() {
     const [busy, setBusy] = useState(false);
@@ -10270,6 +10308,150 @@
     order: 25,
     render: (ctx) => /* @__PURE__ */ React.createElement(CitePane, { ctx })
   });
+  const CREDIT_ROLES = [
+    { key: "conceptualization", label: "Conceptualization" },
+    { key: "data_curation", label: "Data curation" },
+    { key: "formal_analysis", label: "Formal analysis" },
+    { key: "funding_acquisition", label: "Funding acquisition" },
+    { key: "investigation", label: "Investigation" },
+    { key: "methodology", label: "Methodology" },
+    { key: "project_administration", label: "Project administration" },
+    { key: "resources", label: "Resources" },
+    { key: "software", label: "Software" },
+    { key: "supervision", label: "Supervision" },
+    { key: "validation", label: "Validation" },
+    { key: "visualization", label: "Visualization" },
+    { key: "writing_original_draft", label: "Writing \u2013 original draft" },
+    { key: "writing_review_editing", label: "Writing \u2013 review & editing" }
+  ];
+  const CREDIT_DEGREES = ["lead", "equal", "supporting"];
+  const CREDIT_TAXONOMY_CSL = {
+    type: "article-journal",
+    title: "Beyond authorship: attribution, contribution, collaboration, and credit",
+    author: [
+      { family: "Brand", given: "Amy" },
+      { family: "Allen", given: "Liz" },
+      { family: "Altman", given: "Micah" },
+      { family: "Hlava", given: "Marjorie" },
+      { family: "Scott", given: "Jo" }
+    ],
+    "container-title": "Learned Publishing",
+    volume: "28",
+    issue: "2",
+    page: "151-155",
+    issued: { "date-parts": [[2015]] },
+    DOI: "10.1087/20150211"
+  };
+  const CREDIT_TENZING_CSL = {
+    type: "article-journal",
+    title: "Documenting contributions to scholarly articles using CRediT and tenzing",
+    author: [
+      { family: "Holcombe", given: "Alex O." },
+      { family: "Kovacs", given: "Marton" },
+      { family: "Aust", given: "Frederik" },
+      { family: "Aczel", given: "Balazs" }
+    ],
+    "container-title": "PLOS ONE",
+    volume: "15",
+    issue: "12",
+    page: "e0244611",
+    issued: { "date-parts": [[2020]] },
+    DOI: "10.1371/journal.pone.0244611"
+  };
+  function _blankAuthor() {
+    return { name: "", roles: {} };
+  }
+  function CreditSection({ ctx }) {
+    const paperKey = "callosum.credit." + (ctx && ctx.selectedPaper != null ? ctx.selectedPaper : "_");
+    const [authors, setAuthors] = useState([_blankAuthor()]);
+    const [result, setResult] = useState(null);
+    const [view, setView] = useState("by_author");
+    const [added, setAdded] = useState("idle");
+    const [copied, setCopied] = useState(false);
+    const [staged, setStaged] = useState(false);
+    const [pulled, setPulled] = useState("idle");
+    const loadedKeyRef = useRef(null);
+    useEffect(() => {
+      const saved = _loadLayout(paperKey, null);
+      let next = [_blankAuthor()];
+      if (saved) {
+        try {
+          const p = JSON.parse(saved);
+          if (Array.isArray(p) && p.length) next = p;
+        } catch (e) {
+        }
+      }
+      loadedKeyRef.current = paperKey;
+      setAuthors(next);
+      setStaged(false);
+      setCopied(false);
+    }, [paperKey]);
+    useEffect(() => {
+      if (loadedKeyRef.current !== paperKey) return;
+      _saveLayout(paperKey, JSON.stringify(authors));
+    }, [authors, paperKey]);
+    useEffect(() => {
+      const body = { authors: authors.map((a) => ({
+        name: a.name,
+        roles: Object.keys(a.roles).map((role) => ({ role, degree: a.roles[role] || null }))
+      })) };
+      setStaged(false);
+      const t = setTimeout(async () => {
+        const r = await apiPost("/credit/statement", body);
+        if (r.ok) setResult(r.data);
+      }, 250);
+      return () => clearTimeout(t);
+    }, [authors]);
+    const setName = (i) => (e) => setAuthors(authors.map((a, ai) => ai === i ? { ...a, name: e.target.value } : a));
+    const addAuthor = () => setAuthors([...authors, _blankAuthor()]);
+    const removeAuthor = (i) => setAuthors(authors.length > 1 ? authors.filter((_, ai) => ai !== i) : [_blankAuthor()]);
+    const toggleRole = (i, key) => setAuthors(authors.map((a, ai) => {
+      if (ai !== i) return a;
+      const roles = { ...a.roles };
+      if (key in roles) delete roles[key];
+      else roles[key] = "";
+      return { ...a, roles };
+    }));
+    const setDegree = (i, key, deg) => setAuthors(authors.map((a, ai) => ai === i ? { ...a, roles: { ...a.roles, [key]: deg } } : a));
+    const pullAuthors = async () => {
+      if (!ctx || ctx.selectedPaper == null) return;
+      setPulled("pulling");
+      const r = await api("/papers/" + ctx.selectedPaper);
+      const names = r.ok && Array.isArray(r.data.authors) ? r.data.authors : [];
+      if (!names.length) {
+        setPulled("none");
+        return;
+      }
+      const have = new Set(authors.map((a) => a.name.trim()).filter(Boolean));
+      const fresh = names.filter((n) => !have.has(String(n).trim())).map((n) => ({ name: String(n), roles: {} }));
+      const base = authors.filter((a) => a.name.trim() || Object.keys(a.roles).length);
+      setAuthors([...base, ...fresh].length ? [...base, ...fresh] : [_blankAuthor()]);
+      setPulled("idle");
+    };
+    const addCredit = async () => {
+      setAdded("adding");
+      const r = await apiPost("/library/import", {
+        content: JSON.stringify([CREDIT_TENZING_CSL, CREDIT_TAXONOMY_CSL]),
+        format: "csl-json"
+      });
+      setAdded(r && r.ok ? "added" : "idle");
+    };
+    const lines = result ? view === "by_role" ? result.by_role : result.by_author : [];
+    const text = lines.join("\n");
+    const copy = () => navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+    const sendToManuscript = async () => {
+      const r = await apiPost("/credit/pending", { text });
+      if (r.ok) setStaged(true);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "grim-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Build a ", /* @__PURE__ */ React.createElement("b", null, "CRediT contribution statement"), " \u2014 assign each author their ", /* @__PURE__ */ React.createElement("a", { href: "https://credit.niso.org/", target: "_blank", rel: "noopener noreferrer" }, "NISO CRediT"), " roles (optionally lead / equal / supporting), and Callosum formats it. It formats the contributions ", /* @__PURE__ */ React.createElement("b", null, "you assert"), "; it does not verify who did what \u2014 you are the source of truth."), ctx && ctx.selectedPaper != null && /* @__PURE__ */ React.createElement("button", { className: "btn-link credit-pull", onClick: pullAuthors, disabled: pulled === "pulling" }, pulled === "pulling" ? "pulling\u2026" : pulled === "none" ? "no authors on this paper" : "\u2935 pull authors from this paper"), /* @__PURE__ */ React.createElement("div", { className: "credit-grid" }, authors.map((a, i) => /* @__PURE__ */ React.createElement("div", { className: "credit-author", key: i }, /* @__PURE__ */ React.createElement("div", { className: "credit-author-head" }, /* @__PURE__ */ React.createElement("input", { className: "es-in credit-name", value: a.name, onChange: setName(i), placeholder: "Author name", spellCheck: false }), /* @__PURE__ */ React.createElement("button", { className: "btn-icon credit-remove", title: "Remove author", onClick: () => removeAuthor(i) }, "\u2715")), /* @__PURE__ */ React.createElement("div", { className: "credit-roles" }, CREDIT_ROLES.map((role) => {
+      const assigned = role.key in a.roles;
+      return /* @__PURE__ */ React.createElement("span", { key: role.key, className: "credit-role" + (assigned ? " on" : "") }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "credit-role-label", onClick: () => toggleRole(i, role.key) }, role.label), assigned && /* @__PURE__ */ React.createElement("select", { className: "credit-degree", value: a.roles[role.key] || "", onChange: (e) => setDegree(i, role.key, e.target.value), title: "Degree of contribution (optional)" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\u2014"), CREDIT_DEGREES.map((d) => /* @__PURE__ */ React.createElement("option", { key: d, value: d }, d))));
+    })))), /* @__PURE__ */ React.createElement("button", { className: "btn-link credit-add", onClick: addAuthor }, "\uFF0B add author")), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter credit-view", role: "tablist", "aria-label": "Statement layout" }, /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (view === "by_author" ? " on" : ""), onClick: () => setView("by_author") }, "By author"), /* @__PURE__ */ React.createElement("button", { className: "tags-srcfilter-btn" + (view === "by_role" ? " on" : ""), onClick: () => setView("by_role") }, "By role")), /* @__PURE__ */ React.createElement("div", { className: "settings-sub credit-view-hint" }, "Most journals ask for the ", /* @__PURE__ */ React.createElement("b", null, "by-author"), " layout \u2014 check your target journal's instructions for authors."), lines.length > 0 ? /* @__PURE__ */ React.createElement("div", { className: "credit-output", "aria-label": "Contribution statement" }, lines.map((ln, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "credit-line" }, ln))) : /* @__PURE__ */ React.createElement("div", { className: "credit-output credit-output-empty" }, "Assign at least one role to generate a statement."), /* @__PURE__ */ React.createElement("div", { className: "credit-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !lines.length, onClick: copy }, copied ? "\u2713 copied" : "Copy"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: !lines.length, onClick: sendToManuscript, title: "Stage the statement for the LibreOffice Callosum add-on to insert at the cursor (requires the add-on)" }, "Send to LibreOffice")), staged && /* @__PURE__ */ React.createElement("div", { className: "credit-staged" }, "Staged \u2014 switch to LibreOffice and run ", /* @__PURE__ */ React.createElement("b", null, "Callosum \u2192 Insert CRediT statement"), " to place it at the cursor. (Editing the grid clears this \u2014 re-send after changes.)"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Callosum formats the contributions you assert \u2014 it does not infer or verify who did what. The 14 roles are the fixed open ", /* @__PURE__ */ React.createElement("b", null, "NISO CRediT"), " taxonomy; degree of contribution (lead / equal / supporting) is optional."), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "About this tool:"), " CRediTer formats the ", /* @__PURE__ */ React.createElement("b", null, "CRediT / NISO"), " taxonomy (Brand, Allen, Altman, Hlava & Scott 2015, ", /* @__PURE__ */ React.createElement("i", null, "Learned Publishing"), ") and follows the ", /* @__PURE__ */ React.createElement("i", null, "tenzing"), " workflow (Holcombe, Kovacs, Aust & Aczel 2020, ", /* @__PURE__ */ React.createElement("i", null, "PLOS ONE"), ") \u2014 these credit the standard behind this feature, not citations for your manuscript.", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add these sources to library")));
+  }
+  registerPaneSection({ id: "credit", label: "CRediT statement", paneId: "theory", order: 35, hideInReadOnly: true, render: (ctx) => /* @__PURE__ */ React.createElement(CreditSection, { ctx }) });
   const _MERGE_FIELDS = [
     { key: "title", label: "Title", list: false },
     { key: "authors", label: "Authors", list: true },

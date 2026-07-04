@@ -113,13 +113,6 @@ dir; verified count stays 3→3 across a launch rescan) — this should remove m
 background score/embed job vs. a foreground write) and is still the deferred transaction-splitting / retry-on-busy
 increment. The 20260702/03 re-run (post-fix) will show how much, if anything, still 500s on a clean fixture.
 
-**Citation-equity: the "Find overlooked work" control shows on a no-DOI paper but 422s** *(Medium; QA run 20260702
-`route_51`).* The Citation-concentration panel (THEORY → Cite; inc 227/228) resolves a paper's reference list via its
-OpenAlex DOI, so a no-DOI paper has nothing to audit — but the **Find overlooked work** button still renders and, when
-clicked, returns 422 (graceful, no crash). A control that can't complete through the UI is a small gating gap: hide or
-disable the audit + overlooked-work controls when the selected paper has no DOI (with an honest "needs a DOI" hint),
-the way OCR/re-resolve gate on their preconditions. Frontend-only (`08b_methods_citation_equity.jsx`).
-
 **QA seed gap: `_seed_library` doesn't set the `item_type` column** *(Low / test-infra; QA run 20260702 `route_00`).*
 The seed papers carry `csl_json: {"type": "article-journal"}` but not the `item_type=` column, so `GET
 /papers/item-types` returns `[]` and the Library **Type filter** dropdown is suppressed — so the route can't exercise
@@ -195,6 +188,15 @@ isolated-instance pattern), 401ing every request. The headed browser then sees a
 should set `CALLOSUM_DISABLE_REMOTE_ACCESS=1` in the env of every disposable QA instance** (and ideally point it
 at a throwaway `CALLOSUM_SETTINGS_PATH`) so a user's Remote-access toggle can never gate the QA runs. Pairs with
 inc 254 (lockout recovery). **Not a security finding** — the gate worked as designed; this is QA-harness isolation.
+
+**47. Split two backend files back under the 600-line cap** — **[infra/hygiene]** surfaced inc 261 (planning the
+CRediT builder). Two `app/` files have drifted **over** the rule-#1 hard cap and the CLAUDE.md watch-list note is
+stale on both: **`app/backend/api/routers/methods.py` = 619** and **`app/backend/persistence/schema.py` = 628**.
+inc 261 deliberately avoided landing new code in either (the CRediT router is a *new* file, not an addition to
+methods.py) — but the next feature that touches either MUST split it first. `methods.py`: peel the per-auditor
+endpoint clusters into sibling routers (the inc-226 `paper_enrich.py` pattern). `schema.py`: continue the inc-137
+table-group extraction onto the shared `schema_base.py` metadata. Behavior-preserving, proven by before/after test
+runs. Update the CLAUDE.md "Watch (re-measure)" line when done.
 
 **3. Protect imported/system tags from silent clobber** — **inc 143 (Librarian pass) shipped the core:** deleting
 an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
@@ -405,9 +407,25 @@ by a static guard test. Descriptive, never a verdict; a ⚠ low-coverage flag (s
 follow-up (deferred, not blocking):** a real *field* self-citation baseline (needs per-field-paper reference fetches —
 a cost/design call).
 
-**26. CRediT contributions builder** (`…_creditcontributionsbuilder.md`) — **[future track]** authors × 14-roles
-grid (NISO CRediT) → a contributorship statement injected via the Word link (depends on #33/#34); **builder, not
-verifier**; credits **tenzing** + library-adds its paper (credit-the-lineage).
+**26. CRediT contributions builder** (`…_creditcontributionsbuilder.md`) — **[v1 shipped inc 261]** the
+**CRediTer** authoring aid: an authors × 14-NISO-role grid → a contributorship statement in both by-author /
+by-role layouts, in the **THEORY** authoring cluster. Deterministic/local/no-egress/no-LLM; **builder, not
+verifier** (an AST-pinned no-inference boundary); credits **tenzing** + the CRediT/NISO taxonomy with a one-click
+library-add (credit-the-lineage). Output = copy-to-clipboard (universal, the **primary** button) **+ native
+LibreOffice injection** (the `/credit/pending` hand-off → **Callosum → Insert CRediT statement**). **Remaining
+(deferred):** ORCID/affiliation fields + a machine-readable **JATS/XML** export; **Word** (fast-follow) + **Google
+Docs** (blocked on widening the cloudflared cite-endpoint allowlist — security-gated) native injection; Beck &
+Christensen contributorship-representation refinements (pending the user's reference).
+**UX follow-ups (inc-261 experience pass — the "deadline author" persona, Dr. Maya Chen):** **(a)** *role presets*
+per author (First-author / PI / Collaborator one-click starting bundles the user then edits) to collapse the
+14-chip × N-author click grid in the narrow sidebar — the highest-value ask, deferred because presets that
+pre-select roles want a deliberate build + a principles beat (they must read as an editable convenience the human
+asserts, never callosum *inferring* who did what); **(b)** an **"and" before the last name** in by-role lines
+(`… Chen and Lee.`) — deferred as debatable (NISO comma-only is also valid; make it an opt-in format flag if
+adopted); **(c)** *discoverability* — CRediT statement is item ~5 in the THEORY accordion; consider a jump/link
+from "Where to submit" ("Ready to submit? Build your CRediT statement →"). The four cheap findings (Copy made
+primary + "Send to LibreOffice" relabel; a by-author layout hint; a persistent staged confirmation that clears on
+edit; the credit block reframed "About this tool:" so it doesn't read as manuscript citations) were fixed in inc 261.
 
 **27. Open-science signals — statcheck follow-ons** — **[mostly shipped]** statcheck v1 + library lens + header
 chip (inc 95/97/100); the sibling producers **p-curve** (inc 126) + **GRIM/GRIMMER** (inc 127/129); and the

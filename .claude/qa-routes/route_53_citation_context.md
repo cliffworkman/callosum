@@ -34,7 +34,9 @@ regardless. Register listeners before navigation.
 ## Adversarial checklist
 
 - POST `/papers/citation-context/run` for a **nonexistent** paper → 404.
-- POST for a paper with **no DOI** → 422; and the button path reflects "no DOI, Semantic Scholar can't find citations."
+- POST for a paper with **no DOI** → 422 (not reachable from the UI: the Fetch button is absent); the no-DOI state shows
+  "This paper has no DOI, so Semantic Scholar can't look up its citation graph. Add one under Identifiers in the Detail
+  pane to enable it." — the hint points to the fix rather than dead-ending on the limitation (inc 260).
 - Deep-link / GET a **nonexistent** citation-context job id → 404.
 - A paper Semantic Scholar has **no citations** for → an honest "no recorded citations yet" (no crash).
 - Resize to `375x812` — no horizontal overflow.
