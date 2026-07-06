@@ -9,9 +9,6 @@ similarity, never a categorical truth — the human can override (manually add/r
 
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Literal
-
 from fastapi import (
     APIRouter,
     BackgroundTasks,
@@ -24,12 +21,29 @@ from fastapi import (
 from fastapi import (
     status as http_status,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, update
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.api.routers.axes_models import (
+    DEFAULT_AXIS_CUTOFF,
+    AxisCreateRequest,
+    AxisResponse,
+    AxisScoreJobResponse,
+    AxisScoreStartRequest,
+    AxisScoreStartResponse,
+    AxisSuggestJobResponse,
+    AxisUpdateRequest,
+    ClusterNodeResponse,
+    ClusterPaperResponse,
+    ManualAssignmentRequest,
+    MergeAxesRequest,
+    SuggestedAxisResponse,
+    SuggestTermsRequest,
+    SuggestTermsResponse,
+)
 from app.backend.clustering.axis_assignments import (
     CREATABLE_KINDS,
     CURATED_KIND,
@@ -75,15 +89,12 @@ from integrations.gemini import (
 
 router = APIRouter()
 
-AXIS_LABEL_MAX = 200
-AXIS_DESCRIPTION_MAX = 4000
 # Supervised-axis scoring (inc 45): a paper is ASSIGNED to an axis at similarity >= the axis's cutoff
 # ("gain"), UNCERTAIN in [AXIS_FLOOR, cutoff), and not stored below the floor (+ a never-empty fallback).
 # The cutoff is user-adjustable per re-score and persisted on the axis (`axes.scoring_gain`); NULL there
 # means "use DEFAULT_AXIS_CUTOFF". This absolute cutoff superseded inc-39's relative natural-break, which
 # was systematically too exclusive on the smooth similarity declines real axes produce (it cut at the
 # largest gap, which sits near the top). Recalibratable; eventual home = the Settings increment.
-DEFAULT_AXIS_CUTOFF = 0.35
 AXIS_FLOOR = 0.20
 CUTOFF_MIN, CUTOFF_MAX = 0.20, 0.60
 
@@ -104,113 +115,6 @@ def _axis_cutoff(row) -> float:
 
 
 SUPERVISED_AXIS_CONFIG = _axis_config(DEFAULT_AXIS_CUTOFF)  # the default; tests import this
-
-
-class AxisCreateRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=AXIS_LABEL_MAX)
-    description: str | None = Field(default=None, max_length=AXIS_DESCRIPTION_MAX)
-    kind: str = "standard"  # A7 (inc 211): "standard" (keyword/scored) or "curated" (hand-populated). Allowlisted.
-
-
-class AxisUpdateRequest(BaseModel):
-    # Partial update; omitted fields are unchanged. Editing the description changes the axis text,
-    # so the axis becomes stale until re-scored (surfaced via the response's `stale`).
-    label: str | None = Field(default=None, min_length=1, max_length=AXIS_LABEL_MAX)
-    description: str | None = Field(default=None, max_length=AXIS_DESCRIPTION_MAX)
-    kind: str | None = None  # A7 (inc 211): switch keyword<->curated (freeze / warned revert). Allowlisted.
-
-
-class ManualAssignmentRequest(BaseModel):
-    paper_id: int
-
-
-class SuggestTermsRequest(BaseModel):
-    label: str = Field(min_length=1, max_length=AXIS_LABEL_MAX)
-    description: str | None = Field(default=None, max_length=AXIS_DESCRIPTION_MAX)
-
-
-class SuggestTermsResponse(BaseModel):
-    terms: list[str]
-
-
-class MergeAxesRequest(BaseModel):
-    # Consolidate several axes into one surviving axis. `keep_axis_id` survives (the frontend
-    # comparison view composes its label/description from all sources); `merge_axis_ids` are folded
-    # in (their manual assignments unioned into the survivor) and then deleted. Re-score afterwards.
-    keep_axis_id: int
-    merge_axis_ids: list[int] = Field(min_length=1)
-    label: str = Field(min_length=1, max_length=AXIS_LABEL_MAX)
-    description: str | None = Field(default=None, max_length=AXIS_DESCRIPTION_MAX)
-
-
-class AxisResponse(BaseModel):
-    id: int
-    label: str
-    description: str | None = None
-    scored: bool = False  # has score_axis run for this axis (an axis embedding exists)?
-    stale: bool = False  # has the text changed since the last score (assignments outdated)?
-    assignment_count: int = 0  # papers currently assigned (scored + manual)
-    created_at: datetime | None = None  # for client-side sort-by-recency
-    scoring_gain: float = DEFAULT_AXIS_CUTOFF  # effective assigned-cutoff (axes.scoring_gain or default)
-    kind: str = "standard"  # "standard" or "my_publications" (inc 78 — drives the pinned card + variant UI)
-    uncertain_count: int = 0  # scored-but-below-cutoff papers (inc 79 — for the hide-uncertain count badge)
-
-
-class ClusterPaperResponse(BaseModel):
-    id: int
-    title: str
-    confidence: float | None = None  # cosine-similarity confidence; NULL for a manual override
-    status: str = "uncertain"  # "assigned" / "uncertain" / "manual" (honest tier, not truth)
-    manual: bool = False  # True when the human added this, not the scorer
-    starred: bool = False  # inc 84: My Publications only — a starred key publication
-    domain: str | None = None  # inc 118 (SP2 #16): My Publications only — the paper's research-domain label
-    position: int | None = None  # A7 (inc 211): manual order on a curated axis (NULL on keyword axes)
-
-
-class ClusterNodeResponse(BaseModel):
-    id: int
-    axis_id: int | None = None
-    parent_id: int | None = None
-    label: str
-    description: str | None = None
-    confidence: float | None = None
-    papers: list[ClusterPaperResponse]
-
-
-class AxisScoreStartRequest(BaseModel):
-    # Optional per-re-score cutoff ("gain"); omitted → reuse the axis's saved gain, else the default.
-    gain: float | None = Field(default=None, ge=0.0, le=1.0)
-
-
-class AxisScoreStartResponse(BaseModel):
-    job_id: str
-    status: Literal["pending", "running", "done", "error"]
-
-
-class AxisScoreJobResponse(BaseModel):
-    job_id: str
-    status: Literal["pending", "running", "done", "error"]
-    detail: str | None = None
-    axis_id: int | None = None
-    cluster_node_id: int | None = None
-    assigned_count: int | None = None
-    uncertain_count: int | None = None
-
-
-# ── suggest-optimal-axes (inc 52): an async clustering job, mirroring the score job ──
-class SuggestedAxisResponse(BaseModel):
-    label: str
-    terms: list[str]
-    paper_ids: list[int]
-    paper_titles: list[str]
-    size: int
-
-
-class AxisSuggestJobResponse(BaseModel):
-    job_id: str
-    status: Literal["pending", "running", "done", "error"]
-    detail: str | None = None
-    suggestions: list[SuggestedAxisResponse] | None = None
 
 
 @router.get("/axes", response_model=list[AxisResponse])

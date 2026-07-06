@@ -1,0 +1,22 @@
+#!/bin/sh
+# Callosum pre-commit gate (inc 264, backlog #20 ratchet step 1).
+#
+# Fast, deterministic checks that MUST pass before a commit lands — so neither a human nor an unattended loop
+# can ship lint/format/600-line-cap-drift red. Mirrors the CI lint job (ruff) + adds the rule-#1 size budget
+# (which caught axes.py 609 / 10_pdf_layer.jsx 604 the day this gate went in). The full pytest suite is
+# deliberately NOT here — it's ~18 min, too slow for a commit hook; it stays the CI + manual gate.
+#
+# Install (once per clone):  git config core.hooksPath tools/git-hooks
+# Emergency bypass (discouraged — CI still enforces): git commit --no-verify
+set -e
+
+echo "[pre-commit] ruff format --check ."
+ruff format --check .
+
+echo "[pre-commit] ruff check ."
+ruff check .
+
+echo "[pre-commit] line budget (rule #1 — 600-line cap on app/ + integrations/)"
+python tools/check_line_budget.py
+
+echo "[pre-commit] OK"

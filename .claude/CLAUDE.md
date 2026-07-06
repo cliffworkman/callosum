@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 263** (see Increment workflow) with **1055 pytest tests
+It is currently at **Increment 264** (see Increment workflow) with **1055 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -272,14 +272,17 @@ the dead `import logging`/`_log`), and `persistence/schema.py` (628→**558**) e
 evidence-quote table group → new `persistence/schema_summaries.py` (107) on the shared `schema_base` `metadata`
 (the inc-137 pattern; the `enum_check`/`non_empty_check` helpers + `CITATION_MAPPING_STATUSES` moved to
 `schema_base` too so both files share one definition without a circular import; re-exported from `schema.py`).
-**Watch (re-measure before trusting):** `clustering/my_publications.py` (~594 — now the **closest** backend file;
-split before the next addition there), `js/10_pdf_layer.jsx` (**594** — the closest frontend chunk after the inc-238
-read-only gates), `js/25_detail.jsx` (**492** — inc 238 split the inline-field primitives → `js/24_detail_fields.jsx`
-[159] when the read-only additions took it over the 600 cap [HEAD was already 624]), `js/30_viewer.jsx` (**563** —
-inc 255 added the SP2a-2 armed-capture branch + banner; inc 239 had split the minimap + pinch-zoom →
-`js/30f_pdf_gestures.jsx` [now **94**, +the inc-255 `wbUnionRect` selection-union helper]), `repository.py` (**565**),
-`schema.py` (**558**), `routers/papers.py` (**528**), `extraction.py` (~551), `routers/axes.py` (~537) — all under
-600, but check `wc -l` before adding to them.
+**Inc 264** cleared two more drifted files — caught by the new line-budget gate, not a human: `routers/axes.py`
+(609→**513**) peeled its 14 request/response models + their field-cap constants → new leaf `routers/axes_models.py`
+(125; imports only pydantic/stdlib, re-imported into axes.py — the inc-137 leaf pattern), and `js/10_pdf_layer.jsx`
+(604→**507**) moved the paper-card cluster (`ClipboardIcon`/`CheckIcon`/`PaperCopyButton`/`PaperCard`) → new
+`js/10d_papercard.jsx` (100; the inc-208/222 shared-IIFE hoist).
+**The 600-cap is now machine-enforced (backlog #20 ratchet step 1) — the hand-maintained watch list is retired.**
+`tools/check_line_budget.py` fails on any over-cap `app/`/`integrations/` `.py`/`.jsx`, wired into a **git
+pre-commit hook** (`tools/git-hooks/pre-commit`; install once per clone: `git config core.hooksPath tools/git-hooks`)
+**and CI**. Run **`python tools/check_line_budget.py --list`** for the live closest-to-cap files instead of trusting
+prose — the old watch list kept drifting stale (it missed axes.py at 609 and 10_pdf_layer.jsx at 604), which is
+exactly why the check is now automated.
 (The editable Detail pane lives in its own chunk `app/frontend/js/25_detail.jsx`; the edit-mapping logic is
 `app/backend/metadata/paper_edits.py`.)
 
