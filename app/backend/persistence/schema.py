@@ -519,6 +519,10 @@ watched_folders = Table(
 # registers those tables on the shared ``metadata`` (0001's ``metadata.create_all`` then includes them).
 # Literature Feed tables (inc 187) — same split rationale; re-exported so existing import paths keep working and
 # importing this module registers them on the shared metadata.
+# Critical-review candidate store (backlog #12) — same split rationale.
+from app.backend.persistence.schema_critical_review import (  # noqa: E402,F401
+    critical_review_candidates,
+)
 from app.backend.persistence.schema_feed import (  # noqa: E402,F401
     feed_items,
     feed_subscriptions,
