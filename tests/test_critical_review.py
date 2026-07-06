@@ -6,17 +6,22 @@ inject fakes for the NLI stance scorer / vector store / generator so they stay h
 
 from __future__ import annotations
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, insert, update
 
 from app.backend.embeddings.vector_store import VectorHit
 from app.backend.methods.critical_review import (
     ChunkInfo,
     ContestedClaim,
+    ScrutinyBackbone,
+    build_scrutiny_backbone,
+    extract_claim_sentences,
     find_contested_claims,
+    make_chunk_resolver,
+    other_paper_chunk_embedding_ids,
 )
 from app.backend.persistence import critical_review_repo as repo
-from app.backend.persistence import schema
-from app.backend.persistence.repository import create_paper
+from app.backend.persistence import findings_repo, schema, signals_repo
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 from app.backend.summarization.verification import Stance
 
 
@@ -142,3 +147,191 @@ def test_find_contested_claims_respects_threshold() -> None:
         other_chunk_ids={501},
     )
     assert contested == []
+
+
+# --- Task 3: tier-1 scrutiny backbone + real DB-backed retrieval helpers (real temp SQLite, no model loads) ---
+
+
+def _fresh_db():
+    eng = create_engine("sqlite://")
+    schema.metadata.create_all(eng)
+    return eng
+
+
+def _paper_with_attachment(conn, title: str) -> tuple[int, int]:
+    pid = create_paper(conn, title=title, csl_json={"title": title})
+    aid = create_attachment(
+        conn,
+        paper_id=pid,
+        storage_mode="linked",
+        availability="available",
+        content_type="application/pdf",
+        checksum=f"chk-{title}",
+        import_source="test",
+        attachment_type="pdf",
+        role="primary",
+    )
+    return pid, aid
+
+
+def _chunk_with_embedding(conn, paper_id: int, attachment_id: int, *, text: str, page: int) -> tuple[int, int]:
+    chunk_id = create_chunk(
+        conn,
+        paper_id=paper_id,
+        attachment_id=attachment_id,
+        text=text,
+        page_start=page,
+        page_end=page,
+        bbox_coordinate_system="pdf-points-top-left",
+        extraction_tool="test",
+        extraction_version="1",
+        chunking_strategy="paragraph",
+        chunk_version="v1",
+        source_attachment_checksum="chk",
+    )
+    embedding_id = int(
+        conn.execute(
+            insert(schema.embeddings).values(
+                target_type="chunk",
+                target_id=chunk_id,
+                model_name="fake",
+                model_version="v1",
+                dimension=3,
+                normalization="none",
+                source_text_version="v1",
+            )
+        ).inserted_primary_key[0]
+    )
+    return chunk_id, embedding_id
+
+
+def test_build_scrutiny_backbone_gathers_stored_signals() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid = create_paper(c, title="P", csl_json={"title": "P"})
+        # a stored deterministic CHECK-STATUS signal (statcheck flagged) → open_science_signals
+        signals_repo.store_statcheck(c, pid, checked=12, inconsistent=3, decision_errors=0)
+        # a stored FACT → paper_findings
+        findings_repo.upsert_findings(
+            c, pid, "retraction", [{"kind": "fact", "payload": {"status": "retracted", "reason": "data issue"}}]
+        )
+        fake_contested = [
+            ContestedClaim(
+                claim="X causes Y.", passage="not so", other_paper_id=9, page=2, stance="contrast", confidence=0.7
+            )
+        ]
+        backbone = build_scrutiny_backbone(c, pid, contested_claims=fake_contested)
+
+    assert isinstance(backbone, ScrutinyBackbone)
+    kinds = {s["kind"] for s in backbone.method_signals}
+    assert "statcheck" in kinds  # from open_science_signals
+    assert "retraction" in kinds  # from the paper_findings FACT
+    for s in backbone.method_signals:  # the fixed {kind, label, detail} shape
+        assert set(s.keys()) == {"kind", "label", "detail"}
+    statcheck = next(s for s in backbone.method_signals if s["kind"] == "statcheck")
+    assert "3 inconsistent" in statcheck["detail"]  # grounded in the stored counts, no re-run
+    assert backbone.contested_claims == fake_contested  # the passed-in claims, not recomputed
+    assert backbone.citation_signal is None  # concentration/overlooked is network-based → no local Tier-1 read
+
+
+def test_build_scrutiny_backbone_empty_is_honest_not_clean() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid = create_paper(c, title="Bare", csl_json={"title": "Bare"})
+        backbone = build_scrutiny_backbone(c, pid, contested_claims=[])
+    # Empty is the honest "these checks surfaced nothing", NOT a clean bill of health (silence != certificate).
+    assert backbone.method_signals == []
+    assert backbone.contested_claims == []
+    assert backbone.citation_signal is None
+
+
+def test_build_scrutiny_backbone_excludes_not_applicable() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid = create_paper(c, title="P", csl_json={"title": "P"})
+        # precondition-not-met → contributes nothing to the scrutiny surface
+        c.execute(
+            insert(schema.open_science_signals).values(
+                paper_id=pid, signal_type="transparency", source="registration", status="not-applicable"
+            )
+        )
+        # applicable, auditor ran + did not surface it → a review prompt, kept
+        c.execute(
+            insert(schema.open_science_signals).values(
+                paper_id=pid, signal_type="transparency", source="data_availability", status="not-detected"
+            )
+        )
+        backbone = build_scrutiny_backbone(c, pid, contested_claims=[])
+    transparency = [s for s in backbone.method_signals if s["kind"] == "transparency"]
+    assert len(transparency) == 1
+    assert transparency[0]["detail"] == "not-detected"
+
+
+def test_extract_claim_sentences_from_abstract() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid = create_paper(
+            c,
+            title="P",
+            csl_json={"title": "P"},
+            abstract="X causes Y. We tested Z in a trial. Results were significant.",
+        )
+        sents = extract_claim_sentences(c, pid, max_claims=12)
+    assert len(sents) == 3
+    assert sents[0] == "X causes Y."
+    assert sents[-1] == "Results were significant."
+
+
+def test_extract_claim_sentences_respects_max() -> None:
+    abstract = " ".join(f"Sentence number {i} makes a claim." for i in range(20))
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid = create_paper(c, title="P", csl_json={"title": "P"}, abstract=abstract)
+        sents = extract_claim_sentences(c, pid, max_claims=5)
+    assert len(sents) == 5
+
+
+def test_extract_claim_sentences_falls_back_to_chunk_then_empty() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        # no abstract, but a first stored chunk → falls back to it
+        pid, aid = _paper_with_attachment(c, "NoAbs")
+        _chunk_with_embedding(c, pid, aid, text="A first chunk sentence. And a second one.", page=1)
+        sents = extract_claim_sentences(c, pid)
+        assert sents and sents[0] == "A first chunk sentence."
+        # neither abstract nor chunks → honest empty
+        bare = create_paper(c, title="Bare", csl_json={"title": "Bare"})
+        assert extract_claim_sentences(c, bare) == []
+
+
+def test_other_paper_chunk_embedding_ids() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid_a, aid_a = _paper_with_attachment(c, "A")
+        pid_b, aid_b = _paper_with_attachment(c, "B")
+        _, emb_a = _chunk_with_embedding(c, pid_a, aid_a, text="a", page=1)
+        _, emb_b = _chunk_with_embedding(c, pid_b, aid_b, text="b", page=1)
+
+        ids = other_paper_chunk_embedding_ids(c, pid_a)
+        assert emb_b in ids  # the OTHER paper's chunk-embedding
+        assert emb_a not in ids  # never this paper's own
+
+        # soft-deleting B removes its chunk-embeddings from the corpus
+        c.execute(update(schema.papers).where(schema.papers.c.id == pid_b).values(deleted_at=func.current_timestamp()))
+        assert other_paper_chunk_embedding_ids(c, pid_a) == set()
+
+
+def test_make_chunk_resolver_resolves_and_misses() -> None:
+    eng = _fresh_db()
+    with eng.begin() as c:
+        pid, aid = _paper_with_attachment(c, "A")
+        _, emb = _chunk_with_embedding(c, pid, aid, text="the contradicting passage", page=4)
+        resolve = make_chunk_resolver(c)
+
+        info = resolve(VectorHit(embedding_id=emb, distance=0.1))
+        assert isinstance(info, ChunkInfo)
+        assert info.paper_id == pid
+        assert info.text == "the contradicting passage"
+        assert info.page == 4
+
+        assert resolve(VectorHit(embedding_id=999999, distance=0.1)) is None  # unknown embedding id
