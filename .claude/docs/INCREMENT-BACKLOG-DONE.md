@@ -151,3 +151,16 @@ new work goes in the open backlog.
   `routers/methods_retraction.py`, the inc-226 sibling-router pattern) and `schema.py` 628→558 (summary table group →
   `persistence/schema_summaries.py` on the shared `schema_base` metadata, the inc-137 pattern). Behavior-preserving;
   1044 passed / 1 skipped unchanged.
+
+## Decision-pass closures (maintainer, 2026-07-06)
+- [x] **#6 `.btn-*` divergent-button migration — DECLINED.** Divergent ghost/icon buttons kept as **documented
+  exceptions** per inc-86; new CSS already follows the canonical `.btn-*` rules. (The `.axis-danger` amber→red +
+  radius-scale tidy fold into a future CSS-heavy increment opportunistically, not a migration sweep.)
+- [x] **#13 AI-assist auditability standard — RATIFIED** → the 4-part inspectability bar (retrieved source span +
+  local-NLI stance + verbatim quote + visible confidence, one low-friction click away; honest shortfall if it
+  can't meet it). Durable home: `architectural-decisions-log.md` (+ `PRINCIPLES.md` THEORY cross-ref). Un-gates #12
+  + Tracks B/C for planning. (Item stays in the open list as the stated standard, not relocated.)
+- [x] **#3 tag source as an always-on label/icon — DECLINED.** Kept aesthetic-only per inc-100 (muted styling +
+  tooltip + All/Yours/Keywords filter). The #3 diff-toast + lock-this-tag remainders are now autonomous-eligible.
+- [x] **statcheck finding (b) "Check statistics" entry on the paper — DECLINED.** Rely on the inc-141 flagged-chip
+  → per-paper-check path; a Details/card entry re-clutters what inc-122 deliberately cleaned. ((e) remains open.)

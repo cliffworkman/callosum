@@ -149,10 +149,11 @@ per-test rows with reported-vs-recomputed *p* + page) exists and is good, but th
 **~~(a)~~ ~~(c)~~ ~~(d)~~ SHIPPED (inc 141 + 154):** the "⚠ N flagged" chip opens the **Statistics check** section,
 re-targets the top flagged paper, **auto-runs** the per-paper check (a+c, inc 141), and **scrolls+flashes the first
 inconsistent row** so the citer lands on the specific result that doesn't recompute (d, inc 154). **Remaining
-([design] — needs Cliff):** **(b)** a "Check statistics" entry on the paper itself (card chip / Details button) —
-inc-122 deliberately moved statcheck *out* of Details, so weigh re-cluttering; **(e)** the "⚠ flagged" (signal) vs
-"📋 to review" (work-state) duality — clarify/collapse for the "what's wrong with these numbers" use case (inc-133
-made them coexist on purpose).
+([design]):** ~~(b) a "Check statistics" entry on the paper itself~~ — ✅ **DECLINED 2026-07-06** (rely on the
+inc-141 "⚠ N flagged" chip→section path, which already routes the citer to the per-paper check; a Details/card
+entry re-clutters what inc-122 deliberately cleaned); **(e)** the "⚠ flagged" (signal) vs "📋 to review"
+(work-state) duality — clarify/collapse for the "what's wrong with these numbers" use case (inc-133 made them
+coexist on purpose).
 
 *(#1 brand-assets investigation — ✅ resolved/non-issue: no `.webp` assets exist, and `inline_brand_assets.py` reads
 `.claude/media/` correctly [inc 109 moved the source]; the "silent no-op" was a stale pre-inc-109 sandbox note.
@@ -177,10 +178,11 @@ syncs a 280 MB binary constantly; relocating `.local/` out of Dropbox is the hea
 an imported `keyword:*` tag is now **durable** (a per-paper `suppressed_paper_tags` set, migration 0020 — re-resolve /
 backfill no longer silently re-adds a removed keyword; re-adding it clears the suppression). **inc 174** shipped the
 **confirm before 🔎 re-resolve overwrites hand-edited metadata** (a `window.confirm` guard when
-`imported_source == "user-edited"`). **Remaining ([decision] — needs Cliff):** a tag's **source as an always-on
-label/icon** — *conflicts with the inc-100 decision* ("differentiate sources aesthetically, no Details labels"), so
-it's not autonomous; a "what re-resolve changed" **diff toast**; a **lock-this-tag** affordance. *(See **#9** for the
-full tag-provenance context.)*
+`imported_source == "user-edited"`). **Remaining:** ~~a tag's source as an always-on label/icon~~ — ✅ **DECLINED
+2026-07-06** (kept **aesthetic-only** per inc-100: muted styling + tooltip + the All/Yours/Keywords filter already
+convey provenance). The two additive UX bits are **no longer [decision]-blocked → autonomous-eligible** (small
+frontend): a "what re-resolve changed" **diff toast**; a **lock-this-tag** affordance. *(See **#9** for the full
+tag-provenance context.)*
 
 **4. Progress indication for long operations** — **[mostly shipped]** indeterminate bar (79) → DETERMINATE "X / N"
 progress for scan + import (142) + a "Review unsorted →" door + the **scan done-summary now lists which files
@@ -203,13 +205,10 @@ today — true per-file routing is coupled to the duplicate-merge multi-PDF reco
 *(The cut point. Slide it. Items below run from "almost promotable" to "biggest / most gated." #5–#9 are the
 natural slide-down candidates.)*
 
-**6. `.btn-*` divergent-button migration / DESIGN.md §3 Pass-2 worklist** — **[decision]** migrate the divergent
-ghost/icon buttons to the canonical `.btn-*` classes (value-shifting → a per-button JSX className change),
-reconcile `.axis-link.axis-danger` amber→red, and finish the **radius scale**'s messy middle (4/5/6/8/9px — the
-tokens + clean pill/modal migration landed inc 53). Best folded into the next CSS-heavy increment; new CSS already
-follows the canonical rules. **⚠ Lowest build effort below the line — but it conflicts with inc-86's "keep as
-documented exceptions" ruling, which CC caught and escalated in the sandbox instead of executing. Rule on that
-(stale item, or are you reversing inc-86?) and it's a trivial promote above the cut.**
+*(**#6** `.btn-*` divergent-button migration — ✅ **DECLINED 2026-07-06** (maintainer decision pass): the divergent
+ghost/icon buttons stay **documented exceptions** per inc-86; new CSS already follows the canonical `.btn-*` rules.
+Relocated to DONE. The `.axis-danger` amber→red reconcile + the radius-scale tidy fold into the next CSS-heavy
+increment opportunistically — not a migration sweep.)*
 
 **7. Multi-paper summary follow-ups** — **[mostly shipped]** focus-query discoverability (inc 145) + the
 **coverage readout** ("Drew from M of N selected papers · top K chunks · K contributed no cited passage") + the
@@ -251,17 +250,20 @@ the privacy/security/limitations/AI-assistance sections + credit/license pointer
 the voice pass + a UI screenshot** (a `<!-- TODO(maintainer) -->` placeholder marks the spot). Also still pending:
 `SECURITY.md` / `CITATION.cff` / `.env.example` (backlog #20) so the README can link them.
 
-**12. Critical-review supplement (multi-paper)** — **[gated]** a stronger, more opinionated generation mode (own
-endpoint/mode, egress gate, security audit) that critically reviews the selected paper(s). **Must meet the
-Auditability standard (#13)** before it ships — it judges/critiques rather than grounds.
+**12. Critical-review supplement (multi-paper)** — **[gated — on its own design; the #13 bar is now RATIFIED]** a
+stronger, more opinionated generation mode (own endpoint/mode, egress gate, security audit) that critically reviews
+the selected paper(s). **Must meet the now-ratified auditability standard (#13)** before it ships — it
+judges/critiques rather than grounds.
 
-**13. Resolve "how auditable is auditable enough?"** — **[decision — gates #12 + future Tracks B/C]** explicitly,
-before any AI-assist authoring/evaluation feature ships. The features that propose citations, judge a user's claim,
-or critically review papers are stronger, more opinionated AI actions than a grounded summary; the inspectability
-bar must be **defined deliberately, not assumed**. **Reference model:** the existing local citation-verification
-layer (embedding + NLI stance + verbatim quote, shown with confidence — invariant #1/#4). New AI-assist surfaces
-meet it or state explicitly where/why they fall short — and the verification step must be **low-friction** (users
-skip verification under time pressure). *Not a build — a decision from you that unblocks the items it gates.*
+**13. AI-assist auditability standard — ✅ RATIFIED 2026-07-06** (maintainer decision pass). The inspectability bar
+any stronger AI-assist feature (critical-review #12; Tracks B/C highlight-suggest / evaluate) must meet before it
+ships: **every AI judgment/suggestion carries (a) its retrieved source span(s), (b) an inspectable stance label
+(local NLI), (c) a verbatim quote, and (d) a visible confidence — with the evidence one low-friction click away
+(never a step the user skips); a feature that cannot meet the bar states explicitly where + why it falls short**
+(silence ≠ certificate). Reuses the existing local citation-verification layer (invariants #1/#4). **Durable home:**
+`.claude/architectural-decisions-log.md` (+ a `PRINCIPLES.md` THEORY cross-ref). **Effect:** un-gates #12 + Tracks
+B/C to be *planned* against this bar — each still needs its own design + graduation call; ratifying the bar removes
+only the "bar undefined" block.
 
 **14. Permanent delete doesn't remove the on-disk PDF** (managed/linked) — **[destructive]** deferred from inc 65
 (deleting user files is riskier). See `INCREMENT-65-NOTES.md`.

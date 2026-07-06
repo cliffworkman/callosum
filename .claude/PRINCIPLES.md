@@ -115,6 +115,13 @@ THEORY contract is strict:
 - **A candidate until the user accepts it.** A THEORY finding is proposed, not pronounced. The user
   confirms, edits, or rejects, and the system remembers the decision.
 
+- **The auditability bar for stronger AI-assist (ratified 2026-07-06).** Any evaluative/authoring AI-assist feature
+  beyond a grounded summary — proposing citations, judging a claim, critically reviewing — must carry, per
+  judgment: its retrieved source span(s), an inspectable stance label (local NLI), a verbatim quote, and a visible
+  confidence, with the evidence one low-friction click away; a feature that cannot meet the bar states where and
+  why it falls short. The full standard lives in `.claude/architectural-decisions-log.md` (backlog #13); it gates
+  the critical-review supplement and the highlight-suggest / evaluate tracks.
+
 These constraints are demanding, and that is the point. They are what separate a system that
 produces trustworthy signal from one that produces plausible text. Mining a corpus at scale
 generates plausible-looking artifacts as a matter of course; the discipline above is how an artifact
