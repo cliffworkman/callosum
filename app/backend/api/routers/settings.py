@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.backend import app_settings, providers_store
+from app.backend.acquisition.openurl import RESOLVER_BASE_MAX_LEN, resolver_base_valid
 from app.backend.llm.providers import is_loopback_url, requires_egress
 from integrations.gemini.generator import GeminiConfig
 
@@ -53,6 +54,7 @@ class SettingsStatus(BaseModel):
     key_storage: str = "file"  # "keychain" (OS vault, if `keyring` is available) | "file" (gitignored local store)
     contact_email: str = ""  # polite-pool contact for Crossref/OpenAlex/Retraction Watch (NOT a secret)
     contact_email_source: str | None = None  # "ui" | "env" | None
+    openurl_resolver_base: str = ""  # inc 263: the institution's OpenURL link-resolver base (NOT a secret; "" = unset)
     remote_access_enabled: bool = False  # inc 168: gate callosum behind a bearer token (for the Google Docs tunnel)
     access_token_set: bool = False  # is a remote-access token stored? — NEVER the token value
     agent_writes_enabled: bool = False  # B1 SP2: allow the MCP agent write tools (default off)
@@ -77,6 +79,8 @@ class SettingsUpdate(BaseModel):
     help_assistant_enabled: bool | None = None
     set_contact_email: bool = False
     contact_email: str | None = Field(default=None, max_length=app_settings.CONTACT_EMAIL_MAX_LEN)
+    set_openurl_resolver_base: bool = False
+    openurl_resolver_base: str | None = Field(default=None, max_length=RESOLVER_BASE_MAX_LEN)
     remote_access_enabled: bool | None = None
     agent_writes_enabled: bool | None = None  # B1 SP2
     # PUBLISHERS prefs (#40 SP1b) — each gated by its set_* flag so the first-use gate can persist both together.
@@ -130,6 +134,7 @@ def _status() -> SettingsStatus:
         key_storage="keychain" if app_settings.keychain_available() else "file",
         contact_email=contact or "",
         contact_email_source=contact_source,
+        openurl_resolver_base=app_settings.stored_openurl_resolver_base() or "",
         remote_access_enabled=app_settings.stored_remote_access(),
         access_token_set=app_settings.stored_access_token() is not None,
         agent_writes_enabled=app_settings.stored_agent_writes(),
@@ -175,6 +180,11 @@ def put_settings(update: SettingsUpdate) -> SettingsStatus:
         if email and "@" not in email:
             raise HTTPException(status_code=422, detail="Contact email must be a valid email address.")
         app_settings.set_contact_email(email)
+    if update.set_openurl_resolver_base:
+        base = (update.openurl_resolver_base or "").strip()
+        if base and not resolver_base_valid(base):
+            raise HTTPException(status_code=422, detail="The link resolver must be an http(s) URL.")
+        app_settings.set_openurl_resolver_base(base)
     if update.remote_access_enabled is not None:
         # Enabling without a token would lock the local UI out (the gate would 401 every call, including the one
         # that mints a token) — so require a token first (the UI mints one before flipping this on).

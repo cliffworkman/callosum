@@ -123,6 +123,59 @@ function MetadataSettings() {
   );
 }
 
+// Library access (inc 263) — the OpenURL institutional link-resolver hand-off. Set your library's official
+// link-resolver base (from its off-campus-access page); when the OA cascade misses, "Get via my library" builds
+// an OpenURL and opens THAT resolver in your own browser (your SSO does the auth). callosum never fetches the
+// paper or handles credentials — a link-builder + your existing library-folder ingest. Opt-in: empty = dormant,
+// the free-OA cascade stays the default (A8). Not a secret (a public URL) → GET /settings returns it.
+const OPENURL_CSL = {  // credit-the-lineage: the OpenURL / SFX foundational paper, offered one-click to the library
+  id: "vandesompel2001openurl",
+  type: "article-journal",
+  title: "Open Linking in the Scholarly Information Environment Using the OpenURL Framework",
+  "container-title": "D-Lib Magazine",
+  volume: "7", issue: "3",
+  issued: { "date-parts": [[2001, 3]] },
+  DOI: "10.1045/march2001-vandesompel",
+  author: [{ given: "Herbert", family: "Van de Sompel" }, { given: "Oren", family: "Beit-Arie" }],
+};
+function AcquisitionSettings() {
+  const [base, setBase] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setBase(r.data.openurl_resolver_base || ""); }); }, []);
+  const save = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPut("/settings", { set_openurl_resolver_base: true, openurl_resolver_base: base.trim() });
+    setBusy(false);
+    if (r.ok) { setBase(r.data.openurl_resolver_base || ""); setMsg(base.trim() ? "Saved." : "Cleared."); }
+    else setMsg("Couldn't save — must be an http(s) URL.");
+  };
+  const addLineage = async () => {
+    setMsg("");
+    const r = await apiPost("/library/import", { content: JSON.stringify([OPENURL_CSL]), format: "csl-json" });
+    setMsg(r.ok ? "Added the OpenURL paper to your library." : "Couldn't add: " + (r.error || "error"));
+  };
+  return (
+    <>
+      <p className="eyebrow">Library access</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Institutional link resolver (OpenURL)
+          <span className="settings-sub">
+            Your library's link-resolver base URL (from its “off-campus access” / “get full text” help page). When no open-access copy is found, callosum builds an <b>OpenURL</b> and opens <b>this resolver in your browser</b> — you sign in as usual and download; callosum never fetches the paper or handles your login. Optional; the free open-access route stays the default. Not a secret.
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <input className="settings-input" type="url" autoComplete="off" placeholder="https://your-library.example.edu/openurl"
+            value={base} onChange={e => setBase(e.target.value)} />
+          <button className="btn btn-ghost" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
+        </div>
+        <div className="settings-sub">Uses the NISO OpenURL standard (Van de Sompel &amp; Beit-Arie, 2001). <button className="btn-link" onClick={addLineage}>＋ add to library</button></div>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 // Where to submit (#40 SP1b) — the two consequential publisher prefs, editable anytime (the panel's first-use gate
 // forces them on first use; this is where they live thereafter). Reuses PubSegmented / PUB_WEIGHTS / PUB_BREADTHS
 // (hoisted from 08e_methods_publishers.jsx). Local-only — never transmitted.
@@ -449,6 +502,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         </div>
 
         <MetadataSettings />
+
+        <AcquisitionSettings />
 
         <PublishersSettings />
 

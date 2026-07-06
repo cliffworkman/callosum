@@ -168,6 +168,20 @@ function CiteRow({ paperId }) {
 function AcquireOaRow({ paperId, onAcquired }) {
   const [status, setStatus] = useState("idle"); // idle | running | done | error
   const [msg, setMsg] = useState(null);
+  const [missed, setMissed] = useState(false); // OA cascade found nothing → offer the library hand-off
+  const [libMsg, setLibMsg] = useState(null);
+  // inc 263: the free-and-legal hand-off. callosum builds an OpenURL and opens the user's OWN institution's
+  // official link resolver in the user's OWN browser (their SSO does the auth); it never fetches the paper and
+  // never touches credentials. Opt-in — dormant until a resolver base is set in Settings.
+  const getViaLibrary = async () => {
+    setLibMsg(null);
+    const r = await api(`/papers/${paperId}/library-link`);
+    if (!r.ok) { setLibMsg(r.error || "Couldn't build a library link."); return; }
+    if (!r.data.configured) { setLibMsg("Add your library's link resolver in Settings to use this."); return; }
+    if (!r.data.url) { setLibMsg(r.data.detail || "This record can't be resolved by a library link."); return; }
+    window.open(r.data.url, "_blank", "noopener");
+    setLibMsg("Opened your library's resolver — sign in there, download the PDF, then attach it here or drop it in your library folder.");
+  };
   const poll = async (jobId) => {
     const r = await api(`/papers/acquire-oa/${jobId}`);
     if (!r.ok) { setStatus("error"); setMsg(r.error || "Acquisition status check failed."); return; }
@@ -179,6 +193,7 @@ function AcquireOaRow({ paperId, onAcquired }) {
         onAcquired && onAcquired();
       } else {
         setMsg(j.detail || "No authorized open-access copy found.");
+        setMissed(true);
       }
       return;
     }
@@ -186,7 +201,7 @@ function AcquireOaRow({ paperId, onAcquired }) {
     setTimeout(() => poll(jobId), 1200); // pending / running → keep polling
   };
   const start = async () => {
-    setStatus("running"); setMsg(null);
+    setStatus("running"); setMsg(null); setMissed(false); setLibMsg(null);
     const r = await apiPost(`/papers/${paperId}/acquire-oa`, {});
     if (!r.ok) { setStatus("error"); setMsg(r.error || "Couldn't start acquisition."); return; }
     poll(r.data.job_id);
@@ -199,6 +214,13 @@ function AcquireOaRow({ paperId, onAcquired }) {
       </button>
       {status === "running" && <ProgressBar label="Searching open-access sources…" />}
       {msg && <span className={"detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "")}>{msg}</span>}
+      {missed && (
+        <button className="btn" onClick={getViaLibrary}
+          title="Open your institution's official link resolver in your browser — a free, legal route to a copy you're entitled to. callosum never fetches the paper or handles your login.">
+          Get via my library →
+        </button>
+      )}
+      {libMsg && <span className="detail-acquire-msg">{libMsg}</span>}
     </div>
   );
 }

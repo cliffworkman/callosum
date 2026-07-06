@@ -415,6 +415,15 @@ Privacy: acquisition is local-first. The PDF is stored on your machine, not on a
 
 Optional: the **CORE** source needs a free API key. Set `CALLOSUM_CORE_API_KEY` in your environment to enable it; without a key, Callosum simply skips CORE and uses the other sources.
 
+### Get a paper through your library (OpenURL)
+
+When no open-access copy is found and your institution subscribes to the journal, Callosum can hand you off to your library's **own official link resolver** so you can get a copy you're legitimately entitled to — without leaving Callosum to hunt for it. It is **optional and off until you set it up.**
+
+- Set it up once in **Settings → Library access**: paste your library's **link-resolver (OpenURL) base URL** (find it on your library's "off-campus access" or "get full text" help page).
+- Then, after an open-access miss, click **Get via my library**. Callosum builds a standard **OpenURL** from the paper's DOI and details and **opens your library's resolver in your browser**. You sign in there exactly as you normally would; your resolver routes you to the licensed full text; you download it and attach it to the paper (or drop it in your library folder, where Callosum picks it up).
+
+What Callosum does and doesn't do here: it **only builds a link and opens it in your browser.** It never signs in for you, never stores your login or session, never fetches the paper itself, and never scrapes — your own browser and your own credentials do all the access, the same as clicking a "Get it @ your library" link anywhere else. This keeps it firmly on the right side of publisher rules (no automated or bulk downloading). If you have no institution, nothing changes — the free open-access route stays the default and Callosum is fully useful without it. (Uses the NISO OpenURL standard; you can one-click add the OpenURL paper, Van de Sompel & Beit-Arie 2001, to your library from Settings.)
+
 <!-- section: wanted-list -->
 ## Wanted list & re-checking for copies
 The wanted list tracks papers you want an open-access copy of, so Callosum can keep looking for one. Open it from the **Wanted** button at the top of the library.

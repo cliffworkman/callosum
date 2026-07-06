@@ -17,7 +17,9 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
+from app.backend import app_settings
 from app.backend.acquisition.fetch import download_oa_pdf, import_oa_pdf
+from app.backend.acquisition.openurl import build_openurl
 from app.backend.acquisition.registry import PaperRef, build_default_registry
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
@@ -70,6 +72,31 @@ def acquire_oa_status(job_id: str, request: Request) -> AcquireOaResponse:
     if job.status == "done" and job.result is not None:
         return job.result
     return AcquireOaResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+class LibraryLinkResponse(BaseModel):
+    configured: bool  # is an institutional OpenURL resolver base set in Settings? (opt-in; default off)
+    url: str | None = None  # the OpenURL for the USER'S browser to open — callosum never fetches it
+    detail: str | None = None
+
+
+@router.get("/papers/{paper_id}/library-link", response_model=LibraryLinkResponse)
+def paper_library_link(paper_id: int, conn: Connection = Depends(get_connection)) -> LibraryLinkResponse:
+    """Build the institution link-resolver (OpenURL) URL for a paper — the free-and-legal hand-off for when no OA
+    copy is found. Returns the URL for the *user's own browser* to open (routing through their library's official
+    resolver + their own SSO); callosum **never fetches it** (no SSRF, no credentials, no scraping). Dormant until
+    the user sets an OpenURL resolver base in Settings."""
+    try:
+        paper = get_paper(conn, paper_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Paper not found") from None
+    base = app_settings.stored_openurl_resolver_base()
+    if not base:
+        return LibraryLinkResponse(configured=False)
+    url = build_openurl(base, paper["csl_json"] or {}, doi=paper["doi"])
+    if url is None:
+        return LibraryLinkResponse(configured=True, detail="This record has no DOI or title to resolve.")
+    return LibraryLinkResponse(configured=True, url=url)
 
 
 def _openalex_client(app: FastAPI) -> OpenAlexClient:

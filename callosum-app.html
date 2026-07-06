@@ -7045,6 +7045,26 @@
   function AcquireOaRow({ paperId, onAcquired }) {
     const [status, setStatus] = useState("idle");
     const [msg, setMsg] = useState(null);
+    const [missed, setMissed] = useState(false);
+    const [libMsg, setLibMsg] = useState(null);
+    const getViaLibrary = async () => {
+      setLibMsg(null);
+      const r = await api(`/papers/${paperId}/library-link`);
+      if (!r.ok) {
+        setLibMsg(r.error || "Couldn't build a library link.");
+        return;
+      }
+      if (!r.data.configured) {
+        setLibMsg("Add your library's link resolver in Settings to use this.");
+        return;
+      }
+      if (!r.data.url) {
+        setLibMsg(r.data.detail || "This record can't be resolved by a library link.");
+        return;
+      }
+      window.open(r.data.url, "_blank", "noopener");
+      setLibMsg("Opened your library's resolver \u2014 sign in there, download the PDF, then attach it here or drop it in your library folder.");
+    };
     const poll = async (jobId) => {
       const r = await api(`/papers/acquire-oa/${jobId}`);
       if (!r.ok) {
@@ -7060,6 +7080,7 @@
           onAcquired && onAcquired();
         } else {
           setMsg(j.detail || "No authorized open-access copy found.");
+          setMissed(true);
         }
         return;
       }
@@ -7073,6 +7094,8 @@
     const start = async () => {
       setStatus("running");
       setMsg(null);
+      setMissed(false);
+      setLibMsg(null);
       const r = await apiPost(`/papers/${paperId}/acquire-oa`, {});
       if (!r.ok) {
         setStatus("error");
@@ -7090,7 +7113,15 @@
         title: "Fetch a free, rights-holder-authorized open-access copy via OpenAlex and import it locally"
       },
       status === "running" ? "Acquiring\u2026" : "Acquire OA copy"
-    ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg));
+    ), status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Searching open-access sources\u2026" }), msg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" + (status === "error" ? " detail-acquire-err" : "") }, msg), missed && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn",
+        onClick: getViaLibrary,
+        title: "Open your institution's official link resolver in your browser \u2014 a free, legal route to a copy you're entitled to. callosum never fetches the paper or handles your login."
+      },
+      "Get via my library \u2192"
+    ), libMsg && /* @__PURE__ */ React.createElement("span", { className: "detail-acquire-msg" }, libMsg));
   }
   function OcrRow({ paperId, onOcred }) {
     const [status, setStatus] = useState("idle");
@@ -9594,6 +9625,54 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
+  const OPENURL_CSL = {
+    // credit-the-lineage: the OpenURL / SFX foundational paper, offered one-click to the library
+    id: "vandesompel2001openurl",
+    type: "article-journal",
+    title: "Open Linking in the Scholarly Information Environment Using the OpenURL Framework",
+    "container-title": "D-Lib Magazine",
+    volume: "7",
+    issue: "3",
+    issued: { "date-parts": [[2001, 3]] },
+    DOI: "10.1045/march2001-vandesompel",
+    author: [{ given: "Herbert", family: "Van de Sompel" }, { given: "Oren", family: "Beit-Arie" }]
+  };
+  function AcquisitionSettings() {
+    const [base, setBase] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) setBase(r.data.openurl_resolver_base || "");
+      });
+    }, []);
+    const save = async () => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/settings", { set_openurl_resolver_base: true, openurl_resolver_base: base.trim() });
+      setBusy(false);
+      if (r.ok) {
+        setBase(r.data.openurl_resolver_base || "");
+        setMsg(base.trim() ? "Saved." : "Cleared.");
+      } else setMsg("Couldn't save \u2014 must be an http(s) URL.");
+    };
+    const addLineage = async () => {
+      setMsg("");
+      const r = await apiPost("/library/import", { content: JSON.stringify([OPENURL_CSL]), format: "csl-json" });
+      setMsg(r.ok ? "Added the OpenURL paper to your library." : "Couldn't add: " + (r.error || "error"));
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Library access"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Institutional link resolver (OpenURL)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Your library's link-resolver base URL (from its \u201Coff-campus access\u201D / \u201Cget full text\u201D help page). When no open-access copy is found, callosum builds an ", /* @__PURE__ */ React.createElement("b", null, "OpenURL"), " and opens ", /* @__PURE__ */ React.createElement("b", null, "this resolver in your browser"), " \u2014 you sign in as usual and download; callosum never fetches the paper or handles your login. Optional; the free open-access route stays the default. Not a secret.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "url",
+        autoComplete: "off",
+        placeholder: "https://your-library.example.edu/openurl",
+        value: base,
+        onChange: (e) => setBase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: save }, busy ? "Saving\u2026" : "Save")), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Uses the NISO OpenURL standard (Van de Sompel & Beit-Arie, 2001). ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: addLineage }, "\uFF0B add to library"))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
   function PublishersSettings() {
     const [status, setStatus] = useState(null);
     useEffect(() => {
@@ -9829,7 +9908,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
   }
   const AI_KEY_URLS = {
     gemini: "https://aistudio.google.com/apikey",

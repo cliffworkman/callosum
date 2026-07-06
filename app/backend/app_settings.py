@@ -121,6 +121,28 @@ def resolved_mailto(env_var: str) -> str | None:
     return stored_contact_email() or os.environ.get(env_var)
 
 
+# --- Institutional link resolver (OpenURL hand-off, inc 263) — a NON-secret local pref (a public URL, the
+# user's library's own link-resolver base). Stored in the file + returnable by GET /settings, like contact_email.
+# Default empty → the "Get via my library" hand-off is dormant (opt-in; the free-OA cascade stays the backbone).
+
+
+def set_openurl_resolver_base(url: str | None) -> None:
+    """Persist the institution's OpenURL link-resolver base. Empty/whitespace clears it (→ feature dormant)."""
+    data = load_settings()
+    url = (url or "").strip()
+    if url:
+        data["openurl_resolver_base"] = url
+    else:
+        data.pop("openurl_resolver_base", None)
+    _write(data)
+
+
+def stored_openurl_resolver_base() -> str | None:
+    """The UI-set OpenURL resolver base, or None if unset/blank."""
+    val = load_settings().get("openurl_resolver_base")
+    return val if isinstance(val, str) and val.strip() else None
+
+
 # --- Sync (accounts SP3b): opt-in (default OFF) config + the sealed keyring + the per-device cursor ---
 
 
