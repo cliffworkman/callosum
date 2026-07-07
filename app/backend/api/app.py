@@ -32,6 +32,7 @@ from app.backend.api.routers import (
     citation_equity,
     citations,
     credit,
+    critical_review,
     discovery,
     duplicates,
     feed,
@@ -157,6 +158,7 @@ def create_app(
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
+    api.state.critical_review_jobs = JobStore()  # backlog #12: single-paper critical-read (scrutiny surface)
     api.state.citation_equity_jobs = JobStore()  # inc 227 (#25): per-paper structural citation-equity audit
     api.state.overlooked_jobs = JobStore()  # inc 228 (#25 SP2): topical overlooked-work remediation
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
@@ -252,6 +254,9 @@ def create_app(
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
     api.include_router(credit.router)  # /credit/* — CRediT contribution-statement builder (#26, inc 261)
+    api.include_router(
+        critical_review.router
+    )  # /papers/{id}/critical-read — the critical-review scrutiny surface (#12)
     api.include_router(lmm.router)  # /papers/{id}/lmm — LMM-reporting completeness auditor (#23, inc 247)
     api.include_router(
         metaanalysis.router

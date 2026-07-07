@@ -6,8 +6,10 @@ inject fakes for the NLI stance scorer / vector store / generator so they stay h
 
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, func, insert, update
 
+from app.backend.api import create_app
 from app.backend.embeddings.vector_store import VectorHit
 from app.backend.methods.critical_review import (
     ChunkInfo,
@@ -21,6 +23,7 @@ from app.backend.methods.critical_review import (
 )
 from app.backend.persistence import critical_review_repo as repo
 from app.backend.persistence import findings_repo, schema, signals_repo
+from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 from app.backend.summarization.verification import Stance
 
@@ -335,3 +338,59 @@ def test_make_chunk_resolver_resolves_and_misses() -> None:
         assert info.page == 4
 
         assert resolve(VectorHit(embedding_id=999999, distance=0.1)) is None  # unknown embedding id
+
+
+# --- Task 4: the critical-read router (async job + candidate accept/reject) — hermetic (fake deps, no model loads) ---
+
+
+class _EmptyVectorStore:
+    """A vector store that finds nothing — the job completes with no contested claims (deterministic test)."""
+
+    def search(self, conn, *, vector, top_k, candidate_embedding_ids=None):
+        return []
+
+
+def test_critical_read_endpoints(temp_db_url) -> None:
+    app = create_app(db_url=temp_db_url)
+    app.state.critical_review_deps = {  # the router's test seam → no NLI/embedding model loads
+        "embed_model": _FakeEmbedModel(),
+        "vector_store": _EmptyVectorStore(),
+        "stance_scorer": _FakeStanceScorer("unused"),
+    }
+    client = TestClient(app)
+    with make_engine(temp_db_url).begin() as conn:
+        pid = create_paper(
+            conn, title="P", abstract="X reliably causes Y. A second claim sentence.", csl_json={"title": "P"}
+        )
+        (cid,) = repo.insert_candidates(
+            conn,
+            pid,
+            [
+                {
+                    "concern": "overstated causal claim",
+                    "anchor_quote": "X reliably causes Y",
+                    "page": 1,
+                    "stance": "contrast",
+                    "confidence": 0.7,
+                    "signature": "sig-t4",
+                }
+            ],
+        )
+
+    start = client.post(f"/papers/{pid}/critical-read")
+    assert start.status_code == 202
+    job_id = start.json()["job_id"]
+    done = client.get(f"/critical-read/{job_id}").json()
+    assert done["status"] == "done" and done["backbone"] is not None
+    assert done["backbone"]["contested_claims"] == []  # empty vector store → nothing contested
+
+    cands = client.get(f"/papers/{pid}/critical-read/candidates").json()["candidates"]
+    assert len(cands) == 1 and cands[0]["concern"] == "overstated causal claim" and cands[0]["status"] == "pending"
+
+    assert client.post(f"/critical-read/candidates/{cid}/reject").json()["status"] == "rejected"
+    after = client.get(f"/papers/{pid}/critical-read/candidates").json()["candidates"]
+    assert after[0]["status"] == "rejected"
+
+    assert client.post("/papers/999999/critical-read").status_code == 404
+    assert client.get("/critical-read/does-not-exist").status_code == 404
+    assert client.post("/critical-read/candidates/999999/accept").status_code == 404
