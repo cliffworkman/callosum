@@ -281,18 +281,19 @@ run, passphrase prompt) + the **conflict-review screen** (read `sync_conflicts`,
 (per-user rate-limiting, retention, backup runbook, a migration tool); and **SP4 sharing** (= B2 collaboration). The
 superuser-*capabilities* decision is the separate top-of-list item.
 
-**16. Undo / soft-delete buffer (beyond Trash)** — **[proposal — pairs with #17]** merge (below) is destructive in
-an app with no git (only zip snapshots); a stronger undo buffer is worth a slot before/with merge. (Basic Trash +
-Restore shipped inc 54/65.)
+**16. Undo / soft-delete buffer (beyond Trash)** — **[SHIPPED for merge, inc 265]** the specific "merge is
+destructive + irreversible" gap is closed: the inc-161 merge is now **fully reversible** via **Un-merge** (a
+`merge_operations` reversal snapshot + `paper_unmerge`; the survivor's Details shows "Merged from … — Un-merge").
+See `INCREMENT-265-NOTES.md`. (A *general* undo buffer beyond merge — e.g. undo an edit/delete — remains a future
+possibility, but the load-bearing case that motivated #16 is done.)
 
-**17. Library merge (manual; free-form, deliberately NOT gated behind dedup)** — **[destructive — parked]** manually
-merge two/several library entries into one (combine metadata, pick a canonical record, re-point
-PDF/chunks/embeddings/**annotations**/synthesis-citations/axis-assignments). Destructive + far-reaching → its own
-carefully-audited increment. **Why free-form, not gated behind dedup:** Zotero/Mendeley both offer manual merge, and
-*automatic* duplicate detection routinely fails to surface true duplicates (e.g. a published article + its preprint
-where the preprint is a scanned PDF with garbage OCR). Gating merge behind detection traps the user into keeping an
-unwanted duplicate or deleting something they want. Manual merge must always be available. *(You want more time on
-the exact UX — parked at the end. Pairs with the undo/soft-delete net, #16.)*
+**17. Library merge (manual; free-form, deliberately NOT gated behind dedup)** — **[SHIPPED — merge inc 161,
+reversibility inc 265]** manual N-way merge of library entries into one canonical record (field-by-field metadata
+pick + re-point PDFs/chunks/embeddings/annotations/tags/axis-assignments + a "Merged from…" lineage note), launched
+from a duplicate group OR the library bulk bar, **not** gated behind dedup (Zotero/Mendeley parity — auto-detection
+misses true duplicates like a preprint-vs-published pair). `metadata/paper_merge.py` + `duplicates.py` +
+`38_merge.jsx`; made reversible in inc 265 (#16). Any *further* merge UX polish (e.g. an inline post-merge Undo
+toast) is a nicety, backlogged.
 
 **18. Author/expert keywords as FIRST-ORDER tags — remaining sources** — **[blocked]** Zotero tags (inc 71) +
 Crossref `subject` (inc 73) already import as tags. Remaining: **OpenAlex `concepts`** + **PubMed MeSH** (richer

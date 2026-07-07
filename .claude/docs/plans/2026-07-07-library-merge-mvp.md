@@ -1,3 +1,8 @@
+> **⚠️ SUPERSEDED (2026-07-07).** Tasks 1–7 were executed, then an endpoint collision revealed merge already
+> shipped (**inc 161**). The work was reframed to **#16 reversibility** on the existing inc-161 merge; the parallel
+> merge Tasks 3–5 built (`merge_repo` + `merge_allowlist`) was deleted, and the schema (T1) + reversal logic (T6/7)
+> were retargeted. Shipped design: `INCREMENT-265-NOTES.md`. Kept as the execution record.
+
 # Library Merge + Reversible Undo Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
@@ -352,7 +357,7 @@ UNION_TABLES: list[tuple[str, str, tuple[str, ...] | None]] = [
 DEDUP_TABLES: list[tuple[str, str, tuple[str, ...]]] = [
     ("paper_external_identifiers", "paper_id", ("provider", "identifier")),
     ("paper_tags", "paper_id", ("paper_id", "tag_id")),
-    ("suppressed_paper_tags", "paper_id", ("paper_id", "tag_id")),
+    ("suppressed_paper_tags", "paper_id", ("paper_id", "tag_name")),  # stores suppressed tag NAMES (no tag_id col)
     ("collection_papers", "paper_id", ("collection_id", "paper_id")),
     ("reading_queue", "paper_id", ("paper_id",)),  # UNIQUE(paper_id): keep A's row, drop B's
     ("wanted_items", "paper_id", ("paper_id",)),  # at most one open want per paper
@@ -1120,7 +1125,14 @@ def test_merged_away_paper_hidden_from_trash_and_not_purgeable(tmp_path):
 
         class _NoVec:
             def delete(self, *a, **k): ...
-        assert purge_paper(conn, b, vector_store=_NoVec()) is False  # guarded: must un-merge first
+        assert purge_paper(conn, b, vector_store=_NoVec()) is False  # merged-away side: un-merge first
+
+        # canonical side (Task-1-review finding): trashing A then purging it must ALSO be refused while the
+        # merge is active — else B's merged_into would dangle (no DB-level FK on existing DBs).
+        from app.backend.persistence.paper_lifecycle_repo import restore_paper, soft_delete_paper
+        soft_delete_paper(conn, a)
+        assert purge_paper(conn, a, vector_store=_NoVec()) is False  # active-merge canonical: un-merge first
+        restore_paper(conn, a)  # back to live for the origin check below
 
         origin = merge_origin(conn, a)
         assert origin and origin["merged_from_title"] == "B"
@@ -1153,14 +1165,29 @@ Change its select (line ~82) from `.where(papers.c.deleted_at.is_not(None))` to
 `.where(and_(papers.c.deleted_at.is_not(None), papers.c.merged_into.is_(None)))` (add `and_` to its imports if
 missing — it already imports `and_`).
 
-- [ ] **Step 5: Guard `purge_paper` in `paper_lifecycle_repo.py`**
+- [ ] **Step 5: Guard `purge_paper` in `paper_lifecycle_repo.py` (BOTH sides of a merge)**
 
-In `purge_paper`, extend the pre-check to also read `merged_into`:
+In `purge_paper`, extend the pre-check to refuse purging **either** side of an active merge. This is the durable
+fix for the Task-1-review finding: on existing DBs the incremental `add_column` gives `merged_into` no
+DB-level FK, so a dangling `merged_into` can't be relied on to auto-null — instead we simply never purge a
+paper entangled in an active merge (un-merge first). Covers (a) the merged-**away** side (`merged_into` set) and
+(b) the **canonical** side (some `active` merge_operations row points at it):
 ```python
+    from app.backend.persistence.schema import merge_operations
+
     row = conn.execute(select(papers.c.deleted_at, papers.c.merged_into).where(papers.c.id == paper_id)).first()
     if row is None or row[0] is None or row[1] is not None:
         return False  # missing, not in Trash, or merged-away (un-merge first — never orphan the undo record)
+    active_canonical = conn.execute(
+        select(func.count())
+        .select_from(merge_operations)
+        .where(merge_operations.c.canonical_paper_id == paper_id, merge_operations.c.status == "active")
+    ).scalar_one()
+    if active_canonical:
+        return False  # this paper is the survivor of an active merge — un-merge before purging (no dangling merged_into)
 ```
+(Note: a live canonical A is not in Trash anyway, so `row[0] is None` usually already blocks it; this guard is
+belt-and-suspenders for the case where A was trashed *after* a merge while a merged-away B still points at it.)
 
 - [ ] **Step 6: Add `merge_origin` to `merge_repo.py`**
 

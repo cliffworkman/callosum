@@ -1,13 +1,14 @@
 <!-- qa-coverage
-api: /papers/duplicates*, /papers/merge
-fe: 19_duplicates.jsx, 38_merge.jsx
+api: /papers/duplicates*, /papers/merge, /merge/*, /papers/{paper_id}/merge-origin
+fe: 19_duplicates.jsx, 38_merge.jsx, 25_detail.jsx
 -->
 
-# ROUTE 24 - Duplicate detection, dismissal, and merge
+# ROUTE 24 - Duplicate detection, dismissal, merge, and reversible un-merge
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust duplicate scan, polling, review, dismiss, undismiss, dismissed-pair recovery, and the
-non-destructive **merge** (inc 161) — launched from a duplicate group AND from the library bulk bar.
+**Goal:** Exhaust duplicate scan, polling, review, dismiss, undismiss, dismissed-pair recovery, the
+non-destructive **merge** (inc 161) — launched from a duplicate group AND from the library bulk bar — and the
+**reversible un-merge** (#16): a merge is reversible from the survivor's Details pane.
 
 ## Environment
 
@@ -20,9 +21,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
-- **Merge is non-destructive.** A merge must NOT delete data: both PDFs/links/tags/highlights end on the survivor; the
-  merged-away copies go to **Trash** (restorable), never hard-deleted; a "Merged from…" lineage note records their
-  identifiers. A merge that silently drops a link/PDF, or hard-deletes a copy, is **Critical**.
+- **Merge is non-destructive.** A merge must NOT delete data: both PDFs/links/tags/highlights end on the survivor;
+  the merged-away copies become **merged-away husks** (hidden from the live library AND the plain Trash list),
+  never hard-deleted; a "Merged from…" lineage note records their identifiers. A merge that silently drops a
+  link/PDF, or hard-deletes a copy, is **Critical**.
+- **Merge is reversible (#16).** The survivor's Details pane shows a "Merged from … — Un-merge" banner; un-merge
+  restores the merged-away copies with their moved data (PDFs/tags/highlights) and reverts the survivor's record.
+  A merge that cannot be un-done, or an un-merge that leaves data on the wrong record, is **High**.
 
 ## Adversarial checklist
 
@@ -43,18 +48,26 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 7. **Merge from a duplicate group** (`38_merge.jsx`): click a group's **merge** → the dialog loads each paper
    (`GET /papers/{id}`), offers a survivor pick + per-field conflict radios + a primary-PDF pick. Confirm
    (`POST /papers/merge`). Verify the survivor keeps **both PDFs** + every link/tag, a "Merged from…" note appears
-   in its Details, and the merged-away copy is in **Trash** (not gone) — `GET /papers` excludes it, `GET /papers?deleted=true` includes it.
+   in its Details, and the merged-away copy leaves **both** the live library (`GET /papers` excludes it) **and** the
+   plain Trash list (`GET /papers?deleted=true` excludes it — it is merged-away, not naively-restorable trash).
 8. **Merge from the library bulk bar:** select ≥2 papers → **merge** → same dialog/flow.
-9. Adversarial: `POST /papers/merge` with `survivor_id ∈ merged_ids` → 422; a chosen DOI that another live paper
-   holds → 409; an unknown metadata field → 422. Confirm the messages surface, not a crash.
+9. **Un-merge (#16)** (`25_detail.jsx`): on the survivor's Details, confirm the "Merged from … — Un-merge" banner
+   is present (`GET /papers/{id}/merge-origin` returns the copies' titles). Click **Un-merge** (`POST
+   /merge/{id}/undo`); confirm the merged-away copies reappear in the live library with their PDFs/tags, the
+   survivor's adopted DOI/lineage note revert, and the banner disappears. A second undo of the same op → 422.
+10. Adversarial: `POST /papers/merge` with `survivor_id ∈ merged_ids` → 422; a chosen DOI that another live paper
+   holds → 409; an unknown metadata field → 422; `POST /merge/999999/undo` (unknown op) → 422. Confirm the
+   messages surface, not a crash.
 
 ## Pass criteria
 
-- Scan, polling, dismiss, undismiss, and **merge** (both entry points) are complete and replayable.
+- Scan, polling, dismiss, undismiss, **merge** (both entry points), and **un-merge** are complete and replayable.
 - 0 console/page errors and 0 genai-host requests.
 - Similarity is presented as evidence only, never a hidden composite quality score.
-- Merge loses nothing: both PDFs + all links/tags/highlights survive on the survivor; merged-away copies are in
-  Trash (restorable), never hard-deleted; the lineage note is present. 422/409 surface on bad merge requests.
+- Merge loses nothing: both PDFs + all links/tags/highlights survive on the survivor; merged-away copies are
+  merged-away husks (hidden from live + plain Trash), never hard-deleted; the lineage note is present.
+- Un-merge fully reverses a merge: the merged-away copies return to the live library with their moved data, and
+  the survivor's record reverts. 422/409 surface on bad merge/un-merge requests.
 - Mobile viewport has no horizontal overflow.
 
 ## Deposit

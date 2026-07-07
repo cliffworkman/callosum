@@ -1,3 +1,9 @@
+> **⚠️ SUPERSEDED (2026-07-07).** This spec assumed merge was net-new; during build it emerged that merge already
+> shipped in **inc 161** (`metadata/paper_merge.py`). The work was reframed to **#16 reversibility** — a reversal
+> snapshot + un-merge layered onto the *existing* inc-161 merge — and the parallel merge this spec designed was
+> deleted. The shipped design is `INCREMENT-265-NOTES.md`. Kept for the re-point-surface analysis, which informed
+> what the reversal must cover.
+
 # Library Merge + Reversible Undo — Design Spec
 
 **Backlog:** #17 (manual library merge) + #16 (paired undo / soft-delete safety net)
