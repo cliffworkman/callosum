@@ -209,6 +209,23 @@ def unmerge(conn: Connection, *, merge_operation_id: int) -> int:
     return int(b_id)
 
 
+def merge_origin(conn: Connection, paper_id: int) -> dict[str, Any] | None:
+    """For the Detail "merged from …" affordance: the active merge (if any) whose survivor is ``paper_id``."""
+    op = (
+        conn.execute(
+            select(merge_operations)
+            .where(merge_operations.c.canonical_paper_id == paper_id, merge_operations.c.status == "active")
+            .order_by(merge_operations.c.created_at.desc())
+        )
+        .mappings()
+        .first()
+    )
+    if op is None:
+        return None
+    title = conn.execute(select(papers.c.title).where(papers.c.id == op["merged_paper_id"])).scalar_one_or_none()
+    return {"merge_operation_id": op["id"], "merged_from_title": title, "merged_at": op["created_at"]}
+
+
 def _paper_col_for(table_name: str) -> str:
     return "target_paper_id" if table_name == "agent_writes" else "paper_id"
 

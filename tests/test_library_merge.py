@@ -260,3 +260,32 @@ def test_merge_then_unmerge_restores_everything_exactly(tmp_path):
     assert restored == b
     for name in _ROUNDTRIP_TABLES:
         assert after[name] == before[name], f"{name} not restored byte-for-byte by un-merge"
+
+
+class _NoVec:
+    def delete(self, *args, **kwargs): ...
+
+
+def test_merged_away_paper_hidden_from_trash_and_not_purgeable(tmp_path):
+    from app.backend.persistence import repository
+    from app.backend.persistence.merge_repo import merge_origin, merge_papers
+    from app.backend.persistence.paper_lifecycle_repo import purge_paper, restore_paper, soft_delete_paper
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        a = _add_paper(conn, title="A", csl_json={})
+        b = _add_paper(conn, title="B", csl_json={})
+        merge_papers(conn, canonical_id=a, merged_id=b, resolved_metadata={})
+
+        trash_ids = {r["id"] for r in repository.list_papers(conn, only_deleted=True)}
+        assert b not in trash_ids  # merged-away paper never shows as restorable trash
+
+        assert purge_paper(conn, b, vector_store=_NoVec()) is False  # merged-away side: un-merge first
+
+        # canonical side (Task-1-review finding): trashing A then purging it must ALSO be refused while active.
+        soft_delete_paper(conn, a)
+        assert purge_paper(conn, a, vector_store=_NoVec()) is False  # active-merge canonical: un-merge first
+        restore_paper(conn, a)
+
+        origin = merge_origin(conn, a)
+        assert origin and origin["merged_from_title"] == "B"
