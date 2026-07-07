@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from sqlalchemy import create_engine, insert, select
+from sqlalchemy import create_engine, func, insert, select
 
 from alembic import command
 from alembic.config import Config
@@ -83,3 +83,40 @@ def test_merge_preview_reports_field_conflicts_and_counts(tmp_path):
     assert fields["year"]["agree"] is True
     assert fields["doi"]["value_b"] in (None, "")  # B has no DOI
     assert preview["association_counts"]["annotations"] >= 1
+
+
+def test_merge_repoints_union_dedups_membership_and_hides_b(tmp_path):
+    from app.backend.persistence.merge_repo import merge_papers
+    from app.backend.persistence.schema import annotations, paper_tags, tags
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        a = _add_paper(conn, title="A", csl_json={"title": "A"})
+        b = _add_paper(conn, title="B", csl_json={"title": "B"})
+        t1 = conn.execute(insert(tags).values(name="shared")).inserted_primary_key[0]
+        t2 = conn.execute(insert(tags).values(name="b-only")).inserted_primary_key[0]
+        conn.execute(insert(paper_tags).values(paper_id=a, tag_id=t1))
+        conn.execute(insert(paper_tags).values(paper_id=b, tag_id=t1))  # collision -> drop B's
+        conn.execute(insert(paper_tags).values(paper_id=b, tag_id=t2))  # unique -> re-point
+        conn.execute(insert(annotations).values(paper_id=b, page=1, note="n"))  # union -> re-point
+
+        op_id = merge_papers(conn, canonical_id=a, merged_id=b, resolved_metadata={"title": "A"})
+
+        a_tags = set(conn.execute(select(paper_tags.c.tag_id).where(paper_tags.c.paper_id == a)).scalars())
+        assert a_tags == {t1, t2}
+        assert (
+            conn.execute(select(func.count()).select_from(paper_tags).where(paper_tags.c.paper_id == b)).scalar_one()
+            == 0
+        )
+        assert (
+            conn.execute(select(func.count()).select_from(annotations).where(annotations.c.paper_id == a)).scalar_one()
+            == 1
+        )
+        hidden = (
+            conn.execute(select(papers.c.deleted_at, papers.c.merged_into).where(papers.c.id == b)).mappings().one()
+        )
+        assert hidden["deleted_at"] is not None and hidden["merged_into"] == a
+        assert (
+            conn.execute(select(merge_operations.c.status).where(merge_operations.c.id == op_id)).scalar_one()
+            == "active"
+        )
