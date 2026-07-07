@@ -177,3 +177,86 @@ def test_merge_drops_the_ab_dismissed_pair(tmp_path):
         conn.execute(insert(dismissed_duplicate_pairs).values(paper_id_low=lo, paper_id_high=hi))
         merge_papers(conn, canonical_id=a, merged_id=b, resolved_metadata={})
         assert conn.execute(select(func.count()).select_from(dismissed_duplicate_pairs)).scalar_one() == 0
+
+
+# Tables whose full contents the round-trip proof compares before-merge vs after-unmerge (order by PK; drop
+# volatile timestamps so equality is about data, not the clock).
+_ROUNDTRIP_TABLES = (
+    "papers",
+    "annotations",
+    "paper_tags",
+    "reading_queue",
+    "open_science_signals",
+    "paper_findings",
+    "my_publication_decisions",
+    "agent_writes",
+    "dismissed_duplicate_pairs",
+    "profile",
+)
+
+
+def _snapshot_state(conn):
+    out = {}
+    for name in _ROUNDTRIP_TABLES:
+        table = schema.metadata.tables[name]
+        rows = [dict(r) for r in conn.execute(select(table).order_by(*table.primary_key.columns)).mappings()]
+        for r in rows:
+            for volatile in ("created_at", "updated_at", "reviewed_at", "retrieved_at"):
+                r.pop(volatile, None)
+        out[name] = rows
+    return out
+
+
+def test_merge_then_unmerge_restores_everything_exactly(tmp_path):
+    from app.backend.persistence.merge_repo import merge_papers, unmerge
+    from app.backend.persistence.schema import (
+        agent_writes,
+        annotations,
+        dismissed_duplicate_pairs,
+        my_publication_decisions,
+        open_science_signals,
+        paper_findings,
+        paper_tags,
+        profile,
+        reading_queue,
+        tags,
+    )
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        a = _add_paper(conn, title="A", year=2023, doi="10.1/a", csl_json={"title": "A"})
+        b = _add_paper(conn, title="B", year=2022, csl_json={"title": "B"})
+        c = _add_paper(conn, title="C", csl_json={"title": "C"})  # third paper for a (B,C) dismissed pair
+        t1 = conn.execute(insert(tags).values(name="shared")).inserted_primary_key[0]
+        t2 = conn.execute(insert(tags).values(name="bonly")).inserted_primary_key[0]
+        conn.execute(insert(paper_tags).values(paper_id=a, tag_id=t1))
+        conn.execute(insert(paper_tags).values(paper_id=b, tag_id=t1))  # collision -> drop on merge
+        conn.execute(insert(paper_tags).values(paper_id=b, tag_id=t2))  # unique -> re-point
+        conn.execute(insert(annotations).values(paper_id=b, page=2, note="keep"))  # union
+        conn.execute(insert(reading_queue).values(paper_id=b, position=1))  # dedup re-point
+        conn.execute(
+            insert(open_science_signals).values(paper_id=b, signal_type="data", status="present", source="oa")
+        )  # derived drop
+        conn.execute(
+            insert(paper_findings).values(
+                paper_id=b, source="s", kind="candidate", payload={}, content_key="k", review_state="confirmed"
+            )
+        )  # special re-point
+        conn.execute(insert(my_publication_decisions).values(paper_id=b, decision="confirmed"))  # special re-point
+        conn.execute(insert(agent_writes).values(action="tag", target_paper_id=b, detail_json={}))  # non-FK re-point
+        d_lo, d_hi = sorted((b, c))
+        conn.execute(insert(dismissed_duplicate_pairs).values(paper_id_low=d_lo, paper_id_high=d_hi))  # re-canon (a,c)
+        conn.execute(
+            insert(profile).values(
+                starred_paper_ids=[b], research_domains=[{"label": "x", "terms": [], "paper_ids": [b]}]
+            )
+        )  # JSON scopes
+
+        before = _snapshot_state(conn)
+        op_id = merge_papers(conn, canonical_id=a, merged_id=b, resolved_metadata={"title": "A", "year": 2023})
+        restored = unmerge(conn, merge_operation_id=op_id)
+        after = _snapshot_state(conn)
+
+    assert restored == b
+    for name in _ROUNDTRIP_TABLES:
+        assert after[name] == before[name], f"{name} not restored byte-for-byte by un-merge"

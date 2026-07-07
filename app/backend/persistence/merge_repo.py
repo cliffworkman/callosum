@@ -7,9 +7,10 @@ it without re-reading derived state.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Connection, and_, func, insert, select, update
+from sqlalchemy import Connection, DateTime, and_, func, insert, select, update
 
 from app.backend.persistence import merge_allowlist as al
 from app.backend.persistence.schema import merge_operations, papers
@@ -151,6 +152,75 @@ def merge_papers(conn: Connection, *, canonical_id: int, merged_id: int, resolve
         )
     ).inserted_primary_key[0]
     return int(op_id)
+
+
+def unmerge(conn: Connection, *, merge_operation_id: int) -> int:
+    """Reverse a merge exactly from its stored snapshot: restore A's metadata, move re-pointed rows back to B,
+    re-insert dropped rows, delete re-canonicalized inserts, restore JSON edits, un-hide B, mark the op undone.
+    One transaction (caller commits). Returns the restored (merged-away) paper id."""
+    from app.backend.persistence.schema import metadata
+
+    op = conn.execute(select(merge_operations).where(merge_operations.c.id == merge_operation_id)).mappings().first()
+    if op is None:
+        raise ValueError("merge operation not found")
+    if op["status"] != "active":
+        raise ValueError("merge operation is not active (already undone)")
+    b_id = op["merged_paper_id"]
+    snap = json.loads(op["snapshot_json"])
+
+    # 1) restore A's metadata
+    from app.backend.persistence.paper_lifecycle_repo import update_paper_metadata
+
+    update_paper_metadata(conn, op["canonical_paper_id"], **snap["canonical_metadata_before"])
+
+    # 2) move re-pointed rows back to B (identity is an int for id-PK tables, else the post-repoint PK dict)
+    for entry in snap["repoints"]:
+        table = metadata.tables[entry["table"]]
+        paper_col = _paper_col_for(entry["table"])
+        ident = entry["id"]
+        where = (
+            table.c.id == ident if not isinstance(ident, dict) else and_(*[table.c[k] == v for k, v in ident.items()])
+        )
+        conn.execute(table.update().where(where).values(**{paper_col: b_id}))
+
+    # 3) delete re-canonicalized inserts back out FIRST — a merge that re-canonicalized a dismissed pair may
+    #    have reused (SQLite ROWID reuse) the id of a row we're about to re-insert; clearing them frees the id.
+    for entry in snap.get("inserts", []):
+        table = metadata.tables[entry["table"]]
+        conn.execute(table.delete().where(and_(*[table.c[k] == v for k, v in entry["key"].items()])))
+
+    # 4) re-insert dropped rows (verbatim, incl. their original ids)
+    for entry in snap["drops"]:
+        table = metadata.tables[entry["table"]]
+        conn.execute(insert(table).values(**_coerce_datetimes(table, entry["row"])))
+
+    # 5) restore JSON / promoted-field edits
+    for entry in snap["json_edits"]:
+        table = metadata.tables[entry["table"]]
+        conn.execute(table.update().where(table.c.id == entry["id"]).values(**{entry["column"]: entry["before"]}))
+
+    # 6) B fully live again; 7) op undone
+    conn.execute(update(papers).where(papers.c.id == b_id).values(deleted_at=None, merged_into=None))
+    conn.execute(
+        update(merge_operations)
+        .where(merge_operations.c.id == merge_operation_id)
+        .values(status="undone", undone_at=func.current_timestamp())
+    )
+    return int(b_id)
+
+
+def _paper_col_for(table_name: str) -> str:
+    return "target_paper_id" if table_name == "agent_writes" else "paper_id"
+
+
+def _coerce_datetimes(table, row: dict[str, Any]) -> dict[str, Any]:
+    """The snapshot JSON stringifies datetimes (json default=str); coerce them back for DateTime columns so a
+    re-inserted dropped row keeps its original timestamps (str(datetime) is fromisoformat-parseable on 3.11)."""
+    values = dict(row)
+    for col in table.columns:
+        if isinstance(col.type, DateTime) and isinstance(values.get(col.name), str):
+            values[col.name] = datetime.fromisoformat(values[col.name])
+    return values
 
 
 def _repoint_or_drop(conn, table, paper_col, a_id, b_id, key, snapshot):
