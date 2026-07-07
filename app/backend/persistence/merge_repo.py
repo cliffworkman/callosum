@@ -120,7 +120,21 @@ def merge_papers(conn: Connection, *, canonical_id: int, merged_id: int, resolve
     for table_name, paper_col, key in (*al.UNION_TABLES, *al.DEDUP_TABLES):
         _repoint_or_drop(conn, metadata.tables[table_name], paper_col, canonical_id, merged_id, key, snapshot)
 
-    # (Task 5 adds the derived-drop / special-case / JSON-scope walks here.)
+    # (4) Derived caches: snapshot B's rows then drop them (A's stand; user re-runs Methods to refresh).
+    for table_name, paper_col in al.DERIVED_DROP_TABLES:
+        table = metadata.tables[table_name]
+        for row in conn.execute(select(table).where(table.c[paper_col] == merged_id)).mappings().all():
+            snapshot["drops"].append({"table": table.name, "row": dict(row)})
+            conn.execute(_pk_where(table, row))
+
+    # (5) Special cases (bespoke rules the uniform walk can't express).
+    _merge_findings(conn, canonical_id, merged_id, snapshot)
+    _merge_my_pubs(conn, canonical_id, merged_id, snapshot)
+    _merge_agent_writes(conn, canonical_id, merged_id, snapshot)
+    _merge_dismissed_pairs(conn, canonical_id, merged_id, snapshot)
+
+    # (6) JSON-scoped id rewrites (paper ids embedded in JSON blobs): B -> A.
+    _rewrite_json_scopes(conn, canonical_id, merged_id, snapshot)
 
     # Hide B: soft-delete (every live-paper query already filters deleted_at) + flag it merged.
     conn.execute(
@@ -184,3 +198,143 @@ def _pk_where(table, row, update_values: dict | None = None):
     if update_values is not None:
         return table.update().where(conds).values(**update_values)
     return table.delete().where(conds)
+
+
+def _merge_findings(conn, a_id, b_id, snapshot):
+    """paper_findings: dedup on (paper_id, source, content_key), but KEEP the reviewed row on a collision — a
+    human review decision is never silently discarded (Principles: a human value survives)."""
+    from app.backend.persistence.schema import paper_findings as pf
+
+    for row in conn.execute(select(pf).where(pf.c.paper_id == b_id)).mappings().all():
+        clash = (
+            conn.execute(
+                select(pf).where(
+                    pf.c.paper_id == a_id, pf.c.source == row["source"], pf.c.content_key == row["content_key"]
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if clash is None:
+            conn.execute(pf.update().where(pf.c.id == row["id"]).values(paper_id=a_id))
+            snapshot["repoints"].append({"table": "paper_findings", "id": row["id"]})
+        else:
+            # If B's row is reviewed and A's isn't, promote A's review from B's before dropping B's.
+            if row["review_state"] is not None and clash["review_state"] is None:
+                conn.execute(
+                    pf.update()
+                    .where(pf.c.id == clash["id"])
+                    .values(
+                        review_state=row["review_state"],
+                        review_reason=row["review_reason"],
+                        reviewed_at=row["reviewed_at"],
+                    )
+                )
+                snapshot["json_edits"].append(
+                    {
+                        "table": "paper_findings",
+                        "column": "review_state",
+                        "id": clash["id"],
+                        "before": clash["review_state"],
+                    }
+                )
+            snapshot["drops"].append({"table": "paper_findings", "row": dict(row)})
+            conn.execute(pf.delete().where(pf.c.id == row["id"]))
+
+
+def _merge_my_pubs(conn, a_id, b_id, snapshot):
+    """my_publication_decisions: UNIQUE(paper_id). On a collision, "confirmed" beats "rejected"; else keep A's."""
+    from app.backend.persistence.schema import my_publication_decisions as mpd
+
+    b_row = conn.execute(select(mpd).where(mpd.c.paper_id == b_id)).mappings().first()
+    if b_row is None:
+        return
+    a_row = conn.execute(select(mpd).where(mpd.c.paper_id == a_id)).mappings().first()
+    if a_row is None:
+        conn.execute(mpd.update().where(mpd.c.id == b_row["id"]).values(paper_id=a_id))
+        snapshot["repoints"].append({"table": "my_publication_decisions", "id": b_row["id"]})
+    else:
+        if b_row["decision"] == "confirmed" and a_row["decision"] != "confirmed":
+            conn.execute(mpd.update().where(mpd.c.id == a_row["id"]).values(decision="confirmed"))
+            snapshot["json_edits"].append(
+                {
+                    "table": "my_publication_decisions",
+                    "column": "decision",
+                    "id": a_row["id"],
+                    "before": a_row["decision"],
+                }
+            )
+        snapshot["drops"].append({"table": "my_publication_decisions", "row": dict(b_row)})
+        conn.execute(mpd.delete().where(mpd.c.id == b_row["id"]))
+
+
+def _merge_agent_writes(conn, a_id, b_id, snapshot):
+    """agent_writes: a non-FK audit log keyed by target_paper_id; re-point B -> A so the revert log stays coherent."""
+    from app.backend.persistence.schema import agent_writes as aw
+
+    for row in conn.execute(select(aw.c.id).where(aw.c.target_paper_id == b_id)).mappings().all():
+        conn.execute(aw.update().where(aw.c.id == row["id"]).values(target_paper_id=a_id))
+        snapshot["repoints"].append({"table": "agent_writes", "id": row["id"]})
+
+
+def _merge_dismissed_pairs(conn, a_id, b_id, snapshot):
+    """dismissed_duplicate_pairs (two paper columns, canonical low<high): drop the A-B pair itself; re-canonicalize
+    a (B, X) pair to (min(A,X), max(A,X)); drop a pair that would collide or become a self-pair."""
+    from app.backend.persistence.schema import dismissed_duplicate_pairs as ddp
+
+    rows = (
+        conn.execute(
+            select(ddp).where((ddp.c.paper_id_low.in_([a_id, b_id])) | (ddp.c.paper_id_high.in_([a_id, b_id])))
+        )
+        .mappings()
+        .all()
+    )
+    for row in rows:
+        lo, hi = row["paper_id_low"], row["paper_id_high"]
+        other = None if {lo, hi} == {a_id, b_id} else (hi if b_id == lo else lo if b_id == hi else None)
+        # Drop the existing row (it involves B, or is the A-B pair itself); snapshotted so un-merge restores it.
+        snapshot["drops"].append({"table": "dismissed_duplicate_pairs", "row": dict(row)})
+        conn.execute(ddp.delete().where(ddp.c.id == row["id"]))
+        if other is None or other == a_id:
+            continue  # the A-B pair (or a self pair) simply disappears
+        nlo, nhi = sorted((a_id, other))
+        exists = conn.execute(
+            select(func.count()).select_from(ddp).where(ddp.c.paper_id_low == nlo, ddp.c.paper_id_high == nhi)
+        ).scalar_one()
+        if not exists:
+            conn.execute(insert(ddp).values(paper_id_low=nlo, paper_id_high=nhi))
+            # a NEW re-canonicalized row: record it so un-merge deletes it back out
+            snapshot.setdefault("inserts", []).append(
+                {"table": "dismissed_duplicate_pairs", "key": {"paper_id_low": nlo, "paper_id_high": nhi}}
+            )
+
+
+def _rewrite_json_scopes(conn, a_id, b_id, snapshot):
+    """Rewrite a merged-away paper id embedded in a JSON blob (summary scope, starred ids, research domains)."""
+    from app.backend.persistence.schema import metadata
+
+    for table_name, column in al.JSON_SCOPED:
+        table = metadata.tables[table_name]
+        for row in conn.execute(select(table.c.id, table.c[column])).mappings().all():
+            before = row[column]
+            after = _replace_paper_id_in_json(before, b_id, a_id)
+            if after != before:
+                conn.execute(table.update().where(table.c.id == row["id"]).values(**{column: after}))
+                snapshot["json_edits"].append(
+                    {"table": table_name, "column": column, "id": row["id"], "before": before}
+                )
+
+
+def _replace_paper_id_in_json(value, old_id, new_id):
+    """Recursively replace ``old_id`` with ``new_id`` anywhere in a JSON structure; de-dups lists after replacing."""
+    if isinstance(value, list):
+        seen, out = set(), []
+        for item in (_replace_paper_id_in_json(v, old_id, new_id) for v in value):
+            marker = json.dumps(item, sort_keys=True, default=str)
+            if marker not in seen:
+                seen.add(marker)
+                out.append(item)
+        return out
+    if isinstance(value, dict):
+        return {k: _replace_paper_id_in_json(v, old_id, new_id) for k, v in value.items()}
+    return new_id if value == old_id else value

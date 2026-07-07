@@ -120,3 +120,60 @@ def test_merge_repoints_union_dedups_membership_and_hides_b(tmp_path):
             conn.execute(select(merge_operations.c.status).where(merge_operations.c.id == op_id)).scalar_one()
             == "active"
         )
+
+
+def test_merge_drops_derived_preserves_reviewed_finding_and_rewrites_json(tmp_path):
+    from app.backend.persistence.merge_repo import merge_papers
+    from app.backend.persistence.schema import open_science_signals, paper_findings, profile
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        a = _add_paper(conn, title="A", csl_json={})
+        b = _add_paper(conn, title="B", csl_json={})
+        conn.execute(insert(open_science_signals).values(paper_id=b, signal_type="data", status="present", source="oa"))
+        # findings collision on (source, content_key): B's is reviewed, A's isn't -> keep the reviewed one on A
+        conn.execute(
+            insert(paper_findings).values(
+                paper_id=a, source="s", kind="candidate", payload={}, content_key="k", review_state=None
+            )
+        )
+        conn.execute(
+            insert(paper_findings).values(
+                paper_id=b, source="s", kind="candidate", payload={}, content_key="k", review_state="confirmed"
+            )
+        )
+        conn.execute(insert(profile).values(starred_paper_ids=[b], research_domains=[]))
+
+        merge_papers(conn, canonical_id=a, merged_id=b, resolved_metadata={})
+
+        assert (
+            conn.execute(
+                select(func.count()).select_from(open_science_signals).where(open_science_signals.c.paper_id == b)
+            ).scalar_one()
+            == 0
+        )
+        kept = (
+            conn.execute(
+                select(paper_findings.c.review_state).where(
+                    paper_findings.c.paper_id == a, paper_findings.c.content_key == "k"
+                )
+            )
+            .scalars()
+            .all()
+        )
+        assert "confirmed" in kept  # the reviewed row survived on A
+        assert conn.execute(select(profile.c.starred_paper_ids)).scalar_one() == [a]  # b -> a rewrite
+
+
+def test_merge_drops_the_ab_dismissed_pair(tmp_path):
+    from app.backend.persistence.merge_repo import merge_papers
+    from app.backend.persistence.schema import dismissed_duplicate_pairs
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        a = _add_paper(conn, title="A", csl_json={})
+        b = _add_paper(conn, title="B", csl_json={})
+        lo, hi = sorted((a, b))
+        conn.execute(insert(dismissed_duplicate_pairs).values(paper_id_low=lo, paper_id_high=hi))
+        merge_papers(conn, canonical_id=a, merged_id=b, resolved_metadata={})
+        assert conn.execute(select(func.count()).select_from(dismissed_duplicate_pairs)).scalar_one() == 0
