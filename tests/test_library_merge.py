@@ -59,3 +59,27 @@ def test_allowlist_guard_detects_a_missing_table(monkeypatch):
 
     with pytest.raises(AssertionError, match="annotations"):
         al.assert_allowlist_complete(schema.metadata)
+
+
+def _add_paper(conn, **cols):
+    cols.setdefault("csl_json", {})
+    return conn.execute(insert(papers).values(**cols)).inserted_primary_key[0]
+
+
+def test_merge_preview_reports_field_conflicts_and_counts(tmp_path):
+    from app.backend.persistence.merge_repo import merge_preview
+    from app.backend.persistence.schema import annotations
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        a = _add_paper(
+            conn, title="Neural correlates", year=2023, doi="10.1/abc", csl_json={"title": "Neural correlates"}
+        )
+        b = _add_paper(conn, title="Neural Correlates", year=2023, csl_json={"title": "Neural Correlates"})
+        conn.execute(insert(annotations).values(paper_id=b, page=1, note="x"))
+        preview = merge_preview(conn, a, b)
+    fields = {f["field"]: f for f in preview["fields"]}
+    assert fields["title"]["agree"] is False and fields["title"]["value_a"] == "Neural correlates"
+    assert fields["year"]["agree"] is True
+    assert fields["doi"]["value_b"] in (None, "")  # B has no DOI
+    assert preview["association_counts"]["annotations"] >= 1
