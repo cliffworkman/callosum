@@ -41,3 +41,21 @@ def test_migrations_upgrade_head_creates_merge_schema(tmp_path):
     insp = inspect(engine)
     assert "merge_operations" in insp.get_table_names()
     assert "merged_into" in {c["name"] for c in insp.get_columns("papers")}
+
+
+def test_allowlist_covers_every_paper_referencing_table():
+    # Fails if a table references papers (by FK or a paper_id-shaped column) but isn't classified into a bucket.
+    from app.backend.persistence.merge_allowlist import assert_allowlist_complete
+
+    assert_allowlist_complete(schema.metadata)  # raises AssertionError naming any unbucketed table
+
+
+def test_allowlist_guard_detects_a_missing_table(monkeypatch):
+    import pytest
+
+    import app.backend.persistence.merge_allowlist as al
+
+    monkeypatch.setattr(al, "UNION_TABLES", [t for t in al.UNION_TABLES if t[0] != "annotations"])
+
+    with pytest.raises(AssertionError, match="annotations"):
+        al.assert_allowlist_complete(schema.metadata)
