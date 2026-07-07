@@ -141,18 +141,33 @@ INDEX ix_merge_operations_canonical (canonical_paper_id)
 
 ### `papers.merged_into` (new nullable self-FK column)
 ```
-merged_into INTEGER FK papers.id  NULL default    -- NULL = live; set = merged away into that canonical
+merged_into INTEGER FK papers.id  NULL default    -- NULL = not merged; set = merged away into that canonical
 ```
-- The library list, search, counts, and dedup **filter `merged_into IS NULL`** (a merged-away paper vanishes
-  from every normal surface — like trash, but a *distinct* state so Trash's naive "restore" never creates a
-  dangling half-merge).
-- The survivor's Detail pane reads "merged from N" by finding `merge_operations WHERE canonical=A AND
-  status='active'`.
-- Un-merge sets `merged_into = NULL` on B.
+**The merged-away paper B is marked BOTH `deleted_at = now` AND `merged_into = A`.** This is the
+low-blast-radius design: the codebase already filters `papers.deleted_at IS NULL` in **~10 live-paper
+queries** (library list, search, counts, cluster/axis membership joins, reading-queue join, wanted, batch
+producers…). Re-using `deleted_at` hides B from **every** one of them for free — no per-query change. The new
+`merged_into` column is the *marker* that distinguishes a merged-away paper from a normally-trashed one, and it
+needs to be honored in exactly **three** places:
 
-> **Why a distinct `merged_into` column, not the existing `deleted_at` trash flag:** restoring a merged-away
-> paper from Trash must route through *un-merge* (to un-re-point associations), never a plain restore. A
-> separate state makes that unambiguous and keeps Trash semantics clean.
+1. **Trash list** (`repository.py:262`, the `only_deleted` branch) — add `AND merged_into IS NULL` so a
+   merged-away paper never appears in Trash as a naively-restorable row (restoring it must route through
+   *un-merge*, not a plain `restore_paper`, or associations stay re-pointed).
+2. **`purge_paper`** (`paper_lifecycle_repo.py`) — guard: refuse to purge a paper whose `merged_into` is set
+   (purging B would destroy the `merge_operations` undo record's target and break reversibility). Un-merge
+   first.
+3. **`purge_all_trashed`** — its id-select adds `AND merged_into IS NULL` so "Empty Trash" skips merged-away
+   papers (belt-and-suspenders with the `purge_paper` guard).
+
+- The survivor's Detail pane reads "merged from …" via `merge_operations WHERE canonical=A AND status='active'`.
+- Un-merge clears **both** `deleted_at` and `merged_into` on B (fully live again).
+
+> **Why re-use `deleted_at` instead of adding `merged_into IS NULL` to all ~10 live queries:** the soft-delete
+> filter is already threaded through every surface that must hide B; adding a second predicate to each is a
+> large, error-prone blast radius where *missing one* leaks a merged-away paper into a view. Setting
+> `deleted_at` too gets that hiding for free; `merged_into` then only guards the 3 Trash/purge spots. A
+> merged-away paper is, honestly, "removed from the live library" — the same state trash represents — just
+> flagged with *why* and *how to reverse it*.
 
 ---
 
@@ -168,7 +183,7 @@ transaction so any failure rolls back with zero partial state:
    couldn't (consistency + reuse).
 4. Walk the allowlist buckets 1→5, recording every `repoint` / `drop` / `json_edit` into the snapshot as it
    goes.
-5. Set `B.merged_into = A`.
+5. Set `B.deleted_at = now` **and** `B.merged_into = A` (soft-hidden from every live query + flagged as merged).
 6. Insert the `merge_operations` row (status `active`, snapshot attached).
 7. Return the op id.
 
@@ -181,7 +196,7 @@ transaction so any failure rolls back with zero partial state:
 3. Move every `repoint` row back to B (by recorded row id).
 4. Re-insert every `drop` row (to B).
 5. Restore every `json_edit` (`before` value).
-6. `B.merged_into = NULL`.
+6. Clear `B.deleted_at = NULL` **and** `B.merged_into = NULL` (B fully live again).
 7. Op status → `undone`, `undone_at = now`.
 
 **Post-merge additions stay put.** Un-merge reverses only what the merge recorded — anything added to A
