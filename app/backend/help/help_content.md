@@ -941,7 +941,9 @@ When two records really are the same paper — for example a **preprint and its 
 - Launch it from a duplicate group's **merge** button, or select two or more papers in the library (tick their checkboxes) and click **merge** in the selection bar.
 - In the dialog, pick which record to **keep as the main record**, resolve any **differing fields** (title, year, DOI, link, …) with the radio buttons, and choose the **primary PDF**.
 - **Both PDFs are kept** (so you can keep the preprint's file *and* the published one), every **link, tag, and highlight** moves onto the surviving record, and a **"Merged from…" note** records the other copies' identifiers (DOI, OSF/URL, PMID, arXiv) — so a link can never be silently lost.
-- The other copies move to **Trash** (restorable), so a merge is reversible to that extent and leaves an audit trail. Nothing is hard-deleted and no file is removed from disk.
+- The other copies become **merged-away** — they leave the live library (and don't clutter Trash). Nothing is hard-deleted and no file is removed from disk.
+
+**Changed your mind? Un-merge.** A merge is **fully reversible**. Open the surviving record's **Details** — a **"Merged from … — Un-merge"** banner sits at the top. Click **Un-merge** and every merged-away copy comes back to the library with its own PDFs, tags, and highlights, and the survivor's record reverts to exactly what it was before. (This is why merged-away copies aren't offered as ordinary Trash restores — restoring one that way would give you an empty shell, since its data was moved onto the survivor. Un-merge puts it all back correctly.)
 
 How to think about confidence:
 

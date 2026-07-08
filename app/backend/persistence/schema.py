@@ -64,6 +64,10 @@ papers = Table(
     Column("deleted_at", DateTime),  # NULL = live; a timestamp = soft-deleted (in Trash). inc 54.
     Column("read_at", DateTime),  # NULL = unread; a timestamp = the user marked it read (manual). inc 220.
     Column("priority", String(20)),  # NULL = unset; a user triage label (high/normal/low), never an AI score. inc 220.
+    # NULL = not merged; set = this paper was merged away into that canonical paper (backlog #17). Paired with a
+    # deleted_at stamp so the existing soft-delete filter hides it from every live query; this marks WHY + enables
+    # un-merge. Self-FK (SET NULL so purging the canonical never dangles a merged marker).
+    Column("merged_into", ForeignKey("papers.id", ondelete="SET NULL")),
     enum_check("processing_tier", PROCESSING_TIERS, "processing_tier_valid"),
     UniqueConstraint("doi", name="uq_papers_doi"),
     UniqueConstraint("openalex_work_id", name="uq_papers_openalex_work_id"),
@@ -534,6 +538,12 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     paper_citation_counts,
     paper_findings,
     retraction_records,
+)
+
+# Reversible-library-merge bookkeeping (backlog #17/#16) — same split rationale.
+from app.backend.persistence.schema_merge import (  # noqa: E402,F401
+    MERGE_STATUSES,
+    merge_operations,
 )
 
 # Summary / citation-mapping / evidence-quote tables (inc 262 split) — same split rationale; re-exported so

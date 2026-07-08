@@ -1095,6 +1095,11 @@
   .detail-note { margin: 0 0 10px; padding: 7px 10px; border-radius: var(--radius); font-size: 12px; }
   .detail-note-ok { background: var(--verified-soft); color: var(--verified); border: 1px solid var(--verified); }
   .detail-note-warn, .detail-note-err { background: var(--flag-soft); color: var(--flag-ink); border: 1px solid var(--flag-line); }
+  /* #16: this record is the survivor of a reversible merge — provenance (indigo) + a one-click Un-merge. */
+  .detail-merge-origin { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 7px 10px;
+    border-radius: var(--radius); font-size: 12px; background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--accent-line); }
+  .detail-merge-origin .btn-link { margin-left: auto; color: var(--accent); font-weight: 600; white-space: nowrap; }
 
   .detail-section { margin-top: 12px; }
   .detail-section-head {

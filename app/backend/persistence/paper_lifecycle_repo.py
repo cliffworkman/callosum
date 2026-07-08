@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Connection, and_, delete, func, or_, select, update
 
-from app.backend.persistence.schema import chunks, embeddings, papers
+from app.backend.persistence.schema import chunks, embeddings, merge_operations, papers
 
 if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at import time
     from app.backend.embeddings.vector_store import VectorStore
@@ -69,9 +69,16 @@ def purge_paper(conn: Connection, paper_id: int, *, vector_store: "VectorStore")
     row, whose FK CASCADE removes chunks/annotations/attachments/cluster_node_papers/dismissed pairs/etc.
     Caller commits.
     """
-    row = conn.execute(select(papers.c.deleted_at).where(papers.c.id == paper_id)).first()
-    if row is None or row[0] is None:
-        return False  # missing or not in Trash — never purge a live paper
+    row = conn.execute(select(papers.c.deleted_at, papers.c.merged_into).where(papers.c.id == paper_id)).first()
+    if row is None or row[0] is None or row[1] is not None:
+        return False  # missing, not in Trash, or merged-away (un-merge first — never orphan the undo record, #17)
+    active_canonical = conn.execute(
+        select(func.count())
+        .select_from(merge_operations)
+        .where(merge_operations.c.canonical_paper_id == paper_id, merge_operations.c.status == "active")
+    ).scalar_one()
+    if active_canonical:
+        return False  # survivor of an active merge — un-merge before purging (no dangling merged_into on #17)
     _purge_paper_embeddings(conn, paper_id, vector_store=vector_store)
     conn.execute(delete(papers).where(papers.c.id == paper_id))
     return True
@@ -79,7 +86,12 @@ def purge_paper(conn: Connection, paper_id: int, *, vector_store: "VectorStore")
 
 def purge_all_trashed(conn: Connection, *, vector_store: "VectorStore") -> int:
     """Empty the Trash: permanently delete every soft-deleted paper. Returns the count purged. Caller commits."""
-    ids = [int(r[0]) for r in conn.execute(select(papers.c.id).where(papers.c.deleted_at.is_not(None)))]
+    ids = [
+        int(r[0])
+        for r in conn.execute(
+            select(papers.c.id).where(and_(papers.c.deleted_at.is_not(None), papers.c.merged_into.is_(None)))
+        )
+    ]
     for paper_id in ids:
         purge_paper(conn, paper_id, vector_store=vector_store)  # each is trashed → True
     return len(ids)
