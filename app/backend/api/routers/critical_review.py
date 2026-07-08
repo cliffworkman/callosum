@@ -196,6 +196,47 @@ def critical_read_candidates(paper_id: int, conn: Connection = Depends(get_conne
     )
 
 
+@router.post("/papers/{paper_id}/critical-read/candidates/generate", response_model=CandidateListResponse)
+def generate_candidates(
+    paper_id: int, request: Request, conn: Connection = Depends(get_connection)
+) -> CandidateListResponse:
+    # Tier 2 (egress-gated, invariant #3): the LLM PROPOSES concerns; each is admitted only through the #13
+    # verbatim bar (verify_candidates → canonical_text_contains), annotated with a local NLI stance, and persisted
+    # as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the egress gate.
+    from app.backend.llm.providers import requires_egress
+    from app.backend.methods.critical_review import paper_full_text
+    from integrations.gemini import GeminiConfig
+    from integrations.gemini.critical_review import GeminiCriticalReviewGenerator, verify_candidates
+
+    try:
+        get_paper(conn, paper_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Paper not found") from None
+
+    config = GeminiConfig.from_environment()
+    if requires_egress(config) and not config.data_egress_enabled:
+        raise HTTPException(status_code=422, detail="AI critique requires data-egress consent (Settings → AI features)")
+    generator = getattr(request.app.state, "critical_review_generator", None)
+    if generator is None:
+        if requires_egress(config) and not config.resolved_api_key():
+            raise HTTPException(status_code=422, detail="AI critique requires an API key (Settings → AI features)")
+        generator = GeminiCriticalReviewGenerator(config=config)
+
+    _, _, stance_scorer = _cr_deps(request.app)
+    paper_text = paper_full_text(conn, paper_id)
+    drafts = generator.propose(paper_text=paper_text)
+    verified = verify_candidates(
+        drafts,
+        paper_id=paper_id,
+        paper_text=paper_text,
+        stance_scorer=stance_scorer,
+        rejected_signatures=repo.rejected_signatures(conn, paper_id),
+    )
+    repo.insert_candidates(conn, paper_id, verified)
+    conn.commit()
+    return critical_read_candidates(paper_id, conn)
+
+
 def _set_candidate_status(candidate_id: int, status: str, conn: Connection) -> CandidateStatusResponse:
     if not repo.set_status(conn, candidate_id, status):
         raise HTTPException(status_code=404, detail="Candidate not found")

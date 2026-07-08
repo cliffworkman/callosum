@@ -394,3 +394,70 @@ def test_critical_read_endpoints(temp_db_url) -> None:
     assert client.post("/papers/999999/critical-read").status_code == 404
     assert client.get("/critical-read/does-not-exist").status_code == 404
     assert client.post("/critical-read/candidates/999999/accept").status_code == 404
+
+
+# --- Task 5: Tier-2 verified candidates (egress-gated) ----------------------------------------------------------
+
+
+def test_verify_candidates_keeps_only_grounded_and_skips_rejected():
+    from types import SimpleNamespace
+
+    from integrations.gemini.critical_review import CandidateDraft, candidate_signature, verify_candidates
+
+    class _Stance:
+        def classify_stance(self, *, sentence, passage):
+            return SimpleNamespace(label="contrast", confidence=0.7)
+
+    text = "We prove causation between X and Y in every condition tested."
+    drafts = [
+        CandidateDraft(concern="causal overreach", anchor_quote="We prove causation between X and Y"),  # verbatim
+        CandidateDraft(concern="not grounded", anchor_quote="a sentence that is absent from the paper"),  # dropped
+    ]
+    verified = verify_candidates(drafts, paper_id=1, paper_text=text, stance_scorer=_Stance())
+    assert [v["concern"] for v in verified] == ["causal overreach"]  # ungrounded draft dropped (#13 honest shortfall)
+    assert verified[0]["stance"] == "contrast" and verified[0]["confidence"] == 0.7 and verified[0]["signature"]
+    # a previously-rejected signature is never re-created
+    sig = candidate_signature(1, "causal overreach", "We prove causation between X and Y")
+    assert (
+        verify_candidates(drafts, paper_id=1, paper_text=text, stance_scorer=_Stance(), rejected_signatures={sig}) == []
+    )
+
+
+def test_generate_candidates_endpoint_verifies_and_egress_gates(temp_db_url, monkeypatch):
+    from types import SimpleNamespace
+
+    from integrations.gemini.critical_review import CandidateDraft
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(
+            conn, title="P", abstract="We prove causation between X and Y in all cases.", csl_json={"title": "P"}
+        )
+    engine.dispose()
+
+    class _FakeGen:
+        def propose(self, *, paper_text):
+            return [
+                CandidateDraft(concern="causal overreach", anchor_quote="We prove causation between X and Y"),
+                CandidateDraft(concern="ungrounded", anchor_quote="text not present anywhere in the paper"),
+            ]
+
+    class _FakeStance:
+        def classify_stance(self, *, sentence, passage):
+            return SimpleNamespace(label="contrast", confidence=0.6)
+
+    app = create_app(db_url=temp_db_url)
+    app.state.critical_review_generator = _FakeGen()
+    app.state.critical_review_deps = {"embed_model": None, "vector_store": None, "stance_scorer": _FakeStance()}
+    client = TestClient(app)
+
+    # egress ON (conftest default): only the grounded candidate persists, as pending
+    r = client.post(f"/papers/{pid}/critical-read/candidates/generate")
+    assert r.status_code == 200, r.text
+    cands = r.json()["candidates"]
+    assert len(cands) == 1 and cands[0]["concern"] == "causal overreach" and cands[0]["status"] == "pending"
+
+    # egress OFF: honest refusal, no crash, no new candidates
+    monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
+    r2 = client.post(f"/papers/{pid}/critical-read/candidates/generate")
+    assert r2.status_code == 422

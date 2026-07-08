@@ -252,6 +252,15 @@ def extract_claim_sentences(conn, paper_id, *, max_claims: int = 12) -> list[str
     return _split_sentences(text)[:max_claims]
 
 
+def paper_full_text(conn, paper_id) -> str:
+    """The paper's full extracted text (abstract + every stored chunk, in order) — the verbatim haystack the
+    Tier-2 #13 bar (``canonical_text_contains``) checks a candidate's anchor_quote against. Local, no LLM."""
+    paper = get_paper(conn, paper_id)
+    parts = [str(paper["abstract"] or "").strip()]
+    parts += [str(row["text"] or "") for row in get_chunks_for_paper(conn, paper_id)]
+    return "\n".join(part for part in parts if part)
+
+
 def other_paper_chunk_embedding_ids(conn, paper_id) -> set[int]:
     """The ``embeddings.id`` of every chunk-embedding belonging to a paper OTHER than ``paper_id``, excluding
     soft-deleted papers — the candidate set the contradiction detector retrieves the *rest of the corpus* from.
