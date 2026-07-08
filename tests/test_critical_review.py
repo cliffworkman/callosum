@@ -461,3 +461,24 @@ def test_generate_candidates_endpoint_verifies_and_egress_gates(temp_db_url, mon
     monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
     r2 = client.post(f"/papers/{pid}/critical-read/candidates/generate")
     assert r2.status_code == 422
+
+
+# --- Task 7: Principles guard (signal not verdict; no composite score; no author-directed judgment) -------------
+
+
+def test_no_composite_score_field_and_no_author_directed_copy():
+    import pathlib
+
+    # (1) The API responses expose per-item confidence ONLY — no composite quality/score/verdict field (Principle #7).
+    from app.backend.api.routers.critical_review import CandidateResponse, ScrutinyBackboneResponse
+
+    banned_fields = {"quality", "score", "overall", "grade", "rating", "verdict"}
+    for model in (CandidateResponse, ScrutinyBackboneResponse):
+        assert not (set(model.model_fields) & banned_fields), f"{model.__name__} exposes a composite-score field"
+
+    # (2) Our static UI + prompt copy carries no author-directed judgment (A-A no-accusation veto).
+    banned_phrases = ["the authors are", "the author is", "sloppy", "dishonest", "incompetent", "fraud", "bad science"]
+    for rel in ("app/frontend/js/08x_methods_critical.jsx", "integrations/gemini/critical_review.py"):
+        text = pathlib.Path(rel).read_text(encoding="utf-8").lower()
+        for phrase in banned_phrases:
+            assert phrase not in text, f"{rel}: banned author-directed phrase {phrase!r}"
