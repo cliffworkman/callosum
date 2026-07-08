@@ -1195,6 +1195,14 @@
   .lmm-basis { font-size: 10.5px; color: var(--ink-3); margin-top: 3px; }
   .lmm-summary { font-size: 11px; color: var(--ink-2); margin-bottom: 6px; }
   .bayes-check-item.lmm-na { opacity: 0.62; }  /* preconditions not met — de-emphasized, not a gap */
+  /* Critical read (#12): AI candidates are amber (--flag = candidate/uncertain) — visually distinct from the
+     Tier-1 facts above, so a suggestion is never mistaken for an established finding. */
+  .cr-tier2 { margin-top: 12px; }
+  .cr-candidate { padding: 7px 9px; margin-bottom: 6px; border: 1px solid var(--flag-line); background: var(--flag-soft);
+    border-radius: var(--radius-sm); }
+  .cr-candidate.cr-accepted { border-color: var(--verified); background: var(--verified-soft); }
+  .cr-quote { font-size: 11.5px; color: var(--ink-2); font-style: italic; margin: 3px 0; }
+  .cr-actions { display: flex; gap: 12px; margin-top: 4px; }
   /* Bayesian auditor SP4 (inc 244): Tier-3 advisory prompts — neutral/accent tint, deliberately NOT the amber flag. */
   .bayes-advisory { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
   .bayes-advisory-item { padding: 6px 8px; border-left: 2px solid var(--accent-soft); margin-bottom: 6px; font-size: 12px; color: var(--ink-2); }
@@ -4599,6 +4607,116 @@
     } }, copied ? "\u2713 copied" : "copy value + variance")), /* @__PURE__ */ React.createElement("div", { className: "es-ci" }, "95% CI [", d.ci_low, ", ", d.ci_high, "]"), d.path.length > 0 && /* @__PURE__ */ React.createElement("ol", { className: "es-path" }, d.path.map((p, i) => /* @__PURE__ */ React.createElement("li", { key: i }, p))), d.choices.map((ch, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "es-choice" }, "\u21B3 ", ch)), d.caveats.map((cv, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "statcheck-caveat" }, cv)), /* @__PURE__ */ React.createElement("div", { className: "es-src" }, /* @__PURE__ */ React.createElement("b", null, "Formula:"), " ", d.formula_source)), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "This converts one study \u2014 it is not a meta-analysis. Pooling, heterogeneity (I\xB2/\u03C4\xB2), meta-regression, and publication-bias inference belong to a synthesis tool (metafor / JASP / RevMan); Callosum hands off the dataset + this provenance."), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Formulas:"), " Borenstein, Hedges, Higgins & Rothstein (2009), ", /* @__PURE__ */ React.createElement("i", null, "Introduction to Meta-Analysis"), "; Hedges (1981); Fisher (1915); Haldane (1940) / Anscombe (1956); Wan et al. (2014); Hasselblad & Hedges (1995); cf. the ", /* @__PURE__ */ React.createElement("i", null, "metafor"), " package (Viechtbauer 2010).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add methods source to library")));
   }
   registerPaneSection({ id: "effectsize", label: "Effect-size converter", paneId: "methods", order: 38, hideInReadOnly: true, render: () => /* @__PURE__ */ React.createElement(EffectSizeSection, null) });
+  function ScrutinyBackboneView({ backbone, onOpen }) {
+    const ms = backbone.method_signals || [];
+    const cc = backbone.contested_claims || [];
+    const nothing = !ms.length && !cc.length && !backbone.citation_signal;
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-backbone" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "What the checks surfaced (facts)"), nothing && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing surfaced by these checks. That isn\u2019t a clean bill of health \u2014 it means ", /* @__PURE__ */ React.createElement("i", null, "these particular signals"), " found nothing to flag. Read on your own judgment."), ms.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: "ms" + i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-head" }, /* @__PURE__ */ React.createElement("span", { className: "bayes-check-label" }, s.label), /* @__PURE__ */ React.createElement("span", { className: "bayes-check-muted" }, s.kind)), s.detail && /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, s.detail))), cc.length > 0 && /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Claims your corpus contests"), cc.map((c, i) => /* @__PURE__ */ React.createElement("div", { key: "cc" + i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, "This paper:"), " \u201C", c.claim, "\u201D"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "bayes-check-ev",
+        title: c.page != null ? "Open page " + c.page : "Open the contesting paper",
+        onClick: () => onOpen(c.other_paper_id, c.page)
+      },
+      "Contested by another paper: \u201C",
+      c.passage,
+      "\u201D"
+    ), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance, " \xB7 confidence ", Math.round((c.confidence || 0) * 100), "%"))));
+  }
+  function CriticalCandidate({ c, onAccept, onReject }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), c.confidence != null && /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance || "\u2014", " \xB7 confidence ", Math.round(c.confidence * 100), "%"), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
+  }
+  function CriticalReadPaper({ paperId, onOpenPaper, active }) {
+    const [meta, setMeta] = useState(null);
+    const [t1, setT1] = useState({ status: "idle" });
+    const [aiReady, setAiReady] = useState(false);
+    const [cands, setCands] = useState(null);
+    const [gen, setGen] = useState("idle");
+    useEffect(() => {
+      setT1({ status: "idle" });
+      setMeta(null);
+      setCands(null);
+      setGen("idle");
+      if (paperId == null) return;
+      let live = true;
+      api(`/papers/${paperId}`).then((r) => {
+        if (live && r.ok) setMeta({ title: r.data.title, hasText: (r.data.chunk_count || 0) > 0 });
+      });
+      api(`/papers/${paperId}/critical-read/candidates`).then((r) => {
+        if (live && r.ok) setCands(r.data.candidates);
+      });
+      return () => {
+        live = false;
+      };
+    }, [paperId]);
+    useEffect(() => {
+      api("/settings").then((r) => {
+        if (r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
+      });
+    }, []);
+    const runT1 = () => {
+      setT1({ status: "running" });
+      const poll = (jid) => api(`/critical-read/${jid}`).then((rr) => {
+        if (!rr.ok) {
+          setT1({ status: "error", error: rr.error });
+          return;
+        }
+        const d = rr.data;
+        if (d.status === "done") setT1({ status: "done", backbone: d.backbone });
+        else if (d.status === "error") setT1({ status: "error", error: d.detail || "failed" });
+        else setTimeout(() => poll(jid), 1200);
+      });
+      apiPost(`/papers/${paperId}/critical-read`, {}).then((r) => {
+        if (!r.ok) {
+          setT1({ status: "error", error: r.error });
+          return;
+        }
+        poll(r.data.job_id);
+      });
+    };
+    useEffect(() => {
+      if (active && meta && meta.hasText && t1.status === "idle") runT1();
+    }, [active, meta]);
+    const generate = async () => {
+      setGen("generating");
+      const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, {});
+      if (r.ok) {
+        setCands(r.data.candidates);
+        setGen("idle");
+      } else setGen("error");
+    };
+    const act = async (cid, action) => {
+      const r = await apiPost(`/critical-read/candidates/${cid}/${action}`, {});
+      if (!r.ok) return;
+      setCands((prev) => action === "reject" ? prev.filter((c) => c.id !== cid) : prev.map((c) => c.id === cid ? { ...c, status: "accepted" } : c));
+    };
+    const open = (pid, page) => {
+      if (onOpenPaper && page != null) onOpenPaper({ id: pid }, { page, precision: "region" });
+    };
+    if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to read it critically.");
+    const shown = (cands || []).filter((c) => c.status !== "rejected");
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "What a skeptical reader should check before citing \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". The facts below are gathered from local method checks + the rest of your corpus; the AI suggestions are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score, and the critique is of the work, never the authors."), meta && !meta.hasText && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the critical read needs the paper\u2019s text."), t1.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026" }), t1.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", t1.error), t1.status === "done" && t1.backbone && /* @__PURE__ */ React.createElement(ScrutinyBackboneView, { backbone: t1.backbone, onOpen: open }), /* @__PURE__ */ React.createElement("div", { className: "cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI-suggested critiques (candidates)"), !aiReady ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested critiques \u2014 the facts above need no AI.") : /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link",
+        disabled: gen === "generating",
+        onClick: generate,
+        title: "The AI proposes concerns; each must quote the paper verbatim, and you confirm or reject it."
+      },
+      gen === "generating" ? "Suggesting\u2026" : "Suggest critiques (AI)"
+    ), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
+  }
+  function CriticalReadSection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A ", /* @__PURE__ */ React.createElement("b", null, "critical read"), ": what to check before you cite \u2014 the paper\u2019s method-check flags, claims the rest of your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a verdict or a score."), /* @__PURE__ */ React.createElement(CriticalReadPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "critical_read" }));
+  }
+  registerPaneSection({
+    id: "critical_read",
+    label: "Critical read",
+    paneId: "methods",
+    order: 40,
+    hideInReadOnly: true,
+    render: (ctx) => /* @__PURE__ */ React.createElement(CriticalReadSection, { ctx })
+  });
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
