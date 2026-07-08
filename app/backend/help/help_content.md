@@ -889,6 +889,18 @@ The **Extract** tab (in the center pane, alongside Library and Discover) is wher
 
 Every value is **yours to enter and anchor** — the workspace extracts, structures, converts, and exports the dataset; it does not pool studies, weight them, or run the meta-analysis, and no export carries a synthesized/summary estimate. Hand the exported dataset to metafor / JASP / RevMan for the synthesis.
 
+<!-- section: critically-reading -->
+## Critically reading a paper
+
+The **Critical read** section (in a paper's METHODS pane) assembles a *scrutiny surface* — what a skeptical reader should check before citing. It is a **signal, never a verdict**: there is no quality score, and it critiques the work's claims and methods, never the authors.
+
+It has two tiers, kept deliberately distinct:
+
+- **Tier 1 — facts (local, no AI, runs automatically).** It gathers what the app already knows: the paper's method-check flags (statcheck, GRIM, LMM-reporting, transparency, retraction…) and **claims the rest of your corpus contests** — sentences from this paper that another paper in your library takes a confident *contrasting* stance toward, shown with the contradicting passage (verbatim, with its page) and a confidence. This surfaces disagreement your own library already contains; it never resolves it for you.
+- **Tier 2 — AI-suggested critiques (opt-in, off by default).** Only when you've enabled AI features, a **Suggest critiques (AI)** button asks the model to propose concerns. Each suggestion is a **candidate you confirm** (shown in amber, distinct from the Tier-1 facts): it is admitted only if it quotes the paper **verbatim** (an ungrounded suggestion is dropped), and it carries a stance + confidence. You **Accept** the ones worth keeping and **Reject** the rest — a rejected suggestion is never proposed again. With AI off, Tier 1 still works fully.
+
+"Nothing surfaced by these checks" is **not** a clean bill of health — it means these particular signals found nothing to flag. The reading judgment is always yours.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **Theory** pane to see them. Findings come in two kinds, shown differently on purpose:
