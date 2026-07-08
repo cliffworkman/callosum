@@ -269,12 +269,15 @@ def test_endpoint_merge_happy_path(temp_db_url: str) -> None:
         json={"survivor_id": survivor, "merged_ids": [merged], "metadata": {"doi": "10.123/published"}},
     )
     assert r.status_code == 200, r.text
-    assert r.json() == {"survivor_id": survivor, "merged_ids": [merged], "trashed": [merged]}
-    # the merged copy is in Trash; the survivor stays in the live library
+    body = r.json()
+    assert body["survivor_id"] == survivor and body["merged_ids"] == [merged] and body["trashed"] == [merged]
+    assert isinstance(body["merge_operation_id"], int)  # the undo handle (#16)
+    # The merged copy leaves the live library AND the plain Trash list — it's "merged away" (a distinct reversible
+    # state), reachable only via un-merge on the survivor (a naive Trash-restore would give an empty husk). #16.
     live_ids = {p["id"] for p in client.get("/papers").json()}
     trash_ids = {p["id"] for p in client.get("/papers", params={"deleted": "true"}).json()}
     assert survivor in live_ids and merged not in live_ids
-    assert merged in trash_ids
+    assert merged not in trash_ids
     assert client.get(f"/papers/{survivor}").json()["doi"] == "10.123/published"
 
 

@@ -1119,6 +1119,11 @@
   .detail-note { margin: 0 0 10px; padding: 7px 10px; border-radius: var(--radius); font-size: 12px; }
   .detail-note-ok { background: var(--verified-soft); color: var(--verified); border: 1px solid var(--verified); }
   .detail-note-warn, .detail-note-err { background: var(--flag-soft); color: var(--flag-ink); border: 1px solid var(--flag-line); }
+  /* #16: this record is the survivor of a reversible merge — provenance (indigo) + a one-click Un-merge. */
+  .detail-merge-origin { display: flex; align-items: center; gap: 8px; margin: 0 0 10px; padding: 7px 10px;
+    border-radius: var(--radius); font-size: 12px; background: var(--accent-soft); color: var(--accent);
+    border: 1px solid var(--accent-line); }
+  .detail-merge-origin .btn-link { margin-left: auto; color: var(--accent); font-weight: 600; white-space: nowrap; }
 
   .detail-section { margin-top: 12px; }
   .detail-section-head {
@@ -7222,8 +7227,11 @@
     const [queuing, setQueuing] = useState(false);
     const [idOpen, setIdOpen] = useState(true);
     const [moreOpen, setMoreOpen] = useState(true);
+    const [mergeOrigin, setMergeOrigin] = useState(null);
+    const [unmerging, setUnmerging] = useState(false);
     useEffect(() => {
       setNote(null);
+      setMergeOrigin(null);
       if (paperId == null) {
         setState({ status: "idle" });
         return;
@@ -7234,6 +7242,9 @@
         if (!live) return;
         if (r.ok) setState({ status: "ready", paper: r.data });
         else setState({ status: "error", error: r.error });
+      });
+      api(`/papers/${paperId}/merge-origin`).then((r) => {
+        if (live && r.ok) setMergeOrigin(r.data);
       });
       return () => {
         live = false;
@@ -7279,6 +7290,25 @@
         setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
       }
     }, [paperId]);
+    const unmergeNow = useCallback(async () => {
+      if (!mergeOrigin) return;
+      setNote(null);
+      setUnmerging(true);
+      const r = await apiPost(`/merge/${mergeOrigin.merge_operation_id}/undo`, {});
+      setUnmerging(false);
+      if (r.ok && r.data) {
+        const n = (r.data.restored_ids || []).length;
+        setMergeOrigin(null);
+        setNote({ kind: "ok", text: `Un-merged \u2014 restored ${n} record${n === 1 ? "" : "s"}.` });
+        api(`/papers/${paperId}`).then((rr) => {
+          if (rr.ok) setState({ status: "ready", paper: rr.data });
+        });
+        if (onTagsChanged) onTagsChanged();
+        if (onQueueChanged) onQueueChanged();
+      } else {
+        setNote({ kind: "err", text: r.error || "Couldn't un-merge." });
+      }
+    }, [mergeOrigin, paperId, onTagsChanged, onQueueChanged]);
     const addToQueue = useCallback(async () => {
       if (paperId == null) return;
       setNote(null);
@@ -7340,7 +7370,16 @@
         title: "Add this paper to your reading Queue (the Queue tab in the left pane)"
       },
       queuing ? "Adding\u2026" : "+ Reading queue"
-    )), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), note && /* @__PURE__ */ React.createElement("div", { className: "detail-note detail-note-" + note.kind }, note.text), needsMetadata(p) && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 12px" } }, /* @__PURE__ */ React.createElement("b", null, "Metadata not yet resolved."), " This paper came from a raw PDF. Add its DOI under Identifiers and click \u{1F50E} to fetch a bibliographic record from Crossref."), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement(EditableText, { variant: "title", value: p.title, placeholder: "Add title", onSave: (t) => saveField("title", t) }), mergeOrigin && !readOnly && /* @__PURE__ */ React.createElement("div", { className: "detail-merge-origin" }, /* @__PURE__ */ React.createElement("span", null, "Merged from ", mergeOrigin.merged_from_titles.map((t) => `\u201C${t}\u201D`).join(", "), "."), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link",
+        onClick: unmergeNow,
+        disabled: unmerging,
+        title: "Reverse this merge \u2014 restore the merged-away record(s) with their PDFs, tags, and highlights"
+      },
+      unmerging ? "Un-merging\u2026" : "Un-merge"
+    )), note && /* @__PURE__ */ React.createElement("div", { className: "detail-note detail-note-" + note.kind }, note.text), needsMetadata(p) && /* @__PURE__ */ React.createElement("div", { className: "errbox", style: { margin: "0 0 12px" } }, /* @__PURE__ */ React.createElement("b", null, "Metadata not yet resolved."), " This paper came from a raw PDF. Add its DOI under Identifiers and click \u{1F50E} to fetch a bibliographic record from Crossref."), /* @__PURE__ */ React.createElement(
       EditableText,
       {
         label: "Authors",

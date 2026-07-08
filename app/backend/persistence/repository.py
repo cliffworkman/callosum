@@ -259,7 +259,13 @@ def list_papers(
             ),  # inc 210, A2 — verbatim OpenAlex count + as-of for the card chip
             _cited_by_as_of_subquery().label("cited_by_as_of"),
         )
-        .where(papers.c.deleted_at.is_not(None) if only_deleted else papers.c.deleted_at.is_(None))
+        .where(
+            # Trash view excludes merged-away papers (deleted_at + merged_into): restoring one must route through
+            # un-merge, not a plain restore, so it never appears here as naively-restorable (#17).
+            and_(papers.c.deleted_at.is_not(None), papers.c.merged_into.is_(None))
+            if only_deleted
+            else papers.c.deleted_at.is_(None)
+        )
         .order_by(*_paper_sort_order(sort))
     )
     if q:

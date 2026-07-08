@@ -25,6 +25,7 @@ producers (retraction/statcheck), and the husk retains its copies.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -40,8 +41,10 @@ from app.backend.persistence.schema import (
     chunks,
     cluster_node_papers,
     collection_papers,
+    merge_operations,
     notes,
     paper_external_identifiers,
+    paper_tags,
     papers,
 )
 
@@ -55,6 +58,21 @@ _REPOINT_TABLES = (attachments, chunks, annotations, notes, paper_external_ident
 _UNIQUE_ID_COLS = ("doi", "openalex_work_id", "semantic_scholar_paper_id", "zotero_library_id", "zotero_item_key")
 # Matching ids auto-adopted onto the survivor when it lacks them (column-only, not user-facing csl fields).
 _ADOPT_COLS = ("openalex_work_id", "semantic_scholar_paper_id")
+# The survivor columns a merge mutates → snapshotted before, so un-merge (#16) restores the survivor's record exactly.
+_SURVIVOR_SNAPSHOT_COLS = (
+    "title",
+    "abstract",
+    "year",
+    "venue",
+    "item_type",
+    "language",
+    "publication_date",
+    "citation_key",
+    "first_author_family_name",
+    "csl_json",
+    "imported_source",
+    *_UNIQUE_ID_COLS,
+)
 
 
 class MergeError(ValueError):
@@ -74,6 +92,41 @@ class MergeResult:
     survivor_id: int
     merged_ids: list[int]
     trashed: list[int]
+    merge_operation_id: int  # the undo handle (#16) — reverse with paper_unmerge.unmerge
+
+
+def _survivor_tag_ids(conn: Connection, survivor_id: int) -> set[int]:
+    return {int(r[0]) for r in conn.execute(select(paper_tags.c.tag_id).where(paper_tags.c.paper_id == survivor_id))}
+
+
+def _survivor_collection_ids(conn: Connection, survivor_id: int) -> set[int]:
+    return {
+        int(r[0])
+        for r in conn.execute(
+            select(collection_papers.c.collection_id).where(collection_papers.c.paper_id == survivor_id)
+        )
+    }
+
+
+def _survivor_manual_axis_ids(conn: Connection, survivor_id: int) -> set[int]:
+    return {
+        int(r[0])
+        for r in conn.execute(
+            select(cluster_node_papers.c.cluster_node_id).where(
+                cluster_node_papers.c.paper_id == survivor_id, cluster_node_papers.c.confidence.is_(None)
+            )
+        )
+    }
+
+
+def _profile_refs_any(prof: dict[str, Any], ids: list[int]) -> bool:
+    idset = set(ids)
+    if idset & {int(x) for x in (prof.get("starred_paper_ids") or [])}:
+        return True
+    for d in prof.get("research_domains") or []:
+        if idset & {int(x) for x in (d.get("paper_ids") or [])}:
+            return True
+    return False
 
 
 def merge_papers(
@@ -133,12 +186,36 @@ def merge_papers(
         if owner is None or int(owner[0]) not in set(all_ids):
             raise MergeValidationError("primary_attachment_id must be an attachment of one of the merged papers.")
 
-    # --- mutations ---
+    # --- mutations (recording an un-merge reversal snapshot as we go, #16) ---
+    # Union-link additions are captured by diffing the survivor's membership sets before vs. after (cleaner than
+    # instrumenting each OR-IGNORE insert); everything moved/nulled is snapshotted before the write.
+    snapshot: dict[str, Any] = {
+        "survivor_id": survivor_id,
+        "survivor_before": {c: survivor_row[c] for c in _SURVIVOR_SNAPSHOT_COLS},
+        "husks": [],
+        "repoints": [],
+        "primary_before": [],
+        "profile_before": None,
+    }
+    tags_before = _survivor_tag_ids(conn, survivor_id)
+    colls_before = _survivor_collection_ids(conn, survivor_id)
+    axes_before = _survivor_manual_axis_ids(conn, survivor_id)
+    prof = profile_repo.get_profile(conn)
+    if prof is not None and _profile_refs_any(prof, merged_ids):
+        snapshot["profile_before"] = {
+            "starred_paper_ids": prof.get("starred_paper_ids"),
+            "research_domains": prof.get("research_domains"),
+        }
+
+    merged_by_id = {int(r["id"]): r for r in merged_rows}
     for mid in merged_ids:
-        # Free the husk's UNIQUE identifier columns so the survivor can adopt them (csl_json retains them).
+        # Snapshot the husk's UNIQUE id columns, then free them so the survivor can adopt them (csl_json retains them).
+        snapshot["husks"].append({"id": mid, "id_cols_before": {c: merged_by_id[mid][c] for c in _UNIQUE_ID_COLS}})
         conn.execute(update(papers).where(papers.c.id == mid).values(**dict.fromkeys(_UNIQUE_ID_COLS, None)))
-        # Re-point source rows.
+        # Re-point source rows (record each moved row's id so un-merge sends it home).
         for table in _REPOINT_TABLES:
+            for rid in conn.execute(select(table.c.id).where(table.c.paper_id == mid)).scalars():
+                snapshot["repoints"].append({"table": table.name, "id": int(rid), "from": mid})
             conn.execute(update(table).where(table.c.paper_id == mid).values(paper_id=survivor_id))
         # Tags → union onto the survivor (idempotent get-or-create + OR IGNORE link; provenance preserved).
         for tag in tags_repo.get_tags_for_paper(conn, mid):
@@ -168,6 +245,11 @@ def merge_papers(
         # My-Publications references → repoint (no phantom/trashed star or domain entry).
         profile_repo.replace_paper_id(conn, mid, survivor_id)
 
+    # Only the links this merge ADDED to the survivor (husks keep their own) — un-merge removes exactly these.
+    snapshot["tag_links_added"] = sorted(_survivor_tag_ids(conn, survivor_id) - tags_before)
+    snapshot["collection_links_added"] = sorted(_survivor_collection_ids(conn, survivor_id) - colls_before)
+    snapshot["axis_links_added"] = sorted(_survivor_manual_axis_ids(conn, survivor_id) - axes_before)
+
     # Adopt matching ids the survivor lacks (from the first merged copy that has each).
     for col in _ADOPT_COLS:
         if not survivor_row[col]:
@@ -185,8 +267,18 @@ def merge_papers(
     update_kwargs["imported_source"] = MERGED_SOURCE
     update_paper_metadata(conn, survivor_id, **update_kwargs)
 
-    # Primary attachment (both PDFs are kept; the user picks which leads).
+    # Primary attachment (both PDFs are kept; the user picks which leads). Record every role we change.
     if primary_attachment_id is not None:
+        for aid, role in conn.execute(
+            select(attachments.c.id, attachments.c.role).where(
+                attachments.c.paper_id == survivor_id, attachments.c.role == "primary"
+            )
+        ):
+            snapshot["primary_before"].append({"attachment_id": int(aid), "role": role})
+        chosen_role = conn.execute(
+            select(attachments.c.role).where(attachments.c.id == int(primary_attachment_id))
+        ).scalar_one()
+        snapshot["primary_before"].append({"attachment_id": int(primary_attachment_id), "role": chosen_role})
         conn.execute(
             update(attachments)
             .where(attachments.c.paper_id == survivor_id, attachments.c.role == "primary")
@@ -194,11 +286,25 @@ def merge_papers(
         )
         conn.execute(update(attachments).where(attachments.c.id == int(primary_attachment_id)).values(role="primary"))
 
-    # Retire the husks (Trash — reversible; the FK rows already moved).
+    # Retire the husks: Trash + mark merged-away (so they leave the live library AND the plain Trash list; they
+    # come back only via un-merge, which restores their moved data — a plain restore would give an empty husk).
     for mid in merged_ids:
         soft_delete_paper(conn, mid)
+        conn.execute(update(papers).where(papers.c.id == mid).values(merged_into=survivor_id))
 
-    return MergeResult(survivor_id=survivor_id, merged_ids=merged_ids, trashed=list(merged_ids))
+    op_id = int(
+        conn.execute(
+            insert(merge_operations).values(
+                canonical_paper_id=survivor_id,
+                merged_paper_id=merged_ids[0],  # representative; snapshot["husks"] is the full N-way list
+                snapshot_json=json.dumps(snapshot, default=str),
+                status="active",
+            )
+        ).inserted_primary_key[0]
+    )
+    return MergeResult(
+        survivor_id=survivor_id, merged_ids=merged_ids, trashed=list(merged_ids), merge_operation_id=op_id
+    )
 
 
 def _lineage_line(row: Any) -> str:

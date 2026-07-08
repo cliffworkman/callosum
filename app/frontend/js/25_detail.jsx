@@ -301,9 +301,11 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
   const [queuing, setQueuing] = useState(false);
   const [idOpen, setIdOpen] = useState(true);
   const [moreOpen, setMoreOpen] = useState(true);
+  const [mergeOrigin, setMergeOrigin] = useState(null);  // #16: this paper is a merge survivor → offer Un-merge
+  const [unmerging, setUnmerging] = useState(false);
 
   useEffect(() => {
-    setNote(null);
+    setNote(null); setMergeOrigin(null);
     if (paperId == null) { setState({ status: "idle" }); return; }
     let live = true;
     setState({ status: "loading" });
@@ -312,6 +314,7 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       if (r.ok) setState({ status: "ready", paper: r.data });
       else setState({ status: "error", error: r.error });
     });
+    api(`/papers/${paperId}/merge-origin`).then((r) => { if (live && r.ok) setMergeOrigin(r.data); });
     return () => { live = false; };
   }, [paperId]);
 
@@ -366,6 +369,24 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       setNote({ kind: "err", text: r.error || "Couldn't fill metadata." });
     }
   }, [paperId]);
+
+  // #16: reverse the merge this record is the survivor of — restore the merged-away copies with their moved data.
+  const unmergeNow = useCallback(async () => {
+    if (!mergeOrigin) return;
+    setNote(null); setUnmerging(true);
+    const r = await apiPost(`/merge/${mergeOrigin.merge_operation_id}/undo`, {});
+    setUnmerging(false);
+    if (r.ok && r.data) {
+      const n = (r.data.restored_ids || []).length;
+      setMergeOrigin(null);
+      setNote({ kind: "ok", text: `Un-merged — restored ${n} record${n === 1 ? "" : "s"}.` });
+      api(`/papers/${paperId}`).then((rr) => { if (rr.ok) setState({ status: "ready", paper: rr.data }); });
+      if (onTagsChanged) onTagsChanged();   // restored copies reappear in the library; the survivor's unioned links are gone
+      if (onQueueChanged) onQueueChanged();
+    } else {
+      setNote({ kind: "err", text: r.error || "Couldn't un-merge." });
+    }
+  }, [mergeOrigin, paperId, onTagsChanged, onQueueChanged]);
 
   // inc 219: add this paper to the reading Queue (the left-pane "Queue" tab). Idempotent server-side.
   const addToQueue = useCallback(async () => {
@@ -434,6 +455,16 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       </div>
 
       <EditableText variant="title" value={p.title} placeholder="Add title" onSave={(t) => saveField("title", t)} />
+
+      {mergeOrigin && !readOnly && (
+        <div className="detail-merge-origin">
+          <span>Merged from {mergeOrigin.merged_from_titles.map((t) => `“${t}”`).join(", ")}.</span>
+          <button className="btn-link" onClick={unmergeNow} disabled={unmerging}
+            title="Reverse this merge — restore the merged-away record(s) with their PDFs, tags, and highlights">
+            {unmerging ? "Un-merging…" : "Un-merge"}
+          </button>
+        </div>
+      )}
 
       {note && <div className={"detail-note detail-note-" + note.kind}>{note.text}</div>}
 

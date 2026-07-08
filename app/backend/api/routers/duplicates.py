@@ -23,6 +23,7 @@ from app.backend.api.job_store import JobStore
 from app.backend.clustering.duplicate_detection import find_duplicate_groups
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.metadata.paper_merge import MergeConflictError, MergeValidationError, merge_papers
+from app.backend.metadata.paper_unmerge import UnmergeError, merge_origin, unmerge
 from app.backend.persistence.dedup_repo import (
     dismiss_duplicate_pairs,
     list_dismissed_duplicate_pairs,
@@ -178,14 +179,25 @@ class MergePapersResponse(BaseModel):
     survivor_id: int
     merged_ids: list[int]
     trashed: list[int]
+    merge_operation_id: int  # the undo handle (#16) — POST /merge/{id}/undo reverses it
+
+
+class UnmergeResponse(BaseModel):
+    survivor_id: int
+    restored_ids: list[int]
+
+
+class MergeOriginResponse(BaseModel):
+    merge_operation_id: int
+    merged_from_titles: list[str]
 
 
 @router.post("/papers/merge", response_model=MergePapersResponse)
 def merge_papers_endpoint(
     payload: MergePapersRequest, conn: Connection = Depends(get_connection)
 ) -> MergePapersResponse:
-    # Non-destructive merge (inc 161): fold every merged copy's source data onto the survivor; the others go to
-    # Trash. Local, bound-param, transaction all-or-nothing. Registered before /papers/{paper_id}.
+    # Non-destructive merge (inc 161): fold every merged copy's source data onto the survivor; the others become
+    # merged-away husks. Reversible via un-merge (#16). Local, bound-param, transaction all-or-nothing.
     try:
         result = merge_papers(
             conn,
@@ -199,7 +211,35 @@ def merge_papers_endpoint(
     except MergeValidationError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     conn.commit()
-    return MergePapersResponse(survivor_id=result.survivor_id, merged_ids=result.merged_ids, trashed=result.trashed)
+    return MergePapersResponse(
+        survivor_id=result.survivor_id,
+        merged_ids=result.merged_ids,
+        trashed=result.trashed,
+        merge_operation_id=result.merge_operation_id,
+    )
+
+
+@router.post("/merge/{merge_operation_id}/undo", response_model=UnmergeResponse)
+def unmerge_endpoint(merge_operation_id: int, conn: Connection = Depends(get_connection)) -> UnmergeResponse:
+    # Reverse a merge exactly from its snapshot (#16): survivor's record restored, husks brought back with their
+    # moved data, added union links removed. All-or-nothing.
+    try:
+        result = unmerge(conn, merge_operation_id=merge_operation_id)
+    except UnmergeError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    conn.commit()
+    return UnmergeResponse(survivor_id=result.survivor_id, restored_ids=result.restored_ids)
+
+
+@router.get("/papers/{paper_id}/merge-origin", response_model=MergeOriginResponse | None)
+def merge_origin_endpoint(paper_id: int, conn: Connection = Depends(get_connection)) -> MergeOriginResponse | None:
+    # For the survivor's Detail "Merged from … — Un-merge" affordance. Registered before /papers/{paper_id}.
+    origin = merge_origin(conn, paper_id)
+    if origin is None:
+        return None
+    return MergeOriginResponse(
+        merge_operation_id=origin["merge_operation_id"], merged_from_titles=origin["merged_from_titles"]
+    )
 
 
 def _embedding_model(app: FastAPI) -> EmbeddingModel:
