@@ -11,8 +11,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision = "0035_critical_review_candidates"
-down_revision = "0034_extraction_proposals"
+revision = "0037_critical_review_candidates"
+down_revision = "0036_papers_merged_into"
 branch_labels = None
 depends_on = None
 
