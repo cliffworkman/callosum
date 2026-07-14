@@ -61,10 +61,10 @@ Your **library folder is watched by default** — it's pinned at the top of the 
 Callosum walks the folder for PDFs and reconciles them with your library:
 
 - **New** PDFs are added — text extracted, chunked, embedded, and metadata fetched from Crossref where a DOI is found. Any whose DOI doesn't resolve land under **Unsorted** so you can fix them.
-- **Unchanged** PDFs (already in the library, matched by **content**, not filename) are skipped — re-scanning is safe and never creates duplicates.
+- **Unchanged** PDFs (already in the library, matched by **content**, not filename or folder provenance) are skipped — re-scanning is safe and never creates duplicates.
 - **Removed** PDFs (a previously-scanned file that's now gone from the folder) are flagged as missing, not deleted.
 
-Once you've added a folder it becomes a **watched folder**: Callosum re-scans your watched folders **automatically each time the app starts and whenever you switch back to the app** — so if you drop a new PDF into a watched folder and return to Callosum, it appears on its own within a moment (you can also click **Re-scan all** in the dialog). A newly-picked-up PDF has its DOI read from the file, its metadata filled in from Crossref, and (if you've run a retraction check) it's checked for retraction automatically. The dialog lists your watched folders with when each was last scanned; **remove** stops watching a folder but keeps the papers it already imported. Because matching is by content, the folder your existing library came from is safe to add — re-scanning it just confirms everything's already there. You can turn the on-launch re-scan off in **⚙ Settings → Library**.
+Once you've added a folder it becomes a **watched folder**: Callosum re-scans your watched folders **automatically each time the app starts and whenever you switch back to the app** — so if you drop a new PDF into a watched folder and return to Callosum, it appears on its own within a moment (you can also click **Re-scan all** in the dialog). If a scan or re-scan is already running, another scan request reuses that active job instead of starting a second writer. A newly-picked-up PDF has its DOI read from the file, its metadata filled in from Crossref, and (if you've run a retraction check) it's checked for retraction automatically. The dialog lists your watched folders with when each was last scanned; **remove** stops watching a folder but keeps the papers it already imported. Because matching is by content, the folder your existing library came from is safe to add — re-scanning it just confirms everything's already there. You can turn the on-launch re-scan off in **⚙ Settings → Library**.
 
 Your PDFs stay where they are — watching links to them in place and never moves or copies anything. It reads only the folders you've added, on your own machine, and never sends your PDFs anywhere (only the DOI lookup talks to Crossref, the same public metadata service used elsewhere).
 
@@ -225,7 +225,7 @@ Most fields are always editable:
 - Volume, Issue, Pages
 - Journal
 - Language
-- URL
+- URL, plus additional labeled URLs for preprints, OSF pages, project pages, code, data, or publisher alternatives
 - Abstract
 - Identifiers such as DOI, ArXiv ID, PMID, Cite key, ISBN, and ISSN
 - Extra fields in **More**, when available
@@ -235,6 +235,19 @@ Fields auto-save when you leave them. For authors, enter one author per line. Fo
 The **More** section holds any extra bibliographic fields (for example ones a DOI lookup filled in beyond the core set), and lets you **add your own**: type a field name (letters, digits, `-`/`_`) and a value, then **+ add**. Fields that have their own editor above (title, DOI, …) are reserved and can't be re-added there.
 
 The **Files** area lists available attachments. Click a file to open the paper's PDF.
+
+If a local PDF already has extracted text, Details also shows **Reprocess PDF text**. Use it after Callosum learns a
+better extraction pattern or when an older import is missing newer text metadata such as section labels. It re-reads
+the same local PDF and replaces only its extracted text chunks; your bibliographic metadata, files, tags, highlights,
+notes, and annotations are preserved.
+
+The Library header also has **Text health**. It opens a queue grouped by local PDFs with no extracted text, unusually
+little extracted text, stale extraction provenance, or older chunks missing section labels. From there you can inspect
+affected papers, open them, filter the Library to one text-health group, or reprocess only the papers missing section
+labels or stale extraction rows. If you select papers with checkboxes, the bulk bar offers **reprocess text** for that
+explicit selection. These actions do not OCR, do not fetch metadata, and do not send PDFs or text anywhere. Papers with
+no extracted text get a **details for OCR** action that selects the paper and opens Details so you can decide whether
+to run the separate **OCR this paper (scanned)** workflow.
 
 Gotchas:
 
@@ -272,7 +285,7 @@ Notes:
 
 <!-- section: suggesting-citations -->
 ## Suggesting citations for a draft sentence
-The **Cite** panel (left pane, under Synthesis) helps you find which papers in **your library** to cite for a sentence you're writing — and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. It runs entirely on your machine (no AI is sent off-device).
+The **Cite** panel (left pane, under Synthesis) helps you find which papers to consider citing for a sentence you're writing. By default it searches **your library** only and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. That default path runs entirely on your machine (no AI is sent off-device).
 
 To use it:
 
@@ -283,8 +296,10 @@ To use it:
   - the **verbatim quote** from the matched passage — the evidence; read it to decide whether the paper really fits.
 - **Open source region** opens that paper's PDF at the page so you can read the passage in context (the match is a passage *region*, not an exact highlight).
 - **Copy BibTeX** puts the paper's citation on your clipboard to drop into a reference manager or your manuscript.
+- To widen the pool, turn on **Also search beyond my library** before clicking **Suggest**. Callosum sends only the draft sentence/description you pasted to public metadata providers such as Crossref, PubMed, and OpenAlex, then shows outside-library candidates in a separate section. It also uses the top local library matches as OpenAlex graph anchors, so an outside-library candidate may be labeled as **cited by**, **cites**, or **related to** a locally relevant paper. These candidates are based on public metadata, abstracts, and graph relationships; if stance is shown, it is **abstract-level** and weaker than full-text library evidence.
+- Outside-library candidates can be added as metadata-only library records with **Add to library**. A public metadata miss is not evidence that no relevant paper exists.
 
-The first **Suggest** in a session loads the local models, so it can take a few seconds; later suggestions are fast. Ranking is by relevance to your sentence (never by citation count), and Callosum only **proposes** — you decide which paper is the right citation. Suggestions cover papers already in your library; the same Suggest is also available **inside LibreOffice Writer** (see *Citing in LibreOffice Writer*). Finding relevant papers you *don't* have yet, and Word/Google Docs, are on the way.
+The first **Suggest** in a session loads the local models, so it can take a few seconds; later suggestions are fast. Ranking is by relevance to your sentence (never by citation count), and Callosum only **proposes** — you decide which paper is the right citation. The same library-only Suggest is also available **inside LibreOffice Writer** (see *Citing in LibreOffice Writer*).
 
 <!-- section: cite-in-libreoffice -->
 ## Citing in LibreOffice Writer
@@ -330,7 +345,7 @@ Tags are lightweight, free-form labels for organizing your library — a quick c
 To tag a paper:
 
 - Click a paper to open its Details pane.
-- In the **Tags** row, type a tag and press Enter. As you type, Callosum suggests tags you've used before.
+- In the **Tags** row, type a tag and press Enter. As you type, Callosum suggests tags you've used before. If a tag edit is rejected, the row shows the reason inline.
 - A tag can be on as many papers as you like; the same name is shared (not duplicated) across papers.
 
 To get tag ideas, click **✨ Suggest**: Callosum proposes candidate tags drawn from the words most distinctive of that paper compared to the rest of your library, and you click the ones you want to keep. This runs entirely on your machine — no AI is sent off-device, and nothing is added until you accept it.
@@ -371,7 +386,7 @@ Possible outcomes:
 
 - **Resolved from Crossref.** The record was updated from the DOI.
 - **Crossref couldn't resolve that DOI.** Check for typos and try again.
-- **That DOI is already on another paper.** Callosum prevents two papers from sharing the same DOI.
+- **That DOI is already on another paper.** Callosum now allows this temporarily so a raw PDF record can be identified, enriched, and merged with a metadata-only duplicate. Use duplicate detection or the merge action to clean it up.
 
 Gotcha: Re-resolve can overwrite fields from Crossref because you explicitly requested a refresh. If you have carefully hand-edited a record, use this intentionally.
 
@@ -663,6 +678,8 @@ There are two ways to run a synthesis:
 - **Ask a question.** Type a question in **Ask a synthesis question about the library...**, click **Synthesize**, and Callosum retrieves the most relevant chunks across your library, generates an answer, and verifies each citation. Read the result under **Verified** and **Flagged · needs review**.
 - **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum generates a verified synthesis of just those papers (the Synthesis pane shows a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
 
+Use the section buttons (**Methods**, **Results**, **Data availability**, and so on) when you want synthesis to search only particular parts of section-aware PDFs. No section selected means the normal all-chunks behavior. A section filter narrows retrieval only; it does not change verification thresholds or make a claim more certain. Older chunks without section metadata will not match a section filter until the PDF is reprocessed.
+
 Each cited sentence carries a status pill: **verified** (green — the source supports it), **flagged** (amber — it could not be fully verified), or **contradicted** (red, "⚠ source disagrees") — the most consequential case, where the cited passage *actively disagrees* with the claim. A contradicted citation still shows its quote, page, and confidence like any other evidence — it is a **signal to look, not a verdict** that the claim is false. Read the quote and decide.
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
@@ -701,6 +718,8 @@ The confidence scores are evidence signals, not proof:
 
 Always read the quote and, when needed, open the source. Verification reduces hallucinated citations, but it does not replace scholarly judgment.
 
+Click an evidence quote to open its source. Exact-coordinate citations draw the passage highlight in the PDF; region-level citations only open the page and show an approximate-location note.
+
 ### Saving verified citations as highlights
 Use **Save as highlight** when a synthesis citation points to a passage you want to keep in the PDF.
 
@@ -723,13 +742,15 @@ Gotchas:
 ## Checking statistics (statcheck)
 In the **METHODS** pane (the right-hand panel), open the **Statistics check** section; under **This paper** — with a paper selected — there's a **Check statistics** button. It scans the paper's extracted text for inline APA-style statistical tests — `t(28) = 2.10, p = .04`, `F(2, 45) = 3.1, p < .05`, `r(30) = .42, p = .01`, `χ²(1) = 5.2, p = .02`, `z = 2.1, p = .03` — **recomputes** the p-value from the reported test statistic and degrees of freedom, and shows where the reported and recomputed values disagree. It's the statcheck method: a "spellchecker for statistics."
 
-This runs **entirely on your machine** — pure computation over the already-extracted text, no AI and no network. Each result shows the **verbatim matched text** and its **recomputed p**, with a status pill: **consistent** (green), **inconsistent** (amber — the values disagree), or **decision error** (amber — the disagreement flips significance at p = .05). A count summary reads "N checked · M inconsistent · K decision errors" — these are plain counts, never a hidden "reproducibility score." Click any result to open the PDF at the page the statistic was found on.
+This runs **entirely on your machine** — pure computation over the already-extracted text, no AI and no network. Each result shows the **verbatim matched text**, nearby extracted-text context with the matched statistic highlighted, and its **recomputed p**, with a status pill: **consistent** (green), **inconsistent** (amber — the values disagree), or **decision error** (amber — the disagreement flips significance at p = .05). A count summary reads "N checked · M inconsistent · K decision errors" — these are plain counts, never a hidden "reproducibility score." Click any result to open the PDF source. When Callosum can locally locate the exact statistic in the PDF on the expected page, it draws an exact passage highlight; otherwise it opens the page at region precision.
 
 Read it as a **prompt to look, never a verdict**:
 
 - An inconsistency is usually innocent — a typo, rounding, a one-tailed test, or an adjusted value. It is **not** an accusation of error or misconduct. The recomputation already accounts for the statistic's rounding and tries the one-tailed reading, so correctly-reported results are not flagged.
 - It reads only **inline APA-format** tests — it cannot see statistics in tables, Bayesian reporting, or confidence-interval-only reporting. **A clean result is not a clean bill** — it means nothing was surfaced by this specific check.
 - It needs the paper's **extracted text**, so it's available once a PDF has been processed (the button explains this otherwise). PDF-to-text conversion can garble symbols like `<`/`>`/`=`, which is why the exact matched text is always shown — so you can see an artifact for what it is.
+
+Evidence snippets show their source precision before you click: **exact highlight**, **region**, **page only**, or **no source page**. Open **Evidence trail** under a Methods evidence item to see the detector name, matched text, page, anchor note, and the boundary/caveat for that detector. The Bayesian, mixed-model, meta-analysis, and transparency auditors use the same source-jump contract for their evidence snippets: if the matched text can be locally located in the PDF on the expected page, Callosum opens with an exact highlight; otherwise it opens the source page at region precision. A region jump is navigation help, not an exact passage claim.
 
 **Across your whole library:** in the same **METHODS → Statistics check** section, under **Whole library**, click **Check all papers**. Callosum runs statcheck over every paper and reports "N papers with statistics checked · M with inconsistencies." If any are flagged, a **⚠ N flagged** chip also appears in the Library header as a shortcut. Either click that chip or **Show flagged papers** in the section to filter the Library to just them (a banner appears; **clear** to return) — then open any one to see its specific tests. This is a **list to review, not a ranking**: papers aren't scored or ordered by inconsistency, and the same caveats apply (usually innocent; inline-APA only; absence isn't a clean bill). Re-run the check after editing papers to refresh it.
 
@@ -1000,6 +1021,52 @@ The **How it's cited** tab (in the **THEORY → Cite** section, with a DOI'd pap
 Pick a direction and click **Fetch citations** / **Fetch references**: Callosum sends only the paper's DOI to **Semantic Scholar** (public metadata) to get the actual **citing sentences** — Semantic Scholar has already linked each in-text citation to its reference, so nothing about your PDFs is parsed or uploaded — then classifies each sentence's stance **on your machine** with its own NLI model. Your library text never leaves.
 
 You get a **count** breakdown (N supporting · M contrasting · K mentioning) and, below it, the individual citing sentences: each with its **stance** label, a **confidence**, the citing paper (with a link), and an "influential" marker where Semantic Scholar flags a high-impact citation. It's deliberately **not a score** — there's no single "smart-citation number", no ranking, and no verdict. **The sentence is the evidence:** read it and decide. A "contrast" describes what *that sentence* says, never an accusation about an author, and the stance is an approximate signal (an NLI reading of the citing sentence against the paper's own claim), not a judgment. Coverage is honest — some citations have no sentence Semantic Scholar could provide, and those are counted but not classified. This echoes **scite** (credited in the panel, one-click added to your library).
+
+<!-- section: meta-reference-list -->
+## Checking reference signals
+The **Meta Reference List** section (Theory) is a pre-flight reference check for the selected paper. It surfaces only three negative signals: **Could not verify**, **Known retraction signal**, and **Previously flagged in your library**. These are prompts to inspect evidence, never a verdict on the paper or on the citation.
+
+Click **Check references** to fetch the paper's linked reference list from Semantic Scholar using the paper DOI; if that linked list is unavailable, Callosum falls back to OpenAlex's referenced-work records for the same DOI. The run shows determinate progress while it works, then records when the paper was last checked. It also exposes **Source coverage for last run** so you can see which sources succeeded, returned no records, were not searched, or failed. One source failure does not erase results from another source; use **Retry reference check** when coverage is partial or failed.
+
+For library triage, select multiple papers in the Library and use **check refs** in the bulk bar. This runs the same Meta Reference List checker for each selected paper that has a DOI, skips selected papers without a DOI, refreshes the paper warning badges, and then filters the Library to papers with active reference signals so you can review them immediately. The filter is clearable. It does not run automatically on import and does not create a background watcher.
+
+When a paper card shows a **ref signal** badge, click it to select that paper and open the **Meta Reference List** section directly. The badge is only a jump to the evidence surface; the count means active unreviewed or confirmed-concern reference signals, not a paper-quality verdict.
+
+Callosum then resolves cited works through the existing metadata sources where possible. A search miss is shown cautiously as **Could not verify with available sources**; it is not a claim that the work is absent from the literature. Retraction signals are shown separately and more strongly, with their source evidence. Local propagation means the same referenced entity has an active signal elsewhere in your own library.
+
+Each flagged citation instance has three review states: **Requires review**, **Reviewed and dismissed**, or **Reviewed and confirmed as a concern**. The check button means reviewed and dismissed; the X button means reviewed and confirmed as a concern. Dismissal is scoped to that paper's citation instance, so dismissing a retracted work cited critically in one paper does not suppress the same reference in another paper.
+
+Unreviewed and confirmed concerns keep the paper's reference-warning count active. Dismissed items do not. Clearing every reference signal only means these checks have nothing active after review; it does not mean the references are correct, the claims are supported, or the paper is positively verified. If fresh detector data materially changes the signal set, a prior dismissal is reopened for review.
+
+<!-- section: funding-discovery -->
+## Funding Discovery
+The **Funding Discovery** section (Theory) looks for plausible funding prospects from observed funding behavior and scholarly funding lineage, then separately checks whether a current application route is visible. It is not an open-grant search box and it is not a recommendation engine.
+
+Use either a **selected library paper** or **Describe research** with a pasted abstract/description plus a short field context. Callosum builds a local multi-facet funding profile from title, abstract, keywords, and deterministic concept rules where available. It does not send full PDFs, notes, private annotations, or protected applicant facts to funding providers by default.
+
+Results are shown in three separate lanes:
+
+- **Open Opportunities** — a current provider-backed application surface was found, such as an open or forecasted Grants.gov opportunity.
+- **Recurring Schemes** — a repeated funding mechanism was observed in historical cycles, but no current application window was verified.
+- **Funding Prospects** — historical awards, funding lineage, or portfolio evidence suggest a funder or scheme may be relevant, with no current application surface verified.
+
+The cards explain **why this surfaced** using inspectable signals such as portfolio overlap, support-strategy fit, recipient neighborhood, co-funding proximity, scholarly lineage, and scheme recurrence. Open **Signal trail** on an item to inspect the signal type, categorical strength, matched research facets, attached evidence rows and sources, observed years where available, and the interpretation boundary for that signal. The **Historical evidence** rows show source kind/provider, record IDs, award numbers, amounts, scheme cues, extraction basis, and source links where provenance includes them. Individual 990-PF recipient details remain withheld in the default UI. These are categorical signals, not chance estimates. Callosum avoids recommendation, funder-intent, and reopening-forecast language. A historical award is never treated as an open opportunity, and a recurring scheme is not a forecast.
+
+When the same funder, scheme, or provider opportunity is surfaced through multiple exact evidence paths, the result lane may show one grouped card with a compact note such as "same funder surfaced through 3 evidence paths." Open **Why grouped?** to see the grouped record IDs and signal types. This grouping is display-only. Open opportunities, recurring schemes, and prospects remain separate evidence classes, distinct schemes/application routes are not collapsed together, and the run/export records stay separate.
+
+The **Funding Prospects** lane hides lower-signal prospects by default when every attached signal is weak or unresolved and no application surface was found. Use **Show lower-signal prospects** to reveal them. This is only a display filter: it does not delete records, change ranking, alter exports, or affect open opportunities and recurring schemes.
+
+The **Source coverage** panel matters: one source can fail or be unavailable while another source still contributes evidence. Each coverage row now states what that provider's status means for interpretation, such as OpenAlex/Crossref funding metadata being incomplete by source design, Grants.gov covering supported federal opportunities but not private or society mechanisms, or local 990-PF history being limited to indexed filings. Open **What was not covered** to see major gaps in the current open-data path, including commercial/licensed databases and funder website/newsletter calls that are not exhaustively crawled. Current open-data coverage includes cached ROR identity lookup, OpenAlex and Crossref funding metadata where present, selected-paper OpenAlex related-work funding lineage, local historical-award evidence, and Grants.gov current federal opportunity search. "No matching records were surfaced from the sources searched" is not evidence that no funding mechanism exists.
+
+You can optionally check **Ask AI to triage apparent fit after discovery**, or run the same review after results appear with **Evaluate apparent fit with AI**. This sends only the bounded title/abstract or pasted research description plus compact summaries of surfaced funding cards to your configured model, using the same AI-features/data-egress gate as other library-text model calls. The model can add review annotations such as closer apparent fit, possible fit, uncertain, or lower apparent fit. It does not create funding records, verify eligibility, prove fit, remove records, alter saved items, or make recommendations. After a successful triage you can switch between **All surfaced** and **LLM-triaged** views. AI-fit annotations are stored with that Funding Discovery run, including the prompt version and rationale, so reloaded runs and CSV exports can show what was evaluated without turning the label into a global opportunity judgment. If the underlying opportunity or prospect evidence changes after the label was stored, Callosum marks the AI-fit label as based on earlier run evidence rather than silently treating it as current.
+
+When Callosum has route evidence, cards show an **Application route** block. That may say a current provider found an open or forecasted opportunity, or it may show historical/application posture text such as unsolicited applications not being accepted. Route evidence does not change latent fit into a verdict.
+
+Use **Export CSV** after a run to download a table of the surfaced opportunity, scheme, and prospect evidence. The export keeps the three item classes separate and includes source/status fields, deadline fields where available, application-route text, summarized signals, and any persisted AI-fit label/rationale for that run. It does not include chance-estimate or recommendation columns.
+
+Use **Recent runs** to reload a completed Funding Discovery run after refreshing or returning to the app. Reloading restores the persisted evidence, source coverage, saved markers, and any per-run AI-fit labels without re-running discovery or changing the underlying funding records.
+
+You can **Save** an opportunity, scheme, or prospect for later review. In the **Saved funding** list, open a saved row to review its status/deadline snapshot, linked current opportunity when one has been found, source link when available, workflow state, your notes, and recent refresh history. Saved-list filters let you focus on all items, needs review, current opportunity found, provider issue, no current window, applying/planning, or archived items; their counts are local list counts and do not alter the evidence. **Save changes** persists the workflow marker and notes; **Refresh saved funding** re-checks saved Grants.gov opportunities by exact provider ID where supported, then re-snapshots saved items and reports status/deadline changes. For saved prospects and schemes, refresh uses only bounded organization/scheme terms against supported provider indexes; if a conservative current-opportunity match is found, Callosum stores that as a separate linked opportunity rather than converting the prospect into an opportunity. The refresh summary distinguishes current opportunity found, status changed, deadline changed, no current application window verified, and provider unavailable outcomes with compact text labels plus the detailed explanation. The row history keeps the recent manual refresh outcomes so "provider unavailable today" stays distinct from "no current application window verified." **Unsave** removes the item from the saved list when it no longer belongs there. Saved items are lightweight workflow markers, not a grant CRM; unsaving removes only that marker, not the underlying funding evidence or search run.
 
 <!-- section: where-to-submit -->
 ## Where to submit (choosing a journal)

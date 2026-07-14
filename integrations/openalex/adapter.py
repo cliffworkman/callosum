@@ -14,11 +14,11 @@ from typing import Any, Protocol
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection
 
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
 from app.backend.app_settings import resolved_mailto
-from app.backend.persistence.schema import external_api_cache
+from integrations.api_cache import get_cached, put_cached
 
 OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
@@ -372,9 +372,7 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
     venue_src = (work.get("primary_location") or {}).get("source") or work.get("host_venue") or {}
     venue = venue_src.get("display_name") if isinstance(venue_src, dict) else None
     issn = venue_src.get("issn_l") if isinstance(venue_src, dict) else None
-    # inc 227: institution names from the authorships, for the institutional-concentration signal (deference to a
-    # power *structure* — elite-affiliation over-emphasis — never the identity of a person). Country/nationality is
-    # deliberately not extracted (inc 229: the tool measures WHAT is cited, never WHO wrote it).
+    # inc 227: institution names for the institutional-concentration signal; no country/nationality extraction.
     institutions: list[str] = []
     for a in authorships:
         for inst in a.get("institutions") or []:
@@ -403,6 +401,24 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         for c in (work.get("concepts") or [])[:8]
         if isinstance(c, dict) and c.get("display_name")
     ]
+    grants: list[dict[str, str]] = []
+    for grant in (work.get("grants") or [])[:20]:
+        if not isinstance(grant, dict):
+            continue
+        funder = grant.get("funder_display_name") or grant.get("funder") or grant.get("funder_name")
+        award = grant.get("award_id") or grant.get("award")
+        if funder or award:
+            grants.append(
+                {
+                    key: str(value)
+                    for key, value in {
+                        "funder_display_name": funder,
+                        "award_id": award,
+                        "funder": grant.get("funder"),
+                    }.items()
+                    if value
+                }
+            )
     return {
         "openalex_work_id": raw_id.rsplit("/", 1)[-1] if raw_id else None,
         "doi": doi,
@@ -416,6 +432,7 @@ def _meta_from_work(work: Any) -> dict[str, Any] | None:
         "primary_topic": primary_topic,
         "related_works": related,
         "concepts": concepts,
+        "grants": grants,
     }
 
 
@@ -554,16 +571,7 @@ def _pick_pdf_location(work: dict[str, Any]) -> dict[str, Any] | None:
 
 
 def _cached_response(conn: Connection, cache_key: str):
-    return (
-        conn.execute(
-            select(external_api_cache).where(
-                external_api_cache.c.provider == OPENALEX_PROVIDER,
-                external_api_cache.c.cache_key == cache_key,
-            )
-        )
-        .mappings()
-        .first()
-    )
+    return get_cached(conn, OPENALEX_PROVIDER, cache_key)
 
 
 def _store_cache(
@@ -574,9 +582,11 @@ def _store_cache(
     response_json: dict[str, Any] | None,
     status_code: int | None,
 ) -> None:
-    existing = _cached_response(conn, cache_key)
-    values = {"request_json": request_json, "response_json": response_json, "status_code": status_code}
-    if existing is None:
-        conn.execute(insert(external_api_cache).values(provider=OPENALEX_PROVIDER, cache_key=cache_key, **values))
-    else:
-        conn.execute(update(external_api_cache).where(external_api_cache.c.id == int(existing["id"])).values(**values))
+    put_cached(
+        conn,
+        OPENALEX_PROVIDER,
+        cache_key,
+        request_json=request_json,
+        response_json=response_json,
+        status_code=status_code,
+    )

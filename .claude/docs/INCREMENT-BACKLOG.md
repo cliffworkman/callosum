@@ -83,7 +83,8 @@ inc 80). Likely **one increment**: a tiny migration adding per-paper state + a l
 
 **SQLite read-then-write upgrade-deadlock — app-wide concurrency hardening** *(surfaced by the inc-219 headed
 verification; **inc 219 shipped the partial fix: `PRAGMA journal_mode=WAL` + `busy_timeout=5000` in `make_engine`**,
-which resolves the common write-vs-read contention).* **Still open:** a SELECT-then-write endpoint (`add_to_queue`,
+which resolves the common write-vs-read contention; **inc 277 added bounded retry for short cache/metadata/reference/funding writes**,
+which covers the common transient `database is locked` failures without changing long-job lock behavior).* **Still open:** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous
@@ -113,25 +114,22 @@ dir; verified count stays 3→3 across a launch rescan) — this should remove m
 background score/embed job vs. a foreground write) and is still the deferred transaction-splitting / retry-on-busy
 increment. The 20260702/03 re-run (post-fix) will show how much, if anything, still 500s on a clean fixture.
 
-**QA seed gap: `_seed_library` doesn't set the `item_type` column** *(Low / test-infra; QA run 20260702 `route_00`).*
-The seed papers carry `csl_json: {"type": "article-journal"}` but not the `item_type=` column, so `GET
-/papers/item-types` returns `[]` and the Library **Type filter** dropdown is suppressed — so the route can't exercise
-it. This is a **fixture** gap, not a product bug (the real citation-import path DOES set `item_type` from the CSL
-type, inc 93). Fix = pass `item_type="article-journal"` on the two `create_paper` calls in `tests/api_helpers.py::
-_seed_library` so the Type filter renders in the QA fixture. (Deliberately deferred out of the inc-250 session to
-avoid touching the shared seed helper without re-running the full 25-min suite.)
+✅ **CLOSED inc 296: QA seed gap: `_seed_library` now sets the `item_type` column.** The two shared seed papers pass
+`item_type="article-journal"`, so `GET /papers/item-types` is non-empty and the Library **Type filter** can render in
+the QA fixture. A regression test now covers the seed helper's `/papers/item-types` behavior.
 
 **QA runs 20260702/03 — assorted UX findings (triaged 2026-07-03; the write-lock + input-cap + fixture Criticals
 were handled separately — see the `database is locked` item above + changes.md).** The independent, real polish
 items (the ones NOT downstream of the now-fixed fixture-isolation pollution):
-- *(Medium; `route_20_tags`, `route_30_detail_pane`)* **A rejected tag value shows no visible UI error** — an invalid
-  tag name/color add is rejected by the API (proper 422/404) but the UI surfaces nothing beyond console/network noise;
-  add honest inline validation feedback (`25b_tags.jsx`), the way other inline edits do.
-- *(Medium; `route_33_methods_statcheck`)* **statcheck per-test rows hide the page/quote/context** — a row shows the
-  reported/recomputed *p* + status, but the page is only in the "Open page N" button tooltip and no verbatim
-  quote/context is shown inline. Surface the quote inline (evidence-always-shown; Principle #4-adjacent). Frontend.
-- *(Low; `route_23_citation_counts` 2nd finding)* **library header action row overflows horizontally at mobile
-  width** — should wrap/fit (relevant to the B5 read-only mobile surface). CSS-only.
+- ✅ **CLOSED inc 282: rejected tag values now show inline validation feedback.** Failed tag add/remove/color
+  operations render the existing API message in the Details tag row with `role="alert"`, `aria-invalid`, and
+  `aria-describedby`; editing the add input clears the message. Covered by `route_20_tags` and frontend assembly tests.
+- ✅ **CLOSED inc 283: statcheck rows show source context inline.** Per-test statcheck results carry bounded
+  extracted-text context and render it with the shared evidence quote component, plus page/section provenance where
+  available. Covered by `route_33_methods_statcheck`, statcheck tests, and frontend assembly tests.
+- ✅ **CLOSED inc 297: library header action row wraps at mobile width.** The Library title/action row now has
+  explicit shrink boundaries and word-wrapping action controls, so Add / saved-search / signal chips remain reachable
+  in narrow panes without horizontal overflow. Covered by `route_23_citation_counts` and frontend assembly tests.
 - The remaining Medium/Low from `route_24/27/30/32` are **held for re-triage against the post-fix re-run** — several
   read as downstream of the fixture pollution (broken/duplicate seed papers, the detail-pane 500 cascade), so they
   may not reproduce on a clean fixture; don't file ghosts.
@@ -180,8 +178,9 @@ backfill no longer silently re-adds a removed keyword; re-adding it clears the s
 **confirm before 🔎 re-resolve overwrites hand-edited metadata** (a `window.confirm` guard when
 `imported_source == "user-edited"`). **Remaining:** ~~a tag's source as an always-on label/icon~~ — ✅ **DECLINED
 2026-07-06** (kept **aesthetic-only** per inc-100: muted styling + tooltip + the All/Yours/Keywords filter already
-convey provenance). The two additive UX bits are **no longer [decision]-blocked → autonomous-eligible** (small
-frontend): a "what re-resolve changed" **diff toast**; a **lock-this-tag** affordance. *(See **#9** for the full
+convey provenance). Additive UX bits are **no longer [decision]-blocked → autonomous-eligible** (small frontend):
+✅ **CLOSED inc 298: re-resolve now reports displayed metadata/tag changes inline**; ✅ **CLOSED inc 299:
+per-paper tag locks protect a tag link from accidental removal until unlocked.** *(See **#9** for the full
 tag-provenance context.)*
 
 **4. Progress indication for long operations** — **[mostly shipped]** indeterminate bar (79) → DETERMINATE "X / N"
@@ -702,11 +701,10 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
 - ✅ **A10 — DONE (inc 204): the axis count-badge filter carries the card's hide-uncertain state.** Clicking the badge
   while 👁 hide is on filters the Library to the same assigned (≥ cutoff) + manual set the card shows (banner: "…·
   assigned only"). *Shown = summarized*; default-off → inc-63 behavior unchanged.
-- **[Cliff, queued, non-urgent] Remove the redundant THEORY → Discover accordion placeholder.** The inc-163
-  "Coming soon" stub registered THEORY → **Discover** (tabs Beyond library/Feed/Search) in `09_placeholders.jsx`, but
-  the real Discover/Search (inc 184) + Feed (inc 188) shipped as **center-pane tabs in the library frame**
-  (`30c_frame.jsx`) — the placeholder is now stale/duplicative. Drop the Discover `<ComingSoon>` registration (per the
-  inc-163 convention: remove each stub in the increment its real feature lands); the library frame is the right home.
+- ✅ **DONE inc 296: removed the redundant THEORY → Discover accordion placeholder.** `09_placeholders.jsx` retains
+  only the explanatory note from inc 205; the real Discover/Search (inc 184) + Feed (inc 188) remain center-pane tabs
+  in the library frame (`30c_frame.jsx`). A frontend-assembly regression asserts the stale THEORY registration does
+  not return.
 - **A8 — synthesis scope label at summarize** ("summarizing N papers; uncertain excluded"). *Largely shipped by the
   inc-153 coverage readout* — verify + add the uncertain-inclusion statement if missing.
 - ✅ **A1 — DONE (inc 208): saved searches.** A named bundle of the existing facets (q/search_field/item_type/axis/

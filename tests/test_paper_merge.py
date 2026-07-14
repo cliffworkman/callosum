@@ -17,7 +17,6 @@ from alembic import command
 from alembic.config import Config
 from app.backend.api import create_app
 from app.backend.metadata.paper_merge import (
-    MergeConflictError,
     MergeValidationError,
     merge_papers,
 )
@@ -182,9 +181,9 @@ def test_lineage_note_and_both_links_survive(tmp_path: Path) -> None:
         note = s["csl_json"]["note"]
         assert "Merged from" in note and "10.123/published" in note  # lineage captures the merged identifier
         assert s["imported_source"] == "merged"
-        # the merged husk's UNIQUE doi column was freed (so the survivor could adopt it) but csl_json kept it (audit)
+        # DOI is allowed to remain on the merged husk; csl_json also keeps it for audit.
         m = get_paper(conn, merged)
-        assert m["doi"] is None
+        assert m["doi"] == "10.123/published"
         assert m["csl_json"]["DOI"] == "10.123/published"
     engine.dispose()
 
@@ -244,13 +243,13 @@ def test_validation_errors(tmp_path: Path) -> None:
     engine.dispose()
 
 
-def test_doi_conflict_with_outside_paper(tmp_path: Path) -> None:
+def test_merge_allows_doi_already_on_outside_paper(tmp_path: Path) -> None:
     engine = _migrated(tmp_path)
     with engine.begin() as conn:
         survivor, merged = _seed_preprint_and_published(conn)
         create_paper(conn, title="Outsider", csl_json={"title": "Outsider"}, doi="10.999/outside")
-        with pytest.raises(MergeConflictError):
-            merge_papers(conn, survivor_id=survivor, merged_ids=[merged], metadata={"doi": "10.999/outside"})
+        merge_papers(conn, survivor_id=survivor, merged_ids=[merged], metadata={"doi": "10.999/outside"})
+        assert get_paper(conn, survivor)["doi"] == "10.999/outside"
     engine.dispose()
 
 
@@ -291,7 +290,7 @@ def test_endpoint_422_on_self_merge(temp_db_url: str) -> None:
     assert r.status_code == 422
 
 
-def test_endpoint_409_on_doi_clash(temp_db_url: str) -> None:
+def test_endpoint_allows_duplicate_doi_during_merge(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         survivor, merged = _seed_preprint_and_published(conn)
@@ -302,4 +301,5 @@ def test_endpoint_409_on_doi_clash(temp_db_url: str) -> None:
         "/papers/merge",
         json={"survivor_id": survivor, "merged_ids": [merged], "metadata": {"doi": "10.999/outside"}},
     )
-    assert r.status_code == 409
+    assert r.status_code == 200
+    assert client.get(f"/papers/{survivor}").json()["doi"] == "10.999/outside"

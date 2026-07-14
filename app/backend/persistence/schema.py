@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Column,
     DateTime,
@@ -69,7 +70,6 @@ papers = Table(
     # un-merge. Self-FK (SET NULL so purging the canonical never dangles a merged marker).
     Column("merged_into", ForeignKey("papers.id", ondelete="SET NULL")),
     enum_check("processing_tier", PROCESSING_TIERS, "processing_tier_valid"),
-    UniqueConstraint("doi", name="uq_papers_doi"),
     UniqueConstraint("openalex_work_id", name="uq_papers_openalex_work_id"),
     UniqueConstraint("semantic_scholar_paper_id", name="uq_papers_semantic_scholar_paper_id"),
     UniqueConstraint("zotero_library_id", "zotero_item_key", name="uq_papers_zotero_identity"),
@@ -155,11 +155,10 @@ paper_tags = Table(
     metadata,
     Column("paper_id", ForeignKey("papers.id", ondelete="CASCADE"), primary_key=True),
     Column("tag_id", ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+    Column("locked", Boolean, nullable=False, server_default="0"),
 )
 
-# Suppressed imported-keyword tags (inc 143): when the librarian deletes an imported `keyword:*` tag, remember it
-# by name per paper so a later re-resolve / backfill does NOT silently re-add it. Adding a tag by that name clears
-# the suppression. Names only (the tag row is pruned on delete) — the analogue of the inc-49 user-edit guard.
+# Suppressed imported-keyword tags (inc 143): per-paper deleted keyword names that enrich must not re-add.
 suppressed_paper_tags = Table(
     "suppressed_paper_tags",
     metadata,
@@ -540,10 +539,37 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     retraction_records,
 )
 
+# Funding Discovery tables — distinct historical/prospect/scheme/opportunity records.
+from app.backend.persistence.schema_funding import (  # noqa: E402,F401
+    funding_application_surfaces,
+    funding_historical_awards,
+    funding_llm_triage_annotations,
+    funding_opportunities,
+    funding_organizations,
+    funding_prospects,
+    funding_schemes,
+    funding_search_runs,
+    funding_source_batches,
+    research_funding_profiles,
+    saved_funding_items,
+    saved_funding_refresh_events,
+)
+
 # Reversible-library-merge bookkeeping (backlog #17/#16) — same split rationale.
 from app.backend.persistence.schema_merge import (  # noqa: E402,F401
     MERGE_STATUSES,
     merge_operations,
+)
+
+# First-class extra URLs for paper Details.
+from app.backend.persistence.schema_paper_urls import paper_urls  # noqa: E402,F401
+
+# Reference-integrity tables (Meta Reference List) — shared entity identity, per-citation review state.
+from app.backend.persistence.schema_reference_integrity import (  # noqa: E402,F401
+    reference_entities,
+    reference_instances,
+    reference_reviews,
+    reference_signals,
 )
 
 # Summary / citation-mapping / evidence-quote tables (inc 262 split) — same split rationale; re-exported so

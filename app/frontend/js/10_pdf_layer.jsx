@@ -223,13 +223,16 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
                     onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
                     onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    onBulkReferenceCheckDone,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
+                    libraryTextHealthFilter, onClearTextHealthFilter,
+                    libraryReferenceFilter, onClearReferenceFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     transparencyReview, onShowTransparencyReview,
-                    findingsToReview, onShowFindingsToReview, findingsByPaper,
+                    findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
-                    onCitationsRefreshed, onEnriched,
+                    onCitationsRefreshed, onEnriched, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
@@ -246,6 +249,16 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   const maxCitedAsOf = (state.papers || []).reduce((m, p) => (p.cited_by_as_of && (!m || p.cited_by_as_of > m) ? p.cited_by_as_of : m), null);
   const [citeStyles, setCiteStyles] = useState([]);  // inc-106: bundled CSL styles for the bulk "bibliography…" picker
   useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setCiteStyles(r.data.styles || []); }); }, []);
+  const textHealthShown = libraryTextHealthFilter && state.status === "ready"
+    ? `${state.total == null ? state.papers.length : state.total} shown`
+    : "";
+  const referenceShown = libraryReferenceFilter && state.status === "ready"
+    ? `${state.total == null ? state.papers.length : state.total} shown`
+    : "";
+  const hasLocalPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
+  const hasNextPage = hasLocalPaperFilter && state.total != null
+    ? (page + 1) * PAGE_SIZE < state.total
+    : state.papers.length === PAGE_SIZE;
   return (
     <div className="pane-list-body">
       <div className="pane-head">
@@ -278,6 +291,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {!trashView && <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />}
             {!trashView && <EnrichMetadataButton onRefreshed={onEnriched} />}
+            {!trashView && <TextHealthButton onOpen={onOpenTextHealth} />}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
               <button className="trash-toggle danger" onClick={onEmptyTrash}
                 title="Permanently delete every paper in Trash — cannot be undone">Empty Trash</button>}
@@ -319,6 +333,22 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
               <button className="axis-link" onClick={onClearNeedsReview}>clear</button>
+            </div>
+          </div>}
+        {libraryTextHealthFilter &&
+          <div className="focus-card">
+            <div className="focus-card-head">Text health: <b>{libraryTextHealthFilter.label}</b></div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{textHealthShown}</span>
+              <button className="axis-link" onClick={onClearTextHealthFilter}>clear</button>
+            </div>
+          </div>}
+        {libraryReferenceFilter &&
+          <div className="focus-card">
+            <div className="focus-card-head">Reference checks: <b>{libraryReferenceFilter.label}</b></div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{referenceShown}</span>
+              <button className="axis-link" onClick={onClearReferenceFilter}>clear</button>
             </div>
           </div>}
         {librarySignalFilter === "statcheck-inconsistent" &&
@@ -415,6 +445,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onKeyDown={e => { if (e.key === "Enter") onBulkSummarize(bulkFocus); }} />
           <button className="axis-link" onClick={() => onBulkSummarize(bulkFocus)} title="Generate a verified synthesis of the selected papers — focused on your question if you typed one">summarize</button>
           <button className="axis-link" onClick={onBulkPcurve} title="Run a p-curve (evidential value) over the selected papers — collection-level, never per-paper">p-curve</button>
+          <BulkReferenceCheckButton paperIds={[...selectedLibraryIds]} onDone={onBulkReferenceCheckDone} />
+          <ReprocessSelectedTextButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
           {selCount >= 2 &&
             <button className="axis-link" onClick={onBulkMerge} title="Merge the selected papers into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>}
           <select className="bulk-export" value="" title="Export citations for the selected papers"
@@ -489,16 +521,18 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             onSelect={onSelect} onOpen={onOpenPdf}
             checked={selectedLibraryIds && selectedLibraryIds.has(p.id)} onToggleCheck={onToggleLibrarySelect}
             findings={findingsByPaper && findingsByPaper[p.id]}
+            referenceWarnings={referenceWarningsByPaper && referenceWarningsByPaper[p.id]}
+            onOpenReferenceWarnings={onOpenReferenceWarnings}
             citeInfo={p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : undefined}
             footExtra={footExtra} readOnly={readOnly}
           />
         );
       })}
 
-      {state.status === "ready" && (page > 0 || state.papers.length === PAGE_SIZE) &&
+      {state.status === "ready" && (page > 0 || hasNextPage) &&
         <div className="pginate">
           <button disabled={page === 0} onClick={() => onPage(page - 1)}>← Prev</button>
-          <button disabled={state.papers.length < PAGE_SIZE} onClick={() => onPage(page + 1)}>Next →</button>
+          <button disabled={!hasNextPage} onClick={() => onPage(page + 1)}>Next →</button>
         </div>}
       </>}
     </div>

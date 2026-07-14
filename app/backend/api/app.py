@@ -11,6 +11,7 @@ import os
 from contextlib import asynccontextmanager
 from html import escape
 from pathlib import Path
+from threading import Lock
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -38,6 +39,7 @@ from app.backend.api.routers import (
     feed,
     findings,
     fulltext,
+    funding,
     gaps,
     health,
     help,
@@ -51,15 +53,18 @@ from app.backend.api.routers import (
     ocr,
     paper_enrich,
     paper_files,
+    paper_urls,
     papers,
     publishers,
     reading_queue,
+    reference_integrity,
     saved_searches,
     settings,
     settings_providers,
     summaries,
     sync,
     tags,
+    text_health,
     transparency,
     wanted,
     word,
@@ -147,6 +152,8 @@ def create_app(
     api.state.mypubs_jobs = JobStore()
     api.state.mypubs_domain_jobs = JobStore()
     api.state.library_scan_jobs = JobStore()
+    api.state.library_scan_singleflight_lock = Lock()  # one scan/rescan writer at a time
+    api.state.active_library_scan_job_id = None
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
@@ -163,11 +170,20 @@ def create_app(
     api.state.overlooked_jobs = JobStore()  # inc 228 (#25 SP2): topical overlooked-work remediation
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment
     api.state.ocr_jobs = JobStore()  # inc 231 (B3): per-paper OCR of a scanned PDF into a searchable copy
+    api.state.text_health_jobs = JobStore()  # local PDF text-health batch reprocessing
     api.state.citation_context_jobs = JobStore()  # inc 232 (B4): per-paper "how this paper is cited" (scite analogue)
     api.state.publishers_jobs = JobStore()  # #40: PUBLISHERS "where to submit" journal-finder (SP1a)
+    api.state.reference_integrity_jobs = JobStore()  # Meta Reference List: per-paper reference-integrity scan
+    api.state.funding_jobs = JobStore()  # Funding Discovery: latent prospect discovery and opportunity resolution
+    api.state.funding_award_provider = None  # test seam for bounded historical-award evidence
+    api.state.funding_grants_gov_client = None  # test seam for current federal-opportunity evidence
+    api.state.funding_openalex_provider = None  # test seam for scholarly funding-lineage evidence
+    api.state.funding_crossref_provider = None  # test seam for Crossref grant metadata evidence
+    api.state.funding_llm_triage_evaluator = None  # optional AI triage over already-surfaced funding results
     api.state.enrich_registry = None  # inc 217 test seam: a fake EnrichmentRegistry (else built from the clients)
     api.state.enrich_search_provider = None  # inc 217 test seam: a fake DOI-recovery search provider
     api.state.discovery_registry = discovery_registry or build_default_registry()  # inc 183: discovery Search providers
+    api.state.citation_openalex_provider = None  # SP2 Cite: optional beyond-library OpenAlex provider test seam
     api.state.feed_registry = feed_registry or build_default_feed_registry()  # inc 187: Feed sources (bioRxiv)
     api.state.feed_jobs = JobStore()  # inc 187: async Feed refresh (poll subscriptions)
     api.state.acquire_registry = None  # test seam: a fake ResolverRegistry for the wanted re-check job
@@ -236,6 +252,7 @@ def create_app(
         citation_counts.router
     )  # before papers so "/papers/citation-counts/*" wins over "/papers/{id}" (inc 210)
     api.include_router(ocr.router)  # before papers so "/papers/ocr/*" wins over "/papers/{paper_id}" (inc 231)
+    api.include_router(text_health.router)  # before papers so "/papers/text-health/*" wins over "/papers/{paper_id}"
     api.include_router(
         citation_context.router
     )  # before papers so "/papers/citation-context/*" wins over "/papers/{id}" (inc 232)
@@ -244,6 +261,7 @@ def create_app(
     api.include_router(
         paper_enrich.router
     )  # /papers/{id}/re-resolve + /fill-metadata — split out of papers.py (inc 226)
+    api.include_router(paper_urls.router)  # /papers/{id}/urls — first-class extra URL rows
     api.include_router(workbench.router)  # /workbench/* — the meta-analysis extraction workspace (inc 253)
     api.include_router(papers.router)
     api.include_router(paper_files.router)  # /papers/{id}/pdf — split out of papers.py (inc 91)
@@ -253,6 +271,8 @@ def create_app(
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
+    api.include_router(reference_integrity.router)  # /papers/{id}/reference-integrity — Meta Reference List
+    api.include_router(funding.router)  # /funding-discovery/* — Theory-pane funding prospects
     api.include_router(credit.router)  # /credit/* — CRediT contribution-statement builder (#26, inc 261)
     api.include_router(
         critical_review.router

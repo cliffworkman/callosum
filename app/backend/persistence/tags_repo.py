@@ -47,11 +47,11 @@ def suppressed_tag_names(conn: Connection, paper_id: int) -> set[str]:
 
 
 def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
-    """The paper's tags as ``{id, name, import_source, color}``, ordered case-insensitively by name.
+    """The paper's tags as ``{id, name, import_source, color, locked}``, ordered case-insensitively by name.
     `import_source` (inc 100) distinguishes imported keywords from your tags; `color` (inc 207) is the optional
-    user-chosen palette key (NULL = uncolored)."""
+    user-chosen palette key (NULL = uncolored); `locked` is per-paper, not global."""
     stmt = (
-        select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color)
+        select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color, paper_tags.c.locked)
         .select_from(paper_tags.join(tags, tags.c.id == paper_tags.c.tag_id))
         .where(paper_tags.c.paper_id == paper_id)
         .order_by(func.lower(tags.c.name))
@@ -93,7 +93,7 @@ def set_tag_color(conn: Connection, tag_id: int, color: str | None) -> RowMappin
 def add_tag_to_paper(conn: Connection, paper_id: int, name: str, *, import_source: str = "user") -> RowMapping:
     """Get-or-create the tag by name (UNIQUE), then link it to the paper. Idempotent (already-linked → no-op).
     `import_source` provenance is set only when the tag is **created** — an existing tag keeps its original
-    source (so a user-named tag is never relabeled by a later keyword import). Returns ``{id, name}``."""
+    source (so a user-named tag is never relabeled by a later keyword import). Returns the per-paper tag row."""
     clean = name.strip()[:TAG_NAME_MAX]
     row = (
         conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color).where(tags.c.name == clean))
@@ -109,7 +109,40 @@ def add_tag_to_paper(conn: Connection, paper_id: int, name: str, *, import_sourc
         )
     conn.execute(insert(paper_tags).prefix_with("OR IGNORE").values(paper_id=paper_id, tag_id=int(row["id"])))
     unsuppress_paper_tag(conn, paper_id, clean)  # inc 143: re-adding a tag clears any prior deletion-suppression
-    return row
+    return (
+        conn.execute(
+            select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color, paper_tags.c.locked)
+            .select_from(paper_tags.join(tags, tags.c.id == paper_tags.c.tag_id))
+            .where(paper_tags.c.paper_id == paper_id, paper_tags.c.tag_id == int(row["id"]))
+        )
+        .mappings()
+        .one()
+    )
+
+
+def set_paper_tag_locked(conn: Connection, paper_id: int, tag_id: int, locked: bool) -> RowMapping | None:
+    """Set a per-paper lock on a tag link. Returns the tag row for this paper or None if it is not linked."""
+    result = conn.execute(
+        update(paper_tags).where(paper_tags.c.paper_id == paper_id, paper_tags.c.tag_id == tag_id).values(locked=locked)
+    )
+    if not result.rowcount:
+        return None
+    return (
+        conn.execute(
+            select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color, paper_tags.c.locked)
+            .select_from(paper_tags.join(tags, tags.c.id == paper_tags.c.tag_id))
+            .where(paper_tags.c.paper_id == paper_id, paper_tags.c.tag_id == tag_id)
+        )
+        .mappings()
+        .one()
+    )
+
+
+def is_paper_tag_locked(conn: Connection, paper_id: int, tag_id: int) -> bool:
+    row = conn.execute(
+        select(paper_tags.c.locked).where(paper_tags.c.paper_id == paper_id, paper_tags.c.tag_id == tag_id)
+    ).first()
+    return bool(row and row[0])
 
 
 def add_tags_to_paper(conn: Connection, paper_id: int, names, *, import_source: str = "user") -> list[RowMapping]:

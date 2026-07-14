@@ -35,6 +35,8 @@ function App() {
   // cancelFocus + setAxisRefresh, which come from useFocusMode (declared after useLibrary). See below.
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
+  const [textHealthOpen, setTextHealthOpen] = useState(false);  // local PDF text-health maintenance queue
+  const [textHealthContext, setTextHealthContext] = useState(null);  // optional source scope, e.g. Synthesis retry
   const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
@@ -62,7 +64,7 @@ function App() {
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh, setReferenceWarningsRefresh,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
   } = lib;
 
@@ -96,6 +98,25 @@ function App() {
     openPdf({ id: target.paperId, title: target.paperTitle }, target);
     if (mobile) setCitationReturn(true);   // came from a synthesis → show the back pill on the reader
   }, [openPdf, mobile]);
+
+  const openPaperDetails = useCallback((paper) => {
+    if (!paper || paper.id == null) return;
+    setSelected(paper.id);
+    setMethodsOpen("details");
+    if (mobile) setMobilePane("methods");
+  }, [mobile, setMethodsOpen, setMobilePane]);
+
+  const openReferenceWarnings = useCallback((paper) => {
+    if (!paper || paper.id == null) return;
+    setSelected(paper.id);
+    setLeftOpen(true);
+    setTheoryOpen("meta-references");
+    if (mobile) setMobilePane("theory");
+  }, [mobile, setLeftOpen, setTheoryOpen, setMobilePane]);
+  const openTextHealth = useCallback((context = null) => {
+    setTextHealthContext(context || null);
+    setTextHealthOpen(true);
+  }, []);
 
   // inc-81: open the My Publications impact dashboard as a frame tab (reuses the LibraryFrame tab system).
   const openMyPubsDashboard = useCallback((axis) => {
@@ -142,7 +163,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -168,6 +189,8 @@ function App() {
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onShowTransparencyReview: showTransparencyReview, onTransparencyRan: refreshTransparencyChip,  // inc 251
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
+    onReferenceWarningsChanged: () => setReferenceWarningsRefresh(n => n + 1),
+    onOpenTextHealth: openTextHealth,
     onOpenSettings: () => setSettingsOpen(true), settingsNonce,  // inc 148: synthesis egress-off nudge → open Settings
   };
 
@@ -187,6 +210,8 @@ function App() {
         onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
         onFindDuplicates: () => setDuplicatesOpen(true),
         onOpenWanted: () => setWantedOpen(true),
+        onOpenTextHealth: () => openTextHealth(),
+        onOpenReferenceWarnings: openReferenceWarnings,
         onOpenGaps: () => setGapsOpen(true),
         onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
         onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
@@ -214,6 +239,10 @@ function App() {
         <MergePapersModal ids={mergeIds} onClose={() => setMergeIds(null)} onMerged={onMerged} />}
       {wantedOpen &&
         <WantedModal onClose={() => setWantedOpen(false)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
+      {textHealthOpen &&
+        <TextHealthModal onClose={() => { setTextHealthOpen(false); setTextHealthContext(null); }} onOpenPaper={openPdf}
+          onOpenDetails={openPaperDetails} onShowLibrary={showTextHealthFilter}
+          onChanged={() => setLibRefresh(n => n + 1)} context={textHealthContext} />}
       {gapsOpen &&
         <GapsModal onClose={() => setGapsOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
       {pcurvePapers &&

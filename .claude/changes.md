@@ -9,6 +9,651 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-13 — Per-paper tag locks and Details split
+
+- **Files:** `app/frontend/js/25_detail.jsx`, `app/frontend/js/25a_detail_actions.jsx`, `app/frontend/js/25b_tags.jsx`, `app/frontend/styles.css`, `app/backend/persistence/schema.py`, `app/backend/persistence/tags_repo.py`, `app/backend/api/routers/paper_models.py`, `app/backend/api/routers/papers.py`, `app/backend/api/routers/tags.py`, `alembic/versions/0044_paper_tag_locks.py`, `tests/test_tags.py`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_20_tags.md`, `.claude/docs/INCREMENT-BACKLOG.md`, rebuilt frontend, and change log.
+- **What:** split self-contained Details action widgets into `25a_detail_actions.jsx`, then added per-paper tag locks. A locked tag hides the remove control until unlocked, and deletion is rejected server-side if the link is locked.
+- **Why:** Details needed headroom before adding more tag UI, and the remaining tag-provenance follow-up needed a scoped way to protect a tag on one paper without creating a global whitelist.
+- **Boundaries:** locks are scoped to the paper-tag link. No global tag identity, imported-keyword suppression rule, provider import behavior, tag color semantics, ratings, axes, or paper metadata changed.
+- **Help:** no served-help corpus change.
+- **Verify:** tag tests, frontend assembly/design checks, startup migration check, line-budget gate, QA surface-map gate, and diff check pass.
+
+## 2026-07-13 — Re-resolve metadata change notice
+
+- **Files:** `app/frontend/js/25_detail.jsx`, `tests/test_frontend_assembly.py`, `.claude/docs/INCREMENT-BACKLOG.md`, rebuilt frontend, and change log.
+- **What:** the Details-pane re-resolve action now compares the visible paper detail before and after the provider response and reports changed displayed fields plus newly added keyword tags in the existing inline note.
+- **Why:** force re-resolve can overwrite bibliographic fields and import keyword tags; users should see what changed instead of inferring it from the refreshed form.
+- **Boundaries:** frontend feedback only. No provider query, metadata merge rule, tag suppression, persistence schema, retraction check, or positive verification state changed.
+- **Help:** no served-help corpus change.
+- **Verify:** frontend assembly/design checks, paper route tests, line-budget gate, QA surface-map gate, and diff check pass.
+
+## 2026-07-13 — Library header mobile action wrap
+
+- **Files:** `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, `.claude/docs/INCREMENT-BACKLOG.md`, rebuilt frontend, and change log.
+- **What:** hardened the Library header action row so Add, saved-search, warning, and utility controls wrap within narrow panes instead of overflowing horizontally.
+- **Why:** the Library header can accumulate many action chips; mobile/read-only-width surfaces need every control reachable without horizontal scroll.
+- **Boundaries:** CSS/layout only. No Library filtering, citation-count refresh, saved-search, warning-chip, provider, or persistence behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** frontend assembly/design checks, line-budget gate, QA surface-map gate, and diff check pass.
+
+## 2026-07-13 — Saved funding visible-row bulk actions
+
+- **Files:** `app/frontend/js/08l_funding_saved.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend, and change log.
+- **What:** added display-scoped bulk workflow controls for the currently visible saved funding rows: mark visible reviewing and archive visible, with an explicit visible-item count.
+- **Why:** saved funding filters and sorts create bounded work queues; users need a compact way to move the visible subset through lightweight workflow states.
+- **Boundaries:** saved marker workflow state only. No canonical funding records, provider refreshes, evidence, exports, recommendations, opportunity status, or eligibility behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Funding Discovery saved-filter visual polish
+
+- **Files:** `app/frontend/styles.css`, rebuilt frontend, `.claude/funding-ui-pass-desktop.png`, `.claude/funding-ui-pass-saved-queue.png`, `.claude/funding-ui-pass-narrow.png`, and change log.
+- **What:** live Funding Discovery UI pass found saved-funding filter chips wrapping one letter per line in the narrow Theory pane; added a Funding-specific chip flex override so saved and result filter chips wrap at natural compact widths.
+- **Why:** the saved funding queue should remain scannable after adding filters, sort controls, and row summaries.
+- **Boundaries:** CSS/layout only. No filtering semantics, sorting semantics, provider calls, saved records, workflow states, exports, or funding evidence changed.
+- **Help:** no served-help corpus change.
+- **Verify:** live Chromium pass on validation DB showed no horizontal overflow or console errors; temporary saved markers were created for inspection and removed afterward. Funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Saved funding sort controls
+
+- **Files:** `app/frontend/js/08l_funding_saved.jsx`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend, and change log.
+- **What:** added display-only sort controls to the **Saved funding** queue: recently saved, deadline soon, changed-since-saved first, workflow state, open/current first, and archived last.
+- **Why:** saved funding now has filters and queue cues; sorting lets the saved list function as a lightweight work queue without changing saved records.
+- **Boundaries:** frontend display ordering only. No saved-item schema, workflow state, refresh logic, provider calls, exports, or canonical funding records changed.
+- **Help:** no served-help corpus change.
+- **Verify:** funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Saved funding row queue summaries
+
+- **Files:** `app/frontend/js/08l_funding_saved.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend, and change log.
+- **What:** saved funding rows now show compact queue cues before expansion: current/opportunity/prospect status, workflow state, next deadline or linked opportunity, and refresh-change cues.
+- **Why:** the saved funding queue should be scannable without forcing users to expand every saved item.
+- **Boundaries:** display-only frontend summary. No saved-item schema, refresh logic, workflow semantics, provider queries, exports, canonical funding records, or eligibility behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Saved funding queue filters
+
+- **Files:** `app/frontend/js/08l_funding_saved.jsx`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend, and change log.
+- **What:** updated the **Saved funding** queue with display-only filters for **Open / current**, **Prospects**, **Needs review**, **Changed since saved**, **Provider issue**, **No current window**, **Applying / planning**, and **Archived**.
+- **Why:** saved funding items need quick workflow and refresh-state slices so the review queue stays usable without becoming a full grant CRM.
+- **Boundaries:** frontend filtering only. No saved-item persistence schema, refresh logic, provider queries, canonical funding records, exports, or workflow-state semantics changed.
+- **Help:** no served-help corpus change.
+- **Verify:** funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Funding Discovery review-oriented filters
+
+- **Files:** `app/frontend/js/08jz_funding_helpers.jsx`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend, and change log.
+- **What:** added display filters for **Eligibility review**, **No current surface**, **Identity uncertain**, and **Stale AI-fit** to the Funding Discovery result pool.
+- **Why:** the fit-triage panels surface review concerns; users need quick slices for those concerns without changing ranking, exports, saved state, or opportunity/prospect/scheme semantics.
+- **Boundaries:** frontend filtering only. No provider queries, persistence, ranking, eligibility assessment, LLM triage, CSV export fields, or saved funding behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Funding Discovery fit triage panels
+
+- **Files:** `app/frontend/js/08jz_funding_helpers.jsx`, `app/frontend/js/08m_funding_results.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend, and change log.
+- **What:** Funding Discovery result cards now include a display-only triage panel that separates **Why this surfaced** from **What may need review**, including evidence class, existing signal strength/facets, eligibility evidence, identity uncertainty, missing current application surfaces, and stale AI-fit labels when present.
+- **Why:** users need a faster way to distinguish plausible latent fit from review concerns without collapsing Funding Discovery into a recommendation score.
+- **Boundaries:** frontend evidence summary only. It does not change provider queries, persistence, ranking, eligibility assessment, saved state, CSV exports, opportunity status, or LLM triage behavior.
+- **Help:** no served-help corpus change.
+- **Verify:** funding tests, frontend assembly/design checks, line-budget gate, QA surface-map gate, diff check, and verdict-language scan pass.
+
+## 2026-07-13 — Inline Synthesis source-text diagnostics
+
+- **Files:** `app/frontend/js/19_synthesis_failures.jsx`, `app/frontend/js/20_synthesis.jsx`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_55_synthesis_verification.md`, rebuilt frontend, and change log.
+- **What:** Synthesis now shows a compact source-text diagnostic when a run fails from missing/retrieval source chunks or finishes with zero source chunks. Selected-paper runs summarize scoped Text Health signals such as no local PDF, no extracted text, stale extraction, missing section labels, and tiny text; query runs explain that no source chunks matched the query or active section filter.
+- **Why:** users can see the likely retrieval/text-extraction cause before opening the full Text Health evidence queue.
+- **Boundaries:** diagnostic UI only. It reuses the existing Text Health overview endpoint; no retrieval logic, extraction/OCR behavior, verifier thresholds, summary persistence, egress behavior, or backend schema changed.
+- **Help:** no served-help corpus change.
+- **Verify:** frontend assembly/design checks, line-budget gate, and QA surface-map gate pass.
+
+## 2026-07-13 — Scoped Text Health reprocess for Synthesis
+
+- **Files:** `app/frontend/js/26b_text_health.jsx`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_55_synthesis_verification.md`, rebuilt frontend, and change log.
+- **What:** Text Health now shows **Reprocess scoped papers** when opened from Synthesis, limited to the synthesis-source papers that have missing section labels or stale extraction.
+- **Why:** the recovery path can now fix only the papers relevant to the failed synthesis before offering **Retry synthesis**.
+- **Boundaries:** frontend orchestration only. It reuses the existing selected-paper text reprocess endpoint; no OCR, metadata mutation, network call, extraction semantics, verifier behavior, or persistence schema changed.
+- **Help:** no served-help corpus change.
+- **Verify:** frontend assembly/design checks, line-budget gate, and QA surface-map gate pass.
+
+## 2026-07-13 — Scoped Text Health handoff from Synthesis
+
+- **Files:** `app/frontend/js/20_synthesis.jsx`, `app/frontend/js/26b_text_health.jsx`, `app/frontend/js/40_app.jsx`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_55_synthesis_verification.md`, rebuilt frontend, and change log.
+- **What:** when Synthesis routes the user to Text Health, the modal now carries the synthesis context: selected-paper syntheses open Text Health scoped to those source papers, can toggle back to the full text-health queue, and offer **Retry synthesis** after reprocessing completes.
+- **Why:** a missing-source-text synthesis failure should lead directly to the relevant local maintenance queue and then back to the same synthesis request.
+- **Boundaries:** frontend handoff only. No extraction/OCR behavior, backend API, verifier thresholds, generation prompt, persistence, or egress behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** frontend assembly/design checks, line-budget gate, and QA surface-map gate pass.
+
+## 2026-07-13 — Actionable synthesis failure recovery
+
+- **Files:** `app/frontend/js/19_synthesis_failures.jsx`, `app/frontend/js/20_synthesis.jsx`, `app/frontend/js/40_app.jsx`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_55_synthesis_verification.md`, rebuilt frontend, and change log.
+- **What:** replaced the generic synthesis error box with classified recovery states for AI/egress setup, provider failures, malformed cached citation ids, and missing source-text cases. Recovery actions can open Settings, repair the synthesis cache and retry the same request, open Text Health, or retry.
+- **Why:** synthesis failures should point to the next bounded action instead of leaving the user with a raw exception.
+- **Boundaries:** frontend recovery/routing only. No verifier thresholds, source retrieval, summary persistence, evidence semantics, egress gate, or provider behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** frontend assembly/design checks, line-budget gate, and QA surface-map gate pass.
+
+## 2026-07-13 — Explicit synthesis-cache repair action
+
+- **Files:** `app/backend/llm/cache.py`, `app/backend/api/routers/settings.py`, `app/frontend/js/35_settings.jsx`, `tests/test_llm_cache.py`, `.claude/qa-routes/route_35_settings.md`, rebuilt frontend, and change log.
+- **What:** added a Settings → Local maintenance action that scans cached synthesis-generation rows and deletes only malformed summary-cache payloads, reporting scanned/removed counts.
+- **Why:** the automatic malformed-cache recovery fixes the active generation path; this gives the user an explicit local repair action for stale bad cache rows already sitting in SQLite.
+- **Boundaries:** summary-generation cache only. No saved syntheses, verified citations, evidence quotes, chunks, verifier thresholds, egress behavior, or paper/library records are changed.
+- **Help:** no served-help corpus change.
+- **Verify:** cache tests, frontend assembly/design checks, line-budget gate, and QA surface-map gate pass.
+
+## 2026-07-13 — Synthesis cache malformed citation-id recovery
+
+- **Files:** `app/backend/llm/cache.py`, `tests/test_llm_cache.py`, and change log.
+- **What:** malformed cached synthesis generation payloads with non-numeric citation chunk ids, such as `chunk_1`, are now treated as cache misses. The bad row is deleted and generation is retried instead of surfacing a raw `ValueError`.
+- **Why:** cached model output is not authoritative evidence; local verification still needs real chunk ids, and a bad cached candidate should not block synthesis.
+- **Boundaries:** generation cache behavior only. No verifier thresholds, citation evidence semantics, prompt construction, egress gate, or UI behavior changed.
+- **Help:** no served-help corpus change.
+- **Verify:** `py_compile` on `app/backend/llm/cache.py`, `pytest -q tests/test_llm_cache.py tests/test_summaries.py`, line-budget gate, and `git diff --check` pass.
+
+<!-- HELP-DOCS-SYNCED 2026-07-13 — help corpus updated for stale Funding Discovery AI-fit label handling. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-13 — Stale Funding Discovery AI-fit labels
+
+- **Files:** `app/backend/funding/triage_repo.py`, `app/backend/funding/export.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08m_funding_results.jsx`, `app/backend/help/help_content.md`, `tests/test_funding_discovery.py`, and change log.
+- **What:** AI-fit annotations now compare their persisted evidence fingerprint with the current reloaded/exported item evidence and mark the annotation `stale` when the evidence changed.
+- **Why:** model labels should remain inspectable, but users need to know when a label was based on earlier opportunity/prospect evidence.
+- **Boundaries:** stale labels do not hide items, rerank results, rerun models, mutate saved items, refresh providers, or create recommendations/probabilities.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** `py_compile` on changed backend modules, `pytest -q tests/test_funding_discovery.py tests/test_help.py tests/test_frontend_assembly.py tests/test_design_drift.py`, frontend rebuild, line-budget gate, QA surface-map gate, and `git diff --check` pass.
+
+## 2026-07-13 — Funding Discovery result chunk split
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/js/08m_funding_results.jsx`, `tests/test_funding_discovery.py`, `.claude/qa-routes/route_69_funding_discovery.md`, rebuilt frontend artifact, and change log.
+- **What:** moved Funding Discovery result-card, evidence-detail, filter/sort, and result-summary rendering helpers out of the stateful panel chunk into a new adjacent result-rendering chunk.
+- **Why:** `08k_funding_discovery.jsx` was at 598/600 lines after the Recent runs UI; this split preserves behavior while restoring room for future Funding Discovery work.
+- **Boundaries:** refactor only. No provider, persistence, matching, save, export, LLM triage, eligibility, warning, or UI behavior change intended.
+- **Help:** no served-help corpus change.
+- **Verify:** `pytest -q tests/test_funding_discovery.py tests/test_frontend_assembly.py tests/test_design_drift.py`, frontend rebuild, line-budget gate, QA surface-map gate, and `git diff --check` pass.
+
+## 2026-07-13 — Funding Discovery Recent runs reload UI
+
+- **Files:** `app/backend/funding/run_report.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/js/08l_funding_saved.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_69_funding_discovery.md`, `tests/test_funding_discovery.py`, and change log.
+- **What:** added a bounded recent-run summary endpoint and a Theory-pane **Recent runs** disclosure that reloads a completed Funding Discovery run into the normal result lanes, preserving persisted source coverage, saved markers, CSV export, and AI-fit labels.
+- **Why:** the previous persistence work made run reload possible; the UI now exposes it so users can return after refresh/restart without re-running discovery.
+- **Boundaries:** reload is read-only and per-run; it does not refresh providers, mutate saved items, create recommendations, or convert prospects/schemes into opportunities.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** `py_compile` on changed backend modules, `pytest -q tests/test_funding_discovery.py tests/test_help.py tests/test_frontend_assembly.py tests/test_design_drift.py`, frontend rebuild, line-budget gate, QA surface-map gate, and `git diff --check` pass.
+
+## 2026-07-13 — Persisted Funding Discovery AI-fit labels
+
+- **Files:** `app/backend/persistence/schema_funding.py`, `alembic/versions/0043_funding_llm_triage_annotations.py`, `app/backend/funding/triage_repo.py`, `app/backend/funding/run_report.py`, `app/backend/funding/export.py`, `app/backend/api/routers/funding.py`, `app/backend/help/help_content.md`, `tests/test_funding_discovery.py`, and change log.
+- **What:** persisted Funding Discovery AI-fit annotations per search-run item, added a completed-run reload endpoint, and included the persisted label/rationale/prompt version in CSV export.
+- **Why:** AI triage should survive reloads and be exportable without turning a transient browser annotation into a global recommendation or hidden score.
+- **Boundaries:** labels remain scoped to the run and item instance; no opportunity/prospect conversion, saved-item mutation, eligibility verdict, funding probability, or recommendation language.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** `py_compile` on changed backend modules, `pytest -q tests/test_funding_discovery.py tests/test_startup_migration.py tests/test_help.py`, line-budget gate, QA surface-map gate, and `git diff --check` pass.
+
+## 2026-07-13 — Post-run Funding Discovery AI fit triage
+
+- **Files:** `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `tests/test_funding_discovery.py`, rebuilt frontend artifact, and change log.
+- **What:** added a post-run **Evaluate apparent fit with AI** action for Funding Discovery results, backed by a bounded `/funding-discovery/llm-triage` endpoint that annotates the current surfaced pool without rerunning deterministic discovery. The existing optional pre-run checkbox remains, but model calls now run outside the Funding Discovery database write transaction.
+- **Why:** users can first inspect the broad latent-fit pool, then ask the configured model to add advisory fit labels and toggle to the LLM-triaged view without losing the full result set.
+- **Boundaries:** no funding probabilities, recommendations, eligibility verdicts, hidden scoring, item deletion, saved-item mutation, schema change, or new provider dependency.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** funding discovery tests, frontend assembly/design checks, line-budget gate, and surface-map gate pass.
+
+## 2026-07-13 — Reference check cache-lock hardening
+
+- **Files:** `app/backend/api/routers/reference_integrity.py` and change log.
+- **What:** split Meta Reference List runs into short provider/detector transactions and a separate final persistence transaction, so external metadata cache writes no longer share the long reference-signal write window.
+- **Why:** a reference check could fail when an opportunistic `external_api_cache` write hit SQLite writer contention during a run.
+- **Boundaries:** no detector semantics, review-state model, warning derivation, UI, schema, or provider behavior changed.
+- **Verify:** reference-integrity, API-cache, SQLite-retry, opt-in tool-pane visual drift, and line-budget checks pass.
+
+## 2026-07-13 — Synthesis section filters wrap in the Theory pane
+
+- **Files:** `app/frontend/js/20_synthesis.jsx`, `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, rebuilt frontend artifact, and change log.
+- **What:** gave the synthesis section filter strip its own class and made segmented filter controls wrap within the available pane width; synthesis section buttons now use compact wrapping chips so long labels stay visible.
+- **Why:** narrow Theory panes could hide later section buttons such as Data availability, Funding, and Ethics off the right edge.
+- **Boundaries:** layout-only frontend polish; no synthesis retrieval, verification, saved-summary, or API behavior changed.
+- **Verify:** frontend assembly regression and design-drift checks pass.
+
+## 2026-07-13 — Paper router model split
+
+- **Files:** `app/backend/api/routers/paper_models.py`, `app/backend/api/routers/papers.py`, `app/backend/api/routers/paper_urls.py`, `app/backend/api/routers/paper_enrich.py`, and change log.
+- **What:** moved paper-route Pydantic request/response models out of `papers.py` into `paper_models.py`, and updated sibling routers to import shared paper models from that module.
+- **Why:** `papers.py` was exactly at the 600-line cap after first-class URL rows; this restores headroom for the next Details/file-serving increment.
+- **Boundaries:** behavior-preserving refactor only; no schema, route, frontend, help, or migration change.
+- **Verify:** targeted paper/health/startup checks and line-budget gate pass.
+
+## 2026-07-13 — First-class extra URLs in Details
+
+- **Files:** `app/backend/persistence/schema_paper_urls.py`, `alembic/versions/0042_paper_urls.py`, `app/backend/persistence/paper_urls_repo.py`, `app/backend/api/routers/paper_urls.py`, `app/backend/api/routers/papers.py`, `app/backend/api/app.py`, `app/backend/api/routers/paper_edit_input.py`, `app/frontend/js/25c_urls.jsx`, `app/frontend/js/25_detail.jsx`, `app/frontend/styles.css`, `tests/test_papers.py`, `tests/test_frontend_assembly.py`, `tests/test_health.py`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_30_detail_pane.md`, rebuilt frontend, and change log.
+- **What:** promoted additional paper URLs from a CSL-only textarea into first-class per-paper URL rows with optional labels, add/remove endpoints, Details-pane row UI, and a compatibility mirror into `csl_json.extra_urls` / `extra_urls`.
+- **Why:** real reference records often need more than one link: publisher page, preprint, OSF, data, code, project page, or alternate landing page.
+- **Boundaries:** DOI remains the identifier field; primary CSL `URL` remains separate. No network fetch, scraping, metadata overwrite, scoring, or paper-status change.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** targeted paper/url/frontend/help/health checks pass; frontend rebuilt.
+
+## 2026-07-13 — Watched-rescan single-flight and content dedup
+
+- **Files:** `app/backend/api/app.py`, `app/backend/api/routers/library.py`, `app/backend/pdf_processing/library_scan.py`, `tests/test_library_scan.py`, `tests/test_watched_folders.py`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_27_scan_import.md`, and change log.
+- **What:** added an app-level single-flight guard shared by manual folder scans and watched-folder rescans, so a second scan-family request reuses the pending/running job instead of spawning another SQLite writer. Strengthened scan unchanged records to expose checksum-based matches across import sources/provenance.
+- **Why:** concurrent rescans and foreign-provenance duplicate PDFs were the two fragile spots behind recent lock/duplicate-library reports.
+- **Boundaries:** no schema migration, no background daemon, no PDF copying, no egress change, and no change to import/enrichment semantics beyond avoiding duplicate scan-family writers.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** targeted scan/watched-folder/help/health checks pass.
+
+## 2026-07-13 — Paper-card Meta Reference List jump
+
+- **Files:** `app/frontend/js/10d_papercard.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/40_app.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_68_reference_integrity.md`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** made each paper-card **ref signal** badge an accessible jump control that selects the paper and opens the Theory pane directly to **Meta Reference List**; on mobile it switches to the Theory region.
+- **Why:** bulk reference review now filters the Library to active reference-signal papers, so the badge should take the reviewer directly to the evidence and review controls.
+- **Boundaries:** frontend routing only; no detector, persistence, warning semantics, schema, background job, or paper-quality verdict language changed.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** frontend assembly/help/design/reference smoke checks pass; frontend rebuilt.
+
+## 2026-07-13 — Bulk reference-review Library filter
+
+- **Files:** `app/frontend/js/03_library.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/10b_libmenus.jsx`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_68_reference_integrity.md`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** after a selected-paper **check refs** bulk run, the Library now switches to a clearable **Reference checks** view containing papers with active Meta Reference List signals.
+- **Why:** completes the triage loop: select papers, run checks, immediately review affected papers instead of hunting for refreshed badges.
+- **Boundaries:** frontend-only filter over existing `/reference-integrity/overview`; no backend query path, detector change, schema migration, auto-run, or positive verification state.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** frontend/help/design checks pass; frontend rebuilt.
+
+## 2026-07-13 — Bulk Meta Reference List checks
+
+- **Files:** `app/backend/api/routers/reference_integrity.py`, `app/frontend/js/03_library.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/10b_libmenus.jsx`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_68_reference_integrity.md`, `tests/test_reference_integrity.py`, `tests/test_frontend_assembly.py`, `tests/test_health.py`, rebuilt frontend, and change log.
+- **What:** added a selected-paper bulk action, **check refs**, that starts `POST /reference-integrity/run-selected`, skips selected no-DOI papers visibly, runs the existing per-paper Meta Reference List checker for DOI-backed papers, and refreshes paper-card reference warning badges when complete.
+- **Why:** reference integrity is useful at library-triage scale, especially after imports, but should remain explicit and bounded.
+- **Boundaries:** no new detector path, no auto-run on import, no daemon, no schema migration, no positive verification state, and no global reference whitelist.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** reference-integrity/health/frontend/help/design checks pass; frontend rebuilt.
+
+## 2026-07-13 — Meta Reference List run visibility
+
+- **Files:** `app/backend/api/routers/reference_integrity.py`, `app/backend/persistence/reference_integrity_repo.py`, `app/frontend/js/08j_reference_integrity.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `tests/test_reference_integrity.py`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** made reference-integrity runs more inspectable: poll responses now include determinate progress, completed reports expose source coverage and last-checked time, provider failures are reported as partial coverage where fallback can continue, and the UI shows coverage plus a retry control for failed/partial runs.
+- **Why:** “Check references” should not feel like a silent black box when Semantic Scholar/OpenAlex/retraction data are slow, empty, or partially unavailable.
+- **Boundaries:** no detector verdict semantics changed, no schema migration, no background daemon, no positive reference-quality state, and no composite score.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** targeted reference-integrity/frontend/help checks pass; frontend rebuilt.
+
+## 2026-07-13 — Text Health Library filter
+
+- **Files:** `app/frontend/js/03_library.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/26b_text_health.jsx`, `app/frontend/js/40_app.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_30_detail_pane.md`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** added **Show in Library** for each Text Health modal group. The Library narrows to that paper set with a clearable **Text health:** banner and keeps the filter local to the frontend.
+- **Why:** text-health diagnosis should flow into normal library triage without adding a backend query path or mixing it with saved searches.
+- **Boundaries:** no schema, OCR, extraction, metadata, or network behavior changed. The filter is ephemeral and clears like axis/tag/signal review views.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** frontend assembly/help/design checks pass; frontend rebuilt.
+
+## 2026-07-13 — Text Health stale extraction group
+
+- **Files:** `app/frontend/js/26b_text_health.jsx`, `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** exposed the existing `stale_chunk_version` detector as a first-class **Stale extraction version** group in the Text Health modal, including coverage count and per-row reprocess action.
+- **Why:** stale extraction provenance is a distinct maintenance signal and should be inspectable separately from missing section labels.
+- **Boundaries:** UI/docs only. Backend detection and batch semantics are unchanged; stale rows are reprocessed only when the user explicitly clicks their row action or selects papers in the bulk bar.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** frontend assembly/help/design checks pass; frontend rebuilt.
+
+## 2026-07-13 — Text Health routes OCR candidates to Details
+
+- **Files:** `app/frontend/js/26b_text_health.jsx`, `app/frontend/js/40_app.jsx`, `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** added a **details for OCR** row action for Text Health papers with no extracted text. It selects the paper and opens the right-pane Details section so the existing explicit **OCR this paper (scanned)** control is visible.
+- **Why:** Text Health should make likely OCR candidates actionable without automatically OCRing or creating a searchable copy.
+- **Boundaries:** navigation/UI only. No OCR execution, extraction, metadata, provider, persistence, or batch-reprocess semantics changed.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** frontend assembly/design/help checks pass; frontend rebuilt.
+
+## 2026-07-13 — PDF text-health drill-down
+
+- **Files:** `app/frontend/js/26b_text_health.jsx` (new), `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/40_app.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`, rebuilt frontend, and change log.
+- **What:** changed the Library **Text health** button from a direct batch action into an inspectable modal queue grouped by missing section labels, no extracted text, very little text, and no local PDF. Rows show title, chunk count, extracted character count, section-labeled count, and open/reprocess actions where appropriate.
+- **Why:** make maintenance signals inspectable before acting; the user should see what Callosum measured rather than trust an opaque batch button.
+- **Boundaries:** UI/control-flow only. The existing text-health API, extraction, batch semantics, OCR boundaries, metadata preservation, and no-egress behavior are unchanged.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** frontend assembly/design tests pass; frontend rebuilt.
+
+## 2026-07-13 — PDF text health and batch reprocess
+
+- **Files:** `app/backend/api/routers/text_health.py` (new), `app/backend/api/app.py`, `app/backend/pdf_processing/ingest.py`, `app/backend/api/routers/papers.py`, `app/frontend/js/10b_libmenus.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/backend/help/help_content.md`, `tests/test_text_health.py`, `tests/test_frontend_assembly.py`, QA route, security audit, rebuilt frontend, and change log.
+- **What:** added deterministic PDF text-health counts and async reprocessing jobs. The Library header now shows **Text health** and can reprocess local PDFs whose chunks are missing section labels; the selected-paper bulk bar adds **reprocess text** for an explicit checked set.
+- **Why:** make the new section-aware extraction useful across existing libraries without forcing one-paper-at-a-time cleanup.
+- **Boundaries:** no schema change, OCR, metadata overwrite, attachment replacement, provider call, LLM call, hidden scoring, or paper-status mutation. No-chunk/scanned candidates are counted but not silently OCR'd. Existing chunks are preserved if a reprocess attempt would replace them with an empty extraction.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** targeted text-health tests pass; frontend/help/design and health-route tests pass; frontend rebuilt; ruff, line-budget, and QA surface-map checks pass.
+
+## 2026-07-13 — Details-pane PDF text reprocessing
+
+- **Files:** `app/backend/persistence/paper_lifecycle_repo.py`, `app/backend/pdf_processing/ingest.py`, `app/backend/api/routers/papers.py`, `app/frontend/js/25_detail.jsx`, `app/backend/help/help_content.md`, `tests/test_pdf_processing.py`, security audit, and change log.
+- **What:** added a per-paper **Reprocess PDF text** action for local PDFs that already have extracted chunks. It re-runs the existing PyMuPDF extraction/chunking path, including section labels, and replaces only chunks for the selected primary PDF attachment.
+- **Why:** older PDF imports can now pick up newer extraction metadata without re-importing or disturbing bibliographic metadata, files, tags, highlights, notes, or annotations.
+- **Boundaries:** no schema change, no PDF upload/egress, no OCR, no metadata overwrite, no attachment replacement, no hidden scoring, and no changes to synthesis/statcheck/reference/funding semantics. Stale chunk embeddings and vectors for the replaced attachment are removed before new chunks are written.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** targeted PDF processing and paper-route tests pass; frontend rebuilt; frontend/help/design tests, ruff,
+  line-budget, and QA surface-map checks pass.
+
+## 2026-07-13 — Section-filtered synthesis retrieval
+
+- **Files:** `app/backend/summarization/generators.py`, `app/backend/summarization/pipeline.py`, `app/backend/api/routers/summaries.py`, `app/frontend/js/20_synthesis.jsx`, `app/backend/help/help_content.md`, `tests/test_summaries.py`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and change log.
+- **What:** added optional section filters to Synthesis retrieval. Users can leave the filter at All or narrow retrieval to section-aware chunks such as Methods, Results, Discussion, Data availability, Funding, or Ethics. Completed summaries report the active section filter and retrieved source-chunk count.
+- **Why:** let users steer synthesis toward the kind of evidence they want to inspect without changing verification thresholds or implying stronger support.
+- **Boundaries:** no schema, extraction, embeddings, vector scoring, NLI, quote-location, confidence thresholds, summary status semantics, funding, reference-integrity, or methods-QA behavior changed. The filter narrows eligible source chunks only.
+- **Help:** served help corpus updated and sync marker moved.
+- **Verify:** targeted summary/frontend/help tests pass; adjacent summarization/cache/reverify tests pass; frontend rebuilt; ruff, design-drift, line-budget, and QA surface-map checks pass.
+
+## 2026-07-13 — Section labels on evidence locations
+
+- **Files:** `app/backend/methods/statcheck.py`, `app/backend/api/routers/methods.py`, `app/backend/api/routers/summaries.py`, `app/frontend/js/00_lib.jsx`, `app/frontend/js/06_methods_statcheck.jsx`, `app/frontend/js/20_synthesis.jsx`, `tests/test_statcheck.py`, `tests/test_summarize_selected.py`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and change log.
+- **What:** propagated existing chunk `section` metadata into statcheck and synthesis evidence payloads and rendered section-aware location labels such as `Methods · p. 4` while preserving page-only fallbacks.
+- **Why:** make bounded evidence and highlights easier to interpret by exposing deterministic document context without altering verification status, confidence, ranking, or warning behavior.
+- **Boundaries:** no schema, extraction, quote-location, NLI, confidence thresholds, paper status, funding, reference-integrity, or methods detector semantics changed. Section labels are provenance/context only.
+- **Help:** reviewed; no served help update needed because the workflow is unchanged and the visible addition is contextual metadata in existing evidence cards.
+- **Verify:** targeted statcheck/synthesis/frontend tests pass; adjacent summarization/overview/annotation/PDF tests pass; frontend rebuilt; ruff, design-drift, line-budget, and QA surface-map checks pass.
+
+## 2026-07-13 — Section-aware PDF chunks
+
+- **Files:** `app/backend/pdf_processing/sections.py`, `app/backend/pdf_processing/extraction.py`, `tests/test_pdf_processing.py`, and change log.
+- **What:** added conservative deterministic section-heading detection during PDF chunk drafting and now persists recognized section labels through the existing chunk `section` field.
+- **Why:** give downstream evidence/highlight workflows bounded section context without changing the PyMuPDF extraction backend or adding a parallel document model.
+- **Boundaries:** no schema, API, frontend, egress, OCR, quote-location, funding, reference-integrity, methods-QA, or Journal Search behavior changed. Heading detection is exact-alias based and intentionally conservative.
+- **Help:** reviewed; no served help update needed because this is extraction metadata, not a new user workflow or visible control.
+- **Verify:** `pytest -q tests/test_pdf_processing.py`; adjacent transparency/document/OCR tests pass; `ruff check`; line-budget and QA surface-map checks pass.
+
+## 2026-07-12 — Increment 299: Close frontend QA surface-map gaps
+
+- **Files:** `.claude/qa-routes/route_00_smoke_readonly.md`, `.claude/qa-routes/route_33_methods_statcheck.md`, and change log.
+- **What:** closed the remaining frontend checklist gaps by assigning existing exercised surfaces to the right QA routes: route 00 now claims and explicitly walks `10d_papercard.jsx`; route 33 now claims the shared `00_lib.jsx` evidence-quote primitive used by statcheck source/context evidence.
+- **Why:** after the runtime visual-drift route, the only uncovered frontend surfaces were paper-card interactions and the shared evidence quote button. The route map now reflects the actual QA responsibilities.
+- **Boundaries:** QA documentation only. No product behavior, styling, API, provider, persistence, funding, reference-integrity, methods detector, or Journal Search behavior changed.
+- **Help:** reviewed; no served help update needed because user-visible behavior is unchanged.
+- **Verify:** `python tools/qa/build_surface_map.py check` reports 228/228 API surfaces and 1043/1043 frontend surfaces covered, 0 uncovered.
+
+## 2026-07-12 — Increment 298: Runtime tool-pane visual drift route
+
+- **Files:** `tests/e2e/test_smoke.py`, `.claude/qa-routes/route_70_tool_pane_visual_drift.md` (new), `app/frontend/styles.css`, `callosum-app.html`, and change log.
+- **What:** added an opt-in Playwright visual-drift pass that walks visible THEORY and METHODS accordion sections at desktop and mobile widths, checking document/pane horizontal overflow, accordion-header visibility, and console/page errors. Added QA route 70 so the supervisor has the same visual-drift contract with screenshot deposit instructions.
+- **Why:** complement the static DESIGN.md drift tests with runtime coverage that catches rendered breakage.
+- **Fix:** the new test caught a real mobile Details overflow: the item-type/action row did not wrap at phone width. `.detail-type-row` now wraps controls instead of forcing a horizontal scroll.
+- **QA:** route coverage remains complete for API surfaces and the new route claims the saved-funding pane controls, reducing frontend checklist gaps from 27 to 11.
+- **Boundaries:** no product behavior, data model, API, provider, persistence, funding ranking, reference-integrity, methods-QA detector, or Journal Search behavior changed.
+- **Help:** reviewed; no served help update needed because behavior and visible wording are unchanged.
+- **Verify:** static design/frontend tests pass; full opt-in e2e smoke including the new visual pass passes; line-budget and surface-map checks pass.
+
+## 2026-07-12 — Increment 297: Design drift regression tests
+
+- **Files:** `tests/test_design_drift.py` (new), `app/frontend/styles.css`, `callosum-app.html`, and change log.
+- **What:** added a deterministic aesthetic-drift test suite keyed to `.claude/DESIGN.md`: the design dictionary must name the enforced rules, normal app chrome cannot introduce raw hex colors outside documented exceptions, inline styles cannot add raw hex chrome colors, and Funding Discovery card type accents must use semantic design tokens.
+- **Why:** catch design drift early without brittle screenshot goldens; the first pass caught Funding Discovery's raw purple/green card accents.
+- **Fix:** changed Funding Discovery scheme/prospect card accents from raw hexes to `var(--accent)` and `var(--verified)`.
+- **Boundaries:** no layout, behavior, provider, persistence, API, funding ranking, reference-integrity, methods-QA, or Journal Search behavior changed. PDF/page overlay raw-color exceptions remain documented and allowed.
+- **Help:** reviewed; no served help update needed because behavior and visible wording are unchanged.
+- **Verify:** targeted design/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 296: Backlog cleanup for Discover placeholder and QA seed item type
+
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/changes.md`, `tests/test_frontend_assembly.py`, and `tests/test_api_helpers.py`.
+- **What:** closed two stale backlog items with regression coverage: the THEORY accordion no longer registers the old Discover placeholder, and the shared QA seed helper now produces non-empty `/papers/item-types` data.
+- **Why:** both fixes were already present in the code, but the backlog still listed them as pending and the seed fixture lacked direct route coverage.
+- **Boundaries:** no product behavior, schema, API contract, styling, persistence, funding, reference-integrity, methods-QA, or Journal Search behavior changed.
+- **Help:** reviewed; no served help update needed because user-visible behavior is unchanged.
+- **Verify:** targeted frontend/API-helper tests pass; line-budget check passes.
+
+## 2026-07-12 — Increment 295: Funding Discovery helper chunk split
+
+- **Files:** `app/frontend/js/08jz_funding_helpers.jsx` (new), `app/frontend/js/08k_funding_discovery.jsx`, `tests/test_funding_discovery.py`, `callosum-app.html`, and change log.
+- **What:** moved pure Funding Discovery display helpers into a preceding helper chunk, including provider coverage labels, signal formatting, grouping helpers, amount formatting, surface matching, triage filtering, and lower-signal prospect detection.
+- **Why:** keep `08k_funding_discovery.jsx` well below the 600-line budget so future Funding Discovery work can proceed without brittle edits.
+- **Boundaries:** refactor only. No UI behavior, styling, provider, matching, ranking, persistence, save, export, LLM triage, eligibility, or opportunity-resolution behavior changed.
+- **Help:** reviewed; no served help update needed because behavior and visible wording are unchanged.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 294: Funding Discovery lower-signal prospect display filter
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and help corpus.
+- **What:** the Funding Prospects lane now hides lower-signal prospects by default when every signal is weak/unresolved and no application surface was found. A compact **Show lower-signal prospects** toggle reveals them and reports the count affected by the display-only filter.
+- **Why:** reduce review noise in broad Funding Discovery runs without deleting evidence or implying that hidden prospects are irrelevant.
+- **Boundaries:** frontend display filter only. Open opportunities and recurring schemes are unaffected; no provider, matching, ranking, persistence, save, export, LLM triage, eligibility, or opportunity-resolution behavior changed.
+- **Design:** read `.claude/DESIGN.md`; toggle uses compact token-based form styling.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 293: Funding Discovery grouping drill-down
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and help corpus.
+- **What:** grouped Funding Discovery cards now include a **Why grouped?** disclosure listing grouped record IDs, item kind, display title, and signal types, plus the exact-key grouping boundary.
+- **Why:** display de-duplication should be inspectable so it never feels like Callosum silently merged evidence.
+- **Boundaries:** frontend display disclosure only. No provider, matching, ranking, persistence, save, export, LLM triage, eligibility, or opportunity-resolution behavior changed.
+- **Design:** read `.claude/DESIGN.md`; the disclosure uses compact token-based evidence metadata styling.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 292: Funding Discovery display grouping
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and help corpus.
+- **What:** Funding Discovery result lanes now group exact duplicate surfaces for display: opportunities group only by provider opportunity ID, recurring schemes by funder+scheme, and prospects by funder/scheme identity. Grouped cards show how many evidence paths/records contributed while keeping run/export records separate.
+- **Why:** reduce review noise from the same funder or scheme surfacing through multiple evidence paths without collapsing distinct epistemic classes or application routes.
+- **Boundaries:** frontend display grouping only. No provider, matching, ranking, persistence, export, save, LLM triage, eligibility, or opportunity-resolution behavior changed.
+- **Design:** read `.claude/DESIGN.md`; grouping note uses existing provenance-token styling.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 291: Funding Discovery source coverage interpretation
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and help corpus.
+- **What:** the Source coverage panel now explains what each provider status means for interpretation and includes a **What was not covered** disclosure for major open-data gaps such as licensed philanthropic databases and non-exhaustive funder website/newsletter coverage.
+- **Why:** provider success/failure should calibrate the user's interpretation of the result pool without implying that absent results mean absent funding mechanisms.
+- **Boundaries:** frontend interpretation only. No provider, search, matching, ranking, persistence, LLM, or export behavior changed.
+- **Design:** read `.claude/DESIGN.md`; new coverage labels use existing token-based pill/status recipes.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 290: Funding Discovery evidence drill-downs and saved-refresh polish
+
+- **Files:** `app/backend/funding/irs.py`, `app/frontend/js/{08k_funding_discovery,08l_funding_saved}.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and help corpus.
+- **What:** historical funding evidence rows now show UI-safe source metadata, record IDs, award numbers, amount, scheme cues, extraction basis, and source-record links where provenance provides them. Saved funding refresh summaries/history now include compact text status labels for current opportunities, changed items, provider issues, and unresolved current windows.
+- **Why:** funding evidence should be inspectable at the source, and saved refresh outcomes should be scannable without relying on color alone.
+- **Boundaries:** no matching, ranking, provider, persistence schema, LLM triage, or eligibility behavior changed. Individual 990-PF recipient details remain withheld in the default UI.
+- **Design:** read `.claude/DESIGN.md`; new styling uses existing token recipes, provenance/uncertain color semantics, and compact dense rows.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 289: Funding Discovery signal trails
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and help corpus.
+- **What:** Funding Discovery signals now include a compact **Signal trail** disclosure showing signal type, categorical strength, matched profile facets, attached evidence row count/source summary, observed years when available, and the signal-specific interpretation boundary.
+- **Why:** surfaced opportunities, recurring schemes, and prospects need clearer inspectable evidence without turning latent-fit signals into recommendations or probabilities.
+- **Boundaries:** UI disclosure only. No provider, matching, ranking, persistence, LLM triage, eligibility, save workflow, or external-data behavior changed.
+- **Verify:** targeted Funding Discovery/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 288: Methods evidence trail disclosures
+
+- **Files:** `app/frontend/js/{00_lib,06_methods_statcheck,08d_methods_bayes,08f_methods_lmm,08g_methods_metaanalysis,08h_methods_transparency}.jsx`, `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** added a shared **Evidence trail** disclosure for Methods evidence. Statcheck, Bayes recompute/checklist/advisory evidence, LMM, meta-analysis reporting, and transparency evidence now expose detector name, matched text, source precision, page, anchor note, and detector boundary/caveat next to the evidence.
+- **Why:** source jumps should be inspectable before the user leaves the Methods pane, without turning a signal into a verdict.
+- **Boundaries:** UI disclosure only. No detector, source anchoring, scoring, warning-state, persistence, LLM, or egress behavior changed.
+- **Verify:** targeted frontend/Methods tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 287: Evidence precision is visible before source jumps
+
+- **Files:** `app/frontend/js/{00_lib,06_methods_statcheck,08d_methods_bayes,08f_methods_lmm,08g_methods_metaanalysis,08h_methods_transparency,20_synthesis}.jsx`, `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** the shared `EvidenceQuote` block now displays a compact precision chip: **exact highlight**, **region**, **page only**, or **no source page**. Synthesis, statcheck, Bayes, LMM, meta-analysis reporting, and transparency pass their source precision into that shared block.
+- **Why:** users should know before clicking whether an evidence snippet will draw an exact PDF highlight or only navigate to a region/page.
+- **Boundaries:** UI provenance only. No detector, verifier, scoring, warning-state, persistence, LLM, or egress behavior changed.
+- **Verify:** targeted frontend/Methods tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-12 — Increment 286: Methods evidence snippets use exact anchors when locatable
+
+- **Files:** `app/backend/methods/evidence_anchors.py`, `app/backend/api/routers/{methods,lmm,metaanalysis,transparency}.py`, `app/frontend/js/{00_lib,08d_methods_bayes,08f_methods_lmm,08g_methods_metaanalysis,08h_methods_transparency}.jsx`, `tests/test_methods_evidence_anchors.py`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** Bayes-factor rows, Bayesian checklist/advisory evidence, mixed-model reporting evidence, meta-analysis reporting evidence, and transparency evidence now carry optional `coordinate_precision` + `bbox_json` from the existing local PDF quote locator. The frontend routes those evidence snippets through the same PDF overlay path as synthesis/statcheck.
+- **Why:** Methods evidence should be inspectable at the source with the best locally available anchor while preserving the exact/region distinction.
+- **Boundaries:** detectors remain text/page signal producers; endpoint enrichment is interactive-response only. No new detector, score, verdict, persistence migration, LLM, egress, or batch-job coordinate work.
+- **Verify:** targeted Methods/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-11 — Increment 285: Statcheck exact source anchors when locatable
+
+- **Files:** `app/backend/methods/statcheck.py`, `app/backend/api/routers/methods.py`, `app/frontend/js/06_methods_statcheck.jsx`, `tests/test_statcheck.py`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** `/papers/{paper_id}/statcheck` now enriches interactive statcheck rows with `coordinate_precision` and `bbox_json` using the existing local PDF quote locator. Exact highlights are returned only when the matched statistic is found on the page reported by the extracted chunk; otherwise the row remains region/page-level evidence.
+- **Why:** make statcheck evidence as easy to inspect as synthesis evidence while preserving the coordinate-honesty contract.
+- **Boundaries:** `run_statcheck` remains a pure text detector/recompute engine for batch jobs and p-curve. No new detector, score, verdict, persistence migration, LLM, or egress path.
+- **Verify:** targeted statcheck and frontend assembly tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-11 — Increment 284: Evidence quotes route to highlights
+
+- **Files:** `app/frontend/js/00_lib.jsx`, `app/frontend/js/06_methods_statcheck.jsx`, `app/frontend/js/20_synthesis.jsx`, `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** added a shared bounded evidence-quote renderer. Synthesis evidence quotes are clickable and route through the existing source opener, drawing exact PDF highlights only when the verifier supplied exact coordinates. Statcheck context now highlights the matched reported statistic inside the bounded surrounding text while keeping the row's source jump page/region-only.
+- **Why:** evidence should be faster to inspect without weakening the coordinate-honesty contract: exact synthesis citations can highlight; statcheck has text context and page location, not exact boxes.
+- **Verify:** targeted frontend/statcheck tests pass; frontend rebuilt; line-budget check passes.
+
+## 2026-07-11 — Increment 283: Statcheck rows show source context inline
+
+- **Files:** `app/backend/methods/statcheck.py`, `app/backend/api/routers/methods.py`, `app/frontend/js/06_methods_statcheck.jsx`, `app/frontend/styles.css`, `tests/test_statcheck.py`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** each per-test statcheck result now carries a bounded extracted-text context snippet, returns it from `/papers/{paper_id}/statcheck`, and renders it inline under the matched statistic in the METHODS Statistics check row.
+- **Why:** a reporting signal should expose the evidence neighborhood, not make the user infer context from a terse matched string and a page tooltip.
+- **Boundaries:** no new detector, no change to p-value recomputation, no exact-coordinate claim, no score/verdict/rank, no persistence migration, no LLM, and no egress. Rows still open the page at region precision.
+- **Verify:** targeted statcheck and frontend assembly tests pass; frontend rebuilt; line-budget check passes.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 282 — help corpus updated for inline tag validation feedback. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 282: Inline tag validation feedback
+
+- **Files:** `app/frontend/js/25b_tags.jsx`, `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, `callosum-app.html`, and help corpus.
+- **What:** rejected tag add/remove/color operations now surface the existing API error message inline in the paper Details tag row, with `role="alert"`, `aria-invalid`, and `aria-describedby` on the tag input.
+- **Why:** invalid tag names or rejected tag changes should not fail silently; the user should see the local validation reason where they are working.
+- **Boundaries:** frontend feedback only. No tag validation rule, persistence behavior, provenance behavior, tag scoring, or egress path changed.
+- **Verify:** targeted tag/frontend tests pass; frontend rebuilt; line-budget check passes.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 281 — help corpus updated for saved funding filters. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 281: Saved funding filters and counts
+
+- **Files:** `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/js/08l_funding_saved.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and Funding Discovery help/developer docs.
+- **What:** split the saved-funding review UI into its own frontend chunk and added compact saved-list filters with counts for all items, needs review, current opportunity found, provider issue, no current window, applying/planning, and archived.
+- **Why:** saved prospects, schemes, and opportunities need a small review-queue triage surface once refresh history and workflow states exist.
+- **Boundaries:** filters affect only the local saved list view. They do not re-rank funding evidence, create recommendations, change canonical prospect/scheme/opportunity records, run provider refreshes, or add grant-CRM workflow.
+- **Verify:** targeted Funding Discovery and frontend assembly tests pass; frontend rebuilt; line-budget check passes.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 280 — help corpus updated for saved funding refresh history. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 280: Saved funding refresh history
+
+- **Files:** `app/backend/persistence/schema_funding.py`, `alembic/versions/0041_saved_funding_refresh_events.py`, `app/backend/funding/saved_repo.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, help/developer docs, and Funding Discovery security audit.
+- **What:** added `saved_funding_refresh_events`, wrote one event per saved item during manual saved-funding refresh, returned recent events with saved rows, and showed a compact **Refresh history** in each expanded saved funding item.
+- **Why:** saved funding review should distinguish transient provider failures from repeated checks where no current application window was verified.
+- **Boundaries:** this is an audit trail for manual refreshes only. It does not add background polling, notifications, watch semantics, provider raw-payload persistence, or a grant CRM.
+- **Verify:** `pytest -q tests/test_funding_discovery.py` passed; frontend build and compileall passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 279 — help corpus updated for richer saved-funding refresh outcomes. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 279: Saved funding refresh outcome details
+
+- **Files:** `app/backend/funding/saved_repo.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, and Funding Discovery help/developer docs.
+- **What:** saved funding refresh now preserves provider outcome labels and the Theory-pane summary distinguishes current opportunity found, status changed, deadline changed, no current application window verified, and provider unavailable. Linked opportunity title, deadline, and source are shown directly in the refresh summary where available.
+- **Why:** saved funding refresh should be reviewable evidence, not a terse counter.
+- **Boundaries:** the UI remains signal-only: no recommendation language, no reopening forecast, no funding probability, and no hidden score.
+- **Verify:** `pytest -q tests/test_funding_discovery.py tests/test_frontend_assembly.py` passed; Ruff and frontend build passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 278 — help corpus updated for saved prospect/scheme application-surface refresh. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 278: Saved funding prospects can refresh application-surface evidence
+
+- **Files:** `app/backend/funding/saved_repo.py`, `app/backend/funding/repo.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `tests/test_funding_discovery.py`, help/developer docs, and Funding Discovery security audit.
+- **What:** split saved Funding Discovery persistence into `saved_repo.py` and extended **Refresh saved funding** so saved prospects and recurring schemes can run a bounded provider-backed application-surface check using organization/scheme terms. Conservative matches create or update a separate linked `FundingOpportunity` and `ApplicationSurface`; the saved item remains a prospect or scheme.
+- **Why:** saved latent prospects should be able to surface newly actionable application evidence without becoming broad web searches or collapsing prospects into opportunities.
+- **Boundaries:** no full research text, PDFs, notes, annotations, applicant-sensitive context, unrestricted crawler, or commercial source is used. Matching ignores Callosum's query-echo summary text and accepts only provider title/organization matches.
+- **Verify:** `pytest -q tests/test_funding_discovery.py` passed; frontend build passed.
+
+## 2026-07-11 — Increment 277: Bounded SQLite lock retries for short writes
+
+- **Files:** `app/backend/persistence/sqlite_retry.py`, `integrations/api_cache.py`, `app/backend/persistence/paper_lifecycle_repo.py`, `app/backend/persistence/reference_integrity_repo.py`, `app/backend/funding/repo.py`, `tests/test_sqlite_retry.py`, and `tests/test_api_cache.py`.
+- **What:** added a small retry helper for transient SQLite `database is locked` errors and applied it to short external-cache writes, paper metadata/state writes, Meta Reference List persistence, and Funding Discovery persistence/saved-item updates.
+- **Why:** provider-backed reference/funding/metadata operations should not fail just because a foreground write briefly collides with another SQLite writer.
+- **Boundaries:** this does not use global `BEGIN IMMEDIATE`, does not make long background jobs grab write locks up front, and does not turn cache writes into required state. Broad request-transaction retries and long-job transaction splitting remain separate infrastructure work.
+- **Verify:** `pytest -q tests/test_sqlite_retry.py tests/test_api_cache.py tests/test_reference_integrity.py tests/test_funding_discovery.py tests/test_metadata_multi_enrich.py` passed; Ruff passed for the touched files.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 276 — help corpus updated for Grants.gov saved-opportunity detail refresh. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 276: Saved funding refresh re-checks Grants.gov opportunities
+
+- **Files:** `app/backend/funding/grants_gov.py`, `app/backend/funding/providers.py`, `app/backend/funding/repo.py`, `app/backend/api/routers/funding.py`, `tests/test_funding_discovery.py`, help/developer docs, and Funding Discovery security audit.
+- **What:** saved funding refresh now re-queries saved Grants.gov opportunities by exact `provider_opportunity_id` using Grants.gov `fetchOpportunity`, updates the canonical opportunity when provider-backed status/deadline evidence changed, and then updates the saved marker snapshot.
+- **Why:** saved opportunities should notice deadline/status changes without a broad search, web crawler, or background monitoring process.
+- **Boundaries:** only saved `opportunity` rows from the supported provider are detail-refreshed; saved `prospect` and `scheme` rows remain snapshot-only until a bounded application-surface refresh adapter exists. Egress is the exact provider opportunity ID, not research text or PDFs.
+- **Verify:** `pytest -q tests/test_funding_discovery.py` passed; Ruff, compileall, and frontend build passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 275 — help corpus updated for saved-funding refresh. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 275: Funding Discovery saved snapshot refresh
+
+- **Files:** `app/backend/funding/repo.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, help/developer docs, and Funding Discovery security audit.
+- **What:** added `POST /funding-discovery/saved/refresh` and a **Refresh saved funding** button. The action re-snapshots saved items from Callosum's current canonical funding records and reports status/deadline changes.
+- **Why:** saved funding should be able to notice that a canonical opportunity's status or deadline changed without adding a background daemon or grant-CRM machinery.
+- **Boundaries:** this is a bounded manual snapshot refresh, not continuous monitoring and not an unrestricted provider recrawl. It updates only saved marker snapshot fields (`last_checked_at`, `last_known_status`, `last_known_deadline`) and leaves canonical evidence untouched.
+- **Verify:** `pytest -q tests/test_funding_discovery.py` passed; compileall and frontend build passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 274 — help corpus updated for saved-funding review queue controls. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 274: Funding Discovery saved review queue
+
+- **Files:** `app/backend/funding/repo.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, help/developer docs, and Funding Discovery security audit.
+- **What:** saved funding rows are now expandable review items. A saved row shows status/deadline/source snapshots and lets the user edit an allowlisted workflow state plus notes through `PATCH /funding-discovery/saved/{saved_item_id}`.
+- **Why:** saved opportunities/schemes/prospects should be useful as a lightweight review queue without becoming a grant CRM.
+- **Behavior:** updates affect only the saved marker row. They do not alter canonical opportunity/prospect/scheme evidence, provider statuses, search runs, or application-surface evidence.
+- **Verify:** `pytest -q tests/test_funding_discovery.py` passed; Ruff, compileall, and frontend build passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 273 — help corpus updated for saved-funding unsave. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 273: Funding Discovery saved-item unsave
+
+- **Files:** `app/backend/funding/repo.py`, `app/backend/api/routers/funding.py`, `app/frontend/js/08k_funding_discovery.jsx`, `tests/test_funding_discovery.py`, `callosum-app.html`, help/developer docs, and Funding Discovery security audit.
+- **What:** added `DELETE /funding-discovery/saved/{saved_item_id}` and an **Unsave** button in the Theory-pane **Saved funding** list.
+- **Why:** saved funding items are lightweight workflow markers; users need a way to remove a marker when an opportunity/scheme/prospect no longer belongs on their review list.
+- **Behavior:** unsaving deletes only the saved marker row. It does not delete the underlying opportunity, recurring scheme, funding prospect, search run, or evidence.
+- **Verify:** `pytest -q tests/test_funding_discovery.py` passed; frontend rebuilt.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 272 — help corpus updated for Cite graph-neighborhood expansion. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 272: Cite suggestions use local-match graph neighborhoods
+
+- **Files:** `app/backend/citations/beyond_library.py`, `app/backend/api/routers/citations.py`, `app/frontend/js/37_cite.jsx`, `app/frontend/styles.css`, `tests/test_citations_suggest.py`, `callosum-app.html`, help corpus, and the beyond-library Cite security audit.
+- **What:** the opt-in outside-library Cite search now uses the top local library matches as OpenAlex anchors. In addition to direct public metadata search, it gathers bounded reference, cited-by, and related-work neighborhoods and labels outside-library candidates as **Cited by a locally relevant paper**, **Cites a locally relevant paper**, or **Related to a locally relevant paper in OpenAlex**.
+- **Why:** deterministic scholarly-neighborhood evidence should surface better candidates than text search alone when the right citation is not already in the library.
+- **Boundaries:** graph expansion sends only DOI identifiers for top local matches to OpenAlex; it reuses the existing cached OpenAlex client; graph relationships are evidence labels, not citation recommendations or correctness claims.
+- **Verify:** `pytest -q tests/test_citations_suggest.py` passed; Ruff, compileall, and frontend build passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-11 inc 271 — help corpus updated for opt-in beyond-library Cite suggestions. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-11 — Increment 271: Cite suggestions beyond the local library
+
+- **Files:** `app/backend/citations/beyond_library.py`, `app/backend/api/routers/citations.py`, `app/backend/api/app.py`, `app/frontend/js/37_cite.jsx`, `app/frontend/styles.css`, `tests/test_citations_suggest.py`, `callosum-app.html`, help corpus, and security audit.
+- **What:** added an opt-in **Also search beyond my library** mode to the Cite pane. The existing `/citations/suggest` endpoint still returns local library suggestions by default, and now can also return separate outside-library candidates from public metadata providers, with provider coverage and abstract/metadata evidence. Outside-library cards can be added to the library through the existing discovery save path.
+- **Why:** backlog #30 SP2: when the right citation is not already in the library, Callosum should surface reviewable public-metadata candidates without pretending abstracts are full-text evidence or automatically choosing a citation.
+- **Boundaries:** default remains local/no-egress; opt-in public search sends only the pasted sentence/description to metadata providers; no full PDFs, notes, annotations, or manuscript bodies; outside-library stance is labeled abstract-level; no auto-insert, recommendation verdict, hidden score, or "verified good" language.
+- **Verify:** `pytest -q tests/test_citations_suggest.py` passed; Ruff, compileall, and frontend build passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-10 inc 270 — help corpus updated for optional Funding Discovery LLM triage. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-10 — Increment 270: Funding Discovery optional LLM triage
+
+- **Files:** `app/backend/funding/llm_triage.py`, `app/backend/api/routers/funding.py`, `app/backend/api/app.py`, `app/frontend/js/08k_funding_discovery.jsx`, `app/frontend/styles.css`, `tests/test_funding_discovery.py`, `callosum-app.html`, help and audit notes.
+- **What:** added an opt-in **Ask AI to triage apparent fit after discovery** control for Funding Discovery. When requested, Callosum sends the bounded research abstract/description plus compact summaries of already-surfaced funding items to the configured model, annotates cards with reviewable apparent-fit labels, and lets the user switch between **All surfaced** and **LLM-triaged** views.
+- **Why:** the deterministic discovery pool can be intentionally broad, especially for latent funding fit. LLM triage helps reduce review noise without deleting evidence or turning the model into a funding-verdict engine.
+- **Boundaries:** default off; uses the existing AI-features/data-egress gate; no full PDFs/notes/private annotations; no funding probability, recommendation column, eligibility verdict, or hidden composite score; deterministic results remain visible and canonical.
+- **Verify:** `pytest -q tests/test_funding_discovery.py tests/test_frontend_assembly.py` passed; Ruff, compileall, frontend build, and line-budget guard passed.
+
+<!-- HELP-DOCS-SYNCED 2026-07-10 inc 269 — help corpus updated for duplicate DOI merge workflow. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-10 — Increment 269: Duplicate DOI allowed for PDF/metadata merge cleanup
+
+- **Files:** `app/backend/persistence/schema.py`, `alembic/versions/0040_allow_duplicate_paper_dois.py`, `app/backend/metadata/enrichment.py`, `app/backend/metadata/paper_merge.py`, `app/backend/api/routers/papers.py`, `tests/test_papers.py`, `tests/test_paper_merge.py`, `tests/test_metadata_multi_enrich.py`, help and audit/QA notes.
+- **What:** removed the uniqueness block on `papers.doi`. A raw PDF record can now accept or recover the same DOI as an existing metadata-only record, giving duplicate detection and merge workflows the identifier they need.
+- **Why:** DOI is a strong duplicate signal, but it should not be the barrier that prevents a user from identifying and merging duplicate records. OpenAlex/Semantic Scholar/Zotero identifiers remain unique.
+- **Behavior:** duplicate DOI edits and fill-metadata DOI recovery now succeed; merge no longer rejects a DOI already present on another live paper. Merge still frees non-DOI unique identifiers on husks before adopting them.
+
+<!-- HELP-DOCS-SYNCED 2026-07-10 inc 268 — help corpus gained "Funding Discovery" for the Theory-pane prospect/scheme/opportunity flow, source coverage, evidence boundaries, CSV export, saved funding view, and save workflow. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-10 — Increment 268: Funding Discovery — latent prospects, recurring schemes, and open opportunities
+
+- **Files:** `app/backend/funding/*` (NEW domain/profile/providers/identity/IRS parser/engine/resolver/repo), `app/backend/api/routers/funding.py` (NEW `/funding-discovery/*` async run + save endpoints), `app/backend/api/app.py` (router/job seams), `app/backend/persistence/schema_funding.py` + `alembic/versions/0039_funding_discovery.py` (NEW normalized funding tables), `app/frontend/js/08k_funding_discovery.jsx` + `app/frontend/styles.css` + `callosum-app.html`, `tests/test_funding_discovery.py` (NEW), `.claude/docs/funding-discovery.md`, `.claude/qa-routes/route_69_funding_discovery.md`, `.claude/security-audits/2026-07-10_funding-discovery.md`, and help corpus.
+- **What:** added **Funding Discovery** under **Where to submit** in the Theory pane. It builds a local multi-facet `ResearchFundingProfile`, gathers bounded historical funding evidence, produces inspectable latent-fit signals, resolves current Grants.gov opportunities separately, keeps recurring schemes distinct from open opportunities, shows source coverage, and lets users save opportunities/schemes/prospects.
+- **Why:** funding fit often appears in historical portfolios, support strategies, recurrence, and scholarly funding lineage before a current opportunity uses the same vocabulary. The feature is calibrated as signal, not verdict: no chance-estimate field, no recommendation label, no positive eligibility verdict, no recurrence forecast, and no historical award presented as open.
+- **Verify:** feature tests cover profile facets, provider minimization, identity ambiguity, Grants.gov normalization/failure, EO-BMF parsing, 990-PF grant/application parsing with individual-recipient suppression, recurrence, long-tail ranking protection, endpoint persistence/save, selected-paper mode, source coverage, and forbidden UI language. Frontend rebuilt.
+- **Follow-up:** upgraded the initial provider seams into cached ROR, OpenAlex funding, and Crossref funding adapters with fixture-pinned extraction/failure tests; OpenAlex/Crossref funding records now contribute `HistoricalAward` evidence when those sources return funder/grant metadata.
+- **Follow-up 2:** selected-paper runs now reuse the existing OpenAlex DOI and related-work fetch path to surface grants on related scholarly work as `scholarly_lineage`/historical-award evidence, without treating those grants as current opportunities.
+- **Follow-up 3:** added `recipient_similarity` candidate generation from exact non-individual recipient-organization overlap: funders of organizations that also appear in profile-matched historical funding evidence can surface as prospects, while individual recipient rows are excluded.
+- **Follow-up 4:** added `cofunding_proximity` graph-neighborhood evidence from exact non-individual recipient overlap between profile-matched funders and other funders; the signal is phrased as proximity, not mission alignment.
+- **Follow-up 5:** surfaced `ApplicationSurface` posture on Funding Discovery cards. 990-PF/application posture such as unsolicited-application language now appears as **Application route** evidence, while official opportunity surfaces remain separate current-opportunity evidence.
+- **Follow-up 6:** added a lightweight **Saved funding** read view. Saving an opportunity/scheme/prospect now snapshots last-known status and deadline where available, and the Theory pane lists saved items without adding grant-CRM workflow controls.
+- **Follow-up 7:** added persisted-run CSV export for Funding Discovery. The export keeps open opportunities, recurring schemes, and prospects distinct and includes source/status, deadline, application-route, signal, and matched-facet summaries without adding recommendation/chance-estimate fields or recipient-level 990-PF details.
+
+## 2026-07-10 — Increment 267: Meta Reference List — per-citation reference integrity signals
+- **Files:** `app/backend/methods/reference_integrity.py`, `app/backend/persistence/schema_reference_integrity.py` + `reference_integrity_repo.py` + migration `0038_reference_integrity.py`, `app/backend/api/routers/reference_integrity.py`, `app/backend/api/app.py`, `app/frontend/js/08j_reference_integrity.jsx`, `03_library.jsx`, `10_pdf_layer.jsx`, `10d_papercard.jsx`, `40_app.jsx`, `styles.css`, `tests/test_reference_integrity.py`, plus route/security/help docs.
+- **What:** added the **Meta Reference List** Theory accordion section above **Where to submit**. It fetches linked references through Semantic Scholar, falls back to OpenAlex `referenced_works` when Semantic Scholar has no linked reference list, reuses Crossref/OpenAlex resolution, existing retraction checkers, local citation-context hints, and paper-card warning counts to surface only three inspectable signals: **Could not verify**, **Known retraction signal**, and **Previously flagged in your library**.
+- **Why:** a pre-flight reference gate before deeper literature search/synthesis, while preserving Callosum's signal-not-verdict rule. Search misses are cautious evidence, retractions are visually/textually distinct, local propagation is scoped to the reference entity, and human review stays scoped to the citation instance.
+- **State model:** review rows are keyed by citation instance + deterministic active signal-set fingerprint. `dismissed` clears the active reference-warning contribution; `confirmed_problem` and `unreviewed` keep it active. A materially new signal set reopens a prior dismissal as unreviewed; there is no global whitelist and no positive paper state.
+- **Follow-up hardening:** propagation rows now expose a local "open source paper" control through the existing `onOpenPaper` path; feature-specific Chromium check confirmed desktop rendering/order with 0 console/page errors. The existing opt-in reading-mode smoke has an unrelated reload timeout still to investigate.
+- **Gates:** migration `0038`; security audit `2026-07-10_reference-integrity.md`; QA route `route_68_reference_integrity.md`; help "Checking reference signals" added.
+
 ## 2026-07-08 — Increment 266: critical-review supplement (#12) — a single-paper scrutiny surface
 - **Files:** `app/backend/persistence/schema_critical_review.py` + `critical_review_repo.py` + migration `0037_critical_review_candidates.py` (rebased off `0036`), `app/backend/methods/critical_review.py` (Tier-1 contradiction detector + backbone + `paper_full_text`), `integrations/gemini/critical_review.py` (NEW — Tier-2 generator + `verify_candidates` #13 bar), `app/backend/api/routers/critical_review.py` (async job + candidate CRUD + egress-gated generate), `app/frontend/js/08x_methods_critical.jsx` + `styles.css` (the panel), `tests/test_critical_review.py` (16). Gates: `.claude/security-audits/2026-07-08_critical-review.md` (PASS), `.claude/qa-routes/route_67_critical_review.md` (215/215 API), help "Critically reading a paper" section, `INCREMENT-266-NOTES.md`, CLAUDE bump.
 - **What:** a "Critical read" METHODS section — **Tier 1** (local, auto): the paper's method-check flags + claims the rest of the corpus *contests* (cross-corpus NLI contradiction detector), each grounded + confidence; **Tier 2** (opt-in, egress-gated): the LLM proposes critique *candidates* admitted only through the verbatim #13 bar, which the human accepts/rejects. Signal, never a verdict — no score, facts-vs-candidates distinct (amber), critique of the work never the authors.

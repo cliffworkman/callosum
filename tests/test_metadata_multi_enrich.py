@@ -2,13 +2,14 @@
 
 Hermetic: the cascade runs against STUB sources / injected fake clients (no live network). Covers the gap-fill
 contract (fill only empty fields, never overwrite), DOI recovery via title-search (strong match adopts, weak/
-year-mismatch/duplicate rejects), provenance preservation on hand-edited papers, the OpenAlex CSL mapper, and the
+year-mismatch rejects), provenance preservation on hand-edited papers, the OpenAlex CSL mapper, and the
 per-paper + library-wide endpoints.
 """
 
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from sqlalchemy import text
 
 from app.backend.api import create_app
 from app.backend.discovery.providers import Item
@@ -155,7 +156,7 @@ def test_doi_recovery_strong_match_adopts_weak_and_mismatch_reject(temp_db_url):
     engine.dispose()
 
 
-def test_recovered_doi_colliding_with_another_paper_is_skipped(temp_db_url):
+def test_recovered_doi_already_on_another_paper_is_written_for_merge_workflow(temp_db_url):
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:
         _paper(conn, title="Owner", doi="10.1/x", csl_json={"title": "Owner", "DOI": "10.1/x"})
@@ -166,8 +167,8 @@ def test_recovered_doi_colliding_with_another_paper_is_skipped(temp_db_url):
             registry=_reg(),
             search_provider=_StubSearch([Item(title="A study of X", doi="10.1/x", year=2020)]),
         )
-        assert r.doi is None and r.still_missing_doi  # belongs to another paper → left for dedup
-        assert get_paper(conn, mine)["doi"] is None
+        assert r.doi == "10.1/x" and r.doi_recovered and not r.still_missing_doi
+        assert get_paper(conn, mine)["doi"] == "10.1/x"
     engine.dispose()
 
 
@@ -311,6 +312,23 @@ def test_fill_metadata_endpoint_gap_fills_one_paper(temp_db_url):
     assert "abstract" in body["filled_fields"] and "venue" in body["filled_fields"]
     assert body["paper"]["venue"] == "J" and body["paper"]["abstract"] == "An abstract."
     assert body["still_missing_doi"] is False
+
+
+def test_fill_metadata_endpoint_legacy_unique_doi_constraint_returns_409(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _paper(conn, title="Owner", doi="10.1/a", csl_json={"title": "Owner", "DOI": "10.1/a"})
+        pid = _paper(conn, title="Scaffold", imported_source="pdf-scaffold")
+        conn.execute(text("CREATE UNIQUE INDEX legacy_uq_papers_doi ON papers(doi)"))
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.enrich_registry = _stub_registry({"title": "Scaffold", "abstract": "A"})
+    client.app.state.enrich_search_provider = _StubSearch([Item(title="Scaffold", doi="10.1/a", year=None)])
+
+    response = client.post(f"/papers/{pid}/fill-metadata")
+
+    assert response.status_code == 409
+    assert "legacy unique DOI constraint" in response.json()["detail"]
 
 
 def _drive_enrich(client):

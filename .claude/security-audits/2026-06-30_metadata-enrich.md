@@ -38,16 +38,15 @@
   (`test_user_edited_provenance_preserved_blanks_filled`). Running the batch over *all* live papers is therefore
   safe by construction — there is no "clobber a curated record" path.
 
-### DOI recovery — wrong-DOI + duplicate guards
+### DOI recovery — wrong-DOI guard and duplicate-merge signal
 
 - A missing DOI is recovered from the PDF (`find_doi_in_pdf`, existing) or a Crossref title-search, and adopted
   **only** on a conservative title match (`_titles_match`: normalized-equal or token-Jaccard ≥ 0.7) **and** a
   compatible year (`_years_compatible`). A weak or year-mismatched candidate is rejected — the paper stays without
   a DOI (honest) rather than acquiring a wrong one (`test_doi_recovery_strong_match_adopts_weak_and_mismatch_reject`).
-- A recovered DOI that already belongs to a **different** library paper is **not** written
-  (`find_existing_paper_by_identity` guard → left for dedup), which both avoids a mis-merge and honors the
-  `papers.doi` UNIQUE constraint (`test_recovered_doi_colliding_with_another_paper_is_skipped`). A fragment's own
-  DOI never sets the column — only the guarded effective DOI does (`merged["DOI"] = doi`).
+- A recovered DOI that already belongs to a **different** library paper is now written after the conservative match.
+  This creates an explicit duplicate signal so a raw-PDF record can be merged with a metadata-only record. A
+  fragment's own DOI never sets the column — only the guarded effective DOI does (`merged["DOI"] = doi`).
 
 ### SSRF / external calls
 
@@ -89,7 +88,7 @@
 ## Negative-path checks run (hermetic, `tests/test_metadata_multi_enrich.py`)
 
 - Populated field never overwritten; provenance preserved on a `user-edited` paper. ✓
-- DOI recovery: strong match adopts; weak match + year mismatch reject; duplicate DOI skipped. ✓
+- DOI recovery: strong match adopts; weak match + year mismatch reject; duplicate DOI is written for merge cleanup. ✓
 - Cascade fills `abstract` from a later source when the first lacks it. ✓
 - Scaffold with no DOI + no recovery → `crossref-unresolved` (honest), `still_missing_doi=True`. ✓
 - `_csl_from_work` maps venue/abstract/type/DOI/PMID; `None` → `None`. ✓

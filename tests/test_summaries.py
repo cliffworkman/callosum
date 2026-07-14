@@ -7,7 +7,7 @@ from sqlalchemy import func, select
 from app.backend.api import create_app
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.persistence.database import make_engine
-from app.backend.persistence.repository import soft_delete_paper
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, soft_delete_paper
 from app.backend.persistence.schema import (
     citation_mappings,
     evidence_quotes,
@@ -117,6 +117,84 @@ def test_query_scope_retrieval_excludes_trashed_papers(temp_db_url: str) -> None
         assert seeded["unrelated_paper_id"] not in after  # trashed → excluded from a new synthesis
         assert seeded["facial_paper_id"] in after  # the live paper is still retrievable
     engine.dispose()
+
+
+def test_summary_section_filter_limits_source_chunks_without_changing_verification(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Sectioned", csl_json={"title": "Sectioned"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            content_type="application/pdf",
+            checksum="sectioned",
+        )
+        methods_chunk = create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="Methods chunk describes recruitment.",
+            page_start=2,
+            page_end=2,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="methods-v1",
+            source_attachment_checksum="sectioned",
+            section="methods",
+        )
+        create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="Results chunk describes outcomes.",
+            page_start=5,
+            page_end=5,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="results-v1",
+            source_attachment_checksum="sectioned",
+            section="results",
+        )
+        model, store = ApiFakeEmbeddingModel(), InMemoryVectorStore()
+        scope = SummaryScope(scope_type="papers", paper_ids=[paper_id], sections=["methods"])
+        source_chunks = _source_chunks_for_scope(conn, scope=scope, model=model, vector_store=store, top_k=10)
+
+    assert [chunk.chunk_id for chunk in source_chunks] == [methods_chunk]
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="Methods chunk describes recruitment.",
+                citations=[CandidateCitation(chunk_id=methods_chunk, quote="Methods chunk describes recruitment.")],
+            )
+        ]
+    )
+    client = TestClient(_summarization_app(temp_db_url, generator=generator))
+    started = client.post(
+        "/summarize",
+        json={"scope_type": "papers", "paper_ids": [paper_id], "sections": ["methods"], "top_k": 10},
+    )
+    result = client.get(f"/summarize/{started.json()['job_id']}").json()
+
+    assert started.status_code == 202
+    assert result["summary_status"] == "verified"
+    assert result["source_chunk_count"] == 1
+    assert result["section_filter"] == ["methods"]
+    assert result["sentences"][0]["citations"][0]["section"] == "methods"
+
+
+def test_summary_section_filter_rejects_unknown_keys(temp_db_url: str) -> None:
+    client = TestClient(_summarization_app(temp_db_url))
+
+    response = client.post("/summarize", json={"scope_type": "query", "query": "x", "sections": ["made-up"]})
+
+    assert response.status_code == 400
+    assert "Unknown synthesis section filter" in response.json()["detail"]
 
 
 def test_summarize_invalid_body_and_unknown_job(temp_db_url: str) -> None:
@@ -258,6 +336,8 @@ def test_summary_readback_matches_completed_job_result_shape(temp_db_url: str) -
     assert reloaded["job_id"] == f"summary:{completed['summary_id']}"
     assert reloaded["summary_id"] == completed["summary_id"]
     assert reloaded["summary_status"] == completed["summary_status"]
+    assert reloaded["source_chunk_count"] == completed["source_chunk_count"]
+    assert reloaded["section_filter"] == completed["section_filter"]
     assert reloaded["sentences"] == completed["sentences"]
     citation = reloaded["sentences"][0]["citations"][0]
     assert set(citation) == {
@@ -268,6 +348,7 @@ def test_summary_readback_matches_completed_job_result_shape(temp_db_url: str) -
         "paper_title",
         "page_start",
         "page_end",
+        "section",
         "quote",
         "retrieval_confidence",
         "quote_confidence",

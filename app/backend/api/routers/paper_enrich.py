@@ -13,10 +13,11 @@ from typing import Literal
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy import Connection
-from sqlalchemy.exc import NoResultFound
+from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.backend.api.dependencies import get_connection
-from app.backend.api.routers.papers import PaperDetailResponse, _detail_for
+from app.backend.api.routers.paper_models import PaperDetailResponse
+from app.backend.api.routers.papers import _detail_for
 from app.backend.metadata import (
     enrich_paper_metadata_from_crossref,
     enrich_paper_metadata_from_identifier,
@@ -96,18 +97,32 @@ def fill_metadata(paper_id: int, request: Request, conn: Connection = Depends(ge
     registry = request.app.state.enrich_registry or build_default_enrich_registry(
         crossref_client=request.app.state.crossref_client, openalex_client=request.app.state.openalex_client
     )
-    result = enrich_paper_metadata_multi(
-        conn,
-        paper_id,
-        registry=registry,
-        search_provider=getattr(request.app.state, "enrich_search_provider", None),
-    )
-    # inc 224: gap-fill can recover a missing DOI (Pass 0) → now checkable; auto-check retraction (inc-134 hook).
-    auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
-    conn.commit()
+    try:
+        result = enrich_paper_metadata_multi(
+            conn,
+            paper_id,
+            registry=registry,
+            search_provider=getattr(request.app.state, "enrich_search_provider", None),
+        )
+        # inc 224: gap-fill can recover a missing DOI (Pass 0) → now checkable; auto-check retraction (inc-134 hook).
+        auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
+        conn.commit()
+    except IntegrityError as exc:
+        conn.rollback()
+        raise HTTPException(status_code=409, detail=_metadata_integrity_detail(exc)) from None
     return FillMetadataResponse(
         filled_fields=list(result.filled_fields),
         doi=result.doi,
         still_missing_doi=result.still_missing_doi,
         paper=_detail_for(conn, paper_id),
     )
+
+
+def _metadata_integrity_detail(exc: IntegrityError) -> str:
+    message = str(exc.orig)
+    if "papers.doi" in message:
+        return (
+            "This database still has the legacy unique DOI constraint. Restart Callosum so migration "
+            "0040_allow_duplicate_paper_dois can run, then try Fill missing fields again."
+        )
+    return "Metadata fill would duplicate a canonical external identifier on another paper."

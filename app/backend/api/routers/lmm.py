@@ -7,12 +7,15 @@ is_lmm:false. Mirrors GET /papers/{id}/bayes and /statcheck. See methods/lmm.py.
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
+from app.backend.methods.evidence_anchors import anchor_evidence
 from app.backend.methods.lmm import audit_lmm
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper
 
@@ -25,6 +28,9 @@ class LmmCheckOut(BaseModel):
     status: str  # present | not-found | not-applicable
     evidence: str | None = None
     page: int | None = None
+    page_end: int | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
     note: str | None = None
     explainer: str
     basis: str
@@ -41,7 +47,8 @@ def paper_lmm(paper_id: int, conn: Connection = Depends(get_connection)) -> LmmR
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    report = audit_lmm(get_chunks_for_paper(conn, paper_id))
+    chunks = get_chunks_for_paper(conn, paper_id)
+    report = audit_lmm(chunks)
     return LmmResponse(
         is_lmm=report.is_lmm,
         checks=[
@@ -51,6 +58,7 @@ def paper_lmm(paper_id: int, conn: Connection = Depends(get_connection)) -> LmmR
                 status=c.status,
                 evidence=c.evidence,
                 page=c.page,
+                **anchor_evidence(conn, chunks, c.evidence, c.page),
                 note=c.note,
                 explainer=c.explainer,
                 basis=c.basis,

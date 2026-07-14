@@ -282,16 +282,139 @@ function fmtScore(value) {
   return typeof value === "number" ? value.toFixed(3) : "—";
 }
 
+const SECTION_LABELS = {
+  abstract: "Abstract",
+  introduction: "Introduction",
+  methods: "Methods",
+  results: "Results",
+  discussion: "Discussion",
+  data_availability: "Data availability",
+  code_availability: "Code availability",
+  funding: "Funding",
+  conflict_of_interest: "Conflict of interest",
+  ethics: "Ethics",
+  references: "References",
+  supplementary_material: "Supplementary material",
+};
+
+function sectionLabel(section) {
+  const raw = String(section || "").trim();
+  if (!raw) return "";
+  return SECTION_LABELS[raw] || raw.replace(/[_-]+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 function pageLabel(citation) {
-  if (!citation || citation.page_start == null) return "No page located";
-  if (citation.page_end && citation.page_end !== citation.page_start) return `pp. ${citation.page_start}-${citation.page_end}`;
-  return `p. ${citation.page_start}`;
+  const section = sectionLabel(citation && citation.section);
+  if (!citation || citation.page_start == null) return section || "No page located";
+  const page = citation.page_end && citation.page_end !== citation.page_start
+    ? `pp. ${citation.page_start}-${citation.page_end}`
+    : `p. ${citation.page_start}`;
+  return section ? `${section} · ${page}` : page;
 }
 
 function precisionText(precision) {
   if (precision === "exact") return "exact quote coordinates";
   if (precision === "region") return "region-level · precise highlight pending";
   return "no coordinate claim";
+}
+
+function evidencePrecisionText(precision, hasSourcePage) {
+  if (precision === "exact") return "exact highlight";
+  if (precision === "region") return "region";
+  if (hasSourcePage) return "page only";
+  return "no source page";
+}
+
+function evidencePrecisionClass(precision, hasSourcePage) {
+  if (precision === "exact") return "exact";
+  if (precision === "region") return "region";
+  if (hasSourcePage) return "page";
+  return "none";
+}
+
+function boundedEvidenceText(text, maxChars = 420) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (raw.length <= maxChars) return { text: raw, clipped: false };
+  return { text: raw.slice(0, Math.max(0, maxChars - 1)).trimEnd() + "…", clipped: true };
+}
+
+function EvidenceQuote({
+  text,
+  match,
+  label = "Evidence",
+  section,
+  precision,
+  hasSourcePage,
+  onOpen,
+  openLabel,
+  maxChars = 420,
+  className = "",
+}) {
+  const bounded = boundedEvidenceText(text, maxChars);
+  if (!bounded.text) return null;
+  const needle = String(match || "").trim().toLowerCase();
+  const hay = bounded.text.toLowerCase();
+  const idx = needle ? hay.indexOf(needle) : -1;
+  const body = idx < 0
+    ? bounded.text
+    : <React.Fragment>
+        {bounded.text.slice(0, idx)}
+        <mark className="evidence-mark">{bounded.text.slice(idx, idx + needle.length)}</mark>
+        {bounded.text.slice(idx + needle.length)}
+      </React.Fragment>;
+  const classes = `evidence-quote ${onOpen ? "is-clickable" : ""} ${className}`.trim();
+  const title = onOpen ? (openLabel || "Open source evidence") : (bounded.clipped ? String(text || "") : undefined);
+  const showPrecision = precision !== undefined || hasSourcePage !== undefined;
+  const precisionClass = evidencePrecisionClass(precision, !!hasSourcePage);
+  const precisionLabel = evidencePrecisionText(precision, !!hasSourcePage);
+  const sectionText = sectionLabel(section);
+  const head = (
+    <span className="evidence-head">
+      <span className="evidence-label">{label}</span>
+      {sectionText && <span className="coord evidence-section">{sectionText}</span>}
+      {showPrecision && <span className={"coord evidence-precision " + precisionClass}>{precisionLabel}</span>}
+    </span>
+  );
+  if (onOpen) {
+    return (
+      <button type="button" className={classes} title={title} aria-label={openLabel || label} onClick={onOpen}>
+        {head}
+        <span className="evidence-text">“{body}”</span>
+      </button>
+    );
+  }
+  return (
+    <span className={classes} title={title}>
+      {head}
+      <span className="evidence-text">“{body}”</span>
+    </span>
+  );
+}
+
+function EvidenceTrail({ detector, matched, precision, hasSourcePage, page, section, caveat, reason }) {
+  const source = evidencePrecisionText(precision, !!hasSourcePage);
+  const sectionText = sectionLabel(section);
+  const why = reason || (
+    precision === "exact"
+      ? "Callosum located this evidence text in the PDF on the expected page."
+      : hasSourcePage
+        ? "Callosum has a source page, but no exact PDF text box is available for this evidence."
+        : "No source page is available for this evidence item."
+  );
+  return (
+    <details className="evidence-trail">
+      <summary>Evidence trail</summary>
+      <div className="evidence-trail-grid">
+        {detector && <span><b>Detector</b>{detector}</span>}
+        <span><b>Source precision</b>{source}</span>
+        {sectionText && <span><b>Section</b>{sectionText}</span>}
+        <span><b>Page</b>{hasSourcePage ? "p. " + page : "not located"}</span>
+        {matched && <span><b>Matched text</b>{boundedEvidenceText(matched, 180).text}</span>}
+        <span><b>Anchor note</b>{why}</span>
+        {caveat && <span><b>Boundary</b>{caveat}</span>}
+      </div>
+    </details>
+  );
 }
 
 function citationTarget(citation) {
@@ -302,10 +425,27 @@ function citationTarget(citation) {
     paperTitle: citation.paper_title || `Paper ${citation.paper_id}`,
     page: citation.page_start || citation.page_end || null,
     pageEnd: citation.page_end || citation.page_start || null,
+    section: citation.section || null,
     precision: citation.coordinate_precision || null,
     bboxJson: citation.bbox_json || null,
     status: citation.status,
     quote: citation.quote || "",
+  };
+}
+
+function methodEvidenceTarget(paperId, paperTitle, evidence, key) {
+  if (paperId == null || !evidence || evidence.page == null) return null;
+  return {
+    id: key || `methods:${paperId}:${evidence.key || evidence.raw || evidence.page}:${evidence.coordinate_precision || "region"}`,
+    paperId,
+    paperTitle: paperTitle || `Paper ${paperId}`,
+    page: evidence.page,
+    pageEnd: evidence.page_end || evidence.page,
+    section: evidence.section || null,
+    precision: evidence.coordinate_precision || "region",
+    bboxJson: evidence.bbox_json || null,
+    status: evidence.status || evidence.consistency || "",
+    quote: evidence.evidence || evidence.raw || "",
   };
 }
 

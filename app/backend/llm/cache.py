@@ -19,7 +19,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import insert, select
+from sqlalchemy import delete, insert, select
 
 from app.backend.persistence.schema import llm_cache
 from app.backend.summarization.generators import (
@@ -60,6 +60,32 @@ def llm_cache_set(conn: "Connection", *, namespace: str, input_hash: str, signat
     )
 
 
+def llm_cache_delete(conn: "Connection", *, namespace: str, input_hash: str) -> None:
+    conn.execute(delete(llm_cache).where(llm_cache.c.namespace == namespace, llm_cache.c.input_hash == input_hash))
+
+
+def repair_summary_cache(conn: "Connection") -> dict[str, int]:
+    """Remove malformed cached summary-generation rows.
+
+    This is deliberately narrow: only summary-generation cache rows whose payload no longer deserializes into
+    candidate sentences are deleted. Persisted summaries, verification evidence, chunks, and non-summary cache
+    namespaces are untouched.
+    """
+    scanned = 0
+    removed = 0
+    rows = conn.execute(
+        select(llm_cache.c.id, llm_cache.c.output_json).where(llm_cache.c.namespace == SUMMARY_CACHE_NAMESPACE)
+    ).mappings()
+    for row in rows:
+        scanned += 1
+        try:
+            _deserialize_candidates(row["output_json"])
+        except (KeyError, TypeError, ValueError):
+            conn.execute(delete(llm_cache).where(llm_cache.c.id == row["id"]))
+            removed += 1
+    return {"scanned": scanned, "removed": removed}
+
+
 @dataclass(frozen=True)
 class CachedSummaryGenerator:
     """Content-addressed cache around a ``SummaryGenerator`` (caches the token-expensive generate step only)."""
@@ -94,7 +120,10 @@ class CachedSummaryGenerator:
         )
         cached = llm_cache_get(conn, namespace=SUMMARY_CACHE_NAMESPACE, input_hash=key)
         if cached is not None:
-            return _deserialize_candidates(cached)
+            try:
+                return _deserialize_candidates(cached)
+            except (KeyError, TypeError, ValueError):
+                llm_cache_delete(conn, namespace=SUMMARY_CACHE_NAMESPACE, input_hash=key)
         result = self.inner.generate(source_chunks=source_chunks, scope_ref=scope_ref)
         llm_cache_set(
             conn,

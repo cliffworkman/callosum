@@ -95,8 +95,75 @@ function SuggestionCard({ s, onOpenCitation, style }) {
   );
 }
 
+function BeyondSaveButton({ item }) {
+  const [state, setState] = useState(item.in_library ? "saved" : "idle");
+  const save = async () => {
+    setState("saving");
+    const r = await apiPost("/discovery/save", {
+      title: item.title, doi: item.doi, abstract: item.abstract,
+      authors: item.authors || [], journal: item.journal, year: item.year, url: item.url,
+    });
+    setState(r.ok ? "saved" : "error");
+  };
+  return (
+    <button type="button" className="btn btn-ghost" onClick={save} disabled={state === "saving" || state === "saved"}>
+      {state === "saved" ? "In library" : state === "saving" ? "Adding..." : state === "error" ? "Add failed" : "Add to library"}
+    </button>
+  );
+}
+
+function BeyondSuggestionCard({ item }) {
+  const stance = item.stance;
+  const meta = [(item.authors || [])[0], item.year, item.journal].filter(Boolean).join(" · ");
+  return (
+    <div className="cite-card cite-card-external">
+      <div className="cite-card-head">
+        <div>
+          <div className="cite-title">{item.title || "Untitled public-metadata result"}</div>
+          {meta && <div className="cite-meta">{meta}</div>}
+        </div>
+        <div className="cite-pills">
+          <span className="cite-stance unknown" title="Public metadata source">{(item.sources || []).join(", ") || "public metadata"}</span>
+          <span className="cite-match" title="Visible term overlap with your sentence; not a correctness score">
+            metadata overlap {Number(item.metadata_overlap || 0).toFixed(2)}
+          </span>
+        </div>
+      </div>
+      {item.relationship_label &&
+        <div className="cite-relation">
+          {item.relationship_label}{item.anchor_title ? `: ${item.anchor_title}` : ""}
+        </div>}
+      <div className="cite-reason">{item.reason}</div>
+      {item.evidence_text && <div className="quote">"{item.evidence_text}"</div>}
+      <div className="cite-card-foot">
+        <BeyondSaveButton item={item} />
+        {item.url && <a className="btn btn-ghost" href={item.url} target="_blank" rel="noopener noreferrer">Source</a>}
+        {item.doi && <span className="cite-conf">DOI {item.doi}</span>}
+        {stance
+          ? <span className="cite-conf">abstract-level stance {stance.label} - {stance.confidence.toFixed(2)}</span>
+          : <span className="cite-conf">full text not checked</span>}
+      </div>
+    </div>
+  );
+}
+
+function CitationSourceCoverage({ rows }) {
+  if (!rows || !rows.length) return null;
+  return (
+    <div className="cite-coverage">
+      {rows.map((r, i) => (
+        <span key={i} className={"cite-source " + (r.status || "unknown")}>
+          {r.provider_id}: {r.status}{r.result_count != null ? ` - ${r.result_count}` : ""}
+          {r.warning ? ` - ${r.warning}` : ""}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function CitePane({ ctx }) {
   const [text, setText] = useState("");
+  const [includeBeyond, setIncludeBeyond] = useState(false);
   const [state, setState] = useState({ status: "idle" });
   const [styles, setStyles] = useState([]);   // inc 159: formatted-citation styles (inc-106 engine)
   const [style, setStyle] = useState("apa");
@@ -105,13 +172,21 @@ function CitePane({ ctx }) {
     const trimmed = text.trim();
     if (!trimmed) return;
     setState({ status: "loading" });
-    apiPost("/citations/suggest", { text: trimmed, top_k: 5, evaluate: true }).then(r => {
+    apiPost("/citations/suggest", {
+      text: trimmed, top_k: 5, evaluate: true, include_beyond_library: includeBeyond, beyond_top_k: 5,
+    }).then(r => {
       if (!r.ok) { setState({ status: "error", error: r.error }); return; }
-      setState({ status: "done", suggestions: r.data.suggestions || [] });
+      setState({
+        status: "done",
+        suggestions: r.data.suggestions || [],
+        beyond: r.data.beyond_library_suggestions || [],
+        coverage: r.data.source_coverage || [],
+      });
     });
   };
   const busy = state.status === "loading";
   const suggestions = state.status === "done" ? state.suggestions : [];
+  const beyond = state.status === "done" ? state.beyond : [];
   return (
     <div className="cite-pane">
       <textarea
@@ -124,9 +199,14 @@ function CitePane({ ctx }) {
       <div className="synth-actions">
         <button disabled={busy || !text.trim()} onClick={run}>Suggest</button>
         <span className={"synth-status" + (busy ? " running" : "")}>
-          {busy ? "Finding suggestions…" : "from your library · local, no egress"}
+          {busy ? "Finding suggestions…" : includeBeyond ? "library + public metadata sources" : "from your library · local, no egress"}
         </span>
       </div>
+      <label className="cite-beyond-toggle">
+        <input type="checkbox" checked={includeBeyond} onChange={e => setIncludeBeyond(e.target.checked)} />
+        <span>Also search beyond my library</span>
+        <small>Uses public metadata providers. Abstract-level stance is weaker than full-text library evidence.</small>
+      </label>
       {busy && <ProgressBar />}
       {state.status === "error" &&
         <div className="errbox" style={{ margin: "12px 0 0" }}><b>Couldn't get suggestions.</b><br />{state.error}</div>}
@@ -135,12 +215,12 @@ function CitePane({ ctx }) {
           <div className="big">Suggest citations</div>
           Paste a draft sentence. Callosum ranks your library by relevance and checks whether each paper supports, contrasts, or just mentions the claim — you decide the right citation.
         </div>}
-      {state.status === "done" && suggestions.length === 0 &&
+      {state.status === "done" && suggestions.length === 0 && beyond.length === 0 &&
         <div className="state" style={{ padding: "22px 10px" }}>
-          <div className="big">No related papers in your library.</div>
-          Nothing in your library matched this sentence closely enough to suggest.
+          <div className="big">No citation candidates surfaced.</div>
+          Nothing in the sources searched matched this sentence closely enough to suggest. This is not evidence that no relevant papers exist.
         </div>}
-      {suggestions.length > 0 &&
+      {(suggestions.length > 0 || beyond.length > 0) &&
         <div className="cite-results">
           <div className="cite-results-head">
             <div className="cite-note">Ranked by relevance to your sentence — a ranking aid, not a correctness claim; the author decides the right citation. Evidence is the matched passage block (region-level), not an exact quote highlight.</div>
@@ -151,7 +231,11 @@ function CitePane({ ctx }) {
                 </select>
               </label>}
           </div>
+          <CitationSourceCoverage rows={state.coverage} />
+          {suggestions.length > 0 && <div className="cite-subhead">In your library</div>}
           {suggestions.map(s => <SuggestionCard key={s.chunk_id} s={s} onOpenCitation={ctx.onOpenCitation} style={style} />)}
+          {beyond.length > 0 && <div className="cite-subhead">Outside your library</div>}
+          {beyond.map(s => <BeyondSuggestionCard key={s.dedup_key} item={s} />)}
         </div>}
     </div>
   );

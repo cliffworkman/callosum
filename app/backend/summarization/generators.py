@@ -19,6 +19,7 @@ class SourceChunk:
     page_end: int
     chunk_version: str
     bbox_json: object | None = None
+    section: str | None = None
 
 
 @dataclass(frozen=True)

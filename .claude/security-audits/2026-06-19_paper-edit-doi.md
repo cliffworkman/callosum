@@ -64,15 +64,16 @@ enrichment against the paper's DOI). Files touched: `app/backend/api/routers/pap
   unchanged, DB-row-only `/papers/{id}/pdf` route. No client-supplied path is ever followed.
 
 ### DOI uniqueness
-- `papers.doi` has a UNIQUE constraint. Editing a DOI to one already on another paper raises
-  `IntegrityError`, caught → **409** (rollback first); no 500, no partial write.
+- As of migration `0040_allow_duplicate_paper_dois`, `papers.doi` is no longer UNIQUE. Editing a DOI to one already
+  on another paper is allowed so a raw-PDF record can be enriched and then merged with a metadata-only duplicate.
+  Other canonical external identifiers remain UNIQUE and still raise `IntegrityError`, caught → **409**.
 
 ### Secrets / supply chain
 - No secret handling; `CALLOSUM_CROSSREF_MAILTO` (optional, non-secret) unchanged. No new dependency.
 
 ## Negative-path checks (run)
 - Empty title → **422**; no fields → **422**; reserved key in `csl` → **422**;
-  unknown paper → **404**; duplicate DOI → **409** (`tests/test_papers.py`).
+  unknown paper → **404**; duplicate DOI edit → **200** and becomes a merge signal (`tests/test_papers.py`).
 - Re-resolve with no DOI → **422**; Crossref non-200 → `crossref-unresolved`, **200** (graceful);
   force overrides a prior user-edit (`tests/test_papers.py`).
 - Pure-function mapping (date trailing-None, clear-drops-issued, authors→literal, reserved-key skip,

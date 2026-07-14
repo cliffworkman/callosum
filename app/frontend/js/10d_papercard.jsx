@@ -48,7 +48,7 @@ function PaperCopyButton({ paperId }) {
 // inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
 // render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
 // caller append context buttons (the library passes its focus/trash buttons here).
-function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, footExtra, citeInfo, readOnly }) {
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly }) {
   const unresolved = needsMetadata(p);
   return (
     <div
@@ -84,6 +84,16 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
         {/* inc 130: findings — a neutral FactMark + the work-state "N to review" badge (zero shows nothing). */}
         {findings && findings.has_facts && <span className="fact-mark fact-mark-card" title="Has a fact finding (e.g. retracted)">◆ fact</span>}
         {findings && findings.unreviewed_count > 0 && <span className="finding-badge" title="Unreviewed candidate findings to review">{findings.unreviewed_count} to review</span>}
+        {referenceWarnings && referenceWarnings.active_count > 0 &&
+          <button
+            type="button"
+            className="refwarn-badge"
+            title="Open Meta Reference List for this paper — active signals are unreviewed or confirmed concerns, never a paper-quality verdict"
+            aria-label="Open Meta Reference List for this paper"
+            onClick={e => { e.stopPropagation(); onOpenReferenceWarnings && onOpenReferenceWarnings(p); }}
+          >
+            {referenceWarnings.active_count} ref signal{referenceWarnings.active_count === 1 ? "" : "s"}
+          </button>}
         {/* inc 119 (SP3 #14): OpenAlex cited-by count; clickable (→ citing list) once the work id is known. */}
         {citeInfo && (citeInfo.workId
           ? <button className="paper-cite" title="Papers that cite this, per OpenAlex — click to view"

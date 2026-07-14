@@ -1,18 +1,8 @@
-"""Library ingestion endpoints: folder scan (inc 87) + citation-file import (inc 93).
+"""Library ingestion endpoints: folder scan, watched-folder rescan, citation import, and bundle import.
 
-`POST /library/scan {folder}` runs an async job that: scans the folder (`scan_library_folder` — ingest new /
-skip unchanged / mark removed), then enriches each new paper from Crossref (resilient; unresolved → the inc-80
-Unsorted view) and embeds the new chunks + papers so they're searchable. Local-only: the folder is read
-server-side, which is the intent on a 127.0.0.1 single-user app (see the security audit). NOT the Gemini gate —
-the only egress is the Crossref DOI lookup.
-
-`POST /library/import {content, format}` runs an async job that parses a pasted/uploaded BibTeX / RIS / CSL-JSON
-file (`import_citations`), dedups, creates metadata-only papers, and embeds them. **Entirely local — no egress**
-(the file is authoritative; no Crossref). The inverse of inc-70 export.
-
-Watched folders (inc 98): scanning a folder **registers** it (`watched_folders`); `GET/DELETE /library/watched`
-manage the list, and `POST /library/watched/rescan` re-scans all of them (auto-triggered on launch) so new PDFs
-appear without re-adding — Zotero/Mendeley-style watching, minus a live OS file-watcher.
+Folder scans read local PDFs, add new content, skip checksum duplicates, mark missing scan-sourced files, then
+enrich/embed new papers. Citation imports are metadata-only and local. Watched folders are explicit rows plus the
+always-watched library folder; rescans are pull-style jobs, not an OS file watcher.
 """
 
 from __future__ import annotations
@@ -78,6 +68,7 @@ class ScanRequest(BaseModel):
 
 
 _SCAN_ERROR_DETAIL_CAP = 25  # how many per-file failure reasons to surface in the done-summary (inc 155)
+_SCAN_ALREADY_RUNNING_DETAIL = "A library folder scan or watched-folder rescan is already running."
 
 
 class ScanError(BaseModel):
@@ -106,9 +97,7 @@ def scan_folder(payload: ScanRequest, background_tasks: BackgroundTasks, request
     folder = Path(payload.folder.strip()) if payload.folder and payload.folder.strip() else None
     if folder is None or not folder.is_dir():
         raise HTTPException(status_code=422, detail="Folder not found — enter an existing directory path.")
-    job_id = request.app.state.library_scan_jobs.create()
-    background_tasks.add_task(_run_scan_job, request.app, job_id, str(folder))
-    return ScanJobResponse(job_id=job_id, status="pending")
+    return _start_scan_family_job(request, background_tasks, _run_scan_job, str(folder))
 
 
 @router.get("/library/scan/{job_id}", response_model=ScanJobResponse)
@@ -199,6 +188,8 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         jobs.mark_done(job_id, ScanJobResponse(job_id=job_id, status="done", summary=_scan_summary(scanned)))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+    finally:
+        _clear_active_scan_family_job(app, job_id)
 
 
 class WatchedFolder(BaseModel):
@@ -251,9 +242,7 @@ def watched_remove(folder_id: int, request: Request) -> Response:
 def watched_rescan(background_tasks: BackgroundTasks, request: Request) -> ScanJobResponse:
     # Re-scan ALL watched folders (async) — the "watch": pick up new/removed PDFs without re-adding. No-ops if
     # there are no watched folders. Auto-triggered on app launch (default on) + a manual "Re-scan all".
-    job_id = request.app.state.library_scan_jobs.create()
-    background_tasks.add_task(_run_watched_rescan_job, request.app, job_id)
-    return ScanJobResponse(job_id=job_id, status="pending")
+    return _start_scan_family_job(request, background_tasks, _run_watched_rescan_job)
 
 
 @router.get("/library/watched/rescan/{job_id}", response_model=ScanJobResponse)
@@ -313,6 +302,39 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
         )
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+    finally:
+        _clear_active_scan_family_job(app, job_id)
+
+
+def _start_scan_family_job(request: Request, background_tasks: BackgroundTasks, runner, *args) -> ScanJobResponse:
+    """Single-flight guard for write-heavy PDF scan/rescan jobs; callers poll the active run."""
+    app = request.app
+    jobs: JobStore[ScanJobResponse] = app.state.library_scan_jobs
+    lock = app.state.library_scan_singleflight_lock
+    with lock:
+        active_job_id = getattr(app.state, "active_library_scan_job_id", None)
+        if active_job_id:
+            active = jobs.get(active_job_id)
+            if active is not None and active.status in ("pending", "running"):
+                return ScanJobResponse(
+                    job_id=active_job_id,
+                    status=active.status,
+                    detail=_SCAN_ALREADY_RUNNING_DETAIL,
+                    progress=_progress_out(active),
+                )
+        job_id = jobs.create()
+        app.state.active_library_scan_job_id = job_id
+        background_tasks.add_task(runner, app, job_id, *args)
+    return ScanJobResponse(job_id=job_id, status="pending")
+
+
+def _clear_active_scan_family_job(app: FastAPI, job_id: str) -> None:
+    lock = getattr(app.state, "library_scan_singleflight_lock", None)
+    if lock is None:
+        return
+    with lock:
+        if getattr(app.state, "active_library_scan_job_id", None) == job_id:
+            app.state.active_library_scan_job_id = None
 
 
 # --- Multi-pass, gap-filling metadata enrichment across the library (inc 217) --------------------------------

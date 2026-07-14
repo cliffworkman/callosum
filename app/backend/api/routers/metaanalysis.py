@@ -7,12 +7,15 @@ is_meta_analysis:false. Mirrors GET /papers/{id}/lmm and /bayes. See methods/met
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.engine import Connection
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
+from app.backend.methods.evidence_anchors import anchor_evidence
 from app.backend.methods.metaanalysis import audit_meta_analysis
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper
 
@@ -25,6 +28,9 @@ class MetaCheckOut(BaseModel):
     status: str  # present | not-found | not-applicable
     evidence: str | None = None
     page: int | None = None
+    page_end: int | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
     note: str | None = None
     explainer: str
     basis: str
@@ -41,7 +47,8 @@ def paper_meta_analysis(paper_id: int, conn: Connection = Depends(get_connection
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    report = audit_meta_analysis(get_chunks_for_paper(conn, paper_id))
+    chunks = get_chunks_for_paper(conn, paper_id)
+    report = audit_meta_analysis(chunks)
     return MetaResponse(
         is_meta_analysis=report.is_meta_analysis,
         checks=[
@@ -51,6 +58,7 @@ def paper_meta_analysis(paper_id: int, conn: Connection = Depends(get_connection
                 status=c.status,
                 evidence=c.evidence,
                 page=c.page,
+                **anchor_evidence(conn, chunks, c.evidence, c.page),
                 note=c.note,
                 explainer=c.explainer,
                 basis=c.basis,

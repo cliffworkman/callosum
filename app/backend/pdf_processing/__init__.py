@@ -6,7 +6,6 @@ from app.backend.pdf_processing.extraction import (
     ExtractionResult,
     extract_pdf,
 )
-from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.pdf_processing.quote_matching import QuoteMatch, locate_quote
 
@@ -16,7 +15,6 @@ __all__ = [
     "ExtractionResult",
     "QuoteMatch",
     "extract_pdf",
-    "locate_quote",
     "locate_quote_for_attachment",
-    "ingest_pdf_scaffold",
+    "locate_quote",
 ]

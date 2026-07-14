@@ -11,7 +11,6 @@ from sqlalchemy import Connection, select
 from app.backend.metadata.doi import DoiCandidate, find_doi_in_pdf
 from app.backend.metadata.enrich_sources import EnrichmentRegistry, EnrichRef, build_default_enrich_registry
 from app.backend.persistence.repository import (
-    find_existing_paper_by_identity,
     refresh_processing_tier,
     update_paper_metadata,
 )
@@ -392,8 +391,8 @@ def enrich_paper_metadata_multi(
     title = paper["title"]
     paper_year = paper["year"]
 
-    # Pass 0 — recover a missing DOI (PDF scan → Crossref title-search; a recovered DOI that belongs to a
-    # DIFFERENT paper is left for dedup, honoring the papers.doi UNIQUE constraint).
+    # Pass 0 — recover a missing DOI (PDF scan → Crossref title-search). Duplicate DOIs are allowed temporarily so
+    # a raw-PDF record can be identified and then merged with an existing metadata-only record.
     doi = str(paper["doi"]) if paper["doi"] else None
     pmid = _pmid_from_csl(existing_csl)
     doi_recovered = False
@@ -411,10 +410,8 @@ def enrich_paper_metadata_multi(
                     pmid = pmid or item.pmid
                     break
         if recovered:
-            hit = find_existing_paper_by_identity(conn, doi=recovered)
-            if hit is None or int(hit[1]["id"]) == paper_id:
-                doi = recovered.strip().lower()
-                doi_recovered = True
+            doi = recovered.strip().lower()
+            doi_recovered = True
 
     # Cascade — gap-fill from each source, in order.
     fragments = registry.fetch_all(conn, EnrichRef(doi=doi, pmid=pmid, title=title, year=paper_year))

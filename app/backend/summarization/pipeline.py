@@ -36,13 +36,17 @@ class SummaryScope:
     paper_ids: list[int] | None = None
     cluster_node_id: int | None = None
     query: str | None = None
+    sections: list[str] | None = None
 
     def to_ref(self) -> dict[str, object]:
-        return {
+        ref: dict[str, object] = {
             "paper_ids": self.paper_ids,
             "cluster_node_id": self.cluster_node_id,
             "query": self.query,
         }
+        if self.sections:
+            ref["sections"] = self.sections
+        return ref
 
 
 @dataclass(frozen=True)
@@ -71,6 +75,8 @@ class SummaryPersistenceResult:
     summary_id: int
     status: str
     sentences: list[SummarySentencePersistenceResult]
+    source_chunk_count: int
+    section_filter: list[str]
 
     @property
     def flagged_sentences(self) -> list[SummarySentencePersistenceResult]:
@@ -115,6 +121,7 @@ def summarize_scope(
         content=" ".join(candidate.text for candidate in candidates),
         generated_by=generator.name,
         verifications=[item for row in verification_rows for item in row],
+        source_chunk_count=len(source_chunks),
         status=summary_status,
     )
     sentence_results = []
@@ -142,7 +149,13 @@ def summarize_scope(
         scope=scope,
         overview_generator=overview_generator,
     )
-    return SummaryPersistenceResult(summary_id=summary_id, status=summary_status, sentences=sentence_results)
+    return SummaryPersistenceResult(
+        summary_id=summary_id,
+        status=summary_status,
+        sentences=sentence_results,
+        source_chunk_count=len(source_chunks),
+        section_filter=scope.sections or [],
+    )
 
 
 def _maybe_store_overview(
@@ -202,6 +215,8 @@ def _source_chunks_for_scope(
             )
         ]
         stmt = stmt.where(chunks.c.paper_id.in_(paper_ids)) if paper_ids else stmt.where(False)
+    if scope.sections:
+        stmt = stmt.where(chunks.c.section.in_(scope.sections))
     rows = [_source_chunk_from_row(row) for row in conn.execute(stmt).mappings()]
     if scope.query:
         return _rank_chunks_for_query(
@@ -278,12 +293,15 @@ def _insert_summary(
     content: str,
     generated_by: str,
     verifications: list[VerificationResult],
+    source_chunk_count: int,
     status: str,
 ) -> int:
+    scope_ref = scope.to_ref()
+    scope_ref["source_chunk_count"] = source_chunk_count
     result = conn.execute(
         insert(summaries).values(
             scope_type=scope.scope_type,
-            scope_ref_json=scope.to_ref(),
+            scope_ref_json=scope_ref,
             content=content,
             generated_by=generated_by,
             chunk_version_verified_against=_combined_chunk_version(verifications),
@@ -346,6 +364,7 @@ def _source_chunk_from_row(row) -> SourceChunk:  # type: ignore[no-untyped-def]
         page_end=int(row["page_end"]),
         chunk_version=str(row["chunk_version"]),
         bbox_json=row["bbox_json"],
+        section=row["section"],
     )
 
 
