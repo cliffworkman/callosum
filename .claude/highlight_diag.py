@@ -65,17 +65,21 @@ def run_db(db_path: str, misses: list[dict]) -> dict:
         "located_offpage": 0,  # located but not on chunk pages
     }
     with engine.connect() as conn:
-        rows = conn.execute(
-            text(
-                """
+        rows = (
+            conn.execute(
+                text(
+                    """
                 SELECT eq.id, eq.quote_text, eq.bbox_json,
                        c.text AS chunk_text, c.page_start AS c_ps, c.page_end AS c_pe, c.attachment_id
                 FROM evidence_quotes eq
                 JOIN chunks c ON c.id = eq.chunk_id
                 WHERE eq.quote_text IS NOT NULL AND c.attachment_id IS NOT NULL
                 """
+                )
             )
-        ).mappings().all()
+            .mappings()
+            .all()
+        )
         for row in rows:
             counts["rows"] += 1
             sp = stored_precision(row["bbox_json"])
