@@ -1205,3 +1205,53 @@ def test_frontend_registration_and_forbidden_language_absent():
     assert "recommended grant" not in lowered
     assert "funding probability" not in lowered
     assert "goodness of match" not in lowered
+
+
+def test_run_without_award_seam_surfaces_no_fabricated_awards(temp_db_url):
+    """Regression: with no funding_award_provider configured (the production default), no fabricated
+    fixture foundations may leak into the report.
+
+    Previously the production fallback was ``FixtureAwardHistoryProvider()``, whose ``default_awards()``
+    emitted hardcoded ``irs_990_pf`` foundations that were matched against the profile and surfaced as
+    real prospects. The award-history seam is intentionally left unset here so the production fallback
+    is exercised; the other providers are stubbed to empty so no network call is made. The description
+    deliberately overlaps the old fixtures' purpose text, so this test would FAIL against the old
+    fallback and passes only once the fallback contributes zero awards.
+    """
+    client = TestClient(create_app(db_url=temp_db_url))
+    # funding_award_provider intentionally NOT set -> exercises the production fallback.
+    client.app.state.funding_grants_gov_client = GrantsGovClient(
+        fetcher=lambda *a, **k: (200, {"data": {"oppHits": []}})
+    )
+    client.app.state.funding_openalex_provider = OpenAlexFundingProvider(fetcher=lambda *a, **k: (200, {"results": []}))
+    client.app.state.funding_crossref_provider = CrossrefFundingProvider(
+        fetcher=lambda *a, **k: (200, {"message": {"items": []}})
+    )
+    run = client.post(
+        "/funding-discovery/run",
+        json={
+            "description": (
+                "pilot creative arts and brain injury intervention using neuroimaging for trauma and mood; "
+                "community partnership implementation pilot for adolescent mental health in schools; "
+                "freshwater microbial ecology field sampling"
+            ),
+            "field": "clinical neuroscience",
+        },
+    )
+    assert run.status_code == 202
+    job_id = run.json()["job_id"]
+    done: dict = {}
+    for _ in range(30):
+        done = client.get(f"/funding-discovery/run/{job_id}").json()
+        if done["status"] in {"done", "error"}:
+            break
+    assert done["status"] == "done", done
+    report_text = json.dumps(done["report"])
+    for fabricated in (
+        "Green River Foundation",
+        "Heritage Futures Trust",
+        "Community Learning Fund",
+        "NeuroArts Veterans Initiative",
+    ):
+        assert fabricated not in report_text, f"fabricated fixture award leaked into production report: {fabricated}"
+    assert "irs_990_pf" not in report_text and "irs-990-pf" not in report_text

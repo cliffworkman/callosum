@@ -59,7 +59,7 @@ class FixtureAwardHistoryProvider:
         awards: list[HistoricalAward] | None = None,
         surfaces: list[ApplicationSurface] | None = None,
     ) -> None:
-        self.awards = awards or default_awards()
+        self.awards = list(awards or [])
         self.surfaces = surfaces or []
 
     def search_awards(
@@ -79,6 +79,29 @@ class FixtureAwardHistoryProvider:
             for s in self.surfaces
             if s.organization_name in orgs and (s.scheme_name is None or s.scheme_name in schemes)
         ]
+
+
+class NullAwardHistoryProvider:
+    """Production default when no historical-award feed is configured.
+
+    Contributes ZERO awards so the latent-prospect engine draws only from real OpenAlex/Crossref funding
+    lineage + grants.gov opportunities. A real EO-BMF / 990-PF feed can later be wired via
+    ``app.state.funding_award_provider`` (``irs.py`` already parses those records); until then no
+    fabricated award history is surfaced — never present fabricated data as real.
+    """
+
+    id = "no-award-feed"
+    capabilities: list[str] = []
+
+    def search_awards(
+        self, conn: Connection | None, profile: ResearchFundingProfile
+    ) -> tuple[list[HistoricalAward], ProviderStatus]:
+        return [], ProviderStatus(
+            self.id, "award_history", "not_searched", warning="No historical-award feed configured."
+        )
+
+    def application_surfaces(self, awards: list[HistoricalAward]) -> list[ApplicationSurface]:
+        return []
 
 
 class OpenAlexFundingProvider:
@@ -253,78 +276,6 @@ class CrossrefFundingProvider:
                         )
                     )
         return awards, ProviderStatus(self.id, "award_history", "success", result_count=len(awards))
-
-
-def default_awards() -> list[HistoricalAward]:
-    now = datetime.now(UTC).isoformat()
-
-    def p(provider: str, rid: str, text: str) -> list[ProvenanceRecord]:
-        return [ProvenanceRecord(provider, rid, now, source_text=text, extraction_method="deterministic_parse")]
-
-    return [
-        HistoricalAward(
-            "Green River Foundation",
-            "irs_990_pf",
-            "grf-2024-1",
-            purpose_text="pilot freshwater microbial ecology field sampling and environmental DNA infrastructure",
-            amount={"value": 80000, "currency": "USD"},
-            tax_year=2024,
-            recipient_name_raw="State University",
-            provenance=p("irs-990-pf", "grf-2024-1", "freshwater microbial ecology"),
-        ),
-        HistoricalAward(
-            "Heritage Futures Trust",
-            "irs_990_pf",
-            "hft-2023-1",
-            purpose_text="manuscript digitization, computational paleography, cultural heritage preservation, archival infrastructure",
-            amount={"value": 120000, "currency": "USD"},
-            tax_year=2023,
-            recipient_name_raw="City Archive",
-            provenance=p("irs-990-pf", "hft-2023-1", "manuscript digitization"),
-        ),
-        HistoricalAward(
-            "Community Learning Fund",
-            "irs_990_pf",
-            "clf-2024-1",
-            purpose_text="community partnership implementation pilot for adolescent mental health in schools",
-            amount={"value": 75000, "currency": "USD"},
-            tax_year=2024,
-            recipient_name_raw="County Schools",
-            provenance=p("irs-990-pf", "clf-2024-1", "adolescent mental health"),
-        ),
-        HistoricalAward(
-            "NeuroArts Veterans Initiative",
-            "irs_990_pf",
-            "navi-2022-1",
-            purpose_text="creative arts intervention pilot for trauma, mood, and brain injury among military-connected communities using neuroimaging",
-            amount={"value": 200000, "currency": "USD"},
-            tax_year=2022,
-            recipient_name_raw="University Hospital",
-            provenance=p("irs-990-pf", "navi-2022-1", "creative arts intervention"),
-        ),
-        HistoricalAward(
-            "NeuroArts Veterans Initiative",
-            "irs_990_pf",
-            "navi-2023-1",
-            scheme_name="Pilot Arts and Brain Health Awards",
-            purpose_text="pilot creative arts and brain injury intervention with military-connected collaborators",
-            amount={"value": 180000, "currency": "USD"},
-            tax_year=2023,
-            recipient_name_raw="Regional University",
-            provenance=p("irs-990-pf", "navi-2023-1", "brain injury intervention"),
-        ),
-        HistoricalAward(
-            "NeuroArts Veterans Initiative",
-            "irs_990_pf",
-            "navi-2024-1",
-            scheme_name="Pilot Arts and Brain Health Awards",
-            purpose_text="pilot neuroimaging study of trauma and mood using creative arts intervention",
-            amount={"value": 220000, "currency": "USD"},
-            tax_year=2024,
-            recipient_name_raw="Community Clinic",
-            provenance=p("irs-990-pf", "navi-2024-1", "trauma mood neuroimaging"),
-        ),
-    ]
 
 
 def _award_matches(award: HistoricalAward, values: set[str]) -> bool:

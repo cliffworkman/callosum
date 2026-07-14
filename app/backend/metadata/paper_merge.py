@@ -60,6 +60,9 @@ _UNIQUE_ID_COLS = ("openalex_work_id", "semantic_scholar_paper_id", "zotero_libr
 # Matching ids auto-adopted onto the survivor when it lacks them (column-only, not user-facing csl fields).
 _ADOPT_COLS = ("openalex_work_id", "semantic_scholar_paper_id")
 # The survivor columns a merge mutates → snapshotted before, so un-merge (#16) restores the survivor's record exactly.
+# NOTE: `doi` is listed explicitly (not via _UNIQUE_ID_COLS) because the survivor still *adopts* a DOI on merge even
+# though DOI is no longer a UNIQUE husk column (inc 269) — dropping it from the snapshot would leave the survivor's
+# adopted DOI unreverted on un-merge (regression caught by test_merge_then_unmerge_restores_survivor_and_husk).
 _SURVIVOR_SNAPSHOT_COLS = (
     "title",
     "abstract",
@@ -72,6 +75,7 @@ _SURVIVOR_SNAPSHOT_COLS = (
     "first_author_family_name",
     "csl_json",
     "imported_source",
+    "doi",
     *_UNIQUE_ID_COLS,
 )
 

@@ -38,7 +38,10 @@ def persist_llm_triage_annotations(
             if canonical_item_id is None:
                 continue
             retry_sqlite_locked(
-                lambda item=item, evaluation=evaluation: conn.execute(
+                lambda item=item,
+                evaluation=evaluation,
+                item_kind=item_kind,
+                canonical_item_id=canonical_item_id: conn.execute(
                     insert(funding_llm_triage_annotations).values(
                         run_id=run_id,
                         item_kind=item_kind,

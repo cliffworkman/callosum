@@ -19,8 +19,8 @@ from app.backend.funding.profile import profile_from_paper, profile_from_text
 from app.backend.funding.providers import (
     GRANTS_GOV_PROVIDER,
     CrossrefFundingProvider,
-    FixtureAwardHistoryProvider,
     GrantsGovClient,
+    NullAwardHistoryProvider,
     OpenAlexFundingProvider,
 )
 from app.backend.funding.repo import persist_search_result
@@ -282,7 +282,7 @@ def _run_funding_job(app: FastAPI, job_id: str, body: FundingRunRequest) -> None
                     title=None,
                 )
             jobs.mark_progress(job_id, 2, 5, "Searching funding evidence")
-            award_provider = getattr(app.state, "funding_award_provider", None) or FixtureAwardHistoryProvider()
+            award_provider = getattr(app.state, "funding_award_provider", None) or NullAwardHistoryProvider()
             awards, local_status = award_provider.search_awards(conn, profile)
             oa_provider = getattr(app.state, "funding_openalex_provider", None) or OpenAlexFundingProvider()
             cr_provider = getattr(app.state, "funding_crossref_provider", None) or CrossrefFundingProvider()

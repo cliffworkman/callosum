@@ -12,6 +12,7 @@ from app.backend.persistence.repository import create_attachment, create_chunk, 
 def _sr(p: float, page: int | None = 1) -> StatResult:
     return StatResult(
         raw=f"t(30) = 2.5, p = {p}",
+        context=f"The analysis returned t(30) = 2.5, p = {p}.",
         test_type="t",
         reported_p=f"p = {p}",
         computed_p=p,
