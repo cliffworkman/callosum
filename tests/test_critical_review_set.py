@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 from sqlalchemy import create_engine, insert, update
 
 from app.backend.embeddings.vector_store import VectorHit
@@ -11,6 +13,12 @@ from app.backend.persistence import schema, signals_repo
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
 from app.backend.summarization.verification import Stance
+from integrations.gemini.critical_review import candidate_signature
+from integrations.gemini.critical_review_set import (
+    SetCandidateDraft,
+    parse_set_drafts,
+    verify_set_candidates,
+)
 
 
 def _fresh_db():
@@ -176,3 +184,45 @@ def test_set_aggregate_is_a_fact_matrix_not_a_score():
     assert by_id[b]["contested_count"] == 0
     for r in rows:  # honesty: no composite score / ranking field
         assert not ({"score", "quality", "grade", "rank", "rating"} & set(r.keys()))
+
+
+def _set_papers():
+    return [
+        {"index": 1, "paper_id": 101, "text": "Alpha alpha. The sample was n = 12 participants. Beta."},
+        {"index": 2, "paper_id": 102, "text": "Gamma. We used a within-subjects design. Delta."},
+    ]
+
+
+def test_verify_set_candidates_grounds_anchor_and_relates():
+    drafts = [SetCandidateDraft("Small sample.", "The sample was n = 12 participants.", [1, 2, 99])]
+    out = verify_set_candidates(drafts, set_papers=_set_papers(), stance_scorer=_ContrastStance())
+    assert len(out) == 1
+    assert out[0]["paper_id"] == 101  # anchored where the quote lives
+    assert out[0]["related_paper_ids"] == [102]  # index 2 -> 102; index 1 is the anchor; 99 invalid -> dropped
+    assert out[0]["stance"] == "contrast"
+    assert out[0]["anchor_quote"] == "The sample was n = 12 participants."
+
+
+def test_verify_set_candidates_drops_ungrounded_and_rejected():
+    good = SetCandidateDraft("c", "We used a within-subjects design.", [])
+    bad = SetCandidateDraft("c2", "a quote appearing in no paper at all", [])
+    sig = candidate_signature(102, "c", "We used a within-subjects design.")
+    out = verify_set_candidates(
+        [good, bad], set_papers=_set_papers(), stance_scorer=_ContrastStance(), rejected_signatures={sig}
+    )
+    assert out == []  # good is rejected-by-signature; bad is ungrounded
+
+
+def test_verify_set_output_has_no_author_or_score_fields():
+    drafts = [SetCandidateDraft("Small sample.", "The sample was n = 12 participants.", [])]
+    out = verify_set_candidates(drafts, set_papers=_set_papers(), stance_scorer=_ContrastStance())
+    blob = json.dumps(out).lower()
+    for banned in ("the authors are", "sloppy", "dishonest", "fraud", "incompetent"):
+        assert banned not in blob
+    assert not ({"score", "quality", "grade", "rating", "verdict"} & set(out[0].keys()))
+
+
+def test_parse_set_drafts_defensive():
+    assert parse_set_drafts("not json") == []
+    drafts = parse_set_drafts('[{"concern":"c","anchor_quote":"q","related":[1,2]}]')
+    assert drafts[0].concern == "c" and drafts[0].related_indices == [1, 2]
