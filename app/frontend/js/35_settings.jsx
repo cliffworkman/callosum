@@ -84,6 +84,36 @@ function MyPubsSettings({ onRefreshed }) {
 // AI features — the unified LLM provider roster (`AiSettings`) lives in js/35b_providers.jsx (inc 256). It
 // hoists across the shared IIFE, so SettingsModal below references it directly.
 
+function LocalMaintenanceSettings() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const repairSummaryCache = async () => {
+    setBusy(true); setMsg("");
+    const r = await apiPost("/settings/repair-summary-cache", {});
+    setBusy(false);
+    if (r.ok) setMsg(`Scanned ${r.data.scanned} summary cache row${r.data.scanned === 1 ? "" : "s"}; removed ${r.data.removed} malformed row${r.data.removed === 1 ? "" : "s"}.`);
+    else setMsg("Couldn't repair summary cache: " + (r.error || "error"));
+  };
+  return (
+    <>
+      <p className="eyebrow">Local maintenance</p>
+      <div className="settings-field">
+        <label className="settings-field-label">Synthesis cache
+          <span className="settings-sub">
+            Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.
+          </span>
+        </label>
+        <div className="settings-keyrow">
+          <button className="btn btn-ghost" disabled={busy} onClick={repairSummaryCache}>
+            {busy ? "Scanning…" : "Repair synthesis cache"}
+          </button>
+        </div>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
+    </>
+  );
+}
+
 // Metadata access (inc 158) — ONE contact email for the public metadata APIs' polite pool (Crossref, OpenAlex,
 // Retraction Watch). Setting it here enables the Retraction Watch database download, instead of an env var. Not a
 // secret (it is sent to those services as the polite-pool contact, exactly as the env var was) → GET /settings
@@ -464,6 +494,8 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         </div>
 
         <AiSettings />
+
+        <LocalMaintenanceSettings />
 
         <p className="eyebrow">Axes</p>
         <div className="settings-row">

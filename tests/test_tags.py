@@ -127,6 +127,35 @@ def test_tag_source_exposed_on_responses(temp_db_url: str) -> None:
     assert client.post(f"/papers/{a}/tags", json={"name": "fresh"}).json()["source"] == "user"  # POST returns it
 
 
+def test_tag_lock_is_scoped_to_paper_tag_link(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="A", csl_json={"title": "A"})
+        b = create_paper(conn, title="B", csl_json={"title": "B"})
+        tid = int(add_tag_to_paper(conn, a, "keep-me")["id"])
+        add_tag_to_paper(conn, b, "keep-me")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    locked = client.post(f"/papers/{a}/tags/{tid}/lock", json={"locked": True})
+    assert locked.status_code == 200
+    assert locked.json()["locked"] is True
+    by_paper = {p: {t["name"]: t["locked"] for t in client.get(f"/papers/{p}").json()["tags"]} for p in (a, b)}
+    assert by_paper[a] == {"keep-me": True}
+    assert by_paper[b] == {"keep-me": False}
+    assert client.post(f"/papers/{a}/tags", json={"name": "keep-me"}).json()["locked"] is True
+
+    blocked = client.delete(f"/papers/{a}/tags/{tid}")
+    assert blocked.status_code == 409
+    assert "Unlock this tag" in blocked.json()["detail"]
+    assert client.delete(f"/papers/{b}/tags/{tid}").status_code == 204
+
+    unlocked = client.post(f"/papers/{a}/tags/{tid}/lock", json={"locked": False})
+    assert unlocked.status_code == 200 and unlocked.json()["locked"] is False
+    assert client.delete(f"/papers/{a}/tags/{tid}").status_code == 204
+    assert client.post(f"/papers/{a}/tags/{tid}/lock", json={"locked": True}).status_code == 404
+
+
 def test_deleted_keyword_tag_is_not_re_added_on_enrich(temp_db_url: str) -> None:
     # inc 143 (Librarian pass): deleting an imported keyword tag must be durable — a re-resolve / backfill that
     # re-runs apply_crossref_subject_tags must NOT silently resurrect it.

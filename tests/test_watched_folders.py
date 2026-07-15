@@ -132,6 +132,25 @@ def test_library_folder_auto_rescan_picks_up_a_drop_with_no_prior_scan(temp_db_u
     assert len(client.get("/papers").json()) == 1
 
 
+def test_watched_rescan_reuses_active_scan_family_job(temp_db_url, monkeypatch, tmp_path):
+    lib = tmp_path / "mylib"
+    lib.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(lib))
+    app = create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref())
+    client = TestClient(app)
+    active_job_id = app.state.library_scan_jobs.create()
+    with app.state.library_scan_singleflight_lock:
+        app.state.active_library_scan_job_id = active_job_id
+
+    rescan = client.post("/library/watched/rescan")
+
+    assert rescan.status_code == 202
+    body = rescan.json()
+    assert body["job_id"] == active_job_id
+    assert body["status"] == "pending"
+    assert "already running" in body["detail"]
+
+
 def test_user_scanning_the_library_folder_is_not_listed_twice(temp_db_url, monkeypatch, tmp_path):
     lib = tmp_path / "mylib"
     lib.mkdir()

@@ -53,6 +53,7 @@ class SummarizeRequest(BaseModel):
     cluster_node_id: int | None = None
     query: str | None = None
     top_k: int = Field(default=8, ge=1, le=50)
+    sections: list[str] | None = Field(default=None, max_length=16)
 
 
 class SummarizeStartResponse(BaseModel):
@@ -68,6 +69,7 @@ class SummaryCitationResponse(BaseModel):
     paper_title: str
     page_start: int | None = None
     page_end: int | None = None
+    section: str | None = None
     quote: str
     retrieval_confidence: float
     quote_confidence: float
@@ -96,6 +98,8 @@ class SummarizeJobResponse(BaseModel):
     detail: str | None = None
     summary_id: int | None = None
     summary_status: str | None = None
+    source_chunk_count: int | None = None
+    section_filter: list[str] = []
     sentences: list[SummarySentenceResponse] | None = None
     overview: list[OverviewItemResponse] | None = None
     imported: bool = False  # B2 SP2: a relayed synthesis — the sender's assessment, region precision, not re-verified
@@ -114,6 +118,20 @@ class SummaryListItem(BaseModel):
 
 
 IMPORTED_STATUS = "imported"  # a relayed synthesis carries the sender's verification (B2 SP2)
+SUMMARY_SECTION_KEYS = {
+    "abstract",
+    "introduction",
+    "methods",
+    "results",
+    "discussion",
+    "data_availability",
+    "code_availability",
+    "funding",
+    "conflict_of_interest",
+    "ethics",
+    "references",
+    "supplementary_material",
+}
 
 
 @router.post(
@@ -203,6 +221,7 @@ def _validate_summary_request(request: SummarizeRequest) -> None:
         raise HTTPException(status_code=400, detail="scope_type='cluster_node' requires cluster_node_id")
     if request.scope_type == "query" and not (request.query and request.query.strip()):
         raise HTTPException(status_code=400, detail="scope_type='query' requires query")
+    request.sections = _normalize_summary_sections(request.sections)
 
 
 def _summary_scope_from_request(request: SummarizeRequest) -> SummaryScope:
@@ -211,7 +230,27 @@ def _summary_scope_from_request(request: SummarizeRequest) -> SummaryScope:
         paper_ids=request.paper_ids,
         cluster_node_id=request.cluster_node_id,
         query=request.query.strip() if request.query else None,
+        sections=request.sections,
     )
+
+
+def _normalize_summary_sections(sections: list[str] | None) -> list[str] | None:
+    if not sections:
+        return None
+    normalized: list[str] = []
+    invalid: list[str] = []
+    for item in sections:
+        key = str(item or "").strip().lower().replace("-", "_")
+        if not key:
+            continue
+        if key not in SUMMARY_SECTION_KEYS:
+            invalid.append(str(item))
+            continue
+        if key not in normalized:
+            normalized.append(key)
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Unknown synthesis section filter: {', '.join(invalid)}")
+    return normalized or None
 
 
 def _run_summarize_job(api: FastAPI, job_id: str, request: SummarizeRequest) -> None:
@@ -329,6 +368,8 @@ def _persisted_summary_response(conn: Connection, *, summary_id: int, job_id: st
         status="done",
         summary_id=summary_id,
         summary_status=summary["status"],
+        source_chunk_count=_source_chunk_count_from_ref(summary["scope_ref_json"]),
+        section_filter=_section_filter_from_ref(summary["scope_ref_json"]),
         sentences=[_summary_sentence_response(conn, sentence) for sentence in sentence_rows],
         overview=overview,
     )
@@ -347,6 +388,7 @@ def _imported_summary_response(blob: Any, *, summary_id: int, job_id: str) -> Su
                 paper_title=str(c.get("paper_title") or ""),
                 page_start=c.get("page_start"),
                 page_end=c.get("page_end"),
+                section=c.get("section"),
                 quote=str(c.get("quote") or ""),
                 retrieval_confidence=float(c.get("retrieval_confidence") or 0.0),
                 quote_confidence=float(c.get("quote_confidence") or 0.0),
@@ -381,6 +423,7 @@ def _imported_summary_response(blob: Any, *, summary_id: int, job_id: str) -> Su
         status="done",
         summary_id=summary_id,
         summary_status=IMPORTED_STATUS,
+        section_filter=[],
         sentences=sentences,
         overview=overview,
         imported=True,
@@ -415,6 +458,7 @@ def _summary_citation_rows(conn: Connection, sentence_id: int) -> list[Any]:
                 evidence_quotes.c.quote_confidence,
                 evidence_quotes.c.support_confidence,
                 chunks.c.paper_id,
+                chunks.c.section,
                 papers.c.title.label("paper_title"),
             )
             .select_from(
@@ -439,6 +483,7 @@ def _summary_citation_response(row: Any) -> SummaryCitationResponse:
         paper_title=row["paper_title"],
         page_start=row["page_start"],
         page_end=row["page_end"],
+        section=row["section"],
         quote=row["quote_text"],
         retrieval_confidence=row["retrieval_confidence"],
         quote_confidence=row["quote_confidence"],
@@ -478,6 +523,21 @@ def _summary_scope_label(scope_type: str, scope_ref: Any) -> str:
         cluster_node_id = scope_ref.get("cluster_node_id")
         return f"Cluster node {cluster_node_id}" if cluster_node_id is not None else "Cluster summary"
     return scope_type
+
+
+def _source_chunk_count_from_ref(scope_ref: Any) -> int | None:
+    if not isinstance(scope_ref, dict) or scope_ref.get("source_chunk_count") is None:
+        return None
+    try:
+        return int(scope_ref["source_chunk_count"])
+    except (TypeError, ValueError):
+        return None
+
+
+def _section_filter_from_ref(scope_ref: Any) -> list[str]:
+    if not isinstance(scope_ref, dict) or not isinstance(scope_ref.get("sections"), list):
+        return []
+    return [str(item) for item in scope_ref["sections"] if str(item)]
 
 
 def _coordinate_precision_from_bbox(bbox_json: Any) -> str | None:

@@ -4,10 +4,15 @@ import unicodedata
 from pathlib import Path
 
 import fitz
+from fastapi.testclient import TestClient
+from sqlalchemy import func, insert, select
 
 import app.backend.pdf_processing.quote_matching as quote_matching_module
 from alembic import command
 from alembic.config import Config
+from app.backend.api import create_app
+from app.backend.embeddings.models import DEFAULT_NORMALIZATION
+from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.pdf_processing.extraction import (
     COORDINATE_SYSTEM,
     DEFAULT_CHUNKING_STRATEGY,
@@ -20,8 +25,11 @@ from app.backend.pdf_processing.extraction import (
 from app.backend.pdf_processing.ingest import ingest_pdf_scaffold
 from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.pdf_processing.quote_matching import locate_quote
+from app.backend.pdf_processing.sections import SectionTracker, detect_section_heading
 from app.backend.persistence.database import make_engine
-from app.backend.persistence.repository import get_chunks_for_paper
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, get_chunks_for_paper
+from app.backend.persistence.schema import embeddings, papers
+from tests.api_helpers import ApiFakeEmbeddingModel
 
 FIXTURE_QUOTES = [
     {
@@ -134,6 +142,169 @@ def test_extraction_ingest_writes_chunks_with_provenance(tmp_path: Path) -> None
         assert chunk["page_start"] >= 1
         assert chunk["page_end"] >= chunk["page_start"]
         assert chunk["bbox_json"]
+
+
+def test_section_heading_detection_is_conservative() -> None:
+    heading = detect_section_heading("1. Methods")
+    data_heading = detect_section_heading("Data availability statement")
+
+    assert heading is not None
+    assert heading.key == "methods"
+    assert data_heading is not None
+    assert data_heading.key == "data_availability"
+    assert detect_section_heading("The methods were preregistered.") is None
+    assert detect_section_heading("Methods, materials, and recruitment") is None
+
+    tracker = SectionTracker()
+    assert tracker.observe("Abstract").key == "abstract"
+    assert tracker.current_section == "abstract"
+    assert tracker.observe("The methods were preregistered.") is None
+    assert tracker.current_section == "abstract"
+
+
+def test_section_headings_are_attached_to_following_chunks(tmp_path: Path) -> None:
+    pdf_path = _make_sectioned_pdf(tmp_path / "sectioned.pdf")
+    chunks = make_chunk_drafts(extract_pdf(pdf_path), source_attachment_checksum=file_sha256(pdf_path))
+    sectioned_text = {(chunk.section, chunk.text) for chunk in chunks}
+
+    assert ("abstract", "Data are available at OSF.") in sectioned_text
+    assert ("methods", "We recruited participants and analyzed survey responses.") in sectioned_text
+    assert ("data_availability", "The analysis code is available at GitHub.") in sectioned_text
+    assert "Abstract" not in {chunk.text for chunk in chunks}
+    assert "Methods" not in {chunk.text for chunk in chunks}
+
+
+def test_section_metadata_survives_pdf_ingest(tmp_path: Path) -> None:
+    pdf_path = _make_sectioned_pdf(tmp_path / "sectioned-ingest.pdf")
+    db_path = tmp_path / "callosum-sectioned.sqlite"
+    url = f"sqlite:///{db_path.as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = make_engine(url)
+
+    with engine.begin() as conn:
+        result = ingest_pdf_scaffold(conn, pdf_path, title="Sectioned Fixture")
+        chunks = get_chunks_for_paper(conn, result["paper_id"])
+
+    sections_by_text = {chunk["text"]: chunk["section"] for chunk in chunks}
+    assert sections_by_text["Data are available at OSF."] == "abstract"
+    assert sections_by_text["We recruited participants and analyzed survey responses."] == "methods"
+    assert sections_by_text["The analysis code is available at GitHub."] == "data_availability"
+
+
+def test_reprocess_pdf_endpoint_replaces_chunks_and_preserves_paper(tmp_path: Path) -> None:
+    pdf_path = _make_sectioned_pdf(tmp_path / "sectioned-reprocess.pdf")
+    db_path = tmp_path / "callosum-reprocess.sqlite"
+    url = f"sqlite:///{db_path.as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = make_engine(url)
+    store = InMemoryVectorStore()
+
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Keep Metadata", csl_json={"title": "Keep Metadata"}, doi="10.1/keep")
+        attachment_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(pdf_path),
+            resolved_path=str(pdf_path),
+            checksum="old-checksum",
+            file_size=pdf_path.stat().st_size,
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+        old_chunk_id = create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="old extracted text",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system=COORDINATE_SYSTEM,
+            extraction_tool="old",
+            extraction_version="0",
+            chunking_strategy="old",
+            chunk_version="old",
+            source_attachment_checksum="old-checksum",
+            bbox_json=[{"page": 1, "x0": 1, "y0": 1, "x1": 2, "y1": 2}],
+        )
+        old_embedding_id = int(
+            conn.execute(
+                insert(embeddings).values(
+                    target_type="chunk",
+                    target_id=old_chunk_id,
+                    model_name="m",
+                    model_version="v",
+                    dimension=2,
+                    normalization=DEFAULT_NORMALIZATION,
+                    source_text_version="t1",
+                    source_chunk_version="old",
+                )
+            ).inserted_primary_key[0]
+        )
+        store.add(conn, embedding_id=old_embedding_id, vector=[0.0, 1.0])
+
+    response = TestClient(create_app(db_url=url, vector_store=store, embedding_model=ApiFakeEmbeddingModel())).post(
+        f"/papers/{paper_id}/reprocess-pdf"
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["attachment_id"] == attachment_id
+    assert body["chunks_removed"] == 1
+    assert body["chunks_created"] == 3
+    with engine.begin() as conn:
+        saved_paper = conn.execute(select(papers).where(papers.c.id == paper_id)).mappings().one()
+        saved_chunks = get_chunks_for_paper(conn, paper_id)
+        saved_ids = [chunk["id"] for chunk in saved_chunks]
+        embedded_current = conn.execute(
+            select(func.count())
+            .select_from(embeddings)
+            .where(embeddings.c.target_type == "chunk", embeddings.c.target_id.in_(saved_ids))
+        ).scalar_one()
+        orphan_embeddings = conn.execute(
+            select(func.count())
+            .select_from(embeddings)
+            .where(embeddings.c.target_type == "chunk", embeddings.c.target_id.not_in(saved_ids))
+        ).scalar_one()
+    engine.dispose()
+
+    assert saved_paper["title"] == "Keep Metadata"
+    assert saved_paper["doi"] == "10.1/keep"
+    # Reprocess replaced the stale embedding: the old chunk (and its embedding) is gone, every new chunk is
+    # (re)embedded, no orphaned embedding points at a deleted chunk, and the vector store holds exactly the new set.
+    assert embedded_current == len(saved_chunks) == 3
+    assert orphan_embeddings == 0
+    assert len(store.vectors) == 3
+    assert {chunk["text"] for chunk in saved_chunks} == {
+        "Data are available at OSF.",
+        "We recruited participants and analyzed survey responses.",
+        "The analysis code is available at GitHub.",
+    }
+    assert {chunk["section"] for chunk in saved_chunks} == {"abstract", "methods", "data_availability"}
+    assert "old extracted text" not in {chunk["text"] for chunk in saved_chunks}
+
+
+def test_reprocess_pdf_endpoint_rejects_paper_without_local_pdf(tmp_path: Path) -> None:
+    db_path = tmp_path / "callosum-reprocess-missing.sqlite"
+    url = f"sqlite:///{db_path.as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", url)
+    command.upgrade(config, "head")
+    engine = make_engine(url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="No PDF", csl_json={"title": "No PDF"})
+    engine.dispose()
+
+    response = TestClient(create_app(db_url=url)).post(f"/papers/{paper_id}/reprocess-pdf")
+
+    assert response.status_code == 422
+    assert "no local PDF" in response.json()["detail"]
 
 
 def test_changed_chunking_strategy_changes_chunk_version(tmp_path: Path) -> None:
@@ -337,6 +508,20 @@ def _make_fixture_pdf(path: Path) -> Path:
     page_two.insert_text((50, 70), "and finishes after the page break.", fontsize=12)
     page_two.insert_text((50, 115), "Delta epsilon zeta appears on page two.", fontsize=12)
 
+    document.save(path)
+    document.close()
+    return path
+
+
+def _make_sectioned_pdf(path: Path) -> Path:
+    document = fitz.open()
+    page = document.new_page(width=560, height=360)
+    page.insert_text((50, 45), "Abstract", fontsize=16)
+    page.insert_text((50, 85), "Data are available at OSF.", fontsize=12)
+    page.insert_text((50, 135), "Methods", fontsize=16)
+    page.insert_text((50, 175), "We recruited participants and analyzed survey responses.", fontsize=12)
+    page.insert_text((50, 225), "Data availability statement", fontsize=16)
+    page.insert_text((50, 265), "The analysis code is available at GitHub.", fontsize=12)
     document.save(path)
     document.close()
     return path

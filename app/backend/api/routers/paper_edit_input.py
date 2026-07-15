@@ -86,6 +86,8 @@ def _clean_urls(value: list[str] | None) -> list[str] | None:
             continue
         if len(text) > URL_MAX_LEN:
             raise HTTPException(status_code=422, detail="URL exceeds the maximum length")
+        if not (text.startswith("http://") or text.startswith("https://")):
+            raise HTTPException(status_code=422, detail="URL must start with http:// or https://")
         cleaned.append(text)
     return cleaned
 

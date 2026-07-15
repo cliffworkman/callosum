@@ -3,20 +3,38 @@
 from __future__ import annotations
 
 from pathlib import PurePosixPath, PureWindowsPath
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
-from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.routers.paper_edit_input import edits_from_request
+from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
+from app.backend.api.routers.paper_models import (
+    AttachmentResponse,
+    ChunkResponse,
+    EmptyTrashResponse,
+    ExportCitationsRequest,
+    ItemTypeCount,
+    PaperDetailResponse,
+    PaperListItem,
+    PaperTagRef,
+    PaperUpdateRequest,
+    PaperUrlRef,
+    PriorityRequest,
+    ReadStateRequest,
+    ReprocessPdfResponse,
+)
+from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.metadata.abstract_display import abstract_plain_text, clean_abstract_for_display
 from app.backend.metadata.citation_export import render_citations
 from app.backend.metadata.paper_edits import build_paper_update
+from app.backend.pdf_processing.ingest import PdfReprocessEmptyExtraction, reprocess_pdf_attachment
+from app.backend.persistence.paper_urls_repo import list_paper_urls, replace_paper_urls
 from app.backend.persistence.repository import (
     PRIORITY_LEVELS,
     get_attachments_for_paper,
@@ -38,138 +56,6 @@ from app.backend.persistence.repository import (
 from app.backend.persistence.tags_repo import get_tags_for_paper
 
 router = APIRouter()
-
-
-class PaperListItem(BaseModel):
-    id: int
-    title: str
-    authors: list[str]
-    year: int | None = None
-    venue: str | None = None
-    citation_key: str | None = None
-    processing_tier: str
-    attachment_count: int
-    chunk_count: int
-    cited_by_count: int | None = None  # inc 210 (A2): verbatim OpenAlex cited-by count (None = not fetched)
-    cited_by_as_of: str | None = None  # the "as of <date>" attribution (retrieved_at, ISO)
-    read_at: str | None = None  # inc 220: NULL = unread; ISO timestamp = the user marked it read
-    priority: str | None = None  # inc 220: user triage label (high/normal/low); NULL = unset
-
-
-class AttachmentResponse(BaseModel):
-    id: int
-    filename: str | None = None
-    storage_mode: str
-    availability: str
-    original_path: str | None = None
-    resolved_path: str | None = None
-    checksum: str | None = None
-    file_size: int | None = None
-    content_type: str
-    import_source: str | None = None
-    attachment_type: str | None = None
-    role: str | None = None
-    # Open-access acquisition labels (set when fetched from an OA database; null for user-imported files).
-    oa_color: str | None = None  # gold / green / bronze
-    oa_version: str | None = None  # vor / am / preprint
-    oa_source: str | None = None  # resolver id (e.g. "openalex")
-    oa_landing_page_url: str | None = None
-    oa_license: str | None = None
-    oa_bronze_unstable: bool = False  # bronze: free-to-read without a license, may revert to paywalled
-
-
-class PaperTagRef(BaseModel):
-    id: int
-    name: str
-    source: str | None = None  # tag provenance (user / zotero / keyword:crossref / …) — the UI styles by it
-    color: str | None = None  # inc 207: optional user-chosen palette key (NULL = uncolored)
-
-
-class PaperDetailResponse(BaseModel):
-    id: int
-    title: str
-    abstract: str | None = None  # raw stored value (may be a JATS XML fragment)
-    abstract_display: str | None = None  # display-only cleaned allowlisted HTML (derived, not stored)
-    abstract_text: str | None = None  # display-only tag-free plain text (the editable textarea uses this)
-    authors: list[str]
-    year: int | None = None
-    doi: str | None = None
-    venue: str | None = None
-    item_type: str | None = None
-    language: str | None = None
-    publication_date: str | None = None
-    first_author_family_name: str | None = None
-    imported_source: str | None = None
-    openalex_work_id: str | None = None
-    semantic_scholar_paper_id: str | None = None
-    zotero_library_id: str | None = None
-    zotero_item_key: str | None = None
-    citation_key: str | None = None
-    processing_tier: str
-    csl_json: dict[str, Any]
-    extra_urls: list[str] = []  # additional URLs beyond the primary CSL URL (inc 214)
-    attachment_count: int
-    chunk_count: int
-    attachments: list[AttachmentResponse]
-    tags: list[PaperTagRef] = []
-    read_at: str | None = None  # inc 220: NULL = unread; ISO timestamp = the user marked it read
-    priority: str | None = None  # inc 220: user triage label (high/normal/low); NULL = unset
-
-
-class ReadStateRequest(BaseModel):
-    read: bool  # inc 220: True = mark read (stamp read_at), False = mark unread (clear)
-
-
-class PriorityRequest(BaseModel):
-    priority: str | None = None  # inc 220: "high"/"normal"/"low" or null to clear; validated vs PRIORITY_LEVELS
-
-
-class PaperUpdateRequest(BaseModel):
-    # Partial edit of a paper's bibliographic record (inc 49). All fields optional; only those in
-    # model_fields_set are applied. Scalar columns + the CSL record (papers.csl_json) are kept in
-    # sync by build_paper_update; an explicit null/"" clears the field. `csl` is the generic "More"
-    # passthrough for scalar CSL keys a DOI populated beyond the curated core.
-    title: str | None = Field(default=None, max_length=2000)
-    abstract: str | None = Field(default=None, max_length=100_000)
-    authors: list[str] | None = Field(default=None, max_length=500)
-    translators: list[str] | None = Field(default=None, max_length=500)
-    year: int | None = Field(default=None, ge=0, le=3000)
-    month: int | None = Field(default=None, ge=1, le=12)
-    day: int | None = Field(default=None, ge=1, le=31)
-    venue: str | None = Field(default=None, max_length=2000)
-    volume: str | None = Field(default=None, max_length=100)
-    issue: str | None = Field(default=None, max_length=100)
-    page: str | None = Field(default=None, max_length=100)
-    language: str | None = Field(default=None, max_length=100)
-    url: str | None = Field(default=None, max_length=2000)
-    item_type: str | None = Field(default=None, max_length=100)
-    doi: str | None = Field(default=None, max_length=255)
-    citation_key: str | None = Field(default=None, max_length=255)
-    pmid: str | None = Field(default=None, max_length=100)
-    arxiv: str | None = Field(default=None, max_length=100)
-    issn: str | None = Field(default=None, max_length=100)
-    isbn: str | None = Field(default=None, max_length=100)
-    extra_urls: list[str] | None = Field(default=None, max_length=50)  # additional URLs beyond the primary (inc 214)
-    csl: dict[str, str | None] | None = Field(default=None)
-
-
-class ChunkResponse(BaseModel):
-    id: int
-    paper_id: int
-    attachment_id: int
-    text: str
-    section: str | None = None
-    page_start: int
-    page_end: int
-    char_start: int | None = None
-    char_end: int | None = None
-    bbox_json: Any | None = None
-    bbox_coordinate_system: str
-    extraction_tool: str
-    extraction_version: str
-    chunking_strategy: str
-    chunk_version: str
-    source_attachment_checksum: str
 
 
 @router.get("/papers", response_model=list[PaperListItem])
@@ -216,11 +102,6 @@ def papers_index(
     return [_paper_list_item(row) for row in rows]
 
 
-class ItemTypeCount(BaseModel):
-    item_type: str
-    count: int
-
-
 @router.get("/papers/item-types", response_model=list[ItemTypeCount])
 def papers_item_types(conn: Connection = Depends(get_connection)) -> list[ItemTypeCount]:
     """Distinct CSL item types present in the live library + counts (inc 91) — drives the Type filter so it
@@ -239,6 +120,7 @@ def paper_detail(paper_id: int, conn: Connection = Depends(get_connection)) -> P
     return _paper_detail(
         paper,
         attachments=attachments,
+        urls=list_paper_urls(conn, paper_id),
         attachment_count=counts["attachment_count"],
         chunk_count=counts["chunk_count"],
         tags=get_tags_for_paper(conn, paper_id),
@@ -259,6 +141,39 @@ def paper_chunks(
     return [_chunk_response(row) for row in get_chunks_for_paper(conn, paper_id, limit=limit, offset=offset)]
 
 
+@router.post("/papers/{paper_id}/reprocess-pdf", response_model=ReprocessPdfResponse)
+def reprocess_paper_pdf(
+    paper_id: int, request: Request, conn: Connection = Depends(get_connection)
+) -> ReprocessPdfResponse:
+    try:
+        get_paper(conn, paper_id)
+    except NoResultFound:
+        raise HTTPException(status_code=404, detail="Paper not found") from None
+    attachment = _select_primary_pdf_attachment(get_attachments_for_paper(conn, paper_id))
+    pdf_path = _local_attachment_path(attachment)
+    if attachment is None or pdf_path is None:
+        raise HTTPException(status_code=422, detail="This paper has no local PDF to reprocess.")
+    try:
+        result = reprocess_pdf_attachment(
+            conn,
+            paper_id,
+            int(attachment["id"]),
+            pdf_path,
+            vector_store=_vector_store(request.app),
+            embedding_model=_embedding_model(request.app),
+        )
+    except PdfReprocessEmptyExtraction as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from None
+    conn.commit()
+    return ReprocessPdfResponse(
+        paper_id=paper_id,
+        attachment_id=int(result["attachment_id"]),
+        chunks_removed=int(result["chunks_removed"]),
+        chunks_created=int(result["chunks_created"]),
+        chunk_version=result["chunk_version"],
+    )
+
+
 @router.patch("/papers/{paper_id}", response_model=PaperDetailResponse)
 def update_paper(
     paper_id: int,
@@ -274,11 +189,13 @@ def update_paper(
         raise HTTPException(status_code=422, detail="No updatable fields provided")
     try:
         update_paper_metadata(conn, paper_id, **build_paper_update(paper, edits))
+        if "extra_urls" in edits:
+            replace_paper_urls(conn, paper_id, edits["extra_urls"])
         refresh_processing_tier(conn, paper_id)
         conn.commit()
     except IntegrityError:
         conn.rollback()
-        raise HTTPException(status_code=409, detail="That DOI is already on another paper") from None
+        raise HTTPException(status_code=409, detail="That identifier is already on another paper") from None
     return _detail_for(conn, paper_id)
 
 
@@ -335,21 +252,12 @@ def purge_paper_endpoint(paper_id: int, request: Request, conn: Connection = Dep
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
-class EmptyTrashResponse(BaseModel):
-    purged: int
-
-
 @router.post("/papers/trash/empty", response_model=EmptyTrashResponse)
 def empty_trash_endpoint(request: Request, conn: Connection = Depends(get_connection)) -> EmptyTrashResponse:
     # Permanently delete every trashed paper. Literal 3-segment path → no collision with /papers/{paper_id}.
     purged = purge_all_trashed(conn, vector_store=_vector_store(request.app))
     conn.commit()
     return EmptyTrashResponse(purged=purged)
-
-
-class ExportCitationsRequest(BaseModel):
-    paper_ids: list[int] = Field(min_length=1)
-    format: Literal["bibtex", "ris", "csl-json"]  # Pydantic rejects anything else → 422
 
 
 @router.post("/papers/export")
@@ -374,6 +282,13 @@ def _vector_store(api: FastAPI) -> VectorStore:
     return SQLiteVecVectorStore()
 
 
+def _embedding_model(api: FastAPI) -> EmbeddingModel:
+    injected = api.state.embedding_model
+    if injected is not None:
+        return injected
+    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
+
+
 def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:
     paper = get_paper(conn, paper_id)
     attachments = get_attachments_for_paper(conn, paper_id)
@@ -381,6 +296,7 @@ def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:
     return _paper_detail(
         paper,
         attachments=attachments,
+        urls=list_paper_urls(conn, paper_id),
         attachment_count=counts["attachment_count"],
         chunk_count=counts["chunk_count"],
         tags=get_tags_for_paper(conn, paper_id),
@@ -413,8 +329,15 @@ def _paper_list_item(row: Any) -> PaperListItem:
 
 
 def _paper_detail(
-    row: Any, *, attachments: list[Any], attachment_count: int, chunk_count: int, tags: list[Any] | None = None
+    row: Any,
+    *,
+    attachments: list[Any],
+    urls: list[Any],
+    attachment_count: int,
+    chunk_count: int,
+    tags: list[Any] | None = None,
 ) -> PaperDetailResponse:
+    extra_urls = _urls_from_rows(urls) or _extra_urls_from_csl(row["csl_json"])
     return PaperDetailResponse(
         id=row["id"],
         title=row["title"],
@@ -437,12 +360,16 @@ def _paper_detail(
         citation_key=row["citation_key"],
         processing_tier=row["processing_tier"],
         csl_json=row["csl_json"],
-        extra_urls=_extra_urls_from_csl(row["csl_json"]),
+        extra_urls=extra_urls,
+        urls=[_paper_url_ref(item) for item in urls]
+        or [PaperUrlRef(url=url, source="csl-extra-url") for url in extra_urls],
         attachment_count=attachment_count,
         chunk_count=chunk_count,
         attachments=[_attachment_response(item) for item in attachments],
         tags=[
-            PaperTagRef(id=int(t["id"]), name=t["name"], source=t["import_source"], color=t["color"])
+            PaperTagRef(
+                id=int(t["id"]), name=t["name"], source=t["import_source"], color=t["color"], locked=bool(t["locked"])
+            )
             for t in (tags or [])
         ],
         read_at=_iso_or_none(row["read_at"]),
@@ -528,3 +455,11 @@ def _extra_urls_from_csl(csl_json: Any) -> list[str]:
     if not isinstance(csl_json, dict):
         return []
     return [str(u) for u in (csl_json.get("extra_urls") or []) if isinstance(u, str) and u.strip()]
+
+
+def _urls_from_rows(rows: list[Any]) -> list[str]:
+    return [str(row["url"]) for row in rows if row["url"]]
+
+
+def _paper_url_ref(row: Any) -> PaperUrlRef:
+    return PaperUrlRef(id=int(row["id"]), url=row["url"], label=row["label"], source=row["source"])

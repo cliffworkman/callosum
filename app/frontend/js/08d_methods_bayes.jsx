@@ -61,7 +61,12 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
     if (active && meta && meta.hasText && state.status === "idle") run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, meta]);
-  const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" }); };
+  const open = (evidence, key) => {
+    if (!onOpenPaper) return;
+    const title = meta ? meta.title : "";
+    const target = methodEvidenceTarget(paperId, title, evidence, key);
+    if (target) onOpenPaper({ id: paperId, title }, target);
+  };
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to recompute its Bayes factors.</div>;
   const hasText = meta ? meta.hasText : false;
   const d = state.data;
@@ -86,11 +91,20 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
                   <div className="statcheck-summary">{d.checked} checked · {d.not_reproduced} couldn't reproduce under the default prior</div>
                   <div className="statcheck-list">
                     {d.results.map((r, i) => (
-                      <button key={i} className={"statcheck-item" + (r.consistency !== "reproduced" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page : ""} onClick={() => open(r.page)}>
-                        <span className="statcheck-raw">{r.raw}</span>
-                        <span className="statcheck-computed">reported BF₁₀ = {r.reported_bf10} · recomputed {reBfLabel(r)}</span>
-                        <span className={"cite-status " + (r.consistency === "reproduced" ? "verified" : "flagged")}>{r.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"}</span>
-                      </button>
+                      <div key={i} className={"statcheck-item" + (r.consistency !== "reproduced" ? " flagged-row" : "")}>
+                        <button type="button" className="statcheck-item-main"
+                          title={r.page != null ? (r.coordinate_precision === "exact" ? "Open and highlight this Bayes-factor report" : "Open page " + r.page) : ""}
+                          onClick={() => open(r, `bayes:${paperId}:${i}`)}>
+                          <EvidenceQuote text={r.raw} match={r.raw} label="Reported result"
+                            precision={r.coordinate_precision} hasSourcePage={r.page != null}
+                            className="statcheck-context" maxChars={220} />
+                          <span className="statcheck-computed">reported BF₁₀ = {r.reported_bf10} · recomputed {reBfLabel(r)}</span>
+                          <span className={"cite-status " + (r.consistency === "reproduced" ? "verified" : "flagged")}>{r.consistency === "reproduced" ? "reproduces" : "couldn't reproduce"}</span>
+                        </button>
+                        <EvidenceTrail detector="Bayesian statistics" matched={r.raw} precision={r.coordinate_precision}
+                          hasSourcePage={r.page != null} page={r.page}
+                          caveat="Recomputed under default-prior assumptions; mismatch is a prompt to inspect, not an error verdict." />
+                      </div>
                     ))}
                   </div>
                   <div className="statcheck-caveat">
@@ -114,9 +128,13 @@ function BayesAdvisories({ notes, onOpen }) {
         <div key={i} className="bayes-advisory-item">
           <div><span className="bayes-advisory-label">{a.label}:</span> {a.note}.</div>
           {a.evidence &&
-            <button className="bayes-check-ev" title={a.page != null ? "Open page " + a.page : ""} onClick={() => a.page != null && onOpen(a.page)}>
-              “{a.evidence}”
-            </button>}
+            <EvidenceQuote text={a.evidence} match={a.evidence} label="Evidence" className="bayes-check-ev"
+              precision={a.coordinate_precision} hasSourcePage={a.page != null}
+              onOpen={a.page != null ? () => onOpen(a, `bayes-advisory:${a.key}:${i}`) : null}
+              openLabel={a.coordinate_precision === "exact" ? "Open and highlight this advisory evidence" : "Open source page for this advisory evidence"} />}
+          {a.evidence && <EvidenceTrail detector="Bayesian advisory" matched={a.evidence}
+            precision={a.coordinate_precision} hasSourcePage={a.page != null} page={a.page}
+            caveat="Advisory prompts require expert judgment and do not change review state." />}
         </div>
       ))}
       <div className="statcheck-caveat">
@@ -144,9 +162,13 @@ function BayesChecklist({ items, onOpen }) {
           </div>
           {it.note && <div className="bayes-check-note">{it.note}</div>}
           {it.evidence &&
-            <button className="bayes-check-ev" title={it.page != null ? "Open page " + it.page : ""} onClick={() => it.page != null && onOpen(it.page)}>
-              “{it.evidence}”
-            </button>}
+            <EvidenceQuote text={it.evidence} match={it.evidence} label="Evidence" className="bayes-check-ev"
+              precision={it.coordinate_precision} hasSourcePage={it.page != null}
+              onOpen={it.page != null ? () => onOpen(it, `bayes-check:${it.key}`) : null}
+              openLabel={it.coordinate_precision === "exact" ? "Open and highlight this checklist evidence" : "Open source page for this checklist evidence"} />}
+          {it.evidence && <EvidenceTrail detector="Bayesian reporting checklist" matched={it.evidence}
+            precision={it.coordinate_precision} hasSourcePage={it.page != null} page={it.page}
+            caveat="Checklist presence/absence is text detection only; not found means not detected in extracted text." />}
         </div>
       ))}
       <div className="statcheck-caveat">

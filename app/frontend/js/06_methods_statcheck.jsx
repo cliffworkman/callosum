@@ -99,7 +99,24 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
     const t = setTimeout(() => row.classList.remove("flash"), 1400);
     return () => clearTimeout(t);
   }, [state.status]);
-  const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" }); };
+  const open = (r, idx) => {
+    if (!onOpenPaper || !r || r.page == null) return;
+    onOpenPaper(
+      { id: paperId, title: meta ? meta.title : "" },
+      {
+        id: `statcheck:${paperId}:${idx}:${r.coordinate_precision || "region"}`,
+        paperId,
+        paperTitle: meta ? meta.title : "",
+        page: r.page,
+        pageEnd: r.page_end || r.page,
+        section: r.section || null,
+        precision: r.coordinate_precision || "region",
+        bboxJson: r.bbox_json || null,
+        status: r.consistency,
+        quote: r.raw || "",
+      },
+    );
+  };
   const label = (c) => c === "consistent" ? "consistent" : c === "decision-error" ? "decision error" : "inconsistent";
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its statistical reporting.</div>;
   const hasText = meta ? meta.hasText : false;
@@ -122,14 +139,27 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
             <div className="statcheck-summary">{d.checked} checked · {d.inconsistent} inconsistent · {d.decision_errors} decision error{d.decision_errors === 1 ? "" : "s"}</div>
             <div className="statcheck-list" ref={listRef}>
               {d.results.map((r, i) => (
-                <button key={i} className={"statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "")} title={r.page != null ? "Open page " + r.page + " — the reported test above" : "No page recorded for this test"} onClick={() => open(r.page)}>
-                  <span className="statcheck-raw">{r.raw}</span>
-                  {r.page != null
-                    ? <span className="statcheck-page" title="Open this page (region precision — the page, not an exact highlight)">p. {r.page}</span>
-                    : <span className="statcheck-page statcheck-page-none" title="statcheck couldn't attribute this test to a page">p. —</span>}
-                  <span className="statcheck-computed">computed p = {r.computed_p}</span>
-                  <span className={"cite-status " + (r.consistency === "consistent" ? "verified" : "flagged")}>{label(r.consistency)}</span>
-                </button>
+                <div key={i} className={"statcheck-item" + (r.consistency !== "consistent" ? " flagged-row" : "")}>
+                  <button type="button" className="statcheck-item-main"
+                    title={r.page != null
+                      ? (r.coordinate_precision === "exact" ? "Open and highlight this reported test" : "Open page " + r.page + " — region precision")
+                      : "No page recorded for this test"}
+                    onClick={() => open(r, i)}>
+                    <span className="statcheck-raw">{r.raw}</span>
+                    {r.context && <EvidenceQuote text={r.context} match={r.raw} label="Context"
+                      section={r.section}
+                      precision={r.coordinate_precision} hasSourcePage={r.page != null}
+                      className="statcheck-context" maxChars={340} />}
+                    {r.page != null
+                      ? <span className="statcheck-page" title={r.coordinate_precision === "exact" ? "Open exact source highlight" : "Open this page (region precision — the page, not an exact highlight)"}>{pageLabel({ page_start: r.page, page_end: r.page_end, section: r.section })}</span>
+                      : <span className="statcheck-page statcheck-page-none" title="statcheck couldn't attribute this test to a page">p. —</span>}
+                    <span className="statcheck-computed">computed p = {r.computed_p}</span>
+                    <span className={"cite-status " + (r.consistency === "consistent" ? "verified" : "flagged")}>{label(r.consistency)}</span>
+                  </button>
+                  <EvidenceTrail detector="statcheck" matched={r.raw} precision={r.coordinate_precision}
+                    hasSourcePage={r.page != null} page={r.page} section={r.section}
+                    caveat="statcheck recomputes inline APA-style tests only; a signal is a prompt to inspect, not a verdict." />
+                </div>
               ))}
             </div>
             <div className="statcheck-caveat">

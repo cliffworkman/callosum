@@ -59,7 +59,7 @@ def server(tmp_path_factory):
         [sys.executable, "-m", "uvicorn", "app.backend.api.app:app", "--host", "127.0.0.1", "--port", str(port)],
         cwd=str(PROJECT_ROOT),
         env=env,
-        stdout=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
         stderr=subprocess.STDOUT,
     )
     base = f"http://127.0.0.1:{port}"
@@ -126,8 +126,116 @@ def test_reading_mode_keeps_center_visible_and_does_not_persist_panel_collapse(s
         assert page.locator(".frame-reading").inner_text() == "⤢ Exit"
         assert page.evaluate("localStorage.getItem('callosum.leftOpen')") != "0"
         assert page.evaluate("localStorage.getItem('callosum.rightOpen')") != "0"
-
-        page.reload(wait_until="load")
-        assert not page.locator(".app").evaluate("el => el.classList.contains('reading')")
-        assert page.locator(".pane-sidebar").is_visible()
+        assert page.evaluate("localStorage.getItem('callosum.readingMode')") is None
         browser.close()
+
+
+def _mount_app(page, server: str) -> list[str]:
+    errors: list[str] = []
+    page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
+    page.on("pageerror", lambda e: errors.append(str(e)))
+    page.goto(server, wait_until="domcontentloaded")
+    page.wait_for_function(
+        "() => { const r = document.getElementById('root'); return !!r && r.children.length > 0; }",
+        timeout=30000,
+    )
+    return errors
+
+
+def _assert_no_document_horizontal_overflow(page, label: str) -> None:
+    overflow = page.evaluate(
+        """() => ({
+            width: window.innerWidth,
+            scrollWidth: document.documentElement.scrollWidth,
+            bodyScrollWidth: document.body.scrollWidth
+        })"""
+    )
+    max_scroll = max(overflow["scrollWidth"], overflow["bodyScrollWidth"])
+    assert max_scroll <= overflow["width"] + 2, f"{label}: document overflows horizontally: {overflow}"
+
+
+def _assert_tool_panes_do_not_overflow(page, label: str) -> None:
+    panes = page.locator(".pane-sidebar:visible, .pane-detail:visible, .acc-section.open .acc-body:visible")
+    measurements = panes.evaluate_all(
+        """els => els.map((el, i) => ({
+            index: i,
+            className: el.className,
+            clientWidth: el.clientWidth,
+            scrollWidth: el.scrollWidth,
+            clientHeight: el.clientHeight,
+            scrollHeight: el.scrollHeight
+        }))"""
+    )
+    offenders = [m for m in measurements if m["clientWidth"] > 0 and m["scrollWidth"] > m["clientWidth"] + 2]
+    assert offenders == [], f"{label}: visible tool pane horizontal overflow: {offenders}"
+
+
+def _assert_accordion_headers_visible(page, pane_selector: str, label: str) -> None:
+    headers = page.locator(f"{pane_selector} .acc-header:visible")
+    count = headers.count()
+    assert count > 0, f"{label}: no visible accordion headers in {pane_selector}"
+    viewport = page.viewport_size or {"width": 0, "height": 0}
+    hidden: list[dict[str, object]] = []
+    for i in range(count):
+        header = headers.nth(i)
+        box = header.bounding_box()
+        if not box or box["y"] + box["height"] < 0 or box["y"] > viewport["height"]:
+            hidden.append({"index": i, "text": header.inner_text(), "box": box})
+    assert hidden == [], f"{label}: accordion headers left viewport: {hidden}"
+
+
+def _walk_accordion_sections(page, pane_selector: str, label: str) -> None:
+    headers = page.locator(f"{pane_selector} .acc-header:visible")
+    count = headers.count()
+    for i in range(count):
+        header = headers.nth(i)
+        section_label = header.inner_text().strip().replace("\n", " ")
+        header.click()
+        page.wait_for_timeout(120)
+        assert header.get_attribute("aria-expanded") == "true", f"{label}: {section_label} did not open"
+        _assert_accordion_headers_visible(page, pane_selector, f"{label} / {section_label}")
+        _assert_tool_panes_do_not_overflow(page, f"{label} / {section_label}")
+
+
+def test_tool_panes_resist_visual_drift(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+
+        page = browser.new_page(viewport={"width": 1366, "height": 900})
+        errors = _mount_app(page, server)
+
+        _assert_no_document_horizontal_overflow(page, "desktop initial")
+        _assert_accordion_headers_visible(page, ".pane-sidebar", "desktop theory")
+        _assert_accordion_headers_visible(page, ".pane-detail", "desktop methods")
+        _walk_accordion_sections(page, ".pane-sidebar", "desktop theory")
+        _walk_accordion_sections(page, ".pane-detail", "desktop methods")
+
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.wait_for_function(
+            "() => document.querySelector('.app.mobile') || window.innerWidth > 760",
+            timeout=30000,
+        )
+        _assert_no_document_horizontal_overflow(page, "mobile library")
+
+        panel_button = page.locator(".mobile-nav-btn", has_text="Panels")
+        if panel_button.count():
+            panel_button.first.click()
+            page.wait_for_timeout(120)
+            _assert_no_document_horizontal_overflow(page, "mobile panels")
+            _assert_accordion_headers_visible(page, ".pane-sidebar", "mobile theory")
+            _walk_accordion_sections(page, ".pane-sidebar", "mobile theory")
+
+        detail_button = page.locator(".mobile-nav-btn", has_text="Details")
+        if detail_button.count():
+            detail_button.first.click()
+            page.wait_for_timeout(120)
+            _assert_no_document_horizontal_overflow(page, "mobile details")
+            _assert_accordion_headers_visible(page, ".pane-detail", "mobile methods")
+            _walk_accordion_sections(page, ".pane-detail", "mobile methods")
+
+        browser.close()
+
+    assert errors == [], f"unexpected console/page errors during visual drift pass: {errors}"

@@ -23,6 +23,7 @@ from app.backend.persistence.schema import (
     cluster_node_papers,
     cluster_nodes,
     embeddings,
+    paper_urls,
     papers,
 )
 from integrations.crossref import CrossrefClient
@@ -600,12 +601,47 @@ def test_patch_paper_extra_urls_round_trip(temp_db_url: str) -> None:  # inc 214
     body = client.patch(f"/papers/{pid}", json={"extra_urls": ["https://osf.io/abc", " https://preprint ", ""]}).json()
     assert body["extra_urls"] == ["https://osf.io/abc", "https://preprint"]  # cleaned, empties dropped
     assert body["csl_json"]["extra_urls"] == ["https://osf.io/abc", "https://preprint"]
+    assert [u["url"] for u in body["urls"]] == ["https://osf.io/abc", "https://preprint"]
 
     detail = client.get(f"/papers/{pid}").json()  # persisted + surfaced on GET
     assert detail["extra_urls"] == ["https://osf.io/abc", "https://preprint"]
+    with make_engine(temp_db_url).begin() as conn:
+        assert (
+            conn.execute(select(func.count()).select_from(paper_urls).where(paper_urls.c.paper_id == pid)).scalar_one()
+            == 2
+        )
 
     cleared = client.patch(f"/papers/{pid}", json={"extra_urls": []}).json()  # clears
     assert cleared["extra_urls"] == [] and "extra_urls" not in cleared["csl_json"]
+    with make_engine(temp_db_url).begin() as conn:
+        assert (
+            conn.execute(select(func.count()).select_from(paper_urls).where(paper_urls.c.paper_id == pid)).scalar_one()
+            == 0
+        )
+
+
+def test_paper_url_rows_add_update_delete_and_validate(temp_db_url: str) -> None:
+    seeded = _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+    pid = seeded["signal_paper_id"]
+
+    created = client.post(f"/papers/{pid}/urls", json={"url": "https://osf.io/project", "label": "OSF"})
+    assert created.status_code == 201
+    row = created.json()
+    assert row["url"] == "https://osf.io/project" and row["label"] == "OSF" and row["id"]
+    detail = client.get(f"/papers/{pid}").json()
+    assert detail["extra_urls"] == ["https://osf.io/project"]
+    assert detail["urls"][0]["label"] == "OSF"
+    assert detail["csl_json"]["extra_urls"] == ["https://osf.io/project"]
+
+    updated = client.post(f"/papers/{pid}/urls", json={"url": "https://osf.io/project", "label": "Project page"})
+    assert updated.status_code == 201 and updated.json()["id"] == row["id"]
+    assert client.get(f"/papers/{pid}").json()["urls"][0]["label"] == "Project page"
+    assert client.post(f"/papers/{pid}/urls", json={"url": "ftp://example.org/file"}).status_code == 422
+    assert client.delete(f"/papers/{pid}/urls/{row['id']}").status_code == 204
+    detail = client.get(f"/papers/{pid}").json()
+    assert detail["extra_urls"] == []
+    assert "extra_urls" not in detail["csl_json"]
 
 
 def test_patch_paper_extra_urls_reserved_against_generic_patch(temp_db_url: str) -> None:  # inc 214
@@ -638,14 +674,15 @@ def test_patch_paper_empty_title_and_no_fields_rejected(temp_db_url: str) -> Non
     assert client.patch("/papers/999999", json={"venue": "X"}).status_code == 404
 
 
-def test_patch_paper_duplicate_doi_returns_409(temp_db_url: str) -> None:
+def test_patch_paper_allows_duplicate_doi_for_merge_workflow(temp_db_url: str) -> None:
     seeded = _seed_library(temp_db_url)
     client = TestClient(create_app(db_url=temp_db_url))
 
-    # signal has no DOI; setting it to facial's DOI violates the UNIQUE constraint.
+    # signal has no DOI; setting it to facial's DOI should mark a duplicate candidate rather than block cleanup.
     response = client.patch(f"/papers/{seeded['signal_paper_id']}", json={"doi": "10.123/facial"})
 
-    assert response.status_code == 409
+    assert response.status_code == 200
+    assert response.json()["doi"] == "10.123/facial"
 
 
 # ── POST /papers/{id}/re-resolve — DOI correction & re-fetch (inc 49) ─────────

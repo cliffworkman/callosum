@@ -13,7 +13,8 @@ The concern lives in its own router (like tags.py's suggested-tags) to keep pape
 
 from __future__ import annotations
 
-from typing import Literal
+from copy import deepcopy
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from fastapi import status as http_status
@@ -25,9 +26,11 @@ from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
 from app.backend.methods.bayes import DEFAULT_R, audit_completeness, run_bayes
 from app.backend.methods.effectsize import convert as convert_effect_size
+from app.backend.methods.evidence_anchors import anchor_evidence
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
+from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_statcheck_flagged, store_statcheck
@@ -39,11 +42,16 @@ router = APIRouter()
 
 class StatcheckResult(BaseModel):
     raw: str
+    context: str | None = None
     test_type: str
     reported_p: str
     computed_p: float
     consistency: str  # consistent | inconsistent | decision-error
     page: int | None = None
+    page_end: int | None = None
+    section: str | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
 
 
 class StatcheckResponse(BaseModel):
@@ -66,18 +74,54 @@ def paper_statcheck(paper_id: int, conn: Connection = Depends(get_connection)) -
         checked=report.checked,
         inconsistent=report.inconsistent,
         decision_errors=report.decision_errors,
-        results=[
-            StatcheckResult(
-                raw=r.raw,
-                test_type=r.test_type,
-                reported_p=r.reported_p,
-                computed_p=r.computed_p,
-                consistency=r.consistency,
-                page=r.page,
-            )
-            for r in report.results
-        ],
+        results=[StatcheckResult(**_statcheck_result_payload(conn, r)) for r in report.results],
     )
+
+
+def _stamp_coordinate_precision(bbox_json: Any | None, precision: str) -> Any | None:
+    if bbox_json is None:
+        return None
+    copied = deepcopy(bbox_json)
+    if isinstance(copied, list):
+        return [{**item, "coordinate_precision": precision} if isinstance(item, dict) else item for item in copied]
+    if isinstance(copied, dict):
+        return {**copied, "coordinate_precision": precision}
+    return copied
+
+
+def _statcheck_result_payload(conn: Connection, result) -> dict[str, Any]:
+    page = result.page
+    page_end = result.page_end or result.page
+    precision = "region" if page is not None else None
+    bbox_json = _stamp_coordinate_precision(result.chunk_bbox_json, "region") if precision == "region" else None
+    if result.attachment_id is not None and page is not None:
+        try:
+            match = locate_quote_for_attachment(conn, int(result.attachment_id), result.raw)
+        except Exception:
+            match = None
+        if match and match.found and match.rectangles:
+            located_pages = {
+                int(rect["page"]) for rect in match.rectangles if isinstance(rect, dict) and rect.get("page")
+            }
+            expected_pages = set(range(int(page), int(page_end or page) + 1))
+            if located_pages & expected_pages:
+                precision = "exact"
+                page = match.page_start or page
+                page_end = match.page_end or page_end
+                bbox_json = _stamp_coordinate_precision(list(match.rectangles), "exact")
+    return {
+        "raw": result.raw,
+        "context": result.context,
+        "test_type": result.test_type,
+        "reported_p": result.reported_p,
+        "computed_p": result.computed_p,
+        "consistency": result.consistency,
+        "page": page,
+        "page_end": page_end,
+        "section": result.section,
+        "coordinate_precision": precision,
+        "bbox_json": bbox_json,
+    }
 
 
 # ── Bayesian auditor (inc 241): recompute reported default (JZS) Bayes factors for inline t-test BFs (sync,
@@ -93,6 +137,9 @@ class BayesResult(BaseModel):
     consistency: str  # reproduced | not-reproduced
     matched_design: str | None = None
     page: int | None = None
+    page_end: int | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
 
 
 class BayesCompletenessItem(BaseModel):
@@ -101,6 +148,9 @@ class BayesCompletenessItem(BaseModel):
     status: str  # present | not-found | not-applicable | coherence-flag
     evidence: str | None = None
     page: int | None = None
+    page_end: int | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
     note: str | None = None
 
 
@@ -110,6 +160,9 @@ class BayesAdvisoryNote(BaseModel):
     note: str
     evidence: str | None = None
     page: int | None = None
+    page_end: int | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
 
 
 class BayesCompletenessOut(BaseModel):
@@ -151,6 +204,7 @@ def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> Ba
                 consistency=r.consistency,
                 matched_design=r.matched_design,
                 page=r.page,
+                **anchor_evidence(conn, chunks, r.raw, r.page),
             )
             for r in report.results
         ],
@@ -158,12 +212,25 @@ def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> Ba
             is_bayesian=completeness.is_bayesian,
             items=[
                 BayesCompletenessItem(
-                    key=i.key, label=i.label, status=i.status, evidence=i.evidence, page=i.page, note=i.note
+                    key=i.key,
+                    label=i.label,
+                    status=i.status,
+                    evidence=i.evidence,
+                    page=i.page,
+                    note=i.note,
+                    **anchor_evidence(conn, chunks, i.evidence, i.page),
                 )
                 for i in completeness.items
             ],
             advisories=[
-                BayesAdvisoryNote(key=a.key, label=a.label, note=a.note, evidence=a.evidence, page=a.page)
+                BayesAdvisoryNote(
+                    key=a.key,
+                    label=a.label,
+                    note=a.note,
+                    evidence=a.evidence,
+                    page=a.page,
+                    **anchor_evidence(conn, chunks, a.evidence, a.page),
+                )
                 for a in completeness.advisories
             ],
         ),

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
 import fitz
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 
 from alembic import command
 from alembic.config import Config
@@ -88,6 +90,28 @@ def test_crossref_adapter_caches_response_and_second_call_uses_cache(tmp_path: P
     assert len(cache_rows) == 1
     assert cache_rows[0]["provider"] == "crossref"
     assert cache_rows[0]["cache_key"] == "10.2222/cache"
+
+
+def test_crossref_cache_write_lock_is_nonfatal() -> None:
+    class _Result:
+        def mappings(self):
+            return self
+
+        def first(self):
+            return None
+
+    class _LockedConn:
+        def execute(self, statement):
+            if statement.__class__.__name__ == "Select":
+                return _Result()
+            raise OperationalError("INSERT", (), sqlite3.OperationalError("database is locked"))
+
+    fetcher = CountingCrossrefFetcher(status_code=200, body=_crossref_body("10.3333/lock"))
+    result = CrossrefClient(fetcher=fetcher).resolve_doi(_LockedConn(), "10.3333/LOCK")
+
+    assert result.resolved is True
+    assert result.source == "network"
+    assert fetcher.calls == ["10.3333/lock"]
 
 
 def test_unresolvable_doi_leaves_explicit_unresolved_state_without_raising(tmp_path: Path) -> None:

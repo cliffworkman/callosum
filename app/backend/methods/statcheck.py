@@ -45,11 +45,16 @@ _PATTERNS: list[tuple[str, re.Pattern]] = [
 @dataclass(frozen=True)
 class StatResult:
     raw: str  # the verbatim matched string (so the user sees PDF-conversion artifacts too)
+    context: str  # bounded extracted-text context around the match; not an exact PDF-coordinate claim
     test_type: str  # t | F | r | chi2 | z
     reported_p: str  # e.g. "p = .04" / "p < .05"
     computed_p: float  # the recomputed p-value (point estimate)
     consistency: str  # "consistent" | "inconsistent" | "decision-error"
     page: int | None
+    page_end: int | None = None
+    attachment_id: int | None = None
+    chunk_bbox_json: object | None = None
+    section: str | None = None
 
 
 @dataclass
@@ -58,6 +63,33 @@ class StatcheckReport:
     inconsistent: int = 0
     decision_errors: int = 0
     results: list[StatResult] = field(default_factory=list)
+
+
+def _context_snippet(text: str, start: int, end: int, *, max_chars: int = 320) -> str:
+    """Bounded context around one regex match, preserving uncertainty from the extracted text.
+
+    This is an inspectable text neighborhood, not a sentence classifier and not an exact PDF-location claim.
+    """
+    if not text:
+        return ""
+    if len(text) <= max_chars:
+        return re.sub(r"\s+", " ", text).strip()
+    left_bounds = [text.rfind(sep, 0, start) for sep in (".", "!", "?", "\n")]
+    left = max(left_bounds)
+    left = 0 if left < 0 else left + 1
+    right_candidates = [idx + 1 for sep in (".", "!", "?", "\n") if (idx := text.find(sep, end)) >= 0]
+    right = min(right_candidates) if right_candidates else len(text)
+    if right - left > max_chars:
+        raw_len = max(1, end - start)
+        side = max(40, (max_chars - raw_len) // 2)
+        left = max(0, start - side)
+        right = min(len(text), end + side)
+    snippet = re.sub(r"\s+", " ", text[left:right]).strip()
+    if left > 0:
+        snippet = "..." + snippet
+    if right < len(text):
+        snippet += "..."
+    return snippet[: max_chars + 6]
 
 
 def _decimals(num_str: str) -> int:
@@ -138,7 +170,16 @@ def _classify(test_type, stat, stat_dec, p_comp, p_value, p_dec, df1, df2) -> tu
     return "inconsistent", p_point
 
 
-def _scan_text(text: str, page: int | None, out: list[StatResult]) -> None:
+def _scan_text(
+    text: str,
+    page: int | None,
+    out: list[StatResult],
+    *,
+    page_end: int | None = None,
+    attachment_id: int | None = None,
+    chunk_bbox_json: object | None = None,
+    section: str | None = None,
+) -> None:
     for test_type, pattern in _PATTERNS:
         for m in pattern.finditer(text):
             if len(out) >= MAX_RESULTS:
@@ -172,11 +213,16 @@ def _scan_text(text: str, page: int | None, out: list[StatResult]) -> None:
             out.append(
                 StatResult(
                     raw=re.sub(r"\s+", " ", m.group(0)).strip(),
+                    context=_context_snippet(text, m.start(), m.end()),
                     test_type=test_type,
                     reported_p=f"p {p_comp} {p_value_s}",
                     computed_p=round(computed_p, 4),
                     consistency=consistency,
                     page=page,
+                    page_end=page_end,
+                    attachment_id=attachment_id,
+                    chunk_bbox_json=chunk_bbox_json,
+                    section=section,
                 )
             )
 
@@ -196,7 +242,31 @@ def run_statcheck(chunks: list) -> StatcheckReport:
             page = chunk["page_start"]
         except (KeyError, TypeError, IndexError):
             page = getattr(chunk, "page_start", None)
-        _scan_text(str(text), page, results)
+        try:
+            page_end = chunk["page_end"]
+        except (KeyError, TypeError, IndexError):
+            page_end = getattr(chunk, "page_end", None)
+        try:
+            attachment_id = chunk["attachment_id"]
+        except (KeyError, TypeError, IndexError):
+            attachment_id = getattr(chunk, "attachment_id", None)
+        try:
+            chunk_bbox_json = chunk["bbox_json"]
+        except (KeyError, TypeError, IndexError):
+            chunk_bbox_json = getattr(chunk, "bbox_json", None)
+        try:
+            section = chunk["section"]
+        except (KeyError, TypeError, IndexError):
+            section = getattr(chunk, "section", None)
+        _scan_text(
+            str(text),
+            page,
+            results,
+            page_end=page_end,
+            attachment_id=attachment_id,
+            chunk_bbox_json=chunk_bbox_json,
+            section=section,
+        )
     report = StatcheckReport(checked=len(results), results=results)
     report.inconsistent = sum(1 for r in results if r.consistency == "inconsistent")
     report.decision_errors = sum(1 for r in results if r.consistency == "decision-error")

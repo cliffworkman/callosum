@@ -76,6 +76,7 @@ def _seed_two_papers_two_chunks(db_url: str) -> dict[str, int]:
                     chunking_strategy="paragraph",
                     chunk_version=f"{key}{n}",
                     source_attachment_checksum=f"chk-{key}",
+                    section="methods" if key == "a" and n == 1 else None,
                     bbox_json=[{"page": n, "x0": 1, "y0": 2, "x1": 3, "y1": 4}],
                 )
                 out[f"{key}{n}"] = chunk_id
@@ -114,6 +115,7 @@ def test_multi_paper_summary_covers_all_selected_papers(temp_db_url: str) -> Non
 
     assert started.status_code == 202
     assert result["status"] == "done"
+    assert result["sentences"][0]["citations"][0]["section"] == "methods"
     assert gen.captured is not None
     assert {c.paper_id for c in gen.captured} == {seed["pa"], seed["pb"]}  # round-robin spanned both papers
     assert len(gen.captured) == 2  # within the top_k=2 budget
