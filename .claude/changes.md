@@ -9,6 +9,11 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-15 — Honest region-precision copy (precise-highlighting follow-up)
+- **Files:** `app/frontend/js/00_lib.jsx` (`precisionText` badge + the `applyPdfCitationTarget` region note), rebuilt `callosum-app.html`.
+- **What:** reworded the region-precision copy from *"precise highlight pending"* → *"exact passage not located"* (badge) and *"Precise passage highlight is pending."* → *"The exact passage couldn't be located in this PDF, so its page is shown."* (on-PDF note).
+- **Why:** inc-270 lifted the exact-highlight hit-rate to ~95%, so "pending" now mis-implies a missing feature. `region` means the exact passage genuinely couldn't be located (garbled/ambiguous source) — the copy now says that truthfully.
+
 ## 2026-07-14 — Increment 270: precise-highlighting locator — reading-order word reconstruction
 - **Files:** `app/backend/pdf_processing/quote_matching.py` (`_word_tokens_for_pdf`), `tests/test_pdf_processing.py` (new two-column regression test).
 - **What:** `locate_quote` reconstructs each PDF page from `page.get_text("words")` ordered by **reading order `(block, line, word)`** instead of PyMuPDF's geometric `sort=True`. Geometric sort orders words purely top-to-bottom / left-to-right, so it splices other-column or floating text into the middle of a passage (e.g. an extra "creative" wedged into a sentence), making a quote that is verbatim in its chunk fail to locate → the citation fell back to `region` ("precise highlight pending"). Reading order matches how chunk text is extracted, so the quote stays a contiguous substring.

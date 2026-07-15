@@ -314,7 +314,7 @@ function pageLabel(citation) {
 
 function precisionText(precision) {
   if (precision === "exact") return "exact quote coordinates";
-  if (precision === "region") return "region-level · precise highlight pending";
+  if (precision === "region") return "region-level · exact passage not located";
   return "no coordinate claim";
 }
 
@@ -513,7 +513,7 @@ function applyPdfCitationTarget(scroller, host, target) {
       addRegionNote(layer, "Citation page opened. Exact coordinates were not usable for this rendered page.");
     }
   } else if (target.precision === "region") {
-    addRegionNote(layer, "Region-level citation. Precise passage highlight is pending.");
+    addRegionNote(layer, "Region-level citation. The exact passage couldn't be located in this PDF, so its page is shown.");
   }
 
   pageEl.scrollIntoView({ block: "center", behavior: "smooth" });
