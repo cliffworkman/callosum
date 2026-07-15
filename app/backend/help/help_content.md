@@ -922,6 +922,17 @@ It has two tiers, kept deliberately distinct:
 
 "Nothing surfaced by these checks" is **not** a clean bill of health — it means these particular signals found nothing to flag. The reading judgment is always yours.
 
+<!-- section: critically-reading-a-set -->
+## Critically reviewing a set of papers together
+
+When you're citing several papers **together** — the sources behind a synthesis, or a batch you've selected — you can review them as a set. Open it two ways: from a finished synthesis, click **Critically review these sources** (it reviews the papers that synthesis actually cited); or select 2–12 papers in the library and click **critical read** in the selection bar. Like the single-paper read, it's a **signal, never a verdict** — no score, no ranking, and it critiques the work, never the authors.
+
+The modal has three parts:
+
+- **A fact-matrix (local, no AI).** One row per paper, one column per method check (statcheck, GRIM, transparency, retraction…), plus a count of how many of its claims another paper *in the set* contests. A cell shows what that check surfaced, or "—" — and **an empty cell means that check found nothing on that paper, not that it's clean**. It is a table of facts each check surfaced, deliberately **not** a score or a league table.
+- **Where these papers disagree (local, no AI).** The claims one paper in the set takes a confident *contrasting* stance toward in another — each shown with the contradicting passage (verbatim, with its page). Click one to open the contradicting paper at that page. This surfaces disagreement your chosen set already contains; it never resolves it for you.
+- **AI cross-paper critiques (opt-in, off by default).** With AI features enabled, **Suggest cross-paper critiques (AI)** asks the model for concerns that span the set — a shared limitation, or a claim in one paper contradicted by another. Each is a **candidate you confirm** (amber): it's admitted only if it quotes one of the papers **verbatim** (an ungrounded suggestion is dropped), and it says which paper it anchors to, with a stance + confidence. If it names other papers it "relates" to, that's shown as **the model's framing, not a verified link** — only the quote is checked. You **Accept** or **Reject** each; a rejected suggestion is never proposed again.
+
 <!-- section: reviewing-findings -->
 ## Reviewing findings
 A paper can carry **findings** — short, sourced notes about it. Select a paper and open the **Review** section in the **Theory** pane to see them. Findings come in two kinds, shown differently on purpose:
