@@ -26,6 +26,9 @@ def insert_candidates(conn: Connection, paper_id: int, candidates: list[dict[str
                 stance=cand.get("stance"),
                 confidence=cand.get("confidence"),
                 signature=cand["signature"],
+                related_paper_ids_json=cand.get(
+                    "related_paper_ids"
+                ),  # set critical review (#12); None for single-paper
             )
         )
         ids.append(int(result.inserted_primary_key[0]))

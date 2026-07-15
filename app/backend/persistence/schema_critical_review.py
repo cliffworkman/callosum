@@ -9,7 +9,7 @@ is remembered so it is never re-proposed.
 
 from __future__ import annotations
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Index, Integer, String, Table, Text, func
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, Index, Integer, String, Table, Text, func
 
 from app.backend.persistence.schema_base import enum_check, metadata
 
@@ -27,6 +27,9 @@ critical_review_candidates = Table(
     Column("confidence", Float),
     Column("status", String(20), nullable=False, server_default="pending"),
     Column("signature", String(80), nullable=False),  # stable hash → a rejected concern is never re-proposed
+    # set critical review (#12): the model's related set papers for a cross-paper candidate — its FRAMING, not a
+    # verified link (only the anchor_quote is #13-verified). NULL for single-paper candidates.
+    Column("related_paper_ids_json", JSON),
     Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
     enum_check("status", CRITICAL_REVIEW_STATUSES, "cr_status_valid"),
     Index("ix_cr_candidates_paper_id", "paper_id"),
