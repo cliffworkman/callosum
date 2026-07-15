@@ -44,10 +44,30 @@ def scan_library_folder(
     result: dict[str, Any] = {"added": [], "unchanged": [], "removed": [], "errors": []}
     current = {str(p.resolve()): p for p in sorted(folder.glob("*.pdf")) if p.is_file()}
 
-    # Every library checksum (any source) — for content-dedup (don't re-add a file already imported).
-    existing_checksums = {
-        row[0] for row in conn.execute(select(attachments.c.checksum).where(attachments.c.checksum.is_not(None)))
-    }
+    # Every library checksum (any source) — for content-dedup (don't re-add a file already imported from Zotero,
+    # a bundle, acquisition, or an earlier scan with different source-path provenance).
+    existing_by_checksum: dict[str, dict[str, Any]] = {}
+    for row in conn.execute(
+        select(
+            attachments.c.id,
+            attachments.c.paper_id,
+            attachments.c.checksum,
+            attachments.c.import_source,
+            attachments.c.availability,
+            attachments.c.resolved_path,
+        ).where(attachments.c.checksum.is_not(None))
+    ).mappings():
+        checksum = str(row["checksum"])
+        existing_by_checksum.setdefault(
+            checksum,
+            {
+                "attachment_id": int(row["id"]),
+                "paper_id": int(row["paper_id"]),
+                "import_source": row["import_source"],
+                "availability": row["availability"],
+                "resolved_path": row["resolved_path"],
+            },
+        )
     # Live scan-sourced attachments keyed by resolved path — for removed-detection.
     tracked: dict[str, tuple[int, int]] = {}
     for row in conn.execute(
@@ -68,8 +88,9 @@ def scan_library_folder(
                 result["errors"].append({"path": resolved, "error": "exceeds the per-file size cap"})
                 continue
             checksum = file_sha256(path)
-            if checksum in existing_checksums:
-                result["unchanged"].append({"path": resolved})
+            existing = existing_by_checksum.get(checksum)
+            if existing:
+                result["unchanged"].append({"path": resolved, "matched_by": "checksum", **existing})
                 continue
             with conn.begin_nested():  # isolate a corrupt-PDF failure to this file
                 paper_id = create_paper(
@@ -88,7 +109,13 @@ def scan_library_folder(
                     import_source=import_source,
                     role="primary",
                 )
-            existing_checksums.add(checksum)
+            existing_by_checksum[checksum] = {
+                "attachment_id": int(res["attachment_id"]),
+                "paper_id": int(paper_id),
+                "import_source": import_source,
+                "availability": "available",
+                "resolved_path": str(path.resolve()),
+            }
             result["added"].append({"paper_id": paper_id, "chunk_ids": res["chunk_ids"]})
         except Exception as exc:  # corrupt/unreadable PDF → record + keep scanning
             _log.warning("library scan: failed on %s: %s", resolved, exc)

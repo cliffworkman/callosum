@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /papers/{paper_id}/statcheck, /methods/statcheck*
-fe: 06_methods_statcheck.jsx
+fe: 00_lib.jsx, 06_methods_statcheck.jsx
 -->
 
 # ROUTE 33 - Methods and statcheck
@@ -35,7 +35,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 2. Confirm each row shows the reported statistic (verbatim `raw`), recomputed p value, match status, and counts.
    **inc 257: the page is now surfaced INLINE on each row** as a **`p. N`** locator (mono, indigo — it was
    tooltip-only before); a test with no attributed page shows a muted **`p. —`** (`.statcheck-page-none`), never a
-   fabricated page. Assert there is no composite score and no accusation.
+   fabricated page. Confirm the bounded source/context quote uses the shared `EvidenceQuote` primitive (`00_lib.jsx`):
+   precision is visible before the jump, the quote stays inside the row, and any clickable evidence opens source
+   evidence rather than acting as a verdict. Assert there is no composite score and no accusation.
 3. Click each row with a location. Confirm coordinate honesty: the inline `p. N` opens that page at **region**
    precision (page-open, no bbox rect — statcheck has no exact coordinates); a `p. —` row has no page to open. An
    approximate/null location must never draw a fake exact highlight.
@@ -53,4 +55,3 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_33_methods_statcheck.md` + `screenshots/` (see `_TEMPLATE.md`).
-

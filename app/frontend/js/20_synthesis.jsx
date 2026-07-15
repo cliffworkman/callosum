@@ -35,14 +35,37 @@ function OverviewBlock({ overview }) {
   );
 }
 
-function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, settingsNonce, readOnly }) {
+const SYNTH_SECTION_OPTIONS = [
+  "abstract",
+  "methods",
+  "results",
+  "discussion",
+  "data_availability",
+  "funding",
+  "ethics",
+];
+
+function selectedSynthesisSections(sectionFilter) {
+  return SYNTH_SECTION_OPTIONS.filter(key => !!sectionFilter[key]);
+}
+
+function sectionFilterSummary(sections) {
+  const selected = sections || [];
+  if (!selected.length) return "all sections";
+  return selected.map(sectionLabel).join(" + ");
+}
+
+function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly }) {
   const [query, setQuery] = useState("");
+  const [sectionFilter, setSectionFilter] = useState({});
   const [state, setState] = useState({ status: "idle" });
   const [scopeNote, setScopeNote] = useState(null);   // "N selected papers" when summarizing a library selection
   const [scopeMeta, setScopeMeta] = useState(null);   // {total, topK} for the papers scope → the coverage readout (inc 153)
   const [history, setHistory] = useState({ status: "loading", items: [] });
   const [egressOff, setEgressOff] = useState(false);  // inc 148: AI off → show a nudge with a door into Settings
+  const [sourceDiagnostic, setSourceDiagnostic] = useState(null);
   const pollRef = useRef(null);
+  const lastLaunchRef = useRef(null);
 
   // Re-read egress state on mount + whenever Settings closes (settingsNonce), so the nudge clears once AI is on.
   useEffect(() => {
@@ -83,11 +106,11 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
     });
   }, [loadHistory]);
 
-  // Shared POST + poll for any scope (a query or a papers selection).
-  const launch = useCallback((requestBody, runningMessage) => {
+  const launchPrepared = useCallback((body, runningMessage) => {
     if (pollRef.current) clearTimeout(pollRef.current);
+    lastLaunchRef.current = { body, runningMessage };
     setState({ status: "running", message: runningMessage });
-    apiPost("/summarize", requestBody).then(r => {
+    apiPost("/summarize", body).then(r => {
       if (!r.ok) {
         setState({ status: "error", error: r.error });
         return;
@@ -96,6 +119,51 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
       pollJob(r.data.job_id);
     });
   }, [pollJob]);
+
+  // Shared POST + poll for any scope (a query or a papers selection).
+  const launch = useCallback((requestBody, runningMessage) => {
+    const sections = selectedSynthesisSections(sectionFilter);
+    const body = sections.length ? { ...requestBody, sections } : requestBody;
+    launchPrepared(body, runningMessage);
+  }, [launchPrepared, sectionFilter]);
+
+  const retryLast = useCallback(() => {
+    const last = lastLaunchRef.current;
+    if (!last) return;
+    launchPrepared(last.body, last.runningMessage || "Retrying synthesis");
+  }, [launchPrepared]);
+
+  const repairCacheAndRetry = useCallback(() => {
+    setState({ status: "running", message: "Repairing synthesis cache" });
+    apiPost("/settings/repair-summary-cache", {}).then(r => {
+      if (!r.ok) {
+        setState({ status: "error", error: "Synthesis cache repair failed: " + (r.error || "error") });
+        return;
+      }
+      retryLast();
+    });
+  }, [retryLast]);
+  const openTextHealthForSynthesis = useCallback(() => {
+    if (!onOpenTextHealth) return;
+    const last = lastLaunchRef.current;
+    const body = (last && last.body) || {};
+    onOpenTextHealth({ source: "synthesis", paperIds: body.paper_ids || [], onRetry: retryLast });
+  }, [onOpenTextHealth, retryLast]);
+
+  useEffect(() => {
+    const sourceChunkCount = state.result && state.result.source_chunk_count;
+    const shouldExplain = state.status === "error" || (state.status === "done" && sourceChunkCount === 0);
+    if (!shouldExplain) { setSourceDiagnostic(null); return; }
+    const body = (lastLaunchRef.current && lastLaunchRef.current.body) || {};
+    api("/papers/text-health/overview").then(r => {
+      const items = r.ok && r.data ? (r.data.items || []) : [];
+      setSourceDiagnostic(synthesisSourceDiagnostic(body, items, sourceChunkCount, state.error));
+    });
+  }, [state.status, state.error, state.result && state.result.source_chunk_count]);
+
+  const toggleSection = useCallback((section) => {
+    setSectionFilter(current => ({ ...current, [section]: !current[section] }));
+  }, []);
 
   const start = useCallback(() => {
     const trimmed = query.trim();
@@ -199,6 +267,23 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
           onChange={e => setQuery(e.target.value)}
           disabled={busy}
         />
+        <div className="tags-srcfilter synth-section-filter" role="group" aria-label="Synthesis evidence section filter">
+          <button type="button" className={"tags-srcfilter-btn" + (selectedSynthesisSections(sectionFilter).length ? "" : " on")}
+            aria-pressed={!selectedSynthesisSections(sectionFilter).length} disabled={busy}
+            title="Search all eligible chunks"
+            onClick={() => setSectionFilter({})}>All</button>
+          {SYNTH_SECTION_OPTIONS.map(section => {
+            const on = !!sectionFilter[section];
+            return (
+              <button key={section} type="button" className={"tags-srcfilter-btn" + (on ? " on" : "")}
+                aria-pressed={on} disabled={busy}
+                title={`Search ${sectionLabel(section)} chunks when available`}
+                onClick={() => toggleSection(section)}>
+                {sectionLabel(section)}
+              </button>
+            );
+          })}
+        </div>
         <div className="synth-actions">
           <button disabled={busy || !query.trim()} onClick={start}>Synthesize</button>
           <span className={"synth-status" + (busy ? " running" : "")}>
@@ -220,12 +305,15 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
         </div>}
 
       {state.status === "error" &&
-        (String(state.error || "").includes("DataEgressDisabledError")
-          ? egressNudge
-          : <div className="errbox" style={{ margin: "14px 0 0" }}>
-              <b>Summary could not be generated.</b><br />
-              {state.error}
-            </div>)}
+        <SynthesisFailure
+          error={state.error}
+          diagnostic={sourceDiagnostic}
+          onOpenSettings={onOpenSettings}
+          onOpenTextHealth={openTextHealthForSynthesis}
+          onRepairCache={repairCacheAndRetry}
+          onRetry={retryLast}
+          canRetry={!!lastLaunchRef.current}
+        />}
 
       {state.status === "done" &&
         <div>
@@ -253,12 +341,22 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
               Drew from <b>{drewFromPapers}</b> of {scopeMeta.total} selected paper{scopeMeta.total === 1 ? "" : "s"} · top {scopeMeta.topK} chunks
               {drewFromPapers < scopeMeta.total ? ` · ${scopeMeta.total - drewFromPapers} contributed no cited passage` : ""}
             </div>}
+          {state.result.source_chunk_count != null &&
+            <div className="synth-coverage">
+              Retrieved <b>{state.result.source_chunk_count}</b> source chunk{state.result.source_chunk_count === 1 ? "" : "s"}
+              {" · "}{sectionFilterSummary(state.result.section_filter)}
+              {state.result.section_filter && state.result.section_filter.length
+                ? " · section filter only narrows retrieval; verification thresholds are unchanged"
+                : ""}
+            </div>}
           {sentences.length > 0 && verifiedCount === 0 &&
             <div className="synth-coverage synth-coverage-warn">No claim cleared local verification — your question may not be well-addressed in these papers.</div>}
           {sentences.length === 0 &&
             <div className="state" style={{ padding: "24px 10px" }}>
               <div className="big">No groundable summary produced.</div>
               The generator returned no sentences — your question may not be addressed in this scope.
+              {state.result.source_chunk_count === 0 && onOpenTextHealth &&
+                <SynthesisSourceDiagnostic diagnostic={sourceDiagnostic} onOpenTextHealth={openTextHealthForSynthesis} />}
             </div>}
           {sentences.length > 0 && <OverviewBlock overview={state.result.overview} />}
           {sentences.length > 0 && <GroupedSummarySentences sentences={sentences} onOpenCitation={onOpenCitation} onSaveHighlight={readOnly ? null : onSaveHighlight} />}
@@ -421,7 +519,17 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
                 {saveState === "saving" ? "Saving…" : saveState === "error" ? "Couldn't save — retry" : "Save as highlight"}
               </button>)}
         </div>
-        <div className="quote">“{citation.quote}”</div>
+        <EvidenceQuote
+          text={citation.quote}
+          label="Evidence quote"
+          section={citation.section}
+          precision={citation.coordinate_precision}
+          hasSourcePage={citation.page_start != null || citation.page_end != null}
+          className="quote"
+          maxChars={520}
+          onOpen={canOpen ? (event) => { event.preventDefault(); onOpenCitation(citation); } : null}
+          openLabel={citation.coordinate_precision === "exact" ? "Open source and highlight this quote" : "Open source page for this quote"}
+        />
         {citation.coordinate_precision === "region" &&
           <div style={{ fontSize: 11.5, color: "var(--flag)", marginTop: 4 }}>
             Region-level source area only. Do not treat this as an exact quote highlight.
@@ -453,5 +561,5 @@ registerPaneSection({
   id: "synthesis", label: "Synthesis", paneId: "theory", order: 20,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
     pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
-    readOnly={ctx.readOnly} />,
+    onOpenTextHealth={ctx.onOpenTextHealth} readOnly={ctx.readOnly} />,
 });

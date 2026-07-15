@@ -16,6 +16,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
   const [palette, setPalette] = useState([]);           // inc-207: the fixed tag-color palette keys
   const [picking, setPicking] = useState(null);         // inc-207: the tag id whose color popover is open
   const [error, setError] = useState("");               // a rejected add/color/remove was previously silent (QA route_20/30)
+  const errorId = `tag-error-${paperId}`;
   const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
   const refreshSuggestions = () => api("/tags").then(r => { if (r.ok) setAll(r.data); });
   useEffect(() => { refreshSuggestions(); }, []);
@@ -33,10 +34,20 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
       setError(r.error || "Couldn't set that color.");
     }
   };
+  const setLocked = async (tagId, locked) => {
+    const r = await apiPost(`/papers/${paperId}/tags/${tagId}/lock`, { locked });
+    if (r.ok) {
+      setError("");
+      setTags(ts => ts.map(t => (t.id === tagId ? { ...t, locked: !!r.data.locked } : t)));
+      if (onTagsChanged) onTagsChanged();
+    } else {
+      setError(r.error || "Couldn't update that tag lock.");
+    }
+  };
   // Re-sync to server truth when the parent refetches the detail (e.g. 🔎 re-resolve adds keyword tags for
   // the SAME paper id, so the key={p.id} remount doesn't fire). initialTags identity only changes on a real
   // detail refetch, so optimistic add/remove between refetches is preserved.
-  useEffect(() => { setTags(initialTags || []); }, [initialTags]);
+  useEffect(() => { setTags(initialTags || []); setError(""); }, [initialTags, paperId]);
   const add = async (nameArg) => {
     const name = (nameArg != null ? nameArg : input).trim();
     if (!name) return;
@@ -71,9 +82,14 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
             className={"tag-chip" + (t.color ? " tag-colored tag-color-" + t.color : (tagIsImported(t.source) ? " tag-chip-imported" : ""))}>
             {!readOnly && <button className="tag-chip-dot" title="Set a color for this tag"
               onClick={() => setPicking(p => (p === t.id ? null : t.id))}>●</button>}
+            {!readOnly && <button className={"tag-chip-lock" + (t.locked ? " on" : "")}
+              title={t.locked ? "Unlock this tag before removing it from this paper" : "Lock this tag on this paper"}
+              aria-label={t.locked ? "Unlock this tag on this paper" : "Lock this tag on this paper"}
+              aria-pressed={!!t.locked}
+              onClick={() => setLocked(t.id, !t.locked)}>{t.locked ? "locked" : "lock"}</button>}
             <button className="tag-chip-name" title={tagSourceLabel(t.source) + " · click to filter the library"}
               onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>{t.name}</button>
-            {!readOnly && <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>}
+            {!readOnly && !t.locked && <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>}
             {!readOnly && picking === t.id &&
               <span className="tag-swatches" role="listbox" aria-label="Tag color">
                 {palette.map(c => (
@@ -87,6 +103,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
         ))}
         {!readOnly && <React.Fragment>
           <input className="tag-add" list="tag-suggestions" placeholder="add tag…" value={input} spellCheck={false}
+            aria-invalid={!!error} aria-describedby={error ? errorId : undefined}
             onChange={e => { setInput(e.target.value); if (error) setError(""); }}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
             onBlur={() => add()} />
@@ -100,7 +117,7 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
           {suggested && suggestions.length === 0 && <span className="tag-suggest-empty">no new suggestions</span>}
         </React.Fragment>}
       </div>
-      {error && <div className="axis-err" role="alert">{error}</div>}
+      {error && <div id={errorId} className="axis-err tag-error" role="alert">{error}</div>}
     </div>
   );
 }

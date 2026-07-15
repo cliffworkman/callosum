@@ -7,10 +7,10 @@ from typing import Any, Protocol
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection
 
 from app.backend.app_settings import resolved_mailto
-from app.backend.persistence.schema import external_api_cache
+from integrations.api_cache import get_cached, put_cached
 
 CROSSREF_PROVIDER = "crossref"
 CROSSREF_BASE_URL = "https://api.crossref.org/works"
@@ -132,16 +132,7 @@ def _httpx_fetcher(doi: str, *, headers: dict[str, str], timeout: float) -> tupl
 
 
 def _cached_response(conn: Connection, doi: str):
-    return (
-        conn.execute(
-            select(external_api_cache).where(
-                external_api_cache.c.provider == CROSSREF_PROVIDER,
-                external_api_cache.c.cache_key == doi,
-            )
-        )
-        .mappings()
-        .first()
-    )
+    return get_cached(conn, CROSSREF_PROVIDER, doi)
 
 
 def _store_cache(
@@ -152,22 +143,14 @@ def _store_cache(
     response_json: dict[str, Any] | None,
     status_code: int | None,
 ) -> None:
-    existing = _cached_response(conn, doi)
-    values = {
-        "request_json": request_json,
-        "response_json": response_json,
-        "status_code": status_code,
-    }
-    if existing is None:
-        conn.execute(
-            insert(external_api_cache).values(
-                provider=CROSSREF_PROVIDER,
-                cache_key=doi,
-                **values,
-            )
-        )
-    else:
-        conn.execute(update(external_api_cache).where(external_api_cache.c.id == int(existing["id"])).values(**values))
+    put_cached(
+        conn,
+        CROSSREF_PROVIDER,
+        doi,
+        request_json=request_json,
+        response_json=response_json,
+        status_code=status_code,
+    )
 
 
 def _crossref_message_to_csl(message: dict[str, Any], doi: str) -> dict[str, Any]:

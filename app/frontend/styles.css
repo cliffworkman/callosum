@@ -347,13 +347,15 @@
   .tags-panel-toggle { display: flex; align-items: center; gap: 5px; background: none; border: none; cursor: pointer; padding: 0; }
   .tags-panel-chevron { font-size: 9px; color: var(--ink-3); }
   /* Tags source filter (inc 105) — all / yours / imported-keywords; shown only when both kinds exist. */
-  .tags-srcfilter { display: flex; gap: 4px; margin: 6px 0 2px; }
+  .tags-srcfilter { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; min-width: 0; }
   .tags-srcfilter-btn {
-    flex: 1; padding: 3px 6px; font-size: 11px; font-family: var(--sans); cursor: pointer;
+    flex: 1; max-width: 100%; padding: 3px 6px; font-size: 11px; font-family: var(--sans); cursor: pointer;
     color: var(--ink-3); background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    overflow-wrap: anywhere;
   }
   .tags-srcfilter-btn:hover { color: var(--accent); border-color: var(--accent); }
   .tags-srcfilter-btn.on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); font-weight: 600; }
+  .synth-section-filter .tags-srcfilter-btn { flex: 0 1 auto; white-space: normal; }
   .tags-panel-list { display: flex; flex-direction: column; gap: 1px; margin-top: 6px; }
   .tags-panel-item {
     display: flex; align-items: center; justify-content: space-between; gap: 8px;
@@ -891,6 +893,12 @@
   .tag-chip.tag-colored .tag-chip-name, .tag-chip.tag-colored .tag-chip-x, .tag-chip.tag-colored .tag-chip-dot { color: var(--tag-c); }
   .tag-chip-dot { background: none; border: none; cursor: pointer; padding: 0 1px 0 0; font-size: 9px; line-height: 1; color: var(--ink-3); opacity: .55; }
   .tag-chip-dot:hover { opacity: 1; }
+  .tag-chip-lock {
+    background: none; border: 1px solid transparent; border-radius: var(--radius-pill); color: var(--ink-3);
+    cursor: pointer; font-family: var(--mono); font-size: 9px; line-height: 1; padding: 1px 4px; text-transform: uppercase;
+  }
+  .tag-chip-lock:hover { border-color: var(--accent-line); color: var(--accent); }
+  .tag-chip-lock.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
   .tag-swatches { position: absolute; z-index: 30; margin-top: 20px; display: flex; gap: 4px; padding: 5px 6px; background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm); box-shadow: 0 3px 10px rgba(0,0,0,.16); }
   .tag-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--tag-c, var(--ink-3)) 50%, transparent); background: var(--tag-c, var(--panel)); cursor: pointer; padding: 0; }
   .tag-swatch.on { outline: 2px solid var(--ink-2); outline-offset: 1px; }
@@ -899,6 +907,8 @@
   .tag-add { border: 1px solid transparent; background: none; color: var(--ink); font-family: var(--sans); font-size: 11.5px; padding: 2px 4px; min-width: 90px; }
   .tag-add:hover { border-color: var(--line-2); border-radius: var(--radius-sm); }
   .tag-add:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); border-radius: var(--radius-sm); }
+  .tag-add[aria-invalid="true"] { border-color: var(--flag-line); border-radius: var(--radius-sm); }
+  .tag-error { flex-basis: 100%; }
   /* inc-72: suggested-tag candidates reuse the dashed .term-chip (click to add); a quiet empty note */
   .tag-suggest-chip { font-size: 11px; padding: 2px 8px; }
   .tag-suggest-empty { font-size: 11px; color: var(--ink-3); font-style: italic; }
@@ -921,10 +931,15 @@
   .lib-select-all { font-family: var(--sans); font-size: 11px; color: var(--accent); background: none; border: 0; cursor: pointer; padding: 0; margin-left: 8px; }
   .lib-select-all:hover { text-decoration: underline; }
 
-  .lib-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .lib-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; min-width: 0; }
+  .lib-head .eyebrow { flex: 0 0 auto; }
   /* inc 257: flex-wrap so the action chips (Add / saved-search / the signal-filter chips) wrap instead of
      overflowing the pane at a narrow/mobile width — a no-op when they fit on one line (desktop unchanged). */
-  .lib-head-actions { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; }
+  .lib-head-actions {
+    display: flex; flex: 1 1 220px; flex-wrap: wrap; align-items: baseline; justify-content: flex-end;
+    gap: 6px 10px; min-width: 0;
+  }
+  .lib-head-actions .trash-toggle { max-width: 100%; white-space: normal; line-height: 1.25; text-align: left; }
   /* duplicate-detection modal (inc 56) — reuses .axis-modal* / .axis-link / .axis-danger */
   .dup-group { border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); padding: 9px 11px; margin-bottom: 9px; }
   .dup-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -1051,7 +1066,7 @@
   .detail-row .k { color: var(--ink-3); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding-top: 5px; }
   .detail-row .v { color: var(--ink); word-break: break-word; }
 
-  .detail-type-row { display: flex; align-items: center; gap: 8px; margin: 2px 0 4px; }
+  .detail-type-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 2px 0 4px; }
   .detail-type {
     font-family: var(--sans); font-size: 10.5px; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.05em; color: var(--ink-3); background: transparent; border: 1px solid transparent;
@@ -1136,20 +1151,39 @@
   .detail-addfield-key { flex: 0 0 38%; min-width: 0; }
   .detail-addfield-val { flex: 1; min-width: 0; }
   .detail-addfield-key:focus, .detail-addfield-val:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .paper-urls { margin-top: 8px; }
+  .paper-urls-label { font-family: var(--sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); margin-bottom: 5px; }
+  .paper-url-list { display: flex; flex-direction: column; gap: 5px; }
+  .paper-url-row { display: flex; align-items: center; gap: 6px; min-width: 0; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 5px 7px; }
+  .paper-url-row a { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--accent); font-family: var(--mono); font-size: 11.5px; }
+  .paper-url-full { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-3); font-family: var(--mono); font-size: 10.5px; }
+  .paper-url-row .btn-link { margin-left: auto; }
+  .paper-url-add { display: grid; grid-template-columns: minmax(70px, .7fr) minmax(120px, 1fr) auto; gap: 6px; align-items: center; margin-top: 6px; }
+  .paper-url-add input {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--bg);
+    color: var(--ink); font-family: var(--sans); font-size: 12px; padding: 5px 7px;
+  }
+  .paper-url-add input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  .paper-url-error { margin-top: 6px; }
   /* statcheck — recomputed-p-value reporting signal (inc 95). Reuses the .cite-status pill (green/amber). */
   .detail-statcheck { margin: 14px 0 4px; }
   .statcheck-summary { font-family: var(--mono); font-size: 11px; color: var(--ink-2); margin: 6px 0; }
   .statcheck-list { display: flex; flex-direction: column; gap: 4px; }
   .statcheck-item {
+    width: 100%; text-align: left; border: 1px solid var(--line); border-radius: var(--radius-sm);
+    background: var(--panel); padding: 5px 8px;
+  }
+  .statcheck-item-main {
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%;
-    text-align: left; border: 1px solid var(--line); border-radius: var(--radius-sm);
-    background: var(--panel); padding: 5px 8px; cursor: pointer;
+    text-align: left; border: 0; background: transparent; color: inherit; padding: 0; cursor: pointer;
   }
   .statcheck-item:hover { border-color: var(--accent); background: var(--hover); }
+  .statcheck-item-main:focus-visible { outline: 2px solid var(--accent-soft); border-radius: var(--radius-sm); }
   /* inc 154: flash the first inconsistent row when a check finishes (the flagged-chip deep-link lands here). */
   @keyframes statcheckflash { 0% { background: var(--flag-soft); } 100% { background: transparent; } }
   .statcheck-item.flash { animation: statcheckflash 1.4s ease; }
   .statcheck-raw { font-family: var(--mono); font-size: 11.5px; color: var(--ink); }
+  .statcheck-context { flex-basis: 100%; color: var(--ink-2); font-family: var(--serif); font-size: 12px; line-height: 1.35; }
   .statcheck-computed { font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
   /* inc 257: the per-test page locator, surfaced inline (was tooltip-only). Mono; indigo = the page it opens
      (provenance/citation jump, region precision). The p.— variant is a muted "no page attributed" note. */
@@ -1196,6 +1230,9 @@
   .wanted-row-title { font-size: 13px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .wanted-row-meta { font-size: 11px; color: var(--ink-3); }
   .wanted-status { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; border-radius: var(--radius-pill); padding: 2px 8px; border: 1px solid var(--line-2); color: var(--ink-3); }
+  .text-health-modal { max-width: 860px; }
+  .text-health-group { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .text-health-group-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   /* inc 135: literature gap-finder modal */
   .gaps-controls { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
   .gaps-controls .lib-sort { margin: 0; }
@@ -1313,7 +1350,7 @@
   /* inc 203 (A9): a cited source ACTIVELY DISAGREES — the strongest negative verifier signal, distinct from amber
      "uncertain/weak". Red --danger as an ALARM (a non-interactive status pill, not a destructive action; see DESIGN §4). */
   .cite-status.contradicted { background: var(--danger-line); color: var(--danger); font-weight: 600; }
-  .coord.none { background: var(--line); color: var(--ink-2); }
+  .coord.page, .coord.none { background: var(--line); color: var(--ink-2); }
   /* inc 156: stance pills — support=verified-green, contrast=flag-amber (warrants attention), mention/unknown=muted. */
   .cite-stance.support { background: var(--verified-soft); color: var(--verified); }
   .cite-stance.contrast { background: var(--flag-soft); color: var(--flag); }
@@ -1330,6 +1367,21 @@
     background: var(--panel-2); border: 1px solid var(--line);
   }
   .quote { margin: 7px 0; font-family: var(--serif); font-size: 13px; line-height: 1.5; color: var(--ink); }
+  .evidence-quote { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 0; color: inherit; }
+  .evidence-quote.is-clickable { cursor: pointer; border-radius: var(--radius-sm); }
+  .evidence-quote.is-clickable:hover .evidence-text,
+  .evidence-quote.is-clickable:focus-visible .evidence-text { color: var(--accent); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  .evidence-quote.is-clickable:focus-visible { outline: 2px solid var(--accent-soft); outline-offset: 2px; }
+  .evidence-head { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 2px; }
+  .evidence-label { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
+  .evidence-precision { font-size: 9px; padding: 1px 6px; }
+  .evidence-text { display: block; }
+  .evidence-mark { background: var(--flag-soft); color: var(--ink); border-radius: 2px; padding: 0 2px; }
+  .evidence-trail { flex-basis: 100%; margin-top: 4px; font-size: 11px; color: var(--ink-2); }
+  .evidence-trail summary { cursor: pointer; font-family: var(--mono); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+  .evidence-trail-grid { display: grid; gap: 4px; margin-top: 5px; padding: 6px 7px; border: 1px dashed var(--line-2); border-radius: var(--radius-sm); background: var(--panel-2); }
+  .evidence-trail-grid span { display: grid; gap: 1px; }
+  .evidence-trail-grid b { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
   .conf-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px; }
   .conf { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 6px; }
   .conf .k { display: block; color: var(--ink-3); font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; }
@@ -1341,11 +1393,24 @@
   .cite-results-head .cite-note { flex: 1; }
   .cite-style { flex: 0 0 auto; display: flex; flex-direction: column; gap: 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); margin-top: 10px; }
   .cite-style select { font-size: 11px; text-transform: none; letter-spacing: 0; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 3px 5px; }
+  .cite-beyond-toggle { display: grid; grid-template-columns: auto 1fr; gap: 3px 7px; margin-top: 8px;
+    color: var(--ink-2); font-size: 12px; }
+  .cite-beyond-toggle input { margin-top: 2px; }
+  .cite-beyond-toggle small { grid-column: 2; color: var(--ink-3); font-size: 11px; line-height: 1.35; }
+  .cite-subhead { color: var(--ink); font-size: 11px; font-weight: 700; margin-top: 12px; }
+  .cite-coverage { display: flex; flex-wrap: wrap; gap: 5px; margin: 6px 0 2px; }
+  .cite-source { border: 1px solid var(--line); border-radius: var(--radius-sm); color: var(--ink-3);
+    font-family: var(--mono); font-size: 10px; padding: 3px 5px; }
+  .cite-source.failed { color: var(--flag); border-color: var(--flag-line); }
   .cite-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 11px 12px; margin-top: 10px; }
+  .cite-card-external { border-style: dashed; }
   .cite-card-head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
   .cite-title { font-size: 12.5px; font-weight: 600; line-height: 1.35; }
   .cite-meta { margin-top: 2px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .cite-pills { display: flex; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+  .cite-relation { border-left: 2px solid var(--accent-line); color: var(--ink-2); font-size: 11.5px;
+    line-height: 1.4; margin-top: 7px; padding-left: 7px; }
+  .cite-reason { color: var(--ink-2); font-size: 11.5px; line-height: 1.4; margin-top: 7px; }
   .cite-card-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
   .cite-conf { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); }
   .cite-conf-warn { color: var(--flag); }
@@ -1843,6 +1908,61 @@
   .watched-row.is-default { border-color: var(--accent-line); background: var(--accent-soft); }
   .watched-default-note { flex: 0 0 auto; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); background: var(--panel); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 7px; }
 
+  /* Meta Reference List — reference-integrity signals. Tokens only; color is paired with label+icon so status is
+     never color-only. Could-not-verify is amber uncertainty; retraction is the stronger red status signal;
+     local propagation uses the provenance accent. */
+  .ref-panel { display: flex; flex-direction: column; gap: 10px; }
+  .ref-intro, .ref-summary { font-size: 12px; color: var(--ink-2); line-height: 1.5; }
+  .ref-panel .btn-primary { align-self: flex-start; }
+  .ref-card {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 9px 11px;
+    display: flex; flex-direction: column; gap: 5px;
+  }
+  .ref-card.dismissed { opacity: .72; }
+  .ref-card.confirmed_problem { border-color: var(--flag-line); background: var(--flag-soft); }
+  .ref-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .ref-title { font-family: var(--serif); font-size: 14px; color: var(--ink); line-height: 1.25; }
+  .ref-meta, .ref-raw, .ref-evidence, .ref-context, .ref-state {
+    font-size: 11.5px; color: var(--ink-2); line-height: 1.45;
+  }
+  .ref-raw { color: var(--ink-3); }
+  .ref-signals { display: flex; flex-wrap: wrap; gap: 5px; }
+  .ref-signal-badge {
+    display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 10px;
+    text-transform: uppercase; letter-spacing: .04em; border-radius: var(--radius-pill); padding: 2px 7px;
+  }
+  .ref-signal-badge.verify { color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); }
+  .ref-signal-badge.retraction { color: var(--danger); background: var(--panel); border: 1px solid var(--danger-line); }
+  .ref-signal-badge.propagation { color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); }
+  .ref-review-controls { display: flex; gap: 4px; flex: 0 0 auto; }
+  .ref-review-btn {
+    width: 26px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line-2); border-radius: var(--radius-sm); background: var(--panel); color: var(--ink-2);
+    cursor: pointer; font-family: var(--sans); font-weight: 700;
+  }
+  .ref-review-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .ref-review-btn.on.dismissed { color: var(--verified); border-color: var(--verified); background: var(--verified-soft); }
+  .ref-review-btn.on.confirmed { color: var(--danger); border-color: var(--danger-line); background: var(--panel); }
+  .ref-mini-list { display: flex; flex-direction: column; gap: 2px; margin-top: 3px; color: var(--ink-3); }
+  .ref-source-link { min-height: 26px; width: 100%; text-align: left; }
+  .ref-context { border-left: 2px solid var(--accent-line); padding-left: 7px; }
+  .ref-context-sentence { margin-top: 2px; font-family: var(--serif); color: var(--ink); }
+  .ref-state { font-family: var(--mono); text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+  .ref-provider-status {
+    border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); padding: 7px 9px;
+    font-size: 11.5px; color: var(--ink-2); line-height: 1.45;
+  }
+  .ref-provider-status summary { cursor: pointer; color: var(--ink); font-weight: 650; }
+  .ref-provider-row { margin-top: 6px; border-left: 2px solid var(--line-2); padding-left: 7px; }
+  .ref-provider-row.failed, .ref-provider-row.partial { border-left-color: var(--flag-line); }
+  .ref-provider-row.success { border-left-color: var(--verified); }
+  .refwarn-badge {
+    font-family: var(--mono); font-size: 10.5px; color: var(--flag-ink); background: var(--flag-soft);
+    border: 1px solid var(--flag-line); border-radius: var(--radius-pill); padding: 2px 7px;
+    cursor: pointer; line-height: 1.2;
+  }
+  .refwarn-badge:hover, .refwarn-badge:focus-visible { border-color: var(--flag); color: var(--flag); }
+
   /* PUBLISHERS "where to submit" (#40 SP1b) — facts to weigh, never a verdict. Tokens only (DESIGN.md rule #8):
      OA-color badges are NEUTRAL chips (green = verified/grounded, a different semantic — not borrowed for openness);
      `elevated_for` uses --accent-soft (the one structural highlight, apt for what the weighting rewarded);
@@ -1883,3 +2003,212 @@
   .pub-sources a { color: var(--accent); text-decoration: none; }
   .pub-sources a:hover { text-decoration: underline; }
   .pub-absent { font-size: 11px; color: var(--ink-3); line-height: 1.5; margin-top: 2px; }
+
+  /* Funding Discovery — three epistemically different lanes: open opportunities, recurring schemes, prospects. */
+  .funding-panel { display: flex; flex-direction: column; gap: 12px; }
+  .funding-intro { color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+  .funding-mode, .funding-panel .btn-primary { align-self: flex-start; }
+  .funding-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .funding-coverage, .funding-section, .funding-results, .funding-saved { display: flex; flex-direction: column; gap: 8px; }
+  .funding-results { gap: 14px; }
+  .funding-subhead { color: var(--ink); font-size: 12px; font-weight: 700; }
+  .funding-saved-head { align-items: center; display: flex; gap: 8px; justify-content: space-between; }
+  .funding-saved-refresh { background: var(--panel); border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-sm); display: grid; gap: 3px; padding: 7px; }
+  .funding-saved-refresh b, .funding-saved-refresh span, .funding-saved-refresh small { font-size: 12px; }
+  .funding-saved-refresh span, .funding-saved-refresh small { color: var(--ink-2); }
+  .funding-refresh-row { border-top: 1px solid var(--line); display: grid; gap: 2px; padding-top: 4px; }
+  .funding-saved-filters, .funding-result-filters { display: flex; flex-wrap: wrap; gap: 5px; }
+  .funding-saved-filters .tags-srcfilter-btn, .funding-result-filters .tags-srcfilter-btn {
+    flex: 0 1 auto; white-space: normal;
+  }
+  .funding-saved-filters .tags-srcfilter-btn span, .funding-result-filters .tags-srcfilter-btn span {
+    color: var(--ink-3); font-size: 11px; margin-left: 3px; }
+  .funding-result-filter-block { display: grid; gap: 6px; }
+  .funding-result-filter-note { color: var(--ink-3); font-size: 11.5px; line-height: 1.45; }
+  .funding-result-sort { align-items: start; display: grid; gap: 4px; max-width: 260px; }
+  .funding-result-sort span { color: var(--ink); font-size: 12px; font-weight: 700; }
+  .funding-result-sort select {
+    background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    color: var(--ink); font-family: var(--sans); font-size: 12px; padding: 5px 7px;
+  }
+  .funding-result-sort select:focus { border-color: var(--accent); outline: 2px solid var(--accent-soft); }
+  .funding-result-sort small { color: var(--ink-3); font-size: 11.5px; line-height: 1.4; }
+  .funding-result-summary {
+    border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel-2);
+    display: grid; gap: 6px; padding: 7px;
+  }
+  .funding-result-stat { align-items: baseline; display: flex; flex-wrap: wrap; gap: 5px; }
+  .funding-result-stat b { color: var(--ink); font-family: var(--mono); font-size: 13px; }
+  .funding-result-stat span, .funding-result-summary small {
+    color: var(--ink-2); font-size: 11.5px; line-height: 1.4;
+  }
+  .funding-saved-list { display: grid; gap: 6px; }
+  .funding-saved-item { background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius-sm); display: grid; gap: 7px; padding: 8px; }
+  .funding-saved-main { align-items: start; background: transparent; border: 0; color: inherit; cursor: pointer;
+    display: flex; gap: 8px; justify-content: space-between; padding: 0; text-align: left; width: 100%; }
+  .funding-saved-main div { display: grid; gap: 2px; min-width: 0; }
+  .funding-saved-main .funding-refresh-pill { flex: 0 0 auto; }
+  .funding-saved-summary { display: flex !important; flex-wrap: wrap; gap: 4px 6px; margin-top: 3px; }
+  .funding-saved-summary small {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-pill);
+    color: var(--ink-2); font-size: 10.5px; line-height: 1.2; padding: 2px 7px;
+  }
+  .funding-saved-item b, .funding-saved-item span, .funding-saved-item small,
+  .funding-saved-item label, .funding-saved-item textarea, .funding-saved-item select { font-size: 12px; }
+  .funding-saved-item span, .funding-saved-item small { color: var(--ink-2); }
+  .funding-saved-detail { border-top: 1px solid var(--line); display: grid; gap: 7px; padding-top: 8px; }
+  .funding-saved-facts { display: grid; gap: 3px; }
+  .funding-refresh-history { border-top: 1px solid var(--line); display: grid; gap: 4px; padding-top: 6px; }
+  .funding-refresh-history b, .funding-refresh-history small { font-size: 12px; }
+  .funding-refresh-history small { color: var(--ink-2); }
+  .funding-refresh-history-row { align-items: start; display: flex; gap: 6px; }
+  .funding-refresh-pill {
+    background: var(--line); border: 1px solid var(--line-2); border-radius: var(--radius-pill);
+    color: var(--ink-2); display: inline-flex; font-family: var(--mono); font-size: 9.5px;
+    letter-spacing: .04em; line-height: 1.2; padding: 2px 7px; text-transform: uppercase;
+  }
+  .funding-refresh-pill.found { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); }
+  .funding-refresh-pill.changed, .funding-refresh-pill.unresolved, .funding-refresh-pill.issue {
+    background: var(--flag-soft); border-color: var(--flag-line); color: var(--flag-ink);
+  }
+  .funding-saved-detail label { color: var(--ink-2); display: grid; gap: 3px; }
+  .funding-saved-detail select, .funding-saved-detail textarea {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+    color: var(--ink); padding: 5px 6px; width: 100%;
+  }
+  .funding-saved-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+  .funding-saved-bulk {
+    background: var(--panel); border: 1px dashed var(--line-2); border-radius: var(--radius-sm);
+    display: grid; gap: 5px; padding: 7px;
+  }
+  .funding-saved-bulk div { display: flex; flex-wrap: wrap; gap: 6px; }
+  .funding-saved-bulk small { color: var(--ink-2); font-size: 11.5px; line-height: 1.4; }
+  .funding-saved-bulk .btn-ghost { border-radius: var(--radius-sm); font-size: 11px; padding: 3px 7px; }
+  .funding-saved-bulk .funding-bulk-error { color: var(--flag-ink); }
+  .funding-coverage-grid { display: grid; gap: 6px; }
+  .funding-provider { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    display: grid; gap: 2px; padding: 8px; }
+  .funding-provider-head { align-items: start; display: flex; gap: 8px; justify-content: space-between; }
+  .funding-provider-status {
+    background: var(--line); border: 1px solid var(--line-2); border-radius: var(--radius-pill);
+    color: var(--ink-2); font-family: var(--mono); font-size: 9.5px; font-weight: 600;
+    letter-spacing: .04em; padding: 2px 7px; text-transform: uppercase; white-space: nowrap;
+  }
+  .funding-provider.success .funding-provider-status {
+    background: var(--verified-soft); border-color: var(--verified); color: var(--verified);
+  }
+  .funding-provider.partial .funding-provider-status,
+  .funding-provider.failed .funding-provider-status,
+  .funding-provider.unavailable .funding-provider-status,
+  .funding-provider.not_configured .funding-provider-status,
+  .funding-provider.not_searched .funding-provider-status {
+    background: var(--flag-soft); border-color: var(--flag-line); color: var(--flag-ink);
+  }
+  .funding-provider.success { border-left: 4px solid var(--verified); }
+  .funding-provider.partial, .funding-provider.failed { border-left: 4px solid var(--flag); }
+  .funding-provider.unavailable, .funding-provider.not_configured, .funding-provider.not_searched {
+    border-left: 4px solid var(--flag);
+  }
+  .funding-provider small { color: var(--ink-3); }
+  .funding-provider-note { color: var(--ink-2) !important; }
+  .funding-coverage-limits { color: var(--ink-2); font-size: 12px; }
+  .funding-coverage-limits summary { cursor: pointer; font-weight: 700; }
+  .funding-coverage-limits div { display: grid; gap: 3px; padding-top: 5px; }
+  .funding-coverage-limits small { color: var(--ink-2); font-size: 12px; }
+  .funding-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    display: grid; gap: 8px; padding: 10px; }
+  .funding-card.opportunity { border-left: 4px solid var(--accent); }
+  .funding-card.scheme { border-left: 4px solid var(--accent); }
+  .funding-card.prospect { border-left: 4px solid var(--verified); }
+  .funding-card-head { align-items: start; display: flex; gap: 10px; justify-content: space-between; }
+  .funding-card-title { color: var(--ink); font-family: var(--serif); font-size: 14px; font-weight: 700; }
+  .funding-card-meta, .funding-fact { color: var(--ink-2); font-size: 12px; }
+  .funding-card-save { align-items: center; display: flex; flex: 0 0 auto; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
+  .funding-card-save .btn-ghost { border-radius: var(--radius-sm); font-size: 11px; padding: 3px 7px; }
+  .funding-card-saved {
+    background: var(--verified-soft); border: 1px solid var(--verified); border-radius: var(--radius-pill);
+    color: var(--verified); font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em;
+    padding: 2px 7px; text-transform: uppercase;
+  }
+  .funding-group-summary {
+    background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-sm);
+    color: var(--accent); font-size: 12px; padding: 5px 7px;
+  }
+  .funding-group-summary details { color: var(--ink-2); display: grid; gap: 3px; margin-top: 4px; }
+  .funding-group-summary summary { cursor: pointer; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .04em; text-transform: uppercase; }
+  .funding-group-summary small { color: var(--ink-2); display: block; font-size: 11px; }
+  .funding-signals { display: grid; gap: 6px; }
+  .funding-signal { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+    display: grid; gap: 3px; padding: 7px; }
+  .funding-signal b, .funding-signal span, .funding-signal small { font-size: 12px; }
+  .funding-signal span, .funding-signal small { color: var(--ink-2); }
+  .funding-signal-trail { color: var(--ink-2); font-size: 11px; margin-top: 2px; }
+  .funding-signal-trail summary {
+    color: var(--ink-3); cursor: pointer; font-family: var(--mono); font-size: 10px;
+    letter-spacing: .04em; text-transform: uppercase;
+  }
+  .funding-signal-trail-grid {
+    background: var(--panel); border: 1px dashed var(--line-2); border-radius: var(--radius-sm);
+    display: grid; gap: 4px; margin-top: 5px; padding: 6px 7px;
+  }
+  .funding-signal-trail-grid span { display: grid; gap: 1px; }
+  .funding-signal-trail-grid b {
+    color: var(--ink-3); font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .funding-ai-toggle { align-items: start; background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); display: grid; gap: 3px; grid-template-columns: auto 1fr; padding: 8px; }
+  .funding-ai-toggle input { margin-top: 2px; }
+  .funding-ai-toggle span, .funding-ai-toggle small { font-size: 12px; }
+  .funding-ai-toggle small { color: var(--ink-2); grid-column: 2; }
+  .funding-llm-controls { align-items: start; display: grid; gap: 4px; }
+  .funding-llm-controls .btn-ghost { justify-self: start; font-size: 11.5px; padding: 4px 8px; }
+  .funding-llm-controls small { color: var(--ink-3); font-size: 11.5px; line-height: 1.4; }
+  .funding-llm-eval, .funding-llm-status { background: var(--panel-2); border: 1px dashed var(--line-strong);
+    border-radius: var(--radius-sm); display: grid; gap: 3px; padding: 7px; }
+  .funding-llm-eval b, .funding-llm-eval span, .funding-llm-eval small,
+  .funding-llm-status b, .funding-llm-status span, .funding-llm-status small { font-size: 12px; }
+  .funding-llm-eval span, .funding-llm-eval small, .funding-llm-status span, .funding-llm-status small {
+    color: var(--ink-2); }
+  .funding-fit-triage {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+    display: grid; gap: 6px; padding: 7px;
+  }
+  .funding-fit-triage-grid { display: grid; gap: 7px; }
+  .funding-fit-triage-section { display: grid; gap: 3px; }
+  .funding-fit-triage-section b {
+    color: var(--ink); font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+    text-transform: uppercase;
+  }
+  .funding-fit-triage-section small, .funding-fit-triage-note {
+    color: var(--ink-2); font-size: 11.5px; line-height: 1.45;
+  }
+  .funding-run-history { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 8px; }
+  .funding-run-history > summary { align-items: center; cursor: pointer; display: flex; gap: 8px;
+    justify-content: space-between; }
+  .funding-run-history > summary span { font-size: 12px; font-weight: 650; }
+  .funding-run-list { display: grid; gap: 6px; margin-top: 8px; }
+  .funding-run-row { align-items: center; background: var(--panel-2); border: 1px solid var(--line);
+    border-radius: var(--radius); display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; padding: 7px; }
+  .funding-run-row.active { background: var(--accent-soft); border-color: var(--accent-line); }
+  .funding-run-row div { display: grid; gap: 2px; min-width: 0; }
+  .funding-run-row b, .funding-run-row span, .funding-run-row small { font-size: 12px; }
+  .funding-run-row span, .funding-run-row small { color: var(--ink-2); }
+  .funding-low-toggle { align-items: start; color: var(--ink-2); display: grid; gap: 3px;
+    grid-template-columns: auto 1fr; font-size: 12px; }
+  .funding-low-toggle small { color: var(--ink-3); grid-column: 2; }
+  .funding-route { background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+    color: var(--ink-2); display: grid; gap: 3px; padding: 7px; font-size: 12px; }
+  .funding-details { font-size: 12px; }
+  .funding-details summary { cursor: pointer; font-weight: 700; }
+  .funding-detail-block { display: grid; gap: 5px; padding-top: 8px; }
+  .funding-evidence-row { border-top: 1px solid var(--line); color: var(--ink-2); display: grid; gap: 2px;
+    padding-top: 5px; }
+  .funding-evidence-meta { display: flex; flex-wrap: wrap; gap: 3px 8px; }
+  .funding-evidence-meta small, .funding-evidence-meta a { font-size: 11px; }
+  .funding-evidence-meta a { color: var(--accent); text-decoration: none; }
+  .funding-evidence-meta a:hover { text-decoration: underline; }

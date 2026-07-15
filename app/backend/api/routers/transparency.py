@@ -13,7 +13,7 @@ methods/transparency.py (the detector) + methods/transparency_findings.py (the p
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
@@ -22,6 +22,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
+from app.backend.methods.evidence_anchors import anchor_evidence
 from app.backend.methods.transparency import detect_transparency
 from app.backend.methods.transparency_findings import persist_transparency
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
@@ -36,6 +37,9 @@ class TransparencyCheckOut(BaseModel):
     status: str  # present | not-found | not-applicable
     evidence: str | None = None
     page: int | None = None
+    page_end: int | None = None
+    coordinate_precision: str | None = None
+    bbox_json: Any | None = None
     note: str | None = None
     explainer: str
     basis: str
@@ -51,7 +55,8 @@ def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)
         get_paper(conn, paper_id)
     except NoResultFound:
         raise HTTPException(status_code=404, detail="Paper not found") from None
-    report = detect_transparency(get_chunks_for_paper(conn, paper_id))
+    chunks = get_chunks_for_paper(conn, paper_id)
+    report = detect_transparency(chunks)
     return TransparencyResponse(
         checks=[
             TransparencyCheckOut(
@@ -60,6 +65,7 @@ def paper_transparency(paper_id: int, conn: Connection = Depends(get_connection)
                 status=c.status,
                 evidence=c.evidence,
                 page=c.page,
+                **anchor_evidence(conn, chunks, c.evidence, c.page),
                 note=c.note,
                 explainer=c.explainer,
                 basis=c.basis,

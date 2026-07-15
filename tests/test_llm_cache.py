@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select, update
+from sqlalchemy import func, insert, select, update
 
+from app.backend.llm.cache import repair_summary_cache
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.schema import chunks, llm_cache
 from app.backend.summarization.generators import CandidateCitation, CandidateSummarySentence
@@ -129,6 +130,108 @@ def test_cache_persists_across_app_instances(temp_db_url: str) -> None:
 
     assert gen2.calls == 0  # served from the persisted SQLite cache (no regeneration)
     assert _gen_shape(first) == _gen_shape(second)  # identical cached generation output
+
+
+def test_malformed_cached_chunk_id_regenerates_instead_of_crashing(temp_db_url: str) -> None:
+    seeded = _seed_summarization_library(temp_db_url)
+    gen1 = CountingSummaryGenerator(_facial(seeded))
+    first = _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=gen1)), seeded["facial_paper_id"])
+    assert first["status"] == "done"
+    assert gen1.calls == 1
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(
+            update(llm_cache)
+            .where(llm_cache.c.namespace == "summary")
+            .values(
+                output_json={
+                    "sentences": [
+                        {
+                            "text": "Facial anomalies influence social judgments.",
+                            "citations": [
+                                {"chunk_id": "chunk_1", "quote": "Facial anomalies influence social judgments."}
+                            ],
+                        }
+                    ]
+                }
+            )
+        )
+    engine.dispose()
+    gen2 = CountingSummaryGenerator(_facial(seeded))
+    second = _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=gen2)), seeded["facial_paper_id"])
+
+    assert second["status"] == "done"
+    assert gen2.calls == 1
+    assert second["sentences"][0]["citations"][0]["chunk_id"] == seeded["facial_chunk_id"]
+
+
+def test_repair_summary_cache_removes_only_malformed_summary_rows(temp_db_url: str) -> None:
+    seeded = _seed_summarization_library(temp_db_url)
+    gen = CountingSummaryGenerator(_facial(seeded))
+    _summarize_papers(TestClient(_summarization_app(temp_db_url, generator=gen)), seeded["facial_paper_id"])
+    malformed = {
+        "sentences": [
+            {
+                "text": "Facial anomalies influence social judgments.",
+                "citations": [{"chunk_id": "chunk_1", "quote": "Facial anomalies influence social judgments."}],
+            }
+        ]
+    }
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(
+            insert(llm_cache),
+            [
+                {
+                    "namespace": "summary",
+                    "input_hash": "bad-summary",
+                    "signature": "test",
+                    "output_json": malformed,
+                },
+                {
+                    "namespace": "other",
+                    "input_hash": "bad-other",
+                    "signature": "test",
+                    "output_json": malformed,
+                },
+            ],
+        )
+        result = repair_summary_cache(conn)
+        summary_rows = conn.execute(
+            select(func.count()).select_from(llm_cache).where(llm_cache.c.namespace == "summary")
+        ).scalar_one()
+        other_rows = conn.execute(
+            select(func.count()).select_from(llm_cache).where(llm_cache.c.namespace == "other")
+        ).scalar_one()
+    engine.dispose()
+
+    assert result == {"scanned": 2, "removed": 1}
+    assert summary_rows == 1
+    assert other_rows == 1
+
+
+def test_settings_repair_summary_cache_endpoint_commits(temp_db_url: str) -> None:
+    _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(
+            insert(llm_cache).values(
+                namespace="summary",
+                input_hash="bad-summary",
+                signature="test",
+                output_json={"sentences": [{"text": "x", "citations": [{"chunk_id": "chunk_1", "quote": "x"}]}]},
+            )
+        )
+    client = TestClient(_summarization_app(temp_db_url))
+
+    response = client.post("/settings/repair-summary-cache", json={})
+
+    assert response.status_code == 200
+    assert response.json() == {"scanned": 1, "removed": 1}
+    with engine.connect() as conn:
+        remaining = conn.execute(select(func.count()).select_from(llm_cache)).scalar_one()
+    engine.dispose()
+    assert remaining == 0
 
 
 def test_signature_change_forces_miss(temp_db_url: str) -> None:

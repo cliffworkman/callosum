@@ -34,8 +34,8 @@ Register console/pageerror/request listeners on any opened page.
   strong title match (normalized-equal or token-Jaccard ≥ 0.7) with a compatible year; a weak/year-mismatched
   candidate is **not** adopted (the paper stays without a DOI — honest, not a wrong DOI). Adopting a wrong DOI is
   **High**.
-- **No duplicate-DOI write.** A recovered DOI that already belongs to a *different* library paper is **not** written
-  (left for dedup; honors the `papers.doi` UNIQUE constraint).
+- **Duplicate DOI as merge signal.** A recovered DOI that already belongs to a *different* library paper may be
+  written after conservative matching, so the raw-PDF record can be detected and merged with the metadata-only record.
 - **Public-metadata egress, not the library gate.** The cascade sends DOIs/PMIDs/titles to public registries — the
   inc-87/183/210 posture — and makes **no** request to a `generativelanguage`/genai host. Any genai-host request is
   **Critical**.

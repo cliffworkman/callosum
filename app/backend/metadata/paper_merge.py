@@ -12,8 +12,9 @@ The researcher's case: a preprint + a published copy of the same paper. Rather t
     `build_paper_update`); the merged-away copies are soft-deleted (a restorable husk that keeps its own csl_json
     as an audit trail).
 
-The merged husks' UNIQUE identifier columns (doi / openalex_work_id / …) are nulled first so the survivor can adopt
-them without colliding (soft-delete keeps the row, so the UNIQUE constraint would otherwise block it); the husk's
+The merged husks' UNIQUE non-DOI identifier columns (openalex_work_id / semantic_scholar_paper_id / Zotero key) are
+nulled first so the survivor can adopt them without colliding (soft-delete keeps the row, so the UNIQUE constraint
+would otherwise block it); the husk's
 `csl_json` retains the values for audit. Chunk embeddings need no surgery — a chunk's `paper_id` re-point keeps its
 `id`, so its embedding still resolves (now attributed to the survivor); the merged copy's paper-level embedding
 stays harmlessly on the trashed husk (excluded from retrieval, inc 66). Entirely local; bound-param SQL (rule #3);
@@ -53,12 +54,15 @@ MAX_MERGE_PAPERS = 20
 # Re-pointed wholesale (no per-paper UNIQUE on these — verified): a plain UPDATE paper_id is safe. external
 # identifiers are globally UNIQUE on (provider, identifier), so two rows can't share one → no collision on move.
 _REPOINT_TABLES = (attachments, chunks, annotations, notes, paper_external_identifiers)
-# UNIQUE identifier columns on `papers`. Nulled on each merged husk so the survivor can adopt them; the husk's
-# csl_json keeps the values (audit). (zotero_* are a UNIQUE pair.)
-_UNIQUE_ID_COLS = ("doi", "openalex_work_id", "semantic_scholar_paper_id", "zotero_library_id", "zotero_item_key")
+# UNIQUE non-DOI identifier columns on `papers`. DOI is intentionally not unique: it can temporarily mark duplicate
+# records that need merging. The husk's csl_json keeps all identifier values for audit. (zotero_* are a UNIQUE pair.)
+_UNIQUE_ID_COLS = ("openalex_work_id", "semantic_scholar_paper_id", "zotero_library_id", "zotero_item_key")
 # Matching ids auto-adopted onto the survivor when it lacks them (column-only, not user-facing csl fields).
 _ADOPT_COLS = ("openalex_work_id", "semantic_scholar_paper_id")
 # The survivor columns a merge mutates → snapshotted before, so un-merge (#16) restores the survivor's record exactly.
+# NOTE: `doi` is listed explicitly (not via _UNIQUE_ID_COLS) because the survivor still *adopts* a DOI on merge even
+# though DOI is no longer a UNIQUE husk column (inc 269) — dropping it from the snapshot would leave the survivor's
+# adopted DOI unreverted on un-merge (regression caught by test_merge_then_unmerge_restores_survivor_and_husk).
 _SURVIVOR_SNAPSHOT_COLS = (
     "title",
     "abstract",
@@ -71,6 +75,7 @@ _SURVIVOR_SNAPSHOT_COLS = (
     "first_author_family_name",
     "csl_json",
     "imported_source",
+    "doi",
     *_UNIQUE_ID_COLS,
 )
 
@@ -84,7 +89,7 @@ class MergeValidationError(MergeError):
 
 
 class MergeConflictError(MergeError):
-    """The composed DOI already belongs to another paper (→ 409)."""
+    """Merge would conflict with an external unique identifier (→ 409)."""
 
 
 @dataclass(frozen=True)
@@ -163,21 +168,8 @@ def merge_papers(
     survivor_row = get_paper(conn, survivor_id)
     merged_rows = [get_paper(conn, mid) for mid in merged_ids]
 
-    # Compose the survivor's metadata up front (pure) so we can validate the chosen DOI before mutating.
+    # Compose the survivor's metadata up front (pure) before mutating.
     update_kwargs = build_paper_update(survivor_row, metadata)
-    new_doi = update_kwargs.get("doi")  # present (normalized) only if the user changed the DOI
-    if new_doi:
-        clash = conn.execute(
-            select(papers.c.id)
-            .where(
-                papers.c.doi == new_doi,
-                papers.c.deleted_at.is_(None),
-                papers.c.id.notin_(all_ids),
-            )
-            .limit(1)
-        ).first()
-        if clash is not None:
-            raise MergeConflictError(f"DOI {new_doi} already belongs to another paper (id {int(clash[0])}).")
 
     if primary_attachment_id is not None:
         owner = conn.execute(

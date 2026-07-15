@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /summarize*, /summaries*
-fe: 20_synthesis.jsx
+fe: 19_synthesis_failures.jsx, 20_synthesis.jsx
 -->
 
 # ROUTE 55 - Synthesis and verification
@@ -53,6 +53,18 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
    0 verified claims shows no overview.
 8. Delete a disposable summary (`DELETE /summaries/{summary_id}`) and confirm it disappears from the list.
 9. In a separate egress-unset negative pass without fake generator, trigger summarize and confirm a graceful egress-disabled/provider-required message and zero genai network requests.
+10. **Failure recovery actions.** Force representative synthesis failures and confirm the pane shows actionable recovery without hiding the technical detail:
+    - egress/key failure -> **Open Settings**.
+    - malformed cached citation id / `chunk_1`-style error -> **Repair cache and retry** (`POST /settings/repair-summary-cache`) then retries the same request.
+    - no retrievable/source chunks -> **Open Text Health**. If the failed synthesis came from a selected-paper
+      scope, Text Health opens scoped to those source papers, offers **Show all text-health items** / **Return to
+      synthesis scope**, shows **Reprocess scoped papers** only for scoped papers with missing section labels or stale
+      extraction, and after a reprocess completes offers **Retry synthesis** for the same request.
+      Before opening Text Health, the Synthesis pane should show a compact diagnostic such as selected-paper count,
+      no local PDF, no extracted text, stale extraction, or missing section labels; query/all-library zero-source
+      cases should say no source chunks matched the query or active section filter.
+    - provider timeout/rate/HTTP failure -> **Retry** plus an optional Settings link.
+    The wording must not say the repair verified, improved, or certified the synthesis; it only removes malformed cached AI draft rows or routes the user to existing maintenance surfaces.
 
 ## Pass criteria
 
@@ -64,4 +76,3 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_55_synthesis_verification.md` + `screenshots/` (see `_TEMPLATE.md`).
-

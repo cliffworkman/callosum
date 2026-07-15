@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: GET /health, GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, GET /tags, GET /axes, GET /help/corpus, GET /citations/styles, GET /summaries
-fe: 02_mobilenav.jsx, 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
+fe: 02_mobilenav.jsx, 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 10d_papercard.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
 -->
 
 <!-- B5 (inc 237): at a phone-width viewport (≤760px) the app renders single-column with a bottom `.mobile-nav`
@@ -28,12 +28,13 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 ## Steps
 
 1. Load `/`. Wait for `#root` to populate. Baseline screenshot. Assert the brand wordmark "Callosum" rendered.
-2. **Library shell** (`10_pdf_layer.jsx`): the seeded papers list; the search box; the search-scope dropdown;
+2. **Library shell** (`10_pdf_layer.jsx` + `10d_papercard.jsx`): the seeded papers list; the search box; the search-scope dropdown;
    the Sort dropdown; the Type filter dropdown; the "+ Add ▾" menu (open it — the entries are **Watched
    folders…** and **Import file…** [scanning is reached *via* Watched folders, not a top-level entry], then
    close); the Unsorted toggle; the Duplicates / Wanted buttons; pagination if present; the per-card
-   copy-BibTeX button + checkbox. Click each control that has a read-only or menu-opening effect; do **not**
-   mutate. Confirm each responds (no dead clicks).
+   copy-BibTeX button + checkbox; single-click selection; double-click/open behavior; paper citation-count button
+   where present; and read/priority controls when the instance is read-write. Click each control that has a
+   read-only or menu-opening effect; do **not** mutate in this read-only smoke. Confirm each responds (no dead clicks).
 3. **PDF viewer** (`30_viewer.jsx`): open the seeded **Renderable Seed Paper** (the one paper backed by a real
    on-disk PDF — see `_TEMPLATE.md` → Seed contract). Confirm the 2 pages render, the text layer aligns (no
    gross drift), zoom in/out re-renders, and the citation/annotation overlay layers mount. Screenshot. Then open

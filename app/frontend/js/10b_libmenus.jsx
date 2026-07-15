@@ -95,6 +95,98 @@ function EnrichMetadataButton({ onRefreshed }) {
   return <button className="trash-toggle" onClick={run} disabled={busy} title={title}>{label}</button>;
 }
 
+async function pollTextReprocess(jobId, setProg) {
+  for (let i = 0; i < 1200; i++) {
+    await new Promise(r => setTimeout(r, 600));
+    const r = await api("/papers/text-health/reprocess/" + jobId);
+    if (!r.ok) break;
+    if (r.data.progress) setProg({
+      current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds
+    });
+    if (r.data.status === "done" || r.data.status === "error") return r.data;
+  }
+  return null;
+}
+
+function TextHealthButton({ onOpen }) {
+  const [counts, setCounts] = useState(null);
+  const load = useCallback(() => {
+    api("/papers/text-health/overview").then(r => { if (r.ok) setCounts(r.data.counts); });
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  const missing = counts ? counts.missing_section_labels : 0;
+  const label = counts ? (missing ? `Text health · ${missing}` : "Text health ✓") : "Text health";
+  const title = counts
+    ? `${missing} local PDF(s) have chunks without section labels · ${counts.no_chunks} may need OCR · ${counts.tiny_text} have very little extracted text. Open the text-health queue.`
+    : "Open extracted PDF text-health details.";
+  return <button className="trash-toggle" onClick={onOpen} title={title}>{label}</button>;
+}
+
+function ReprocessSelectedTextButton({ paperIds, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState(null);
+  const ids = paperIds || [];
+  const run = async () => {
+    if (busy || ids.length === 0) return;
+    setBusy(true); setProg(null);
+    const start = await apiPost("/papers/text-health/reprocess", { mode: "selected", paper_ids: ids });
+    const jid = start.ok && start.data ? start.data.job_id : null;
+    const done = jid ? await pollTextReprocess(jid, setProg) : null;
+    setBusy(false); setProg(null);
+    if (done && done.status === "done") onDone && onDone();
+  };
+  const label = busy
+    ? (prog ? `text ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "text…")
+    : "reprocess text";
+  return (
+    <button className="axis-link" onClick={run} disabled={busy || ids.length === 0}
+      title="Re-extract text and section labels for the selected local PDFs. No OCR, no metadata changes, no network.">
+      {label}
+    </button>
+  );
+}
+
+function BulkReferenceCheckButton({ paperIds, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [prog, setProg] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const ids = paperIds || [];
+  const poll = (jobId) => api(`/reference-integrity/run/${jobId}`).then(r => {
+    if (!r.ok) { setBusy(false); setProg(null); return; }
+    if (r.data.status === "done") {
+      setBusy(false); setProg(null); setSummary(r.data.bulk_report || null);
+      onDone && onDone(r.data.bulk_report || null);
+    } else if (r.data.status === "error") {
+      setBusy(false); setProg(null); setSummary({ failed_count: ids.length });
+    } else {
+      setProg(r.data.progress || null);
+      setTimeout(() => poll(jobId), 1400);
+    }
+  });
+  const run = async () => {
+    if (busy || ids.length === 0) return;
+    setBusy(true); setProg(null); setSummary(null);
+    const start = await apiPost("/reference-integrity/run-selected", { paper_ids: ids });
+    if (!start.ok) { setBusy(false); return; }
+    poll(start.data.job_id);
+  };
+  const label = busy
+    ? (prog ? `refs ${prog.current}/${prog.total}` : "refs…")
+    : summary ? `refs checked ${summary.checked_count}/${summary.requested_count}` : "check refs";
+  const title = summary
+    ? `Checked ${summary.checked_count}; skipped ${summary.skipped_no_doi_count || 0} without DOI; failed ${summary.failed_count || 0}.`
+    : "Run Meta Reference List checks for selected papers with DOIs; then show papers with active reference signals.";
+  const note = summary && (summary.skipped_no_doi_count || summary.failed_count)
+    ? `refs: ${summary.skipped_no_doi_count || 0} no DOI · ${summary.failed_count || 0} failed`
+    : "";
+  return (
+    <>
+      <button className="axis-link" onClick={run} disabled={busy || ids.length === 0} title={title}>{label}</button>
+      {note ? <span className="axis-bulk-count">{note}</span> : null}
+    </>
+  );
+}
+
 // inc-208 (A1): saved searches — a "Saved ▾" menu mirroring AddMenu. Recall a named bundle of the current library
 // facets (filters + sort + search box), save the current set, or delete one. Closes on outside-click.
 function SavedSearchMenu({ searches, onApply, onSave, onDelete }) {

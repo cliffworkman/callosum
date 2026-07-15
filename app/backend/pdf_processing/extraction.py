@@ -14,6 +14,8 @@ from typing import Any
 
 import fitz
 
+from app.backend.pdf_processing.sections import SectionTracker
+
 COORDINATE_SYSTEM = "pdf-points-top-left"
 EXTRACTION_TOOL = "pymupdf"
 DEFAULT_CHUNKING_STRATEGY = "pymupdf-block-v1"
@@ -208,11 +210,14 @@ def make_chunk_drafts(
     )
     drafts: list[ChunkDraft] = []
     cursor = 0
+    section_tracker = SectionTracker()
 
     for page in extraction.pages:
         for block in page.blocks:
             text = _normalize_space(block.text)
             if not text:
+                continue
+            if section_tracker.observe(block.text) is not None:
                 continue
 
             char_start = cursor
@@ -241,6 +246,7 @@ def make_chunk_drafts(
                     chunking_strategy=chunking_strategy,
                     chunk_version=chunk_version,
                     source_attachment_checksum=source_attachment_checksum,
+                    section=section_tracker.current_section,
                 )
             )
 

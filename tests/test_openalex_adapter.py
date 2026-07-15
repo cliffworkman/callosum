@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import sqlite3
+
+from sqlalchemy.exc import OperationalError
+
 from app.backend.acquisition.registry import PaperRef
 from app.backend.persistence.database import make_engine
 from integrations.openalex import OpenAlexClient
+from integrations.openalex.adapter import _store_cache
 
 
 def _work(oa_status, *, version="publishedVersion", pdf_url="https://example.org/x.pdf", license_="cc-by"):
@@ -96,3 +101,26 @@ def test_fail_closed_on_fetcher_exception(temp_db_url):
     client = OpenAlexClient(fetcher=_Boom(), mailto="t@e.org")
     with make_engine(temp_db_url).begin() as conn:
         assert client.lookup_best_oa(conn, PaperRef(doi="10.1/x")) is None  # never raises
+
+
+def test_cache_write_lock_is_nonfatal():
+    class _Result:
+        def mappings(self):
+            return self
+
+        def first(self):
+            return None
+
+    class _LockedConn:
+        def execute(self, statement):
+            if statement.__class__.__name__ == "Select":
+                return _Result()
+            raise OperationalError("INSERT", (), sqlite3.OperationalError("database is locked"))
+
+    _store_cache(
+        _LockedConn(),
+        "work:W1",
+        request_json={"work_id": "W1"},
+        response_json={"id": "https://openalex.org/W1"},
+        status_code=200,
+    )

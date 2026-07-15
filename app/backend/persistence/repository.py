@@ -38,6 +38,7 @@ if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at imp
 # inc 220 to keep this module under the 600-line cap); re-exported so existing import sites are unchanged.
 from app.backend.persistence.paper_lifecycle_repo import (  # noqa: E402,F401
     compute_processing_tier,
+    delete_chunks_for_attachment,
     purge_all_trashed,
     purge_paper,
     refresh_processing_tier,

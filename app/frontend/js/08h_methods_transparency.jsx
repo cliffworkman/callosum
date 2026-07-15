@@ -77,7 +77,12 @@ function TransparencyPaper({ paperId, onOpenPaper, active }) {
     if (active && meta && meta.hasText && state.status === "idle") run();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, meta]);
-  const open = (page) => { if (onOpenPaper && page != null) onOpenPaper({ id: paperId, title: meta ? meta.title : "" }, { page, precision: "region" }); };
+  const open = (evidence, key) => {
+    if (!onOpenPaper) return;
+    const title = meta ? meta.title : "";
+    const target = methodEvidenceTarget(paperId, title, evidence, key);
+    if (target) onOpenPaper({ id: paperId, title }, target);
+  };
   if (paperId == null) return <div className="tag-suggest-empty">Select a paper to check its transparency disclosures.</div>;
   const hasText = meta ? meta.hasText : false;
   const d = state.data;
@@ -120,9 +125,13 @@ function TransparencyChecklist({ checks, onOpen }) {
           {c.explainer && <div className="lmm-explainer">{c.explainer}</div>}
           {c.basis && <div className="lmm-basis">basis: {c.basis}</div>}
           {c.evidence &&
-            <button className="bayes-check-ev" title={c.page != null ? "Open page " + c.page : ""} onClick={() => c.page != null && onOpen(c.page)}>
-              “{c.evidence}”
-            </button>}
+            <EvidenceQuote text={c.evidence} match={c.evidence} label="Evidence" className="bayes-check-ev"
+              precision={c.coordinate_precision} hasSourcePage={c.page != null}
+              onOpen={c.page != null ? () => onOpen(c, `transparency-check:${c.key}`) : null}
+              openLabel={c.coordinate_precision === "exact" ? "Open and highlight this disclosure evidence" : "Open source page for this disclosure evidence"} />}
+          {c.evidence && <EvidenceTrail detector="Transparency signals" matched={c.evidence}
+            precision={c.coordinate_precision} hasSourcePage={c.page != null} page={c.page}
+            caveat="Disclosure signals are text detections only; not detected does not mean absent." />}
         </div>
       ))}
       <div className="statcheck-caveat">

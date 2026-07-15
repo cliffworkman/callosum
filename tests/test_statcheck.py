@@ -3,6 +3,8 @@ The crux is correctness: a correctly-rounded / one-tailed result must NOT be fla
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
@@ -14,8 +16,11 @@ from app.backend.persistence.schema import open_science_signals
 from app.backend.persistence.signals_repo import get_statcheck_summary, store_statcheck
 
 
-def _chunk(text, page=1):
-    return {"text": text, "page_start": page}
+def _chunk(text, page=1, section=None):
+    chunk = {"text": text, "page_start": page}
+    if section:
+        chunk["section"] = section
+    return chunk
 
 
 def test_consistent_t():
@@ -66,6 +71,26 @@ def test_page_provenance_from_chunk():
     assert rep.checked == 1 and rep.results[0].page == 5
 
 
+def test_section_provenance_from_chunk():
+    rep = run_statcheck([_chunk("Results: t(10) = 2.0, p = .07.", 5, section="results")])
+    assert rep.checked == 1
+    assert rep.results[0].section == "results"
+    assert rep.results[0].consistency == "consistent"
+
+
+def test_result_carries_bounded_extracted_text_context():
+    text = (
+        "Before the model, participants completed the task. "
+        "The main contrast was reported as t(28) = 1.5, p = .04 in the results section. "
+        "The authors then discussed robustness checks."
+    )
+    rep = run_statcheck([_chunk(text)])
+    assert rep.checked == 1
+    context = rep.results[0].context
+    assert "The main contrast was reported as t(28) = 1.5, p = .04" in context
+    assert len(context) <= 326
+
+
 def test_recompute_p_known_values():
     assert abs(recompute_p("t", 2.048, 28, None) - 0.05) < 0.01  # critical t(28) ≈ 2.048 → p ≈ .05
     assert abs(recompute_p("z", 1.96, 0, None) - 0.05) < 0.005  # z = 1.96 → p ≈ .05
@@ -97,6 +122,7 @@ def test_statcheck_endpoint(temp_db_url):
             chunking_strategy="s",
             chunk_version="v1",
             source_attachment_checksum="ck1",
+            section="results",
         )
         empty_id = create_paper(conn, title="No Text", csl_json={"title": "No Text"})  # metadata-only
 
@@ -104,6 +130,9 @@ def test_statcheck_endpoint(temp_db_url):
     data = client.get(f"/papers/{paper_id}/statcheck").json()
     assert data["checked"] == 2 and data["decision_errors"] == 1  # the t=1.5/p=.04 flips significance
     assert all(r["page"] == 3 for r in data["results"])  # page provenance from the chunk
+    assert all(r["section"] == "results" for r in data["results"])  # section provenance from the chunk
+    assert all("context" in r and "In the results" in r["context"] for r in data["results"])
+    assert all(r["coordinate_precision"] == "region" for r in data["results"])
 
     assert client.get(f"/papers/{empty_id}/statcheck").json() == {  # no chunks → honest empty, not an error
         "checked": 0,
@@ -112,6 +141,94 @@ def test_statcheck_endpoint(temp_db_url):
         "results": [],
     }
     assert client.get("/papers/999999/statcheck").status_code == 404
+
+
+def test_statcheck_endpoint_exposes_exact_anchor_when_pdf_locator_matches_page(temp_db_url, monkeypatch):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Stats Paper", csl_json={"type": "article-journal", "title": "Stats Paper"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="managed",
+            availability="available",
+            checksum="ck-exact",
+            content_type="application/pdf",
+        )
+        create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="The primary test was t(28) = 1.5, p = .04.",
+            page_start=7,
+            page_end=7,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="x",
+            extraction_version="1",
+            chunking_strategy="s",
+            chunk_version="v1",
+            source_attachment_checksum="ck-exact",
+        )
+
+    def fake_locator(conn, got_attachment_id, quote):
+        assert got_attachment_id == attachment_id
+        assert quote == "t(28) = 1.5, p = .04"
+        return SimpleNamespace(
+            found=True,
+            page_start=7,
+            page_end=7,
+            rectangles=({"page": 7, "x0": 10, "y0": 20, "x1": 90, "y1": 34},),
+        )
+
+    monkeypatch.setattr("app.backend.api.routers.methods.locate_quote_for_attachment", fake_locator)
+    data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
+    result = data["results"][0]
+    assert result["coordinate_precision"] == "exact"
+    assert result["bbox_json"][0]["coordinate_precision"] == "exact"
+    assert result["bbox_json"][0]["page"] == 7
+
+
+def test_statcheck_endpoint_does_not_claim_exact_for_locator_page_mismatch(temp_db_url, monkeypatch):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(conn, title="Duplicate Stat", csl_json={"title": "Duplicate Stat"})
+        attachment_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="managed",
+            availability="available",
+            checksum="ck-mismatch",
+            content_type="application/pdf",
+        )
+        create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=attachment_id,
+            text="Later in the paper, t(28) = 1.5, p = .04.",
+            page_start=9,
+            page_end=9,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="x",
+            extraction_version="1",
+            chunking_strategy="s",
+            chunk_version="v1",
+            source_attachment_checksum="ck-mismatch",
+        )
+
+    def wrong_page_locator(conn, got_attachment_id, quote):
+        return SimpleNamespace(
+            found=True,
+            page_start=2,
+            page_end=2,
+            rectangles=({"page": 2, "x0": 10, "y0": 20, "x1": 90, "y1": 34},),
+        )
+
+    monkeypatch.setattr("app.backend.api.routers.methods.locate_quote_for_attachment", wrong_page_locator)
+    data = TestClient(create_app(db_url=temp_db_url)).get(f"/papers/{paper_id}/statcheck").json()
+    result = data["results"][0]
+    assert result["page"] == 9
+    assert result["coordinate_precision"] == "region"
+    assert result["bbox_json"] is None
 
 
 def _stat_chunk(conn, title, checksum, text):

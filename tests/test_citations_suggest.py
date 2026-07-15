@@ -10,13 +10,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from fastapi.testclient import TestClient
+from sqlalchemy import update
 
 from app.backend.api import create_app
 from app.backend.citations.suggest import suggest_citations
+from app.backend.discovery.providers import Item, SourceRegistry
 from app.backend.embeddings.pipeline import embed_chunks
 from app.backend.embeddings.vector_store import InMemoryVectorStore
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import soft_delete_paper
+from app.backend.persistence.schema import papers
 from app.backend.summarization.verification import NLIStanceScorer, Stance, _stance_from_scores
 from tests.api_helpers import ApiFakeEmbeddingModel, _seed_summarization_library
 
@@ -211,6 +214,108 @@ def test_suggest_endpoint_evaluate_false_omits_stance(temp_db_url: str) -> None:
 
     assert resp.status_code == 200
     assert resp.json()["suggestions"][0]["stance"] is None
+
+
+def test_suggest_endpoint_can_include_beyond_library_candidates(temp_db_url: str) -> None:
+    _seed_summarization_library(temp_db_url)
+    app = _suggest_app(temp_db_url, stance_scorer=FakeStanceScorer("support"))
+    app.state.discovery_registry = SourceRegistry()
+
+    class _ExternalProvider:
+        name = "fixture-openalex"
+
+        def search(self, query: str, limit: int) -> list[Item]:
+            assert "Facial anomalies" in query
+            return [
+                Item(
+                    title="External facial judgment study",
+                    sources=("fixture-openalex",),
+                    doi="10.1234/external",
+                    abstract="Facial anomalies influence social judgments in observers across several tasks.",
+                    authors=("Curie, Marie",),
+                    journal="Journal of Public Metadata",
+                    year=2026,
+                    url="https://example.org/external",
+                )
+            ]
+
+    app.state.citation_openalex_provider = _ExternalProvider()
+    client = TestClient(app)
+
+    resp = client.post(
+        "/citations/suggest",
+        json={"text": FACIAL_QUERY, "top_k": 3, "include_beyond_library": True, "beyond_top_k": 2},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["suggestions"]
+    external = body["beyond_library_suggestions"]
+    assert external and external[0]["title"] == "External facial judgment study"
+    assert external[0]["evidence_kind"] == "abstract"
+    assert external[0]["reason_kind"] == "public_metadata_search"
+    assert external[0]["stance"]["label"] == "support"
+    assert body["source_coverage"][0]["provider_id"] == "fixture-openalex"
+    assert body["source_coverage"][0]["status"] == "success"
+    assert body["source_coverage"][0]["result_count"] == 1
+
+
+def test_suggest_endpoint_uses_local_matches_as_openalex_neighborhood_anchors(temp_db_url: str) -> None:
+    ids = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(update(papers).where(papers.c.id == ids["facial_paper_id"]).values(doi="10.123/facial"))
+    engine.dispose()
+    app = _suggest_app(temp_db_url, stance_scorer=FakeStanceScorer("support"))
+    app.state.discovery_registry = SourceRegistry()
+
+    class _GraphOpenAlex:
+        def fetch_work_id(self, conn, ref):  # noqa: ANN001
+            assert ref.doi == "10.123/facial"
+            return "WLOCAL"
+
+        def fetch_work_meta_for(self, conn, ref):  # noqa: ANN001
+            return {"openalex_work_id": "WLOCAL", "related_works": []}
+
+        def fetch_referenced_works(self, conn, ref):  # noqa: ANN001
+            return ["WREF"]
+
+        def fetch_citing_works(self, conn, work_id):  # noqa: ANN001
+            return []
+
+        def fetch_works_by_ids(self, conn, ids, *, with_abstract=True):  # noqa: ANN001, ARG002
+            if ids == ["WREF"]:
+                return [
+                    {
+                        "openalex_work_id": "WREF",
+                        "doi": "10.123/ref",
+                        "title": "External work cited by local facial paper",
+                        "abstract": "Facial anomalies influence social judgments in public metadata.",
+                        "authors": ["Graph Author"],
+                        "year": 2024,
+                        "venue": "Graph Journal",
+                    }
+                ]
+            return []
+
+    app.state.openalex_client = _GraphOpenAlex()
+    client = TestClient(app)
+
+    resp = client.post(
+        "/citations/suggest",
+        json={"text": FACIAL_QUERY, "top_k": 3, "include_beyond_library": True, "beyond_top_k": 5},
+    )
+
+    assert resp.status_code == 200
+    body = resp.json()
+    external = body["beyond_library_suggestions"]
+    graph = [item for item in external if item["doi"] == "10.123/ref"]
+    assert graph
+    assert graph[0]["relationship_kind"] == "cited_by_local_match"
+    assert graph[0]["relationship_label"] == "Cited by a locally relevant paper"
+    assert graph[0]["anchor_paper_id"] == ids["facial_paper_id"]
+    assert graph[0]["anchor_title"] == "API Summarization Facial Paper"
+    assert any(row["provider_id"] == "openalex-neighborhood" for row in body["source_coverage"])
 
 
 def test_suggest_endpoint_rejects_empty_and_oversized_text(temp_db_url: str) -> None:

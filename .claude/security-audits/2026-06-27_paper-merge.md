@@ -23,10 +23,10 @@ soft-deletes the merged copies. Entirely local; no migration; no new dependency.
   (`update(...).where(table.c.paper_id == :v).values(...)`, `insert(...).prefix_with("OR IGNORE")`,
   `select(...).where(... .in_(all_ids))`). No string interpolation into SQL. The `_REPOINT_TABLES` /
   `_UNIQUE_ID_COLS` / `_ADOPT_COLS` are **module constants**, never request-derived.
-- **UNIQUE-constraint safety (data integrity).** Soft-delete keeps the husk row, so its UNIQUE identifier columns
-  (`doi`/`openalex_work_id`/`semantic_scholar_paper_id`/`zotero_*`) are **nulled first** to free them for the
-  survivor (the husk's `csl_json` retains the values for audit). A composed DOI that collides with a **live paper
-  outside the merge set** raises `MergeConflictError` → **409** (mirrors the inc-49 PATCH guard). Composite-PK
+- **UNIQUE-constraint safety (data integrity).** Soft-delete keeps the husk row, so its UNIQUE non-DOI identifier
+  columns (`openalex_work_id`/`semantic_scholar_paper_id`/`zotero_*`) are **nulled first** to free them for the
+  survivor (the husk's `csl_json` retains the values for audit). DOI is intentionally non-unique as of migration
+  `0040_allow_duplicate_paper_dois`, so a duplicate DOI can mark records that need merging. Composite-PK
   tables (`paper_tags`/`collection_papers`/`cluster_node_papers`) are migrated with `INSERT OR IGNORE`; the
   no-per-paper-UNIQUE tables are re-pointed with a plain `UPDATE` (verified against the schema). `paper_external_identifiers`
   is globally UNIQUE on `(provider, identifier)`, so two rows can't share one → `UPDATE` cannot collide.
@@ -45,10 +45,10 @@ soft-deletes the merged copies. Entirely local; no migration; no new dependency.
 ## Negative-path checks (from `tests/test_paper_merge.py`)
 
 - `merged_ids=[]` / `survivor ∈ merged_ids` / non-existent id / **trashed** id → `MergeValidationError` (422). ✓
-- composed DOI equal to an outside live paper's DOI → `MergeConflictError` (409). ✓
-- endpoint: self-merge → 422; outside-DOI clash → 409; happy path → 200 + merged copy in Trash, survivor live. ✓
+- composed DOI equal to an outside live paper's DOI → allowed, so the duplicate can be cleaned up by merge. ✓
+- endpoint: self-merge → 422; duplicate-DOI merge → 200; happy path → 200 + merged copy in Trash, survivor live. ✓
 - idempotent shared-tag merge does not violate the `paper_tags` composite PK. ✓
-- the husk's UNIQUE `doi` column is freed while its `csl_json["DOI"]` is preserved (no UNIQUE error; audit intact). ✓
+- the husk's DOI column and `csl_json["DOI"]` are preserved; non-DOI unique columns are freed for adoption. ✓
 
 ## Principles (rule #9)
 

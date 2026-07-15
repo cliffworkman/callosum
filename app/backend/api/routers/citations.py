@@ -19,6 +19,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection
+from app.backend.citations.beyond_library import (
+    MAX_BEYOND_RESULTS,
+    BeyondLibrarySuggestion,
+    ProviderStatus,
+    anchors_from_suggestions,
+    suggest_beyond_library,
+)
 from app.backend.citations.render import (
     DEFAULT_LOCALE,
     DEFAULT_STYLE,
@@ -108,6 +115,8 @@ class SuggestRequest(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_TEXT_LEN)
     top_k: int = Field(default=5, ge=1, le=20)
     evaluate: bool = True
+    include_beyond_library: bool = False
+    beyond_top_k: int = Field(default=5, ge=1, le=MAX_BEYOND_RESULTS)
 
 
 class StanceResponse(BaseModel):
@@ -131,8 +140,40 @@ class SuggestionResponse(BaseModel):
     stance: StanceResponse | None = None
 
 
+class BeyondSuggestionResponse(BaseModel):
+    dedup_key: str
+    title: str
+    sources: list[str] = []
+    doi: str | None = None
+    abstract: str | None = None
+    authors: list[str] = []
+    journal: str | None = None
+    year: int | None = None
+    url: str | None = None
+    in_library: bool = False
+    reason: str
+    reason_kind: str
+    evidence_text: str
+    evidence_kind: str
+    metadata_overlap: float
+    relationship_kind: str | None = None
+    relationship_label: str | None = None
+    anchor_paper_id: int | None = None
+    anchor_title: str | None = None
+    stance: StanceResponse | None = None
+
+
+class SourceCoverageResponse(BaseModel):
+    provider_id: str
+    status: str
+    result_count: int = 0
+    warning: str | None = None
+
+
 class SuggestResponse(BaseModel):
     suggestions: list[SuggestionResponse]
+    beyond_library_suggestions: list[BeyondSuggestionResponse] = []
+    source_coverage: list[SourceCoverageResponse] = []
 
 
 @router.post("/citations/suggest", response_model=SuggestResponse)
@@ -152,7 +193,25 @@ def suggest_citations_endpoint(
         evaluate=payload.evaluate,
         stance_scorer=_suggest_stance_scorer(request),
     )
-    return SuggestResponse(suggestions=[_suggestion_response(item) for item in items])
+    beyond_items: list[BeyondLibrarySuggestion] = []
+    coverage: list[ProviderStatus] = []
+    if payload.include_beyond_library:
+        beyond_items, coverage = suggest_beyond_library(
+            conn,
+            text=payload.text,
+            registry=request.app.state.discovery_registry,
+            top_k=payload.beyond_top_k,
+            evaluate=payload.evaluate,
+            stance_scorer=_suggest_stance_scorer(request),
+            openalex_provider=getattr(request.app.state, "citation_openalex_provider", None),
+            anchors=anchors_from_suggestions(conn, items),
+            openalex_client=request.app.state.openalex_client,
+        )
+    return SuggestResponse(
+        suggestions=[_suggestion_response(item) for item in items],
+        beyond_library_suggestions=[_beyond_response(item) for item in beyond_items],
+        source_coverage=[SourceCoverageResponse(**status.to_dict()) for status in coverage],
+    )
 
 
 def _suggestion_response(item: Suggestion) -> SuggestionResponse:
@@ -175,6 +234,14 @@ def _suggestion_response(item: Suggestion) -> SuggestionResponse:
         bbox_json=item.bbox_json,
         stance=stance,
     )
+
+
+def _beyond_response(item: BeyondLibrarySuggestion) -> BeyondSuggestionResponse:
+    data = item.to_dict()
+    stance = data.pop("stance", None)
+    if stance is not None:
+        data["stance"] = StanceResponse(**stance)
+    return BeyondSuggestionResponse(**data)
 
 
 # The embedding + NLI models are heavy to load, so cache the defaults on app.state (a synchronous endpoint must

@@ -11,11 +11,14 @@ from __future__ import annotations
 
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import Connection
 
 from app.backend import app_settings, providers_store
 from app.backend.acquisition.openurl import RESOLVER_BASE_MAX_LEN, resolver_base_valid
+from app.backend.api.dependencies import get_connection
+from app.backend.llm.cache import repair_summary_cache
 from app.backend.llm.providers import is_loopback_url, requires_egress
 from integrations.gemini.generator import GeminiConfig
 
@@ -224,6 +227,11 @@ class KeyTestResult(BaseModel):
     detail: str
 
 
+class RepairSummaryCacheResult(BaseModel):
+    scanned: int
+    removed: int
+
+
 @router.post("/settings/test-key", response_model=KeyTestResult)
 def test_key() -> KeyTestResult:
     """Validate the ACTIVE provider with a tiny non-library ping. Cloud providers are gated on egress ON (off ⟹
@@ -243,3 +251,10 @@ def test_key() -> KeyTestResult:
         return KeyTestResult(ok=False, detail=f"Key test failed: {str(exc)[:300]}")
     text = (result.text or "").strip()
     return KeyTestResult(ok=True, detail="Works — the model responded." if text else "Authenticated.")
+
+
+@router.post("/settings/repair-summary-cache", response_model=RepairSummaryCacheResult)
+def repair_summary_cache_endpoint(conn: Connection = Depends(get_connection)) -> RepairSummaryCacheResult:
+    result = repair_summary_cache(conn)
+    conn.commit()
+    return RepairSummaryCacheResult(**result)
