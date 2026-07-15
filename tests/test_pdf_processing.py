@@ -81,6 +81,36 @@ def test_quote_location_benchmark_for_generated_fixture(tmp_path: Path) -> None:
     assert absent.rectangles == ()
 
 
+def _make_two_column_pdf(path: Path) -> Path:
+    # Two clearly separated columns. PyMuPDF's geometric word sort (sort=True) orders top-to-bottom,
+    # left-to-right, so it interleaves the two columns row-by-row; reading order (block/line/word)
+    # keeps each column contiguous — matching how chunk text is extracted.
+    document = fitz.open()
+    page = document.new_page(width=612, height=300)
+    page.insert_text((50, 80), "The anomalous stereotype was", fontsize=11)
+    page.insert_text((50, 100), "clearly measured across trials.", fontsize=11)
+    page.insert_text((360, 80), "Sidebar annotation alpha here", fontsize=11)
+    page.insert_text((360, 100), "and sidebar annotation beta.", fontsize=11)
+    document.save(str(path))
+    document.close()
+    return path
+
+
+def test_two_column_quote_locates_in_reading_order_not_geometric(tmp_path: Path) -> None:
+    # A single-column passage must locate even though a geometric word sort splices the other column
+    # into the middle of it. Regression for the ~47% region-fallback rate measured on the real library.
+    pdf_path = _make_two_column_pdf(tmp_path / "two-column.pdf")
+
+    match = locate_quote(pdf_path, "The anomalous stereotype was clearly measured across trials.")
+    assert match.found
+    assert match.page_start == 1 and match.page_end == 1
+    assert len(match.rectangles) >= 2
+
+    # Honesty (#2): a string that only exists by interleaving the two columns must NOT match.
+    interleaved = locate_quote(pdf_path, "The anomalous stereotype was Sidebar annotation alpha here")
+    assert interleaved.found is False
+
+
 def test_extraction_ingest_writes_chunks_with_provenance(tmp_path: Path) -> None:
     pdf_path = _make_fixture_pdf(tmp_path / "ingest-fixture.pdf")
     db_path = tmp_path / "callosum-pdf.sqlite"
