@@ -74,5 +74,16 @@ so the model never asserts a cross-paper edge as fact — `related_paper_ids` is
 5. Egress **on** (fake/loopback): **Suggest…** → each candidate quotes a set paper verbatim, names its anchor paper,
    carries stance + confidence; a garbled quote yields no anchor (dropped). Accept persists; Reject never returns.
 
+## Experience pass (rule #11 — skeptical synthesizer, inline)
+Inhabited **Dr. Nadia**, deciding whether to trust a 6-paper synthesis before citing it. Reception: the
+"Critically review these sources (N)" button sits in the summary-meta header beside the verified/flagged counts —
+where she already reads trust signals; discoverable + legible. The disagreement list (click → opens the
+contradicting PDF at its page) and the egress-gated, verbatim-quoted amber candidates serve her verify-it-yourself
+instinct well. **Finding (fixed in-session):** the fact-matrix composes *already-stored* method signals, so a set
+whose papers were never run through statcheck/transparency showed **no method columns** — reading as "clean on
+methods" when it actually means "no checks were run" (silence-is-not-a-certificate). Aligned fix: when the
+aggregate has zero method-signal columns, the caption now says the checks haven't been *run* + points to each
+paper's METHODS pane, and clarifies the `contested` column needs no prior check. No UX follow-up backlogged.
+
 ## Pytest
 Full suite green — `tests/test_critical_review_set.py` 11 passed (8 engine/Tier-2 + 3 endpoint). Total: **1201 passed, 1 skipped** (18m20s).

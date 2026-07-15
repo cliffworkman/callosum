@@ -6719,7 +6719,7 @@
         byKind[s.kind] = s;
       });
       return /* @__PURE__ */ React.createElement("tr", { key: row.paper_id }, /* @__PURE__ */ React.createElement("td", { className: "cr-matrix-title", title: row.title }, row.title), kinds.map((k) => /* @__PURE__ */ React.createElement("td", { key: k, title: byKind[k] ? byKind[k].detail || byKind[k].label || "" : "" }, byKind[k] ? byKind[k].label || "\u2022" : "\u2014")), /* @__PURE__ */ React.createElement("td", null, row.contested_count || 0));
-    }))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, "Facts each check surfaced \u2014 ", /* @__PURE__ */ React.createElement("b", null, "not a score"), ". An empty cell means ", /* @__PURE__ */ React.createElement("i", null, "this check found nothing on this paper"), ", not a clean bill of health."));
+    }))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, "Facts each check surfaced \u2014 ", /* @__PURE__ */ React.createElement("b", null, "not a score"), ". An empty cell means ", /* @__PURE__ */ React.createElement("i", null, "this check found nothing on this paper"), ", not a clean bill of health.", kinds.length === 0 && /* @__PURE__ */ React.createElement("span", null, " No method checks (statcheck, transparency, \u2026) have been ", /* @__PURE__ */ React.createElement("b", null, "run"), " on these papers yet \u2014 run them from each paper\u2019s METHODS pane to populate this. The ", /* @__PURE__ */ React.createElement("i", null, "contested"), " column reflects only intra-set disagreement, which needs no prior check.")));
   }
   function CriticalSetDisagreements({ contested, titleById, onOpen }) {
     const label = (id) => titleById[id] || "Paper " + id;
