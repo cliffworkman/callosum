@@ -66,6 +66,7 @@ function App() {
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh, setReferenceWarningsRefresh,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
+    critSetIds, setCritSetIds,
   } = lib;
 
   const {
@@ -192,6 +193,7 @@ function App() {
     onReferenceWarningsChanged: () => setReferenceWarningsRefresh(n => n + 1),
     onOpenTextHealth: openTextHealth,
     onOpenSettings: () => setSettingsOpen(true), settingsNonce,  // inc 148: synthesis egress-off nudge → open Settings
+    onCriticalReviewSources: (ids) => setCritSetIds(ids),  // #12: synthesis → critically review its source papers as a set
   };
 
   // B5 (inc 237): compute the three region nodes + the modals once, then render either the desktop grid or the
@@ -237,6 +239,8 @@ function App() {
           onChanged={() => setLibRefresh(n => n + 1)} onMerge={(ids) => setMergeIds(ids)} />}
       {mergeIds &&
         <MergePapersModal ids={mergeIds} onClose={() => setMergeIds(null)} onMerged={onMerged} />}
+      {critSetIds &&
+        <CriticalSetModal ids={critSetIds} onClose={() => setCritSetIds(null)} onOpenPaper={openPdf} />}
       {wantedOpen &&
         <WantedModal onClose={() => setWantedOpen(false)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {textHealthOpen &&

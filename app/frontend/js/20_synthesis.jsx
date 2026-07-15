@@ -55,7 +55,7 @@ function sectionFilterSummary(sections) {
   return selected.map(sectionLabel).join(" + ");
 }
 
-function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly }) {
+function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
   const [query, setQuery] = useState("");
   const [sectionFilter, setSectionFilter] = useState({});
   const [state, setState] = useState({ status: "idle" });
@@ -241,11 +241,12 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
   const verifiedCount = sentences.filter(s => !s.flagged).length;
   const flaggedCount = sentences.filter(s => s.flagged).length;
   // inc 153: which selected papers actually contributed a cited passage (the coverage readout).
-  const drewFromPapers = (() => {
+  const citedPaperIds = (() => {
     const ids = new Set();
     sentences.forEach(s => (s.citations || []).forEach(c => { if (c.paper_id != null) ids.add(c.paper_id); }));
-    return ids.size;
+    return [...ids];
   })();
+  const drewFromPapers = citedPaperIds.length;
 
   // inc 148: a friendly "AI is off" nudge with a one-click door into Settings (shown proactively when egress is
   // off, and reactively in place of a raw DataEgressDisabledError). Local features stay usable — this informs.
@@ -326,6 +327,13 @@ function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOp
             summary #{state.result.summary_id} · {state.result.summary_status}
             {` · ${verifiedCount} verified · ${flaggedCount} flagged`}
           </div>
+          {!readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 &&
+            <div className="synth-critical-review">
+              <button className="btn btn-link" onClick={() => onCriticalReviewSources(citedPaperIds)}
+                title="Critically review the papers this synthesis cites — cross-paper contradictions + each paper's method-check signals; a signal to weigh before trusting the synthesis, never a verdict">
+                Critically review these sources ({citedPaperIds.length})
+              </button>
+            </div>}
           {state.result.imported &&
             <div className="synth-imported" title="This synthesis came from a shared bundle — its statuses are the sender's, computed against their PDFs, not re-checked here.">
               Imported — the sender's assessment, not re-checked in your library. Sources open at the page (region precision).
@@ -561,5 +569,5 @@ registerPaneSection({
   id: "synthesis", label: "Synthesis", paneId: "theory", order: 20,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
     pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
-    onOpenTextHealth={ctx.onOpenTextHealth} readOnly={ctx.readOnly} />,
+    onOpenTextHealth={ctx.onOpenTextHealth} readOnly={ctx.readOnly} onCriticalReviewSources={ctx.onCriticalReviewSources} />,
 });

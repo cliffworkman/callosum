@@ -222,7 +222,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
                     libraryItemType, itemTypes, onItemTypeChange, libraryReading, onReadingFilter,
                     onToggleLibrarySelect, onClearLibrarySelect, onBulkDelete,
-                    onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
+                    onBulkSummarize, onBulkPcurve, onBulkMerge, onBulkCriticalRead, onBulkExport, onBulkExportBundle, onBulkBibliography, onSelectAll, libraryAxisFilter, onClearAxisFilter,
                     onBulkReferenceCheckDone,
                     libraryTagFilter, onClearTagFilter,
                     libraryNeedsReview, onToggleNeedsReview, onClearNeedsReview, librarySignalFilter, onClearSignalFilter,
@@ -463,6 +463,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           <ReprocessSelectedTextButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />
           {selCount >= 2 &&
             <button className="axis-link" onClick={onBulkMerge} title="Merge the selected papers into one record — keeps every PDF, link, tag, and highlight; the others move to Trash">merge</button>}
+          {selCount >= 2 && onBulkCriticalRead &&
+            <button className="axis-link" onClick={onBulkCriticalRead} title="Critically review the selected papers together — cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict">critical read</button>}
           <select className="bulk-export" value="" title="Export citations for the selected papers"
             onChange={e => { if (e.target.value) { onBulkExport(e.target.value); e.target.value = ""; } }}>
             <option value="" disabled>export…</option>
