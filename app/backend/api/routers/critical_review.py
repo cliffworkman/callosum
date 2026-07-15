@@ -252,3 +252,134 @@ def accept_candidate(candidate_id: int, conn: Connection = Depends(get_connectio
 @router.post("/critical-read/candidates/{candidate_id}/reject", response_model=CandidateStatusResponse)
 def reject_candidate(candidate_id: int, conn: Connection = Depends(get_connection)) -> CandidateStatusResponse:
     return _set_candidate_status(candidate_id, "rejected", conn)
+
+
+# --- Set (multi-paper) critical review (backlog #12) — a shared engine keyed on a chosen SET of papers ------------
+
+MAX_SET_PAPERS = 12
+
+
+class SetCriticalReadRequest(BaseModel):
+    paper_ids: list[int]
+    llm: bool = False
+
+
+class SetCriticalReadResponse(BaseModel):
+    job_id: str
+    status: Literal["pending", "running", "done", "error"]
+    detail: str | None = None
+    report: dict | None = None
+
+
+@router.post("/critical-read/set", response_model=SetCriticalReadResponse, status_code=http_status.HTTP_202_ACCEPTED)
+def set_critical_read_start(
+    body: SetCriticalReadRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    conn: Connection = Depends(get_connection),
+) -> SetCriticalReadResponse:
+    ids = list(dict.fromkeys(int(p) for p in body.paper_ids))  # de-dup, preserve order
+    if not (2 <= len(ids) <= MAX_SET_PAPERS):
+        raise HTTPException(status_code=422, detail=f"Select 2–{MAX_SET_PAPERS} papers for a set critical read.")
+    for pid in ids:
+        try:
+            get_paper(conn, pid)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail=f"Paper {pid} not found") from None
+    job_id = request.app.state.critical_review_set_jobs.create()
+    background_tasks.add_task(_run_set_critical_read_job, request.app, job_id, ids, bool(body.llm))
+    return SetCriticalReadResponse(job_id=job_id, status="pending")
+
+
+@router.get("/critical-read/set/{job_id}", response_model=SetCriticalReadResponse)
+def set_critical_read_status(job_id: str, request: Request) -> SetCriticalReadResponse:
+    job = request.app.state.critical_review_set_jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Set critical-read job not found")
+    if job.status == "done" and job.result is not None:
+        return job.result
+    return SetCriticalReadResponse(job_id=job_id, status=job.status, detail=job.detail)
+
+
+def _run_set_critical_read_job(app: FastAPI, job_id: str, set_ids: list[int], want_llm: bool) -> None:
+    from app.backend.methods.critical_review_set import set_aggregate, set_contested_claims
+
+    jobs: JobStore[SetCriticalReadResponse] = app.state.critical_review_set_jobs
+    jobs.mark_running(job_id)
+    try:
+        embed_model, vector_store, stance_scorer = _cr_deps(app)
+        engine: Engine = app.state.engine
+        with engine.connect() as conn:
+            contested = set_contested_claims(
+                conn, set_ids, embed_model=embed_model, vector_store=vector_store, stance_scorer=stance_scorer
+            )
+            aggregate = set_aggregate(conn, set_ids, contested)
+        if want_llm:
+            llm_status, candidates = _run_set_tier2(app, set_ids, stance_scorer)
+        else:
+            llm_status = {"status": "not_searched", "detail": "AI critique was not requested for this run."}
+            candidates = []
+        jobs.mark_done(
+            job_id,
+            SetCriticalReadResponse(
+                job_id=job_id,
+                status="done",
+                report={
+                    "aggregate": aggregate,
+                    "contested_claims": contested,
+                    "candidates": candidates,
+                    "llm_status": llm_status,
+                },
+            ),
+        )
+    except Exception as exc:
+        jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
+
+
+def _run_set_tier2(app: FastAPI, set_ids: list[int], stance_scorer) -> tuple[dict, list[dict]]:
+    # Tier 2 (egress-gated, invariant #3): the LLM proposes CROSS-PAPER concerns; each is admitted only through the
+    # extended #13 bar (verify_set_candidates → verbatim anchor in some set paper), annotated with a local NLI stance,
+    # and persisted as a pending CANDIDATE the human accepts/rejects. A fake generator (test seam) still honors the gate.
+    from app.backend.llm.providers import requires_egress
+    from app.backend.methods.critical_review import paper_full_text
+    from integrations.gemini import GeminiConfig
+    from integrations.gemini.critical_review_set import GeminiSetCriticalReviewGenerator, verify_set_candidates
+
+    config = GeminiConfig.from_environment()
+    if requires_egress(config) and not config.data_egress_enabled:
+        return {
+            "status": "unavailable",
+            "detail": "AI critique needs data-egress consent (Settings → AI features).",
+        }, []
+    generator = getattr(app.state, "critical_review_set_generator", None)
+    if generator is None:
+        if requires_egress(config) and not config.resolved_api_key():
+            return {"status": "unavailable", "detail": "AI critique needs an API key (Settings → AI features)."}, []
+        generator = GeminiSetCriticalReviewGenerator(config=config)
+
+    engine: Engine = app.state.engine
+    response: list[dict] = []
+    with engine.begin() as conn:
+        set_papers = [
+            {"index": i + 1, "paper_id": pid, "text": paper_full_text(conn, pid)} for i, pid in enumerate(set_ids)
+        ]
+        rejected: set[str] = set()
+        for pid in set_ids:
+            rejected |= repo.rejected_signatures(conn, pid)
+        verified = verify_set_candidates(
+            generator.propose(set_papers),
+            set_papers=set_papers,
+            stance_scorer=stance_scorer,
+            rejected_signatures=rejected,
+        )
+        by_paper: dict[int, list[dict]] = {}
+        for cand in verified:
+            by_paper.setdefault(cand["paper_id"], []).append(cand)
+        for pid, group in by_paper.items():
+            ids = repo.insert_candidates(conn, pid, group)
+            for cand, cid in zip(group, ids, strict=False):
+                response.append(
+                    {**cand, "id": cid, "status": "pending", "related_paper_ids_json": cand.get("related_paper_ids")}
+                )
+    detail = None if response else "No grounded cross-paper concerns surfaced."
+    return {"status": "success", "count": len(response), "detail": detail}, response

@@ -167,6 +167,8 @@ def create_app(
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
     api.state.critical_review_jobs = JobStore()  # backlog #12: single-paper critical-read (scrutiny surface)
+    api.state.critical_review_set_jobs = JobStore()  # backlog #12: set (multi-paper) critical review
+    api.state.critical_review_set_generator = None  # test seam for the Tier-2 set generator
     api.state.citation_equity_jobs = JobStore()  # inc 227 (#25): per-paper structural citation-equity audit
     api.state.overlooked_jobs = JobStore()  # inc 228 (#25 SP2): topical overlooked-work remediation
     api.state.metadata_enrich_jobs = JobStore()  # inc 217: multi-pass, gap-filling metadata enrichment

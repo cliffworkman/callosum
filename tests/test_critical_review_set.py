@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import json
 
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, insert, update
 
+from app.backend.api import create_app
 from app.backend.embeddings.vector_store import VectorHit
 from app.backend.methods.critical_review_set import set_aggregate, set_chunk_embedding_ids, set_contested_claims
 from app.backend.persistence import critical_review_repo as repo
@@ -226,3 +228,82 @@ def test_parse_set_drafts_defensive():
     assert parse_set_drafts("not json") == []
     drafts = parse_set_drafts('[{"concern":"c","anchor_quote":"q","related":[1,2]}]')
     assert drafts[0].concern == "c" and drafts[0].related_indices == [1, 2]
+
+
+class _EmptyVectorStore:
+    def search(self, conn, *, vector, top_k, candidate_embedding_ids=None):
+        return []
+
+
+def _cr_set_app(temp_db_url):
+    app = create_app(db_url=temp_db_url)
+    app.state.critical_review_deps = {
+        "embed_model": _FakeEmbed(),
+        "vector_store": _EmptyVectorStore(),
+        "stance_scorer": _ContrastStance(),
+    }
+    return app
+
+
+def _poll_set(client, job_id):
+    for _ in range(30):
+        d = client.get(f"/critical-read/set/{job_id}").json()
+        if d["status"] in {"done", "error"}:
+            return d
+    raise AssertionError("job did not finish")
+
+
+def test_set_validation(temp_db_url):
+    client = TestClient(_cr_set_app(temp_db_url))
+    with make_engine(temp_db_url).begin() as conn:
+        a = create_paper(conn, title="A", csl_json={"title": "A"})
+    assert client.post("/critical-read/set", json={"paper_ids": [a]}).status_code == 422  # < 2
+    assert client.post("/critical-read/set", json={"paper_ids": list(range(1, 20))}).status_code == 422  # > 12
+    assert client.post("/critical-read/set", json={"paper_ids": [a, 999999]}).status_code == 404
+
+
+def test_set_tier1_report(temp_db_url):
+    client = TestClient(_cr_set_app(temp_db_url))
+    with make_engine(temp_db_url).begin() as conn:
+        a = create_paper(conn, title="A", csl_json={"title": "A"})
+        b = create_paper(conn, title="B", csl_json={"title": "B"})
+    done = _poll_set(client, client.post("/critical-read/set", json={"paper_ids": [a, b]}).json()["job_id"])
+    assert done["status"] == "done"
+    assert len(done["report"]["aggregate"]) == 2
+    assert done["report"]["contested_claims"] == []
+    assert done["report"]["llm_status"]["status"] == "not_searched"
+
+
+class _FakeSetGenerator:
+    def __init__(self, drafts):
+        self._drafts = drafts
+
+    def propose(self, set_papers):
+        return list(self._drafts)
+
+
+def test_set_tier2_fake_generator_and_egress_off(temp_db_url, monkeypatch):
+    app = _cr_set_app(temp_db_url)
+    with make_engine(temp_db_url).begin() as conn:
+        a = create_paper(conn, title="A", abstract="The sample was n = 12 participants.", csl_json={"title": "A"})
+        b = create_paper(conn, title="B", abstract="We used a within-subjects design.", csl_json={"title": "B"})
+    app.state.critical_review_set_generator = _FakeSetGenerator(
+        [SetCandidateDraft("Small sample size.", "The sample was n = 12 participants.", [2])]
+    )
+    client = TestClient(app)
+    # egress ON (conftest default): the fake runs; one grounded candidate persists, anchored to A, related=[B]
+    done = _poll_set(
+        client, client.post("/critical-read/set", json={"paper_ids": [a, b], "llm": True}).json()["job_id"]
+    )
+    assert done["status"] == "done"
+    cands = done["report"]["candidates"]
+    assert len(cands) == 1
+    assert cands[0]["paper_id"] == a and cands[0]["concern"] == "Small sample size."
+    assert cands[0]["related_paper_ids_json"] == [b]
+    # egress OFF: honest unavailable, no LLM call, no new candidates
+    monkeypatch.delenv("CALLOSUM_ALLOW_DATA_EGRESS", raising=False)
+    done2 = _poll_set(
+        client, client.post("/critical-read/set", json={"paper_ids": [a, b], "llm": True}).json()["job_id"]
+    )
+    assert done2["report"]["llm_status"]["status"] == "unavailable"
+    assert done2["report"]["candidates"] == []
