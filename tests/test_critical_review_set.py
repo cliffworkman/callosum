@@ -2,9 +2,93 @@
 
 from __future__ import annotations
 
+from sqlalchemy import create_engine, insert, update
+
+from app.backend.embeddings.vector_store import VectorHit
+from app.backend.methods.critical_review_set import set_aggregate, set_chunk_embedding_ids, set_contested_claims
 from app.backend.persistence import critical_review_repo as repo
+from app.backend.persistence import schema, signals_repo
 from app.backend.persistence.database import make_engine
-from app.backend.persistence.repository import create_paper
+from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
+from app.backend.summarization.verification import Stance
+
+
+def _fresh_db():
+    eng = create_engine("sqlite://")
+    schema.metadata.create_all(eng)
+    return eng
+
+
+def _paper_with_attachment(conn, title: str) -> tuple[int, int]:
+    pid = create_paper(conn, title=title, csl_json={"title": title})
+    aid = create_attachment(
+        conn,
+        paper_id=pid,
+        storage_mode="linked",
+        availability="available",
+        content_type="application/pdf",
+        checksum=f"chk-{title}",
+        import_source="test",
+        attachment_type="pdf",
+        role="primary",
+    )
+    return pid, aid
+
+
+def _chunk_with_embedding(conn, paper_id: int, attachment_id: int, *, text: str, page: int) -> tuple[int, int]:
+    chunk_id = create_chunk(
+        conn,
+        paper_id=paper_id,
+        attachment_id=attachment_id,
+        text=text,
+        page_start=page,
+        page_end=page,
+        bbox_coordinate_system="pdf-points-top-left",
+        extraction_tool="test",
+        extraction_version="1",
+        chunking_strategy="paragraph",
+        chunk_version="v1",
+        source_attachment_checksum="chk",
+    )
+    embedding_id = int(
+        conn.execute(
+            insert(schema.embeddings).values(
+                target_type="chunk",
+                target_id=chunk_id,
+                model_name="fake",
+                model_version="v1",
+                dimension=3,
+                normalization="none",
+                source_text_version="v1",
+            )
+        ).inserted_primary_key[0]
+    )
+    return chunk_id, embedding_id
+
+
+class _FakeEmbed:
+    name = version = "fake"
+    dimension = 3
+    normalization = "none"
+
+    def encode_texts(self, texts):
+        return [[0.1, 0.2, 0.3] for _ in texts]
+
+
+class _CandidateRespectingVectorStore:
+    """Returns a hit for each seeded embedding_id that IS in candidate_embedding_ids — so set-scoping is honored."""
+
+    def __init__(self, known_ids):
+        self._known = set(known_ids)
+
+    def search(self, conn, *, vector, top_k, candidate_embedding_ids=None):
+        cand = set(candidate_embedding_ids or set())
+        return [VectorHit(embedding_id=eid, distance=0.1) for eid in sorted(self._known & cand)][:top_k]
+
+
+class _ContrastStance:
+    def classify_stance(self, *, sentence, passage):
+        return Stance("contrast", 0.8, {"support": 0.1, "contrast": 0.8, "mention": 0.1})
 
 
 def test_related_paper_ids_roundtrips(temp_db_url):
@@ -29,3 +113,66 @@ def test_related_paper_ids_roundtrips(temp_db_url):
     engine.dispose()
     assert cid > 0
     assert rows[0]["related_paper_ids_json"] == [pid + 1, pid + 2]
+
+
+def test_set_chunk_embedding_ids_scopes_to_set():
+    eng = _fresh_db()
+    with eng.begin() as c:
+        a, aa = _paper_with_attachment(c, "A")
+        b, ab = _paper_with_attachment(c, "B")
+        cc, ac = _paper_with_attachment(c, "C")
+        _, _a_emb = _chunk_with_embedding(c, a, aa, text="alpha", page=1)
+        _, b_emb = _chunk_with_embedding(c, b, ab, text="beta", page=1)
+        _, _c_emb = _chunk_with_embedding(c, cc, ac, text="gamma", page=1)
+        got = set_chunk_embedding_ids(c, [a, b], a)
+    eng.dispose()
+    assert got == {b_emb}  # only B (in-set, other); excludes A (self) and C (not in set)
+
+
+def test_set_contested_only_surfaces_intra_set():
+    eng = _fresh_db()
+    with eng.begin() as c:
+        a, _aa = _paper_with_attachment(c, "A")
+        b, ab = _paper_with_attachment(c, "B")
+        cc, ac = _paper_with_attachment(c, "C")
+        c.execute(update(schema.papers).where(schema.papers.c.id == a).values(abstract="X strongly causes Y."))
+        _, b_emb = _chunk_with_embedding(c, b, ab, text="X does not cause Y.", page=3)
+        _, c_emb = _chunk_with_embedding(c, cc, ac, text="X does not cause Y either.", page=4)
+        store = _CandidateRespectingVectorStore({b_emb, c_emb})
+        rows = set_contested_claims(
+            c, [a, b], embed_model=_FakeEmbed(), vector_store=store, stance_scorer=_ContrastStance()
+        )
+    eng.dispose()
+    assert len(rows) == 1  # C is not in the set → excluded by set-scoping
+    assert rows[0]["claim_paper_id"] == a
+    assert rows[0]["other_paper_id"] == b
+    assert rows[0]["stance"] == "contrast"
+
+
+def test_set_aggregate_is_a_fact_matrix_not_a_score():
+    eng = _fresh_db()
+    with eng.begin() as c:
+        a, _ = _paper_with_attachment(c, "A")
+        b, _ = _paper_with_attachment(c, "B")
+        signals_repo.store_statcheck(c, a, checked=10, inconsistent=2, decision_errors=0)
+        contested = [
+            {
+                "claim_paper_id": a,
+                "other_paper_id": b,
+                "claim": "x",
+                "passage": "y",
+                "page": 1,
+                "stance": "contrast",
+                "confidence": 0.7,
+            }
+        ]
+        rows = set_aggregate(c, [a, b], contested)
+    eng.dispose()
+    by_id = {r["paper_id"]: r for r in rows}
+    assert {r["title"] for r in rows} == {"A", "B"}
+    assert any(s["kind"] == "statcheck" for s in by_id[a]["method_signals"])
+    assert by_id[a]["contested_count"] == 1
+    assert by_id[b]["method_signals"] == []  # honest empty, never "clean"
+    assert by_id[b]["contested_count"] == 0
+    for r in rows:  # honesty: no composite score / ranking field
+        assert not ({"score", "quality", "grade", "rank", "rating"} & set(r.keys()))
