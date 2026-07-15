@@ -44,6 +44,7 @@ from app.backend.api.routers import (
     health,
     help,
     library,
+    library_enrich,
     libreoffice,
     lmm,
     metaanalysis,
@@ -292,6 +293,7 @@ def create_app(
     api.include_router(saved_searches.router)
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
+    api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)
     api.include_router(axes.router)
     api.include_router(summaries.router)
     api.include_router(help.router)

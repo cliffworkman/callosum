@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.backend.api import create_app
-from app.backend.api.routers.library import _enrich_progress_label
+from app.backend.api.routers.library_enrich import _enrich_progress_label
 from app.backend.discovery.providers import Item
 from app.backend.metadata.enrich_sources import (
     EnrichmentRegistry,

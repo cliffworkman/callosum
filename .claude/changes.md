@@ -17,7 +17,8 @@ are the design diary; this is the chronological "what & why" record.
 - **Verify:** frontend assembly + design-drift tests green; grouping + new copy present in the built HTML, old conflating copy gone. **Manual/visual check of the grouped chips still owed** (rule #3 follow-up).
 
 ## 2026-07-15 — Enrich job shows per-item titles in its progress label (backlog #4)
-- **Files:** `app/backend/api/routers/library.py` (`_enrich_progress_label` + `_run_metadata_enrich_job`), `tests/test_metadata_multi_enrich.py`.
+- **Files:** `app/backend/api/routers/library_enrich.py` (NEW — `_enrich_progress_label` + `_run_metadata_enrich_job` + the two `/library/enrich/refresh` endpoints + models), `app/backend/api/routers/library.py`, `app/backend/api/app.py`, `tests/test_metadata_multi_enrich.py`.
+- **Rule #1 split:** the #4 addition pushed `library.py` to 617 (over the 600 cap — caught by the CI line-budget gate, not the `--no-verify` local commits). Extracted the whole self-contained metadata-enrich cluster → new sibling router `library_enrich.py` (111), mounted beside `library.router` in `app.py` — the inc-226 `paper_enrich.py` pattern; `library.py` back to **528**. `library_enrich` reuses `library`'s `JobProgressOut`/`_progress_out` via a one-way import (no cycle).
 - **What:** the library-wide metadata-enrich job's progress label now names the paper being enriched (`"Enriching {title}"`, bounded to 60 chars) instead of a generic *"Enriching metadata"* — like the scan job already shows each filename. Falls back to the generic label for a title-less scaffold.
 - **Why:** backlog **#4** remaining ("a per-item title in the import/embed/enrich progress label"). The enrich job is the clearest per-item win (it loops live papers with real titles); the embed phases only get `(i, n)` and are fast, so they keep counts. Unit-tested pure label helper.
 
