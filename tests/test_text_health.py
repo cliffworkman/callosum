@@ -4,10 +4,13 @@ from pathlib import Path
 
 import fitz
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, get_chunks_for_paper
+from app.backend.persistence.schema import embeddings
+from tests.api_helpers import ApiFakeEmbeddingModel
 
 
 def test_text_health_overview_and_missing_section_batch(temp_db_url: str, tmp_path: Path) -> None:
@@ -35,7 +38,7 @@ def test_text_health_overview_and_missing_section_batch(temp_db_url: str, tmp_pa
         no_pdf = create_paper(conn, title="No PDF", csl_json={"title": "No PDF"})
     engine.dispose()
 
-    client = TestClient(create_app(db_url=temp_db_url))
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=ApiFakeEmbeddingModel()))
     overview = client.get("/papers/text-health/overview").json()
 
     assert overview["counts"]["missing_section_labels"] == 1
@@ -53,8 +56,17 @@ def test_text_health_overview_and_missing_section_batch(temp_db_url: str, tmp_pa
     with make_engine(temp_db_url).begin() as conn:
         chunks = get_chunks_for_paper(conn, needs["paper_id"])
         no_chunk_rows = get_chunks_for_paper(conn, no_chunks["paper_id"])
+        chunk_ids = [chunk["id"] for chunk in chunks]
+        embedded = conn.execute(
+            select(func.count())
+            .select_from(embeddings)
+            .where(embeddings.c.target_type == "chunk", embeddings.c.target_id.in_(chunk_ids))
+        ).scalar_one()
     assert {chunk["section"] for chunk in chunks} == {"abstract", "methods"}
     assert no_chunk_rows == []
+    # Reprocess must re-embed the fresh chunks so the paper stays retrievable in vector search — regression:
+    # it used to delete the old chunks' embeddings without adding any for the new ones.
+    assert chunk_ids and embedded == len(chunk_ids)
 
 
 def test_selected_text_reprocess_skips_no_chunks_and_no_local_pdf(temp_db_url: str, tmp_path: Path) -> None:
@@ -81,7 +93,7 @@ def test_selected_text_reprocess_skips_no_chunks_and_no_local_pdf(temp_db_url: s
         no_pdf = create_paper(conn, title="No PDF", csl_json={"title": "No PDF"})
     engine.dispose()
 
-    client = TestClient(create_app(db_url=temp_db_url))
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=ApiFakeEmbeddingModel()))
     started = client.post(
         "/papers/text-health/reprocess",
         json={"mode": "selected", "paper_ids": [ready["paper_id"], no_chunks["paper_id"], no_pdf]},
@@ -116,7 +128,7 @@ def test_reprocess_empty_extraction_preserves_existing_chunks(temp_db_url: str, 
         )
     engine.dispose()
 
-    client = TestClient(create_app(db_url=temp_db_url))
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=ApiFakeEmbeddingModel()))
     response = client.post(f"/papers/{seeded['paper_id']}/reprocess-pdf")
 
     assert response.status_code == 422

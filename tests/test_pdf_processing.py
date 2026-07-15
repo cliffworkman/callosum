@@ -29,6 +29,7 @@ from app.backend.pdf_processing.sections import SectionTracker, detect_section_h
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper, get_chunks_for_paper
 from app.backend.persistence.schema import embeddings, papers
+from tests.api_helpers import ApiFakeEmbeddingModel
 
 FIXTURE_QUOTES = [
     {
@@ -218,25 +219,38 @@ def test_reprocess_pdf_endpoint_replaces_chunks_and_preserves_paper(tmp_path: Pa
         )
         store.add(conn, embedding_id=old_embedding_id, vector=[0.0, 1.0])
 
-    response = TestClient(create_app(db_url=url, vector_store=store)).post(f"/papers/{paper_id}/reprocess-pdf")
+    response = TestClient(create_app(db_url=url, vector_store=store, embedding_model=ApiFakeEmbeddingModel())).post(
+        f"/papers/{paper_id}/reprocess-pdf"
+    )
 
     assert response.status_code == 200
     body = response.json()
     assert body["attachment_id"] == attachment_id
     assert body["chunks_removed"] == 1
     assert body["chunks_created"] == 3
-    assert old_embedding_id not in store.vectors
     with engine.begin() as conn:
         saved_paper = conn.execute(select(papers).where(papers.c.id == paper_id)).mappings().one()
         saved_chunks = get_chunks_for_paper(conn, paper_id)
-        old_embedding_count = conn.execute(
-            select(func.count()).select_from(embeddings).where(embeddings.c.id == old_embedding_id)
+        saved_ids = [chunk["id"] for chunk in saved_chunks]
+        embedded_current = conn.execute(
+            select(func.count())
+            .select_from(embeddings)
+            .where(embeddings.c.target_type == "chunk", embeddings.c.target_id.in_(saved_ids))
+        ).scalar_one()
+        orphan_embeddings = conn.execute(
+            select(func.count())
+            .select_from(embeddings)
+            .where(embeddings.c.target_type == "chunk", embeddings.c.target_id.not_in(saved_ids))
         ).scalar_one()
     engine.dispose()
 
     assert saved_paper["title"] == "Keep Metadata"
     assert saved_paper["doi"] == "10.1/keep"
-    assert old_embedding_count == 0
+    # Reprocess replaced the stale embedding: the old chunk (and its embedding) is gone, every new chunk is
+    # (re)embedded, no orphaned embedding points at a deleted chunk, and the vector store holds exactly the new set.
+    assert embedded_current == len(saved_chunks) == 3
+    assert orphan_embeddings == 0
+    assert len(store.vectors) == 3
     assert {chunk["text"] for chunk in saved_chunks} == {
         "Data are available at OSF.",
         "We recruited participants and analyzed survey responses.",

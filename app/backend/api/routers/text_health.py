@@ -16,6 +16,7 @@ from sqlalchemy import Connection, and_, case, func, select
 
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
+from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.pdf_processing.extraction import DEFAULT_CHUNKING_STRATEGY, EXTRACTION_TOOL
 from app.backend.pdf_processing.ingest import PdfReprocessEmptyExtraction, reprocess_pdf_attachment
@@ -140,6 +141,7 @@ def _run_text_reprocess_job(app: FastAPI, job_id: str, payload: TextReprocessReq
             ids = _candidate_ids(conn, payload)
             summary.total = len(ids)
             store = _vector_store(app)
+            model = _embedding_model(app)
             for index, paper_id in enumerate(ids, start=1):
                 health = _text_health_for_paper(conn, paper_id)
                 jobs.mark_progress(job_id, index, len(ids), "Reprocessing PDF text")
@@ -159,7 +161,7 @@ def _run_text_reprocess_job(app: FastAPI, job_id: str, payload: TextReprocessReq
                     continue
                 try:
                     result = reprocess_pdf_attachment(
-                        conn, paper_id, int(attachment["id"]), pdf_path, vector_store=store
+                        conn, paper_id, int(attachment["id"]), pdf_path, vector_store=store, embedding_model=model
                     )
                 except PdfReprocessEmptyExtraction:
                     summary.skipped_no_chunks += 1
@@ -289,3 +291,10 @@ def _vector_store(api: FastAPI) -> VectorStore:
     if injected is not None:
         return injected
     return SQLiteVecVectorStore()
+
+
+def _embedding_model(api: FastAPI) -> EmbeddingModel:
+    injected = api.state.embedding_model
+    if injected is not None:
+        return injected
+    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)

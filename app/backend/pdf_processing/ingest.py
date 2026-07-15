@@ -35,6 +35,7 @@ from app.backend.persistence.repository import (
 from app.backend.persistence.schema import chunks
 
 if TYPE_CHECKING:
+    from app.backend.embeddings.models import EmbeddingModel
     from app.backend.embeddings.vector_store import VectorStore
 
 
@@ -113,6 +114,7 @@ def reprocess_pdf_attachment(
     pdf_path: str | Path,
     *,
     vector_store: "VectorStore",
+    embedding_model: "EmbeddingModel",
     chunking_strategy: str = DEFAULT_CHUNKING_STRATEGY,
 ) -> dict[str, Any]:
     """Replace extracted chunks for an existing PDF attachment without changing paper metadata or files."""
@@ -151,6 +153,13 @@ def reprocess_pdf_attachment(
         )
         for draft in drafts
     ]
+    # Re-embed the fresh chunks: delete_chunks_for_attachment removed the OLD chunks' vector embeddings, so
+    # without this the reprocessed paper would silently drop out of vector-search retrieval (find-related,
+    # gap-finder, axis scoring, library-wide citation suggest). embed_chunks is idempotent per chunk_version.
+    if chunk_ids:
+        from app.backend.embeddings.pipeline import embed_chunks
+
+        embed_chunks(conn, model=embedding_model, vector_store=vector_store, chunk_ids=chunk_ids)
     refresh_processing_tier(conn, paper_id)
     return {
         "attachment_id": attachment_id,

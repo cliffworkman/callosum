@@ -28,6 +28,7 @@ from app.backend.api.routers.paper_models import (
     ReadStateRequest,
     ReprocessPdfResponse,
 )
+from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.metadata.abstract_display import abstract_plain_text, clean_abstract_for_display
 from app.backend.metadata.citation_export import render_citations
@@ -159,6 +160,7 @@ def reprocess_paper_pdf(
             int(attachment["id"]),
             pdf_path,
             vector_store=_vector_store(request.app),
+            embedding_model=_embedding_model(request.app),
         )
     except PdfReprocessEmptyExtraction as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from None
@@ -278,6 +280,13 @@ def _vector_store(api: FastAPI) -> VectorStore:
     if injected is not None:
         return injected
     return SQLiteVecVectorStore()
+
+
+def _embedding_model(api: FastAPI) -> EmbeddingModel:
+    injected = api.state.embedding_model
+    if injected is not None:
+        return injected
+    return SentenceTransformerEmbeddingModel(name=DEFAULT_EMBEDDING_MODEL, version=DEFAULT_EMBEDDING_MODEL)
 
 
 def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:

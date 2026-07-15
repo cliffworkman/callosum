@@ -59,3 +59,22 @@ Additional review:
 - **Deletion boundary:** Same scoped chunk/embedding/vector deletion as the single-paper endpoint: `paper_id` plus `attachment_id`.
 
 Addendum result: PASS.
+
+## Correction (2026-07-14 review): reprocess did not re-embed the replacement chunks
+
+A trust-but-verify review found a **functional-integrity defect** the original audit missed: step 6 deletes the
+old chunks' embedding + vector-store rows, and step 7 writes replacement chunks — but nothing **re-embedded** the
+new chunks. So after any reprocess (single-paper or batch), the paper's fresh chunks had no embeddings.
+
+- **Impact:** synthesis self-heals (it lazily embeds in-scope chunks before ranking), but vector-search retrieval
+  (find-related, gap-finder, axis scoring, library-wide citation-suggest) searches existing embeddings — so a
+  reprocessed paper silently dropped out of those flows until re-embedded. A maintenance action degrading
+  retrievability, undisclosed. Not a security issue; a correctness one.
+- **Fix:** `reprocess_pdf_attachment` now takes an `embedding_model` and calls `embed_chunks(conn, model=…,
+  vector_store=…, chunk_ids=new_chunk_ids)` after creating the replacement chunks (idempotent per chunk_version —
+  the same primitive verification/synthesis use). Both callers (`routers/papers.py`, `routers/text_health.py`)
+  pass the model via an `_embedding_model(app)` accessor mirroring `_vector_store(app)`.
+- **Test:** `tests/test_text_health.py::test_text_health_overview_and_missing_section_batch` now asserts every
+  reprocessed chunk has an embedding row.
+
+Correction result: PASS after fix. Security posture unchanged (still local, no egress, scoped deletion).
