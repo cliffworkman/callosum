@@ -259,6 +259,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   const hasNextPage = hasLocalPaperFilter && state.total != null
     ? (page + 1) * PAGE_SIZE < state.total
     : state.papers.length === PAGE_SIZE;
+  // statcheck #e: two header-chip KINDS, grouped + divided so a check SIGNAL (amber/red) reads as distinct from
+  // your review-QUEUE work-state (indigo). open-data-not-detected stays in the queue group (a go-look work-state,
+  // never a "hides data" verdict — the A-A no-accusation boundary), NOT with the signals.
+  const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
+  const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
+  const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
+  const showTransparencyChip =
+    !trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-");
   return (
     <div className="pane-list-body">
       <div className="pane-head">
@@ -267,18 +275,24 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           {!readOnly && <span className="lib-head-actions">
             {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onExportBundle={onExportBundle} />}
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
-            {!trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" &&
-              <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
-                title="Papers with a reporting inconsistency from the last statistics check — usually innocent; a list to review">⚠ {statcheckFlagged} flagged</button>}
-            {!trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted" &&
-              <button className="trash-toggle retraction-chip" onClick={onShowRetractionFlagged}
-                title="Papers a registry records as retracted — verify before citing">⚠ {retractionFlagged} retracted</button>}
-            {!trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review" &&
-              <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
-                title="Findings you haven't reviewed yet — open each paper's Review section">📋 {findingsToReview} to review</button>}
-            {!trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-") &&
-              <button className="trash-toggle transparency-chip" onClick={() => onShowTransparencyReview()}
-                title="Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text — a list to review (it may still share data elsewhere), never a claim that they hide it">🔎 {transparencyReview} · open data not detected</button>}
+            {(showStatcheckChip || showRetractionChip) &&
+              <span className="lib-chip-group lib-chip-signals" title="Check signals — a check detected something concrete on these papers">
+                {showStatcheckChip &&
+                  <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
+                    title="Papers where a reported p-value didn't recompute in the last statistics check — a signal to inspect, usually innocent (typos, rounding, one-tailed tests). Distinct from your review queue.">⚠ {statcheckFlagged} flagged</button>}
+                {showRetractionChip &&
+                  <button className="trash-toggle retraction-chip" onClick={onShowRetractionFlagged}
+                    title="Papers a registry records as retracted — verify before citing">⚠ {retractionFlagged} retracted</button>}
+              </span>}
+            {(showFindingsChip || showTransparencyChip) &&
+              <span className="lib-chip-group lib-chip-queue" title="Your review queue — things for you to go look at; clears as you review">
+                {showFindingsChip &&
+                  <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
+                    title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 {findingsToReview} to review</button>}
+                {showTransparencyChip &&
+                  <button className="trash-toggle transparency-chip" onClick={() => onShowTransparencyReview()}
+                    title="Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text — a list to go look at (it may still share data elsewhere), never a claim that they hide it">🔎 {transparencyReview} · open data not detected</button>}
+              </span>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
                 title={libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review — raw imports, unresolved DOIs"}>

@@ -16,6 +16,7 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 
 from app.backend.acquisition.fetch import library_dir
 from app.backend.api.job_store import JobStore
@@ -29,6 +30,7 @@ from app.backend.metadata.library_bundle import MAX_BUNDLE_BYTES, BundleError, b
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.pdf_processing.library_scan import scan_library_folder
 from app.backend.persistence.repository import list_live_paper_ids
+from app.backend.persistence.schema import papers
 from app.backend.persistence.watched_repo import (
     add_watched_folder,
     list_watched_folders,
@@ -377,6 +379,20 @@ def enrich_library_status(job_id: str, request: Request) -> MetadataEnrichRespon
     return MetadataEnrichResponse(job_id=job_id, status=job.status, detail=job.detail, progress=_progress_out(job))
 
 
+_ENRICH_TITLE_MAX = 60
+
+
+def _enrich_progress_label(title: str | None) -> str:
+    """Per-item progress label for the metadata-enrich job (#4): show the paper being enriched — like the scan
+    job shows each filename — falling back to the generic phase label when a paper has no title yet."""
+    text = (title or "").strip()
+    if not text:
+        return "Enriching metadata"
+    if len(text) > _ENRICH_TITLE_MAX:
+        text = text[: _ENRICH_TITLE_MAX - 1].rstrip() + "…"
+    return f"Enriching {text}"
+
+
 def _run_metadata_enrich_job(app: FastAPI, job_id: str) -> None:
     jobs: JobStore[MetadataEnrichResponse] = app.state.metadata_enrich_jobs
     jobs.mark_running(job_id)
@@ -389,12 +405,16 @@ def _run_metadata_enrich_job(app: FastAPI, job_id: str) -> None:
         with app.state.engine.begin() as conn:
             ids = list_live_paper_ids(conn)
             total = len(ids)
+            titles = {
+                int(row[0]): row[1]
+                for row in conn.execute(select(papers.c.id, papers.c.title).where(papers.c.id.in_(ids)))
+            }
             for index, paper_id in enumerate(ids, start=1):
                 result = enrich_paper_metadata_multi(conn, paper_id, registry=registry, search_provider=search_provider)
                 recovered += 1 if result.doi_recovered else 0
                 filled += len(result.filled_fields)
                 missing += 1 if result.still_missing_doi else 0
-                jobs.mark_progress(job_id, index, total, "Enriching metadata")
+                jobs.mark_progress(job_id, index, total, _enrich_progress_label(titles.get(paper_id)))
         jobs.mark_done(
             job_id,
             MetadataEnrichResponse(

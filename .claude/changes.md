@@ -9,6 +9,18 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-15 — statcheck (e): group header chips by KIND — signals vs your review queue
+- **Files:** `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/styles.css`, `.claude/DESIGN.md`, rebuilt `callosum-app.html`.
+- **What:** the library-header filter chips now render in two divided `.lib-chip-group` clusters: **check signals** (amber/red — statcheck `⚠ flagged`, retraction `⚠ retracted`) vs **your review queue** (indigo — findings `📋 to review`, transparency `🔎 open data not detected`), separated by a thin `--line` rule. Also fixed the copy overload: the statcheck `flagged` tooltip no longer calls itself *"a list to review"* (it's *"a signal to inspect… distinct from your review queue"*), and `to review` is labeled *"your review queue, separate from the check signals."*
+- **Why:** backlog #45-adjacent statcheck **(e)** — the "⚠ flagged" (signal) vs "📋 to review" (work-state) duality confused the "what's wrong with these numbers" citer, worsened by the flagged tooltip literally saying "a list to review." Clarify-not-collapse (honors inc-133's deliberate coexistence). The colors already carried the distinction; grouping makes it read at a glance.
+- **Honesty (#9 / A-A):** `open data not detected` stays in the **queue** group (a go-look work-state), never "signals" — grouping it as a detection would drift toward a "hides data" verdict (the no-accusation boundary). DESIGN.md updated with the grouping convention.
+- **Verify:** frontend assembly + design-drift tests green; grouping + new copy present in the built HTML, old conflating copy gone. **Manual/visual check of the grouped chips still owed** (rule #3 follow-up).
+
+## 2026-07-15 — Enrich job shows per-item titles in its progress label (backlog #4)
+- **Files:** `app/backend/api/routers/library.py` (`_enrich_progress_label` + `_run_metadata_enrich_job`), `tests/test_metadata_multi_enrich.py`.
+- **What:** the library-wide metadata-enrich job's progress label now names the paper being enriched (`"Enriching {title}"`, bounded to 60 chars) instead of a generic *"Enriching metadata"* — like the scan job already shows each filename. Falls back to the generic label for a title-less scaffold.
+- **Why:** backlog **#4** remaining ("a per-item title in the import/embed/enrich progress label"). The enrich job is the clearest per-item win (it loops live papers with real titles); the embed phases only get `(i, n)` and are fast, so they keep counts. Unit-tested pure label helper.
+
 ## 2026-07-15 — Honest region-precision copy (precise-highlighting follow-up)
 - **Files:** `app/frontend/js/00_lib.jsx` (`precisionText` badge + the `applyPdfCitationTarget` region note), rebuilt `callosum-app.html`.
 - **What:** reworded the region-precision copy from *"precise highlight pending"* → *"exact passage not located"* (badge) and *"Precise passage highlight is pending."* → *"The exact passage couldn't be located in this PDF, so its page is shown."* (on-PDF note).

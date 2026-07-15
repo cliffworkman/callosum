@@ -940,6 +940,11 @@
     gap: 6px 10px; min-width: 0;
   }
   .lib-head-actions .trash-toggle { max-width: 100%; white-space: normal; line-height: 1.25; text-align: left; }
+  /* statcheck #e: group the header signal-filter chips by KIND — check "signals" (amber/red: statcheck flagged,
+     retraction) vs "your review queue" (indigo: findings to review, open-data-not-detected) — with a thin divider
+     between, so the flagged-SIGNAL ≠ to-review-WORK-STATE distinction reads at a glance. */
+  .lib-chip-group { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
+  .lib-chip-group.lib-chip-queue { padding-left: 10px; border-left: 1px solid var(--line); }
   /* duplicate-detection modal (inc 56) — reuses .axis-modal* / .axis-link / .axis-danger */
   .dup-group { border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); padding: 9px 11px; margin-bottom: 9px; }
   .dup-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }

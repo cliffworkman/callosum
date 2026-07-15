@@ -141,6 +141,16 @@ red to any other status.
 `--term-chip`: dashed `--line-2` border + `--panel` bg when off; solid `--accent` border + `--accent-soft`
 bg + `--accent` text when **on**. Radius 999px.
 
+### Library-header chip grouping — signals vs review-queue (statcheck #e)
+The library-header filter chips are grouped by **KIND** into two `.lib-chip-group` clusters divided by a thin
+`--line` rule: **signals** (`.lib-chip-signals` — a check *detected* something concrete: statcheck `⚠ flagged` amber
+`--flag`, retraction `⚠ retracted` red `--danger`) vs **your review queue** (`.lib-chip-queue` — go-look *work-state*,
+indigo `--accent`: findings `📋 to review`, transparency `🔎 open data not detected`). The colors already carry the
+signal-vs-work-state semantics (amber/red = signal, indigo = queue); the grouping makes the distinction read at a
+glance so `flagged` isn't conflated with `to review`. **`open data not detected` stays in the *queue* group, never
+*signals*** — it is deliberately a go-look, *not* a detection/verdict (the A-A no-accusation boundary: never a "hides
+data" claim). New header chips join the group whose color they carry.
+
 ### Drop-target invite (drag-and-drop, inc 206)
 A valid drag-over target shows a **dashed `--accent` border + `--accent-soft` fill** (`.axis.drag-over`) — dashed =
 *transient/pending* (the drop hasn't happened), accent = the pane's primary color. Distinct from the solid-`--accent-line`
