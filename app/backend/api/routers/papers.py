@@ -53,6 +53,7 @@ from app.backend.persistence.repository import (
     soft_delete_paper,
     update_paper_metadata,
 )
+from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.tags_repo import get_tags_for_paper
 
 router = APIRouter()
@@ -218,26 +219,25 @@ def restore_paper_endpoint(paper_id: int, conn: Connection = Depends(get_connect
 
 @router.post("/papers/{paper_id}/read", response_model=PaperDetailResponse)
 def set_read_endpoint(
-    paper_id: int, payload: ReadStateRequest, conn: Connection = Depends(get_connection)
+    paper_id: int, payload: ReadStateRequest, request: Request, conn: Connection = Depends(get_connection)
 ) -> PaperDetailResponse:
     """Mark a paper read/unread — a manual user toggle (inc 220). 404 if the paper doesn't exist."""
-    if not set_paper_read(conn, paper_id, payload.read):
+    # Transaction-level retry so a collision with a concurrent write returns a value, not a 500 (see sqlite_retry).
+    if not run_write(request.app.state.engine, lambda c: set_paper_read(c, paper_id, payload.read)):
         raise HTTPException(status_code=404, detail="Paper not found")
-    conn.commit()
     return _detail_for(conn, paper_id)
 
 
 @router.post("/papers/{paper_id}/priority", response_model=PaperDetailResponse)
 def set_priority_endpoint(
-    paper_id: int, payload: PriorityRequest, conn: Connection = Depends(get_connection)
+    paper_id: int, payload: PriorityRequest, request: Request, conn: Connection = Depends(get_connection)
 ) -> PaperDetailResponse:
     """Set/clear the user's reading priority (high/normal/low or null) — a hand-set triage label, never an AI
     score (inc 220). 422 off-allowlist; 404 if the paper doesn't exist."""
     if payload.priority is not None and payload.priority not in PRIORITY_LEVELS:
         raise HTTPException(status_code=422, detail=f"priority must be one of {PRIORITY_LEVELS} or null")
-    if not set_paper_priority(conn, paper_id, payload.priority):
+    if not run_write(request.app.state.engine, lambda c: set_paper_priority(c, paper_id, payload.priority)):
         raise HTTPException(status_code=404, detail="Paper not found")
-    conn.commit()
     return _detail_for(conn, paper_id)
 
 

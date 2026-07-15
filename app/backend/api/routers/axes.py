@@ -78,6 +78,7 @@ from app.backend.persistence.repository import (
     list_axes,
 )
 from app.backend.persistence.schema import axes
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.gemini import (
     AxisClusterLabeler,
     AxisTermSuggester,
@@ -123,7 +124,9 @@ def axes_index(conn: Connection = Depends(get_connection)) -> list[AxisResponse]
 
 
 @router.post("/axes", response_model=AxisResponse, status_code=http_status.HTTP_201_CREATED)
-def create_axis_endpoint(request: AxisCreateRequest, conn: Connection = Depends(get_connection)) -> AxisResponse:
+def create_axis_endpoint(
+    request: AxisCreateRequest, http_request: Request, conn: Connection = Depends(get_connection)
+) -> AxisResponse:
     label = request.label.strip()
     if not label:
         raise HTTPException(status_code=422, detail="Axis label must not be empty")
@@ -132,8 +135,9 @@ def create_axis_endpoint(request: AxisCreateRequest, conn: Connection = Depends(
     ):  # A7: only standard | curated are user-creatable (my_publications is resolver-only)
         raise HTTPException(status_code=422, detail=f"Unsupported axis kind: {request.kind}")
     description = request.description.strip() if request.description else None
-    axis_id = create_axis(conn, label=label, description=description, kind=request.kind)
-    conn.commit()
+    axis_id = run_write(
+        http_request.app.state.engine, lambda c: create_axis(c, label=label, description=description, kind=request.kind)
+    )
     return _axis_response(conn, get_axis(conn, axis_id))
 
 

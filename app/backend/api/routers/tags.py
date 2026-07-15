@@ -7,7 +7,7 @@ to papers (manages `paper_tags` links only). The per-paper tag list is returned 
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection
@@ -16,6 +16,7 @@ from sqlalchemy.exc import NoResultFound
 from app.backend.api.dependencies import get_connection
 from app.backend.clustering.tag_suggestion import suggest_tags_for_paper
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.tags_repo import (
     TAG_COLORS,
     add_tag_to_paper,
@@ -84,15 +85,14 @@ def list_tag_colors() -> list[str]:
 
 @router.post("/tags/{tag_id}/color", response_model=TagSummary)
 def set_paper_tag_color(
-    tag_id: int, payload: SetTagColorRequest, conn: Connection = Depends(get_connection)
+    tag_id: int, payload: SetTagColorRequest, request: Request, conn: Connection = Depends(get_connection)
 ) -> TagSummary:
     # inc 207: set (or clear, color=null) a tag's palette color. The value must be an allowlisted key (rule #4).
     if payload.color is not None and payload.color not in TAG_COLORS:
         raise HTTPException(status_code=422, detail=f"color must be one of {list(TAG_COLORS)} or null")
-    row = set_tag_color(conn, tag_id, payload.color)
+    row = run_write(request.app.state.engine, lambda c: set_tag_color(c, tag_id, payload.color))
     if row is None:
         raise HTTPException(status_code=404, detail="Tag not found")
-    conn.commit()
     count = next((t["paper_count"] for t in list_tags(conn) if int(t["id"]) == tag_id), 0)
     return TagSummary(
         id=int(row["id"]), name=row["name"], paper_count=int(count), source=row["import_source"], color=row["color"]
@@ -111,15 +111,19 @@ def suggest_paper_tags(paper_id: int, conn: Connection = Depends(get_connection)
 
 
 @router.post("/papers/{paper_id}/tags", response_model=TagRef, status_code=http_status.HTTP_201_CREATED)
-def add_paper_tag(paper_id: int, payload: AddTagRequest, conn: Connection = Depends(get_connection)) -> TagRef:
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    if not payload.name.strip():
-        raise HTTPException(status_code=422, detail="Tag name cannot be blank")
-    row = add_tag_to_paper(conn, paper_id, payload.name)
-    conn.commit()
+def add_paper_tag(
+    paper_id: int, payload: AddTagRequest, request: Request, conn: Connection = Depends(get_connection)
+) -> TagRef:
+    def op(c: Connection):
+        try:
+            get_paper(c, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        if not payload.name.strip():
+            raise HTTPException(status_code=422, detail="Tag name cannot be blank")
+        return add_tag_to_paper(c, paper_id, payload.name)
+
+    row = run_write(request.app.state.engine, op)
     return TagRef(
         id=int(row["id"]), name=row["name"], source=row["import_source"], color=row["color"], locked=bool(row["locked"])
     )
@@ -127,16 +131,22 @@ def add_paper_tag(paper_id: int, payload: AddTagRequest, conn: Connection = Depe
 
 @router.post("/papers/{paper_id}/tags/{tag_id}/lock", response_model=TagRef)
 def set_paper_tag_lock(
-    paper_id: int, tag_id: int, payload: SetPaperTagLockRequest, conn: Connection = Depends(get_connection)
+    paper_id: int,
+    tag_id: int,
+    payload: SetPaperTagLockRequest,
+    request: Request,
+    conn: Connection = Depends(get_connection),
 ) -> TagRef:
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    row = set_paper_tag_locked(conn, paper_id, tag_id, payload.locked)
+    def op(c: Connection):
+        try:
+            get_paper(c, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        return set_paper_tag_locked(c, paper_id, tag_id, payload.locked)
+
+    row = run_write(request.app.state.engine, op)
     if row is None:
         raise HTTPException(status_code=404, detail="Tag not on this paper")
-    conn.commit()
     return TagRef(
         id=int(row["id"]),
         name=row["name"],
@@ -147,10 +157,14 @@ def set_paper_tag_lock(
 
 
 @router.delete("/papers/{paper_id}/tags/{tag_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def remove_paper_tag(paper_id: int, tag_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if is_paper_tag_locked(conn, paper_id, tag_id):
-        raise HTTPException(status_code=409, detail="Unlock this tag before removing it from this paper")
-    if not remove_tag_from_paper(conn, paper_id, tag_id):
+def remove_paper_tag(
+    paper_id: int, tag_id: int, request: Request, conn: Connection = Depends(get_connection)
+) -> Response:
+    def op(c: Connection):
+        if is_paper_tag_locked(c, paper_id, tag_id):
+            raise HTTPException(status_code=409, detail="Unlock this tag before removing it from this paper")
+        return remove_tag_from_paper(c, paper_id, tag_id)
+
+    if not run_write(request.app.state.engine, op):
         raise HTTPException(status_code=404, detail="Tag not on this paper")
-    conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)

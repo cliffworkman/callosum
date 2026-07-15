@@ -84,7 +84,15 @@ inc 80). Likely **one increment**: a tiny migration adding per-paper state + a l
 **SQLite read-then-write upgrade-deadlock — app-wide concurrency hardening** *(surfaced by the inc-219 headed
 verification; **inc 219 shipped the partial fix: `PRAGMA journal_mode=WAL` + `busy_timeout=5000` in `make_engine`**,
 which resolves the common write-vs-read contention; **inc 277 added bounded retry for short cache/metadata/reference/funding writes**,
-which covers the common transient `database is locked` failures without changing long-job lock behavior).* **Still open:** a SELECT-then-write endpoint (`add_to_queue`,
+which covers the common transient `database is locked` failures without changing long-job lock behavior).*
+**✅ SHORT-WRITE HALF CLOSED inc 272:** the inc-277 `_write` retry was at the wrong granularity (it retries a single
+`conn.execute` on the *same still-open transaction*, which keeps its stale snapshot → can't clear a snapshot-upgrade
+BUSY). Inc 272 added **transaction-level** retry: `run_write(engine, fn)` (`persistence/sqlite_retry.py` — fresh
+connection per attempt → run → commit → retry the whole unit on a lock) wired into the hot short writes
+(read/priority, tag color/add/lock/remove, reading-queue add/reorder/remove, axis create), **plus** a backstop
+`SqliteWriteRetryMiddleware` that re-runs any *replay-safe* mutating request that raises an uncaught lock error before
+sending a response (a denylist excludes job-spawn/external-fetch/secret-write families so a replay can't double-execute).
+**Still open (the LONG-JOB half):** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous

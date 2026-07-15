@@ -8,7 +8,7 @@ contract — 422 on a foreign id set). Entirely local (no egress). Reuses ``pape
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel
 from sqlalchemy import Connection
@@ -23,6 +23,7 @@ from app.backend.persistence.reading_queue_repo import (
     set_queue_order,
 )
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -60,28 +61,30 @@ def get_reading_queue(conn: Connection = Depends(get_connection)) -> list[Readin
 
 
 @router.post("/reading-queue", response_model=AddToQueueResponse)
-def add_paper_to_queue(payload: AddToQueueRequest, conn: Connection = Depends(get_connection)) -> AddToQueueResponse:
-    try:
-        get_paper(conn, payload.paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    added = add_to_queue(conn, payload.paper_id)
-    conn.commit()
-    return AddToQueueResponse(added=added)
+def add_paper_to_queue(payload: AddToQueueRequest, request: Request) -> AddToQueueResponse:
+    def op(c: Connection):
+        try:
+            get_paper(c, payload.paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        return add_to_queue(c, payload.paper_id)
+
+    return AddToQueueResponse(added=run_write(request.app.state.engine, op))
 
 
 @router.put("/reading-queue/order", status_code=http_status.HTTP_204_NO_CONTENT)
-def set_reading_queue_order(payload: QueueOrderRequest, conn: Connection = Depends(get_connection)) -> Response:
-    try:
-        set_queue_order(conn, payload.paper_ids)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    conn.commit()
+def set_reading_queue_order(payload: QueueOrderRequest, request: Request) -> Response:
+    def op(c: Connection):
+        try:
+            set_queue_order(c, payload.paper_ids)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    run_write(request.app.state.engine, op)
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/reading-queue/{paper_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def remove_paper_from_queue(paper_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    remove_from_queue(conn, paper_id)  # idempotent → 204 whether or not it was queued
-    conn.commit()
+def remove_paper_from_queue(paper_id: int, request: Request) -> Response:
+    run_write(request.app.state.engine, lambda c: remove_from_queue(c, paper_id))  # idempotent → always 204
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
