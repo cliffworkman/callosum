@@ -42,6 +42,7 @@ function useLibrary(opts) {
   const pendingSelectTopRef = useRef(false);  // inc-140: a view-change wants the next loaded list's top paper selected
   const [pcurvePapers, setPcurvePapers] = useState(null);  // inc-126: collection p-curve over the selection (modal)
   const [mergeIds, setMergeIds] = useState(null);          // inc-161: merge ≥2 papers into a survivor (modal)
+  const [critSetIds, setCritSetIds] = useState(null);      // #12: critically review a SET of papers together (modal)
 
   // --- selection (checkbox multi-select) ---
   const toggleLibrarySelect = useCallback((id) => {
@@ -79,6 +80,11 @@ function useLibrary(opts) {
   const bulkMergePapers = useCallback(() => {
     const ids = [...selectedLibraryIds];
     if (ids.length >= 2) setMergeIds(ids);
+  }, [selectedLibraryIds]);
+  // #12: critically review the selected papers TOGETHER (cross-paper contradictions + a fact-matrix; a signal).
+  const bulkCriticalReadPapers = useCallback(() => {
+    const ids = [...selectedLibraryIds];
+    if (ids.length >= 2) setCritSetIds(ids);
   }, [selectedLibraryIds]);
   // B2 SP1: export the selected papers as a portable bundle (metadata + tags + annotations, NO PDFs).
   const bulkExportBundle = useCallback(() => {
@@ -402,7 +408,7 @@ function useLibrary(opts) {
     libraryItemType, itemTypes, onItemTypeChange: (t) => { setLibraryItemType(t); setPage(0); },
     libraryReading, onReadingFilter: changeReadingFilter,
     onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
-    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
+    onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
     onBulkReferenceCheckDone: bulkReferenceCheckDone,
     libraryAxisFilter, onClearAxisFilter: clearAxisFilter,
     libraryTagFilter, onClearTagFilter: clearTagFilter,
@@ -428,5 +434,6 @@ function useLibrary(opts) {
     showStatcheckFlagged, showRetractionFlagged, showTransparencyReview,
     refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
+    critSetIds, setCritSetIds,
   };
 }

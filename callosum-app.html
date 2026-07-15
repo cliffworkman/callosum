@@ -1242,6 +1242,19 @@
   .cr-candidate.cr-accepted { border-color: var(--verified); background: var(--verified-soft); }
   .cr-quote { font-size: 11.5px; color: var(--ink-2); font-style: italic; margin: 3px 0; }
   .cr-actions { display: flex; gap: 12px; margin-top: 4px; }
+  /* Set (multi-paper) critical review (#12): a wider modal for the fact-matrix. The matrix is a plain bordered
+     table (neutral --line/--panel) — status cells are NEVER colored by "quality"; only the amber .cr-candidate
+     (Tier-2) carries a tint. The table scrolls horizontally on narrow panes so the modal body never does. */
+  .cr-set-modal { width: min(680px, 95vw); }
+  .cr-set-section { margin-top: 14px; }
+  .cr-matrix-wrap { overflow-x: auto; }
+  .cr-matrix { border-collapse: collapse; width: 100%; font-size: 11.5px; }
+  .cr-matrix th, .cr-matrix td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; color: var(--ink-2); vertical-align: top; }
+  .cr-matrix th { background: var(--panel-2); color: var(--ink-3); font-weight: 600; }
+  .cr-matrix-title { color: var(--ink); font-weight: 500; max-width: 220px; }
+  .cr-matrix-caption { font-size: 11px; color: var(--ink-3); line-height: 1.45; margin-top: 6px; }
+  .cr-related { font-size: 11px; color: var(--ink-2); margin-top: 4px; }
+  .cr-related-note { color: var(--ink-3); font-style: italic; }
   /* Bayesian auditor SP4 (inc 244): Tier-3 advisory prompts — neutral/accent tint, deliberately NOT the amber flag. */
   .bayes-advisory { margin-top: 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
   .bayes-advisory-item { padding: 6px 8px; border-left: 2px solid var(--accent-soft); margin-bottom: 6px; font-size: 12px; color: var(--ink-2); }
@@ -2875,6 +2888,7 @@
     const pendingSelectTopRef = useRef(false);
     const [pcurvePapers, setPcurvePapers] = useState(null);
     const [mergeIds, setMergeIds] = useState(null);
+    const [critSetIds, setCritSetIds] = useState(null);
     const toggleLibrarySelect = useCallback((id) => {
       setSelectedLibraryIds((prev) => {
         const n = new Set(prev);
@@ -2912,6 +2926,10 @@
     const bulkMergePapers = useCallback(() => {
       const ids = [...selectedLibraryIds];
       if (ids.length >= 2) setMergeIds(ids);
+    }, [selectedLibraryIds]);
+    const bulkCriticalReadPapers = useCallback(() => {
+      const ids = [...selectedLibraryIds];
+      if (ids.length >= 2) setCritSetIds(ids);
     }, [selectedLibraryIds]);
     const bulkExportBundle = useCallback(() => {
       const ids = [...selectedLibraryIds];
@@ -3395,6 +3413,7 @@
       onBulkSummarize: bulkSummarizePapers,
       onBulkPcurve: bulkPcurvePapers,
       onBulkMerge: bulkMergePapers,
+      onBulkCriticalRead: bulkCriticalReadPapers,
       onBulkExport: bulkExportPapers,
       onBulkExportBundle: bulkExportBundle,
       onBulkBibliography: bulkBibliography,
@@ -3456,7 +3475,9 @@
       setPcurvePapers,
       mergeIds,
       setMergeIds,
-      onMerged
+      onMerged,
+      critSetIds,
+      setCritSetIds
     };
   }
   function _loadLayout(key, fallback) {
@@ -6683,6 +6704,141 @@
     hideInReadOnly: true,
     render: (ctx) => /* @__PURE__ */ React.createElement(CriticalReadSection, { ctx })
   });
+  function _crSetKinds(aggregate) {
+    const seen = [];
+    (aggregate || []).forEach((row) => (row.method_signals || []).forEach((s) => {
+      if (s.kind && !seen.includes(s.kind)) seen.push(s.kind);
+    }));
+    return seen;
+  }
+  function CriticalSetMatrix({ aggregate }) {
+    const kinds = _crSetKinds(aggregate);
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "cr-matrix" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Paper"), kinds.map((k) => /* @__PURE__ */ React.createElement("th", { key: k }, k)), /* @__PURE__ */ React.createElement("th", null, "contested"))), /* @__PURE__ */ React.createElement("tbody", null, (aggregate || []).map((row) => {
+      const byKind = {};
+      (row.method_signals || []).forEach((s) => {
+        byKind[s.kind] = s;
+      });
+      return /* @__PURE__ */ React.createElement("tr", { key: row.paper_id }, /* @__PURE__ */ React.createElement("td", { className: "cr-matrix-title", title: row.title }, row.title), kinds.map((k) => /* @__PURE__ */ React.createElement("td", { key: k, title: byKind[k] ? byKind[k].detail || byKind[k].label || "" : "" }, byKind[k] ? byKind[k].label || "\u2022" : "\u2014")), /* @__PURE__ */ React.createElement("td", null, row.contested_count || 0));
+    }))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, "Facts each check surfaced \u2014 ", /* @__PURE__ */ React.createElement("b", null, "not a score"), ". An empty cell means ", /* @__PURE__ */ React.createElement("i", null, "this check found nothing on this paper"), ", not a clean bill of health.", kinds.length === 0 && /* @__PURE__ */ React.createElement("span", null, " No method checks (statcheck, transparency, \u2026) have been ", /* @__PURE__ */ React.createElement("b", null, "run"), " on these papers yet \u2014 run them from each paper\u2019s METHODS pane to populate this. The ", /* @__PURE__ */ React.createElement("i", null, "contested"), " column reflects only intra-set disagreement, which needs no prior check.")));
+  }
+  function CriticalSetDisagreements({ contested, titleById, onOpen }) {
+    const label = (id) => titleById[id] || "Paper " + id;
+    if (!contested || !contested.length) {
+      return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Nothing surfaced by this check \u2014 no paper in the set contradicts another\u2019s claims that these signals caught. That isn\u2019t agreement, only silence from ", /* @__PURE__ */ React.createElement("i", null, "these"), " checks.");
+    }
+    return contested.map((c, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "bayes-check-item" }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, /* @__PURE__ */ React.createElement("b", null, label(c.claim_paper_id), ":"), " \u201C", c.claim, "\u201D"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "bayes-check-ev",
+        title: c.page != null ? "Open page " + c.page : "Open the contesting paper",
+        onClick: () => onOpen(c.other_paper_id, c.page)
+      },
+      "Contested by \u201C",
+      label(c.other_paper_id),
+      "\u201D: \u201C",
+      c.passage,
+      "\u201D"
+    ), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance, " \xB7 confidence ", Math.round((c.confidence || 0) * 100), "%")));
+  }
+  function CriticalSetCandidate({ c, titleById, onAccept, onReject }) {
+    const related = (c.related_paper_ids_json || []).map((id) => titleById[id] || "Paper " + id);
+    return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "in \u201C", titleById[c.paper_id] || "Paper " + c.paper_id, "\u201D", c.stance ? " \xB7 stance: " + c.stance : "", c.confidence != null ? " \xB7 confidence " + Math.round(c.confidence * 100) + "%" : ""), related.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-related" }, "The model relates this to: ", related.join("; "), " ", /* @__PURE__ */ React.createElement("span", { className: "cr-related-note" }, "(the model\u2019s framing, not a verified link)")), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
+  }
+  function CriticalSetModal({ ids, onClose, onOpenPaper }) {
+    const [phase, setPhase] = useState("loading");
+    const [report, setReport] = useState(null);
+    const [err, setErr] = useState(null);
+    const [aiReady, setAiReady] = useState(false);
+    const [gen, setGen] = useState("idle");
+    const runSet = useCallback((wantLlm) => new Promise((resolve, reject) => {
+      const poll = (jid) => api(`/critical-read/set/${jid}`).then((rr) => {
+        if (!rr.ok) {
+          reject(rr.error);
+          return;
+        }
+        const d = rr.data;
+        if (d.status === "done") resolve(d.report);
+        else if (d.status === "error") reject(d.detail || "failed");
+        else setTimeout(() => poll(jid), 1200);
+      });
+      apiPost("/critical-read/set", { paper_ids: ids, llm: !!wantLlm }).then((r) => {
+        if (!r.ok) {
+          reject(r.error);
+          return;
+        }
+        poll(r.data.job_id);
+      });
+    }), [ids]);
+    useEffect(() => {
+      let live = true;
+      setPhase("loading");
+      setReport(null);
+      setErr(null);
+      runSet(false).then((rep) => {
+        if (live) {
+          setReport(rep);
+          setPhase("ready");
+        }
+      }).catch((e) => {
+        if (live) {
+          setErr(e);
+          setPhase("error");
+        }
+      });
+      api("/settings").then((r) => {
+        if (live && r.ok) setAiReady(Boolean(r.data.data_egress_enabled));
+      });
+      return () => {
+        live = false;
+      };
+    }, [runSet]);
+    const generate = () => {
+      setGen("generating");
+      runSet(true).then((rep) => {
+        setReport(rep);
+        setGen("idle");
+      }).catch(() => setGen("error"));
+    };
+    const act = async (cid, action) => {
+      const r = await apiPost(`/critical-read/candidates/${cid}/${action}`, {});
+      if (!r.ok) return;
+      setReport((prev) => {
+        if (!prev) return prev;
+        const cands = action === "reject" ? (prev.candidates || []).filter((c) => c.id !== cid) : (prev.candidates || []).map((c) => c.id === cid ? { ...c, status: "accepted" } : c);
+        return { ...prev, candidates: cands };
+      });
+    };
+    const open = (pid, page) => {
+      if (onOpenPaper) onOpenPaper({ id: pid }, page != null ? { page, precision: "region" } : {});
+      onClose();
+    };
+    const titleById = {};
+    (report && report.aggregate || []).forEach((r) => {
+      titleById[r.paper_id] = r.title;
+    });
+    const candidates = (report && report.candidates || []).filter((c) => c.status !== "rejected");
+    const llmStatus = report && report.llm_status;
+    const generated = !!llmStatus && llmStatus.status !== "not_searched";
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal cr-set-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Critically review ", ids.length, " sources"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "What a skeptical reader should check before trusting these papers ", /* @__PURE__ */ React.createElement("b", null, "together"), " \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". Facts come from local method checks + where the set disagrees; AI critiques are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score; the critique is of the work, never the authors."), phase === "loading" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026" }), phase === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", String(err)), phase === "ready" && report && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "cr-set-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "What the checks surfaced (facts)"), /* @__PURE__ */ React.createElement(CriticalSetMatrix, { aggregate: report.aggregate })), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Where these papers disagree"), /* @__PURE__ */ React.createElement(CriticalSetDisagreements, { contested: report.contested_claims, titleById, onOpen: open })), /* @__PURE__ */ React.createElement("div", { className: "cr-set-section cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI cross-paper critiques (candidates)"), !aiReady && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested cross-paper critiques \u2014 the facts above need no AI."), aiReady && !generated && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-link",
+        disabled: gen === "generating",
+        onClick: generate,
+        title: "The AI proposes concerns spanning these papers; each must quote a paper verbatim, and you confirm or reject it."
+      },
+      gen === "generating" ? "Suggesting\u2026" : "Suggest cross-paper critiques (AI)"
+    ), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), generated && llmStatus.status === "unavailable" && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, llmStatus.detail), generated && llmStatus.status === "success" && !candidates.length && /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No grounded cross-paper concerns surfaced \u2014 nothing quoted a paper verbatim."), candidates.map((c) => /* @__PURE__ */ React.createElement(
+      CriticalSetCandidate,
+      {
+        key: c.id,
+        c,
+        titleById,
+        onAccept: () => act(c.id, "accept"),
+        onReject: () => act(c.id, "reject")
+      }
+    ))))));
+  }
   function ComingSoon({ title, body, builds }) {
     return /* @__PURE__ */ React.createElement("div", { className: "coming-soon" }, /* @__PURE__ */ React.createElement("span", { className: "coming-soon-badge" }, "Coming soon"), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-title" }, title), /* @__PURE__ */ React.createElement("p", { className: "coming-soon-body" }, body), builds && /* @__PURE__ */ React.createElement("p", { className: "coming-soon-builds" }, builds));
   }
@@ -6905,6 +7061,7 @@
     onBulkSummarize,
     onBulkPcurve,
     onBulkMerge,
+    onBulkCriticalRead,
     onBulkExport,
     onBulkExportBundle,
     onBulkBibliography,
@@ -7052,7 +7209,7 @@
           if (e.key === "Enter") onBulkSummarize(bulkFocus);
         }
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(BulkReferenceCheckButton, { paperIds: [...selectedLibraryIds], onDone: onBulkReferenceCheckDone }), /* @__PURE__ */ React.createElement(ReprocessSelectedTextButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onBulkSummarize(bulkFocus), title: "Generate a verified synthesis of the selected papers \u2014 focused on your question if you typed one" }, "summarize"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkPcurve, title: "Run a p-curve (evidential value) over the selected papers \u2014 collection-level, never per-paper" }, "p-curve"), /* @__PURE__ */ React.createElement(BulkReferenceCheckButton, { paperIds: [...selectedLibraryIds], onDone: onBulkReferenceCheckDone }), /* @__PURE__ */ React.createElement(ReprocessSelectedTextButton, { paperIds: [...selectedLibraryIds], onDone: onEnriched }), selCount >= 2 && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkMerge, title: "Merge the selected papers into one record \u2014 keeps every PDF, link, tag, and highlight; the others move to Trash" }, "merge"), selCount >= 2 && onBulkCriticalRead && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onBulkCriticalRead, title: "Critically review the selected papers together \u2014 cross-paper contradictions + a fact matrix of each paper's method-check signals; a signal, not a verdict" }, "critical read"), /* @__PURE__ */ React.createElement(
       "select",
       {
         className: "bulk-export",
@@ -8873,7 +9030,7 @@
     if (!selected.length) return "all sections";
     return selected.map(sectionLabel).join(" + ");
   }
-  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly }) {
+  function SynthesisPane({ onOpenCitation, onSaveHighlight, pendingSummarize, onOpenSettings, onOpenTextHealth, settingsNonce, readOnly, onCriticalReviewSources }) {
     const [query, setQuery] = useState("");
     const [sectionFilter, setSectionFilter] = useState({});
     const [state, setState] = useState({ status: "idle" });
@@ -9038,13 +9195,14 @@
     const sentences = state.result && state.result.sentences ? state.result.sentences : [];
     const verifiedCount = sentences.filter((s) => !s.flagged).length;
     const flaggedCount = sentences.filter((s) => s.flagged).length;
-    const drewFromPapers = (() => {
+    const citedPaperIds = (() => {
       const ids = /* @__PURE__ */ new Set();
       sentences.forEach((s) => (s.citations || []).forEach((c) => {
         if (c.paper_id != null) ids.add(c.paper_id);
       }));
-      return ids.size;
+      return [...ids];
     })();
+    const drewFromPapers = citedPaperIds.length;
     const egressNudge = /* @__PURE__ */ React.createElement("div", { className: "synth-nudge" }, /* @__PURE__ */ React.createElement("span", null, "AI summaries are off. Turn on ", /* @__PURE__ */ React.createElement("b", null, "AI features"), " in Settings to generate a verified synthesis."), /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: () => onOpenSettings && onOpenSettings() }, "Enable in Settings \u2192"));
     return /* @__PURE__ */ React.createElement("div", { className: "synth" }, !readOnly && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
       "textarea",
@@ -9103,7 +9261,17 @@
         }
       },
       "\u2715 Close"
-    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), state.result.imported && /* @__PURE__ */ React.createElement("div", { className: "synth-imported", title: "This synthesis came from a shared bundle \u2014 its statuses are the sender's, computed against their PDFs, not re-checked here." }, "Imported \u2014 the sender's assessment, not re-checked in your library. Sources open at the page (region precision).", !readOnly && /* @__PURE__ */ React.createElement(
+    ), "summary #", state.result.summary_id, " \xB7 ", state.result.summary_status, ` \xB7 ${verifiedCount} verified \xB7 ${flaggedCount} flagged`), !readOnly && onCriticalReviewSources && citedPaperIds.length >= 2 && citedPaperIds.length <= 12 && /* @__PURE__ */ React.createElement("div", { className: "synth-critical-review" }, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-link",
+        onClick: () => onCriticalReviewSources(citedPaperIds),
+        title: "Critically review the papers this synthesis cites \u2014 cross-paper contradictions + each paper's method-check signals; a signal to weigh before trusting the synthesis, never a verdict"
+      },
+      "Critically review these sources (",
+      citedPaperIds.length,
+      ")"
+    )), state.result.imported && /* @__PURE__ */ React.createElement("div", { className: "synth-imported", title: "This synthesis came from a shared bundle \u2014 its statuses are the sender's, computed against their PDFs, not re-checked here." }, "Imported \u2014 the sender's assessment, not re-checked in your library. Sources open at the page (region precision).", !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-link",
@@ -9205,7 +9373,8 @@
         onOpenSettings: ctx.onOpenSettings,
         settingsNonce: ctx.settingsNonce,
         onOpenTextHealth: ctx.onOpenTextHealth,
-        readOnly: ctx.readOnly
+        readOnly: ctx.readOnly,
+        onCriticalReviewSources: ctx.onCriticalReviewSources
       }
     )
   });
@@ -13617,7 +13786,9 @@
       setPcurvePapers,
       mergeIds,
       setMergeIds,
-      onMerged
+      onMerged,
+      critSetIds,
+      setCritSetIds
     } = lib;
     const {
       focusAxis,
@@ -13752,8 +13923,10 @@
       onReferenceWarningsChanged: () => setReferenceWarningsRefresh((n) => n + 1),
       onOpenTextHealth: openTextHealth,
       onOpenSettings: () => setSettingsOpen(true),
-      settingsNonce
+      settingsNonce,
       // inc 148: synthesis egress-off nudge → open Settings
+      onCriticalReviewSources: (ids) => setCritSetIds(ids)
+      // #12: synthesis → critically review its source papers as a set
     };
     const sidebarEl = /* @__PURE__ */ React.createElement(
       Sidebar,
@@ -13816,7 +13989,7 @@
         onChanged: () => setLibRefresh((n) => n + 1),
         onMerge: (ids) => setMergeIds(ids)
       }
-    ), mergeIds && /* @__PURE__ */ React.createElement(MergePapersModal, { ids: mergeIds, onClose: () => setMergeIds(null), onMerged }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), textHealthOpen && /* @__PURE__ */ React.createElement(
+    ), mergeIds && /* @__PURE__ */ React.createElement(MergePapersModal, { ids: mergeIds, onClose: () => setMergeIds(null), onMerged }), critSetIds && /* @__PURE__ */ React.createElement(CriticalSetModal, { ids: critSetIds, onClose: () => setCritSetIds(null), onOpenPaper: openPdf }), wantedOpen && /* @__PURE__ */ React.createElement(WantedModal, { onClose: () => setWantedOpen(false), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), textHealthOpen && /* @__PURE__ */ React.createElement(
       TextHealthModal,
       {
         onClose: () => {

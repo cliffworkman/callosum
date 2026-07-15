@@ -275,6 +275,18 @@ def test_methods_auditors_use_shared_evidence_source_targets():
     assert raw.count("<EvidenceTrail detector=") >= 6
 
 
+def test_set_critical_review_modal_shipped():
+    """Backlog #12 (set critical review): the multi-paper modal + its two entry points assemble, and the
+    honesty framing (fact-matrix caption, amber candidate reuse, no score) ships with it."""
+    raw = assemble_jsx()
+    assert "function CriticalSetModal(" in raw  # the modal component
+    assert '"/critical-read/set"' in raw  # it drives the set endpoint
+    assert "Critically review these sources" in raw  # the synthesis entry-point button
+    assert "not a score" in raw  # the fact-matrix honesty caption (never a composite score)
+    assert "cr-candidate" in raw  # amber candidate rendering reused for Tier-2 cross-paper candidates
+    assert "the model’s framing, not a verified link" in raw  # related_paper_ids is framing, not a #13-verified link
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""
