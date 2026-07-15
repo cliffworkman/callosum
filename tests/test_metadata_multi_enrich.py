@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 
 from app.backend.api import create_app
+from app.backend.api.routers.library_enrich import _enrich_progress_label
 from app.backend.discovery.providers import Item
 from app.backend.metadata.enrich_sources import (
     EnrichmentRegistry,
@@ -362,3 +363,13 @@ def test_enrich_library_batch_endpoint(temp_db_url):
 def test_enrich_refresh_status_404_for_unknown_job(temp_db_url):
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.get("/library/enrich/refresh/nope").status_code == 404
+
+
+def test_enrich_progress_label_shows_title_and_falls_back():
+    # #4: the enrich job's per-item progress label names the paper being enriched (like scan shows the filename).
+    assert _enrich_progress_label("Anomalous faces and trust") == "Enriching Anomalous faces and trust"
+    assert _enrich_progress_label(None) == "Enriching metadata"
+    assert _enrich_progress_label("   ") == "Enriching metadata"
+    long_label = _enrich_progress_label("T" * 100)
+    assert long_label.startswith("Enriching ") and long_label.endswith("…")
+    assert len(long_label) <= len("Enriching ") + 60

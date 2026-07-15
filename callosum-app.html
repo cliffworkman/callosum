@@ -964,6 +964,11 @@
     gap: 6px 10px; min-width: 0;
   }
   .lib-head-actions .trash-toggle { max-width: 100%; white-space: normal; line-height: 1.25; text-align: left; }
+  /* statcheck #e: group the header signal-filter chips by KIND — check "signals" (amber/red: statcheck flagged,
+     retraction) vs "your review queue" (indigo: findings to review, open-data-not-detected) — with a thin divider
+     between, so the flagged-SIGNAL ≠ to-review-WORK-STATE distinction reads at a glance. */
+  .lib-chip-group { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
+  .lib-chip-group.lib-chip-queue { padding-left: 10px; border-left: 1px solid var(--line); }
   /* duplicate-detection modal (inc 56) — reuses .axis-modal* / .axis-link / .axis-danger */
   .dup-group { border: 1px solid var(--line-2); border-radius: 8px; background: var(--panel); padding: 9px 11px; margin-bottom: 9px; }
   .dup-group-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
@@ -6967,17 +6972,21 @@
     const referenceShown = libraryReferenceFilter && state.status === "ready" ? `${state.total == null ? state.papers.length : state.total} shown` : "";
     const hasLocalPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
     const hasNextPage = hasLocalPaperFilter && state.total != null ? (page + 1) * PAGE_SIZE < state.total : state.papers.length === PAGE_SIZE;
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent" && /* @__PURE__ */ React.createElement(
+    const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
+    const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
+    const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
+    const showTransparencyChip = !trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-");
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
         onClick: onShowStatcheckFlagged,
-        title: "Papers with a reporting inconsistency from the last statistics check \u2014 usually innocent; a list to review"
+        title: "Papers where a reported p-value didn't recompute in the last statistics check \u2014 a signal to inspect, usually innocent (typos, rounding, one-tailed tests). Distinct from your review queue."
       },
       "\u26A0 ",
       statcheckFlagged,
       " flagged"
-    ), !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted" && /* @__PURE__ */ React.createElement(
+    ), showRetractionChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle retraction-chip",
@@ -6987,27 +6996,27 @@
       "\u26A0 ",
       retractionFlagged,
       " retracted"
-    ), !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review" && /* @__PURE__ */ React.createElement(
+    )), (showFindingsChip || showTransparencyChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle findings-chip",
         onClick: onShowFindingsToReview,
-        title: "Findings you haven't reviewed yet \u2014 open each paper's Review section"
+        title: "Findings you haven't marked reviewed yet \u2014 your review queue, separate from the check signals; open each paper's Review section"
       },
       "\u{1F4CB} ",
       findingsToReview,
       " to review"
-    ), !trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-") && /* @__PURE__ */ React.createElement(
+    ), showTransparencyChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle transparency-chip",
         onClick: () => onShowTransparencyReview(),
-        title: "Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text \u2014 a list to review (it may still share data elsewhere), never a claim that they hide it"
+        title: "Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text \u2014 a list to go look at (it may still share data elsewhere), never a claim that they hide it"
       },
       "\u{1F50E} ",
       transparencyReview,
       " \xB7 open data not detected"
-    ), !trashView && /* @__PURE__ */ React.createElement(
+    )), !trashView && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle",
