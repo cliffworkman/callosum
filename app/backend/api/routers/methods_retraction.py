@@ -9,6 +9,7 @@ the app state set up in ``api/app.py`` (``retraction_jobs`` / ``retraction_db_jo
 from __future__ import annotations
 
 import json
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
@@ -23,9 +24,11 @@ from app.backend.methods.retraction import apply_retraction, detect_retraction
 from app.backend.persistence.repository import get_paper, list_live_paper_ids
 from app.backend.persistence.retraction_repo import retraction_db_status
 from app.backend.persistence.signals_repo import count_retraction_flagged, get_retraction_status
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.retraction_watch.adapter import RetractionWatchUnavailable, download_retraction_database
 
 router = APIRouter()
+_log = logging.getLogger("callosum.methods_retraction")
 
 
 # ── retraction (inc 131): the first findings producer. Multi-source (Crossref + OpenAlex) per-DOI detection →
@@ -109,15 +112,26 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
     try:
         checkers = app.state.retraction_checkers
         total = checked = flagged = 0
-        with app.state.engine.begin() as conn:
-            for paper_id in list_live_paper_ids(conn):
-                total += 1
-                outcome = detect_retraction(conn, get_paper(conn, paper_id), checkers=checkers)
-                apply_retraction(conn, paper_id, outcome)
-                if outcome.status_kind != "unchecked":
-                    checked += 1
-                if outcome.merged is not None and outcome.merged.status == "retracted":
-                    flagged += 1
+        engine = app.state.engine
+        with engine.connect() as conn:
+            ids = list_live_paper_ids(conn)
+
+        def process(conn, paper_id):  # inc C: per-paper committed txn — the external DOI check no longer holds a
+            outcome = detect_retraction(conn, get_paper(conn, paper_id), checkers=checkers)  # batch-wide write lock
+            apply_retraction(conn, paper_id, outcome)
+            return outcome
+
+        for paper_id in ids:
+            total += 1
+            try:
+                outcome = run_write(engine, lambda conn, pid=paper_id: process(conn, pid))
+            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                _log.warning("retraction batch: skipped paper %s: %s", paper_id, exc)
+                continue
+            if outcome.status_kind != "unchecked":
+                checked += 1
+            if outcome.merged is not None and outcome.merged.status == "retracted":
+                flagged += 1
         jobs.mark_done(
             job_id,
             RetractionRunResponse(

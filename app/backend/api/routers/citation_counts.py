@@ -12,6 +12,7 @@ The concern lives in its own router (3-segment path) so ``/papers/citation-count
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
@@ -21,9 +22,11 @@ from pydantic import BaseModel
 from app.backend.acquisition.registry import PaperRef
 from app.backend.api.job_store import JobStore
 from app.backend.persistence.repository import list_live_papers_with_doi, upsert_citation_count
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.openalex.adapter import OpenAlexClient
 
 router = APIRouter(tags=["citation-counts"])
+_log = logging.getLogger("callosum.citation_counts")
 
 
 class CitationRefreshSummary(BaseModel):
@@ -83,15 +86,25 @@ def _run_citation_counts_job(app: FastAPI, job_id: str) -> None:
     client = app.state.openalex_client or OpenAlexClient()
     try:
         updated = 0
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        with engine.connect() as conn:
             rows = list_live_papers_with_doi(conn)
-            total = len(rows)
-            for i, row in enumerate(rows):
-                count = client.fetch_cited_by_count(conn, PaperRef(doi=row["doi"]))
-                if count is not None:  # 0 is a real count and is stored; None = no work/field → leave honest "—"
-                    upsert_citation_count(conn, int(row["id"]), count)
+        total = len(rows)
+
+        def process(conn, row):  # inc C: per-paper committed txn — the external OpenAlex fetch no longer holds a
+            count = client.fetch_cited_by_count(conn, PaperRef(doi=row["doi"]))  # batch-wide write lock
+            if count is not None:  # 0 is a real count and is stored; None = no work/field → leave honest "—"
+                upsert_citation_count(conn, int(row["id"]), count)
+                return True
+            return False
+
+        for i, row in enumerate(rows):
+            try:
+                if run_write(engine, lambda conn, r=row: process(conn, r)):
                     updated += 1
-                jobs.mark_progress(job_id, i + 1, total, "Fetching citation counts")
+            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                _log.warning("citation-counts batch: skipped paper %s: %s", row["id"], exc)
+            jobs.mark_progress(job_id, i + 1, total, "Fetching citation counts")
         jobs.mark_done(
             job_id,
             CitationRefreshResponse(

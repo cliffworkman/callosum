@@ -13,6 +13,7 @@ The concern lives in its own router (like tags.py's suggested-tags) to keep pape
 
 from __future__ import annotations
 
+import logging
 from copy import deepcopy
 from typing import Any, Literal
 
@@ -34,10 +35,12 @@ from app.backend.pdf_processing.location import locate_quote_for_attachment
 from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_statcheck_flagged, store_statcheck
+from app.backend.persistence.sqlite_retry import run_write
 
 MAX_PCURVE_PAPERS = 1000  # bound the selection a p-curve runs over (rule #4)
 
 router = APIRouter()
+_log = logging.getLogger("callosum.methods")
 
 
 class StatcheckResult(BaseModel):
@@ -462,49 +465,60 @@ def _run_statcheck_all_job(app: FastAPI, job_id: str) -> None:
     jobs.mark_running(job_id)
     try:
         total = checked = flagged = 0
-        with app.state.engine.begin() as conn:
-            for paper_id in list_live_paper_ids(conn):
-                total += 1
-                report = run_statcheck(get_chunks_for_paper(conn, paper_id))
-                if report.checked > 0:
-                    checked += 1
-                flagged_n = report.inconsistent + report.decision_errors
-                if flagged_n > 0:
-                    flagged += 1
-                store_statcheck(
+        engine = app.state.engine
+        with engine.connect() as conn:
+            ids = list_live_paper_ids(conn)
+
+        def process(conn, paper_id):  # inc C: one committed transaction per paper — lock released between papers
+            report = run_statcheck(get_chunks_for_paper(conn, paper_id))
+            store_statcheck(
+                conn,
+                paper_id,
+                checked=report.checked,
+                inconsistent=report.inconsistent,
+                decision_errors=report.decision_errors,
+            )
+            # inc 133: also emit a CANDIDATE finding for the unified review queue (a prompt to look, reviewable —
+            # coexists with the signal above, which is the persistent fact). Clean → supersede any prior one.
+            flagged_n = report.inconsistent + report.decision_errors
+            if flagged_n > 0:
+                page = next(
+                    (r.page for r in report.results if r.consistency != "consistent" and r.page is not None), None
+                )
+                upsert_findings(
                     conn,
                     paper_id,
-                    checked=report.checked,
-                    inconsistent=report.inconsistent,
-                    decision_errors=report.decision_errors,
+                    "statcheck",
+                    [
+                        {
+                            "kind": "candidate",
+                            "tier": "primary",
+                            "payload": {
+                                "desc": f"{flagged_n} statistical reporting "
+                                f"inconsistenc{'y' if flagged_n == 1 else 'ies'} (statcheck) — review",
+                                "inconsistent": report.inconsistent,
+                                "decision_errors": report.decision_errors,
+                                "checked": report.checked,
+                                "page": page,
+                            },
+                        }
+                    ],
                 )
-                # inc 133: also emit a CANDIDATE finding for the unified review queue (a prompt to look, reviewable
-                # — coexists with the signal above, which is the persistent fact). Clean → supersede any prior one.
-                if flagged_n > 0:
-                    page = next(
-                        (r.page for r in report.results if r.consistency != "consistent" and r.page is not None), None
-                    )
-                    upsert_findings(
-                        conn,
-                        paper_id,
-                        "statcheck",
-                        [
-                            {
-                                "kind": "candidate",
-                                "tier": "primary",
-                                "payload": {
-                                    "desc": f"{flagged_n} statistical reporting "
-                                    f"inconsistenc{'y' if flagged_n == 1 else 'ies'} (statcheck) — review",
-                                    "inconsistent": report.inconsistent,
-                                    "decision_errors": report.decision_errors,
-                                    "checked": report.checked,
-                                    "page": page,
-                                },
-                            }
-                        ],
-                    )
-                else:
-                    upsert_findings(conn, paper_id, "statcheck", [])
+            else:
+                upsert_findings(conn, paper_id, "statcheck", [])
+            return report
+
+        for paper_id in ids:
+            total += 1
+            try:
+                report = run_write(engine, lambda conn, pid=paper_id: process(conn, pid))
+            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                _log.warning("statcheck batch: skipped paper %s: %s", paper_id, exc)
+                continue
+            if report.checked > 0:
+                checked += 1
+            if report.inconsistent + report.decision_errors > 0:
+                flagged += 1
         jobs.mark_done(
             job_id,
             StatcheckRunResponse(

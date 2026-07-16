@@ -13,6 +13,7 @@ methods/transparency.py (the detector) + methods/transparency_findings.py (the p
 
 from __future__ import annotations
 
+import logging
 from typing import Any, Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request
@@ -27,8 +28,10 @@ from app.backend.methods.transparency import detect_transparency
 from app.backend.methods.transparency_findings import persist_transparency
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
 from app.backend.persistence.signals_repo import count_transparency_review
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
+_log = logging.getLogger("callosum.transparency")
 
 
 class TransparencyCheckOut(BaseModel):
@@ -99,14 +102,22 @@ def _run_transparency_all_job(app: FastAPI, job_id: str) -> None:
     jobs.mark_running(job_id)
     try:
         total = with_disclosures = 0
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        with engine.connect() as conn:
             paper_ids = list_live_paper_ids(conn)
-            for i, paper_id in enumerate(paper_ids):
-                total += 1
-                result = persist_transparency(conn, paper_id, get_chunks_for_paper(conn, paper_id))
+        # inc C: persist each paper's transparency signals in its own committed transaction — lock released between.
+        for i, paper_id in enumerate(paper_ids):
+            total += 1
+            try:
+                result = run_write(
+                    engine,
+                    lambda conn, pid=paper_id: persist_transparency(conn, pid, get_chunks_for_paper(conn, pid)),
+                )
                 if result["present"] > 0:
                     with_disclosures += 1
-                jobs.mark_progress(job_id, i + 1, len(paper_ids), "Detecting transparency signals")
+            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                _log.warning("transparency batch: skipped paper %s: %s", paper_id, exc)
+            jobs.mark_progress(job_id, i + 1, len(paper_ids), "Detecting transparency signals")
         jobs.mark_done(
             job_id,
             TransparencyRunResponse(

@@ -302,3 +302,37 @@ def test_statcheck_batch_run_then_filter(temp_db_url):
     assert [p["title"] for p in flagged] == ["Bad Stats"]  # only the inconsistent paper, never a rank
     assert client.get("/methods/statcheck/summary").json()["flagged"] == 1  # drives the library "N flagged" chip
     assert client.get("/methods/statcheck/run/nope").status_code == 404
+
+
+def test_statcheck_batch_commits_per_paper_partial_progress(temp_db_url, monkeypatch):
+    """inc C: a failure storing the 2nd paper's statcheck leaves the 1st paper's signal committed and the job
+    completes (per-paper commit + skip). The old single-transaction batch would roll back the 1st too and error."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _stat_chunk(conn, "Bad Stats", "b", "We found t(28) = 1.5, p = .04.")  # decision error → flagged (1st)
+        _stat_chunk(conn, "Good Stats", "g", "We found t(28) = 2.10, p = .04.")  # 2nd — its store is forced to fail
+        create_paper(conn, title="No Stats", csl_json={"title": "No Stats"})
+    engine.dispose()
+
+    from app.backend.api.routers import methods as methods_mod
+
+    real_store = methods_mod.store_statcheck
+    calls = {"n": 0}
+
+    def flaky_store(conn, paper_id, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:  # papers processed id-ASC → the 2nd store is "Good Stats"
+            raise RuntimeError("boom storing the 2nd paper's statcheck")
+        return real_store(conn, paper_id, **kwargs)
+
+    monkeypatch.setattr(methods_mod, "store_statcheck", flaky_store)
+    client = TestClient(create_app(db_url=temp_db_url))
+    job_id = client.post("/methods/statcheck/run").json()["job_id"]
+    result = {}
+    for _ in range(30):
+        result = client.get(f"/methods/statcheck/run/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+    assert result["status"] == "done"  # per-paper skip → the run completes
+    flagged = client.get("/papers", params={"signal": "statcheck-inconsistent"}).json()
+    assert [p["title"] for p in flagged] == ["Bad Stats"]  # the 1st paper's signal committed before the 2nd failed
