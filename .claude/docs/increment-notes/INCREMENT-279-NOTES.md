@@ -100,4 +100,4 @@ Nothing cheap-and-in-scope was left unfixed; the two refinements are filed to `I
 
 `tests/test_overlooked.py` — 9 passing (fetch_topic_works incl. egress-shape; compute_overlooked surfaces/percentile/
 exclude; repo round-trip; endpoints refresh→list, dismiss filter, validation). `tests/test_frontend_assembly.py` —
-+1 overlooked-panel guard. Full suite: <filled after the background run>.
++1 overlooked-panel guard. Full suite: **1235 passed, 1 skipped** (28 min).
