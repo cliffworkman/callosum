@@ -38,6 +38,7 @@ function App() {
   const [textHealthOpen, setTextHealthOpen] = useState(false);  // local PDF text-health maintenance queue
   const [textHealthContext, setTextHealthContext] = useState(null);  // optional source scope, e.g. Synthesis retry
   const [gapsOpen, setGapsOpen] = useState(false);              // inc-135 literature gap-finder modal
+  const [overlookedOpen, setOverlookedOpen] = useState(false);  // #37 overlooked-work lens (per-axis discovery)
   const [scanOpen, setScanOpen] = useState(false);              // inc-87 scan-a-folder modal
   const [importOpen, setImportOpen] = useState(false);          // inc-93 import-citations modal
   const [bundleImportOpen, setBundleImportOpen] = useState(false); // B2 SP1 import-library-bundle modal
@@ -164,7 +165,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -215,6 +216,7 @@ function App() {
         onOpenTextHealth: () => openTextHealth(),
         onOpenReferenceWarnings: openReferenceWarnings,
         onOpenGaps: () => setGapsOpen(true),
+        onOpenOverlooked: () => setOverlookedOpen(true),
         onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
         onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
       }}
@@ -249,6 +251,8 @@ function App() {
           onChanged={() => setLibRefresh(n => n + 1)} context={textHealthContext} />}
       {gapsOpen &&
         <GapsModal onClose={() => setGapsOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
+      {overlookedOpen &&
+        <OverlookedLensModal onClose={() => setOverlookedOpen(false)} onChanged={() => setLibRefresh(n => n + 1)} />}
       {pcurvePapers &&
         <PcurveModal paperIds={pcurvePapers} onClose={() => setPcurvePapers(null)} onOpenPaper={openPdf} onChanged={() => setLibRefresh(n => n + 1)} />}
       {scanOpen &&

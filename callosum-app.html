@@ -7097,6 +7097,7 @@
     onFindDuplicates,
     onOpenWanted,
     onOpenGaps,
+    onOpenOverlooked,
     onOpenScan,
     onOpenImport,
     onOpenImportBundle,
@@ -7181,7 +7182,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), !trashView && /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), !trashView && /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -13185,6 +13186,69 @@
     const running = refresh.status === "running";
     return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Gaps in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, direction === "forward" ? /* @__PURE__ */ React.createElement(React.Fragment, null, "Works that ", /* @__PURE__ */ React.createElement("b", null, "cite several of your papers"), " but aren't in your library \u2014 newer work building on yours. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers each one cites, not a measure of importance.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "Works that ", /* @__PURE__ */ React.createElement("b", null, "several of your papers cite"), " but aren't in your library yet \u2014 likely references worth adding. The count is how many of ", /* @__PURE__ */ React.createElement("i", null, "your"), " papers cite each one, not a measure of importance."), " ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata; ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good."), /* @__PURE__ */ React.createElement("div", { className: "gaps-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, /* @__PURE__ */ React.createElement("button", { className: `tags-srcfilter-btn${direction === "backward" ? " on" : ""}`, onClick: () => setDirection("backward") }, "Works you cite"), /* @__PURE__ */ React.createElement("button", { className: `tags-srcfilter-btn${direction === "forward" ? " on" : ""}`, onClick: () => setDirection("forward") }, "Works citing you")), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: axisId, onChange: (e) => setAxisId(e.target.value), title: "Scope to an axis" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All papers"), axes.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.id, value: a.id }, a.label))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running, onClick: runRefresh }, running ? "Scanning\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, computedAt ? `Last refreshed ${new Date(computedAt).toLocaleString()}.` : "Not computed yet for this scope \u2014 Refresh to scan.", lastScan && ` Scanned ${lastScan.checked} of ${lastScan.total} papers (the rest have no DOI). ${lastScan.note}`), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning your library against OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), !running && computedAt && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No gaps in this scope \u2014 everything related to several of your papers is already in your library."), rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.title || row.doi), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, countLabel(row.cited_by_in_library)), row.authors && row.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", row.authors.slice(0, 3).join(", "), row.authors.length > 3 ? " et al." : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss"))))));
   }
+  function OverlookedLensModal({ onClose, onChanged }) {
+    const [axisId, setAxisId] = useState("");
+    const [axes, setAxes] = useState([]);
+    const [rows, setRows] = useState([]);
+    const [computedAt, setComputedAt] = useState(null);
+    const [refresh, setRefresh] = useState({ status: "idle" });
+    useEffect(() => {
+      api("/axes").then((r) => setAxes(r.ok ? r.data.filter((a) => a.kind !== "my_publications") : []));
+    }, []);
+    const load = React.useCallback(() => {
+      if (!axisId) {
+        setRows([]);
+        setComputedAt(null);
+        return;
+      }
+      api(`/overlooked?axis_id=${axisId}`).then((r) => {
+        if (r.ok) {
+          setRows(r.data.candidates || []);
+          setComputedAt(r.data.computed_at);
+        }
+      });
+    }, [axisId]);
+    useEffect(() => {
+      load();
+    }, [load]);
+    const runRefresh = async () => {
+      if (!axisId) return;
+      setRefresh({ status: "running" });
+      const poll = (jobId) => api(`/overlooked/refresh/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRefresh({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRefresh({ status: "done" });
+          load();
+        } else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Overlooked-work scan failed." });
+        else setTimeout(() => poll(jobId), 2e3);
+      });
+      const r = await apiPost("/overlooked/refresh", { axis_id: Number(axisId) });
+      if (!r.ok) {
+        setRefresh({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const add = async (row) => {
+      const r = await apiPost("/gaps/add", { doi: row.doi, openalex_work_id: row.openalex_work_id, title: row.title });
+      if (r.ok) {
+        load();
+        if (onChanged) onChanged();
+      }
+    };
+    const dismiss = async (row) => {
+      const r = await apiPost("/gaps/dismiss", { openalex_work_id: row.openalex_work_id, doi: row.doi });
+      if (r.ok) load();
+    };
+    const axisLabel = (axes.find((a) => String(a.id) === String(axisId)) || {}).label || "this axis";
+    const pct = (p) => p === null || p === void 0 ? null : Math.round(p * 100);
+    const running = refresh.status === "running";
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Possibly overlooked work"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "External works ", /* @__PURE__ */ React.createElement("b", null, "relevant to ", axisId ? /* @__PURE__ */ React.createElement("i", null, axisLabel) : "an axis"), " that are ", /* @__PURE__ */ React.createElement("b", null, "under-cited for their year"), " \u2014 work the field may have overlooked. Each row shows two ", /* @__PURE__ */ React.createElement("b", null, "separate"), " signals: how relevant it is to the axis, and how its citations compare to same-year work on the topic. Low citations can mean the field overlooked it \u2014 or that it's simply low-impact; ", /* @__PURE__ */ React.createElement("b", null, "your call"), ". ", /* @__PURE__ */ React.createElement("b", null, "Add"), " imports the metadata;", " ", /* @__PURE__ */ React.createElement("b", null, "Dismiss"), " hides it for good. Inspired by the ", /* @__PURE__ */ React.createElement("i", null, "Matthew effect in science"), " (Merton, 1968)."), /* @__PURE__ */ React.createElement("div", { className: "gaps-controls" }, /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: axisId, onChange: (e) => setAxisId(e.target.value), title: "Choose an axis" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Choose an axis\u2026"), axes.map((a) => /* @__PURE__ */ React.createElement("option", { key: a.id, value: a.id }, a.label))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !axisId, onClick: runRefresh }, running ? "Scanning\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "gaps-coverage" }, !axisId ? "Choose an axis to look for overlooked work relevant to it." : computedAt ? `Last refreshed ${new Date(computedAt).toLocaleString()}.` : "Not computed yet for this axis \u2014 Refresh to scan OpenAlex for this topic's works."), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Scanning this topic's works against OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), !running && axisId && computedAt && rows.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Nothing surfaced for this axis \u2014 that isn't evidence none exists; low citations can just mean low-impact, and only works with enough same-year peers to rank are shown."), rows.map((row) => /* @__PURE__ */ React.createElement("div", { key: row.openalex_work_id, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, row.doi ? /* @__PURE__ */ React.createElement("a", { className: "ref-source-link", href: `https://doi.org/${row.doi}`, target: "_blank", rel: "noopener noreferrer" }, row.title || row.doi) : row.title || row.openalex_work_id), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count", title: `Local cosine similarity of this work's abstract to ${axisLabel} \u2014 a checkable relevance signal, not a verdict` }, "relevance ", Number(row.relevance).toFixed(2)), " ", /* @__PURE__ */ React.createElement("span", { className: "gap-count", title: "Citations vs. same-year works on this topic \u2014 low = under-cited for its vintage" }, "cited ", row.cited_by_count, pct(row.year_percentile) !== null && row.year ? ` \xB7 ${pct(row.year_percentile)}th percentile for ${row.year}` : ""), row.year ? ` \xB7 ${row.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => add(row) }, "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => dismiss(row) }, "Dismiss"))))));
+  }
   function CiteCopyButton({ paperId }) {
     const [copied, setCopied] = useState(false);
     const copy = async (e) => {
@@ -13740,6 +13804,7 @@
     const [textHealthOpen, setTextHealthOpen] = useState(false);
     const [textHealthContext, setTextHealthContext] = useState(null);
     const [gapsOpen, setGapsOpen] = useState(false);
+    const [overlookedOpen, setOverlookedOpen] = useState(false);
     const [scanOpen, setScanOpen] = useState(false);
     const [importOpen, setImportOpen] = useState(false);
     const [bundleImportOpen, setBundleImportOpen] = useState(false);
@@ -13879,7 +13944,7 @@
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -13958,6 +14023,7 @@
           onOpenTextHealth: () => openTextHealth(),
           onOpenReferenceWarnings: openReferenceWarnings,
           onOpenGaps: () => setGapsOpen(true),
+          onOpenOverlooked: () => setOverlookedOpen(true),
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
           onOpenImportBundle: () => setBundleImportOpen(true),
@@ -14002,7 +14068,7 @@
         onChanged: () => setLibRefresh((n) => n + 1),
         context: textHealthContext
       }
-    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: () => setScanOpen(false), onScanned: () => setLibRefresh((n) => n + 1), onShowUnsorted: showNeedsReview }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: () => setImportOpen(false), onImported: () => setLibRefresh((n) => n + 1) }), bundleImportOpen && /* @__PURE__ */ React.createElement(
+    ), gapsOpen && /* @__PURE__ */ React.createElement(GapsModal, { onClose: () => setGapsOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), overlookedOpen && /* @__PURE__ */ React.createElement(OverlookedLensModal, { onClose: () => setOverlookedOpen(false), onChanged: () => setLibRefresh((n) => n + 1) }), pcurvePapers && /* @__PURE__ */ React.createElement(PcurveModal, { paperIds: pcurvePapers, onClose: () => setPcurvePapers(null), onOpenPaper: openPdf, onChanged: () => setLibRefresh((n) => n + 1) }), scanOpen && /* @__PURE__ */ React.createElement(ScanModal, { onClose: () => setScanOpen(false), onScanned: () => setLibRefresh((n) => n + 1), onShowUnsorted: showNeedsReview }), importOpen && /* @__PURE__ */ React.createElement(ImportModal, { onClose: () => setImportOpen(false), onImported: () => setLibRefresh((n) => n + 1) }), bundleImportOpen && /* @__PURE__ */ React.createElement(
       BundleImportModal,
       {
         onClose: () => setBundleImportOpen(false),

@@ -59,6 +59,23 @@ def test_every_js_chunk_is_included():
         assert text in raw, f"{chunk.name} is missing from the assembled frontend"
 
 
+def test_overlooked_lens_panel_present_and_honest():
+    raw = assemble_jsx()
+    # The panel exists and wires to its endpoints.
+    assert "function OverlookedLensModal(" in raw
+    assert '"/overlooked/refresh"' in raw and "/overlooked?axis_id=" in raw
+    assert "onOpenOverlooked" in raw  # the header entry point is wired through
+    # The two SEPARABLE visible inputs are shown as distinct copy (relevance + citations-vs-vintage percentile)...
+    assert "relevance" in raw and "percentile for" in raw and "cited" in raw
+    # ...and framed honestly (silence-not-a-certificate): possibly overlooked, possibly just low-impact.
+    assert "possibly overlooked" in raw.lower()
+    assert "low-impact" in raw.lower()
+    # The vetoes: never a composite "hidden-gem"/opaque score in the panel.
+    assert "hidden-gem" not in raw.lower() and "hidden gem" not in raw.lower()
+    # Add/Dismiss reuse the gap flow.
+    assert '"/gaps/add"' in raw and '"/gaps/dismiss"' in raw
+
+
 def test_stale_discover_placeholder_is_removed_from_theory_accordion():
     raw = assemble_jsx()
     assert 'label: "Funding Discovery"' in raw

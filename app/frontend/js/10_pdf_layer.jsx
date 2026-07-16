@@ -231,7 +231,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
                     transparencyReview, onShowTransparencyReview,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
-                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
+                    onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenWanted, onOpenGaps, onOpenOverlooked, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
@@ -301,6 +301,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <button className="trash-toggle" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
+            {!trashView &&
+              <button className="trash-toggle" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}
             {!trashView &&
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {!trashView && <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />}
