@@ -27,6 +27,7 @@ from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref
 from app.backend.metadata.library_bundle import MAX_BUNDLE_BYTES, BundleError, build_bundle, import_bundle, parse_bundle
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.pdf_processing.library_scan import scan_library_folder
+from app.backend.persistence.sqlite_retry import commit_each, run_write
 from app.backend.persistence.watched_repo import (
     add_watched_folder,
     list_watched_folders,
@@ -109,7 +110,7 @@ def scan_status(job_id: str, request: Request) -> ScanJobResponse:
 
 
 def _process_scan_result(
-    conn,
+    engine,
     scanned,
     *,
     model,
@@ -118,37 +119,32 @@ def _process_scan_result(
     retraction_checkers=None,
     on_progress: Callable[[str, int, int], None] | None = None,
 ) -> None:
-    """Enrich new papers from Crossref + embed new chunks/papers for one scan result (shared by scan + rescan).
-    Crossref is resilient (unresolved → the inc-80 Unsorted view) and is NOT the Gemini gate. Inc 134: a
-    best-effort retraction auto-check runs on the new papers (so a freshly scanned retracted paper flags now).
-    Inc 142: ``on_progress(label, current, total)`` reports the enrich + embed phases for determinate UI progress."""
-    added_papers = [int(a["paper_id"]) for a in scanned["added"]]
-    added_chunks = [int(cid) for a in scanned["added"] for cid in (a.get("chunk_ids") or [])]
-    for index, paper_id in enumerate(added_papers, start=1):
-        if on_progress:
-            on_progress("Fetching metadata", index, len(added_papers))
+    """Enrich + embed each newly scanned paper in its OWN committed transaction (per-paper), so the write lock is
+    released between papers instead of held for the whole run (inc A). One paper's hard failure is skipped +
+    logged, never aborting the rest — partial progress is usable and the scan is idempotent (content-hash dedup).
+    Crossref stays resilient (unresolved → the inc-80 Unsorted view) and is NOT the Gemini gate. Inc 134: a
+    best-effort retraction auto-check runs per new paper. Inc 142: ``on_progress(label, current, total)`` reports
+    progress across the papers."""
+    added = scanned["added"]  # [{paper_id, chunk_ids}]
+    total = len(added)
+
+    def process_one(conn, item):
+        paper_id = int(item["paper_id"])
+        chunk_ids = [int(cid) for cid in (item.get("chunk_ids") or [])]
         try:
             enrich_paper_metadata_from_crossref(conn, paper_id, crossref_client=crossref)
-        except Exception as exc:
+        except Exception as exc:  # enrich stays best-effort (unresolved → Unsorted); never fails the item
             _log.warning("library scan: enrich failed for paper %s: %s", paper_id, exc)
-    if added_chunks:
-        embed_chunks(
-            conn,
-            model=model,
-            vector_store=store,
-            chunk_ids=added_chunks,
-            on_progress=(lambda i, n: on_progress("Embedding text", i, n)) if on_progress else None,
-        )
-    if added_papers:
-        embed_papers(
-            conn,
-            model=model,
-            vector_store=store,
-            paper_ids=added_papers,
-            on_progress=(lambda i, n: on_progress("Embedding papers", i, n)) if on_progress else None,
-        )
+        if chunk_ids:
+            embed_chunks(conn, model=model, vector_store=store, chunk_ids=chunk_ids)
+        embed_papers(conn, model=model, vector_store=store, paper_ids=[paper_id])
         if retraction_checkers:
-            auto_check_retractions(conn, added_papers, checkers=retraction_checkers)
+            auto_check_retractions(conn, [paper_id], checkers=retraction_checkers)
+
+    for index, item in enumerate(added, start=1):
+        if on_progress:
+            on_progress("Processing", index, total)
+        commit_each(engine, [item], process_one, on_item_error="skip", logger=_log)
 
 
 def _scan_summary(scanned) -> ScanSummary:
@@ -168,21 +164,25 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         model = _embedding_model(app)
         store = _vector_store(app)
         crossref = app.state.crossref_client
-        with app.state.engine.begin() as conn:
-            scanned = scan_library_folder(
+        engine = app.state.engine
+        # Phase 1 (extraction + insert) commits as its own unit (A2 will make it per-file); phase 2 (enrich +
+        # embed) commits per paper inside _process_scan_result, so the write lock is released between papers.
+        scanned = run_write(
+            engine,
+            lambda conn: scan_library_folder(
                 conn, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
-            )
-            _process_scan_result(
-                conn,
-                scanned,
-                model=model,
-                store=store,
-                crossref=crossref,
-                retraction_checkers=app.state.retraction_checkers,
-                on_progress=lambda label, i, n: jobs.mark_progress(job_id, i, n, label),
-            )
-            add_watched_folder(conn, folder)  # inc 98: scanning a folder starts watching it
-            touch_last_scanned(conn, folder)
+            ),
+        )
+        _process_scan_result(
+            engine,
+            scanned,
+            model=model,
+            store=store,
+            crossref=crossref,
+            retraction_checkers=app.state.retraction_checkers,
+            on_progress=lambda label, i, n: jobs.mark_progress(job_id, i, n, label),
+        )
+        run_write(engine, lambda conn: (add_watched_folder(conn, folder), touch_last_scanned(conn, folder)))
         jobs.mark_done(job_id, ScanJobResponse(job_id=job_id, status="done", summary=_scan_summary(scanned)))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
@@ -260,40 +260,45 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
         model = _embedding_model(app)
         store = _vector_store(app)
         crossref = app.state.crossref_client
+        engine = app.state.engine
         agg = {"added": 0, "unchanged": 0, "removed": 0, "errors": 0}
         error_details: list[ScanError] = []  # inc 155: per-file failures across all watched folders (capped)
-        with app.state.engine.begin() as conn:
-            # inc 160: the library folder is ALWAYS rescanned (the pinned default) — even with no registered rows,
-            # so a PDF dropped into it is picked up on launch/focus. Then the user-added folders (skip the library
-            # folder if a user also added it, so it isn't scanned twice).
-            lib = library_dir()
-            lib_key = _path_key(lib)
+        # inc 160: the library folder is ALWAYS rescanned (the pinned default) — even with no registered rows, so
+        # a PDF dropped into it is picked up on launch/focus. Then the user-added folders (skip the library folder
+        # if a user also added it, so it isn't scanned twice). inc A: each folder's insert phase commits as its own
+        # unit and its enrich+embed commits per paper, so the write lock is released between folders + papers.
+        lib = library_dir()
+        lib_key = _path_key(lib)
+        with engine.connect() as conn:
             targets: list[str] = [str(lib)] if lib.is_dir() else []
             targets += [r["path"] for r in list_watched_folders(conn) if _path_key(Path(r["path"])) != lib_key]
-            for folder in targets:
-                if not Path(folder).is_dir():  # a watched folder that's gone → noted, never fatal
-                    agg["errors"] += 1
-                    if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
-                        error_details.append(ScanError(path=folder, error="watched folder no longer exists"))
-                    continue
-                scanned = scan_library_folder(
-                    conn, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
-                )
-                _process_scan_result(
-                    conn,
-                    scanned,
-                    model=model,
-                    store=store,
-                    crossref=crossref,
-                    retraction_checkers=app.state.retraction_checkers,
-                    on_progress=lambda label, i, n: jobs.mark_progress(job_id, i, n, label),
-                )
-                touch_last_scanned(conn, folder)
-                for key in agg:
-                    agg[key] += len(scanned[key])
-                for e in scanned["errors"]:
-                    if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
-                        error_details.append(ScanError(path=e["path"], error=e["error"]))
+        for folder in targets:
+            if not Path(folder).is_dir():  # a watched folder that's gone → noted, never fatal
+                agg["errors"] += 1
+                if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
+                    error_details.append(ScanError(path=folder, error="watched folder no longer exists"))
+                continue
+            scanned = run_write(
+                engine,
+                lambda conn, f=folder: scan_library_folder(
+                    conn, f, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
+                ),
+            )
+            _process_scan_result(
+                engine,
+                scanned,
+                model=model,
+                store=store,
+                crossref=crossref,
+                retraction_checkers=app.state.retraction_checkers,
+                on_progress=lambda label, i, n: jobs.mark_progress(job_id, i, n, label),
+            )
+            run_write(engine, lambda conn, f=folder: touch_last_scanned(conn, f))
+            for key in agg:
+                agg[key] += len(scanned[key])
+            for e in scanned["errors"]:
+                if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
+                    error_details.append(ScanError(path=e["path"], error=e["error"]))
         jobs.mark_done(
             job_id,
             ScanJobResponse(job_id=job_id, status="done", summary=ScanSummary(**agg, error_details=error_details)),

@@ -14,7 +14,7 @@ from app.backend.pdf_processing.extraction import file_sha256
 from app.backend.pdf_processing.library_scan import scan_library_folder
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_attachment, create_paper
-from app.backend.persistence.schema import attachments, papers
+from app.backend.persistence.schema import attachments, embeddings, papers
 
 
 def _make_pdf(path: Path, text: str) -> Path:
@@ -181,3 +181,44 @@ def test_scan_surfaces_per_file_errors(temp_db_url, tmp_path):
 def test_scan_nonexistent_folder_422(temp_db_url, tmp_path):
     client = TestClient(create_app(db_url=temp_db_url))
     assert client.post("/library/scan", json={"folder": str(tmp_path / "nope")}).status_code == 422
+
+
+def test_scan_commits_per_paper_partial_progress(temp_db_url, tmp_path, monkeypatch):
+    """Per-paper commits: a failure embedding the 2nd paper leaves the 1st fully embedded, and the job still
+    completes (skip-on-error) — NOT a whole-job rollback. Under the old single-transaction job, either both
+    papers embed or the whole run rolls back; only per-paper commits give exactly one embedded + status done."""
+    from app.backend.api.routers import library as lib_mod
+
+    real_embed_papers = lib_mod.embed_papers
+    calls = {"n": 0}
+
+    def flaky_embed_papers(conn, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:  # per-paper, embed_papers is called once per paper → fail on the 2nd paper
+            raise RuntimeError("boom embedding the 2nd paper")
+        return real_embed_papers(conn, **kwargs)
+
+    monkeypatch.setattr(lib_mod, "embed_papers", flaky_embed_papers)
+
+    folder = tmp_path / "lib"
+    folder.mkdir()
+    _make_pdf(folder / "a.pdf", "Alpha analytical engine study one.")
+    _make_pdf(folder / "b.pdf", "Beta computation memoir two.")
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel(), crossref_client=_NoCrossref()))
+    started = client.post("/library/scan", json={"folder": str(folder)})
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(60):
+        result = client.get(f"/library/scan/{job_id}").json()
+        if result["status"] in {"done", "error"}:
+            break
+    assert result["status"] == "done"  # per-paper skip → the run completes, not a whole-job error
+
+    engine = make_engine(temp_db_url)
+    with engine.connect() as conn:
+        assert conn.execute(select(func.count()).select_from(papers)).scalar() == 2  # both rows inserted (phase 1)
+        paper_embs = conn.execute(
+            select(func.count()).select_from(embeddings).where(embeddings.c.target_type == "paper")
+        ).scalar()
+    engine.dispose()
+    assert paper_embs == 1  # only paper #1 committed its embedding; paper #2's whole item rolled back
