@@ -12,8 +12,9 @@ import json
 from app.backend.clustering.axis_scoring import create_axis
 from app.backend.embeddings.models import DEFAULT_NORMALIZATION
 from app.backend.embeddings.vector_store import InMemoryVectorStore
-from app.backend.methods.overlooked import compute_overlooked
+from app.backend.methods.overlooked import OverlookedCandidate, compute_overlooked
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.overlooked_repo import read_overlooked_candidates, replace_overlooked_candidates
 from app.backend.persistence.repository import create_paper
 from integrations.openalex.sources import OpenAlexSourcesClient, TopicWork
 
@@ -165,4 +166,32 @@ def test_compute_overlooked_excludes_in_library(temp_db_url):
     ids = [c.openalex_work_id for c in out]
     assert "W1" not in ids  # already in the library → dropped (this is discovery)
     assert "W3" in ids  # the pipeline still surfaces the remaining relevant, under-cited candidate
+    engine.dispose()
+
+
+# --- Task 3: the overlooked_candidates cache ---------------------------------
+
+
+def test_overlooked_repo_round_trips_both_visible_inputs(temp_db_url):
+    engine = make_engine(temp_db_url)
+    cands = [
+        OverlookedCandidate("W1", "10.1/w1", "Neural nets", 2015, 3, relevance=0.91, year_percentile=0.1),
+        OverlookedCandidate("W2", None, "Neural theory", 2016, 0, relevance=0.72, year_percentile=None),
+    ]
+    with engine.begin() as conn:
+        assert read_overlooked_candidates(conn, 7) == ([], None)  # uncomputed scope
+        replace_overlooked_candidates(conn, 7, cands, computed_at="2026-07-16T00:00:00Z")
+    with engine.begin() as conn:
+        rows, computed_at = read_overlooked_candidates(conn, 7)
+    assert computed_at == "2026-07-16T00:00:00Z"
+    by_id = {r["openalex_work_id"]: r for r in rows}
+    assert by_id["W1"]["relevance"] == 0.91 and by_id["W1"]["year_percentile"] == 0.1  # both inputs persisted
+    assert by_id["W1"]["cited_by_count"] == 3 and by_id["W1"]["doi"] == "10.1/w1"
+    assert by_id["W2"]["year_percentile"] is None  # honest null survives the round-trip
+    assert "author" not in " ".join(k for r in rows for k in r).lower()  # identity-agnostic: no author column
+    # A refresh is authoritative — replacing the scope with fewer rows drops the stale one.
+    with engine.begin() as conn:
+        replace_overlooked_candidates(conn, 7, cands[:1], computed_at="2026-07-16T01:00:00Z")
+        rows2, _ = read_overlooked_candidates(conn, 7)
+    assert [r["openalex_work_id"] for r in rows2] == ["W1"]
     engine.dispose()

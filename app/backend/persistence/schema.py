@@ -534,6 +534,7 @@ from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,
     gap_candidates,
     open_science_signals,
+    overlooked_candidates,
     paper_citation_counts,
     paper_findings,
     retraction_records,

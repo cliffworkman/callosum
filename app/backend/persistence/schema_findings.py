@@ -100,6 +100,28 @@ gap_candidates = Table(
     Index("ix_gap_candidates_scope", "direction", "axis_id"),
 )
 
+# Overlooked-work lens persistent cache (backlog #37): one row per surfaced candidate, scoped by axis_id. A refresh
+# replaces all rows for an axis; GET /overlooked reads here. Identity-agnostic by construction — there is NO author
+# column (the lens measures the work's attention-vs-relevance, never who wrote it). `relevance` and `year_percentile`
+# are the two SEPARATE visible inputs (never fused into one score); `year_percentile` is NULL when a year had too few
+# same-vintage peers to rank (silence-not-a-certificate). axis_id is a plain scope tag (no FK) — a stale row for a
+# deleted axis is simply never read.
+overlooked_candidates = Table(
+    "overlooked_candidates",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("axis_id", Integer, nullable=False),
+    Column("openalex_work_id", String(40), nullable=False),
+    Column("doi", String(255)),
+    Column("title", Text),
+    Column("year", Integer),
+    Column("cited_by_count", Integer, nullable=False),
+    Column("relevance", Float, nullable=False),  # axis cosine similarity (local); a checkable input, not a verdict
+    Column("year_percentile", Float),  # citations vs. same-vintage peers; NULL = too few peers to rank
+    Column("computed_at", String(40), nullable=False),
+    Index("ix_overlooked_candidates_axis", "axis_id"),
+)
+
 # Per-paper OpenAlex cited-by count (inc 210, A2): a refreshable external metric, stored OUT of the canonical
 # `papers` row (like every other derived datum — open_science_signals, gap_candidates). One row per paper,
 # replaced by the on-demand batch. `retrieved_at` IS the "as of <date>" attribution. A displayed FACT shown
