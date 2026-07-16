@@ -126,17 +126,15 @@
     display: grid;
     /* columns are driven by App state (drag-resizable + collapsible side panels); this is a fallback */
     grid-template-columns: 270px 12px minmax(340px, 1fr) 12px 400px;
-    /* inc 280: row 1 = the menu bar (auto), row 2 = the three panes (the remaining height). */
-    grid-template-rows: auto 1fr;
+    grid-template-rows: 100vh;
     height: 100vh;
     overflow: hidden;
   }
 
-  /* inc 280: the menu bar — the global top row (spans all grid columns) that switches workspaces. Reuses the
-     frame-tab active semantics (accent). Tokens only (rule #8). */
+  /* inc 280: the menu bar — a bar INSIDE the center (Library) pane only that switches workspaces; the three panes
+     stay separate + full height. Reuses the frame-tab active semantics (accent). Tokens only (rule #8). */
   .menubar {
-    grid-column: 1 / -1;
-    display: flex; align-items: center; gap: 4px;
+    flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
     padding: 5px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line);
   }
   .menubar-brand { font-weight: 700; font-size: 14px; color: var(--ink); margin-right: 14px; letter-spacing: .2px; }
@@ -184,7 +182,7 @@
   .detail-ro.mono { font-family: ui-monospace, monospace; }
   .detail-title-input.detail-ro { font-size: 20px; font-weight: 600; white-space: normal; padding: 6px 0; }
 
-  .pane { overflow-y: auto; height: 100%; }  /* inc 280: fills grid row 2 (below the menu bar), was 100vh */
+  .pane { overflow-y: auto; height: 100%; }  /* 100% of the 100vh grid row = full height (each pane is separate) */
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
   .pane-collapsed { overflow: hidden; }
   /* inc 248: the accordion panes are flex columns that DON'T scroll as a whole — the open section's body scrolls
@@ -14142,7 +14140,7 @@
         onTheoryOpen: setTheoryOpen
       }
     );
-    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
+    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly }), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       LibraryFrame,
       {
         libraryProps: {
@@ -14224,14 +14222,9 @@
         setCitationReturn(false);
       };
       const backPill = citationReturn && mobilePane === "library" ? /* @__PURE__ */ React.createElement("button", { className: "pdf-back-pill", onClick: () => selectMobilePane("theory") }, "\u2190 Synthesis") : null;
-      const selectWorkspaceMobile = (id) => {
-        selectWorkspace(id);
-        setMobilePane("library");
-        setCitationReturn(false);
-      };
-      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspaceMobile, readOnly }), /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals);
+      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals);
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly }), leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
       Divider,
       {
         side: "left",

@@ -232,6 +232,7 @@ function App() {
   // bodies are bespoke); Discover + Extract render their registered sub-tabs via WorkspacePane.
   const centerEl = (
     <div className="workspace-frame">
+      <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} />
       <div className="workspace-slot" style={{ display: activeWorkspace === "library" ? "flex" : "none" }}>
         <LibraryFrame
           libraryProps={{
@@ -314,12 +315,9 @@ function App() {
     const backPill = citationReturn && mobilePane === "library"
       ? <button className="pdf-back-pill" onClick={() => selectMobilePane("theory")}>← Synthesis</button>
       : null;
-    // inc 280: the menu bar switches workspaces; on mobile that also pulls the center region into view.
-    const selectWorkspaceMobile = (id) => { selectWorkspace(id); setMobilePane("library"); setCitationReturn(false); };
     return (
       <div className={"app mobile" + (readOnly ? " read-only" : "")}>
         {readOnlyBadge}
-        <MenuBar active={activeWorkspace} onActivate={selectWorkspaceMobile} readOnly={readOnly} />
         <div className="mobile-body">{activeEl}</div>
         {backPill}
         <MobileNav active={mobilePane} onSelect={selectMobilePane} />
@@ -331,7 +329,6 @@ function App() {
   return (
     <div className={"app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : "")} style={{ gridTemplateColumns: cols }}>
       {readOnlyBadge}
-      <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} />
       {leftOpen && !readingMode ? sidebarEl : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
