@@ -54,23 +54,21 @@ def test_scan_adds_new_skips_unchanged_flags_removed(temp_db_url, tmp_path):
     _make_pdf(folder / "b.pdf", "Beta computation memoir two.")
     engine = make_engine(temp_db_url)
 
-    with engine.begin() as conn:
-        first = scan_library_folder(conn, folder)
+    first = scan_library_folder(engine, folder)  # inc A2: owns its own per-file transactions
     assert len(first["added"]) == 2 and not first["unchanged"] and not first["removed"]
     # every added paper has a linked attachment with a checksum
-    with engine.begin() as conn:
+    with engine.connect() as conn:
         rows = list(
             conn.execute(select(attachments.c.storage_mode, attachments.c.checksum, attachments.c.import_source))
         )
     assert all(r[0] == "linked" and r[1] and r[2] == "library-scan" for r in rows)
 
-    with engine.begin() as conn:  # re-scan → all unchanged (content dedup by checksum)
-        again = scan_library_folder(conn, folder)
+    again = scan_library_folder(engine, folder)  # re-scan → all unchanged (content dedup by checksum)
     assert len(again["unchanged"]) == 2 and not again["added"]
 
     (folder / "b.pdf").unlink()  # remove one on disk → flagged missing (non-destructive)
-    with engine.begin() as conn:
-        third = scan_library_folder(conn, folder)
+    third = scan_library_folder(engine, folder)
+    with engine.connect() as conn:
         missing = list(conn.execute(select(attachments.c.availability).where(attachments.c.availability == "missing")))
     assert len(third["removed"]) == 1 and len(third["unchanged"]) == 1 and len(missing) == 1
 
@@ -108,8 +106,8 @@ def test_scan_dedups_same_content_from_different_source_path_and_provenance(temp
             role="primary",
         )
 
-    with engine.begin() as conn:
-        scanned = scan_library_folder(conn, scan_dir)
+    scanned = scan_library_folder(engine, scan_dir)
+    with engine.connect() as conn:
         paper_count = conn.execute(select(func.count()).select_from(papers)).scalar_one()
 
     assert not scanned["added"]
@@ -129,8 +127,7 @@ def test_scan_progress_reports_the_per_file_basename(temp_db_url, tmp_path):
     _make_pdf(folder / "alpha.pdf", "Alpha one.")
     _make_pdf(folder / "beta.pdf", "Beta two.")
     calls: list[tuple[int, int, str]] = []
-    with make_engine(temp_db_url).begin() as conn:
-        scan_library_folder(conn, folder, on_progress=lambda c, t, name: calls.append((c, t, name)))
+    scan_library_folder(make_engine(temp_db_url), folder, on_progress=lambda c, t, name: calls.append((c, t, name)))
     assert [c[2] for c in calls] == ["alpha.pdf", "beta.pdf"]  # sorted; basenames, not full paths
     assert all(c[1] == 2 for c in calls)  # total carried through
 
@@ -222,3 +219,19 @@ def test_scan_commits_per_paper_partial_progress(temp_db_url, tmp_path, monkeypa
         ).scalar()
     engine.dispose()
     assert paper_embs == 1  # only paper #1 committed its embedding; paper #2's whole item rolled back
+
+
+def test_scan_commits_each_file_itself(temp_db_url, tmp_path):
+    """A2: scan_library_folder owns its transactions (per-file commits) — a fresh connection sees the added papers
+    with NO caller transaction, proving each file committed itself (was: one savepoint-per-file txn the caller
+    committed at the end, which held the write lock for the whole extraction phase)."""
+    folder = tmp_path / "lib"
+    folder.mkdir()
+    _make_pdf(folder / "a.pdf", "Alpha analytical engine study one.")
+    _make_pdf(folder / "b.pdf", "Beta computation memoir two.")
+    engine = make_engine(temp_db_url)
+    scanned = scan_library_folder(engine, folder)  # no caller transaction
+    assert len(scanned["added"]) == 2
+    with engine.connect() as conn:  # a fresh connection sees them → each file was committed by the function
+        assert conn.execute(select(func.count()).select_from(papers)).scalar() == 2
+    engine.dispose()

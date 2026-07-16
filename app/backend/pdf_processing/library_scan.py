@@ -17,12 +17,13 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, and_, select, update
+from sqlalchemy import Engine, and_, select, update
 
 from app.backend.pdf_processing.extraction import file_sha256
 from app.backend.pdf_processing.ingest import attach_pdf_to_paper
 from app.backend.persistence.repository import create_paper
 from app.backend.persistence.schema import attachments
+from app.backend.persistence.sqlite_retry import run_write
 
 LIBRARY_SCAN_SOURCE = "library-scan"
 MAX_SCAN_PDF_BYTES = 80 * 1024 * 1024  # 80 MiB/file — mirrors the inc-74 OA cap (rule #4: untrusted PDFs)
@@ -30,53 +31,55 @@ _log = logging.getLogger("callosum.library_scan")
 
 
 def scan_library_folder(
-    conn: Connection,
+    engine: Engine,
     folder: str | Path,
     *,
     import_source: str = LIBRARY_SCAN_SOURCE,
     on_progress: Callable[[int, int, str], None] | None = None,
 ) -> dict[str, Any]:
     """Reconcile ``folder``'s ``*.pdf`` files with the library. Returns
-    ``{added:[{paper_id, chunk_ids}], unchanged:[…], removed:[…], errors:[…]}``. Per-file failures are isolated
-    (a savepoint per new file; the bad file is recorded and the scan continues). ``on_progress(current, total,
-    filename)`` (inc 142 / 214) is called once per file — the basename lets the UI show "Reading <file> (X / N)"."""
+    ``{added:[{paper_id, chunk_ids}], unchanged:[…], removed:[…], errors:[…]}``. **Each new file is ingested +
+    committed in its OWN transaction (inc A2)** — via ``run_write`` — so the write lock is released between files
+    during the (slow) extraction phase; a corrupt-PDF failure rolls back just that file's transaction and the scan
+    continues. ``on_progress(current, total, filename)`` (inc 142 / 214) is called once per file — the basename
+    lets the UI show "Reading <file> (X / N)"."""
     folder = Path(folder)
     result: dict[str, Any] = {"added": [], "unchanged": [], "removed": [], "errors": []}
     current = {str(p.resolve()): p for p in sorted(folder.glob("*.pdf")) if p.is_file()}
 
-    # Every library checksum (any source) — for content-dedup (don't re-add a file already imported from Zotero,
-    # a bundle, acquisition, or an earlier scan with different source-path provenance).
+    # Upfront reads (one read snapshot): every library checksum (any source) for content-dedup — don't re-add a
+    # file already imported from Zotero, a bundle, acquisition, or an earlier scan with different source-path
+    # provenance — plus the live scan-sourced attachments keyed by resolved path, for removed-detection.
     existing_by_checksum: dict[str, dict[str, Any]] = {}
-    for row in conn.execute(
-        select(
-            attachments.c.id,
-            attachments.c.paper_id,
-            attachments.c.checksum,
-            attachments.c.import_source,
-            attachments.c.availability,
-            attachments.c.resolved_path,
-        ).where(attachments.c.checksum.is_not(None))
-    ).mappings():
-        checksum = str(row["checksum"])
-        existing_by_checksum.setdefault(
-            checksum,
-            {
-                "attachment_id": int(row["id"]),
-                "paper_id": int(row["paper_id"]),
-                "import_source": row["import_source"],
-                "availability": row["availability"],
-                "resolved_path": row["resolved_path"],
-            },
-        )
-    # Live scan-sourced attachments keyed by resolved path — for removed-detection.
     tracked: dict[str, tuple[int, int]] = {}
-    for row in conn.execute(
-        select(attachments.c.id, attachments.c.paper_id, attachments.c.resolved_path).where(
-            and_(attachments.c.import_source == import_source, attachments.c.availability != "missing")
-        )
-    ).mappings():
-        if row["resolved_path"]:
-            tracked[str(row["resolved_path"])] = (int(row["id"]), int(row["paper_id"]))
+    with engine.connect() as conn:
+        for row in conn.execute(
+            select(
+                attachments.c.id,
+                attachments.c.paper_id,
+                attachments.c.checksum,
+                attachments.c.import_source,
+                attachments.c.availability,
+                attachments.c.resolved_path,
+            ).where(attachments.c.checksum.is_not(None))
+        ).mappings():
+            existing_by_checksum.setdefault(
+                str(row["checksum"]),
+                {
+                    "attachment_id": int(row["id"]),
+                    "paper_id": int(row["paper_id"]),
+                    "import_source": row["import_source"],
+                    "availability": row["availability"],
+                    "resolved_path": row["resolved_path"],
+                },
+            )
+        for row in conn.execute(
+            select(attachments.c.id, attachments.c.paper_id, attachments.c.resolved_path).where(
+                and_(attachments.c.import_source == import_source, attachments.c.availability != "missing")
+            )
+        ).mappings():
+            if row["resolved_path"]:
+                tracked[str(row["resolved_path"])] = (int(row["id"]), int(row["paper_id"]))
 
     total = len(current)
     for index, (resolved, path) in enumerate(current.items(), start=1):
@@ -92,7 +95,8 @@ def scan_library_folder(
             if existing:
                 result["unchanged"].append({"path": resolved, "matched_by": "checksum", **existing})
                 continue
-            with conn.begin_nested():  # isolate a corrupt-PDF failure to this file
+
+            def _ingest(conn, path=path, checksum=checksum):  # one committed transaction per new file
                 paper_id = create_paper(
                     conn,
                     title=path.stem,
@@ -109,6 +113,9 @@ def scan_library_folder(
                     import_source=import_source,
                     role="primary",
                 )
+                return paper_id, res
+
+            paper_id, res = run_write(engine, _ingest)
             existing_by_checksum[checksum] = {
                 "attachment_id": int(res["attachment_id"]),
                 "paper_id": int(paper_id),
@@ -117,14 +124,21 @@ def scan_library_folder(
                 "resolved_path": str(path.resolve()),
             }
             result["added"].append({"paper_id": paper_id, "chunk_ids": res["chunk_ids"]})
-        except Exception as exc:  # corrupt/unreadable PDF → record + keep scanning
+        except Exception as exc:  # corrupt/unreadable PDF → record + keep scanning (its transaction rolled back)
             _log.warning("library scan: failed on %s: %s", resolved, exc)
             result["errors"].append({"path": resolved, "error": f"{type(exc).__name__}: {exc}"})
 
-    # Removed: a previously-scanned file no longer on disk → mark its attachment missing (non-destructive).
-    for resolved, (attachment_id, paper_id) in tracked.items():
-        if resolved not in current:
-            conn.execute(update(attachments).where(attachments.c.id == attachment_id).values(availability="missing"))
-            result["removed"].append({"paper_id": paper_id, "path": resolved})
+    # Removed: previously-scanned files no longer on disk → mark their attachments missing (non-destructive), in
+    # one short transaction.
+    gone = [(aid, pid, resolved) for resolved, (aid, pid) in tracked.items() if resolved not in current]
+    if gone:
+
+        def _mark_missing(conn):
+            for aid, _pid, _resolved in gone:
+                conn.execute(update(attachments).where(attachments.c.id == aid).values(availability="missing"))
+
+        run_write(engine, _mark_missing)
+        for _aid, pid, resolved in gone:
+            result["removed"].append({"paper_id": pid, "path": resolved})
 
     return result

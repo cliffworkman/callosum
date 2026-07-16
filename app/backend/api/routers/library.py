@@ -165,13 +165,10 @@ def _run_scan_job(app: FastAPI, job_id: str, folder: str) -> None:
         store = _vector_store(app)
         crossref = app.state.crossref_client
         engine = app.state.engine
-        # Phase 1 (extraction + insert) commits as its own unit (A2 will make it per-file); phase 2 (enrich +
-        # embed) commits per paper inside _process_scan_result, so the write lock is released between papers.
-        scanned = run_write(
-            engine,
-            lambda conn: scan_library_folder(
-                conn, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
-            ),
+        # Phase 1 (extraction + insert) commits per file (inc A2, inside scan_library_folder); phase 2 (enrich +
+        # embed) commits per paper inside _process_scan_result — the write lock is released between files + papers.
+        scanned = scan_library_folder(
+            engine, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
         )
         _process_scan_result(
             engine,
@@ -278,11 +275,8 @@ def _run_watched_rescan_job(app: FastAPI, job_id: str) -> None:
                 if len(error_details) < _SCAN_ERROR_DETAIL_CAP:
                     error_details.append(ScanError(path=folder, error="watched folder no longer exists"))
                 continue
-            scanned = run_write(
-                engine,
-                lambda conn, f=folder: scan_library_folder(
-                    conn, f, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
-                ),
+            scanned = scan_library_folder(
+                engine, folder, on_progress=lambda i, n, name: jobs.mark_progress(job_id, i, n, f"Reading {name}")
             )
             _process_scan_result(
                 engine,
