@@ -60,7 +60,6 @@ function MenuBar({ active, onActivate, readOnly }) {
   );
   return (
     <div className="menubar">
-      <span className="menubar-brand">callosum</span>
       <nav className="menubar-nav" role="tablist" aria-label="Workspaces">{primary.map(item)}</nav>
       <div className="menubar-utils">{utils.map(item)}</div>
     </div>

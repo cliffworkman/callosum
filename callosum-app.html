@@ -137,7 +137,6 @@
     flex: 0 0 auto; display: flex; align-items: center; gap: 4px;
     padding: 5px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line);
   }
-  .menubar-brand { font-weight: 700; font-size: 14px; color: var(--ink); margin-right: 14px; letter-spacing: .2px; }
   .menubar-nav { display: flex; gap: 3px; }
   .menubar-utils { margin-left: auto; display: flex; gap: 3px; }
   .menubar-item {
@@ -3707,7 +3706,7 @@
       },
       w.label
     );
-    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("span", { className: "menubar-brand" }, "callosum"), /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
+    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
   }
   function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
     const tabs = workspaceTabs(ws, readOnly);

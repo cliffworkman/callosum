@@ -70,7 +70,7 @@ def test_workspace_menubar_structure_present():
     # Discover holds Search+Feed; Extract holds Workbench (Journals/Funding/Effect-size/Meta arrive in stage 2).
     assert 'id: "search"' in raw and 'id: "feed"' in raw and 'id: "workbench"' in raw
     # The shell renders the menu bar + persists the active workspace.
-    assert "menubar-brand" in raw and '"callosum.workspace"' in raw
+    assert "menubar-nav" in raw and '"callosum.workspace"' in raw
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
 
 
