@@ -254,8 +254,9 @@ function PublishersPanel({ ctx }) {
   );
 }
 
-// inc 261: moved METHODS → THEORY (the authoring cluster: understand → cite → where to submit → credit → review).
-registerPaneSection({
-  id: "publishers", label: "Where to submit", paneId: "theory", order: 30, hideInReadOnly: true,
-  render: (ctx) => <PublishersPanel ctx={ctx} />,
-});
+// inc 261: METHODS → THEORY; inc 280 (stage 2): THEORY → the Discover workspace as the "Journals" tab (outward
+// discovery — finding a venue to submit to, alongside Search/Feed/Funding). Render unchanged (reads ctx.selectedPaper).
+registerWorkspaceTab(
+  { id: "discover" },
+  { id: "journals", label: "Journals", order: 30, hideInReadOnly: true, render: (ctx) => <PublishersPanel ctx={ctx} /> },
+);

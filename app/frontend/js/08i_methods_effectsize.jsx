@@ -158,4 +158,5 @@ function EffectSizeSection() {
   );
 }
 
-registerPaneSection({ id: "effectsize", label: "Effect-size converter", paneId: "methods", order: 38, hideInReadOnly: true, render: () => <EffectSizeSection /> });
+// inc 280 (stage 2): METHODS → the Extract workspace (a meta-analysis tool, alongside Workbench/Meta-analysis).
+registerWorkspaceTab({ id: "extract" }, { id: "effectsize", label: "Effect-size", order: 20, hideInReadOnly: true, render: () => <EffectSizeSection /> });

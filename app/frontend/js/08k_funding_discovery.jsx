@@ -305,7 +305,9 @@ function FundingDiscoveryPanel({ ctx }) {
   );
 }
 
-registerPaneSection({
-  id: "funding-discovery", label: "Funding Discovery", paneId: "theory", order: 31, hideInReadOnly: true,
-  render: (ctx) => <FundingDiscoveryPanel ctx={ctx} />,
-});
+// inc 280 (stage 2): THEORY → the Discover workspace as the "Funding" tab (outward discovery — finding grants to
+// pursue, alongside Search/Feed/Journals). Render unchanged (reads ctx.selectedPaper).
+registerWorkspaceTab(
+  { id: "discover" },
+  { id: "funding", label: "Funding", order: 40, hideInReadOnly: true, render: (ctx) => <FundingDiscoveryPanel ctx={ctx} /> },
+);

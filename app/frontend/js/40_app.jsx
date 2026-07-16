@@ -217,7 +217,8 @@ function App() {
   // onDiscoverSaved; Extract: Workbench via the capture trio + onOpenPdf).
   const workspaceCtx = {
     onDiscoverSaved: () => setLibRefresh(n => n + 1),
-    onOpenPdf: openPdf,
+    onOpenPdf: openPdf, onOpenPaper: openPdf,
+    selectedPaper: selected,  // Journals/Funding/Meta (relocated from THEORY/METHODS) read the app-level selection
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };
 

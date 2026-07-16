@@ -67,8 +67,13 @@ def test_workspace_menubar_structure_present():
     # The four core workspaces are registered, Profile before Library, Library default.
     for wid in ('id: "profile"', 'id: "library"', 'id: "discover"', 'id: "extract"'):
         assert wid in raw, wid
-    # Discover holds Search+Feed; Extract holds Workbench (Journals/Funding/Effect-size/Meta arrive in stage 2).
+    # Discover holds Search+Feed+Journals+Funding; Extract holds Workbench+Effect-size+Meta-analysis (stage 2).
     assert 'id: "search"' in raw and 'id: "feed"' in raw and 'id: "workbench"' in raw
+    assert 'id: "journals"' in raw and 'id: "funding"' in raw and 'id: "effectsize"' in raw
+    assert 'label: "Meta-analysis"' in raw
+    # The four relocated sections no longer register as THEORY/METHODS pane sections.
+    assert 'id: "publishers"' not in raw and 'id: "funding-discovery"' not in raw
+    assert 'label: "Effect-size converter"' not in raw and 'label: "Meta-analysis reporting"' not in raw
     # The shell renders the menu bar + persists the active workspace.
     assert "menubar-nav" in raw and '"callosum.workspace"' in raw
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
@@ -93,7 +98,7 @@ def test_overlooked_lens_panel_present_and_honest():
 
 def test_stale_discover_placeholder_is_removed_from_theory_accordion():
     raw = assemble_jsx()
-    assert 'label: "Funding Discovery"' in raw
+    assert 'label: "Funding"' in raw  # relocated to the Discover workspace (inc 280); was THEORY "Funding Discovery"
     assert '{ id: "discover", label: "Discover", paneId: "theory"' not in raw
     assert 'label: "Beyond library"' not in raw
     assert 'title="Beyond library"' not in raw
@@ -103,7 +108,9 @@ def test_stale_discover_placeholder_is_removed_from_theory_accordion():
 def test_meta_reference_list_sits_before_journal_search_with_accessible_review_controls():
     raw = assemble_jsx()
     assert 'id: "meta-references", label: "Meta Reference List", paneId: "theory", order: 28' in raw
-    assert 'id: "publishers", label: "Where to submit", paneId: "theory", order: 30' in raw
+    # inc 280: "Where to submit" relocated out of THEORY to the Discover workspace as the Journals tab.
+    assert 'id: "publishers", label: "Where to submit", paneId: "theory"' not in raw
+    assert 'id: "journals", label: "Journals"' in raw
     assert 'aria-label="Reviewed and dismissed"' in raw
     assert 'aria-label="Reviewed and confirmed as a concern"' in raw
     assert "aria-pressed={dismissed}" in raw and "aria-pressed={confirmed}" in raw

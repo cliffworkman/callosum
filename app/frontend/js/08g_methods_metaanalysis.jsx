@@ -252,7 +252,13 @@ function MetaSection({ ctx }) {
   );
 }
 
-registerPaneSection({
-  id: "meta", label: "Meta-analysis reporting", paneId: "methods", order: 35, hideInReadOnly: true,
-  render: (ctx) => <MetaSection ctx={ctx} />,
-});
+// inc 280 (stage 2): METHODS → the Extract workspace as "Meta-analysis". The {methodsOpen: active ? "meta" : null}
+// adapter makes MetaSection's existing `ctx.methodsOpen === "meta"` active-check resolve to WorkspacePane's `active`
+// 2nd render arg — so MetaSection is unchanged. Reads ctx.selectedPaper + ctx.onOpenPaper (both in workspaceCtx).
+registerWorkspaceTab(
+  { id: "extract" },
+  {
+    id: "meta", label: "Meta-analysis", order: 30, hideInReadOnly: true,
+    render: (ctx, active) => <MetaSection ctx={{ ...ctx, methodsOpen: active ? "meta" : null }} />,
+  },
+);
