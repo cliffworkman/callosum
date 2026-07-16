@@ -373,3 +373,35 @@ def test_enrich_progress_label_shows_title_and_falls_back():
     long_label = _enrich_progress_label("T" * 100)
     assert long_label.startswith("Enriching ") and long_label.endswith("…")
     assert len(long_label) <= len("Enriching ") + 60
+
+
+def test_enrich_commits_per_paper_partial_progress(temp_db_url, monkeypatch):
+    """inc B: a failure enriching the 2nd paper leaves the 1st paper's enrichment committed and the job completes
+    (per-paper commit + skip). Under the old single-transaction job, the 2nd's failure rolled back the 1st too and
+    errored the whole run — so status 'done' + fields_filled>=2 can only hold with per-paper commits."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        _paper(conn, title="A", doi="10.1/a", csl_json={"title": "A", "DOI": "10.1/a"}, imported_source="pdf-scaffold")
+        _paper(conn, title="B", imported_source="pdf-scaffold")
+    engine.dispose()
+
+    from app.backend.api.routers import library_enrich as le
+
+    real = le.enrich_paper_metadata_multi
+    calls = {"n": 0}
+
+    def flaky(conn, paper_id, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:  # papers processed id-ASC → the 2nd is paper B
+            raise RuntimeError("boom enriching the 2nd paper")
+        return real(conn, paper_id, **kwargs)
+
+    monkeypatch.setattr(le, "enrich_paper_metadata_multi", flaky)
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.enrich_registry = _stub_registry(
+        {"container-title": "J", "issued": {"date-parts": [[2020]]}, "abstract": "abs"}
+    )
+    client.app.state.enrich_search_provider = _StubSearch([])
+    done = _drive_enrich(client)
+    assert done["status"] == "done"  # per-paper skip → the run completes
+    assert done["summary"]["fields_filled"] >= 2  # paper A enriched + committed before B failed

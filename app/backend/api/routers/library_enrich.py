@@ -11,6 +11,7 @@ in ``app.py`` — the inc-226 ``paper_enrich.py`` pattern. Reuses ``library``'s 
 
 from __future__ import annotations
 
+import logging
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, FastAPI, HTTPException, Request
@@ -24,6 +25,9 @@ from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.metadata.enrichment import enrich_paper_metadata_multi
 from app.backend.persistence.repository import list_live_paper_ids
 from app.backend.persistence.schema import papers
+from app.backend.persistence.sqlite_retry import run_write
+
+_log = logging.getLogger("callosum.library_enrich")
 
 router = APIRouter()
 
@@ -84,19 +88,30 @@ def _run_metadata_enrich_job(app: FastAPI, job_id: str) -> None:
         )
         search_provider = getattr(app.state, "enrich_search_provider", None)
         recovered = filled = missing = 0
-        with app.state.engine.begin() as conn:
+        engine = app.state.engine
+        with engine.connect() as conn:
             ids = list_live_paper_ids(conn)
-            total = len(ids)
             titles = {
                 int(row[0]): row[1]
                 for row in conn.execute(select(papers.c.id, papers.c.title).where(papers.c.id.in_(ids)))
             }
-            for index, paper_id in enumerate(ids, start=1):
-                result = enrich_paper_metadata_multi(conn, paper_id, registry=registry, search_provider=search_provider)
+        total = len(ids)
+        # inc B: enrich each paper (external metadata fetch + write) in its OWN committed transaction, so the write
+        # lock is released between papers; one paper's hard failure is skipped, never aborting the batch.
+        for index, paper_id in enumerate(ids, start=1):
+            try:
+                result = run_write(
+                    engine,
+                    lambda conn, pid=paper_id: enrich_paper_metadata_multi(
+                        conn, pid, registry=registry, search_provider=search_provider
+                    ),
+                )
                 recovered += 1 if result.doi_recovered else 0
                 filled += len(result.filled_fields)
                 missing += 1 if result.still_missing_doi else 0
-                jobs.mark_progress(job_id, index, total, _enrich_progress_label(titles.get(paper_id)))
+            except Exception as exc:  # noqa: BLE001 — one bad paper never aborts the batch
+                _log.warning("metadata enrich: skipped paper %s: %s", paper_id, exc)
+            jobs.mark_progress(job_id, index, total, _enrich_progress_label(titles.get(paper_id)))
         jobs.mark_done(
             job_id,
             MetadataEnrichResponse(

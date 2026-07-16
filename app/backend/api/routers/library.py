@@ -383,19 +383,21 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
     try:
         model = _embedding_model(app)
         store = _vector_store(app)
-        with app.state.engine.begin() as conn:
-            result = import_citations(conn, content, fmt)  # parse → dedup → create; no egress
-            created = [int(pid) for pid in result["created"]]
-            if created:  # embed the new papers' metadata so they're searchable / axis-scorable
-                embed_papers(
-                    conn,
-                    model=model,
-                    vector_store=store,
-                    paper_ids=created,
-                    on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Embedding papers"),
-                )
-                # inc 134: best-effort retraction auto-check on the imported papers (a known-retracted DOI flags now)
-                auto_check_retractions(conn, created, checkers=app.state.retraction_checkers)
+        engine = app.state.engine
+        # inc B: parse+create commits as its own unit; then embed + retraction-check each imported paper in its own
+        # committed transaction, so the write lock is released between papers (mirrors the scan pipeline).
+        result = run_write(
+            engine, lambda conn: import_citations(conn, content, fmt)
+        )  # parse → dedup → create; no egress
+        created = [int(pid) for pid in result["created"]]
+
+        def _embed_and_check(conn, paper_id):  # embed the paper's metadata + best-effort retraction check (inc 134)
+            embed_papers(conn, model=model, vector_store=store, paper_ids=[paper_id])
+            auto_check_retractions(conn, [paper_id], checkers=app.state.retraction_checkers)
+
+        for index, paper_id in enumerate(created, start=1):
+            jobs.mark_progress(job_id, index, len(created), "Embedding papers")
+            commit_each(engine, [paper_id], _embed_and_check, on_item_error="skip", logger=_log)
         jobs.mark_done(
             job_id,
             ImportJobResponse(
@@ -501,17 +503,20 @@ def _run_bundle_import_job(app: FastAPI, job_id: str, content: str) -> None:
         bundle = parse_bundle(content)  # bounded + version-checked; raises BundleError on a bad file
         model = _embedding_model(app)
         store = _vector_store(app)
-        with app.state.engine.begin() as conn:
-            result = import_bundle(conn, bundle)  # additive, non-destructive; no egress
-            created = [int(pid) for pid in result["created"]]
-            if created:  # embed the new papers' metadata so they join search / axis-scoring / dedup
-                embed_papers(
-                    conn,
-                    model=model,
-                    vector_store=store,
-                    paper_ids=created,
-                    on_progress=lambda i, n: jobs.mark_progress(job_id, i, n, "Embedding papers"),
-                )
+        engine = app.state.engine
+        # inc B: import commits as its own unit; then embed each new paper in its own committed transaction, so the
+        # write lock is released between papers.
+        result = run_write(engine, lambda conn: import_bundle(conn, bundle))  # additive, non-destructive; no egress
+        created = [int(pid) for pid in result["created"]]
+        for index, paper_id in enumerate(created, start=1):
+            jobs.mark_progress(job_id, index, len(created), "Embedding papers")
+            commit_each(
+                engine,
+                [paper_id],
+                lambda conn, pid: embed_papers(conn, model=model, vector_store=store, paper_ids=[pid]),
+                on_item_error="skip",
+                logger=_log,
+            )
         jobs.mark_done(
             job_id,
             BundleImportJobResponse(job_id=job_id, status="done", summary=BundleImportSummary(**result["summary"])),

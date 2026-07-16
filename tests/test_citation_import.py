@@ -195,3 +195,42 @@ class _FakeModel:
 
     def encode_texts(self, texts):
         return [[1.0, 0.0, 0.0, 0.0] for _ in texts]
+
+
+def test_import_commits_embeddings_per_paper_partial_progress(temp_db_url, monkeypatch):
+    """inc B: a failure embedding the 2nd imported paper leaves the 1st embedded and the job completes (per-paper
+    commit + skip), not a whole-job rollback. Both papers are still created (import_citations commits as a unit)."""
+    from sqlalchemy import func, select
+
+    from app.backend.api.routers import library as lib_mod
+    from app.backend.persistence.database import make_engine
+    from app.backend.persistence.schema import embeddings
+
+    real_embed = lib_mod.embed_papers
+    calls = {"n": 0}
+
+    def flaky_embed(conn, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 2:  # per-paper → embed_papers called once per imported paper; fail on the 2nd
+            raise RuntimeError("boom embedding the 2nd imported paper")
+        return real_embed(conn, **kwargs)
+
+    monkeypatch.setattr(lib_mod, "embed_papers", flaky_embed)
+    client = TestClient(create_app(db_url=temp_db_url, embedding_model=_FakeModel()))
+    started = client.post("/library/import", json={"content": _RIS, "format": "auto"})
+    job_id = started.json()["job_id"]
+    result = {}
+    for _ in range(30):
+        result = client.get(f"/library/import/{job_id}").json()
+        if result["status"] in ("done", "error"):
+            break
+    assert result["status"] == "done"  # per-paper skip → the run completes
+    assert len(client.get("/papers").json()) == 2  # both created (parse+create committed as its own unit)
+
+    engine = make_engine(temp_db_url)
+    with engine.connect() as conn:
+        paper_embs = conn.execute(
+            select(func.count()).select_from(embeddings).where(embeddings.c.target_type == "paper")
+        ).scalar()
+    engine.dispose()
+    assert paper_embs == 1  # only the 1st imported paper committed its embedding; the 2nd's item rolled back
