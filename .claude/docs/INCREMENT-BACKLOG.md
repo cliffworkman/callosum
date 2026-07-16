@@ -92,7 +92,13 @@ connection per attempt → run → commit → retry the whole unit on a lock) wi
 (read/priority, tag color/add/lock/remove, reading-queue add/reorder/remove, axis create), **plus** a backstop
 `SqliteWriteRetryMiddleware` that re-runs any *replay-safe* mutating request that raises an uncaught lock error before
 sending a response (a denylist excludes job-spawn/external-fetch/secret-write families so a replay can't double-execute).
-**Still open (the LONG-JOB half):** a SELECT-then-write endpoint (`add_to_queue`,
+**◐ LONG-JOB half IN PROGRESS (inc 273 = Increment A):** `commit_each(engine, items, process)` (per-item commits via
+`run_write`) + the **scan / watched-rescan** jobs converted — the `scan_library_folder` insert phase commits as its
+own unit, then enrich+embed commits **per paper**, so those jobs release the write lock between papers (atomicity is
+now per-item — intended; partial progress is usable + the scan is idempotent). Design/plan under `.claude/docs/specs|plans/2026-07-15-long-job-incremental-commits*`.
+**Remaining:** A2 (`scan_library_folder` per-file *extraction* commits — it still isolates files with a savepoint,
+which doesn't release the lock), A3 (axis-score `score_axis` embed-phase hoist), and increments B–D (ingest family;
+statcheck/retraction/transparency + citation-counts; dedup/gap-finder/my-pubs). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous
