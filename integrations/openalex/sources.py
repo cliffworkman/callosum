@@ -8,6 +8,8 @@ by the caller; only topic ids / a subject keyword / source ids leave the machine
 - ``fetch_candidate_sources`` — the journals a topic's recent works appear in, ranked by frequency (``/works``).
 - ``fetch_source_details`` — per-journal facts (OA flags, APC, open impact, homepage) for a batch of source ids
   (``/sources?filter=openalex_id:``).
+- ``fetch_topic_works`` — a topic's works with citation counts + reconstructed abstracts (the candidate pool for
+  the OVERLOOKED-WORK lens, backlog #37); abstracts are embedded on-device by the caller, never transmitted.
 
 Every id is validated (``^T\\d+$`` / ``^S\\d+$``) **before** any request (no SSRF); the subject is a bound query
 param, never the host. Injectable ``fetcher`` (a fake in tests); cached via ``integrations.api_cache``; fail-closed
@@ -36,6 +38,7 @@ MAX_BYIDS = 50  # OpenAlex OR-filter limit for one /sources?filter=openalex_id: 
 
 _TOPIC_RE = re.compile(r"T\d+")
 _SOURCE_RE = re.compile(r"S\d+")
+_WORK_RE = re.compile(r"W\d+")
 
 
 @dataclass(frozen=True)
@@ -46,6 +49,20 @@ class SourceStub:
     display_name: str | None
     issn_l: str | None
     count: int
+
+
+@dataclass(frozen=True)
+class TopicWork:
+    """A work under a topic — id + metadata + a locally-reconstructed abstract (the overlooked-lens candidate).
+    Identity-agnostic by construction: no author/identity field (the lens measures the *work's* attention vs.
+    relevance, never who wrote it)."""
+
+    openalex_work_id: str  # bare `W…`
+    doi: str | None
+    title: str | None
+    year: int | None
+    cited_by_count: int
+    abstract: str | None
 
 
 @dataclass(frozen=True)
@@ -129,6 +146,50 @@ class OpenAlexSourcesClient:
             for sid, n in counts.most_common(cap)
         ]
 
+    def fetch_topic_works(self, conn: Connection, topic_id: str, *, cap: int = WORKS_SAMPLE) -> list[TopicWork]:
+        """Works whose primary topic is ``topic_id``, with citation counts + reconstructed abstracts — the candidate
+        pool for the overlooked-work lens (backlog #37). ``topic_id`` validated ``^T\\d+$`` before any request;
+        bounded (``cap`` ≤ WORKS_SAMPLE), cached, fail-closed → []. Only the topic id egresses; abstracts are
+        reconstructed from the inverted index and embedded on-device by the caller."""
+        if not _TOPIC_RE.fullmatch(topic_id or ""):
+            return []
+        cap = max(1, min(int(cap), WORKS_SAMPLE))
+        body = self._get(
+            conn,
+            "/works",
+            {
+                "filter": f"primary_topic.id:{topic_id}",
+                "per-page": str(cap),
+                "select": "id,doi,title,publication_year,cited_by_count,abstract_inverted_index",
+            },
+            f"topicworks:{topic_id}",
+            {"topic_id": topic_id},
+        )
+        results = (body or {}).get("results") if isinstance(body, dict) else None
+        if not isinstance(results, list):
+            return []
+        out: list[TopicWork] = []
+        for work in results:
+            if not isinstance(work, dict):
+                continue
+            wid = str(work.get("id") or "").rsplit("/", 1)[-1]
+            if not _WORK_RE.fullmatch(wid):
+                continue
+            doi = work.get("doi")
+            doi = str(doi).replace("https://doi.org/", "").lower() if doi else None
+            year = work.get("publication_year")
+            out.append(
+                TopicWork(
+                    openalex_work_id=wid,
+                    doi=doi,
+                    title=str(work.get("title")) if work.get("title") else None,
+                    year=year if isinstance(year, int) else None,
+                    cited_by_count=int(work.get("cited_by_count") or 0),
+                    abstract=_abstract_from_inverted_index(work.get("abstract_inverted_index")),
+                )
+            )
+        return out
+
     def fetch_source_details(self, conn: Connection, source_ids: list[str]) -> dict[str, SourceMeta]:
         """Per-journal facts for a batch of source ids (`/sources?filter=openalex_id:S1|S2|…`, ≤MAX_BYIDS/call).
         Each id validated `^S\\d+$` before the request. Returns {source_id: SourceMeta}; fail-closed → {}."""
@@ -190,6 +251,19 @@ class OpenAlexSourcesClient:
         if self.mailto:
             user_agent = f"{user_agent}; mailto:{self.mailto}"
         return {"User-Agent": user_agent, "Accept": "application/json"}
+
+
+def _abstract_from_inverted_index(index: Any) -> str | None:
+    """Reconstruct plain abstract text from OpenAlex's ``{word: [positions]}`` inverted index; None if absent/empty."""
+    if not isinstance(index, dict) or not index:
+        return None
+    positions: list[tuple[int, str]] = []
+    for word, where in index.items():
+        if isinstance(where, list):
+            positions.extend((p, str(word)) for p in where if isinstance(p, int))
+    if not positions:
+        return None
+    return " ".join(word for _p, word in sorted(positions))
 
 
 def _source_meta(src: Any) -> SourceMeta | None:
