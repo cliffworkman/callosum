@@ -1481,6 +1481,14 @@
   /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
   .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
 
+  /* inc 280 (stage 3): a center-rendered utility view (Help, Settings) — the former modal body, filling the slot. */
+  .workspace-view { flex: 1 1 auto; min-height: 0; padding: 16px 22px; }
+  .workspace-view.scroll { overflow-y: auto; }
+  /* Help now flows in the center (not a fixed-height modal): the toc + content scroll with the whole view. */
+  .workspace-view .help-layout { flex: initial; overflow: visible; }
+  .workspace-view .help-content { overflow: visible; }
+  .workspace-view .help-toc { position: sticky; top: 0; align-self: start; }
+
   /* ---- tabbed library frame (Library workspace body) ---- */
   .lib-frame {
     display: flex; flex-direction: column; height: 100%; overflow: hidden;

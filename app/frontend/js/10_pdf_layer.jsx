@@ -201,12 +201,11 @@ registerPaneTab(
 
 // inc 121: the left pane = the brand/⚙/❓ header + the THEORY accordion (AXES / SYNTHESIS / TAGS), one open at a
 // time. Sections self-register (05_panes.jsx); App owns the open-section state + the shared ctx.
-function Sidebar({ conn, onOpenSettings, onOpenHelp, ctx, theoryOpen, onTheoryOpen }) {
+function Sidebar({ conn, ctx, theoryOpen, onTheoryOpen }) {
+  // inc 280: the ?/⚙ moved to the menu-bar Help/Settings utility workspaces; the header keeps just the brand.
   return (
     <div className="pane pane-sidebar">
       <div className="pane-head">
-        <button className="icon-help" title="Help & tips" onClick={onOpenHelp}>?</button>
-        <button className="icon-gear" title="Settings" onClick={onOpenSettings}>⚙</button>
         <div className="brand">
           <div className={"brand-logo" + (conn.state === "ok" ? " connected" : "")} role="img" aria-label="Callosum" title={conn.state === "ok" ? ("Connected" + (conn.version ? " (" + conn.version + ")" : "")) : conn.state === "bad" ? "Disconnected" : "Connecting..."} />
           <h1>Callosum</h1>

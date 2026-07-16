@@ -472,16 +472,11 @@ function AccountSettings() {
   );
 }
 
-function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
+// inc 280 (stage 3): the Settings center view (the menu-bar "Settings" utility workspace) — formerly a modal.
+function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched }) {
   const dark = theme === "dark";
   return (
-    <div className="axis-modal-overlay" onClick={onClose}>
-      <div className="axis-modal settings-modal" onClick={e => e.stopPropagation()}>
-        <div className="axis-modal-head">
-          <span>Settings</span>
-          <button className="axis-link" onClick={onClose}>×</button>
-        </div>
-
+    <div className="workspace-view scroll settings-view">
         <p className="eyebrow">Appearance</p>
         <div className="settings-row">
           <span className="settings-label">Dark mode</span>
@@ -552,7 +547,6 @@ function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDe
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 
         <div className="axis-modal-note">More settings will live here — this is just the start.</div>
-      </div>
     </div>
   );
 }

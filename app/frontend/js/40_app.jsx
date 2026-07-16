@@ -4,9 +4,7 @@
 // 39_focus.jsx (inc 167); the citation-download helpers in 00_lib.jsx (inc 167). App owns the shell + wiring.
 function App() {
   const [conn, setConn] = useState({ state: "wait" });
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsNonce, setSettingsNonce] = useState(0);  // bumped on Settings close → panes re-read egress state (inc 148)
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [settingsNonce, setSettingsNonce] = useState(0);  // inc 280: bumped on LEAVING the Settings workspace → panes re-read egress state (inc 148)
   const [authLocked, setAuthLocked] = useState(false);  // inc 254: a 401 (Remote access on, no valid token) → AccessLockOverlay
 
   // theme + axis/scan prefs + side-panel layout + accordion-open + Reading mode (all in 04_layout.jsx).
@@ -29,7 +27,11 @@ function App() {
   // Library workspace's sub-tab (the list | an open PDF). The active workspace persists across reloads; a
   // library-list navigation (filter/focus, via gotoLibrary) also switches to the Library workspace.
   const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
-  const selectWorkspace = useCallback((id) => { setActiveWorkspace(id); _saveLayout("callosum.workspace", id); }, []);
+  const selectWorkspace = useCallback((id) => {
+    // leaving Settings re-reads egress state in the panes (inc 148), the old modal-close behavior.
+    setActiveWorkspace(prev => { if (prev === "settings" && id !== "settings") setSettingsNonce(n => n + 1); return id; });
+    _saveLayout("callosum.workspace", id);
+  }, []);
   const gotoLibrary = useCallback((t) => { selectWorkspace("library"); setActiveTab(t); }, [selectWorkspace]);
   const [myPubsAxisId, setMyPubsAxisId] = useState(null);  // which axis' impact opened the Profile workspace
   // Bumped after a synthesis highlight is saved, so an already-open PdfViewer refetches its annotations (PdfViewer).
@@ -66,7 +68,7 @@ function App() {
   const lib = useLibrary({
     selected, setSelected, setActiveTab: gotoLibrary,
     cancelFocus: () => cancelFocusRef.current(),
-    setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen,
+    setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen: () => {},  // inc 280: Settings is a workspace; library nav (gotoLibrary) leaves it
     setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), autoScanWatched, readOnly, healthLoaded,
   });
   const {
@@ -181,7 +183,7 @@ function App() {
   }, []);
 
   // Esc exits Reading mode (skip while a modal owns Escape, so it closes the modal first).
-  const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+  const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
   useEffect(() => {
     if (!readingMode) return;
     const onKey = (e) => { if (e.key === "Escape" && !anyModalOpen) toggleReading(); };
@@ -209,7 +211,7 @@ function App() {
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
     onReferenceWarningsChanged: () => setReferenceWarningsRefresh(n => n + 1),
     onOpenTextHealth: openTextHealth,
-    onOpenSettings: () => setSettingsOpen(true), settingsNonce,  // inc 148: synthesis egress-off nudge → open Settings
+    onOpenSettings: () => selectWorkspace("settings"), settingsNonce,  // inc 148 / inc 280: synthesis egress nudge → Settings workspace
     onCriticalReviewSources: (ids) => setCritSetIds(ids),  // #12: synthesis → critically review its source papers as a set
   };
 
@@ -225,8 +227,7 @@ function App() {
   // B5 (inc 237): compute the three region nodes + the modals once, then render either the desktop grid or the
   // single-column mobile stack. Only one layout branch renders per pass, so reusing an element instance is safe.
   const sidebarEl = (
-    <Sidebar conn={conn} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)}
-      ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
+    <Sidebar conn={conn} ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
   );
   // inc 280: the center pane = the active menu-bar workspace. All workspaces stay mounted (hidden) so in-progress
   // state (a running search, the Extract grid) survives switching. Library + Profile are shell-rendered here (their
@@ -268,6 +269,15 @@ function App() {
       <div className="workspace-slot" style={{ display: activeWorkspace === "extract" ? "flex" : "none" }}>
         <WorkspacePane ws={getWorkspace("extract")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "extract"} />
       </div>
+      {/* Help + Settings (utility workspaces) lazy-mount — heavier + rarely open, and settings should re-read fresh. */}
+      {activeWorkspace === "help" &&
+        <div className="workspace-slot" style={{ display: "flex" }}><HelpView /></div>}
+      {activeWorkspace === "settings" &&
+        <div className="workspace-slot" style={{ display: "flex" }}>
+          <SettingsView theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault}
+            axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
+            autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} />
+        </div>}
     </div>
   );
   const detailEl = (
@@ -275,8 +285,6 @@ function App() {
   );
   const modals = (
     <React.Fragment>
-      {settingsOpen && <SettingsModal theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault} axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} onClose={() => { setSettingsOpen(false); setSettingsNonce(n => n + 1); }} />}
-      {helpOpen && <HelpModal onClose={() => setHelpOpen(false)} />}
       {duplicatesOpen &&
         <DuplicatesModal onClose={() => setDuplicatesOpen(false)} onOpenPaper={openPdf}
           onChanged={() => setLibRefresh(n => n + 1)} onMerge={(ids) => setMergeIds(ids)} />}

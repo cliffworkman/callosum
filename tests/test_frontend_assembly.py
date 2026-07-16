@@ -77,6 +77,10 @@ def test_workspace_menubar_structure_present():
     # The shell renders the menu bar + persists the active workspace.
     assert "menubar-nav" in raw and '"callosum.workspace"' in raw
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
+    # Stage 3: Help + Settings are utility workspaces (center views), not modals.
+    assert 'id: "help"' in raw and 'id: "settings"' in raw and "utility: true" in raw
+    assert "function HelpView(" in raw and "function SettingsView(" in raw
+    assert "function HelpModal(" not in raw and "function SettingsModal(" not in raw
 
 
 def test_overlooked_lens_panel_present_and_honest():

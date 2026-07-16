@@ -71,7 +71,8 @@ function HelpChat({ titleById }) {
   );
 }
 
-function HelpModal({ onClose }) {
+// inc 280 (stage 3): the Help center view (the menu-bar "Help" utility workspace) — formerly a modal.
+function HelpView() {
   const [state, setState] = useState({ status: "loading" });
 
   useEffect(() => {
@@ -89,12 +90,8 @@ function HelpModal({ onClose }) {
   if (ready) state.sections.forEach(s => { titleById[s.id] = s.title; });
 
   return (
-    <div className="axis-modal-overlay" onClick={onClose}>
-      <div className="axis-modal help-modal" onClick={e => e.stopPropagation()}>
-        <div className="axis-modal-head">
-          <span>Help &amp; tips</span>
-          <button className="axis-link" onClick={onClose}>×</button>
-        </div>
+    <div className="workspace-view scroll help-view">
+        <p className="eyebrow">Help &amp; tips</p>
 
         {state.status === "loading" && <p className="help-empty">Loading help…</p>}
         {state.status === "error" && <p className="help-empty">Couldn't load help: {state.error}</p>}
@@ -117,7 +114,6 @@ function HelpModal({ onClose }) {
               </div>
             </div>
           </>}
-      </div>
     </div>
   );
 }

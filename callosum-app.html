@@ -1505,6 +1505,14 @@
   /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
   .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
 
+  /* inc 280 (stage 3): a center-rendered utility view (Help, Settings) — the former modal body, filling the slot. */
+  .workspace-view { flex: 1 1 auto; min-height: 0; padding: 16px 22px; }
+  .workspace-view.scroll { overflow-y: auto; }
+  /* Help now flows in the center (not a fixed-height modal): the toc + content scroll with the whole view. */
+  .workspace-view .help-layout { flex: initial; overflow: visible; }
+  .workspace-view .help-content { overflow: visible; }
+  .workspace-view .help-toc { position: sticky; top: 0; align-self: start; }
+
   /* ---- tabbed library frame (Library workspace body) ---- */
   .lib-frame {
     display: flex; flex-direction: column; height: 100%; overflow: hidden;
@@ -3763,6 +3771,8 @@
       }
     )
   });
+  registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
+  registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });
   const PANE_SECTIONS = [];
   function _ensureSection(id) {
     let s = PANE_SECTIONS.find((x) => x.id === id);
@@ -7167,8 +7177,8 @@
       render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
     }
   );
-  function Sidebar({ conn, onOpenSettings, onOpenHelp, ctx, theoryOpen, onTheoryOpen }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("button", { className: "icon-help", title: "Help & tips", onClick: onOpenHelp }, "?"), /* @__PURE__ */ React.createElement("button", { className: "icon-gear", title: "Settings", onClick: onOpenSettings }, "\u2699"), /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "theory", ctx, openId: theoryOpen, onOpen: onTheoryOpen }));
+  function Sidebar({ conn, ctx, theoryOpen, onTheoryOpen }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "theory", ctx, openId: theoryOpen, onOpen: onTheoryOpen }));
   }
   function PaperList({
     state,
@@ -8913,7 +8923,7 @@
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "help-ask-send", onClick: send, disabled: busy || !draft.trim() }, "Ask")));
   }
-  function HelpModal({ onClose }) {
+  function HelpView() {
     const [state, setState] = useState({ status: "loading" });
     useEffect(() => {
       let live = true;
@@ -8934,7 +8944,7 @@
     if (ready) state.sections.forEach((s) => {
       titleById[s.id] = s.title;
     });
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal help-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Help & tips"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), state.status === "loading" && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "Loading help\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "Couldn't load help: ", state.error), state.status === "ready" && state.sections.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "No help content yet."), ready && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(HelpChat, { titleById }), /* @__PURE__ */ React.createElement("div", { className: "help-layout" }, /* @__PURE__ */ React.createElement("nav", { className: "help-toc" }, state.sections.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, className: "help-toc-item", onClick: () => flashHelpSection(s.id) }, s.title))), /* @__PURE__ */ React.createElement("div", { className: "help-content" }, state.sections.map((s) => /* @__PURE__ */ React.createElement("section", { key: s.id, id: "help-" + s.id, className: "help-section" }, /* @__PURE__ */ React.createElement("h4", { className: "help-section-title" }, s.title), /* @__PURE__ */ React.createElement("div", { className: "help-body", dangerouslySetInnerHTML: { __html: s.html } }))))))));
+    return /* @__PURE__ */ React.createElement("div", { className: "workspace-view scroll help-view" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Help & tips"), state.status === "loading" && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "Loading help\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "Couldn't load help: ", state.error), state.status === "ready" && state.sections.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "help-empty" }, "No help content yet."), ready && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(HelpChat, { titleById }), /* @__PURE__ */ React.createElement("div", { className: "help-layout" }, /* @__PURE__ */ React.createElement("nav", { className: "help-toc" }, state.sections.map((s) => /* @__PURE__ */ React.createElement("button", { key: s.id, className: "help-toc-item", onClick: () => flashHelpSection(s.id) }, s.title))), /* @__PURE__ */ React.createElement("div", { className: "help-content" }, state.sections.map((s) => /* @__PURE__ */ React.createElement("section", { key: s.id, id: "help-" + s.id, className: "help-section" }, /* @__PURE__ */ React.createElement("h4", { className: "help-section-title" }, s.title), /* @__PURE__ */ React.createElement("div", { className: "help-body", dangerouslySetInnerHTML: { __html: s.html } })))))));
   }
   function _dupConfLabel(c) {
     return Math.round((c || 0) * 100) + "%";
@@ -12878,9 +12888,9 @@
     const signedIn = !!(acct && acct.signed_in);
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Account"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Optional account \u2014 sign in", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Callosum works fully offline with ", /* @__PURE__ */ React.createElement("b", null, "no account"), ". Signing in verifies your identity (", /* @__PURE__ */ React.createElement("b", null, "ORCID, Google, or email"), " \u2014 you pick on the next page); signing in with ", /* @__PURE__ */ React.createElement("b", null, "ORCID"), " also pre-fills ", /* @__PURE__ */ React.createElement("b", null, "My Publications"), " with your authoritative author record. ", /* @__PURE__ */ React.createElement("b", null, "Identity only"), " \u2014 your library, PDFs, and notes never leave your machine.")), signedIn ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Signed in", acct.display_name ? " as " + acct.display_name : acct.email ? " as " + acct.email : "", acct.orcid ? " \xB7 ORCID " + acct.orcid : "", acct.is_superuser ? " \xB7 superuser" : "", "."), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: signOut }, busy ? "Signing out\u2026" : "Sign out"))) : acct && acct.configured ? /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: signIn }, busy ? "Starting\u2026" : "Sign in")) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Sign-in isn't set up on this Callosum yet \u2014 the account service is configured by whoever runs this instance.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
-  function SettingsModal({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched, onClose }) {
+  function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched }) {
     const dark = theme === "dark";
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal settings-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Settings"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "workspace-view scroll settings-view" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Appearance"), /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "Dark mode"), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -12924,7 +12934,7 @@
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start.")));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start."));
   }
   const AI_KEY_URLS = {
     gemini: "https://aistudio.google.com/apikey",
@@ -13864,9 +13874,7 @@
   }
   function App() {
     const [conn, setConn] = useState({ state: "wait" });
-    const [settingsOpen, setSettingsOpen] = useState(false);
     const [settingsNonce, setSettingsNonce] = useState(0);
-    const [helpOpen, setHelpOpen] = useState(false);
     const [authLocked, setAuthLocked] = useState(false);
     const {
       theme,
@@ -13900,7 +13908,10 @@
     const [activeTab, setActiveTab] = useState("library");
     const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
     const selectWorkspace = useCallback((id) => {
-      setActiveWorkspace(id);
+      setActiveWorkspace((prev) => {
+        if (prev === "settings" && id !== "settings") setSettingsNonce((n) => n + 1);
+        return id;
+      });
       _saveLayout("callosum.workspace", id);
     }, []);
     const gotoLibrary = useCallback((t) => {
@@ -13934,7 +13945,9 @@
       setLeftOpen,
       setTheoryOpen,
       setMethodsOpen,
-      setSettingsOpen,
+      setSettingsOpen: () => {
+      },
+      // inc 280: Settings is a workspace; library nav (gotoLibrary) leaves it
       setTagRefresh,
       setAxisRefresh: (fn) => setAxisRefreshRef.current(fn),
       autoScanWatched,
@@ -14066,7 +14079,7 @@
         setHealthLoaded(true);
       });
     }, []);
-    const anyModalOpen = settingsOpen || helpOpen || duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
+    const anyModalOpen = duplicatesOpen || wantedOpen || textHealthOpen || gapsOpen || overlookedOpen || scanOpen || importOpen || bundleImportOpen || !!pcurvePapers;
     useEffect(() => {
       if (!readingMode) return;
       const onKey = (e) => {
@@ -14109,9 +14122,9 @@
       onFindingsChanged: () => setFindingsRefresh((n) => n + 1),
       onReferenceWarningsChanged: () => setReferenceWarningsRefresh((n) => n + 1),
       onOpenTextHealth: openTextHealth,
-      onOpenSettings: () => setSettingsOpen(true),
+      onOpenSettings: () => selectWorkspace("settings"),
       settingsNonce,
-      // inc 148: synthesis egress-off nudge → open Settings
+      // inc 148 / inc 280: synthesis egress nudge → Settings workspace
       onCriticalReviewSources: (ids) => setCritSetIds(ids)
       // #12: synthesis → critically review its source papers as a set
     };
@@ -14125,17 +14138,7 @@
       onArmCapture: armCapture,
       onCaptureApplied: clearCapture
     };
-    const sidebarEl = /* @__PURE__ */ React.createElement(
-      Sidebar,
-      {
-        conn,
-        onOpenSettings: () => setSettingsOpen(true),
-        onOpenHelp: () => setHelpOpen(true),
-        ctx: paneCtx,
-        theoryOpen,
-        onTheoryOpen: setTheoryOpen
-      }
-    );
+    const sidebarEl = /* @__PURE__ */ React.createElement(Sidebar, { conn, ctx: paneCtx, theoryOpen, onTheoryOpen: setTheoryOpen });
     const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly }), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       LibraryFrame,
       {
@@ -14174,12 +14177,22 @@
         onCaptureAnchor: captureAnchor,
         onCancelCapture: clearCapture
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: myPubsAxisId, onSummarize: summarizePaperIds, onSelectPaper: setSelected, onOpenPdf: openPdf })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "discover" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("discover"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "discover" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("extract"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "extract" })));
+    )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: myPubsAxisId, onSummarize: summarizePaperIds, onSelectPaper: setSelected, onOpenPdf: openPdf })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "discover" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("discover"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "discover" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("extract"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "extract" })), activeWorkspace === "help" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(HelpView, null)), activeWorkspace === "settings" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(
+      SettingsView,
+      {
+        theme,
+        onTheme: setTheme,
+        hideUncertainDefault,
+        onHideUncertainDefault: setHideUncertainDefault,
+        axisCutoffDefault,
+        onAxisCutoffDefault: setAxisCutoffDefault,
+        onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1),
+        autoScanWatched,
+        onAutoScanWatched: setAutoScanWatched
+      }
+    )));
     const detailEl = /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen }));
-    const modals = /* @__PURE__ */ React.createElement(React.Fragment, null, settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => {
-      setSettingsOpen(false);
-      setSettingsNonce((n) => n + 1);
-    } }), helpOpen && /* @__PURE__ */ React.createElement(HelpModal, { onClose: () => setHelpOpen(false) }), duplicatesOpen && /* @__PURE__ */ React.createElement(
+    const modals = /* @__PURE__ */ React.createElement(React.Fragment, null, duplicatesOpen && /* @__PURE__ */ React.createElement(
       DuplicatesModal,
       {
         onClose: () => setDuplicatesOpen(false),

@@ -118,3 +118,8 @@ registerWorkspaceTab({ id: "extract" }, {
   render: (ctx, active) => <WorkbenchPane active={active} onOpenPdf={ctx.onOpenPdf}
     capture={ctx.capture} onArmCapture={ctx.onArmCapture} onCaptureApplied={ctx.onCaptureApplied} />,
 });
+
+// inc 280 (stage 3): the right-aligned utility workspaces (Help, Settings) — formerly modals. Shell-rendered:
+// 40_app supplies HelpView / SettingsView (with its many prefs props) in centerEl, like Library/Profile.
+registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
+registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });
