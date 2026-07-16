@@ -9,6 +9,9 @@ from __future__ import annotations
 
 import json
 
+from fastapi.testclient import TestClient
+
+from app.backend.api import create_app
 from app.backend.clustering.axis_scoring import create_axis
 from app.backend.embeddings.models import DEFAULT_NORMALIZATION
 from app.backend.embeddings.vector_store import InMemoryVectorStore
@@ -195,3 +198,62 @@ def test_overlooked_repo_round_trips_both_visible_inputs(temp_db_url):
         rows2, _ = read_overlooked_candidates(conn, 7)
     assert [r["openalex_work_id"] for r in rows2] == ["W1"]
     engine.dispose()
+
+
+# --- Task 4: the async job + endpoints ---------------------------------------
+
+
+def _lens_app(temp_db_url):
+    client = TestClient(create_app(db_url=temp_db_url))
+    with make_engine(temp_db_url).begin() as conn:
+        axis_id = create_axis(conn, label="neural")
+    client.app.state.openalex_sources_client = _FakeSources("T1", _sample_works())
+    client.app.state.embedding_model = _KeywordEmbed()
+    return client, axis_id
+
+
+def _drive_refresh(client, axis_id):
+    r = client.post("/overlooked/refresh", json={"axis_id": axis_id})
+    assert r.status_code == 202, r.text
+    jid = r.json()["job_id"]
+    data = {}
+    for _ in range(60):
+        data = client.get(f"/overlooked/refresh/{jid}").json()
+        if data["status"] in ("done", "error"):
+            break
+    return data
+
+
+def test_overlooked_endpoints_refresh_then_list(temp_db_url):
+    client, axis_id = _lens_app(temp_db_url)
+    done = _drive_refresh(client, axis_id)
+    assert done["status"] == "done", done
+    assert done["result"]["count"] == 2  # W1 + W3 surfaced
+
+    listed = client.get("/overlooked", params={"axis_id": axis_id})
+    assert listed.status_code == 200
+    body = listed.json()
+    ids = [c["openalex_work_id"] for c in body["candidates"]]
+    assert ids == ["W1", "W3"]  # ranked by relevance
+    assert body["computed_at"] is not None
+    # Every row carries BOTH separable inputs, and NEITHER a composite score NOR an author/identity field.
+    for c in body["candidates"]:
+        assert "relevance" in c and "year_percentile" in c
+        assert not any(("author" in k) or ("score" in k) for k in c)
+    assert "score" not in json.dumps(body).lower()
+
+
+def test_overlooked_list_filters_dismissed(temp_db_url):
+    client, axis_id = _lens_app(temp_db_url)
+    _drive_refresh(client, axis_id)
+    # Dismiss via the reused gap-dismiss flow → GET /overlooked no longer surfaces it (no recompute needed).
+    assert client.post("/gaps/dismiss", json={"openalex_work_id": "W1"}).status_code == 204
+    ids = [c["openalex_work_id"] for c in client.get("/overlooked", params={"axis_id": axis_id}).json()["candidates"]]
+    assert "W1" not in ids and "W3" in ids
+
+
+def test_overlooked_refresh_requires_axis_id(temp_db_url):
+    client, _ = _lens_app(temp_db_url)
+    assert client.post("/overlooked/refresh", json={}).status_code == 422  # axis_id required
+    assert client.get("/overlooked").status_code == 422  # axis_id required
+    assert client.get("/overlooked/refresh/nope").status_code == 404  # unknown job

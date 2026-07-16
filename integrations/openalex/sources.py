@@ -25,10 +25,10 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 import httpx
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from app.backend.app_settings import resolved_mailto
-from integrations.api_cache import get_cached, put_cached
+from integrations.api_cache import get_cached, put_cached, put_cached_committing
 
 OPENALEX_SOURCES_PROVIDER = "openalex-sources"
 OPENALEX_API_BASE = "https://api.openalex.org"  # root — this client hits /topics, /works, /sources
@@ -92,10 +92,25 @@ class SourcesFetcher(Protocol):
 
 
 class OpenAlexSourcesClient:
-    def __init__(self, *, fetcher: SourcesFetcher | None = None, mailto: str | None = None, timeout: float = 10.0):
+    def __init__(
+        self,
+        *,
+        fetcher: SourcesFetcher | None = None,
+        mailto: str | None = None,
+        timeout: float = 10.0,
+        cache_engine: Engine | None = None,
+    ):
         self.fetcher = fetcher or _httpx_fetcher
         self.mailto = mailto or resolved_mailto("CALLOSUM_OPENALEX_MAILTO")
         self.timeout = timeout
+        self.cache_engine = cache_engine
+
+    def with_cache_engine(self, engine: Engine) -> OpenAlexSourcesClient:
+        """A copy that caches responses self-committingly (inc D fetch-outside-lock) — used by an async job so the
+        write lock is not held across network I/O; reads stay conn-based."""
+        return OpenAlexSourcesClient(
+            fetcher=self.fetcher, mailto=self.mailto, timeout=self.timeout, cache_engine=engine
+        )
 
     def fetch_topic_for_subject(self, conn: Connection, subject: str) -> str | None:
         """Resolve a user-typed subject keyword → the top-matching OpenAlex topic id. The subject is a bound query
@@ -224,24 +239,19 @@ class OpenAlexSourcesClient:
                 path, params={**params, **self._polite_params()}, headers=self._headers(), timeout=self.timeout
             )
         except Exception as exc:  # fail closed — never raise to the caller
-            put_cached(
-                conn,
-                OPENALEX_SOURCES_PROVIDER,
-                cache_key,
-                request_json=request_json,
-                response_json={"error": str(exc)},
-                status_code=None,
-            )
+            self._store(conn, cache_key, request_json=request_json, response_json={"error": str(exc)}, status_code=None)
             return None
-        put_cached(
-            conn,
-            OPENALEX_SOURCES_PROVIDER,
-            cache_key,
-            request_json=request_json,
-            response_json=body,
-            status_code=status,
-        )
+        self._store(conn, cache_key, request_json=request_json, response_json=body, status_code=status)
         return body if status == 200 and isinstance(body, dict) else None
+
+    def _store(self, conn: Connection, cache_key: str, *, request_json: Any, response_json: Any, status_code) -> None:
+        """Cache a response: self-committingly (its own transaction) when ``cache_engine`` is set — the inc-D
+        fetch-outside-lock path — else via the caller's ``conn`` (the default, per-request path)."""
+        fields = {"request_json": request_json, "response_json": response_json, "status_code": status_code}
+        if self.cache_engine is not None:
+            put_cached_committing(self.cache_engine, OPENALEX_SOURCES_PROVIDER, cache_key, **fields)
+        else:
+            put_cached(conn, OPENALEX_SOURCES_PROVIDER, cache_key, **fields)
 
     def _polite_params(self) -> dict[str, str]:
         return {"mailto": self.mailto} if self.mailto else {}

@@ -52,6 +52,7 @@ from app.backend.api.routers import (
     methods_retraction,
     my_publications,
     ocr,
+    overlooked,
     paper_enrich,
     paper_files,
     paper_urls,
@@ -166,6 +167,7 @@ def create_app(
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
     api.state.retraction_watch_client = RetractionWatchClient()  # inc 132: RW download client (overridable in tests)
     api.state.gap_jobs = JobStore()  # inc 135: literature gap-finder
+    api.state.overlooked_lens_jobs = JobStore()  # backlog #37: overlooked-work lens (per-axis discovery)
     api.state.citation_count_jobs = JobStore()  # inc 210 (A2): library-wide OpenAlex cited-by refresh
     api.state.critical_review_jobs = JobStore()  # backlog #12: single-paper critical-read (scrutiny surface)
     api.state.critical_review_set_jobs = JobStore()  # backlog #12: set (multi-paper) critical review
@@ -292,6 +294,7 @@ def create_app(
     api.include_router(transparency.router)  # /papers/{id}/transparency — transparency-signals auditor (#44, inc 250)
     api.include_router(findings.router)  # /papers/{id}/findings — the FACT-vs-CANDIDATE store (inc 130)
     api.include_router(gaps.router)  # /gaps/* — literature gap-finder (inc 135)
+    api.include_router(overlooked.router)  # /overlooked/* — overlooked-work lens: per-axis discovery (#37)
     api.include_router(discovery.router)  # /discovery/* — literature Search providers (inc 183)
     api.include_router(feed.router)  # /feed/* — literature Feed: followed sources, polled (inc 187)
     api.include_router(citations.router)  # /citations/* — formatted-citation engine (inc 106)
