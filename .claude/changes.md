@@ -9,6 +9,16 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-16 — Increment 277: long-job incremental commits — C (method batches)
+- **Files:** `app/backend/api/routers/{methods,methods_retraction,transparency,citation_counts}.py`, `tests/test_statcheck.py`.
+- **What:** per-item commits for the four method-batch jobs (statcheck / retraction / transparency / citation-counts). Each now reads its paper list first (read connection), then processes every paper in its own `run_write` transaction (was one `engine.begin()` over the whole loop) — so the write lock is released between papers, and the per-paper external calls (retraction DOI lookups, OpenAlex citation fetches) no longer hold a batch-wide lock. One bad paper is skipped, never aborting the batch.
+- **Why:** the long-job half's method-batch group — user-initiated, same starvation risk during a library-wide run.
+- **Behavior change (intended):** atomicity per-paper; a mid-run failure leaves earlier papers' signals committed and the job completes (every batch is a re-runnable overwrite).
+- **Scope:** method batches done. Deferred: D (dedup, gap-finder, my-publications refresh/decompose) — the last group.
+- **Verify:** the batch-covering suites green (74) + new `test_statcheck_batch_commits_per_paper_partial_progress`; full suite green; ruff + budget clean. **Manual batch-while-toggling check still owed** (INCREMENT-277-NOTES).
+- **Revert:** restore the listed files from git (branch `feature/method-batch-per-item-commits`).
+- **Note (numbering):** this is sequential increment 277 per CLAUDE.md's counter; a stale Codex backlog reference also says "inc 277" for the earlier `retry_sqlite_locked` helper — part of the 271-277-real vs 277-297-phantom drift flagged for reconciliation.
+
 ## 2026-07-16 — Increment 276: long-job incremental commits — B (ingest family)
 - **Files:** `app/backend/api/routers/library.py` (`_run_import_job`, `_run_bundle_import_job`), `app/backend/api/routers/library_enrich.py` (`_run_metadata_enrich_job`), `tests/test_citation_import.py`, `tests/test_metadata_multi_enrich.py`.
 - **What:** per-item commits for the three ingest jobs. Citation import + bundle import: parse+create commits as its own unit (`run_write`), then each new paper is embedded (import: + retraction-checked) in its own committed transaction (`commit_each`). Metadata enrich-batch: each paper's external fetch + write now runs in its own `run_write` transaction (was one big txn over the whole loop). So the write lock is released between papers.

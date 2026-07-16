@@ -104,9 +104,11 @@ half is now fully per-item** (extraction per file + enrich/embed per paper).
 `ensure_embeddings` a no-op since `embed_papers` is idempotent) — so **all the auto-running offenders (scan +
 watched-rescan + axis-score) are now per-item.**
 **✅ B DONE (inc 276):** the ingest family — citation import + bundle import (parse+create as a unit, then embed
-per paper) + the metadata enrich-batch (each paper's external fetch+write per `run_write` transaction). **Remaining:**
-**C** method batches (statcheck / retraction / transparency) + citation-counts; **D** read-heavy (dedup, gap-finder,
-my-publications refresh/decompose). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
+per paper) + the metadata enrich-batch (each paper's external fetch+write per `run_write` transaction).
+**✅ C DONE (inc 277):** the four method batches (statcheck / retraction / transparency / citation-counts) each
+process every paper in its own `run_write` transaction (retraction DOI lookups + OpenAlex fetches no longer hold a
+batch-wide lock). **Remaining: D** (the last group) — read-heavy: dedup, gap-finder, my-publications
+refresh/decompose (read-mostly with some writes; per-item boundary pinned when converted). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous
