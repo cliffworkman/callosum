@@ -255,7 +255,9 @@ def _run_dedup_job(app: FastAPI, job_id: str) -> None:
     try:
         model = _embedding_model(app)
         engine: Engine = app.state.engine
-        with engine.begin() as conn:  # read-only scan; entirely local (no egress)
+        # inc D: a read-only scan (find_duplicate_groups only SELECTs + compares in memory) runs on a READ
+        # connection — it must never open a write transaction (which could hold the write lock).
+        with engine.connect() as conn:  # read-only scan; entirely local (no egress)
             groups = find_duplicate_groups(conn, model=model)
         jobs.mark_done(
             job_id,
