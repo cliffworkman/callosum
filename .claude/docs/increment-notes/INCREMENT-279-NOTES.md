@@ -76,8 +76,28 @@ changes.md + this note.
 (Flagged as owed per the verification protocol — a static + esbuild-compile pass verified the JSX assembles, but a
 live visual check was not run this session.)
 
+## Experience pass (rule #11) — inhabited, *corpus builder* persona
+
+Ran as an **inhabited analysis** (not a live persona-agent dispatch — no browser automation this session; that + the
+manual UI script are flagged owed). Goal-in-the-moment: *"I have an axis on topic X; what relevant work has the field
+under-cited that I'm missing?"* Walked reception → intended-use:
+
+- **Reception:** the **Overlooked** header button (beside **Gaps**) is discoverable; "Overlooked" alone is a touch
+  ambiguous but the tooltip disambiguates. The modal's "Choose an axis…" + Refresh-disabled-until-chosen prevents a
+  confusing empty run. **Legible.**
+- **Intended use:** pick axis → Refresh → two-chip rows (relevance + cited/percentile) → inspect via DOI → Add/Dismiss.
+  The flow completes end-to-end and honestly; Add imports metadata-only (PDF stays the separate acquire lane), the row
+  drops on re-GET (the gap-finder's established feedback pattern). **No dead-end.** The bare cosine `relevance 0.72` is
+  a raw checkable number (tooltip + ranking carry the scale) — the honest choice over a verdict-toned label.
+- **Findings (both backlogged under #37, neither strands the persona):** **(a)** the post-refresh empty state can't
+  distinguish "axis label didn't resolve to an OpenAlex topic" from "topic found, nothing overlooked" (both →
+  `count: 0`) — a distinct message would need the engine/job to report `topic_resolved` (multi-file → backlog, not a
+  cheap in-session fix). **(b)** header-button density — a future **Discover ▾** grouping for Gaps/Overlooked/Wanted.
+
+Nothing cheap-and-in-scope was left unfixed; the two refinements are filed to `INCREMENT-BACKLOG.md` (#37).
+
 ## Pytest
 
 `tests/test_overlooked.py` — 9 passing (fetch_topic_works incl. egress-shape; compute_overlooked surfaces/percentile/
 exclude; repo round-trip; endpoints refresh→list, dismiss filter, validation). `tests/test_frontend_assembly.py` —
-+1 overlooked-panel guard. Full suite: <filled in Task 7>.
++1 overlooked-panel guard. Full suite: <filled after the background run>.

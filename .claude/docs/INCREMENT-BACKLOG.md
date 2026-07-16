@@ -605,6 +605,19 @@ inverse Matthew, citation credit-concentration, positive self-correction) + 2 pr
 recorded with the **no-index / no-accusation** reframing. Citation-graph-shaped → OpenAlex adapter + findings
 subsystem; project as **system-facts tags**. Gated by the Principles gate **and** the A-A **no-accusation** veto —
 the track that most needs the values layer.
+  - **Signal 1 — the overlooked-work lens (inverse Matthew): ✅ SHIPPED inc 279** — a per-axis discovery lens
+    (`/overlooked/*`, header **Overlooked** button) surfacing works relevant to an axis but under-cited for their
+    vintage, as **two separate visible inputs** (local relevance + same-vintage citation percentile), never fused,
+    identity-agnostic, pull-not-push. Spec `2026-07-16-overlooked-work-lens-design.md`; audit PASS; QA route 72.
+  - **UX follow-ups (inc-279 experience pass — the *corpus builder* persona):** **(a)** when an axis label doesn't
+    resolve to an OpenAlex topic, the refresh returns `count: 0` and shows the same "nothing surfaced" empty state as
+    "topic found but nothing overlooked" — a corpus-builder can't tell "we couldn't match this axis to a research
+    topic" from "nothing overlooked." Add a distinct empty-state (needs the engine/job to report `topic_resolved`).
+    **(b)** header-button density — Gaps + Overlooked + Wanted are all discovery lenses; consider a single **Discover ▾**
+    grouping (a broader header-consolidation pass, not lens-specific). **(c)** live persona-agent experience pass +
+    the manual UI verification script are **owed** (no browser automation in the build session).
+  - Remaining #37 signals (citation credit-concentration remediation is partly SP2 of #25; positive self-correction;
+    the forensic candidates) stay future-track, values-layer-gated.
 
 **38. Research-impact analytics** (`…_researchimpactanalytics.md`) — **[future track — gated]** opt-in, local-first,
 **commons**-structured measurement of whether Callosum changes how people research, at **human-subjects-research**
