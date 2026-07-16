@@ -71,6 +71,7 @@ from app.backend.api.routers import (
     word,
     workbench,
 )
+from app.backend.api.sqlite_retry_middleware import SqliteWriteRetryMiddleware
 from app.backend.api.startup import PROJECT_ROOT, _upgrade_database_to_head, load_local_env
 from app.backend.discovery.feed import FeedRegistry, build_default_feed_registry
 from app.backend.discovery.providers import SourceRegistry, build_default_registry
@@ -226,6 +227,10 @@ def create_app(
     # cloudflared tunnel), require a bearer token + rate-limit. OFF by default → a pure pass-through (no change
     # for localhost-only users). Added after CORS so CORS stays the outermost layer (preflight handled there).
     api.add_middleware(AccessControlMiddleware)
+    # Backstop for the "database is locked" transient writer-lock (Layer 2; Layer 1 is run_write in the hot
+    # short-write endpoints). Added last → innermost user middleware, so it wraps just the route execution and
+    # catches the OperationalError before it becomes a 500. Retries only replay-safe mutating requests.
+    api.add_middleware(SqliteWriteRetryMiddleware)
 
     @api.get("/", response_model=None, include_in_schema=False)
     def frontend_shell() -> FileResponse | HTMLResponse:
