@@ -30,6 +30,7 @@ from app.backend.clustering.my_publications import import_citing_work
 from app.backend.persistence.gap_repo import read_gap_candidates, replace_gap_candidates
 from app.backend.persistence.profile_repo import dismiss_gap, dismissed_gaps
 from app.backend.persistence.repository import find_existing_paper_by_identity
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.openalex.adapter import OpenAlexClient
 
 router = APIRouter()
@@ -163,19 +164,26 @@ def _run_gap_refresh(app: FastAPI, job_id: str, direction: str, axis_id: int | N
     jobs: JobStore[GapRefreshResponse] = app.state.gap_jobs
     jobs.mark_running(job_id)
     try:
+        engine = app.state.engine
         client = app.state.openalex_client or OpenAlexClient()
+        # inc D: the fetch phase (compute_gaps — external OpenAlex fetches; no conn writes but the response cache)
+        # runs on a READ connection with the client caching self-committingly, so it never holds the write lock;
+        # then the single atomic replace is a short run_write. (A fake test client caches nothing → used as-is.)
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
         computed_at = datetime.now(timezone.utc).isoformat()
-        with app.state.engine.begin() as conn:
+        with engine.connect() as conn:
             candidates, coverage = compute_gaps(
                 conn,
-                openalex_client=client,
+                openalex_client=fetch_client,
                 dismissed=dismissed_gaps(conn),
                 direction=direction,
                 axis_id=axis_id,
                 min_citations=GAP_MIN_CITATIONS,
                 max_candidates=GAP_MAX_CANDIDATES,
             )
-            replace_gap_candidates(conn, direction, axis_id, candidates, computed_at=computed_at)
+        run_write(
+            engine, lambda conn: replace_gap_candidates(conn, direction, axis_id, candidates, computed_at=computed_at)
+        )
         result = GapRefreshResult(
             checked=coverage["checked"], total=coverage["total"], note=coverage["note"], count=len(candidates)
         )

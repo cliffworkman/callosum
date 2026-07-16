@@ -69,6 +69,11 @@ class OpenAlexClient:
         # lock. Default None → the usual conn-based cache (every per-item B/C caller is untouched).
         self.cache_engine = cache_engine
 
+    def with_cache_engine(self, engine: Engine) -> OpenAlexClient:
+        """A copy of this client whose cache writes self-commit in their own transaction (inc D) — for a
+        fetch-outside-lock job that runs its fetch phase on a read connection."""
+        return OpenAlexClient(fetcher=self.fetcher, mailto=self.mailto, timeout=self.timeout, cache_engine=engine)
+
     def _store(self, conn: Connection, cache_key: str, **cache_fields: Any) -> None:
         """Cache a provider response (``cache_fields`` = request_json / response_json / status_code). Self-commits
         in its own transaction when ``cache_engine`` is set (fetch-outside-lock jobs), else writes via ``conn``."""
