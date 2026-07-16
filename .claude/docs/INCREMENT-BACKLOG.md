@@ -96,9 +96,11 @@ sending a response (a denylist excludes job-spawn/external-fetch/secret-write fa
 `run_write`) + the **scan / watched-rescan** jobs converted — the `scan_library_folder` insert phase commits as its
 own unit, then enrich+embed commits **per paper**, so those jobs release the write lock between papers (atomicity is
 now per-item — intended; partial progress is usable + the scan is idempotent). Design/plan under `.claude/docs/specs|plans/2026-07-15-long-job-incremental-commits*`.
-**Remaining:** A2 (`scan_library_folder` per-file *extraction* commits — it still isolates files with a savepoint,
-which doesn't release the lock), A3 (axis-score `score_axis` embed-phase hoist), and increments B–D (ingest family;
-statcheck/retraction/transparency + citation-counts; dedup/gap-finder/my-pubs). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
+**✅ A2 DONE (inc 274):** `scan_library_folder` now takes `engine` and ingests each new file in its own `run_write`
+transaction (replacing the per-file savepoint), releasing the lock between files during extraction — the **scan
+half is now fully per-item** (extraction per file + enrich/embed per paper). **Remaining:** A3 (axis-score
+`score_axis` embed-phase hoist), and increments B–D (ingest family: citation/bundle import; statcheck/retraction/
+transparency + citation-counts; dedup/gap-finder/my-pubs). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous

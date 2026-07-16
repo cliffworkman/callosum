@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-16 — Increment 274: long-job incremental commits — A2 (scan per-file extraction commits)
+- **Files:** `app/backend/pdf_processing/library_scan.py` (`scan_library_folder` conn→engine, per-file commits), `app/backend/api/routers/library.py` (both scan jobs call it directly), `tests/test_library_scan.py`.
+- **What:** finishes the scan half. `scan_library_folder` now takes `engine` and ingests **each new file in its own `run_write` transaction** (replacing the per-file `begin_nested` savepoint, which never released the lock), so the write lock is released between files during the slow extract+chunk phase. Upfront dedup reads run on a read connection; removed-detection is a final short write.
+- **Why:** inc-273 (A) made the enrich+embed phase per-paper but the extraction phase still held the lock across the whole file loop (savepoints isolate but don't commit). Per-file commits release it between files.
+- **Behavior change (intended, consistent with A):** atomicity is per-file; a corrupt PDF rolls back just its file (isolation preserved) and the scan continues; content-hash dedup keeps the scan idempotent. Signature `conn→engine` (the two scan jobs + 5 test call sites updated).
+- **Scope:** finishes the scan. Deferred: A3 (axis-score embed-hoist), B–D.
+- **Verify:** `test_library_scan.py` (14, incl. new per-file self-commit test) + `test_watched_folders.py` green; full suite green; ruff + budget clean (library_scan.py 144, library.py 522). **Manual scan-while-toggling check still owed** (INCREMENT-274-NOTES).
+- **Revert:** restore the listed files from git (branch `feature/scan-per-file-commits`).
+
 ## 2026-07-16 — Increment 273: long-job incremental commits — A (commit_each + scan/rescan)
 - **Files:** `app/backend/persistence/sqlite_retry.py` (+`commit_each`), `app/backend/api/routers/library.py` (`_process_scan_result` conn→engine per-paper; `_run_scan_job` + `_run_watched_rescan_job` rewired), `tests/test_sqlite_retry.py` + `tests/test_library_scan.py`.
 - **What:** the second half of the `database is locked` item (first half = inc-272 foreground retry). `commit_each(engine, items, process, on_item_error="skip")` runs each item in its own short transaction via `run_write`, releasing the write lock between items. The scan / watched-rescan jobs now commit the `scan_library_folder` insert phase as its own unit, then enrich+embed **per paper** — so a long scan no longer holds the write lock for its whole multi-minute run; foreground writes (retrying via inc-272) slip in between papers.
