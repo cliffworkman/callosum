@@ -318,8 +318,20 @@ Ranked; "legit" = a context difference worth keeping.
 ## 5. Pane architecture — THEORY / METHODS (inc 121)
 
 The two side panes are **accordions** on a **module registry** (`app/frontend/js/05_panes.jsx`:
-`registerPaneSection({id, label, paneId, order, render})` + `<PaneAccordion paneId ctx openId onOpen/>`). The
-center `LibraryFrame` (library/PDF/dashboard tabs) is separate and untouched.
+`registerPaneSection({id, label, paneId, order, render})` + `<PaneAccordion paneId ctx openId onOpen/>`).
+
+**Workspaces — a second nav dimension (the menu bar, inc 280; `app/frontend/js/04b_workspaces.jsx`).** Above the
+three panes sits a global **menu bar** of *workspaces* — **Profile | Library | Discover | Extract** (Library
+default) — a mirror registry to §5's pane registry (`registerWorkspace` / `registerWorkspaceTab` / `MenuBar` /
+`WorkspacePane`), so the center is data-driven + extensible. **The distinction:** a **workspace** is *what you're
+doing* (a mode you enter — outward/generative/wide-output: Discover [Search·Feed·Journals·Funding], Extract, your
+Profile); a **side-accordion section** is a *lens on the current paper* (Details, statcheck, Cite…). The side panes
+**persist across all workspaces**; only the center switches. Open PDFs are **Library** sub-tabs. **Menu-bar recipe
+(tokens only):** `.menubar` full-width top grid row (`grid-column: 1 / -1`), `--panel-2` bg + `--line` border;
+`.menubar-item.active` reuses the frame-tab **accent** active semantics (`--accent-soft` / `--accent-line` /
+`--accent`). Sub-tabs reuse the existing `.tags-srcfilter` segmented strip + `.pane-tab` mount-but-hide. *(Full §5
+rewrite — folding THEORY/METHODS into this two-dimension model — is the workspaces stage-4 task; this is the
+interim record.)*
 
 **Placement rubric — place a tool by the user's COGNITIVE TASK, not its implementation.** "AI-powered" is
 orthogonal to the distinction.

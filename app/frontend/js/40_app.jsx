@@ -25,6 +25,13 @@ function App() {
   // tabbed library frame: a persistent Library tab plus open PDF tabs.
   const [tabs, setTabs] = useState([]);            // [{ key, paperId, title, target }]
   const [activeTab, setActiveTab] = useState("library");
+  // inc 280: the top-level "what am I doing" workspace (menu bar, 04b_workspaces.jsx). `activeTab` above is now the
+  // Library workspace's sub-tab (the list | an open PDF). The active workspace persists across reloads; a
+  // library-list navigation (filter/focus, via gotoLibrary) also switches to the Library workspace.
+  const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
+  const selectWorkspace = useCallback((id) => { setActiveWorkspace(id); _saveLayout("callosum.workspace", id); }, []);
+  const gotoLibrary = useCallback((t) => { selectWorkspace("library"); setActiveTab(t); }, [selectWorkspace]);
+  const [myPubsAxisId, setMyPubsAxisId] = useState(null);  // which axis' impact opened the Profile workspace
   // Bumped after a synthesis highlight is saved, so an already-open PdfViewer refetches its annotations (PdfViewer).
   const [annoRefresh, setAnnoRefresh] = useState(0);
   const [queueRefresh, setQueueRefresh] = useState(0);  // inc 219: bump to reload the Queue tab after add/remove
@@ -57,7 +64,7 @@ function App() {
   // resolved through refs (set after useFocusMode) because useFocusMode is declared after useLibrary but its
   // onEnterClearFilters must call lib.clearViewFilters — breaking the cycle.
   const lib = useLibrary({
-    selected, setSelected, setActiveTab,
+    selected, setSelected, setActiveTab: gotoLibrary,
     cancelFocus: () => cancelFocusRef.current(),
     setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen,
     setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), autoScanWatched, readOnly, healthLoaded,
@@ -73,7 +80,7 @@ function App() {
   const {
     focusAxis, focusMembers, focusPending, axisRefresh, setAxisRefresh,
     enterFocus, cancelFocus, toggleFocusPaper, saveFocus,
-  } = useFocusMode({ setActiveTab, onEnterClearFilters: clearViewFilters });
+  } = useFocusMode({ setActiveTab: gotoLibrary, onEnterClearFilters: clearViewFilters });
   cancelFocusRef.current = cancelFocus;       // resolve the refs the library subsystem calls through
   setAxisRefreshRef.current = setAxisRefresh;
 
@@ -90,9 +97,21 @@ function App() {
       if (!found) return [...prev, { key, paperId: paper.id, title, target: nextTarget }];
       return prev.map(t => t.key === key ? { ...t, title, target: nextTarget } : t);
     });
+    selectWorkspace("library");  // a PDF opens under the Library workspace
     setActiveTab(key);  // focuses the existing tab if already open
     if (mobile) { setMobilePane("library"); setCitationReturn(false); }  // pull the reader region into view
-  }, [mobile, setMobilePane]);
+  }, [mobile, setMobilePane, selectWorkspace]);
+
+  // inc 280: the Extract "select-in-PDF" capture (formerly in LibraryFrame) lives here now that Extract + the Library
+  // PDF tabs are different workspaces. Arming opens the paper UNDER Library (openPdf → selectWorkspace("library"));
+  // applying the anchor switches back to Extract so the grid can consume the result.
+  const [capture, setCapture] = useState(null);
+  const armCapture = useCallback((t) => {
+    setCapture({ paperId: t.paperId, projectId: t.projectId, rowId: t.rowId, fieldKey: t.fieldKey, fieldLabel: t.fieldLabel });
+    openPdf(t.paper, t.page ? { id: `wbcap:${t.rowId}:${t.fieldKey}`, paperId: t.paperId, page: t.page, precision: null } : undefined);
+  }, [openPdf]);
+  const captureAnchor = useCallback((result) => { setCapture(c => (c ? { ...c, result } : c)); selectWorkspace("extract"); }, [selectWorkspace]);
+  const clearCapture = useCallback(() => setCapture(null), []);
 
   const openCitation = useCallback((citation) => {
     const target = citationTarget(citation);
@@ -120,14 +139,11 @@ function App() {
     setTextHealthOpen(true);
   }, []);
 
-  // inc-81: open the My Publications impact dashboard as a frame tab (reuses the LibraryFrame tab system).
+  // inc-81 → inc 280: the My Publications impact dashboard is now the Profile workspace (was a frame tab).
   const openMyPubsDashboard = useCallback((axis) => {
-    const key = "dashboard:my-publications";
-    setTabs(prev => (prev.some(t => t.key === key)
-      ? prev
-      : [...prev, { key, type: "dashboard", title: "My Publications", axisId: axis && axis.id }]));
-    setActiveTab(key);
-  }, []);
+    setMyPubsAxisId(axis && axis.id);
+    selectWorkspace("profile");
+  }, [selectWorkspace]);
 
   // Save a verified, exact-coordinate citation passage as a durable annotation (source="synthesis"). Re-checks the
   // honesty contract here too, so the precise-save path can never be reached for region/null/flagged citations.
@@ -197,37 +213,60 @@ function App() {
     onCriticalReviewSources: (ids) => setCritSetIds(ids),  // #12: synthesis → critically review its source papers as a set
   };
 
+  // inc 280: props the menu-bar workspace sub-tabs' render(ctx, active) closures need (Discover: Search/Feed via
+  // onDiscoverSaved; Extract: Workbench via the capture trio + onOpenPdf).
+  const workspaceCtx = {
+    onDiscoverSaved: () => setLibRefresh(n => n + 1),
+    onOpenPdf: openPdf,
+    capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
+  };
+
   // B5 (inc 237): compute the three region nodes + the modals once, then render either the desktop grid or the
   // single-column mobile stack. Only one layout branch renders per pass, so reusing an element instance is safe.
   const sidebarEl = (
     <Sidebar conn={conn} onOpenSettings={() => setSettingsOpen(true)} onOpenHelp={() => setHelpOpen(true)}
       ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
   );
-  const libraryFrame = (
-    <LibraryFrame
-      libraryProps={{
-        ...libraryBits,
-        readOnly,
-        selected, onSelect: setSelected,
-        focusAxis, focusMembers, focusPending,
-        onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
-        onFindDuplicates: () => setDuplicatesOpen(true),
-        onOpenWanted: () => setWantedOpen(true),
-        onOpenTextHealth: () => openTextHealth(),
-        onOpenReferenceWarnings: openReferenceWarnings,
-        onOpenGaps: () => setGapsOpen(true),
-        onOpenOverlooked: () => setOverlookedOpen(true),
-        onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
-        onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
-      }}
-      tabs={tabs} activeTab={activeTab}
-      onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
-      onSummarizePapers={summarizePaperIds} onSelectPaper={setSelected}
-      onDiscoverSaved={() => setLibRefresh(n => n + 1)}
-      annoRefresh={annoRefresh}
-      readingMode={readingMode} onToggleReading={toggleReading}
-      mobile={mobile}
-    />
+  // inc 280: the center pane = the active menu-bar workspace. All workspaces stay mounted (hidden) so in-progress
+  // state (a running search, the Extract grid) survives switching. Library + Profile are shell-rendered here (their
+  // bodies are bespoke); Discover + Extract render their registered sub-tabs via WorkspacePane.
+  const centerEl = (
+    <div className="workspace-frame">
+      <div className="workspace-slot" style={{ display: activeWorkspace === "library" ? "flex" : "none" }}>
+        <LibraryFrame
+          libraryProps={{
+            ...libraryBits,
+            readOnly,
+            selected, onSelect: setSelected,
+            focusAxis, focusMembers, focusPending,
+            onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
+            onFindDuplicates: () => setDuplicatesOpen(true),
+            onOpenWanted: () => setWantedOpen(true),
+            onOpenTextHealth: () => openTextHealth(),
+            onOpenReferenceWarnings: openReferenceWarnings,
+            onOpenGaps: () => setGapsOpen(true),
+            onOpenOverlooked: () => setOverlookedOpen(true),
+            onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
+            onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
+          }}
+          tabs={tabs} activeTab={activeTab}
+          onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
+          annoRefresh={annoRefresh}
+          readingMode={readingMode} onToggleReading={toggleReading}
+          mobile={mobile}
+          capture={capture} onCaptureAnchor={captureAnchor} onCancelCapture={clearCapture}
+        />
+      </div>
+      <div className="workspace-slot" style={{ display: activeWorkspace === "profile" ? "flex" : "none" }}>
+        <MyPubsDashboard axisId={myPubsAxisId} onSummarize={summarizePaperIds} onSelectPaper={setSelected} onOpenPdf={openPdf} />
+      </div>
+      <div className="workspace-slot" style={{ display: activeWorkspace === "discover" ? "flex" : "none" }}>
+        <WorkspacePane ws={getWorkspace("discover")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "discover"} />
+      </div>
+      <div className="workspace-slot" style={{ display: activeWorkspace === "extract" ? "flex" : "none" }}>
+        <WorkspacePane ws={getWorkspace("extract")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "extract"} />
+      </div>
+    </div>
   );
   const detailEl = (
     <div className="pane pane-detail"><PaneAccordion paneId="methods" ctx={paneCtx} openId={methodsOpen} onOpen={setMethodsOpen} /></div>
@@ -269,15 +308,18 @@ function App() {
   const readOnlyBadge = readOnly ? <div className="read-only-badge" title="This callosum instance rejects changes — reading only.">🔒 Read-only</div> : null;
 
   if (mobile) {
-    const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
+    const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : centerEl;
     // B5 (inc 239): a one-tap return to the synthesis you came from (only while reading the source it opened).
     const selectMobilePane = (pane) => { setMobilePane(pane); setCitationReturn(false); };
     const backPill = citationReturn && mobilePane === "library"
       ? <button className="pdf-back-pill" onClick={() => selectMobilePane("theory")}>← Synthesis</button>
       : null;
+    // inc 280: the menu bar switches workspaces; on mobile that also pulls the center region into view.
+    const selectWorkspaceMobile = (id) => { selectWorkspace(id); setMobilePane("library"); setCitationReturn(false); };
     return (
       <div className={"app mobile" + (readOnly ? " read-only" : "")}>
         {readOnlyBadge}
+        <MenuBar active={activeWorkspace} onActivate={selectWorkspaceMobile} readOnly={readOnly} />
         <div className="mobile-body">{activeEl}</div>
         {backPill}
         <MobileNav active={mobilePane} onSelect={selectMobilePane} />
@@ -289,6 +331,7 @@ function App() {
   return (
     <div className={"app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : "")} style={{ gridTemplateColumns: cols }}>
       {readOnlyBadge}
+      <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} />
       {leftOpen && !readingMode ? sidebarEl : <div className="pane-collapsed" />}
       <Divider
         side="left" open={leftOpen} onToggle={() => setLeftOpen(o => !o)}
@@ -298,7 +341,7 @@ function App() {
           else { setLeftOpen(true); setLeftW(_clampW(proposed, LEFT_MIN, LEFT_MAX)); }
         }); }}
       />
-      {libraryFrame}
+      {centerEl}
       <Divider
         side="right" open={rightOpen} onToggle={() => setRightOpen(o => !o)}
         onDragStart={(e) => { const sx = e.clientX, sw = rightW; _beginDrag(e, (x) => {

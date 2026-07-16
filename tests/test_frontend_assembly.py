@@ -59,6 +59,21 @@ def test_every_js_chunk_is_included():
         assert text in raw, f"{chunk.name} is missing from the assembled frontend"
 
 
+def test_workspace_menubar_structure_present():
+    raw = assemble_jsx()
+    # The registry + menu bar + workspace pane are wired (inc 280).
+    assert "function registerWorkspace(" in raw and "function registerWorkspaceTab(" in raw
+    assert "function MenuBar(" in raw and "function WorkspacePane(" in raw
+    # The four core workspaces are registered, Profile before Library, Library default.
+    for wid in ('id: "profile"', 'id: "library"', 'id: "discover"', 'id: "extract"'):
+        assert wid in raw, wid
+    # Discover holds Search+Feed; Extract holds Workbench (Journals/Funding/Effect-size/Meta arrive in stage 2).
+    assert 'id: "search"' in raw and 'id: "feed"' in raw and 'id: "workbench"' in raw
+    # The shell renders the menu bar + persists the active workspace.
+    assert "menubar-brand" in raw and '"callosum.workspace"' in raw
+    assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
+
+
 def test_overlooked_lens_panel_present_and_honest():
     raw = assemble_jsx()
     # The panel exists and wires to its endpoints.

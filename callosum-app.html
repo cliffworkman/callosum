@@ -126,10 +126,29 @@
     display: grid;
     /* columns are driven by App state (drag-resizable + collapsible side panels); this is a fallback */
     grid-template-columns: 270px 12px minmax(340px, 1fr) 12px 400px;
-    grid-template-rows: 100vh;
+    /* inc 280: row 1 = the menu bar (auto), row 2 = the three panes (the remaining height). */
+    grid-template-rows: auto 1fr;
     height: 100vh;
     overflow: hidden;
   }
+
+  /* inc 280: the menu bar — the global top row (spans all grid columns) that switches workspaces. Reuses the
+     frame-tab active semantics (accent). Tokens only (rule #8). */
+  .menubar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 4px;
+    padding: 5px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+  }
+  .menubar-brand { font-weight: 700; font-size: 14px; color: var(--ink); margin-right: 14px; letter-spacing: .2px; }
+  .menubar-nav { display: flex; gap: 3px; }
+  .menubar-utils { margin-left: auto; display: flex; gap: 3px; }
+  .menubar-item {
+    font-family: var(--sans); font-size: 12.5px; color: var(--ink-2);
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+    padding: 5px 12px; cursor: pointer;
+  }
+  .menubar-item:hover { background: var(--hover); color: var(--ink); }
+  .menubar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; border-color: var(--accent-line); }
 
   /* B5 (inc 237): responsive mobile layout. When the viewport is phone-width the App renders `.app.mobile` — a
      single column showing one region at a time, with a bottom nav. Desktop (`.app`, above) is untouched. dvh handles
@@ -165,7 +184,7 @@
   .detail-ro.mono { font-family: ui-monospace, monospace; }
   .detail-title-input.detail-ro { font-size: 20px; font-weight: 600; white-space: normal; padding: 6px 0; }
 
-  .pane { overflow-y: auto; height: 100vh; }
+  .pane { overflow-y: auto; height: 100%; }  /* inc 280: fills grid row 2 (below the menu bar), was 100vh */
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
   .pane-collapsed { overflow: hidden; }
   /* inc 248: the accordion panes are flex columns that DON'T scroll as a whole — the open section's body scrolls
@@ -201,7 +220,7 @@
   .coming-soon-builds { font-size: 11px; color: var(--ink-3); margin: 0; }
 
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
-  .divider { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .divider { position: relative; height: 100%; display: flex; align-items: center; justify-content: center; }
   .divider-grip { position: absolute; inset: 0; cursor: col-resize; }
   .divider-grip:hover { background: var(--accent-soft); }
   .divider-toggle {
@@ -1477,10 +1496,22 @@
   }
   .history-delete:hover { border-color: var(--danger); color: var(--danger); }   /* destructive = red (inc 113; was amber) */
 
-  /* ---- tabbed library frame (middle column) ---- */
-  .lib-frame {
-    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  /* ---- the center workspace frame (middle column) ---- */
+  /* inc 280: the center = the active menu-bar workspace. All workspaces mounted; only the active slot is shown. */
+  .workspace-frame {
+    height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
     background: var(--panel); border-right: 1px solid var(--line);
+  }
+  .workspace-slot { flex: 1 1 auto; min-height: 0; flex-direction: column; }  /* inline display:flex when active */
+  .workspace-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .workspace-tabs { flex: 0 0 auto; padding: 8px 10px 0; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
+  .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+
+  /* ---- tabbed library frame (Library workspace body) ---- */
+  .lib-frame {
+    display: flex; flex-direction: column; height: 100%; overflow: hidden;
+    background: var(--panel);
   }
   .frame-tabs {
     flex: 0 0 auto; display: flex; align-items: flex-end; gap: 3px;
@@ -3615,6 +3646,126 @@
       setMobilePane
     };
   }
+  const WORKSPACES = [];
+  function _ensureWs(id) {
+    let w = WORKSPACES.find((x) => x.id === id);
+    if (!w) {
+      w = { id, label: id, order: 0, hideInReadOnly: false, utility: false, tabs: [], render: null, defined: false };
+      WORKSPACES.push(w);
+    }
+    return w;
+  }
+  function _addWsTab(ws, tab) {
+    if (!ws.tabs.some((t) => t.id === tab.id)) ws.tabs.push(tab);
+  }
+  function registerWorkspace(ws) {
+    const w = _ensureWs(ws.id);
+    w.label = ws.label;
+    w.order = ws.order || 0;
+    w.hideInReadOnly = !!ws.hideInReadOnly;
+    w.utility = !!ws.utility;
+    w.defined = true;
+    if (ws.render) {
+      w.render = ws.render;
+      _addWsTab(w, { id: ws.id, label: ws.tabLabel || ws.label, order: 0, render: ws.render, hideInReadOnly: !!ws.hideInReadOnly });
+    }
+    return w;
+  }
+  function registerWorkspaceTab(host, tab) {
+    const w = _ensureWs(host.id);
+    if (!w.defined) {
+      w.label = host.label;
+      w.order = host.order || 0;
+      if (host.hideInReadOnly != null) w.hideInReadOnly = !!host.hideInReadOnly;
+      if (host.utility != null) w.utility = !!host.utility;
+    }
+    _addWsTab(w, tab);
+  }
+  function _wsHiddenReadOnly(w) {
+    if (w.hideInReadOnly) return true;
+    return w.tabs.length > 0 && w.tabs.every((t) => t.hideInReadOnly);
+  }
+  function workspaces(readOnly) {
+    return WORKSPACES.filter((w) => !(readOnly && _wsHiddenReadOnly(w))).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+  function workspaceTabs(w, readOnly) {
+    return [...w.tabs].filter((t) => !(readOnly && t.hideInReadOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
+  }
+  function getWorkspace(id) {
+    return WORKSPACES.find((w) => w.id === id) || null;
+  }
+  function MenuBar({ active, onActivate, readOnly }) {
+    const all = workspaces(readOnly);
+    const primary = all.filter((w) => !w.utility);
+    const utils = all.filter((w) => w.utility);
+    const item = (w) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: w.id,
+        role: "tab",
+        "aria-selected": w.id === active,
+        className: "menubar-item" + (w.id === active ? " active" : ""),
+        onClick: () => onActivate(w.id)
+      },
+      w.label
+    );
+    return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("span", { className: "menubar-brand" }, "callosum"), /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
+  }
+  function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
+    const tabs = workspaceTabs(ws, readOnly);
+    const [activeTab, setActiveTab] = useState(() => _loadLayout("callosum.workspacetab." + ws.id, tabs[0] ? tabs[0].id : null));
+    if (tabs.length === 0) return null;
+    const at = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0].id;
+    const setTab = (id) => {
+      setActiveTab(id);
+      _saveLayout("callosum.workspacetab." + ws.id, id);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "workspace-pane" }, tabs.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter workspace-tabs", role: "tablist" }, tabs.map((t) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: t.id,
+        role: "tab",
+        "aria-selected": t.id === at,
+        className: "tags-srcfilter-btn" + (t.id === at ? " on" : ""),
+        onClick: () => setTab(t.id)
+      },
+      t.label
+    ))), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "workspace-body pane-tab" + (t.id === at ? " active" : "") }, t.render(ctx, !!wsActive && t.id === at))));
+  }
+  registerWorkspace({ id: "profile", label: "Profile", order: 10 });
+  registerWorkspace({ id: "library", label: "Library", order: 20 });
+  registerWorkspace({ id: "discover", label: "Discover", order: 30 });
+  registerWorkspace({ id: "extract", label: "Extract", order: 40 });
+  registerWorkspaceTab({ id: "discover" }, {
+    id: "search",
+    label: "Search",
+    order: 10,
+    hideInReadOnly: true,
+    render: (ctx) => /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: ctx.onDiscoverSaved })
+  });
+  registerWorkspaceTab({ id: "discover" }, {
+    id: "feed",
+    label: "Feed",
+    order: 20,
+    hideInReadOnly: true,
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(FeedPane, { onSaved: ctx.onDiscoverSaved, active })
+  });
+  registerWorkspaceTab({ id: "extract" }, {
+    id: "workbench",
+    label: "Workbench",
+    order: 10,
+    hideInReadOnly: true,
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(
+      WorkbenchPane,
+      {
+        active,
+        onOpenPdf: ctx.onOpenPdf,
+        capture: ctx.capture,
+        onArmCapture: ctx.onArmCapture,
+        onCaptureApplied: ctx.onCaptureApplied
+      }
+    )
+  });
   const PANE_SECTIONS = [];
   function _ensureSection(id) {
     let s = PANE_SECTIONS.find((x) => x.id === id);
@@ -11426,17 +11577,7 @@
       }
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
-  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, onSummarizePapers, onSelectPaper, onDiscoverSaved, annoRefresh, readingMode, onToggleReading, mobile }) {
-    const [capture, setCapture] = useState(null);
-    const armCapture = useCallback((t) => {
-      setCapture({ paperId: t.paperId, projectId: t.projectId, rowId: t.rowId, fieldKey: t.fieldKey, fieldLabel: t.fieldLabel });
-      onOpenPdf(t.paper, t.page ? { id: `wbcap:${t.rowId}:${t.fieldKey}`, paperId: t.paperId, page: t.page, precision: null } : void 0);
-    }, [onOpenPdf]);
-    const captureAnchor = useCallback((result) => {
-      setCapture((c) => c ? { ...c, result } : c);
-      onActivate("extract");
-    }, [onActivate]);
-    const clearCapture = useCallback(() => setCapture(null), []);
+  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -11444,27 +11585,6 @@
         onClick: () => onActivate("library")
       },
       "Library"
-    ), !libraryProps.readOnly && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "frame-tab" + (activeTab === "search" ? " active" : ""),
-        onClick: () => onActivate("search")
-      },
-      "Discover"
-    ), !libraryProps.readOnly && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "frame-tab" + (activeTab === "feed" ? " active" : ""),
-        onClick: () => onActivate("feed")
-      },
-      "Feed"
-    ), !libraryProps.readOnly && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "frame-tab" + (activeTab === "extract" ? " active" : ""),
-        onClick: () => onActivate("extract")
-      },
-      "Extract"
     ), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "span",
       {
@@ -11493,16 +11613,7 @@
         onClick: onToggleReading
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
-    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "search" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: onDiscoverSaved })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "feed" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(FeedPane, { onSaved: onDiscoverSaved, active: activeTab === "feed" })), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
-      WorkbenchPane,
-      {
-        active: activeTab === "extract",
-        onOpenPdf,
-        capture,
-        onArmCapture: armCapture,
-        onCaptureApplied: clearCapture
-      }
-    )), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, t.type === "dashboard" ? /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: t.axisId, onSummarize: onSummarizePapers, onSelectPaper, onOpenPdf }) : /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       PdfViewer,
       {
         paperId: t.paperId,
@@ -11511,8 +11622,8 @@
         annoRefresh,
         mobile,
         armedCapture: capture && !capture.result && capture.paperId === t.paperId ? capture : null,
-        onCaptureAnchor: captureAnchor,
-        onCancelCapture: clearCapture
+        onCaptureAnchor,
+        onCancelCapture
       }
     ))));
   }
@@ -13796,6 +13907,16 @@
     const [selected, setSelected] = useState(null);
     const [tabs, setTabs] = useState([]);
     const [activeTab, setActiveTab] = useState("library");
+    const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
+    const selectWorkspace = useCallback((id) => {
+      setActiveWorkspace(id);
+      _saveLayout("callosum.workspace", id);
+    }, []);
+    const gotoLibrary = useCallback((t) => {
+      selectWorkspace("library");
+      setActiveTab(t);
+    }, [selectWorkspace]);
+    const [myPubsAxisId, setMyPubsAxisId] = useState(null);
     const [annoRefresh, setAnnoRefresh] = useState(0);
     const [queueRefresh, setQueueRefresh] = useState(0);
     const [tagRefresh, setTagRefresh] = useState(0);
@@ -13817,7 +13938,7 @@
     const lib = useLibrary({
       selected,
       setSelected,
-      setActiveTab,
+      setActiveTab: gotoLibrary,
       cancelFocus: () => cancelFocusRef.current(),
       setLeftOpen,
       setTheoryOpen,
@@ -13865,7 +13986,7 @@
       cancelFocus,
       toggleFocusPaper,
       saveFocus
-    } = useFocusMode({ setActiveTab, onEnterClearFilters: clearViewFilters });
+    } = useFocusMode({ setActiveTab: gotoLibrary, onEnterClearFilters: clearViewFilters });
     cancelFocusRef.current = cancelFocus;
     setAxisRefreshRef.current = setAxisRefresh;
     const [citationReturn, setCitationReturn] = useState(false);
@@ -13878,12 +13999,23 @@
         if (!found) return [...prev, { key, paperId: paper.id, title, target: nextTarget }];
         return prev.map((t) => t.key === key ? { ...t, title, target: nextTarget } : t);
       });
+      selectWorkspace("library");
       setActiveTab(key);
       if (mobile) {
         setMobilePane("library");
         setCitationReturn(false);
       }
-    }, [mobile, setMobilePane]);
+    }, [mobile, setMobilePane, selectWorkspace]);
+    const [capture, setCapture] = useState(null);
+    const armCapture = useCallback((t) => {
+      setCapture({ paperId: t.paperId, projectId: t.projectId, rowId: t.rowId, fieldKey: t.fieldKey, fieldLabel: t.fieldLabel });
+      openPdf(t.paper, t.page ? { id: `wbcap:${t.rowId}:${t.fieldKey}`, paperId: t.paperId, page: t.page, precision: null } : void 0);
+    }, [openPdf]);
+    const captureAnchor = useCallback((result) => {
+      setCapture((c) => c ? { ...c, result } : c);
+      selectWorkspace("extract");
+    }, [selectWorkspace]);
+    const clearCapture = useCallback(() => setCapture(null), []);
     const openCitation = useCallback((citation) => {
       const target = citationTarget(citation);
       if (!target) return;
@@ -13908,10 +14040,9 @@
       setTextHealthOpen(true);
     }, []);
     const openMyPubsDashboard = useCallback((axis) => {
-      const key = "dashboard:my-publications";
-      setTabs((prev) => prev.some((t) => t.key === key) ? prev : [...prev, { key, type: "dashboard", title: "My Publications", axisId: axis && axis.id }]);
-      setActiveTab(key);
-    }, []);
+      setMyPubsAxisId(axis && axis.id);
+      selectWorkspace("profile");
+    }, [selectWorkspace]);
     const saveCitationHighlight = useCallback(async (citation) => {
       if (!citation || citation.paper_id == null) return { ok: false, error: "No paper for this citation." };
       const bboxes = normalizeBboxes(citation.bbox_json);
@@ -13993,6 +14124,13 @@
       onCriticalReviewSources: (ids) => setCritSetIds(ids)
       // #12: synthesis → critically review its source papers as a set
     };
+    const workspaceCtx = {
+      onDiscoverSaved: () => setLibRefresh((n) => n + 1),
+      onOpenPdf: openPdf,
+      capture,
+      onArmCapture: armCapture,
+      onCaptureApplied: clearCapture
+    };
     const sidebarEl = /* @__PURE__ */ React.createElement(
       Sidebar,
       {
@@ -14004,7 +14142,7 @@
         onTheoryOpen: setTheoryOpen
       }
     );
-    const libraryFrame = /* @__PURE__ */ React.createElement(
+    const centerEl = /* @__PURE__ */ React.createElement("div", { className: "workspace-frame" }, /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       LibraryFrame,
       {
         libraryProps: {
@@ -14034,15 +14172,15 @@
         onActivate: setActiveTab,
         onClose: closeTab,
         onOpenPdf: openPdf,
-        onSummarizePapers: summarizePaperIds,
-        onSelectPaper: setSelected,
-        onDiscoverSaved: () => setLibRefresh((n) => n + 1),
         annoRefresh,
         readingMode,
         onToggleReading: toggleReading,
-        mobile
+        mobile,
+        capture,
+        onCaptureAnchor: captureAnchor,
+        onCancelCapture: clearCapture
       }
-    );
+    )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: myPubsAxisId, onSummarize: summarizePaperIds, onSelectPaper: setSelected, onOpenPdf: openPdf })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "discover" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("discover"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "discover" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("extract"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "extract" })));
     const detailEl = /* @__PURE__ */ React.createElement("div", { className: "pane pane-detail" }, /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "methods", ctx: paneCtx, openId: methodsOpen, onOpen: setMethodsOpen }));
     const modals = /* @__PURE__ */ React.createElement(React.Fragment, null, settingsOpen && /* @__PURE__ */ React.createElement(SettingsModal, { theme, onTheme: setTheme, hideUncertainDefault, onHideUncertainDefault: setHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault: setAxisCutoffDefault, onMyPubsRefreshed: () => setAxisRefresh((n) => n + 1), autoScanWatched, onAutoScanWatched: setAutoScanWatched, onClose: () => {
       setSettingsOpen(false);
@@ -14080,15 +14218,20 @@
     ), authLocked && /* @__PURE__ */ React.createElement(AccessLockOverlay, null));
     const readOnlyBadge = readOnly ? /* @__PURE__ */ React.createElement("div", { className: "read-only-badge", title: "This callosum instance rejects changes \u2014 reading only." }, "\u{1F512} Read-only") : null;
     if (mobile) {
-      const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : libraryFrame;
+      const activeEl = mobilePane === "theory" ? sidebarEl : mobilePane === "methods" ? detailEl : centerEl;
       const selectMobilePane = (pane) => {
         setMobilePane(pane);
         setCitationReturn(false);
       };
       const backPill = citationReturn && mobilePane === "library" ? /* @__PURE__ */ React.createElement("button", { className: "pdf-back-pill", onClick: () => selectMobilePane("theory") }, "\u2190 Synthesis") : null;
-      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals);
+      const selectWorkspaceMobile = (id) => {
+        selectWorkspace(id);
+        setMobilePane("library");
+        setCitationReturn(false);
+      };
+      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspaceMobile, readOnly }), /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals);
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, /* @__PURE__ */ React.createElement(MenuBar, { active: activeWorkspace, onActivate: selectWorkspace, readOnly }), leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
       Divider,
       {
         side: "left",
@@ -14106,7 +14249,7 @@
           });
         }
       }
-    ), libraryFrame, /* @__PURE__ */ React.createElement(
+    ), centerEl, /* @__PURE__ */ React.createElement(
       Divider,
       {
         side: "right",

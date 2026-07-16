@@ -102,10 +102,29 @@
     display: grid;
     /* columns are driven by App state (drag-resizable + collapsible side panels); this is a fallback */
     grid-template-columns: 270px 12px minmax(340px, 1fr) 12px 400px;
-    grid-template-rows: 100vh;
+    /* inc 280: row 1 = the menu bar (auto), row 2 = the three panes (the remaining height). */
+    grid-template-rows: auto 1fr;
     height: 100vh;
     overflow: hidden;
   }
+
+  /* inc 280: the menu bar — the global top row (spans all grid columns) that switches workspaces. Reuses the
+     frame-tab active semantics (accent). Tokens only (rule #8). */
+  .menubar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 4px;
+    padding: 5px 12px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+  }
+  .menubar-brand { font-weight: 700; font-size: 14px; color: var(--ink); margin-right: 14px; letter-spacing: .2px; }
+  .menubar-nav { display: flex; gap: 3px; }
+  .menubar-utils { margin-left: auto; display: flex; gap: 3px; }
+  .menubar-item {
+    font-family: var(--sans); font-size: 12.5px; color: var(--ink-2);
+    background: transparent; border: 1px solid transparent; border-radius: var(--radius-sm);
+    padding: 5px 12px; cursor: pointer;
+  }
+  .menubar-item:hover { background: var(--hover); color: var(--ink); }
+  .menubar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; border-color: var(--accent-line); }
 
   /* B5 (inc 237): responsive mobile layout. When the viewport is phone-width the App renders `.app.mobile` — a
      single column showing one region at a time, with a bottom nav. Desktop (`.app`, above) is untouched. dvh handles
@@ -141,7 +160,7 @@
   .detail-ro.mono { font-family: ui-monospace, monospace; }
   .detail-title-input.detail-ro { font-size: 20px; font-weight: 600; white-space: normal; padding: 6px 0; }
 
-  .pane { overflow-y: auto; height: 100vh; }
+  .pane { overflow-y: auto; height: 100%; }  /* inc 280: fills grid row 2 (below the menu bar), was 100vh */
   .pane-list { background: var(--panel); border-right: 1px solid var(--line); }
   .pane-collapsed { overflow: hidden; }
   /* inc 248: the accordion panes are flex columns that DON'T scroll as a whole — the open section's body scrolls
@@ -177,7 +196,7 @@
   .coming-soon-builds { font-size: 11px; color: var(--ink-3); margin: 0; }
 
   /* resizable + collapsible divider between a side panel and the center (drag to resize, click to collapse) */
-  .divider { position: relative; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .divider { position: relative; height: 100%; display: flex; align-items: center; justify-content: center; }
   .divider-grip { position: absolute; inset: 0; cursor: col-resize; }
   .divider-grip:hover { background: var(--accent-soft); }
   .divider-toggle {
@@ -1453,10 +1472,22 @@
   }
   .history-delete:hover { border-color: var(--danger); color: var(--danger); }   /* destructive = red (inc 113; was amber) */
 
-  /* ---- tabbed library frame (middle column) ---- */
-  .lib-frame {
-    display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  /* ---- the center workspace frame (middle column) ---- */
+  /* inc 280: the center = the active menu-bar workspace. All workspaces mounted; only the active slot is shown. */
+  .workspace-frame {
+    height: 100%; min-height: 0; display: flex; flex-direction: column; overflow: hidden;
     background: var(--panel); border-right: 1px solid var(--line);
+  }
+  .workspace-slot { flex: 1 1 auto; min-height: 0; flex-direction: column; }  /* inline display:flex when active */
+  .workspace-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .workspace-tabs { flex: 0 0 auto; padding: 8px 10px 0; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
+  .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+
+  /* ---- tabbed library frame (Library workspace body) ---- */
+  .lib-frame {
+    display: flex; flex-direction: column; height: 100%; overflow: hidden;
+    background: var(--panel);
   }
   .frame-tabs {
     flex: 0 0 auto; display: flex; align-items: flex-end; gap: 3px;
