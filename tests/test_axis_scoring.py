@@ -10,6 +10,7 @@ from alembic.config import Config
 from app.backend.clustering.axis_scoring import (
     AxisScoringConfig,
     create_axis,
+    ensure_candidate_embeddings_committing,
     score_axis,
     update_axis,
 )
@@ -384,3 +385,47 @@ def _fake_vector(text: str) -> list[float]:
     if "signal detection theory" in text:
         return [0.0, 10.0, 0.0]
     return [0.0, 0.0, 1.0]
+
+
+def test_ensure_candidate_embeddings_commits_per_paper(tmp_path: Path) -> None:
+    """A3: pre-embed the candidate papers, one committed transaction per paper — a fresh connection sees both
+    paper embeddings without any caller transaction (proving per-paper self-commit; the lock is released between)."""
+    engine = _migrated_engine(tmp_path)
+    model = AxisFakeEmbeddingModel()
+    store = InMemoryVectorStore()
+    with engine.begin() as conn:
+        p1 = create_paper(conn, title="Alpha facial anomaly study", csl_json={"type": "document", "title": "Alpha"})
+        p2 = create_paper(conn, title="Beta computation memoir", csl_json={"type": "document", "title": "Beta"})
+
+    ensure_candidate_embeddings_committing(engine, model=model, vector_store=store)  # no caller transaction
+
+    with engine.connect() as conn:
+        embedded = {
+            int(r[0]) for r in conn.execute(select(embeddings.c.target_id).where(embeddings.c.target_type == "paper"))
+        }
+    assert embedded == {p1, p2}
+
+
+def test_ensure_candidate_embeddings_skips_a_failing_paper(tmp_path: Path) -> None:
+    """One paper's embed failure is skipped (logged), leaving the earlier paper committed — per-paper isolation."""
+    engine = _migrated_engine(tmp_path)
+    store = InMemoryVectorStore()
+    with engine.begin() as conn:
+        create_paper(conn, title="Alpha facial anomaly study", csl_json={"type": "document", "title": "Alpha"})
+        create_paper(conn, title="Beta computation memoir", csl_json={"type": "document", "title": "Beta"})
+
+    calls = {"n": 0}
+
+    @dataclass(frozen=True)
+    class FlakyModel(AxisFakeEmbeddingModel):
+        def encode_texts(self, texts: list[str]) -> list[list[float]]:
+            calls["n"] += 1
+            if calls["n"] == 2:  # one call per pending paper → fail on the 2nd
+                raise RuntimeError("boom embedding the 2nd paper")
+            return super().encode_texts(texts)
+
+    ensure_candidate_embeddings_committing(engine, model=FlakyModel(), vector_store=store)  # skip-on-error
+
+    with engine.connect() as conn:
+        embedded = list(conn.execute(select(embeddings.c.target_id).where(embeddings.c.target_type == "paper")))
+    assert len(embedded) == 1  # only the 1st committed; the 2nd's transaction rolled back + was skipped

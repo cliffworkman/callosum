@@ -62,6 +62,7 @@ from app.backend.clustering.axis_scoring import (
     AxisScoringConfig,
     create_axis,
     delete_axis,
+    ensure_candidate_embeddings_committing,
     score_axis,
     update_axis,
 )
@@ -374,9 +375,14 @@ def _run_axis_score_job(app: FastAPI, job_id: str, axis_id: int, cutoff: float =
         model = _embedding_model(app)
         store = _vector_store(app)
         engine: Engine = app.state.engine
-        with engine.begin() as conn:
+        # inc A3: pre-embed the candidate papers ONE-per-committed-transaction (the slow phase) so the write lock is
+        # released between papers; the scoring itself (embeddings now present → ensure_embeddings is a no-op) is one
+        # short committed transaction.
+        ensure_candidate_embeddings_committing(engine, model=model, vector_store=store)
+
+        def _score(conn):
             manual = manual_assignment_paper_ids(conn, axis_id)
-            result = score_axis(
+            scored = score_axis(
                 conn,
                 axis_id=axis_id,
                 model=model,
@@ -385,6 +391,9 @@ def _run_axis_score_job(app: FastAPI, job_id: str, axis_id: int, cutoff: float =
             )
             restore_manual_assignments(conn, axis_id=axis_id, paper_ids=manual)
             conn.execute(update(axes).where(axes.c.id == axis_id).values(scoring_gain=cutoff))  # remember the cutoff
+            return scored
+
+        result = run_write(engine, _score)
         assigned = sum(1 for s in result.scores if s.status == "assigned")
         uncertain = sum(1 for s in result.scores if s.status == "uncertain")
         jobs.mark_done(

@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-from sqlalchemy import Connection, RowMapping, and_, delete, insert, select, update
+from sqlalchemy import Connection, Engine, RowMapping, and_, delete, insert, select, update
 
 from app.backend.embeddings.models import EmbeddingModel, normalize_text, strip_punctuation
 from app.backend.embeddings.pipeline import PAPER_TEXT_VERSION, embed_papers
 from app.backend.embeddings.vector_store import VectorStore
+from app.backend.persistence.repository import list_live_paper_ids
 from app.backend.persistence.schema import axes, cluster_node_papers, cluster_nodes, embeddings
+from app.backend.persistence.sqlite_retry import commit_each
+
+_log = logging.getLogger("callosum.axis_scoring")
 
 AXIS_TEXT_VERSION_PREFIX = "axis-text-sha256-v1:"
 AssignmentStatus = Literal["assigned", "uncertain", "below-threshold"]
@@ -144,6 +149,34 @@ def update_axis(
         values["description"] = description
     if values:
         conn.execute(update(axes).where(axes.c.id == axis_id).values(**values))
+
+
+def ensure_candidate_embeddings_committing(
+    engine: Engine,
+    *,
+    model: EmbeddingModel,
+    vector_store: VectorStore,
+    parent_cluster_node_id: int | None = None,
+    representation: PaperRepresentationStrategy | None = None,
+) -> None:
+    """Pre-embed an axis-scoring run's candidate papers, ONE committed transaction per paper (inc A3), so the slow
+    embedding phase releases the SQLite write lock between papers instead of holding it for the whole run. The
+    subsequent ``score_axis`` call's own ``ensure_embeddings`` then finds them present (``embed_papers`` is
+    idempotent) and is a fast no-op. Only papers lacking a current embedding are embedded (no wasted transactions);
+    one paper's embed failure is skipped + logged, never aborting the pre-embed (that paper is simply unscored)."""
+    representation = representation or PaperEmbeddingRepresentation()
+    with engine.connect() as conn:
+        candidate = _candidate_paper_ids(conn, parent_cluster_node_id)
+        all_ids = candidate if candidate is not None else set(list_live_paper_ids(conn))
+        embedded = set(representation.candidate_embeddings(conn, model=model, paper_ids=candidate).values())
+    pending = sorted(all_ids - embedded)
+    commit_each(
+        engine,
+        pending,
+        lambda conn, pid: embed_papers(conn, model=model, vector_store=vector_store, paper_ids=[pid]),
+        on_item_error="skip",
+        logger=_log,
+    )
 
 
 def score_axis(
