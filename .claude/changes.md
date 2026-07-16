@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-16 — Increment 276: long-job incremental commits — B (ingest family)
+- **Files:** `app/backend/api/routers/library.py` (`_run_import_job`, `_run_bundle_import_job`), `app/backend/api/routers/library_enrich.py` (`_run_metadata_enrich_job`), `tests/test_citation_import.py`, `tests/test_metadata_multi_enrich.py`.
+- **What:** per-item commits for the three ingest jobs. Citation import + bundle import: parse+create commits as its own unit (`run_write`), then each new paper is embedded (import: + retraction-checked) in its own committed transaction (`commit_each`). Metadata enrich-batch: each paper's external fetch + write now runs in its own `run_write` transaction (was one big txn over the whole loop). So the write lock is released between papers.
+- **Why:** the long-job half's ingest group — user-initiated, so lower urgency than the auto-running A/A2/A3 offenders, but the same starvation risk during a large import/enrich.
+- **Behavior change (intended, consistent with A):** atomicity per-paper; a mid-run failure leaves earlier papers imported/embedded/enriched and the job completes (skip-on-error) rather than rolling back the whole run.
+- **Scope:** ingest family done. Deferred: C (method batches + citation-counts), D (dedup/gap-finder/my-pubs).
+- **Verify:** the 3 ingest suites green (41, incl. 2 new per-paper partial-progress tests); full suite green; ruff + budget clean. **Manual import/enrich-while-toggling check still owed** (INCREMENT-276-NOTES).
+- **Revert:** restore the listed files from git (branch `feature/ingest-per-item-commits`).
+
 ## 2026-07-16 — Increment 275: long-job incremental commits — A3 (axis-score embed-phase hoist)
 - **Files:** `app/backend/clustering/axis_scoring.py` (+`ensure_candidate_embeddings_committing`), `app/backend/api/routers/axes.py` (`_run_axis_score_job` rewired), `tests/test_axis_scoring.py`.
 - **What:** the axis-score job wrapped its whole run — including embedding every candidate paper — in one `engine.begin()`. `ensure_candidate_embeddings_committing(engine, …)` now pre-embeds the pending candidate papers **one committed transaction per paper** (via `commit_each`), and the job runs the scoring (embeddings now present → `score_axis`'s `ensure_embeddings` is a no-op) in one short `run_write` transaction. So the slow embedding phase releases the write lock between papers.
