@@ -7,8 +7,15 @@ load-bearing vetoes (no composite score, no author/identity field, honest "possi
 
 from __future__ import annotations
 
+import json
+
+from app.backend.clustering.axis_scoring import create_axis
+from app.backend.embeddings.models import DEFAULT_NORMALIZATION
+from app.backend.embeddings.vector_store import InMemoryVectorStore
+from app.backend.methods.overlooked import compute_overlooked
 from app.backend.persistence.database import make_engine
-from integrations.openalex.sources import OpenAlexSourcesClient
+from app.backend.persistence.repository import create_paper
+from integrations.openalex.sources import OpenAlexSourcesClient, TopicWork
 
 
 def _works_fetcher(works):
@@ -49,4 +56,113 @@ def test_fetch_topic_works_reconstructs_abstract_and_metadata(temp_db_url):
     assert got[1].abstract is None and got[1].doi is None  # no index / no doi → None, not a crash
     with engine.begin() as conn:  # a bad topic id never reaches the network
         assert OpenAlexSourcesClient(fetcher=_works_fetcher(works)).fetch_topic_works(conn, "not-a-topic") == []
+    engine.dispose()
+
+
+# --- Task 2: the compute_overlooked engine -----------------------------------
+
+_VOCAB = ["neural", "vision", "plant"]
+
+
+class _KeywordEmbed:
+    """Deterministic bag-of-VOCAB embedding (the publishers/inc-228 test pattern) — a text's vector is which VOCAB
+    words it contains, so cosine similarity to an axis label is controllable without a real model."""
+
+    name = "kw-overlooked"
+    version = "v1"
+    dimension = len(_VOCAB)
+    normalization = DEFAULT_NORMALIZATION
+
+    def encode_texts(self, texts):
+        return [[1.0 if w in str(t).lower() else 0.0 for w in _VOCAB] for t in texts]
+
+
+class _FakeSources:
+    """A sources client stand-in: a fixed topic + a fixed candidate-works list (no network)."""
+
+    def __init__(self, topic, works):
+        self._topic = topic
+        self._works = works
+
+    def fetch_topic_for_subject(self, conn, subject):
+        return self._topic
+
+    def fetch_topic_works(self, conn, topic_id, *, cap=200):
+        return list(self._works)
+
+
+def _sample_works():
+    # All 2015. Relevance to axis "neural": W1/W2 = 1.0, W3 ≈ 0.707, W4/W5 = 0.
+    # cited_by = [0, 50, 1, 60, 70] → same-year percentile rank (fraction cited fewer):
+    #   W1 0.0 · W2 0.4 · W3 0.2 · W4 0.6 · W5 0.8
+    return [
+        TopicWork("W1", "10.1/w1", "Neural nets", 2015, 0, "neural"),
+        TopicWork("W2", "10.1/w2", "Neural theory", 2015, 50, "neural"),  # relevant but well-cited → NOT overlooked
+        TopicWork("W3", "10.1/w3", "Neural vision", 2015, 1, "neural vision"),
+        TopicWork("W4", "10.1/w4", "Plant A", 2015, 60, "plant"),
+        TopicWork("W5", "10.1/w5", "Plant B", 2015, 70, "plant"),
+    ]
+
+
+def test_compute_overlooked_surfaces_relevant_undercited(temp_db_url):
+    engine = make_engine(temp_db_url)
+    store = InMemoryVectorStore()
+    with engine.begin() as conn:
+        axis_id = create_axis(conn, label="neural")
+        out = compute_overlooked(
+            conn,
+            axis_id=axis_id,
+            sources_client=_FakeSources("T1", _sample_works()),
+            model=_KeywordEmbed(),
+            vector_store=store,
+            low_percentile=0.25,
+            min_year_peers=4,
+        )
+    # Surfaced = relevant AND under-cited for its vintage, ranked by relevance (desc).
+    assert [c.openalex_work_id for c in out] == ["W1", "W3"]
+    assert out[0].relevance > out[1].relevance
+    assert "W2" not in [c.openalex_work_id for c in out]  # relevant but well-cited → correctly not flagged
+    # Both separable inputs are present on every row...
+    assert all(c.relevance is not None and c.year_percentile is not None for c in out)
+    # ...and NEITHER a composite score NOR an author/identity field ever appears (the load-bearing vetoes).
+    blob = json.dumps([c.to_dict() for c in out]).lower()
+    assert "score" not in blob
+    for c in out:
+        assert not any(("author" in k) or ("score" in k) for k in c.to_dict())
+    engine.dispose()
+
+
+def test_compute_overlooked_no_percentile_when_too_few_same_year_peers(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        axis_id = create_axis(conn, label="neural")
+        out = compute_overlooked(
+            conn,
+            axis_id=axis_id,
+            sources_client=_FakeSources("T1", _sample_works()),
+            model=_KeywordEmbed(),
+            vector_store=InMemoryVectorStore(),
+            low_percentile=0.25,
+            min_year_peers=6,  # more than the 5 same-year peers available → no percentile → nothing surfaced
+        )
+    assert out == []  # honest: too few same-vintage peers to rank → we do not guess
+
+
+def test_compute_overlooked_excludes_in_library(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_paper(conn, title="Neural nets", csl_json={"title": "Neural nets", "DOI": "10.1/w1"}, doi="10.1/w1")
+        axis_id = create_axis(conn, label="neural")
+        out = compute_overlooked(
+            conn,
+            axis_id=axis_id,
+            sources_client=_FakeSources("T1", _sample_works()),
+            model=_KeywordEmbed(),
+            vector_store=InMemoryVectorStore(),
+            low_percentile=0.25,
+            min_year_peers=4,
+        )
+    ids = [c.openalex_work_id for c in out]
+    assert "W1" not in ids  # already in the library → dropped (this is discovery)
+    assert "W3" in ids  # the pipeline still surfaces the remaining relevant, under-cited candidate
     engine.dispose()
