@@ -98,9 +98,13 @@ own unit, then enrich+embed commits **per paper**, so those jobs release the wri
 now per-item — intended; partial progress is usable + the scan is idempotent). Design/plan under `.claude/docs/specs|plans/2026-07-15-long-job-incremental-commits*`.
 **✅ A2 DONE (inc 274):** `scan_library_folder` now takes `engine` and ingests each new file in its own `run_write`
 transaction (replacing the per-file savepoint), releasing the lock between files during extraction — the **scan
-half is now fully per-item** (extraction per file + enrich/embed per paper). **Remaining:** A3 (axis-score
-`score_axis` embed-phase hoist), and increments B–D (ingest family: citation/bundle import; statcheck/retraction/
-transparency + citation-counts; dedup/gap-finder/my-pubs). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
+half is now fully per-item** (extraction per file + enrich/embed per paper).
+**✅ A3 DONE (inc 275):** the axis-score job pre-embeds candidate papers **one committed transaction per paper**
+(`ensure_candidate_embeddings_committing` → `commit_each`), then scores in one short `run_write` txn (`score_axis`'s
+`ensure_embeddings` a no-op since `embed_papers` is idempotent) — so **all the auto-running offenders (scan +
+watched-rescan + axis-score) are now per-item.** **Remaining:** increments B–D — **B** ingest family (citation
+import, bundle import, enrich-batch); **C** method batches (statcheck / retraction / transparency) + citation-counts;
+**D** read-heavy (dedup, gap-finder, my-publications refresh/decompose). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous

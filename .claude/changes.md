@@ -9,6 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-16 — Increment 275: long-job incremental commits — A3 (axis-score embed-phase hoist)
+- **Files:** `app/backend/clustering/axis_scoring.py` (+`ensure_candidate_embeddings_committing`), `app/backend/api/routers/axes.py` (`_run_axis_score_job` rewired), `tests/test_axis_scoring.py`.
+- **What:** the axis-score job wrapped its whole run — including embedding every candidate paper — in one `engine.begin()`. `ensure_candidate_embeddings_committing(engine, …)` now pre-embeds the pending candidate papers **one committed transaction per paper** (via `commit_each`), and the job runs the scoring (embeddings now present → `score_axis`'s `ensure_embeddings` is a no-op) in one short `run_write` transaction. So the slow embedding phase releases the write lock between papers.
+- **Why:** finishes the **auto-running offenders** (scan + rescan + axis-score) of the long-job half; the axis-score job was one of the QA-flagged lock-holders.
+- **Design note:** rather than thread `engine`/per-paper commits through the clustering internals, A3 pre-embeds at the job boundary and relies on `embed_papers`'s existing idempotency (skips already-embedded) — so `score_axis` keeps its single-`conn` contract and the existing scoring suite is untouched. The assignment *replace* stays atomic (one txn, as required); only the *embedding* became per-item.
+- **Scope:** auto-running offenders now all per-item. Deferred: B (ingest family), C (method batches + citation-counts), D (dedup/gap-finder/my-pubs).
+- **Verify:** `test_axis_scoring.py` (incl. 2 new per-paper commit tests) + `test_axes.py` green (41); full suite green; ruff + budget clean. **Manual score-while-toggling check still owed** (INCREMENT-275-NOTES).
+- **Revert:** restore the listed files from git (branch `feature/axis-score-embed-hoist`).
+
 ## 2026-07-16 — Increment 274: long-job incremental commits — A2 (scan per-file extraction commits)
 - **Files:** `app/backend/pdf_processing/library_scan.py` (`scan_library_folder` conn→engine, per-file commits), `app/backend/api/routers/library.py` (both scan jobs call it directly), `tests/test_library_scan.py`.
 - **What:** finishes the scan half. `scan_library_folder` now takes `engine` and ingests **each new file in its own `run_write` transaction** (replacing the per-file `begin_nested` savepoint, which never released the lock), so the write lock is released between files during the slow extract+chunk phase. Upfront dedup reads run on a read connection; removed-detection is a final short write.
