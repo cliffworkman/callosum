@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from typing import TypeVar
 
 from sqlalchemy import Connection, Engine
@@ -73,3 +73,29 @@ def run_write(
             if remaining <= 0 or not is_sqlite_locked(exc):
                 raise
             sleeper(delay_seconds)
+
+
+def commit_each(
+    engine: Engine,
+    items: Iterable[T],
+    process: Callable[[Connection, T], object],
+    *,
+    on_item_error: str = "skip",
+    logger: object | None = None,
+) -> list:
+    """Process each item in its OWN short transaction (via ``run_write``), releasing the SQLite write lock between
+    items — the long-job counterpart to ``run_write``. ``on_item_error="skip"`` logs a non-lock failure and
+    continues (resilient batch: one bad item never aborts the run); ``"raise"`` propagates it. Returns the per-item
+    results in order (``None`` for a skipped item). A transient writer lock on an item is retried by ``run_write``,
+    not skipped."""
+    results: list = []
+    for item in items:
+        try:
+            results.append(run_write(engine, lambda conn, it=item: process(conn, it)))
+        except Exception as exc:  # noqa: BLE001 — batch resilience is the contract
+            if on_item_error == "raise":
+                raise
+            if logger is not None:
+                logger.warning("commit_each: skipped an item: %s: %s", type(exc).__name__, exc)
+            results.append(None)
+    return results

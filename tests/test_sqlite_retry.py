@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.paper_lifecycle_repo import update_paper_metadata
-from app.backend.persistence.sqlite_retry import retry_sqlite_locked, run_write
+from app.backend.persistence.sqlite_retry import commit_each, retry_sqlite_locked, run_write
 
 
 def _locked() -> OperationalError:
@@ -162,4 +162,62 @@ def test_run_write_opens_a_fresh_connection_each_attempt(temp_db_url):
 
     run_write(engine, op, delay_seconds=0.0, sleeper=lambda _s: None)
     assert len(seen) == 2 and seen[0] != seen[1]  # two distinct connection objects
+    engine.dispose()
+
+
+# ── commit_each: per-item long-job commits (inc A) ────────────────────────────────────────────────────
+
+
+def test_commit_each_commits_each_item_independently(temp_db_url):
+    """A failure at item K leaves items 1..K-1 committed (the per-item boundary; a per-job txn would lose them)."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE t (v INTEGER PRIMARY KEY)"))
+
+    def process(conn, item):
+        if item == 3:
+            raise ValueError("bad item 3")
+        conn.execute(text("INSERT INTO t (v) VALUES (:v)"), {"v": item})
+        return item
+
+    results = commit_each(engine, [1, 2, 3, 4], process, on_item_error="skip")
+    assert results == [1, 2, None, 4]  # item 3 skipped
+    with engine.connect() as conn:
+        assert [r[0] for r in conn.execute(text("SELECT v FROM t ORDER BY v"))] == [1, 2, 4]
+    engine.dispose()
+
+
+def test_commit_each_raise_propagates(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE t (v INTEGER PRIMARY KEY)"))
+
+    def process(conn, item):
+        if item == 2:
+            raise ValueError("boom")
+        conn.execute(text("INSERT INTO t (v) VALUES (:v)"), {"v": item})
+
+    with pytest.raises(ValueError):
+        commit_each(engine, [1, 2, 3], process, on_item_error="raise")
+    with engine.connect() as conn:  # item 1 committed before the raise
+        assert [r[0] for r in conn.execute(text("SELECT v FROM t ORDER BY v"))] == [1]
+    engine.dispose()
+
+
+def test_commit_each_retries_transient_lock_per_item(temp_db_url):
+    """A transient lock on one item retries (via run_write) and still commits it."""
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        conn.execute(text("CREATE TABLE t (v INTEGER PRIMARY KEY)"))
+    seen = {"n": 0}
+
+    def process(conn, item):
+        if item == 2 and seen["n"] == 0:
+            seen["n"] += 1
+            raise _locked()
+        conn.execute(text("INSERT INTO t (v) VALUES (:v)"), {"v": item})
+
+    commit_each(engine, [1, 2], process, on_item_error="raise")
+    with engine.connect() as conn:
+        assert [r[0] for r in conn.execute(text("SELECT v FROM t ORDER BY v"))] == [1, 2]
     engine.dispose()
