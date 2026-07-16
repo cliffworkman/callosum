@@ -14,10 +14,10 @@ from dataclasses import asdict, dataclass
 from typing import Any, Protocol
 
 import httpx
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from app.backend.app_settings import resolved_mailto
-from integrations.api_cache import get_cached, put_cached
+from integrations.api_cache import get_cached, put_cached, put_cached_committing
 
 OPENALEX_ROOT = "https://api.openalex.org"
 OPENALEX_AUTHOR_PROVIDER = "openalex_author"
@@ -76,11 +76,28 @@ class AuthorFetcher(Protocol):
 
 class OpenAlexAuthorClient:
     def __init__(
-        self, *, fetcher: AuthorFetcher | None = None, mailto: str | None = None, timeout: float = 10.0
+        self,
+        *,
+        fetcher: AuthorFetcher | None = None,
+        mailto: str | None = None,
+        timeout: float = 10.0,
+        cache_engine: Engine | None = None,
     ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
         self.mailto = mailto or resolved_mailto("CALLOSUM_OPENALEX_MAILTO")  # UI contact email overlays the env var
         self.timeout = timeout
+        self.cache_engine = cache_engine  # inc D: when set, cache writes self-commit (fetch-outside-lock jobs)
+
+    def with_cache_engine(self, engine: Engine) -> OpenAlexAuthorClient:
+        """A copy whose cache writes self-commit in their own transaction (inc D) — for a fetch-outside-lock job."""
+        return OpenAlexAuthorClient(fetcher=self.fetcher, mailto=self.mailto, timeout=self.timeout, cache_engine=engine)
+
+    def _put(self, conn: Connection, provider: str, key: str, **cache_fields: Any) -> None:
+        """Cache a response — self-committing (own txn) when cache_engine is set, else via the caller's conn."""
+        if self.cache_engine is not None:
+            put_cached_committing(self.cache_engine, provider, key, **cache_fields)
+        else:
+            put_cached(conn, provider, key, **cache_fields)
 
     def resolve_author(
         self, conn: Connection, *, orcid: str | None = None, name: str | None = None
@@ -129,7 +146,7 @@ class OpenAlexAuthorClient:
                     ]
         works, ok = self._fetch_all_works(author_id)
         if ok:  # only cache a real result — never cache a transient total failure
-            put_cached(
+            self._put(
                 conn,
                 OPENALEX_WORKS_PROVIDER,
                 author_id,
@@ -149,11 +166,11 @@ class OpenAlexAuthorClient:
                 url, params={**params, **self._polite()}, headers=self._headers(), timeout=self.timeout
             )
         except Exception as exc:  # fail closed
-            put_cached(
+            self._put(
                 conn, provider, key, request_json={"url": url}, response_json={"error": str(exc)}, status_code=None
             )
             return None
-        put_cached(conn, provider, key, request_json={"url": url}, response_json=body, status_code=status)
+        self._put(conn, provider, key, request_json={"url": url}, response_json=body, status_code=status)
         return body if status == 200 and isinstance(body, dict) else None
 
     def _fetch_all_works(self, author_id: str) -> tuple[list[AuthorWork], bool]:
@@ -201,7 +218,7 @@ class OpenAlexAuthorClient:
                 return [_citing_from_dict(w) for w in raw], bool(cached["response_json"].get("capped"))
         works, capped, ok = self._fetch_citing(work_id)
         if ok:  # only cache a real result
-            put_cached(
+            self._put(
                 conn,
                 OPENALEX_WORKS_PROVIDER,
                 cache_key,

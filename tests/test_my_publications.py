@@ -9,11 +9,11 @@ from sqlalchemy import select
 from app.backend.api import create_app
 from app.backend.clustering.my_publications import (
     build_dashboard,
-    decompose_domains,
     import_missing_work,
     maybe_add_to_my_publications,
     resolve_my_publications,
 )
+from app.backend.clustering.my_publications_domains import decompose_domains
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.profile_repo import (
     dismiss_work,
@@ -552,7 +552,7 @@ def test_rename_domain_endpoint(temp_db_url):  # SP2 T2 (#15)
 
 
 def test_reapply_custom_labels_by_overlap():  # SP2 T2 (#15 — re-decompose preserves custom names)
-    from app.backend.clustering.my_publications import _reapply_custom_labels
+    from app.backend.clustering.my_publications_domains import _reapply_custom_labels
 
     domains = [
         {"label": "Auto A", "terms": [], "paper_ids": [1, 2, 3]},

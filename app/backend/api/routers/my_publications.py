@@ -21,13 +21,14 @@ from app.backend.api.job_store import JobStore
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
 from app.backend.clustering.my_publications import (
     _get_axis_id,
+    _resolve_fetch,
+    _resolve_persist,
     build_dashboard,
-    decompose_domains,
     import_citing_work,
     import_missing_work,
     my_publication_documents,
-    resolve_my_publications,
 )
+from app.backend.clustering.my_publications_domains import _decompose_compute
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedResearchSummaryGenerator
 from app.backend.persistence.profile_repo import (
@@ -36,6 +37,7 @@ from app.backend.persistence.profile_repo import (
     rename_domain,
     set_decision,
     set_my_publications_dismissed,
+    set_research_domains,
     set_research_summary,
     set_starred,
     undismiss_work,
@@ -43,6 +45,7 @@ from app.backend.persistence.profile_repo import (
 )
 from app.backend.persistence.repository import find_existing_paper_by_identity, get_paper
 from app.backend.persistence.schema import axes
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.gemini import GeminiConfig, GeminiResearchSummaryGenerator, ResearchSummaryGenerator
 from integrations.openalex import OpenAlexAuthorClient
 
@@ -478,10 +481,23 @@ def _run_refresh_job(app: FastAPI, job_id: str) -> None:
     jobs: JobStore[RefreshJobResponse] = app.state.mypubs_jobs
     jobs.mark_running(job_id)
     try:
+        engine = app.state.engine
         client = _author_client(app)
-        with app.state.engine.begin() as conn:  # resolve writes the openalex_* cache within the txn
-            set_my_publications_dismissed(conn, False)  # a manual refresh un-dismisses
-            summary = resolve_my_publications(conn, author_client=client, force=True)
+        # inc D: the fetch phase (author resolve + works fetch) runs on a READ connection with the author client
+        # caching self-committingly, so it never holds the write lock; then set_dismissed + the membership rewrite
+        # are one short run_write (a fresh snapshot after the fetch — avoids a snapshot-upgrade on the persist).
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
+        with engine.connect() as conn:
+            status, author, works = _resolve_fetch(conn, author_client=fetch_client, force=True)
+        if status is not None:
+            summary = status
+        else:
+
+            def _persist(conn):
+                set_my_publications_dismissed(conn, False)  # a manual refresh un-dismisses
+                return _resolve_persist(conn, author, works)
+
+            summary = run_write(engine, _persist)
         jobs.mark_done(job_id, RefreshJobResponse(job_id=job_id, status="done", summary=MyPubsSummary(**summary)))
     except Exception as exc:
         jobs.mark_error(job_id, f"{type(exc).__name__}: {exc}")
@@ -491,11 +507,20 @@ def _run_domains_job(app: FastAPI, job_id: str) -> None:
     jobs: JobStore[DomainJobResponse] = app.state.mypubs_domain_jobs
     jobs.mark_running(job_id)
     try:
+        engine = app.state.engine
         model = _embedding_model(app)
         client = _author_client(app)
-        # Local clustering; the works refresh inside is OpenAlex metadata egress, NOT the Gemini gate.
-        with app.state.engine.begin() as conn:
-            summary = decompose_domains(conn, model=model, author_client=client)
+        # inc D: local clustering + the OpenAlex works refresh (metadata egress, NOT the Gemini gate) run on a READ
+        # connection with the client caching self-committingly (lock-free); then the single set_research_domains
+        # write is a short run_write.
+        fetch_client = client.with_cache_engine(engine) if hasattr(client, "with_cache_engine") else client
+        with engine.connect() as conn:
+            status, domains = _decompose_compute(conn, model=model, author_client=fetch_client)
+        if status is not None:
+            summary = status
+        else:
+            run_write(engine, lambda conn: set_research_domains(conn, domains))
+            summary = {"status": "ok", "domain_count": len(domains)}
         jobs.mark_done(
             job_id,
             DomainJobResponse(
