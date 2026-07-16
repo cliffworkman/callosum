@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-16 — Increment 278: long-job incremental commits — D (read-heavy) — the long-job half COMPLETE
+- **Files:** `app/backend/api/routers/{duplicates,gaps,my_publications}.py`, `integrations/api_cache.py` (+`put_cached_committing`), `integrations/openalex/{adapter,author}.py` (opt-in `cache_engine`), `app/backend/clustering/my_publications.py` (resolve fetch/persist split), `app/backend/clustering/my_publications_domains.py` (new — decompose extracted), `tests/{test_api_cache,test_openalex_adapter,test_my_publications}.py`.
+- **What:** the read-heavy jobs (not per-paper loops). Dedup → a read connection (a read-only scan mustn't open a write txn). Gap-finder + my-pubs refresh/decompose → **fetch-outside-lock**: their reads + external OpenAlex fetches run on a read connection with the client caching self-committingly (new opt-in `cache_engine` + `put_cached_committing`), then the single final persist is a short `run_write` (a fresh snapshot, dodging a snapshot-upgrade BUSY). My-pubs' resolve/decompose split into fetch/persist behind unchanged all-in-one wrappers (no caller/test blast radius); domain decomposition extracted to a sibling module for the 600-line cap.
+- **Why:** the last group of the long-job half. **With D, every long job releases the write lock during its slow work** — a background job no longer starves foreground writes.
+- **Safety:** the self-committing cache is **opt-in** (the per-item B/C callers keep conn-based caching — a universal change would deadlock a caller that fetches inside a held per-paper lock; guard tests `test_citation_counts`/`test_metadata_multi_enrich`).
+- **Verify:** api_cache/duplicate_detection/gapfinder/openalex_adapter/my_publications/health suites green; full suite green; ruff + budget clean. **Manual scan/refresh-while-toggling check still owed** (INCREMENT-278-NOTES).
+- **Revert:** restore the listed files from git (branch `feature/readheavy-fetch-outside-lock`).
+
 ## 2026-07-16 — Increment 277: long-job incremental commits — C (method batches)
 - **Files:** `app/backend/api/routers/{methods,methods_retraction,transparency,citation_counts}.py`, `tests/test_statcheck.py`.
 - **What:** per-item commits for the four method-batch jobs (statcheck / retraction / transparency / citation-counts). Each now reads its paper list first (read connection), then processes every paper in its own `run_write` transaction (was one `engine.begin()` over the whole loop) — so the write lock is released between papers, and the per-paper external calls (retraction DOI lookups, OpenAlex citation fetches) no longer hold a batch-wide lock. One bad paper is skipped, never aborting the batch.
