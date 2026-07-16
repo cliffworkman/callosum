@@ -63,6 +63,26 @@ def test_fetch_topic_works_reconstructs_abstract_and_metadata(temp_db_url):
     engine.dispose()
 
 
+def test_fetch_topic_works_transmits_only_the_topic_id(temp_db_url):
+    """The outbound request carries ONLY the topic id + fixed paging/select params — no library text egresses
+    (the load-bearing egress invariant; candidate abstracts come BACK and are embedded on-device)."""
+    sent = []
+
+    def rec(path, *, params, headers, timeout):
+        sent.append((path, params))
+        return (200, {"results": []})
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        OpenAlexSourcesClient(fetcher=rec).fetch_topic_works(conn, "T7")
+    assert len(sent) == 1
+    path, params = sent[0]
+    assert path == "/works"
+    assert params["filter"] == "primary_topic.id:T7"
+    assert set(params) <= {"filter", "per-page", "select", "mailto"}  # nothing but the topic id + fixed fields
+    engine.dispose()
+
+
 # --- Task 2: the compute_overlooked engine -----------------------------------
 
 _VOCAB = ["neural", "vision", "plant"]

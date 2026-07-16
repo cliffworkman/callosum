@@ -1010,6 +1010,17 @@ Each candidate shows **"cited by N of your papers"** (backward) or **"cites N of
 
 After a Refresh it tells you how many papers it scanned ("scanned M of N — the rest have no DOI"), and the coverage is partial (it depends on what OpenAlex has), so this is a prompt to look, not an exhaustive list. Public metadata only — no AI, and nothing leaves the machine but the OpenAlex/Crossref lookups.
 
+<!-- section: overlooked-lens -->
+## Finding work the field overlooked
+The **Overlooked** button (in the library header, next to **Gaps**) looks, **per axis**, for external works that are **relevant to that axis but under-cited for their year** — work you may be missing because the field overlooked it, not because it's weak. (This is different from the **Find overlooked work** action on a single paper's citation-concentration audit, which is about that one reference list's omissions; this one is a library-wide discovery lens tied to an axis.)
+
+Choose an **axis**, then click **Refresh** to scan (via OpenAlex for that axis's topic). Each candidate shows **two separate signals, side by side — never blended into one score**:
+
+- **relevance** — how close the work is to your axis, by a **local** embedding-similarity match (computed on your machine; the abstract is never sent anywhere).
+- **cited N · Nth-percentile for {year}** — its raw citation count and where that sits among **same-year** work on the topic. A low percentile means it's been cited less than most of its vintage.
+
+Read the two together: relevant **and** under-cited for its year = *possibly* overlooked — or *possibly* just low-impact. **Your call.** Only works with enough same-year peers to rank fairly are shown, and an empty result isn't evidence that nothing was overlooked. There's **no composite "hidden-gem" score, no ranking by anyone's identity, and nothing is added automatically.** Click a title to open the work (via its DOI); **Add** imports the metadata into your library (the PDF stays the separate "Acquire OA copy" step), and **Dismiss** hides it for good. Public metadata only — no AI; only the axis label and its topic id leave the machine. Inspired by the *Matthew effect in science* (Merton, 1968).
+
 <!-- section: citation-equity -->
 ## Checking citation concentration
 The **Citation concentration** tab (in the **THEORY → Cite** section, with a paper selected) describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open the section, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):

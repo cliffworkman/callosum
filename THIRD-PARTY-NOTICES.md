@@ -200,6 +200,17 @@ The journal-matching tool draws on public bibliographic metadata + a scientific-
   Transformers*, ACL 2020) — runs **locally** to match the abstract to candidate journals; the abstract is never
   transmitted. Distributed by its authors on the Hugging Face Hub under its own license; Callosum does not redistribute it.
 
+### Overlooked-work lens (inc 279, #37)
+The per-axis lens surfaces external works highly relevant to an axis but under-cited for their vintage — making the
+literature's attention machinery inspectable rather than letting citation counts silently stand in for relevance. It
+operationalizes the **Matthew effect in science** (cumulative advantage in citation/recognition):
+- Merton, R. K. (1968). *The Matthew Effect in Science.* Science, 159(3810), 56–63.
+  <https://doi.org/10.1126/science.159.3810.56>. Credited in-context on the panel. It is a **signal, not a verdict**:
+  two separate visible inputs (local relevance + citations-vs-same-vintage percentile), never fused, never author-directed.
+- **OpenAlex** (<https://openalex.org/>, CC0) — a topic's works (id, title, year, cited-by count, abstract inverted
+  index) via `/topics` + `/works`. Public metadata; polite-pool `mailto`. Candidate abstracts are embedded **locally**
+  (default `all-MiniLM-L6-v2`); no library text is transmitted.
+
 ---
 
 ## Runtime & build dependencies (inc 181)
