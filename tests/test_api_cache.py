@@ -85,3 +85,28 @@ def test_put_cached_reraises_non_lock_operational_error():
         assert "no such table" in str(exc.orig)
     else:  # pragma: no cover - explicit failure reads better than pytest.raises for this tiny fake
         raise AssertionError("non-lock OperationalError was swallowed")
+
+
+def test_put_cached_committing_self_commits(temp_db_url):
+    """inc D: put_cached_committing writes in its OWN transaction — a fresh connection sees the entry with no
+    caller transaction (so a fetch phase on a read connection can cache without holding the caller's write lock)."""
+    from sqlalchemy import select
+
+    from app.backend.persistence.database import make_engine
+    from app.backend.persistence.schema import external_api_cache
+    from integrations.api_cache import get_cached, put_cached_committing
+
+    engine = make_engine(temp_db_url)
+    put_cached_committing(  # no caller transaction
+        engine,
+        "openalex",
+        "work:W1",
+        request_json={"work_id": "W1"},
+        response_json={"title": "X"},
+        status_code=200,
+    )
+    with engine.connect() as conn:  # a fresh connection sees it → it was committed
+        row = get_cached(conn, "openalex", "work:W1")
+        assert row is not None and row["response_json"] == {"title": "X"}
+        assert conn.execute(select(external_api_cache).where(external_api_cache.c.cache_key == "work:W1")).first()
+    engine.dispose()

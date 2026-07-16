@@ -8,8 +8,9 @@ from sqlalchemy.exc import OperationalError
 
 from app.backend.acquisition.registry import PaperRef
 from app.backend.persistence.database import make_engine
+from integrations.api_cache import put_cached
 from integrations.openalex import OpenAlexClient
-from integrations.openalex.adapter import _store_cache
+from integrations.openalex.adapter import OPENALEX_PROVIDER
 
 
 def _work(oa_status, *, version="publishedVersion", pdf_url="https://example.org/x.pdf", license_="cc-by"):
@@ -117,8 +118,9 @@ def test_cache_write_lock_is_nonfatal():
                 return _Result()
             raise OperationalError("INSERT", (), sqlite3.OperationalError("database is locked"))
 
-    _store_cache(
+    put_cached(
         _LockedConn(),
+        OPENALEX_PROVIDER,
         "work:W1",
         request_json={"work_id": "W1"},
         response_json={"id": "https://openalex.org/W1"},

@@ -14,11 +14,11 @@ from typing import Any, Protocol
 from urllib.parse import quote
 
 import httpx
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
 from app.backend.app_settings import resolved_mailto
-from integrations.api_cache import get_cached, put_cached
+from integrations.api_cache import get_cached, put_cached, put_cached_committing
 
 OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
@@ -59,10 +59,23 @@ class OpenAlexClient:
         fetcher: OpenAlexFetcher | None = None,
         mailto: str | None = None,
         timeout: float = 10.0,
+        cache_engine: Engine | None = None,
     ) -> None:
         self.fetcher = fetcher or _httpx_fetcher
         self.mailto = mailto or resolved_mailto("CALLOSUM_OPENALEX_MAILTO")  # UI contact email overlays the env var
         self.timeout = timeout
+        # inc D: when set (fetch-outside-lock jobs — gap-finder / my-publications), cache writes self-commit in
+        # their own short transaction instead of the caller's conn, so a long fetch phase never holds the write
+        # lock. Default None → the usual conn-based cache (every per-item B/C caller is untouched).
+        self.cache_engine = cache_engine
+
+    def _store(self, conn: Connection, cache_key: str, **cache_fields: Any) -> None:
+        """Cache a provider response (``cache_fields`` = request_json / response_json / status_code). Self-commits
+        in its own transaction when ``cache_engine`` is set (fetch-outside-lock jobs), else writes via ``conn``."""
+        if self.cache_engine is not None:
+            put_cached_committing(self.cache_engine, OPENALEX_PROVIDER, cache_key, **cache_fields)
+        else:
+            put_cached(conn, OPENALEX_PROVIDER, cache_key, **cache_fields)
 
     def lookup_best_oa(self, conn: Connection, ref: PaperRef) -> OaLocation | None:
         """Resolve a paper to the best authorized open-access PDF location OpenAlex knows, or None."""
@@ -103,7 +116,7 @@ class OpenAlexClient:
                 f"/{work_id}", params=self._polite_params(), headers=self._headers(), timeout=self.timeout
             )
         except Exception:
-            _store_cache(
+            self._store(
                 conn,
                 cache_key,
                 request_json={"work_id": work_id},
@@ -111,7 +124,7 @@ class OpenAlexClient:
                 status_code=None,
             )
             return None
-        _store_cache(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
+        self._store(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
         if status != 200 or not isinstance(body, dict):
             return None
         return _meta_from_work(body)
@@ -153,7 +166,7 @@ class OpenAlexClient:
                     timeout=self.timeout,
                 )
             except Exception:
-                _store_cache(
+                self._store(
                     conn,
                     cache_key,
                     request_json={"work_id": work_id},
@@ -161,7 +174,7 @@ class OpenAlexClient:
                     status_code=None,
                 )
                 return []
-            _store_cache(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
+            self._store(conn, cache_key, request_json={"work_id": work_id}, response_json=body, status_code=status)
             if status != 200:
                 body = None
         if not isinstance(body, dict):
@@ -198,7 +211,7 @@ class OpenAlexClient:
                 timeout=self.timeout,
             )
         except Exception:
-            _store_cache(
+            self._store(
                 conn,
                 cache_key,
                 request_json={"topic_id": topic_id},
@@ -206,7 +219,7 @@ class OpenAlexClient:
                 status_code=None,
             )
             return None
-        _store_cache(conn, cache_key, request_json={"topic_id": topic_id}, response_json=body, status_code=status)
+        self._store(conn, cache_key, request_json={"topic_id": topic_id}, response_json=body, status_code=status)
         return body if status == 200 else None
 
     def fetch_field_sample(self, conn: Connection, topic_id: str, *, size: int = 200) -> list[dict[str, Any]]:
@@ -253,7 +266,7 @@ class OpenAlexClient:
                     timeout=self.timeout,
                 )
             except Exception:
-                _store_cache(
+                self._store(
                     conn,
                     cache_key,
                     request_json={"ids": valid},
@@ -261,7 +274,7 @@ class OpenAlexClient:
                     status_code=None,
                 )
                 return []
-            _store_cache(conn, cache_key, request_json={"ids": valid}, response_json=body, status_code=status)
+            self._store(conn, cache_key, request_json={"ids": valid}, response_json=body, status_code=status)
             if status != 200:
                 body = None
         if not isinstance(body, dict):
@@ -303,7 +316,7 @@ class OpenAlexClient:
                 path, params={**params, **self._polite_params()}, headers=self._headers(), timeout=self.timeout
             )
         except Exception as exc:  # fail closed — never raise to the caller
-            _store_cache(
+            self._store(
                 conn,
                 cache_key,
                 request_json={"path": path, "params": params},
@@ -311,7 +324,7 @@ class OpenAlexClient:
                 status_code=None,
             )
             return None
-        _store_cache(
+        self._store(
             conn, cache_key, request_json={"path": path, "params": params}, response_json=body, status_code=status
         )
         if status != 200 or not isinstance(body, dict):
@@ -572,21 +585,3 @@ def _pick_pdf_location(work: dict[str, Any]) -> dict[str, Any] | None:
 
 def _cached_response(conn: Connection, cache_key: str):
     return get_cached(conn, OPENALEX_PROVIDER, cache_key)
-
-
-def _store_cache(
-    conn: Connection,
-    cache_key: str,
-    *,
-    request_json: dict[str, Any],
-    response_json: dict[str, Any] | None,
-    status_code: int | None,
-) -> None:
-    put_cached(
-        conn,
-        OPENALEX_PROVIDER,
-        cache_key,
-        request_json=request_json,
-        response_json=response_json,
-        status_code=status_code,
-    )

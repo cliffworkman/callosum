@@ -9,12 +9,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import Connection, select
+from sqlalchemy import Connection, Engine, select
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.exc import OperationalError
 
 from app.backend.persistence.schema import external_api_cache
-from app.backend.persistence.sqlite_retry import is_sqlite_locked, retry_sqlite_locked
+from app.backend.persistence.sqlite_retry import is_sqlite_locked, retry_sqlite_locked, run_write
 
 
 def get_cached(conn: Connection, provider: str, cache_key: str):
@@ -55,6 +55,36 @@ def put_cached(
     except OperationalError as exc:
         # Cache writes are best-effort. A transient SQLite writer lock should not fail the feature that already has
         # the provider response in hand.
+        if is_sqlite_locked(exc):
+            return
+        raise
+
+
+def put_cached_committing(
+    engine: Engine,
+    provider: str,
+    cache_key: str,
+    *,
+    request_json: dict[str, Any],
+    response_json: dict[str, Any] | None,
+    status_code: int | None,
+) -> None:
+    """Like ``put_cached``, but self-commits in its OWN short transaction (inc D). For callers running their fetch
+    phase on a read connection (gap-finder / my-publications) so caching a provider response never holds the
+    caller's write lock. Best-effort: a transient writer lock is swallowed (the caller already has the response)."""
+    try:
+        run_write(
+            engine,
+            lambda conn: _put_cached_once(
+                conn,
+                provider,
+                cache_key,
+                request_json=request_json,
+                response_json=response_json,
+                status_code=status_code,
+            ),
+        )
+    except OperationalError as exc:
         if is_sqlite_locked(exc):
             return
         raise
