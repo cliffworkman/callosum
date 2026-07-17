@@ -75,6 +75,24 @@ class SectionTracker:
             self.current_section = heading.key
         return heading
 
+    def observe_block(self, block_text: str) -> bool:
+        """Scan a PyMuPDF text block line-by-line for a section heading.
+
+        PyMuPDF frequently merges a heading with the following body into one block, so the whole
+        block rarely has heading shape (it is long / ends with a period); the heading is usually the
+        block's first line. Update the active section from the first heading line found, and report
+        whether the block is *only* that heading — so the caller skips emitting a pure heading as its
+        own chunk while still labeling merged heading+body blocks with the section they open.
+        """
+        lines = [line for line in block_text.split("\n") if line.strip()]
+        heading: SectionHeading | None = None
+        for line in lines:
+            heading = detect_section_heading(line)
+            if heading is not None:
+                self.current_section = heading.key
+                break
+        return heading is not None and len(lines) == 1
+
 
 def detect_section_heading(text: str) -> SectionHeading | None:
     """Return a recognized section heading, or None for ordinary prose."""

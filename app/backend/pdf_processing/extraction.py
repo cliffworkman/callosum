@@ -18,7 +18,9 @@ from app.backend.pdf_processing.sections import SectionTracker
 
 COORDINATE_SYSTEM = "pdf-points-top-left"
 EXTRACTION_TOOL = "pymupdf"
-DEFAULT_CHUNKING_STRATEGY = "pymupdf-block-v1"
+# v2 (inc 283): section labels are now detected per line, so chunk output changed materially; the bump
+# makes pre-section chunks read as stale_chunk_version (text-health) instead of masquerading as current.
+DEFAULT_CHUNKING_STRATEGY = "pymupdf-block-v2"
 SOFT_HYPHEN = "\u00ad"
 HYPHEN_BREAK_CHARS = "-\u00ad\u2010\u2011\u2012\u2013\u2014\u2212"
 DASH_EQUIVALENTS = {
@@ -217,7 +219,7 @@ def make_chunk_drafts(
             text = _normalize_space(block.text)
             if not text:
                 continue
-            if section_tracker.observe(block.text) is not None:
+            if section_tracker.observe_block(block.text):
                 continue
 
             char_start = cursor

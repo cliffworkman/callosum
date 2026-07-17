@@ -162,6 +162,40 @@ def test_section_heading_detection_is_conservative() -> None:
     assert tracker.current_section == "abstract"
 
 
+def test_observe_block_labels_merged_heading_and_body() -> None:
+    # The common PyMuPDF case: a heading is merged with its following body into one block. The whole
+    # block is not heading-shaped, but its first line is — the section must still be picked up, and the
+    # block must NOT be skipped (skipping it would drop the body text).
+    tracker = SectionTracker()
+    skip = tracker.observe_block("Methods\nParticipants were recruited from the community.")
+    assert tracker.current_section == "methods"
+    assert skip is False
+
+    # A pure single-line heading block is skipped (not emitted as a chunk) and advances the section.
+    assert tracker.observe_block("Results") is True
+    assert tracker.current_section == "results"
+
+    # A block with no heading leaves the section unchanged and is emitted.
+    assert tracker.observe_block("We then computed the correlation between the two measures.") is False
+    assert tracker.current_section == "results"
+
+    # A heading that is not the first line (e.g. after a running-header line) is still detected.
+    later = SectionTracker()
+    assert later.observe_block("Neuropsychopharmacology\nDISCUSSION\nOur findings suggest") is False
+    assert later.current_section == "discussion"
+
+    # A body sentence that superficially resembles a heading (trailing period) is not one.
+    prose = SectionTracker()
+    assert prose.observe_block("The results were analyzed with a mixed-effects model.") is False
+    assert prose.current_section is None
+
+
+def test_default_chunking_strategy_bumped_for_section_detection() -> None:
+    # Section detection changed chunk output materially (inc 283); the version bump is what lets
+    # text-health flag pre-section chunks as stale instead of masquerading as current.
+    assert DEFAULT_CHUNKING_STRATEGY == "pymupdf-block-v2"
+
+
 def test_section_headings_are_attached_to_following_chunks(tmp_path: Path) -> None:
     pdf_path = _make_sectioned_pdf(tmp_path / "sectioned.pdf")
     chunks = make_chunk_drafts(extract_pdf(pdf_path), source_attachment_checksum=file_sha256(pdf_path))
@@ -320,7 +354,7 @@ def test_changed_chunking_strategy_changes_chunk_version(tmp_path: Path) -> None
     alternate_chunks = make_chunk_drafts(
         extraction,
         source_attachment_checksum=checksum,
-        chunking_strategy="pymupdf-block-v2",
+        chunking_strategy="pymupdf-block-alt",
     )
 
     assert default_chunks

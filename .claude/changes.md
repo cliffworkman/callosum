@@ -10,6 +10,13 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 280 (workspaces nav: "Finding your way around" rewritten for the menu bar; the 4 moved-section locations [Journals/Funding→Discover, Effect-size/Meta→Extract] + the sidebar-gear reference fixed). -->
+## 2026-07-17 — Increment 283: PDF text-health — fix "missing section labels" (per-line detection + honest staleness)
+- **Files:** `app/backend/pdf_processing/sections.py`, `app/backend/pdf_processing/extraction.py`, `tests/test_pdf_processing.py`, increment notes.
+- **What:** Text Health flagged 101/102 papers as *missing section labels* with a misleading *0 stale extraction*. Root cause: the whole library was extracted **before** section detection landed (commit `91ed1ae`), so 100% of chunks had `section = NULL` — and because that commit never bumped `DEFAULT_CHUNKING_STRATEGY`, the stale check saw those chunks as current. Fix: (A) `SectionTracker.observe_block` scans blocks **per line** so headings PyMuPDF merged with body text are caught (`observe`/`detect_section_heading` unchanged); (B) bumped the strategy to `pymupdf-block-v2` so pre-section chunks honestly read as `stale_chunk_version`. The existing **Reprocess missing section labels** job then backfills (re-extract + re-embed).
+- **Why:** section labels feed section-scoped summarization, statcheck section context, and citation metadata — all silently degraded by a 100%-NULL library. Measured: papers with zero sections **13/108 (12%) → 0/107**; 82.4% mean chunk coverage, 5.0 sections/paper.
+- **Verify:** `tests/test_pdf_processing.py` 22 passed (2 new; fixed one that used `v2` as its arbitrary alternate → `pymupdf-block-alt`); full suite green; ruff (both gates) + line-budget + QA-surface (0 uncovered) clean. Help corpus already accurate (no edit). **User step:** click Reprocess in Text Health to backfill the existing library.
+- **Revert:** restore the 3 files from git (branch `feature/pdf-section-labels`).
+
 ## 2026-07-17 — Increment 282: credit-the-lineage backfill — the overlooked-work lens (#8 complete)
 - **Files:** `app/frontend/js/36b_overlooked.jsx`, `callosum-app.html`, `tests/test_frontend_assembly.py`, docs.
 - **What:** the overlooked-work lens (#37) operationalizes the Matthew effect (Merton 1968) but credited it only in prose; added the shared `.method-credit` affordance — source paper in-context + one-click **add to library** (`/library/import`), matching statcheck/GRIM/p-curve/etc.
