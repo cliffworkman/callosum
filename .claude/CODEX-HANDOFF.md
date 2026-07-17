@@ -131,3 +131,27 @@ Codex session summary update — Task 2 — 2026-07-17
 - **Unverified/partial:** visual placement is **UNVERIFIED** in-browser. Static/build/test coverage confirms the
   source and rebuilt artifact, but Opus should eyeball the banner above the Library tabs on desktop/mobile.
 - **Blockers:** none. Pre-existing untracked files remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Codex session summary update — Increment 285 — 2026-07-17
+
+- **Branch:** `feature/workspaces-ux-polish`
+- **Commits:** this increment's final commit is `feat: move discovery tools into search` on top of the earlier
+  workspace-polish commits.
+- **Done:** moved **Wanted**, **Gaps**, and **Overlooked** out of the Library header and into **Discover → Search** as
+  primary buttons immediately after Search, preserving the existing app-level modals. Removed the standalone Discover
+  **Feed** tab and embedded Feed below the Search contents/results. Updated the one-time layout notice, help corpus,
+  DESIGN note, QA route, frontend assembly guard, increment notes, and rebuilt `callosum-app.html`.
+- **Files:** `app/frontend/js/{04b_workspaces,09_placeholders,10_pdf_layer,30c_frame,30d_discover,30e_feed,40_app}.jsx`,
+  `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `app/backend/help/help_content.md`,
+  `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `.claude/docs/increment-notes/INCREMENT-285-NOTES.md`,
+  `.claude/changes.md`, this handoff.
+- **Verification:** `python tools/build_frontend.py` rebuilt `callosum-app.html`; `python -m pytest
+  tests/test_frontend_assembly.py tests/test_help.py` **35 passed**; `python tools/qa/build_surface_map.py check`
+  reported **245/245 API** and **1143/1143 FE** covered; final `python -m pytest` **1237 passed / 1 skipped** in
+  20:38 on the formatted tree; `ruff check .` passed; `ruff format --check .` passed (`464 files already formatted`);
+  `python tools/check_line_budget.py` passed (`all 342 application-source files within the 600-line cap`).
+- **Visual check:** Playwright desktop (`1440x1000`) confirmed Library no longer has Wanted/Gaps/Overlooked; Discover
+  has Search/Journals/Funding only; Search shows Search/Wanted/Gaps/Overlooked as matching primary buttons; Feed is
+  below Search. Playwright narrow (`390x844`) confirmed the action row wraps cleanly and Feed remains below Search.
+- **Pending:** none after this commit is pushed.
+- **Blockers:** none. Pre-existing untracked files remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.

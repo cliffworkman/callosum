@@ -1655,6 +1655,7 @@
   }
   .discover-inlib { font-family: var(--sans); font-size: 11.5px; font-weight: 600; color: var(--verified); }
   .discover-abstract { margin-top: 8px; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); font-family: var(--sans); }
+  .discover-feed-embedded { border-top: 1px solid var(--line); margin-top: 8px; }
 
   /* ---- Feed tab (inc 188) — reuses the .discover-item row recipe; tokens only ---- */
   .feed-subs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 8px; }
@@ -3753,14 +3754,16 @@
     label: "Search",
     order: 10,
     hideInReadOnly: true,
-    render: (ctx) => /* @__PURE__ */ React.createElement(DiscoverPane, { onSaved: ctx.onDiscoverSaved })
-  });
-  registerWorkspaceTab({ id: "discover" }, {
-    id: "feed",
-    label: "Feed",
-    order: 20,
-    hideInReadOnly: true,
-    render: (ctx, active) => /* @__PURE__ */ React.createElement(FeedPane, { onSaved: ctx.onDiscoverSaved, active })
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(
+      DiscoverPane,
+      {
+        onSaved: ctx.onDiscoverSaved,
+        active,
+        onOpenWanted: ctx.onOpenWanted,
+        onOpenGaps: ctx.onOpenGaps,
+        onOpenOverlooked: ctx.onOpenOverlooked
+      }
+    )
   });
   registerWorkspaceTab({ id: "extract" }, {
     id: "workbench",
@@ -7254,9 +7257,6 @@
     onPurge,
     onEmptyTrash,
     onFindDuplicates,
-    onOpenWanted,
-    onOpenGaps,
-    onOpenOverlooked,
     onOpenScan,
     onOpenImport,
     onOpenImportBundle,
@@ -7341,7 +7341,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked"), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), !trashView && /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), !trashView && /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -11593,7 +11593,7 @@
       setDismissed(true);
       _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Where to submit"), " + ", /* @__PURE__ */ React.createElement("b", null, "Funding"), " are now under ", /* @__PURE__ */ React.createElement("b", null, "Discover"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "; ", /* @__PURE__ */ React.createElement("b", null, "Help"), " + ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " are on the menu bar."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Where to submit"), " + ", /* @__PURE__ */ React.createElement("b", null, "Funding"), " under ", /* @__PURE__ */ React.createElement("b", null, "Discover"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "; ", /* @__PURE__ */ React.createElement("b", null, "Help"), " + ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " are on the menu bar."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
   function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
@@ -11645,7 +11645,7 @@
       }
     ))));
   }
-  function DiscoverPane({ onSaved }) {
+  function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked }) {
     const [q, setQ] = useState("");
     const [status, setStatus] = useState("idle");
     const [items, setItems] = useState([]);
@@ -11744,7 +11744,7 @@
         autoFocus: true,
         placeholder: "Search the literature (Crossref) \u2014 title, author, keywords\u2026"
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: runSearch, disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 the complete list is shown (nothing filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: runSearch, disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search"), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 the complete list is shown (nothing filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: it.dedup_key,
@@ -11771,9 +11771,9 @@
         toggleExpand(it.dedup_key);
       } }, expanded.has(it.dedup_key) ? "Hide abstract" : "Abstract") : null),
       expanded.has(it.dedup_key) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null
-    ))));
+    )), /* @__PURE__ */ React.createElement(FeedPane, { onSaved, active, embedded: true })));
   }
-  function FeedPane({ onSaved, active }) {
+  function FeedPane({ onSaved, active, embedded }) {
     const [subs, setSubs] = useState([]);
     const [sourceMeta, setSourceMeta] = useState([]);
     const [selKind, setSelKind] = useState("");
@@ -11898,7 +11898,7 @@
         return n;
       });
     }, []);
-    return /* @__PURE__ */ React.createElement("div", { className: "discover feed" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, subs.map((s) => {
+    return /* @__PURE__ */ React.createElement("div", { className: embedded ? "feed discover-feed-embedded" : "discover feed" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "feed-subs" }, subs.map((s) => {
       const meta = sourceMeta.find((m) => m.kind === s.kind);
       const tag = (meta ? meta.label : s.kind).split(" ")[0];
       return /* @__PURE__ */ React.createElement("span", { key: s.id, className: "feed-sub", title: `${meta ? meta.label : s.kind} \xB7 ${s.value}` }, /* @__PURE__ */ React.createElement("span", { className: "feed-sub-kind" }, tag), s.label || s.value, /* @__PURE__ */ React.createElement("button", { className: "feed-sub-x", title: "Unfollow", onClick: () => unfollow(s.id) }, "\xD7"));
@@ -14167,6 +14167,9 @@
     };
     const workspaceCtx = {
       onDiscoverSaved: () => setLibRefresh((n) => n + 1),
+      onOpenWanted: () => setWantedOpen(true),
+      onOpenGaps: () => setGapsOpen(true),
+      onOpenOverlooked: () => setOverlookedOpen(true),
       onOpenPdf: openPdf,
       onOpenPaper: openPdf,
       selectedPaper: selected,
@@ -14191,11 +14194,8 @@
           onSaveFocus: saveFocus,
           onCancelFocus: cancelFocus,
           onFindDuplicates: () => setDuplicatesOpen(true),
-          onOpenWanted: () => setWantedOpen(true),
           onOpenTextHealth: () => openTextHealth(),
           onOpenReferenceWarnings: openReferenceWarnings,
-          onOpenGaps: () => setGapsOpen(true),
-          onOpenOverlooked: () => setOverlookedOpen(true),
           onOpenScan: () => setScanOpen(true),
           onOpenImport: () => setImportOpen(true),
           onOpenImportBundle: () => setBundleImportOpen(true),

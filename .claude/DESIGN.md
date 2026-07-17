@@ -323,7 +323,8 @@ by implementation detail or whether the tool uses AI.
 1. **Workspaces are modes of work in the center pane** — *what the user is doing right now*. The menu bar inside the
    center Library pane switches between **Profile / Library / Discover / Extract**, plus right-aligned **Help /
    Settings** utilities. Outward-facing, generative, cross-paper, or wide-output tools belong here: Discover holds
-   Search, Feed, Journals, and Funding; Extract holds Workbench, Effect-size, and Meta-analysis; Profile holds the
+   Search (including Feed plus Wanted/Gaps/Overlooked launchers), Journals, and Funding; Extract holds Workbench,
+   Effect-size, and Meta-analysis; Profile holds the
    user's publication dashboard. Open PDFs remain **Library** sub-tabs.
 2. **The THEORY and METHODS side accordions are lenses on the selected paper** — *how the user is evaluating or
    interpreting the current paper*. The left THEORY pane holds literature-understanding lenses such as Axes, Tags,

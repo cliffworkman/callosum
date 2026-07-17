@@ -18,7 +18,7 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **Profile** (your publications + impact), **Library** (your collection + open PDFs), **Discover** (Search · Feed · Journals · Funding), and **Extract** (the meta-analysis workspace: Workbench · Effect-size · Meta-analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Menu bar (top of the center pane):** switch between **Profile** (your publications + impact), **Library** (your collection + open PDFs), **Discover** (Search, Feed, Wanted, Gaps, Overlooked, Journals, Funding), and **Extract** (the meta-analysis workspace: Workbench · Effect-size · Meta-analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), **Synthesis**, **Cite**, and the review/authoring sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
@@ -441,7 +441,7 @@ What Callosum does and doesn't do here: it **only builds a link and opens it in 
 
 <!-- section: wanted-list -->
 ## Wanted list & re-checking for copies
-The wanted list tracks papers you want an open-access copy of, so Callosum can keep looking for one. Open it from the **Wanted** button at the top of the library.
+The wanted list tracks papers you want an open-access copy of, so Callosum can keep looking for one. Open it from **Discover → Search → Wanted**.
 
 It holds two kinds of entries:
 
@@ -999,7 +999,7 @@ Gotcha: a merge composes the surviving record from the choices you make in the d
 
 <!-- section: finding-gaps -->
 ## Finding gaps in your library
-The **Gaps** button (in the library header) finds works **related to several of your papers** that aren't in your library yet — in two directions you can toggle between:
+The **Gaps** button in **Discover → Search** finds works **related to several of your papers** that aren't in your library yet — in two directions you can toggle between:
 
 - **Works you cite** (backward): works that **several of your papers cite** but you don't have — often the foundational references your collection leans on.
 - **Works citing you** (forward): newer works that **cite several of your papers** but you don't have — recent work building on your collection.
@@ -1012,7 +1012,7 @@ After a Refresh it tells you how many papers it scanned ("scanned M of N — the
 
 <!-- section: overlooked-lens -->
 ## Finding work the field overlooked
-The **Overlooked** button (in the library header, next to **Gaps**) looks, **per axis**, for external works that are **relevant to that axis but under-cited for their year** — work you may be missing because the field overlooked it, not because it's weak. (This is different from the **Find overlooked work** action on a single paper's citation-concentration audit, which is about that one reference list's omissions; this one is a library-wide discovery lens tied to an axis.)
+The **Overlooked** button in **Discover → Search** looks, **per axis**, for external works that are **relevant to that axis but under-cited for their year** — work you may be missing because the field overlooked it, not because it's weak. (This is different from the **Find overlooked work** action on a single paper's citation-concentration audit, which is about that one reference list's omissions; this one is a library-wide discovery lens tied to an axis.)
 
 Choose an **axis**, then click **Refresh** to scan (via OpenAlex for that axis's topic). Each candidate shows **two separate signals, side by side — never blended into one score**:
 
@@ -1119,7 +1119,7 @@ The panel credits the standard it follows — the **CRediT / NISO taxonomy** (Br
 
 <!-- section: discover-search -->
 ## Finding new papers (Discover)
-The **Discover** tab (beside **Library** in the center) searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
+The **Discover → Search** tab searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
 
 Type a query and press **Enter** (or **Search**). Results come back as a dense list you can triage fast:
 
@@ -1130,7 +1130,7 @@ Type a query and press **Enter** (or **Search**). Results come back as a dense l
 
 <!-- section: following-sources-feed -->
 ## Following sources (Feed)
-The **Feed** tab (beside Discover) is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
+The **Feed** section below **Discover → Search** is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
 
 To use it:
 

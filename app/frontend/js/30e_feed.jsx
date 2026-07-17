@@ -3,7 +3,7 @@
 // AI never filters: the complete polled list is shown; read/starred are the user's own state. Save is metadata-only
 // (reuses /discovery/save; no PDF). Function declarations hoist in the IIFE, so 30c_frame references this.
 
-function FeedPane({ onSaved, active }) {
+function FeedPane({ onSaved, active, embedded }) {
   const [subs, setSubs] = useState([]);
   const [sourceMeta, setSourceMeta] = useState([]); // [{kind,label,placeholder,suggestions}] — drives the Follow picker
   const [selKind, setSelKind] = useState("");
@@ -123,7 +123,7 @@ function FeedPane({ onSaved, active }) {
   }, []);
 
   return (
-    <div className="discover feed">
+    <div className={embedded ? "feed discover-feed-embedded" : "discover feed"}>
       <div className="pane-head">
         <div className="feed-subs">
           {subs.map(s => {

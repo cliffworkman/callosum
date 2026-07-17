@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 285 (Discover Search now owns Wanted/Gaps/Overlooked launchers; Feed is embedded below Search). -->
+## 2026-07-17 — Increment 285: Discover Search owns discovery launchers + Feed
+- **Files:** `app/frontend/js/{04b_workspaces,30d_discover,30e_feed,10_pdf_layer,40_app}.jsx`, `app/frontend/js/{09_placeholders,30c_frame}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, help/design/QA/docs.
+- **What:** moved **Wanted**, **Gaps**, and **Overlooked** out of the Library header and into **Discover → Search** as primary buttons immediately after Search, preserving their existing modal flows. Removed the standalone Discover **Feed** sub-tab and embedded Feed beneath the Search contents/results.
+- **Why:** keeps outward-facing literature discovery tools together under Discover while reducing Library header sprawl and making Feed part of the Search surface instead of a sibling mode.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py` **35 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; Playwright desktop + narrow checks passed; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 284: one-time workspace "what moved" hint
 - **Files:** `app/frontend/js/30c_frame.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_73_workspaces.md`, docs.
 - **What:** added a dismissible one-time neutral Library banner for returning users: "Where to submit" + Funding now live under Discover; Effect-size + Meta-analysis under Extract; Help + Settings are on the menu bar. Dismissal persists via `callosum.workspaces-whatsnew=1`; the banner is hidden on read-only companions.
@@ -23,7 +31,6 @@ are the design diary; this is the chronological "what & why" record.
 - **Verify:** static read against `04b_workspaces.jsx` + `05_panes.jsx`; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
 - **Revert:** restore `.claude/DESIGN.md` and remove `.claude/docs/increment-notes/INCREMENT-283-NOTES.md` from git.
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 280 (workspaces nav: "Finding your way around" rewritten for the menu bar; the 4 moved-section locations [Journals/Funding→Discover, Effect-size/Meta→Extract] + the sidebar-gear reference fixed). -->
 ## 2026-07-17 — Increment 282: credit-the-lineage backfill — the overlooked-work lens (#8 complete)
 - **Files:** `app/frontend/js/36b_overlooked.jsx`, `callosum-app.html`, `tests/test_frontend_assembly.py`, docs.
 - **What:** the overlooked-work lens (#37) operationalizes the Matthew effect (Merton 1968) but credited it only in prose; added the shared `.method-credit` affordance — source paper in-context + one-click **add to library** (`/library/import`), matching statcheck/GRIM/p-curve/etc.

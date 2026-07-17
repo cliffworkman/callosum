@@ -1,5 +1,5 @@
 <!-- qa-coverage
-fe: 04b_workspaces.jsx, 30c_frame.jsx
+fe: 04b_workspaces.jsx, 10_pdf_layer.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx
 -->
 
 # ROUTE 73 - Workspaces menu bar (two-level center navigation)
@@ -7,9 +7,9 @@ fe: 04b_workspaces.jsx, 30c_frame.jsx
 **Tier:** 1 local-stateful (no egress of its own)
 **Goal:** Exercise the inc-280 menu bar — the second nav dimension inside the center (Library) pane — and prove it
 switches workspaces cleanly, keeps the three panes separate + full-height, nests open PDFs under Library, and that
-the relocated tools (Journals/Funding under Discover; Effect-size/Meta-analysis under Extract; Help/Settings as
-utility views) work in their new homes. Also covers the inc-284 one-time Library hint that tells returning users
-where those relocated tools moved. Pure client navigation; no new API surface.
+the relocated tools (Wanted/Gaps/Overlooked/Search/Feed/Journals/Funding under Discover; Effect-size/Meta-analysis
+under Extract; Help/Settings as utility views) work in their new homes. Also covers the inc-284 one-time Library
+hint that tells returning users where those relocated tools moved. Pure client navigation; no new API surface.
 
 ## Environment
 
@@ -47,8 +47,11 @@ navigation. Run once read-write; note the read-only companion behavior (write wo
    **Help · Settings** right. Library is active by default; the left/right accordions are present + full height.
    Confirm the Library workspace shows the one-time "New layout" banner pointing Journals/Funding to Discover,
    Effect-size/Meta-analysis to Extract, and Help/Settings to the menu bar.
-2. **Discover** → confirm four sub-tabs **Search · Feed · Journals · Funding**. Select a paper first, then open
-   **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode when nothing is selected).
+2. **Discover** → confirm three sub-tabs **Search · Journals · Funding**. In **Search**, confirm the search row has
+   **Search**, **Wanted**, **Gaps**, and **Overlooked** buttons styled identically; click each discovery button and
+   confirm it opens its existing modal. Confirm **Feed** appears below the Search results area, not as its own sub-tab.
+   Select a paper first, then open **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode
+   when nothing is selected).
 3. **Extract** → confirm three sub-tabs **Workbench · Effect-size · Meta-analysis**. **Meta-analysis** with a paper
    selected runs its per-paper audit + a source link opens the PDF (the `onOpenPaper` + active-check adapter).
 4. **Profile** → the impact dashboard renders (the axis-card 📊 also lands here).
@@ -62,7 +65,8 @@ navigation. Run once read-write; note the read-only companion behavior (write wo
 ## Pass criteria
 
 - All six workspaces switch cleanly; 0 console/page errors; the three panes stay separate + full-height throughout.
-- Relocated tools work in their new homes (Journals/Funding read the selection; Meta opens the PDF; Effect-size runs).
+- Relocated tools work in their new homes (Wanted/Gaps/Overlooked open from Discover Search; Feed appears below
+  Search results; Journals/Funding read the selection; Meta opens the PDF; Effect-size runs).
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Open PDFs nest under Library + persist; the active workspace persists across reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Extract capture round-trips.

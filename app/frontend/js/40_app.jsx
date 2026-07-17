@@ -219,6 +219,9 @@ function App() {
   // onDiscoverSaved; Extract: Workbench via the capture trio + onOpenPdf).
   const workspaceCtx = {
     onDiscoverSaved: () => setLibRefresh(n => n + 1),
+    onOpenWanted: () => setWantedOpen(true),
+    onOpenGaps: () => setGapsOpen(true),
+    onOpenOverlooked: () => setOverlookedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
     selectedPaper: selected,  // Journals/Funding/Meta (relocated from THEORY/METHODS) read the app-level selection
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
@@ -244,11 +247,8 @@ function App() {
             focusAxis, focusMembers, focusPending,
             onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
             onFindDuplicates: () => setDuplicatesOpen(true),
-            onOpenWanted: () => setWantedOpen(true),
             onOpenTextHealth: () => openTextHealth(),
             onOpenReferenceWarnings: openReferenceWarnings,
-            onOpenGaps: () => setGapsOpen(true),
-            onOpenOverlooked: () => setOverlookedOpen(true),
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
             onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
           }}
