@@ -11,12 +11,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.discovery.relevance import score_axis_relevance
 from app.backend.discovery.search import run_search, save_item
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -81,16 +82,17 @@ def discovery_relevance(
 
 
 @router.post("/discovery/save")
-def discovery_save(payload: SaveRequest, conn: Connection = Depends(get_connection)) -> dict[str, Any]:
-    result = save_item(
-        conn,
-        title=payload.title.strip(),
-        doi=payload.doi,
-        abstract=payload.abstract,
-        authors=payload.authors,
-        journal=payload.journal,
-        year=payload.year,
-        url=payload.url,
-    )
-    conn.commit()
-    return result
+def discovery_save(payload: SaveRequest, engine: Engine = Depends(get_engine)) -> dict[str, Any]:
+    def _do(conn: Connection) -> dict[str, Any]:
+        return save_item(
+            conn,
+            title=payload.title.strip(),
+            doi=payload.doi,
+            abstract=payload.abstract,
+            authors=payload.authors,
+            journal=payload.journal,
+            year=payload.year,
+            url=payload.url,
+        )
+
+    return run_write(engine, _do)

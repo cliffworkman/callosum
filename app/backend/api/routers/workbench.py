@@ -19,16 +19,17 @@ import re
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from app.backend import workbench_assist as wa
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedExtractionAssistant
 from app.backend.llm.providers import ProviderError
 from app.backend.methods.effectsize import convert
 from app.backend.persistence import workbench_export as wx
 from app.backend.persistence import workbench_repo as wr
 from app.backend.persistence.repository import get_chunks_for_paper
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.gemini.extraction_assistant import GeminiExtractionAssistant
 from integrations.gemini.generator import GeminiConfig
 
@@ -148,12 +149,15 @@ def list_projects(conn: Connection = Depends(get_connection)) -> list[ProjectSum
 
 
 @router.post("/workbench/projects")
-def create_project(payload: ProjectCreate, conn: Connection = Depends(get_connection)) -> dict:
+def create_project(payload: ProjectCreate, engine: Engine = Depends(get_engine)) -> dict:
     if payload.design not in wr.DESIGNS:
         raise HTTPException(status_code=422, detail=f"Unknown design: {payload.design}")
-    pid = wr.create_project(conn, name=payload.name, design=payload.design)
-    conn.commit()
-    return _project_or_404(conn, pid)
+
+    def _do(conn: Connection) -> dict:
+        pid = wr.create_project(conn, name=payload.name, design=payload.design)
+        return _project_or_404(conn, pid)
+
+    return run_write(engine, _do)
 
 
 @router.get("/workbench/projects/{project_id}")
@@ -162,128 +166,145 @@ def get_project(project_id: int, conn: Connection = Depends(get_connection)) -> 
 
 
 @router.patch("/workbench/projects/{project_id}")
-def patch_project(project_id: int, payload: ProjectPatch, conn: Connection = Depends(get_connection)) -> dict:
-    project = wr.get_project(conn, project_id)
-    if project is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    template_json = None
-    if payload.template is not None:
-        _validate_template(project["design"], payload.template)
-        template_json = json.dumps(payload.template)
-    wr.update_project(
-        conn, project_id, name=payload.name, protocol_note=payload.protocol_note, template_json=template_json
-    )
-    conn.commit()
-    return _project_or_404(conn, project_id)
+def patch_project(project_id: int, payload: ProjectPatch, engine: Engine = Depends(get_engine)) -> dict:
+    def _do(conn: Connection) -> dict:
+        project = wr.get_project(conn, project_id)
+        if project is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        template_json = None
+        if payload.template is not None:
+            _validate_template(project["design"], payload.template)
+            template_json = json.dumps(payload.template)
+        wr.update_project(
+            conn, project_id, name=payload.name, protocol_note=payload.protocol_note, template_json=template_json
+        )
+        return _project_or_404(conn, project_id)
+
+    return run_write(engine, _do)
 
 
 @router.delete("/workbench/projects/{project_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if not wr.delete_project(conn, project_id):
-        raise HTTPException(status_code=404, detail="Project not found")
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_project(project_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if not wr.delete_project(conn, project_id):
+            raise HTTPException(status_code=404, detail="Project not found")
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 # --- rows ----------------------------------------------------------------------------------------------------------
 @router.post("/workbench/projects/{project_id}/rows")
-def add_row(project_id: int, payload: RowCreate, conn: Connection = Depends(get_connection)) -> dict:
-    if wr.get_project(conn, project_id) is None:
-        raise HTTPException(status_code=404, detail="Project not found")
-    if payload.paper_id is not None and not wr._paper_titles(conn, [payload.paper_id]):
-        raise HTTPException(status_code=404, detail="Paper not found")
-    wr.add_row(conn, project_id, paper_id=payload.paper_id, label=payload.label)
-    conn.commit()
-    return _project_or_404(conn, project_id)
+def add_row(project_id: int, payload: RowCreate, engine: Engine = Depends(get_engine)) -> dict:
+    def _do(conn: Connection) -> dict:
+        if wr.get_project(conn, project_id) is None:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if payload.paper_id is not None and not wr._paper_titles(conn, [payload.paper_id]):
+            raise HTTPException(status_code=404, detail="Paper not found")
+        wr.add_row(conn, project_id, paper_id=payload.paper_id, label=payload.label)
+        return _project_or_404(conn, project_id)
+
+    return run_write(engine, _do)
 
 
 @router.patch("/workbench/rows/{row_id}")
-def patch_row(row_id: int, payload: RowPatch, conn: Connection = Depends(get_connection)) -> dict:
-    _row_or_404(conn, row_id)
-    wr.update_row(conn, row_id, label=payload.label, paper_id=payload.paper_id, position=payload.position)
-    conn.commit()
-    return {"ok": True}
+def patch_row(row_id: int, payload: RowPatch, engine: Engine = Depends(get_engine)) -> dict:
+    def _do(conn: Connection) -> dict:
+        _row_or_404(conn, row_id)
+        wr.update_row(conn, row_id, label=payload.label, paper_id=payload.paper_id, position=payload.position)
+        return {"ok": True}
+
+    return run_write(engine, _do)
 
 
 @router.delete("/workbench/rows/{row_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def delete_row(row_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if not wr.delete_row(conn, row_id):
-        raise HTTPException(status_code=404, detail="Row not found")
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_row(row_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if not wr.delete_row(conn, row_id):
+            raise HTTPException(status_code=404, detail="Row not found")
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 # --- cells ---------------------------------------------------------------------------------------------------------
 @router.put("/workbench/rows/{row_id}/cells/{field_key}")
-def put_cell(row_id: int, field_key: str, payload: CellPut, conn: Connection = Depends(get_connection)) -> dict:
-    row = _row_or_404(conn, row_id)
-    project = wr.get_project(conn, row["project_id"])
-    template = json.loads(project["template_json"])
-    if field_key not in {f["key"] for f in template}:
-        raise HTTPException(status_code=422, detail="Field is not in this project's template.")
-    wr.upsert_cell(
-        conn,
-        row_id,
-        field_key,
-        value=payload.value,
-        page=payload.page,
-        quote=payload.quote,
-        bbox_json=payload.bbox_json,
-    )
-    # A hand-entered value is a fact, not a candidate: drop any live proposal for this field so a stale candidate
-    # can't later be accepted over the human's value (the funnel fills gaps, it never contests a human).
-    wr.delete_proposals_for_field(conn, row_id, field_key)
-    # A cell changed → the stored effect size is now stale; drop it so it must be re-converted (never silently stale).
-    wr.set_converted(conn, row_id, None)
-    conn.commit()
-    return {"ok": True}
+def put_cell(row_id: int, field_key: str, payload: CellPut, engine: Engine = Depends(get_engine)) -> dict:
+    def _do(conn: Connection) -> dict:
+        row = _row_or_404(conn, row_id)
+        project = wr.get_project(conn, row["project_id"])
+        template = json.loads(project["template_json"])
+        if field_key not in {f["key"] for f in template}:
+            raise HTTPException(status_code=422, detail="Field is not in this project's template.")
+        wr.upsert_cell(
+            conn,
+            row_id,
+            field_key,
+            value=payload.value,
+            page=payload.page,
+            quote=payload.quote,
+            bbox_json=payload.bbox_json,
+        )
+        # A hand-entered value is a fact, not a candidate: drop any live proposal for this field so a stale candidate
+        # can't later be accepted over the human's value (the funnel fills gaps, it never contests a human).
+        wr.delete_proposals_for_field(conn, row_id, field_key)
+        # A cell changed → the stored effect size is now stale; drop it so it's re-converted (never silently stale).
+        wr.set_converted(conn, row_id, None)
+        return {"ok": True}
+
+    return run_write(engine, _do)
 
 
 # --- convert (the SP1 hook) ----------------------------------------------------------------------------------------
 @router.post("/workbench/rows/{row_id}/convert")
-def convert_row(row_id: int, conn: Connection = Depends(get_connection)) -> dict:
-    row = _row_or_404(conn, row_id)
-    project = wr.get_project(conn, row["project_id"])
-    builder = wr.CONVERT_MAP.get(project["design"])
-    if builder is None:
-        raise HTTPException(status_code=422, detail="This design has no converter mapping.")
-    family, inputs = builder(wr.cell_values(conn, row_id))
-    try:
-        result = convert(family, inputs)
-    except (ValueError, KeyError, TypeError, ArithmeticError):
-        raise HTTPException(
-            status_code=422, detail="Fill the required fields with valid numbers before converting."
-        ) from None
-    conv = result.to_dict()
-    wr.set_converted(conn, row_id, json.dumps(conv))
-    conn.commit()
-    return conv
-
-
-@router.post("/workbench/projects/{project_id}/convert-all")
-def convert_all(project_id: int, conn: Connection = Depends(get_connection)) -> dict:
-    """Run the SP1 converter over every row (the dataset loop). A row with incomplete/invalid inputs is left
-    honestly un-converted and reported in ``incomplete`` — never a fabricated result. Still per-study only:
-    nothing is pooled, weighted, or aggregated across rows."""
-    view = _project_or_404(conn, project_id)
-    builder = wr.CONVERT_MAP.get(view["design"])
-    if builder is None:
-        raise HTTPException(status_code=422, detail="This design has no converter mapping.")
-    converted = 0
-    incomplete: list[dict] = []
-    for row in view["rows"]:
-        cell_vals = {k: (c or {}).get("value") for k, c in row["cells"].items()}
-        family, inputs = builder(cell_vals)
+def convert_row(row_id: int, engine: Engine = Depends(get_engine)) -> dict:
+    def _do(conn: Connection) -> dict:
+        row = _row_or_404(conn, row_id)
+        project = wr.get_project(conn, row["project_id"])
+        builder = wr.CONVERT_MAP.get(project["design"])
+        if builder is None:
+            raise HTTPException(status_code=422, detail="This design has no converter mapping.")
+        family, inputs = builder(wr.cell_values(conn, row_id))
         try:
             result = convert(family, inputs)
         except (ValueError, KeyError, TypeError, ArithmeticError):
-            wr.set_converted(conn, row["id"], None)  # leave it honestly un-converted, don't invent a number
-            incomplete.append({"row_id": row["id"], "label": row["label"] or row["paper_title"]})
-            continue
-        wr.set_converted(conn, row["id"], json.dumps(result.to_dict()))
-        converted += 1
-    conn.commit()
-    return {"total": len(view["rows"]), "converted": converted, "incomplete": incomplete}
+            raise HTTPException(
+                status_code=422, detail="Fill the required fields with valid numbers before converting."
+            ) from None
+        conv = result.to_dict()
+        wr.set_converted(conn, row_id, json.dumps(conv))
+        return conv
+
+    return run_write(engine, _do)
+
+
+@router.post("/workbench/projects/{project_id}/convert-all")
+def convert_all(project_id: int, engine: Engine = Depends(get_engine)) -> dict:
+    """Run the SP1 converter over every row (the dataset loop). A row with incomplete/invalid inputs is left
+    honestly un-converted and reported in ``incomplete`` — never a fabricated result. Still per-study only:
+    nothing is pooled, weighted, or aggregated across rows."""
+
+    def _do(conn: Connection) -> dict:
+        view = _project_or_404(conn, project_id)
+        builder = wr.CONVERT_MAP.get(view["design"])
+        if builder is None:
+            raise HTTPException(status_code=422, detail="This design has no converter mapping.")
+        converted = 0
+        incomplete: list[dict] = []
+        for row in view["rows"]:
+            cell_vals = {k: (c or {}).get("value") for k, c in row["cells"].items()}
+            family, inputs = builder(cell_vals)
+            try:
+                result = convert(family, inputs)
+            except (ValueError, KeyError, TypeError, ArithmeticError):
+                wr.set_converted(conn, row["id"], None)  # leave it honestly un-converted, don't invent a number
+                incomplete.append({"row_id": row["id"], "label": row["label"] or row["paper_title"]})
+                continue
+            wr.set_converted(conn, row["id"], json.dumps(result.to_dict()))
+            converted += 1
+        return {"total": len(view["rows"]), "converted": converted, "incomplete": incomplete}
+
+    return run_write(engine, _do)
 
 
 # --- export --------------------------------------------------------------------------------------------------------
@@ -341,39 +362,44 @@ def propose_row(row_id: int, request: Request, conn: Connection = Depends(get_co
 
 
 @router.post("/workbench/proposals/{proposal_id}/accept")
-def accept_proposal(proposal_id: int, payload: ProposalAccept, conn: Connection = Depends(get_connection)) -> dict:
+def accept_proposal(proposal_id: int, payload: ProposalAccept, engine: Engine = Depends(get_engine)) -> dict:
     """Promote a candidate into the trusted cell. Precision is derived from anchor_state (invariant #2): keep the
     exact bbox only when anchor_state == 'exact' AND the value wasn't overridden. Clears the stale g; deletes the
     proposal."""
-    prop = wr.get_proposal(conn, proposal_id)
-    if prop is None:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-    row = _row_or_404(conn, prop["row_id"])
-    edited = payload.value is not None
-    final_value = payload.value if edited else prop["value"]
-    keep_exact = prop["anchor_state"] == "exact" and not edited
-    wr.upsert_cell(
-        conn,
-        prop["row_id"],
-        prop["field_key"],
-        value=final_value,
-        page=prop["page"],
-        quote=prop["quote"],
-        bbox_json=prop["bbox_json"] if keep_exact else None,
-        origin="assisted",
-    )
-    wr.set_converted(conn, prop["row_id"], None)  # a new value invalidates the stale effect size (inc-256/258 rule)
-    wr.delete_proposal(conn, proposal_id)
-    conn.commit()
-    return _project_or_404(conn, row["project_id"])
+
+    def _do(conn: Connection) -> dict:
+        prop = wr.get_proposal(conn, proposal_id)
+        if prop is None:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        row = _row_or_404(conn, prop["row_id"])
+        edited = payload.value is not None
+        final_value = payload.value if edited else prop["value"]
+        keep_exact = prop["anchor_state"] == "exact" and not edited
+        wr.upsert_cell(
+            conn,
+            prop["row_id"],
+            prop["field_key"],
+            value=final_value,
+            page=prop["page"],
+            quote=prop["quote"],
+            bbox_json=prop["bbox_json"] if keep_exact else None,
+            origin="assisted",
+        )
+        wr.set_converted(conn, prop["row_id"], None)  # a new value invalidates the stale effect size (inc-256/258)
+        wr.delete_proposal(conn, proposal_id)
+        return _project_or_404(conn, row["project_id"])
+
+    return run_write(engine, _do)
 
 
 @router.post("/workbench/proposals/{proposal_id}/reject")
-def reject_proposal(proposal_id: int, conn: Connection = Depends(get_connection)) -> dict:
-    prop = wr.get_proposal(conn, proposal_id)
-    if prop is None:
-        raise HTTPException(status_code=404, detail="Proposal not found")
-    row = _row_or_404(conn, prop["row_id"])
-    wr.delete_proposal(conn, proposal_id)
-    conn.commit()
-    return _project_or_404(conn, row["project_id"])
+def reject_proposal(proposal_id: int, engine: Engine = Depends(get_engine)) -> dict:
+    def _do(conn: Connection) -> dict:
+        prop = wr.get_proposal(conn, proposal_id)
+        if prop is None:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+        row = _row_or_404(conn, prop["row_id"])
+        wr.delete_proposal(conn, proposal_id)
+        return _project_or_404(conn, row["project_id"])
+
+    return run_write(engine, _do)

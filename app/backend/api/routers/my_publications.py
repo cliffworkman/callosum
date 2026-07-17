@@ -13,10 +13,10 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel
-from sqlalchemy import Connection, delete
+from sqlalchemy import Connection, Engine, delete
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
 from app.backend.clustering.my_publications import (
@@ -217,14 +217,14 @@ def get_my_publications_profile(conn: Connection = Depends(get_connection)) -> P
 
 
 @router.put("/my-publications/profile", response_model=ProfileResponse)
-def put_my_publications_profile(
-    payload: ProfileUpdateRequest, conn: Connection = Depends(get_connection)
-) -> ProfileResponse:
-    profile = upsert_profile(
-        conn, display_name=payload.display_name, name_variants=payload.name_variants, orcid=payload.orcid
-    )
-    conn.commit()
-    return _profile_response(profile)
+def put_my_publications_profile(payload: ProfileUpdateRequest, engine: Engine = Depends(get_engine)) -> ProfileResponse:
+    def _do(conn: Connection) -> ProfileResponse:
+        profile = upsert_profile(
+            conn, display_name=payload.display_name, name_variants=payload.name_variants, orcid=payload.orcid
+        )
+        return _profile_response(profile)
+
+    return run_write(engine, _do)
 
 
 @router.post("/my-publications/refresh", response_model=RefreshJobResponse, status_code=http_status.HTTP_202_ACCEPTED)
@@ -246,20 +246,22 @@ def refresh_my_publications_status(job_id: str, request: Request) -> RefreshJobR
 
 
 @router.post("/my-publications/decide", status_code=http_status.HTTP_204_NO_CONTENT)
-def decide_my_publications(payload: DecideRequest, conn: Connection = Depends(get_connection)) -> Response:
-    try:
-        get_paper(conn, payload.paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    set_decision(conn, payload.paper_id, payload.decision)
-    axis_id = _get_axis_id(conn)
-    if axis_id is not None:
-        if payload.decision == "confirmed":
-            add_manual_assignment(conn, axis_id=int(axis_id), paper_id=payload.paper_id)  # → manual member (NULL)
-        else:
-            remove_assignment(conn, axis_id=int(axis_id), paper_id=payload.paper_id)  # drop the rejected candidate
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def decide_my_publications(payload: DecideRequest, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        try:
+            get_paper(conn, payload.paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        set_decision(conn, payload.paper_id, payload.decision)
+        axis_id = _get_axis_id(conn)
+        if axis_id is not None:
+            if payload.decision == "confirmed":
+                add_manual_assignment(conn, axis_id=int(axis_id), paper_id=payload.paper_id)  # → manual member (NULL)
+            else:
+                remove_assignment(conn, axis_id=int(axis_id), paper_id=payload.paper_id)  # drop rejected candidate
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.get("/my-publications/dashboard", response_model=DashboardResponse)
@@ -289,39 +291,46 @@ def decompose_my_publications_status(job_id: str, request: Request) -> DomainJob
 
 @router.post("/my-publications/works/import", response_model=WorkImportResponse)
 def import_my_publications_work(
-    payload: WorkActionRequest, request: Request, conn: Connection = Depends(get_connection)
+    payload: WorkActionRequest, request: Request, engine: Engine = Depends(get_engine)
 ) -> WorkImportResponse:
     # Import an OpenAlex-attributed work missing from the library — metadata-only (Crossref DOI enrich; the
     # import hook auto-adds it to My Pubs). Guardrail: only the author's OWN indexed works. NOT the Gemini gate.
-    result = import_missing_work(
-        conn,
-        doi=payload.doi,
-        author_client=_author_client(request.app),
-        crossref_client=request.app.state.crossref_client,
-    )
-    status = str(result.get("status"))
-    if status in ("invalid", "not-author-work"):
-        raise HTTPException(status_code=422, detail="That DOI is not among your OpenAlex-indexed works.")
-    if status == "not-resolved":
-        raise HTTPException(status_code=409, detail="Resolve your publications first (Settings → Refresh).")
-    conn.commit()
-    return WorkImportResponse(status=status, paper_id=result.get("paper_id"))
+    # Idempotent (dedupes; cached lookups) → safe to re-run on a writer-lock retry.
+    def _do(conn: Connection) -> WorkImportResponse:
+        result = import_missing_work(
+            conn,
+            doi=payload.doi,
+            author_client=_author_client(request.app),
+            crossref_client=request.app.state.crossref_client,
+        )
+        status = str(result.get("status"))
+        if status in ("invalid", "not-author-work"):
+            raise HTTPException(status_code=422, detail="That DOI is not among your OpenAlex-indexed works.")
+        if status == "not-resolved":
+            raise HTTPException(status_code=409, detail="Resolve your publications first (Settings → Refresh).")
+        return WorkImportResponse(status=status, paper_id=result.get("paper_id"))
+
+    return run_write(engine, _do)
 
 
 @router.post("/my-publications/works/dismiss", status_code=http_status.HTTP_204_NO_CONTENT)
-def dismiss_my_publications_work(payload: WorkActionRequest, conn: Connection = Depends(get_connection)) -> Response:
-    dismiss_work(conn, payload.doi)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def dismiss_my_publications_work(payload: WorkActionRequest, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        dismiss_work(conn, payload.doi)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/my-publications/works/undismiss", status_code=http_status.HTTP_204_NO_CONTENT)
-def undismiss_my_publications_work(payload: WorkActionRequest, conn: Connection = Depends(get_connection)) -> Response:
+def undismiss_my_publications_work(payload: WorkActionRequest, engine: Engine = Depends(get_engine)) -> Response:
     # Un-dismiss a previously-dismissed missing work (inc 91) → it returns to the review queue. Mirror of the
     # inc-67 un-dismiss-duplicates control. Local, idempotent, non-destructive.
-    undismiss_work(conn, payload.doi)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        undismiss_work(conn, payload.doi)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 class RenameDomainRequest(BaseModel):
@@ -330,17 +339,20 @@ class RenameDomainRequest(BaseModel):
 
 
 @router.post("/my-publications/domains/rename", status_code=http_status.HTTP_204_NO_CONTENT)
-def rename_my_publications_domain(payload: RenameDomainRequest, conn: Connection = Depends(get_connection)) -> Response:
+def rename_my_publications_domain(payload: RenameDomainRequest, engine: Engine = Depends(get_engine)) -> Response:
     # SP2 (inc 118, #15): rename a research domain (identified by its paper_ids set); marks it custom so a
     # Re-decompose preserves the name by paper-overlap. Local profile-JSON write; no egress.
     if not payload.label.strip():
         raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Label cannot be empty.")
-    if not rename_domain(conn, payload.paper_ids, payload.label):
-        raise HTTPException(
-            status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No domain matches those papers."
-        )
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    def _do(conn: Connection) -> Response:
+        if not rename_domain(conn, payload.paper_ids, payload.label):
+            raise HTTPException(
+                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No domain matches those papers."
+            )
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/my-publications/summary/generate", response_model=SummaryResponse)
@@ -375,23 +387,26 @@ def generate_my_publications_summary(
 
 
 @router.put("/my-publications/summary", response_model=SummaryResponse)
-def put_my_publications_summary(
-    payload: SummaryUpdateRequest, conn: Connection = Depends(get_connection)
-) -> SummaryResponse:
+def put_my_publications_summary(payload: SummaryUpdateRequest, engine: Engine = Depends(get_engine)) -> SummaryResponse:
     text = (payload.summary or "").strip()
     if len(text) > MAX_SUMMARY_LEN:
         raise HTTPException(status_code=422, detail=f"Summary must be at most {MAX_SUMMARY_LEN} characters.")
-    set_research_summary(conn, text or None)
-    conn.commit()
-    return SummaryResponse(summary=(get_profile(conn) or {}).get("research_summary") or "")
+
+    def _do(conn: Connection) -> SummaryResponse:
+        set_research_summary(conn, text or None)
+        return SummaryResponse(summary=(get_profile(conn) or {}).get("research_summary") or "")
+
+    return run_write(engine, _do)
 
 
 @router.post("/my-publications/star", status_code=http_status.HTTP_204_NO_CONTENT)
-def star_my_publication(payload: StarRequest, conn: Connection = Depends(get_connection)) -> Response:
+def star_my_publication(payload: StarRequest, engine: Engine = Depends(get_engine)) -> Response:
     # Star/unstar a paper (inc 84) — drives the "use starred only" summary scope. Local; idempotent.
-    set_starred(conn, payload.paper_id, payload.starred)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        set_starred(conn, payload.paper_id, payload.starred)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.get("/my-publications/citing/{work_id}", response_model=CitingResponse)
@@ -415,33 +430,38 @@ def get_citing_works(work_id: str, request: Request, conn: Connection = Depends(
 
 @router.post("/my-publications/citing/import", response_model=WorkImportResponse)
 def import_citing_work_endpoint(
-    payload: CitingImportRequest, request: Request, conn: Connection = Depends(get_connection)
+    payload: CitingImportRequest, request: Request, engine: Engine = Depends(get_engine)
 ) -> WorkImportResponse:
     # inc 119 (SP3 #14): import a citing paper (metadata-only, deduped) into the general library — NOT My Pubs.
     # Crossref DOI enrich only (not the Gemini gate); the PDF stays the separate OA-acquire step.
-    result = import_citing_work(
-        conn,
-        doi=payload.doi,
-        openalex_work_id=payload.openalex_work_id,
-        title=payload.title,
-        crossref_client=request.app.state.crossref_client,
-    )
-    if str(result.get("status")) == "invalid":
-        raise HTTPException(status_code=422, detail="A DOI is required.")
-    conn.commit()
-    return WorkImportResponse(status=str(result.get("status")), paper_id=result.get("paper_id"))
+    # Idempotent (dedupes; cached lookups) → safe to re-run on a writer-lock retry.
+    def _do(conn: Connection) -> WorkImportResponse:
+        result = import_citing_work(
+            conn,
+            doi=payload.doi,
+            openalex_work_id=payload.openalex_work_id,
+            title=payload.title,
+            crossref_client=request.app.state.crossref_client,
+        )
+        if str(result.get("status")) == "invalid":
+            raise HTTPException(status_code=422, detail="A DOI is required.")
+        return WorkImportResponse(status=str(result.get("status")), paper_id=result.get("paper_id"))
+
+    return run_write(engine, _do)
 
 
 @router.delete("/my-publications", status_code=http_status.HTTP_204_NO_CONTENT)
-def dismiss_my_publications(conn: Connection = Depends(get_connection)) -> Response:
+def dismiss_my_publications(engine: Engine = Depends(get_engine)) -> Response:
     # Dismiss the card (the deleted-don't-auto-regenerate flag) + remove the axis (CASCADE clears memberships).
     # The profile + decisions survive; a manual refresh clears the flag and rebuilds.
-    set_my_publications_dismissed(conn, True)
-    axis_id = _get_axis_id(conn)
-    if axis_id is not None:
-        conn.execute(delete(axes).where(axes.c.id == int(axis_id)))
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        set_my_publications_dismissed(conn, True)
+        axis_id = _get_axis_id(conn)
+        if axis_id is not None:
+            conn.execute(delete(axes).where(axes.c.id == int(axis_id)))
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 def _profile_response(profile: dict[str, Any] | None) -> ProfileResponse:

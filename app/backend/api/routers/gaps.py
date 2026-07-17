@@ -21,9 +21,9 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.gapfinder import compute_gaps
 from app.backend.clustering.my_publications import import_citing_work
@@ -130,20 +130,23 @@ class GapAddResponse(BaseModel):
 
 
 @router.post("/gaps/add", response_model=GapAddResponse)
-def gaps_add(payload: GapAddRequest, request: Request, conn: Connection = Depends(get_connection)) -> GapAddResponse:
-    # Metadata-only + deduped into the GENERAL library (reuses the inc-119 citing-import flow). Idempotent.
-    result = import_citing_work(
-        conn,
-        doi=payload.doi,
-        openalex_work_id=payload.openalex_work_id,
-        title=payload.title,
-        crossref_client=request.app.state.crossref_client,
-        imported_source="gap-import",
-    )
-    if result.get("status") == "invalid":
-        raise HTTPException(status_code=422, detail="A DOI is required to add a gap candidate.")
-    conn.commit()
-    return GapAddResponse(status=str(result.get("status")), paper_id=result.get("paper_id"))
+def gaps_add(payload: GapAddRequest, request: Request, engine: Engine = Depends(get_engine)) -> GapAddResponse:
+    # Metadata-only + deduped into the GENERAL library (reuses the inc-119 citing-import flow). Idempotent — safe to
+    # re-run on a writer-lock retry: it dedupes by identity and the Crossref lookup is cached (no double egress).
+    def _do(conn: Connection) -> GapAddResponse:
+        result = import_citing_work(
+            conn,
+            doi=payload.doi,
+            openalex_work_id=payload.openalex_work_id,
+            title=payload.title,
+            crossref_client=request.app.state.crossref_client,
+            imported_source="gap-import",
+        )
+        if result.get("status") == "invalid":
+            raise HTTPException(status_code=422, detail="A DOI is required to add a gap candidate.")
+        return GapAddResponse(status=str(result.get("status")), paper_id=result.get("paper_id"))
+
+    return run_write(engine, _do)
 
 
 class GapDismissRequest(BaseModel):
@@ -152,12 +155,14 @@ class GapDismissRequest(BaseModel):
 
 
 @router.post("/gaps/dismiss", status_code=http_status.HTTP_204_NO_CONTENT)
-def gaps_dismiss(payload: GapDismissRequest, conn: Connection = Depends(get_connection)) -> Response:
-    for key in (payload.openalex_work_id, payload.doi):
-        if key:
-            dismiss_gap(conn, key)  # dismiss both the OA id + the DOI so it can't resurface either way
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def gaps_dismiss(payload: GapDismissRequest, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        for key in (payload.openalex_work_id, payload.doi):
+            if key:
+                dismiss_gap(conn, key)  # dismiss both the OA id + the DOI so it can't resurface either way
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 def _run_gap_refresh(app: FastAPI, job_id: str, direction: str, axis_id: int | None) -> None:

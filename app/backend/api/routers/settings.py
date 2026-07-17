@@ -13,13 +13,14 @@ import os
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
 from app.backend import app_settings, providers_store
 from app.backend.acquisition.openurl import RESOLVER_BASE_MAX_LEN, resolver_base_valid
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_engine
 from app.backend.llm.cache import repair_summary_cache
 from app.backend.llm.providers import is_loopback_url, requires_egress
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.gemini.generator import GeminiConfig
 
 router = APIRouter()
@@ -254,7 +255,8 @@ def test_key() -> KeyTestResult:
 
 
 @router.post("/settings/repair-summary-cache", response_model=RepairSummaryCacheResult)
-def repair_summary_cache_endpoint(conn: Connection = Depends(get_connection)) -> RepairSummaryCacheResult:
-    result = repair_summary_cache(conn)
-    conn.commit()
-    return RepairSummaryCacheResult(**result)
+def repair_summary_cache_endpoint(engine: Engine = Depends(get_engine)) -> RepairSummaryCacheResult:
+    def _do(conn: Connection) -> RepairSummaryCacheResult:
+        return RepairSummaryCacheResult(**repair_summary_cache(conn))
+
+    return run_write(engine, _do)
