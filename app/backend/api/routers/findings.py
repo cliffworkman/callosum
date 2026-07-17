@@ -5,10 +5,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.persistence.findings_repo import (
     findings_overview,
     get_finding_dict,
@@ -16,6 +16,7 @@ from app.backend.persistence.findings_repo import (
     set_review_state,
 )
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -66,15 +67,17 @@ def findings_overview_get(conn: Connection = Depends(get_connection)) -> list[Fi
 
 
 @router.post("/findings/{finding_id}/review", response_model=FindingModel)
-def finding_review(finding_id: int, payload: ReviewRequest, conn: Connection = Depends(get_connection)) -> FindingModel:
-    result = set_review_state(conn, finding_id, payload.state, payload.reason)
-    errors = {
-        "not-found": (404, "Finding not found"),
-        "not-candidate": (422, "Facts are not reviewable"),
-        "bad-state": (422, "state must be one of: confirmed, accepted, noted"),
-        "needs-reason": (422, "Accepted requires a reason"),
-    }
-    if result in errors:
-        raise HTTPException(status_code=errors[result][0], detail=errors[result][1])
-    conn.commit()  # get_connection yields a non-autocommitting connection
-    return FindingModel(**get_finding_dict(conn, finding_id))
+def finding_review(finding_id: int, payload: ReviewRequest, engine: Engine = Depends(get_engine)) -> FindingModel:
+    def _do(conn: Connection) -> FindingModel:
+        result = set_review_state(conn, finding_id, payload.state, payload.reason)
+        errors = {
+            "not-found": (404, "Finding not found"),
+            "not-candidate": (422, "Facts are not reviewable"),
+            "bad-state": (422, "state must be one of: confirmed, accepted, noted"),
+            "needs-reason": (422, "Accepted requires a reason"),
+        }
+        if result in errors:
+            raise HTTPException(status_code=errors[result][0], detail=errors[result][1])
+        return FindingModel(**get_finding_dict(conn, finding_id))
+
+    return run_write(engine, _do)  # transaction-level retry on a transient SQLite writer lock (inc 281)
