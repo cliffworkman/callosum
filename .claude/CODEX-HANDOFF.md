@@ -92,5 +92,22 @@ that points to where things moved.
 ---
 ## Codex session summary (fill this in)
 
-_(Codex: write here — branch name, commits, `pytest` result [N passed], `ruff check`/`ruff format --check` results,
-what's done vs partial vs unverified, blockers.)_
+Codex session summary — 2026-07-17
+
+- **Branch:** `feature/workspaces-ux-polish`
+- **Commits:** `c1bfa7f` (`docs: rewrite workspace navigation design`) plus this handoff-summary commit.
+- **Done:** Task 1 complete. Rewrote `.claude/DESIGN.md` §5 into the two-navigation-dimension model: workspaces/menu
+  bar = center-pane modes of work; THEORY/METHODS accordions = per-paper lenses. Preserved the shipped
+  `04b_workspaces.jsx` / `05_panes.jsx` registry mechanics, placement rule, token recipes, mount-but-hide behavior,
+  read-only hiding, and honesty/accessibility notes. Added `.claude/docs/increment-notes/INCREMENT-283-NOTES.md` and
+  `.claude/changes.md` entry.
+- **Not done:** Task 2 was not started. No frontend source, CSS, built HTML, or tests were changed for the optional
+  one-time "what moved" hint.
+- **Verification:** initial `python -m pytest` collection failed because the active Python environment lacked the
+  optional `mcp` SDK. Installed `mcp_server/requirements.txt`, restored `starlette==0.45.3` to keep FastAPI in range,
+  confirmed `tests/test_mcp_server.py` passes, then reran the full suite: **1237 passed / 1 skipped** in 18:50.
+  `ruff check .` passed. `ruff format --check .` passed (`464 files already formatted`). `python
+  tools/check_line_budget.py` passed (`all 342 application-source files within the 600-line cap`).
+- **Unverified/partial:** no browser or frontend visual check applies to Task 1; no UI code changed. Optional Task 2
+  would still need frontend build, assembly test update, full suite, and visual-placement caveat.
+- **Blockers:** none. Pre-existing untracked files were left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
