@@ -98,6 +98,10 @@ def test_overlooked_lens_panel_present_and_honest():
     assert "hidden-gem" not in raw.lower() and "hidden gem" not in raw.lower()
     # Add/Dismiss reuse the gap flow.
     assert '"/gaps/add"' in raw and '"/gaps/dismiss"' in raw
+    # Credit-the-lineage (inc 282): the lens credits the Matthew-effect source in-panel + offers it to the library
+    # via the shared .method-credit recipe.
+    assert "function OverlookedCredit(" in raw and "method-credit" in raw
+    assert "MERTON1968_CSL" in raw and "10.1126/science.159.3810.56" in raw
 
 
 def test_stale_discover_placeholder_is_removed_from_theory_accordion():

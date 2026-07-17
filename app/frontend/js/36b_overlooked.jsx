@@ -8,6 +8,38 @@
 // Pull-not-push (you open it, per axis); Add/Dismiss are the user's (augment-never-filter) and reuse the gap flow.
 // Cached per axis (GET /overlooked?axis_id=); Refresh recomputes (POST /overlooked/refresh). Clones the GapsModal shell.
 
+// inc 282 (credit-the-lineage): the source paper for the Matthew-effect concept this lens operationalizes,
+// one-click added to the library via the inc-93 import path — the shared .method-credit recipe (06/07/29/etc.).
+const MERTON1968_CSL = {
+  type: "article-journal",
+  title: "The Matthew Effect in Science",
+  author: [{ family: "Merton", given: "Robert K." }],
+  "container-title": "Science",
+  volume: "159",
+  issue: "3810",
+  page: "56-63",
+  issued: { "date-parts": [[1968]] },
+  DOI: "10.1126/science.159.3810.56",
+};
+
+function OverlookedCredit() {
+  const [added, setAdded] = useState("idle");
+  const addCredit = async () => {
+    setAdded("adding");
+    const r = await apiPost("/library/import", { content: JSON.stringify([MERTON1968_CSL]), format: "csl-json" });
+    setAdded(r && r.ok ? "added" : "idle");
+  };
+  return (
+    <div className="method-credit">
+      <b>Method:</b> the Matthew effect in science — Merton, R. K. (1968), <i>Science</i> 159(3810):56–63.{" "}
+      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
+        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
+      </button>
+      <div className="method-credit-sub">This lens operationalizes cumulative advantage in citation and recognition (the "rich get richer" of science).</div>
+    </div>
+  );
+}
+
 function OverlookedLensModal({ onClose, onChanged }) {
   const [axisId, setAxisId] = useState("");                // required — the lens is per-axis
   const [axes, setAxes] = useState([]);
@@ -65,7 +97,7 @@ function OverlookedLensModal({ onClose, onChanged }) {
           year</b> — work the field may have overlooked. Each row shows two <b>separate</b> signals: how relevant it is
           to the axis, and how its citations compare to same-year work on the topic. Low citations can mean the field
           overlooked it — or that it's simply low-impact; <b>your call</b>. <b>Add</b> imports the metadata;
-          {" "}<b>Dismiss</b> hides it for good. Inspired by the <i>Matthew effect in science</i> (Merton, 1968).
+          {" "}<b>Dismiss</b> hides it for good. Inspired by the <i>Matthew effect in science</i>.
         </div>
 
         <div className="gaps-controls">
@@ -110,6 +142,8 @@ function OverlookedLensModal({ onClose, onChanged }) {
             </div>
           </div>
         ))}
+
+        <OverlookedCredit />
       </div>
     </div>
   );
