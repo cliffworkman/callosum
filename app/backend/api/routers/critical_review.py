@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore
@@ -32,6 +32,7 @@ from app.backend.methods.critical_review import (
 )
 from app.backend.persistence import critical_review_repo as repo
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.verification import default_stance_scorer
 
 router = APIRouter()
@@ -240,18 +241,17 @@ def generate_candidates(
 def _set_candidate_status(candidate_id: int, status: str, conn: Connection) -> CandidateStatusResponse:
     if not repo.set_status(conn, candidate_id, status):
         raise HTTPException(status_code=404, detail="Candidate not found")
-    conn.commit()
     return CandidateStatusResponse(id=candidate_id, status=status)
 
 
 @router.post("/critical-read/candidates/{candidate_id}/accept", response_model=CandidateStatusResponse)
-def accept_candidate(candidate_id: int, conn: Connection = Depends(get_connection)) -> CandidateStatusResponse:
-    return _set_candidate_status(candidate_id, "accepted", conn)
+def accept_candidate(candidate_id: int, engine: Engine = Depends(get_engine)) -> CandidateStatusResponse:
+    return run_write(engine, lambda conn: _set_candidate_status(candidate_id, "accepted", conn))
 
 
 @router.post("/critical-read/candidates/{candidate_id}/reject", response_model=CandidateStatusResponse)
-def reject_candidate(candidate_id: int, conn: Connection = Depends(get_connection)) -> CandidateStatusResponse:
-    return _set_candidate_status(candidate_id, "rejected", conn)
+def reject_candidate(candidate_id: int, engine: Engine = Depends(get_engine)) -> CandidateStatusResponse:
+    return run_write(engine, lambda conn: _set_candidate_status(candidate_id, "rejected", conn))
 
 
 # --- Set (multi-paper) critical review (backlog #12) — a shared engine keyed on a chosen SET of papers ------------

@@ -18,7 +18,7 @@ from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import Connection, Engine, select
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.clustering.duplicate_detection import find_duplicate_groups
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
@@ -30,6 +30,7 @@ from app.backend.persistence.dedup_repo import (
     undismiss_duplicate_pair,
 )
 from app.backend.persistence.schema import papers
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -111,34 +112,40 @@ def scan_duplicates_status(job_id: str, request: Request) -> DedupJobResponse:
 
 
 @router.post("/papers/duplicates/dismiss", status_code=http_status.HTTP_204_NO_CONTENT)
-def dismiss_duplicates(payload: DismissDuplicatesRequest, conn: Connection = Depends(get_connection)) -> Response:
+def dismiss_duplicates(payload: DismissDuplicatesRequest, engine: Engine = Depends(get_engine)) -> Response:
     # Persist "not a duplicate" for every pair within the group, so the scan never re-flags it. Store only
     # canonical (low < high) pairs of EXISTING live papers (a non-existent / trashed id would violate the FK).
-    existing = {
-        int(row[0])
-        for row in conn.execute(
-            select(papers.c.id).where(papers.c.id.in_(set(payload.paper_ids)), papers.c.deleted_at.is_(None))
-        )
-    }
-    ids = sorted(existing)
-    if len(ids) < 2:
-        raise HTTPException(status_code=422, detail="Need at least two existing papers to dismiss as not-duplicates")
-    pairs = [(ids[i], ids[j]) for i in range(len(ids)) for j in range(i + 1, len(ids))]  # sorted → already (low, high)
-    dismiss_duplicate_pairs(conn, pairs)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        existing = {
+            int(row[0])
+            for row in conn.execute(
+                select(papers.c.id).where(papers.c.id.in_(set(payload.paper_ids)), papers.c.deleted_at.is_(None))
+            )
+        }
+        ids = sorted(existing)
+        if len(ids) < 2:
+            raise HTTPException(
+                status_code=422, detail="Need at least two existing papers to dismiss as not-duplicates"
+            )
+        pairs = [(ids[i], ids[j]) for i in range(len(ids)) for j in range(i + 1, len(ids))]  # sorted → (low, high)
+        dismiss_duplicate_pairs(conn, pairs)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/papers/duplicates/undismiss", status_code=http_status.HTTP_204_NO_CONTENT)
-def undismiss_duplicates(payload: UndismissDuplicatesRequest, conn: Connection = Depends(get_connection)) -> Response:
+def undismiss_duplicates(payload: UndismissDuplicatesRequest, engine: Engine = Depends(get_engine)) -> Response:
     # Remove the "not a duplicate" mark among these papers, so the scan can flag them again. Idempotent:
     # removing a pair that isn't dismissed is a no-op. Non-destructive (drops a preference, not any paper).
-    ids = sorted(set(payload.paper_ids))
-    for i in range(len(ids)):
-        for j in range(i + 1, len(ids)):
-            undismiss_duplicate_pair(conn, ids[i], ids[j])  # canonical (low, high)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        ids = sorted(set(payload.paper_ids))
+        for i in range(len(ids)):
+            for j in range(i + 1, len(ids)):
+                undismiss_duplicate_pair(conn, ids[i], ids[j])  # canonical (low, high)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 class MergeMetadata(BaseModel):
@@ -193,42 +200,44 @@ class MergeOriginResponse(BaseModel):
 
 
 @router.post("/papers/merge", response_model=MergePapersResponse)
-def merge_papers_endpoint(
-    payload: MergePapersRequest, conn: Connection = Depends(get_connection)
-) -> MergePapersResponse:
+def merge_papers_endpoint(payload: MergePapersRequest, engine: Engine = Depends(get_engine)) -> MergePapersResponse:
     # Non-destructive merge (inc 161): fold every merged copy's source data onto the survivor; the others become
     # merged-away husks. Reversible via un-merge (#16). Local, bound-param, transaction all-or-nothing.
-    try:
-        result = merge_papers(
-            conn,
-            survivor_id=payload.survivor_id,
-            merged_ids=payload.merged_ids,
-            metadata=payload.metadata.model_dump(exclude_unset=True),
-            primary_attachment_id=payload.primary_attachment_id,
+    def _do(conn: Connection) -> MergePapersResponse:
+        try:
+            result = merge_papers(
+                conn,
+                survivor_id=payload.survivor_id,
+                merged_ids=payload.merged_ids,
+                metadata=payload.metadata.model_dump(exclude_unset=True),
+                primary_attachment_id=payload.primary_attachment_id,
+            )
+        except MergeConflictError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except MergeValidationError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return MergePapersResponse(
+            survivor_id=result.survivor_id,
+            merged_ids=result.merged_ids,
+            trashed=result.trashed,
+            merge_operation_id=result.merge_operation_id,
         )
-    except MergeConflictError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except MergeValidationError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    conn.commit()
-    return MergePapersResponse(
-        survivor_id=result.survivor_id,
-        merged_ids=result.merged_ids,
-        trashed=result.trashed,
-        merge_operation_id=result.merge_operation_id,
-    )
+
+    return run_write(engine, _do)
 
 
 @router.post("/merge/{merge_operation_id}/undo", response_model=UnmergeResponse)
-def unmerge_endpoint(merge_operation_id: int, conn: Connection = Depends(get_connection)) -> UnmergeResponse:
+def unmerge_endpoint(merge_operation_id: int, engine: Engine = Depends(get_engine)) -> UnmergeResponse:
     # Reverse a merge exactly from its snapshot (#16): survivor's record restored, husks brought back with their
     # moved data, added union links removed. All-or-nothing.
-    try:
-        result = unmerge(conn, merge_operation_id=merge_operation_id)
-    except UnmergeError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    conn.commit()
-    return UnmergeResponse(survivor_id=result.survivor_id, restored_ids=result.restored_ids)
+    def _do(conn: Connection) -> UnmergeResponse:
+        try:
+            result = unmerge(conn, merge_operation_id=merge_operation_id)
+        except UnmergeError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return UnmergeResponse(survivor_id=result.survivor_id, restored_ids=result.restored_ids)
+
+    return run_write(engine, _do)
 
 
 @router.get("/papers/{paper_id}/merge-origin", response_model=MergeOriginResponse | None)

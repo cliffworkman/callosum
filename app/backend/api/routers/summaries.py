@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine, select
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
@@ -39,6 +39,7 @@ from app.backend.persistence.schema import (
     papers,
     summary_sentences,
 )
+from app.backend.persistence.sqlite_retry import run_write
 from app.backend.summarization.generators import SummaryGenerator
 from app.backend.summarization.pipeline import SummaryScope, summarize_scope
 from app.backend.summarization.reverify import NotImportedError, reverify_imported_summary
@@ -179,14 +180,16 @@ def summary_detail(summary_id: int, conn: Connection = Depends(get_connection)) 
 
 
 @router.delete("/summaries/{summary_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def summary_delete(summary_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    try:
-        get_summary(conn, summary_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Summary not found") from None
-    delete_summary(conn, summary_id)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def summary_delete(summary_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        try:
+            get_summary(conn, summary_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Summary not found") from None
+        delete_summary(conn, summary_id)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/summaries/{summary_id}/reverify", response_model=SummarizeJobResponse)
