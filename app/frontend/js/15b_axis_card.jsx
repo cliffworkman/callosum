@@ -161,7 +161,6 @@ function AxisItem({ axis, detail, job, expanded, selected, selectedPaper, handle
             {!readOnly && isCurated &&
               <button className="axis-icon-btn" title="Convert to a keyword axis — needs search terms and replaces your manual order with fit order; members are kept"
                 onClick={stop(() => handlers.convertToKeyword(axis.id))}>↩</button>}
-            {isMyPubs && <button className="axis-icon-btn" title="Open the impact dashboard" onClick={stop(() => handlers.openMyPubsDashboard(axis))}>📊</button>}
             {!readOnly && <button className="axis-icon-btn axis-icon-danger"
               title={isMyPubs ? "Dismiss My Publications (keeps your profile)" : "Delete axis"}
               onClick={stop(() => (isMyPubs ? handlers.dismissMyPubs() : handlers.remove(axis.id)))}>🗑</button>}

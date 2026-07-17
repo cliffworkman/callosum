@@ -74,11 +74,12 @@ def test_workspace_menubar_structure_present():
         'id: "extract"',
     ):
         assert wid in raw, wid
+    assert 'id: "profile", label: "My Publications", order: 10' in raw
     # Discover holds Search+Journals+Funding; Feed is embedded below Search results (inc 285).
-    # Work holds Cite+CRediT; Extract holds Workbench+Effect-size+Meta-analysis.
+    # Work holds Cite+CRediT; Extract holds Workbench+Effect-Size+Meta-Analysis.
     assert 'id: "search"' in raw and 'id: "feed"' not in raw and 'id: "workbench"' in raw
     assert 'id: "journals"' in raw and 'id: "funding"' in raw and 'id: "effectsize"' in raw
-    assert 'label: "Meta-analysis"' in raw and 'label: "CRediT statement"' in raw
+    assert 'label: "Effect-Size"' in raw and 'label: "Meta-Analysis"' in raw and 'label: "CRediT statement"' in raw
     assert "function CiteWorkspacePane(" in raw and "function registerCiteTab(" in raw
     assert 'id: "suggest", label: "Suggest", order: 10' in raw
     assert 'id: "meta-references", label: "Meta Reference List", order: 15' in raw
@@ -111,8 +112,23 @@ def test_workspace_menubar_structure_present():
     assert "function WorkspacesWhatsNewHint(" in raw
     assert "New layout:" in raw and "Synthesis" in raw and "Meta Reference List" in raw and "CRediT" in raw
     assert "Discover → Search" in raw and "Wanted" in raw and "Gaps" in raw and "Overlooked" in raw
-    assert "Effect-size" in raw and "Meta-analysis" in raw and "Work" in raw
+    assert "Effect-Size" in raw and "Meta-Analysis" in raw and "Work" in raw
     assert '_saveLayout(WORKSPACES_WHATSNEW_KEY, "1")' in raw
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert (
+        ".workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }"
+        in css
+    )
+
+
+def test_my_publications_workspace_loads_without_axis_card_button():
+    raw = assemble_jsx()
+    assert "function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf })" in raw
+    assert "const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null)" in raw
+    assert 'const ax = (r.data || []).find(a => a.kind === "my_publications")' in raw
+    assert "axisId={resolvedAxisId}" in raw
+    assert "axisRefresh={axisRefresh}" in raw
+    assert 'title="Open the impact dashboard"' not in raw
 
 
 def test_overlooked_lens_panel_present_and_honest():

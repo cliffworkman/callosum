@@ -1,5 +1,5 @@
 <!-- qa-coverage
-fe: 03_library.jsx, 04b_workspaces.jsx, 08b_methods_citation_equity.jsx, 08c_methods_citation_context.jsx, 08j_reference_integrity.jsx, 10_pdf_layer.jsx, 20_synthesis.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx, 37_cite.jsx, 38_credit.jsx, 40_app.jsx
+fe: 03_library.jsx, 04b_workspaces.jsx, 08b_methods_citation_equity.jsx, 08c_methods_citation_context.jsx, 08g_methods_metaanalysis.jsx, 08i_methods_effectsize.jsx, 08j_reference_integrity.jsx, 10_pdf_layer.jsx, 15_axes.jsx, 15b_axis_card.jsx, 20_synthesis.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx, 31_mypubs_dashboard.jsx, 37_cite.jsx, 38_credit.jsx, 40_app.jsx
 -->
 
 # ROUTE 73 - Workspaces menu bar (two-level center navigation)
@@ -8,8 +8,8 @@ fe: 03_library.jsx, 04b_workspaces.jsx, 08b_methods_citation_equity.jsx, 08c_met
 **Goal:** Exercise the inc-280/286 menu bar — the second nav dimension inside the center (Library) pane — and prove it
 switches workspaces cleanly, keeps the three panes separate + full-height, nests open PDFs under Library, and that
 the relocated tools (Synthesis as its own workspace; Wanted/Gaps/Overlooked/Search/Feed/Journals/Funding under
-Discover; Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT under Work; Effect-size/Meta-analysis
-under Extract; Help/Settings as utility views) work in their new homes. Also covers the inc-284/286 one-time Library
+Discover; Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT under Work; Effect-Size/Meta-Analysis
+under Extract; My Publications in the menu bar; Help/Settings as utility views) work in their new homes. Also covers the inc-284/286 one-time Library
 hint that tells returning users where those relocated tools moved. Pure client navigation; no new API surface.
 
 ## Environment
@@ -24,7 +24,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   right (Details) accordions remain visible and full-height in every workspace; only the center swaps. A menu bar
   spanning the whole app width, or a pane that loses height when switching, is a regression (Medium).
 - **Library owns open PDFs.** Opening a PDF lands a sub-tab under **Library** and selects the Library workspace; the
-  PDF tab is hidden (not closed) while Discover/Extract/Profile is active, and reappears on return.
+  PDF tab is hidden (not closed) while Discover/Extract/My Publications is active, and reappears on return.
+- **Workspace subsection scroll.** Long Discover/Extract sub-tabs scroll inside their active body; their tab strip and
+  the menu bar remain fixed.
 - **Active workspace persists** (`callosum.workspace`) across reload; Library is the default on first load.
 - **One-time moved-tools hint:** on a read-write instance, the Library workspace shows the thin "New layout" banner
   until dismissed; dismissing writes `callosum.workspaces-whatsnew=1` and it stays gone after reload.
@@ -34,7 +36,7 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 ## Adversarial checklist
 
-- Rapidly switch Profile→Library→Synthesis→Discover→Work→Extract→Help→Settings and back; confirm no flicker/stuck state, no console
+- Rapidly switch My Publications→Library→Synthesis→Discover→Work→Extract→Help→Settings and back; confirm no flicker/stuck state, no console
   errors, and each center swaps while the side panes hold.
 - Open 2+ PDFs, switch to Discover, switch back to Library → both PDF tabs still there; close one → falls back to the
   Library list, not a blank pane.
@@ -45,23 +47,27 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 ## Steps
 
-1. Confirm the **menu bar** sits at the top of the center pane: **Profile · Library · Synthesis · Discover · Work · Extract** left,
+1. Confirm the **menu bar** sits at the top of the center pane: **My Publications · Library · Synthesis · Discover · Work · Extract** left,
    **Help · Settings** right. Library is active by default; the left/right accordions are present + full height.
    Confirm the Library workspace shows the one-time "New layout" banner pointing Synthesis to the menu bar,
-   Cite/Meta Reference List/CRediT to Work, Discover tools to Discover Search, and Effect-size/Meta-analysis to Extract.
+   Cite/Meta Reference List/CRediT to Work, Discover tools to Discover Search, and Effect-Size/Meta-Analysis to Extract.
 2. **Discover** → confirm three sub-tabs **Search · Journals · Funding**. In **Search**, confirm the search row has
    **Search**, **Wanted**, **Gaps**, and **Overlooked** buttons styled identically; click each discovery button and
    confirm it opens its existing modal. Confirm **Feed** appears below the Search results area, not as its own sub-tab.
    Select a paper first, then open **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode
-   when nothing is selected).
+   when nothing is selected). With enough content to overflow, confirm each body scrolls vertically without moving
+   the Discover sub-tab strip.
 3. **Synthesis** → ask a small query or use Library selection **summarize**; confirm the workspace opens and the
    history/result state stays mounted when switching away and back.
 4. **Work** → confirm sub-tabs **Cite · CRediT statement**. Inside **Cite**, confirm nested tabs
    **Suggest · Meta Reference List · Citation concentration · How it's cited**. With a selected paper, click a
    Library **ref signal** badge and confirm it jumps directly to **Work → Cite → Meta Reference List**.
-5. **Extract** → confirm three sub-tabs **Workbench · Effect-size · Meta-analysis**. **Meta-analysis** with a paper
-   selected runs its per-paper audit + a source link opens the PDF (the `onOpenPaper` + active-check adapter).
-6. **Profile** → the impact dashboard renders (the axis-card 📊 also lands here).
+5. **Extract** → confirm three sub-tabs **Workbench · Effect-Size · Meta-Analysis**. **Meta-Analysis** with a paper
+   selected runs its per-paper audit + a source link opens the PDF (the `onOpenPaper` + active-check adapter). Confirm
+   Effect-Size and Meta-Analysis bodies scroll vertically if their content overflows.
+6. **My Publications** → the impact dashboard renders from the menu bar. After **Settings → My Publications → Refresh**,
+   return here and confirm the dashboard and publications list populate without using the Axes card; the old axis-card
+   dashboard/profile button is absent.
 7. **Help** → the help corpus renders as a wide center view (no modal overlay); **Settings** → the settings render as
    a wide center view; both are reached from the menu bar (the sidebar has no `?`/`⚙`).
 8. Open a PDF from the Library list → a Library sub-tab; switch to Discover → the PDF tab is hidden; return → it's
@@ -76,7 +82,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - Relocated tools work in their new homes (Wanted/Gaps/Overlooked open from Discover Search; Feed appears below
   Search results; Synthesis opens from the menu and selection summarize; Work → Cite owns Suggest/Meta Reference
   List/Citation Concentration/How-it's-cited; Work → CRediT opens; Journals/Funding read the selection; Meta opens
-  the PDF; Effect-size runs).
+  the PDF; Effect-Size runs).
+- Long Journals, Funding, Effect-Size, and Meta-Analysis bodies scroll inside their workspace body without moving the
+  menu bar or sub-tab strip.
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Open PDFs nest under Library + persist; the active workspace persists across reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Extract capture round-trips.

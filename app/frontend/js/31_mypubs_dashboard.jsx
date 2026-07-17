@@ -1,5 +1,5 @@
-// My Publications impact dashboard (inc 81, Part 2 Layer 1). Opens as a frame tab (LibraryFrame) from the
-// 📊 button on the pinned My Publications axis card. A cache-only read of the resolved OpenAlex record + the
+// My Publications impact dashboard (inc 81, Part 2 Layer 1). Opens as the My Publications menu-bar workspace.
+// A cache-aware read of the resolved OpenAlex record + the
 // local library — headline metrics are OpenAlex's authoritative figures (shown verbatim + attributed), the
 // gap is an import nudge, and the research summary is an editable, AI-generated *draft* (egress-gated).
 
@@ -39,8 +39,9 @@ function MyPubsBarChart({ bars, ariaLabel }) {
   );
 }
 
-function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
+function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf }) {
   const [data, setData] = useState({ status: "loading" });
+  const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null);
   const [summary, setSummary] = useState("");
   const [dirty, setDirty] = useState(false);
   const [gen, setGen] = useState({ status: "idle" });   // idle | running | error
@@ -64,6 +65,14 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
   const refetch = () => api("/my-publications/dashboard").then(r => {
     if (r.ok) { setData(r.data); setSummary(r.data.research_summary || ""); }
   });
+  const resolveAxis = useCallback(() => {
+    if (axisId != null) { setResolvedAxisId(axisId); return; }
+    api("/axes").then(r => {
+      if (!r.ok) return;
+      const ax = (r.data || []).find(a => a.kind === "my_publications");
+      setResolvedAxisId(ax ? ax.id : null);
+    });
+  }, [axisId]);
 
   useEffect(() => {
     let live = true;
@@ -73,7 +82,8 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
       else setData({ status: "error", error: r.error });
     });
     return () => { live = false; };
-  }, []);
+  }, [axisRefresh]);
+  useEffect(() => { resolveAxis(); }, [resolveAxis, axisRefresh]);
 
   const generate = async () => {
     setGen({ status: "running" });
@@ -119,7 +129,7 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
     const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then(r => {
       if (!r.ok) { setRefreshing(false); return; }
       const d = r.data;
-      if (d.status === "done") { setRefreshing(false); refetch(); }
+      if (d.status === "done") { setRefreshing(false); refetch(); resolveAxis(); }
       else if (d.status === "error") { setRefreshing(false); }
       else setTimeout(() => poll(jobId), 1500);
     });
@@ -263,7 +273,7 @@ function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
 
       {/* Publications (r3) — axis-scoped library cards with full parity (#7/#10/#13); Decompose hangs in its controls row */}
       <MyPubsPublications
-        axisId={axisId} onSummarize={onSummarize} onSelect={onSelectPaper} onOpenPdf={onOpenPdf}
+        axisId={resolvedAxisId} onSummarize={onSummarize} onSelect={onSelectPaper} onOpenPdf={onOpenPdf}
         decomposeSlot={decomposeButton} domains={domains} starredIds={data.starred_ids}
         paperCitations={data.paper_citations} onOpenCiting={(workId, paper) => setCiting({ workId, title: paper.title })}
       />

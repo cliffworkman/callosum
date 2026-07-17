@@ -45,7 +45,6 @@ function App() {
   const requestCiteTab = useCallback((tabId) => {
     setCiteTabRequest(prev => ({ tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
   }, []);
-  const [myPubsAxisId, setMyPubsAxisId] = useState(null);  // which axis' impact opened the Profile workspace
   // Bumped after a synthesis highlight is saved, so an already-open PdfViewer refetches its annotations (PdfViewer).
   const [annoRefresh, setAnnoRefresh] = useState(0);
   const [queueRefresh, setQueueRefresh] = useState(0);  // inc 219: bump to reload the Queue tab after add/remove
@@ -154,12 +153,6 @@ function App() {
     setTextHealthOpen(true);
   }, []);
 
-  // inc-81 → inc 280: the My Publications impact dashboard is now the Profile workspace (was a frame tab).
-  const openMyPubsDashboard = useCallback((axis) => {
-    setMyPubsAxisId(axis && axis.id);
-    selectWorkspace("profile");
-  }, [selectWorkspace]);
-
   // Save a verified, exact-coordinate citation passage as a durable annotation (source="synthesis"). Re-checks the
   // honesty contract here too, so the precise-save path can never be reached for region/null/flagged citations.
   const saveCitationHighlight = useCallback(async (citation) => {
@@ -215,7 +208,7 @@ function App() {
     conn, selectedPaper: selected, onSelectPaper: setSelected, onOpenPaper: openPdf,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
-    onOpenMyPubsDashboard: openMyPubsDashboard, onTagsChanged: () => setTagRefresh(n => n + 1), onQueueChanged: () => setQueueRefresh(n => n + 1),
+    onTagsChanged: () => setTagRefresh(n => n + 1), onQueueChanged: () => setQueueRefresh(n => n + 1),
     pendingSummarize, axisRefresh, tagRefresh, queueRefresh, hideUncertainDefault, axisCutoffDefault,
     methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
@@ -248,7 +241,7 @@ function App() {
     <Sidebar conn={conn} ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
   );
   // inc 280: the center pane = the active menu-bar workspace. All workspaces stay mounted (hidden) so in-progress
-  // state (a running search, the Extract grid) survives switching. Library + Profile are shell-rendered here (their
+  // state (a running search, the Extract grid) survives switching. Library + My Publications are shell-rendered here (their
   // bodies are bespoke); Discover + Extract render their registered sub-tabs via WorkspacePane.
   const centerEl = (
     <div className="workspace-frame">
@@ -276,7 +269,8 @@ function App() {
         />
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "profile" ? "flex" : "none" }}>
-        <MyPubsDashboard axisId={myPubsAxisId} onSummarize={summarizePaperIds} onSelectPaper={setSelected} onOpenPdf={openPdf} />
+        <MyPubsDashboard axisRefresh={axisRefresh}
+          onSummarize={summarizePaperIds} onSelectPaper={setSelected} onOpenPdf={openPdf} />
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "synthesis" ? "flex" : "none" }}>
         <WorkspacePane ws={getWorkspace("synthesis")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "synthesis"} />

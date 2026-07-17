@@ -1,6 +1,6 @@
 // The Library workspace body — the library list + one sub-tab per open PDF, with a Reading-mode toggle. (Formerly
 // the whole center frame; in inc 280 the Discover/Feed/Extract top-level tabs graduated to menu-bar *workspaces*
-// [04b_workspaces.jsx] and the My-Pubs dashboard to the Profile workspace, so this is now just Library.) PDF tabs
+// [04b_workspaces.jsx] and the My-Pubs dashboard to the My Publications workspace, so this is now just Library.) PDF tabs
 // stay mounted (hidden) so switching back doesn't re-stream them. The Extract "select-in-PDF" capture (inc 255) now
 // lives in the shell (40_app) and is threaded through so a PdfViewer surfaces the capture UI + returns the anchor —
 // arming it opens the paper under Library, and applying it switches back to Extract. Hoists reference PdfViewer /
@@ -16,7 +16,7 @@ function WorkspacesWhatsNewHint({ readOnly }) {
   };
   return (
     <div className="axis-hint workspace-whatsnew" role="status">
-      <span>New layout: <b>Synthesis</b> is on the menu bar; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-size</b> + <b>Meta-analysis</b> under <b>Extract</b>.</span>
+      <span>New layout: <b>Synthesis</b> is on the menu bar; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-Size</b> + <b>Meta-Analysis</b> under <b>Extract</b>.</span>
       <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss workspace layout notice" title="Dismiss" onClick={dismiss}>×</button>
     </div>
   );

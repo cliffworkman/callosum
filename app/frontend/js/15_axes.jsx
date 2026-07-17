@@ -12,7 +12,7 @@ function MyPubsPrompt() {
   );
 }
 
-function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
+function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
   const [axes, setAxes] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [details, setDetails] = useState({});     // { axisId: {status, papers} }
@@ -260,10 +260,6 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
     if (onFilterToAxis) onFilterToAxis({ id: axis.id, label: axis.label, hideUncertain: !!hideUncertain });
   }, [onFilterToAxis]);
 
-  const openMyPubsDashboard = useCallback((axis) => {
-    if (onOpenMyPubsDashboard) onOpenMyPubsDashboard(axis);
-  }, [onOpenMyPubsDashboard]);
-
   const starPaper = useCallback((axisId, paperId, starred) => {
     apiPost("/my-publications/star", { paper_id: paperId, starred }).then(r => {
       if (r.ok) loadDetail(axisId);  // reflect the ★/☆ flip in the card
@@ -272,7 +268,7 @@ function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, on
 
   const handlers = {
     toggle, score, remove, removePaper, confirmPaper, dropPaper, dismissMyPubs, enterFocus, filterToAxis,
-    openMyPubsDashboard, starPaper, toggleSelect, openEdit, openPaper,
+    starPaper, toggleSelect, openEdit, openPaper,
     reorderToIndex, freeze, convertToKeyword,  // A7: curated-axis drag-reorder (SP2) + freeze/revert switch
   };
 
@@ -391,6 +387,6 @@ registerPaneTab(
   { id: "axes-tab", label: "Axes", order: 10,
     render: (ctx) => <AxesPanel onSelectPaper={ctx.onSelectPaper} selectedPaper={ctx.selectedPaper}
       onOpenPaper={ctx.onOpenPaper} onEnterFocus={ctx.onEnterFocus} onFilterToAxis={ctx.onFilterToAxis}
-      onOpenMyPubsDashboard={ctx.onOpenMyPubsDashboard} axisRefresh={ctx.axisRefresh} readOnly={ctx.readOnly}
+      axisRefresh={ctx.axisRefresh} readOnly={ctx.readOnly}
       hideUncertainDefault={ctx.hideUncertainDefault} axisCutoffDefault={ctx.axisCutoffDefault} /> },
 );

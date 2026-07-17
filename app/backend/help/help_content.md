@@ -18,13 +18,13 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **Profile** (your publications + impact), **Library** (your collection + open PDFs), **Synthesis** (verified answers over your library), **Discover** (Search, Feed, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-size · Meta-analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesis** (verified answers over your library), **Discover** (Search, Feed, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-Size · Meta-Analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
 The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
 
-Under **Library**, the workspace has a **Library** tab (your list) and one tab per open PDF — switching keeps open PDFs mounted, so you don't re-open a document each time. Open papers live under Library; switch to Synthesis / Discover / Work / Extract / Profile and they're tucked away until you come back.
+Under **Library**, the workspace has a **Library** tab (your list) and one tab per open PDF — switching keeps open PDFs mounted, so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesis / Discover / Work / Extract and they're tucked away until you come back.
 
 Tips:
 
@@ -655,7 +655,7 @@ Callosum resolves your identity against **OpenAlex** (a public scholarly databas
 
 The card shows a publication count and doubles as a "show only my papers" filter (click the count badge). Newly imported papers that match are added automatically. The 🗑 button dismisses the card (your profile and confirm/reject choices are kept — Refresh rebuilds it). A no-match shows an honest "No OpenAlex author found for [name] — check the name/ORCID."
 
-**The impact dashboard.** Click the **📊** button on the card to open a dashboard tab. At the top is a collapsible **Overview** — headline metrics from your OpenAlex record (total **citations**, **h-index**, **i10-index**, **indexed work count**) beside a year chart you can **flip between publications and citations** (last 10 years). These are OpenAlex's own authoritative figures over your *whole* indexed record (not just your library), shown as-is. The dashboard reads only cached data, so it never fetches on its own — to update it, click **Refresh from OpenAlex** on the **OpenAlex card** at the bottom (which also carries the "as of [date]" provenance, your 2-year mean citedness, affiliation, and a link to your OpenAlex profile), or use Refresh in Settings. Below the Overview is an **AI-generated research summary**: click **Generate** for a one-paragraph draft describing your work, drawn from your publication titles and abstracts; edit it and **Save**. The draft is yours to rewrite — a starting point, not an authoritative claim. To focus the summary on your most important work, **star** key publications (the ☆ button on each paper in the My Publications sidebar card) and tick **⭐ only** before clicking Generate (the toggle appears once you have starred papers).
+**The impact dashboard.** Open **My Publications** from the menu bar. At the top is a collapsible **Overview** — headline metrics from your OpenAlex record (total **citations**, **h-index**, **i10-index**, **indexed work count**) beside a year chart you can **flip between publications and citations** (last 10 years). These are OpenAlex's own authoritative figures over your *whole* indexed record (not just your library), shown as-is. The dashboard reads cached data and updates when you refresh from Settings or click **Refresh from OpenAlex** on the **OpenAlex card** at the bottom (which also carries the "as of [date]" provenance, your 2-year mean citedness, affiliation, and a link to your OpenAlex profile). Below the Overview is an **AI-generated research summary**: click **Generate** for a one-paragraph draft describing your work, drawn from your publication titles and abstracts; edit it and **Save**. The draft is yours to rewrite — a starting point, not an authoritative claim. To focus the summary on your most important work, **star** key publications (the ☆ button on each paper in the My Publications sidebar card) and tick **⭐ only** before clicking Generate (the toggle appears once you have starred papers).
 
 **Your publications, as cards.** Below the summary, the dashboard lists every one of your in-library publications as library-style cards you can **search** and **sort**. Tick papers' checkboxes to **summarize** them into a verified synthesis, **export** their citations (BibTeX/RIS/CSL-JSON), download a formatted **bibliography**, or move them to Trash — the same actions as the main library. Double-click a card to open its PDF.
 
@@ -835,7 +835,7 @@ Read it as a prompt, not a report card:
 ## Auditing meta-analysis reporting
 A **meta-analysis** pools results across studies, and the reader needs to see the choices behind the pooled number. The meta-analysis reporting auditor reads a *published* meta-analysis's extracted text and flags whether it *reports* seven such things — it never pools, models heterogeneity, re-computes an effect size, or does bias inference (that's metafor / JASP / RevMan territory). It's local, deterministic, and uses no AI.
 
-In the **Extract** workspace (menu bar), open **Meta-analysis** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+In the **Extract** workspace (menu bar), open **Meta-Analysis** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
 
 - **Effect-size metric** — the index the study effects were converted to (Hedges' g, log odds ratio, Fisher's z, …) — Borenstein et al. 2009; Viechtbauer 2010 (*metafor*).
 - **Model (fixed vs random-effects)** — and the between-study variance estimator (DerSimonian-Laird, REML, Hartung-Knapp) — DerSimonian & Laird 1986; IntHout et al. 2014.
@@ -878,9 +878,9 @@ Read it as a prompt, not a report card:
 
 <!-- section: converting-effect-sizes -->
 ## Converting effect sizes
-When you're preparing a meta-analysis, studies report their results in different currencies — some give group means and SDs, some a *t* or *F*, some a 2×2 table, some a correlation. The **Effect-size converter** turns *one study's* reported statistics into a common metric you can pool downstream, and shows its work.
+When you're preparing a meta-analysis, studies report their results in different currencies — some give group means and SDs, some a *t* or *F*, some a 2×2 table, some a correlation. The **Effect-Size converter** turns *one study's* reported statistics into a common metric you can pool downstream, and shows its work.
 
-In the **Extract** workspace (menu bar), open **Effect-size** and pick a family:
+In the **Extract** workspace (menu bar), open **Effect-Size** and pick a family:
 
 - **SMD → Hedges' g** — from group means + SDs + Ns, or from a *t* + group Ns, or a two-group one-way *F*.
 - **SD derivation** — recover a standard deviation from an SE, a 95% CI, or an IQR (each derivation is recorded, because *how* you got the SD is a decision worth auditing).

@@ -1504,7 +1504,7 @@
   .workspace-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .workspace-tabs { flex: 0 0 auto; padding: 8px 10px 0; background: var(--panel-2); border-bottom: 1px solid var(--line); }
   /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
-  .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; }
+  .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }
 
   /* inc 280 (stage 3): a center-rendered utility view (Help, Settings) — the former modal body, filling the slot. */
   .workspace-view { flex: 1 1 auto; min-height: 0; padding: 16px 22px; }
@@ -3754,7 +3754,7 @@
       t.label
     ))), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.id, className: "workspace-body pane-tab" + (t.id === at ? " active" : "") }, t.render(ctx, !!wsActive && t.id === at))));
   }
-  registerWorkspace({ id: "profile", label: "Profile", order: 10 });
+  registerWorkspace({ id: "profile", label: "My Publications", order: 10 });
   registerWorkspace({ id: "library", label: "Library", order: 20 });
   registerWorkspace({ id: "discover", label: "Discover", order: 40 });
   registerWorkspace({ id: "work", label: "Work", order: 50 });
@@ -5264,7 +5264,7 @@
     { id: "extract" },
     {
       id: "meta",
-      label: "Meta-analysis",
+      label: "Meta-Analysis",
       order: 30,
       hideInReadOnly: true,
       render: (ctx, active) => /* @__PURE__ */ React.createElement(MetaSection, { ctx: { ...ctx, methodsOpen: active ? "meta" : null } })
@@ -5550,7 +5550,7 @@
       });
     } }, copied ? "\u2713 copied" : "copy value + variance")), /* @__PURE__ */ React.createElement("div", { className: "es-ci" }, "95% CI [", d.ci_low, ", ", d.ci_high, "]"), d.path.length > 0 && /* @__PURE__ */ React.createElement("ol", { className: "es-path" }, d.path.map((p, i) => /* @__PURE__ */ React.createElement("li", { key: i }, p))), d.choices.map((ch, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "es-choice" }, "\u21B3 ", ch)), d.caveats.map((cv, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "statcheck-caveat" }, cv)), /* @__PURE__ */ React.createElement("div", { className: "es-src" }, /* @__PURE__ */ React.createElement("b", null, "Formula:"), " ", d.formula_source)), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "This converts one study \u2014 it is not a meta-analysis. Pooling, heterogeneity (I\xB2/\u03C4\xB2), meta-regression, and publication-bias inference belong to a synthesis tool (metafor / JASP / RevMan); Callosum hands off the dataset + this provenance."), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Formulas:"), " Borenstein, Hedges, Higgins & Rothstein (2009), ", /* @__PURE__ */ React.createElement("i", null, "Introduction to Meta-Analysis"), "; Hedges (1981); Fisher (1915); Haldane (1940) / Anscombe (1956); Wan et al. (2014); Hasselblad & Hedges (1995); cf. the ", /* @__PURE__ */ React.createElement("i", null, "metafor"), " package (Viechtbauer 2010).", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", disabled: added !== "idle", onClick: addCredit }, added === "added" ? "\u2713 added to library" : added === "adding" ? "adding\u2026" : "\uFF0B add methods source to library")));
   }
-  registerWorkspaceTab({ id: "extract" }, { id: "effectsize", label: "Effect-size", order: 20, hideInReadOnly: true, render: () => /* @__PURE__ */ React.createElement(EffectSizeSection, null) });
+  registerWorkspaceTab({ id: "extract" }, { id: "effectsize", label: "Effect-Size", order: 20, hideInReadOnly: true, render: () => /* @__PURE__ */ React.createElement(EffectSizeSection, null) });
   const REF_SIGNAL_LABELS = {
     bibliographic_verification: { label: "Could not verify", tone: "verify", icon: "?" },
     retraction: { label: "Known retraction signal", tone: "retraction", icon: "!" },
@@ -7934,7 +7934,7 @@
   function MyPubsPrompt() {
     return /* @__PURE__ */ React.createElement("div", { className: "axis-mypubs-prompt", title: "Set your name / ORCID in Settings to auto-gather your own papers" }, "\u{1F4C4} ", /* @__PURE__ */ React.createElement("b", null, "My Publications"), " \u2014 set your name / ORCID in Settings (\u2699) to auto-gather your own papers.");
   }
-  function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, onOpenMyPubsDashboard, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
+  function AxesPanel({ onSelectPaper, selectedPaper, onOpenPaper, onEnterFocus, onFilterToAxis, axisRefresh, hideUncertainDefault, axisCutoffDefault, readOnly }) {
     const [axes, setAxes] = useState(null);
     const [expanded, setExpanded] = useState(null);
     const [details, setDetails] = useState({});
@@ -8179,9 +8179,6 @@
     const filterToAxis = useCallback((axis, hideUncertain) => {
       if (onFilterToAxis) onFilterToAxis({ id: axis.id, label: axis.label, hideUncertain: !!hideUncertain });
     }, [onFilterToAxis]);
-    const openMyPubsDashboard = useCallback((axis) => {
-      if (onOpenMyPubsDashboard) onOpenMyPubsDashboard(axis);
-    }, [onOpenMyPubsDashboard]);
     const starPaper = useCallback((axisId, paperId, starred) => {
       apiPost("/my-publications/star", { paper_id: paperId, starred }).then((r) => {
         if (r.ok) loadDetail(axisId);
@@ -8197,7 +8194,6 @@
       dismissMyPubs,
       enterFocus,
       filterToAxis,
-      openMyPubsDashboard,
       starPaper,
       toggleSelect,
       openEdit,
@@ -8314,7 +8310,6 @@
           onOpenPaper: ctx.onOpenPaper,
           onEnterFocus: ctx.onEnterFocus,
           onFilterToAxis: ctx.onFilterToAxis,
-          onOpenMyPubsDashboard: ctx.onOpenMyPubsDashboard,
           axisRefresh: ctx.axisRefresh,
           readOnly: ctx.readOnly,
           hideUncertainDefault: ctx.hideUncertainDefault,
@@ -8501,7 +8496,7 @@
           onClick: stop(() => handlers.convertToKeyword(axis.id))
         },
         "\u21A9"
-      ), isMyPubs && /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn", title: "Open the impact dashboard", onClick: stop(() => handlers.openMyPubsDashboard(axis)) }, "\u{1F4CA}"), !readOnly && /* @__PURE__ */ React.createElement(
+      ), !readOnly && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "axis-icon-btn axis-icon-danger",
@@ -11615,7 +11610,7 @@
       setDismissed(true);
       _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesis"), " is on the menu bar; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesis"), " is on the menu bar; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-Size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
   function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
@@ -12062,8 +12057,9 @@
       return /* @__PURE__ */ React.createElement("g", { key: b.label }, /* @__PURE__ */ React.createElement("rect", { className: "pubs-bar", x, y, width: barW, height: barH, rx: "2" }, /* @__PURE__ */ React.createElement("title", null, b.label, ": ", b.value)), /* @__PURE__ */ React.createElement("text", { className: "pubs-bar-count", x: x + barW / 2, y: y - 3, textAnchor: "middle" }, b.value), /* @__PURE__ */ React.createElement("text", { className: "pubs-bar-year", x: x + barW / 2, y: h - 5, textAnchor: "middle" }, "'" + String(b.label).slice(2)));
     }));
   }
-  function MyPubsDashboard({ axisId, onSummarize, onSelectPaper, onOpenPdf }) {
+  function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf }) {
     const [data, setData] = useState({ status: "loading" });
+    const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null);
     const [summary, setSummary] = useState("");
     const [dirty, setDirty] = useState(false);
     const [gen, setGen] = useState({ status: "idle" });
@@ -12093,6 +12089,17 @@
         setSummary(r.data.research_summary || "");
       }
     });
+    const resolveAxis = useCallback(() => {
+      if (axisId != null) {
+        setResolvedAxisId(axisId);
+        return;
+      }
+      api("/axes").then((r) => {
+        if (!r.ok) return;
+        const ax = (r.data || []).find((a) => a.kind === "my_publications");
+        setResolvedAxisId(ax ? ax.id : null);
+      });
+    }, [axisId]);
     useEffect(() => {
       let live = true;
       api("/my-publications/dashboard").then((r) => {
@@ -12105,7 +12112,10 @@
       return () => {
         live = false;
       };
-    }, []);
+    }, [axisRefresh]);
+    useEffect(() => {
+      resolveAxis();
+    }, [resolveAxis, axisRefresh]);
     const generate = async () => {
       setGen({ status: "running" });
       const r = await apiPost("/my-publications/summary/generate", { starred_only: starredOnly });
@@ -12168,6 +12178,7 @@
         if (d.status === "done") {
           setRefreshing(false);
           refetch();
+          resolveAxis();
         } else if (d.status === "error") {
           setRefreshing(false);
         } else setTimeout(() => poll(jobId), 1500);
@@ -12268,7 +12279,7 @@
     )), /* @__PURE__ */ React.createElement(
       MyPubsPublications,
       {
-        axisId,
+        axisId: resolvedAxisId,
         onSummarize,
         onSelect: onSelectPaper,
         onOpenPdf,
@@ -14020,7 +14031,6 @@
     const requestCiteTab = useCallback((tabId) => {
       setCiteTabRequest((prev) => ({ tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
     }, []);
-    const [myPubsAxisId, setMyPubsAxisId] = useState(null);
     const [annoRefresh, setAnnoRefresh] = useState(0);
     const [queueRefresh, setQueueRefresh] = useState(0);
     const [tagRefresh, setTagRefresh] = useState(0);
@@ -14146,10 +14156,6 @@
       setTextHealthContext(context || null);
       setTextHealthOpen(true);
     }, []);
-    const openMyPubsDashboard = useCallback((axis) => {
-      setMyPubsAxisId(axis && axis.id);
-      selectWorkspace("profile");
-    }, [selectWorkspace]);
     const saveCitationHighlight = useCallback(async (citation) => {
       if (!citation || citation.paper_id == null) return { ok: false, error: "No paper for this citation." };
       const bboxes = normalizeBboxes(citation.bbox_json);
@@ -14204,7 +14210,6 @@
       onFilterToTag: filterToTag,
       onFilterToAxis: filterToAxis,
       onEnterFocus: enterFocus,
-      onOpenMyPubsDashboard: openMyPubsDashboard,
       onTagsChanged: () => setTagRefresh((n) => n + 1),
       onQueueChanged: () => setQueueRefresh((n) => n + 1),
       pendingSummarize,
@@ -14283,7 +14288,15 @@
         onCaptureAnchor: captureAnchor,
         onCancelCapture: clearCapture
       }
-    )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(MyPubsDashboard, { axisId: myPubsAxisId, onSummarize: summarizePaperIds, onSelectPaper: setSelected, onOpenPdf: openPdf })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "synthesis" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("synthesis"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "synthesis" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "discover" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("discover"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "discover" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "work" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("work"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "work" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("extract"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "extract" })), activeWorkspace === "help" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(HelpView, null)), activeWorkspace === "settings" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "profile" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
+      MyPubsDashboard,
+      {
+        axisRefresh,
+        onSummarize: summarizePaperIds,
+        onSelectPaper: setSelected,
+        onOpenPdf: openPdf
+      }
+    )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "synthesis" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("synthesis"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "synthesis" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "discover" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("discover"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "discover" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "work" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("work"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "work" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "extract" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("extract"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "extract" })), activeWorkspace === "help" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(HelpView, null)), activeWorkspace === "settings" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(
       SettingsView,
       {
         theme,

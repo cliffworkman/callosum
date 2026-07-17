@@ -197,3 +197,34 @@ Partial/unverified:
 - Pre-existing untracked artifacts were still left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.
+
+---
+
+## Codex session summary — Group B workspace scroll + My Publications — 2026-07-17
+
+Branch: `feature/library-ux-polish`.
+
+What changed:
+- Completed handoff group B as Increment 289.
+- Added bounded `overflow-y:auto` scrolling to active registered workspace bodies, covering Discover → Journals/Funding and Extract → Effect-Size/Meta-Analysis.
+- Renamed menu-bar **Profile** to **My Publications**.
+- Renamed Extract tab labels **Effect-Size** and **Meta-Analysis**.
+- Made the My Publications dashboard resolve its own `my_publications` axis from `/axes` and refetch on `axisRefresh`, so Settings refreshes populate the workspace without touching the Axes card.
+- Removed the redundant My Publications axis-card dashboard/profile button and its App/Axes plumbing.
+- Updated served help, DESIGN, QA route 73, frontend guards, increment notes, changelog, and rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py tests\test_my_publications.py`: 78 passed.
+- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1145/1145, uncovered 0.
+- Browser smoke against the fresh static bundle on `http://127.0.0.1:8765/callosum-app.html`: desktop/narrow DOM checks confirmed **My Publications**, **Effect-Size**, **Meta-Analysis**, absent old dashboard button, visible Discover/Extract workspace bodies with `overflow-y:auto`, and narrow viewport page width contained while the menu bar scrolls internally. Static-bundle API console errors were expected because no backend was attached.
+- `python -m pytest`: 1241 passed, 1 skipped in 1514.22s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted.
+- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
+
+Partial/unverified:
+- Did not run a fully attached backend browser session with real paper/funding/journal data; the live `:8888` tab was serving a stale bundle, so browser smoke used the freshly rebuilt static bundle for DOM/layout checks only.
+- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.

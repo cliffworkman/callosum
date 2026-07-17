@@ -1,8 +1,8 @@
 // Workspaces (the menu bar) — a SECOND navigation dimension above the THEORY/METHODS side accordions. Where the
 // accordions are *lenses on the current paper* (05_panes.jsx), a workspace is *what you're doing right now*:
-// Profile | Library | Synthesis | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
-// exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single `render` (Profile,
-// Help, Settings) OR >=2 sub-tabs (Discover: Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-size|Meta).
+// My Publications | Library | Synthesis | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
+// exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single `render` (My Publications,
+// Help, Settings) OR >=2 sub-tabs (Discover: Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-Size|Meta).
 // Library is registered as a shell-rendered workspace (no registered tabs) because its content — the library list +
 // the dynamic open-PDF tabs — is bespoke and owned by 40_app. Render closures resolve their components by hoist
 // (the 05_panes `details`→`DetailContent` precedent), so a workspace defined here can reference a component from a
@@ -21,7 +21,7 @@ function _addWsTab(ws, tab) {
 
 // Define a workspace. label/order/hideInReadOnly/utility are authoritative regardless of chunk-load order. A
 // `render` makes it a single-view workspace (added as its lone tab); omit it for a shell-rendered workspace
-// (Library/Profile) whose body 40_app supplies, or when only registerWorkspaceTab calls will populate it.
+// (Library/My Publications) whose body 40_app supplies, or when only registerWorkspaceTab calls will populate it.
 function registerWorkspace(ws) {
   const w = _ensureWs(ws.id);
   w.label = ws.label; w.order = ws.order || 0; w.hideInReadOnly = !!ws.hideInReadOnly; w.utility = !!ws.utility; w.defined = true;
@@ -43,7 +43,7 @@ function citeTabs(readOnly) {
 
 function _wsHiddenReadOnly(w) {
   // Hidden on a read-only companion if the workspace is flagged, or it has registered tabs and EVERY one is hidden.
-  // A shell-rendered workspace (0 registered tabs, e.g. Library/Profile) shows unless explicitly hideInReadOnly.
+  // A shell-rendered workspace (0 registered tabs, e.g. Library/My Publications) shows unless explicitly hideInReadOnly.
   if (w.hideInReadOnly) return true;
   return w.tabs.length > 0 && w.tabs.every(t => t.hideInReadOnly);
 }
@@ -107,10 +107,10 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
 }
 
 // ── the built-in workspaces ─────────────────────────────────────────────────────────────────────────────────
-// Library + Profile are SHELL-RENDERED (no `render`): 40_app owns their bespoke bodies (the library list + dynamic
+// Library + My Publications are SHELL-RENDERED (no `render`): 40_app owns their bespoke bodies (the library list + dynamic
 // open-PDF tabs; the impact dashboard). Synthesis / Discover / Work / Extract are populated by registered tabs.
 // Every write surface's tab carries `hideInReadOnly` so the whole workspace drops on a read-only companion.
-registerWorkspace({ id: "profile", label: "Profile", order: 10 });
+registerWorkspace({ id: "profile", label: "My Publications", order: 10 });
 registerWorkspace({ id: "library", label: "Library", order: 20 });
 registerWorkspace({ id: "discover", label: "Discover", order: 40 });
 registerWorkspace({ id: "work", label: "Work", order: 50 });
@@ -128,6 +128,6 @@ registerWorkspaceTab({ id: "extract" }, {
 });
 
 // inc 280 (stage 3): the right-aligned utility workspaces (Help, Settings) — formerly modals. Shell-rendered:
-// 40_app supplies HelpView / SettingsView (with its many prefs props) in centerEl, like Library/Profile.
+// 40_app supplies HelpView / SettingsView (with its many prefs props) in centerEl, like Library/My Publications.
 registerWorkspace({ id: "help", label: "Help", order: 100, utility: true });
 registerWorkspace({ id: "settings", label: "Settings", order: 110, utility: true });

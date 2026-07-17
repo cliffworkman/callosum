@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 288 (Library header labels/tooltips; positive Open Data signal chip). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 289 (workspace body scrolling; My Publications label/load path; Extract label casing). -->
+## 2026-07-17 — Increment 289: Workspace scroll + My Publications workspace polish
+- **Files:** `app/frontend/js/{04b_workspaces,08g_methods_metaanalysis,08i_methods_effectsize,15_axes,15b_axis_card,30c_frame,31_mypubs_dashboard,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
+- **What:** made registered workspace bodies vertically scroll within the bounded center pane; renamed menu-bar **Profile** to **My Publications**; renamed Extract tabs **Effect-Size** and **Meta-Analysis**; made the My Publications dashboard resolve its own axis and refetch on `axisRefresh`; removed the redundant My Publications axis-card dashboard button.
+- **Why:** long Discover/Extract tools should not disappear below the viewport, and the My Publications workspace should populate from the menu bar after refresh without requiring an axis-card interaction.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py tests/test_my_publications.py` **78 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; static-bundle browser smoke confirmed labels/internal scroll/narrow overflow (expected API console errors without backend); full suite **1241 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 288: Library header polish + positive Open Data signal
 - **Files:** `app/frontend/js/{03_library,10b_libmenus,10_pdf_layer,19_synthesis_failures,26b_text_health}.jsx`, `app/frontend/styles.css`, `app/backend/{api/routers/transparency,persistence/signals_repo,persistence/repository}.py`, `app/backend/help/help_content.md`, `tests/{test_frontend_assembly,test_transparency_findings}.py`, `callosum-app.html`, increment notes.
 - **What:** shortened Library header controls to stable labels: **Metadata ↻**, **Citations ↻**, **Text Health**, **⚠ Flagged · N**, **⚠ Retracted · N**, **📋 Review · N**, and **🔎 Open Data · N**. Metadata/citation/text-health dynamic details now live in tooltips. Inverted the old open-data-not-detected chip into a positive `transparency-data-detected` signal and exposed `data_detected` from the transparency summary while preserving `data_not_detected` review queues.
