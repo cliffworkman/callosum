@@ -25,7 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy import Connection, Engine, update
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.api.routers.axes_models import (
     DEFAULT_AXIS_CUTOFF,
@@ -169,51 +169,55 @@ def suggest_axis_terms(payload: SuggestTermsRequest, request: Request) -> Sugges
 def update_axis_endpoint(
     axis_id: int,
     request: AxisUpdateRequest,
-    conn: Connection = Depends(get_connection),
+    engine: Engine = Depends(get_engine),
 ) -> AxisResponse:
-    axis = get_axis(conn, axis_id)
-    if axis is None:
-        raise HTTPException(status_code=404, detail="Axis not found")
-    fields = request.model_fields_set
-    if not ({"label", "description", "kind"} & fields):
-        raise HTTPException(status_code=422, detail="No updatable fields provided")
-    kwargs: dict[str, str | None] = {}
-    if "label" in fields:
-        label = (request.label or "").strip()
-        if not label:
-            raise HTTPException(status_code=422, detail="Axis label must not be empty")
-        kwargs["label"] = label
-    if "description" in fields:
-        kwargs["description"] = request.description.strip() if request.description else None
-    if kwargs:
-        update_axis(conn, axis_id, **kwargs)
-    # A7 (inc 211): the keyword<->curated switch. Only standard<->curated; never to/from my_publications.
-    if "kind" in fields and request.kind is not None and request.kind != axis["kind"]:
-        if request.kind not in CREATABLE_KINDS:
-            raise HTTPException(status_code=422, detail=f"Unsupported axis kind: {request.kind}")
-        if axis["kind"] == "standard" and request.kind == CURATED_KIND:
-            freeze_to_curated(
-                conn, axis_id=axis_id, cutoff=_axis_cutoff(axis)
-            )  # snapshot shown members → manual+ordered
-        elif axis["kind"] == CURATED_KIND and request.kind == "standard":
-            revert_to_keyword(conn, axis_id=axis_id)  # members kept, order cleared, axis → stale
-        else:
-            raise HTTPException(status_code=422, detail=f"Cannot switch axis kind {axis['kind']} → {request.kind}")
-    conn.commit()
-    return _axis_response(conn, get_axis(conn, axis_id))
+    def _do(conn: Connection) -> AxisResponse:
+        axis = get_axis(conn, axis_id)
+        if axis is None:
+            raise HTTPException(status_code=404, detail="Axis not found")
+        fields = request.model_fields_set
+        if not ({"label", "description", "kind"} & fields):
+            raise HTTPException(status_code=422, detail="No updatable fields provided")
+        kwargs: dict[str, str | None] = {}
+        if "label" in fields:
+            label = (request.label or "").strip()
+            if not label:
+                raise HTTPException(status_code=422, detail="Axis label must not be empty")
+            kwargs["label"] = label
+        if "description" in fields:
+            kwargs["description"] = request.description.strip() if request.description else None
+        if kwargs:
+            update_axis(conn, axis_id, **kwargs)
+        # A7 (inc 211): the keyword<->curated switch. Only standard<->curated; never to/from my_publications.
+        if "kind" in fields and request.kind is not None and request.kind != axis["kind"]:
+            if request.kind not in CREATABLE_KINDS:
+                raise HTTPException(status_code=422, detail=f"Unsupported axis kind: {request.kind}")
+            if axis["kind"] == "standard" and request.kind == CURATED_KIND:
+                freeze_to_curated(
+                    conn, axis_id=axis_id, cutoff=_axis_cutoff(axis)
+                )  # snapshot shown members → manual+ordered
+            elif axis["kind"] == CURATED_KIND and request.kind == "standard":
+                revert_to_keyword(conn, axis_id=axis_id)  # members kept, order cleared, axis → stale
+            else:
+                raise HTTPException(status_code=422, detail=f"Cannot switch axis kind {axis['kind']} → {request.kind}")
+        return _axis_response(conn, get_axis(conn, axis_id))
+
+    return run_write(engine, _do)
 
 
 @router.delete("/axes/{axis_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def delete_axis_endpoint(axis_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if get_axis(conn, axis_id) is None:
-        raise HTTPException(status_code=404, detail="Axis not found")
-    delete_axis(conn, axis_id)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_axis_endpoint(axis_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if get_axis(conn, axis_id) is None:
+            raise HTTPException(status_code=404, detail="Axis not found")
+        delete_axis(conn, axis_id)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/axes/merge", response_model=AxisResponse)
-def merge_axes_endpoint(request: MergeAxesRequest, conn: Connection = Depends(get_connection)) -> AxisResponse:
+def merge_axes_endpoint(request: MergeAxesRequest, engine: Engine = Depends(get_engine)) -> AxisResponse:
     # Local-only: union the merged axes' manual assignments into the survivor, set its composed
     # text, delete the sources. The survivor becomes stale; the frontend re-scores it.
     label = request.label.strip()
@@ -224,15 +228,20 @@ def merge_axes_endpoint(request: MergeAxesRequest, conn: Connection = Depends(ge
         raise HTTPException(status_code=422, detail="The surviving axis cannot also be in the merge list")
     if not merge_ids:
         raise HTTPException(status_code=422, detail="Provide at least one axis to merge into the survivor")
-    if get_axis(conn, request.keep_axis_id) is None:
-        raise HTTPException(status_code=404, detail="Surviving axis not found")
-    for axis_id in merge_ids:
-        if get_axis(conn, axis_id) is None:
-            raise HTTPException(status_code=404, detail=f"Axis {axis_id} not found")
-    description = request.description.strip() if request.description else None
-    merge_axes(conn, keep_axis_id=request.keep_axis_id, merge_axis_ids=merge_ids, label=label, description=description)
-    conn.commit()
-    return _axis_response(conn, get_axis(conn, request.keep_axis_id))
+
+    def _do(conn: Connection) -> AxisResponse:
+        if get_axis(conn, request.keep_axis_id) is None:
+            raise HTTPException(status_code=404, detail="Surviving axis not found")
+        for axis_id in merge_ids:
+            if get_axis(conn, axis_id) is None:
+                raise HTTPException(status_code=404, detail=f"Axis {axis_id} not found")
+        description = request.description.strip() if request.description else None
+        merge_axes(
+            conn, keep_axis_id=request.keep_axis_id, merge_axis_ids=merge_ids, label=label, description=description
+        )
+        return _axis_response(conn, get_axis(conn, request.keep_axis_id))
+
+    return run_write(engine, _do)
 
 
 @router.post("/axes/{axis_id}/score", response_model=AxisScoreStartResponse, status_code=http_status.HTTP_202_ACCEPTED)
@@ -320,32 +329,36 @@ def axis_clusters(axis_id: int, conn: Connection = Depends(get_connection)) -> l
 
 @router.post("/axes/{axis_id}/papers", response_model=ClusterPaperResponse, status_code=http_status.HTTP_201_CREATED)
 def add_axis_paper(
-    axis_id: int, request: ManualAssignmentRequest, conn: Connection = Depends(get_connection)
+    axis_id: int, request: ManualAssignmentRequest, engine: Engine = Depends(get_engine)
 ) -> ClusterPaperResponse:
-    axis = get_axis(conn, axis_id)
-    if axis is None:
-        raise HTTPException(status_code=404, detail="Axis not found")
-    try:
-        paper = get_paper(conn, request.paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    add_manual_assignment(conn, axis_id=axis_id, paper_id=request.paper_id)
-    if axis["kind"] == CURATED_KIND:  # A7: a curated axis appends new members at the end of the manual order
-        append_member_position(conn, axis_id=axis_id, paper_id=request.paper_id)
-    conn.commit()
-    return ClusterPaperResponse(
-        id=int(paper["id"]), title=paper["title"], confidence=None, status="manual", manual=True
-    )
+    def _do(conn: Connection) -> ClusterPaperResponse:
+        axis = get_axis(conn, axis_id)
+        if axis is None:
+            raise HTTPException(status_code=404, detail="Axis not found")
+        try:
+            paper = get_paper(conn, request.paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        add_manual_assignment(conn, axis_id=axis_id, paper_id=request.paper_id)
+        if axis["kind"] == CURATED_KIND:  # A7: a curated axis appends new members at the end of the manual order
+            append_member_position(conn, axis_id=axis_id, paper_id=request.paper_id)
+        return ClusterPaperResponse(
+            id=int(paper["id"]), title=paper["title"], confidence=None, status="manual", manual=True
+        )
+
+    return run_write(engine, _do)
 
 
 @router.delete("/axes/{axis_id}/papers/{paper_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def remove_axis_paper(axis_id: int, paper_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if get_axis(conn, axis_id) is None:
-        raise HTTPException(status_code=404, detail="Axis not found")
-    if not remove_assignment(conn, axis_id=axis_id, paper_id=paper_id):
-        raise HTTPException(status_code=404, detail="Assignment not found")
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def remove_axis_paper(axis_id: int, paper_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if get_axis(conn, axis_id) is None:
+            raise HTTPException(status_code=404, detail="Axis not found")
+        if not remove_assignment(conn, axis_id=axis_id, paper_id=paper_id):
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 class AxisOrderRequest(BaseModel):
@@ -353,19 +366,21 @@ class AxisOrderRequest(BaseModel):
 
 
 @router.put("/axes/{axis_id}/order", status_code=http_status.HTTP_204_NO_CONTENT)
-def set_axis_order(axis_id: int, request: AxisOrderRequest, conn: Connection = Depends(get_connection)) -> Response:
+def set_axis_order(axis_id: int, request: AxisOrderRequest, engine: Engine = Depends(get_engine)) -> Response:
     # A7 (inc 211): set the manual member order of a CURATED axis. The SP2 drag-reorder reuses this verbatim.
-    axis = get_axis(conn, axis_id)
-    if axis is None:
-        raise HTTPException(status_code=404, detail="Axis not found")
-    if axis["kind"] != CURATED_KIND:
-        raise HTTPException(status_code=422, detail="Order applies only to a curated axis")
-    try:
-        set_member_order(conn, axis_id=axis_id, paper_ids=request.paper_ids)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        axis = get_axis(conn, axis_id)
+        if axis is None:
+            raise HTTPException(status_code=404, detail="Axis not found")
+        if axis["kind"] != CURATED_KIND:
+            raise HTTPException(status_code=422, detail="Order applies only to a curated axis")
+        try:
+            set_member_order(conn, axis_id=axis_id, paper_ids=request.paper_ids)
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 def _run_axis_score_job(app: FastAPI, job_id: str, axis_id: int, cutoff: float = DEFAULT_AXIS_CUTOFF) -> None:
