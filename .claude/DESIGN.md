@@ -315,102 +315,95 @@ Ranked; "legit" = a context difference worth keeping.
 
 ---
 
-## 5. Pane architecture — THEORY / METHODS (inc 121)
+## 5. Navigation architecture — workspaces + per-paper lenses
 
-The two side panes are **accordions** on a **module registry** (`app/frontend/js/05_panes.jsx`:
-`registerPaneSection({id, label, paneId, order, render})` + `<PaneAccordion paneId ctx openId onOpen/>`).
+Callosum now has **two navigation dimensions**, and new tools should be placed by the user's **cognitive task**, not
+by implementation detail or whether the tool uses AI.
 
-**Workspaces — a second nav dimension (the menu bar, inc 280; `app/frontend/js/04b_workspaces.jsx`).** Inside the
-**center (Library) pane** — the three panes stay separate + full height — sits a **menu bar** of *workspaces* —
-**Profile | Library | Discover | Extract** (Library default) — a mirror registry to §5's pane registry
-(`registerWorkspace` / `registerWorkspaceTab` / `MenuBar` / `WorkspacePane`), so the center is data-driven + extensible. **The distinction:** a **workspace** is *what you're
-doing* (a mode you enter — outward/generative/wide-output: Discover [Search·Feed·Journals·Funding], Extract, your
-Profile); a **side-accordion section** is a *lens on the current paper* (Details, statcheck, Cite…). The side panes
-**persist across all workspaces**; only the center switches. Open PDFs are **Library** sub-tabs. **Menu-bar recipe
-(tokens only):** `.menubar` a `flex:0 0 auto` bar at the top of `.workspace-frame` (the center pane), `--panel-2` bg + `--line` border;
-`.menubar-item.active` reuses the frame-tab **accent** active semantics (`--accent-soft` / `--accent-line` /
-`--accent`). Sub-tabs reuse the existing `.tags-srcfilter` segmented strip + `.pane-tab` mount-but-hide. *(Full §5
-rewrite — folding THEORY/METHODS into this two-dimension model — is the workspaces stage-4 task; this is the
-interim record.)*
+1. **Workspaces are modes of work in the center pane** — *what the user is doing right now*. The menu bar inside the
+   center Library pane switches between **Profile / Library / Discover / Extract**, plus right-aligned **Help /
+   Settings** utilities. Outward-facing, generative, cross-paper, or wide-output tools belong here: Discover holds
+   Search, Feed, Journals, and Funding; Extract holds Workbench, Effect-size, and Meta-analysis; Profile holds the
+   user's publication dashboard. Open PDFs remain **Library** sub-tabs.
+2. **The THEORY and METHODS side accordions are lenses on the selected paper** — *how the user is evaluating or
+   interpreting the current paper*. The left THEORY pane holds literature-understanding lenses such as Axes, Tags,
+   Synthesis, Cite, and CRediT. The right METHODS pane holds paper-evaluation lenses such as Details, GRIM,
+   Statistics check, Review, transparency, reference integrity, and other methods checks. The side panes persist
+   across all workspaces; only the center switches.
 
-**Placement rubric — place a tool by the user's COGNITIVE TASK, not its implementation.** "AI-powered" is
-orthogonal to the distinction.
-- **THEORY (left pane)** — *knowing the literature*: **AXES** (your conceptual lenses, with a **Tags** tab — your
-  labels — alongside it, inc 139: like-with-like, see "Tabs within a section" below) and **SYNTHESIS** (what the
-  corpus says). `paneId: "theory"`.
-- **METHODS (right pane)** — *evaluating how a paper was studied*, **ordered by cognitive task** (inc 139):
-  **DETAILS** (`order: 10`) → **DATA CONSISTENCY (GRIM)** (inc 127, `order: 20` — it examines the *raw data*, so it
-  precedes the analysis check) → **STATISTICS CHECK** (inc 122, `order: 30` — statcheck's per-paper check *and*
-  library-wide batch, moved out of Settings + the Details pane into `06_methods_statcheck.jsx`, reusing the
-  `.settings-*` / `.detail-statcheck` / `.statcheck-*` recipes — no new tokens) → **REVIEW** (inc 130 — the findings
-  subsystem, `08_methods_findings.jsx`, `order: 40`); other checks later. `paneId: "methods"`.
-- **Soft labels (for now):** the visible chrome shows only the section headers (AXES / SYNTHESIS //
-  DETAILS / DATA CONSISTENCY / STATISTICS CHECK / REVIEW), **no "THEORY"/"METHODS" umbrella header** — the vocabulary
-  is adopted once the METHODS modules earn it. The `paneId` is the internal architecture + the eventual rename.
+The placement question is therefore: **is this a mode the user enters, or a lens on the current paper?** A tool that
+searches beyond the current PDF, produces a broad workbench, or needs center-width output is a workspace or workspace
+tab. A tool that helps inspect, cite, classify, or evaluate the selected paper is a side-accordion section or tab.
 
-**The registry pattern.** Sections are **data**, not hard-coded markup: a new section is one `registerPaneSection`
-call in its own chunk (chunk load order 05<10<15<20<25 ⇒ the registry exists before the calls run), `order`
-controls display position, **zero edits to `PaneAccordion`**. Design for addable (and someday user-supplied)
-modules. **Mount-but-hide:** every section body stays mounted, inactive ones `display:none` (`.acc-section:not(.open)`),
-so in-progress work (a running synthesis) survives a section switch. One section open per pane; the open section
-persists (`callosum.theoryOpen` / `callosum.methodsOpen`). **Note the esbuild gotcha:** a registered-but-unreferenced
-component is dead-code-eliminated from the build until something uses it — wire the consumer in the same change.
+**Workspace registry and menu-bar recipe.** The center menu bar is data-driven by
+`app/frontend/js/04b_workspaces.jsx`: `registerWorkspace`, `registerWorkspaceTab`, `workspaces`,
+`workspaceTabs`, `getWorkspace`, `<MenuBar/>`, and `<WorkspacePane/>`. A workspace can be shell-rendered by `40_app`
+(Library, Profile, Help, Settings) or populated by registered tabs (Discover, Extract). Host metadata is order-sorted
+and idempotent by id; read-only companions hide workspaces or tabs marked `hideInReadOnly`. The menu bar lives
+**inside** the center pane, not app-wide, so the three-pane layout stays separate and full height. Token recipe:
+`.menubar` is a `flex:0 0 auto` bar at the top of `.workspace-frame`, with `--panel-2` background and `--line`
+border; `.menubar-item.active` uses the established active accent semantics (`--accent-soft`, `--accent-line`,
+`--accent`). Workspace sub-tabs reuse the existing `.tags-srcfilter` segmented strip via `.workspace-tabs`; bodies
+use `.workspace-body pane-tab` so inactive tabs stay mounted but hidden (`.pane-tab:not(.active){display:none}`).
+The active workspace persists at `callosum.workspace`, and each workspace tab persists at
+`callosum.workspacetab.<workspaceId>`.
 
-**Tabs within a section (inc 139) — the IA rule.** **Accordion sections are broad tool *categories*; within a
-section, TABS present like-with-like submenus** so the accordion stays shallow instead of sprouting a sibling
-section for every variant. AXES = `[Axes | Tags]` (your conceptual lenses + your labels — same cognitive task,
-different lens). The rule going forward: **like groups with like** — e.g. future statistics checks become **tabs
-inside STATISTICS CHECK**, not new sections; and **order sections by cognitive task**, not implementation
-(DATA CONSISTENCY before STATISTICS CHECK). Mechanics (`05_panes.jsx`): `registerPaneTab({id,label,paneId,order},
-{id,label,order,render})` adds a tab to a find-or-created host section; `registerPaneSection({…,render})` is sugar
-for a one-tab section (no strip shown). The tab strip **reuses the `.tags-srcfilter` segmented-chip recipe**
-(`.pane-tabs`, no new tokens); tabs **mount-but-hide** like sections (`.pane-tab:not(.active){display:none}`) so an
-open axis / running action survives a tab switch; the active tab persists (`callosum.panetab.<sectionId>`).
-**Per-tab read-only (inc 248):** a tab may carry `hideInReadOnly` (a mobile read-only companion hides just that tab —
-e.g. Cite → the analysis tabs drop while **Suggest** stays); a section is hidden read-only only when it's explicitly
-`hideInReadOnly` OR *every* tab is. **Section-definer owns metadata (inc 248):** `registerPaneSection` sets the
-section's label/order/paneId authoritatively regardless of chunk-load order, so a tab-adding chunk that loads first
-only seeds a placeholder; `registerPaneSection({…, tabLabel})` names the section's own first tab (e.g. Cite's is
-"Suggest"). **Cite = `[Suggest | Citation concentration | How it's cited]`** — the citation tools grouped under one
-category (inc 248 moved the two analysis panels here from METHODS).
+**Accordion registry and lens recipe.** The side panes are accordions on the module registry in
+`app/frontend/js/05_panes.jsx`: `registerPaneSection({id, label, paneId, order, render})`,
+`registerPaneTab(host, tab)`, `paneSections`, `sectionTabs`, and
+`<PaneAccordion paneId ctx openId onOpen/>`. Sections are **data**, not hard-coded markup: a new lens is one
+registration call in its own chunk, `order` controls display position, and `PaneAccordion` does not need to change.
+The visible chrome still shows section headers only — no large "THEORY" or "METHODS" umbrella label — while
+`paneId: "theory"` and `paneId: "methods"` remain the internal architecture. One section is open per pane, and the
+open sections persist as `callosum.theoryOpen` / `callosum.methodsOpen`.
 
-**Accordion pane layout (inc 248) — headers always visible.** The two accordion panes (`.pane-sidebar`, `.pane-detail`)
-are `display:flex; flex-direction:column; overflow:hidden` (they do NOT scroll as a whole — only the center `.pane-list`
-keeps normal scroll). `.pane-accordion` is `flex:1; min-height:0`; a collapsed `.acc-section` is `flex:0 0 auto` (just
-its header) and the **open** section is `flex:0 1 auto` — natural height when short (headers sit right below it),
-shrinkable when the pane is full, at which point `.acc-section.open .acc-body{overflow-y:auto}` scrolls the body
-internally. So a long section (Details) never buries the other section headers. `.acc-body` carries `padding: 2px 14px
-14px` (tokens; matches the header's 14px) so section bodies aren't flush to the resize bar; DETAILS' `.detail-edit-pane`
-uses vertical-only inline padding to avoid doubling. All values are tokens/px-position, no new tokens.
+**THEORY and METHODS ordering.** THEORY is for *knowing the literature*: Axes and Tags are grouped together because
+they are conceptual labeling lenses; Synthesis reports what the corpus says; Cite groups citation suggestion and
+citation-analysis tabs under one paper-oriented task. METHODS is for *evaluating how a paper was studied*, ordered
+by cognitive task: Details (`order: 10`) → Data consistency / GRIM (`order: 20`, raw data check before analysis
+check) → Statistics check (`order: 30`, statcheck and related tests) → Review (`order: 40`, findings) → other
+methods checks. Future statistical checks become tabs inside **Statistics check**, not sibling sections. Future
+paper-evaluation modules follow the METHODS order; future literature-understanding lenses follow the THEORY order.
 
-**"Coming soon" placeholders (inc 163) — honest roadmap stubs.** Planned-but-unbuilt sections/tabs may be
-scaffolded ahead of time (a visible roadmap), but only **honestly**: a stub must (1) name a **genuine,
-backlog-tracked** capability — not vaporware; (2) be placed by the **cognitive-task rubric** above (THEORY new
-sections after Cite; METHODS evaluation modules after REVIEW at `order: 50+`; *more stat checks become TABS in
-STATISTICS CHECK*, not new sections — `09_placeholders.jsx` appends a "More checks" tab to the `statcheck` section
-via `registerPaneTab` find-or-create, no edit to `06_methods_statcheck.jsx`); (3) **bake in the principle framing
-it will ship with** (signal-not-verdict, never accusation) so the roadmap itself coheres; and (4) be **inert** —
-no controls, no data ("silence is not a certificate": a placeholder *signals* incomplete work, it never fakes a
-result). Recipe: the `<ComingSoon title body builds/>` component (`09_placeholders.jsx`) + the `.coming-soon*`
-CSS (an `--accent-soft` badge + muted body; tokens only). Remove a stub in the same increment its real feature lands.
+**Tabs within a section or workspace.** Tabs are for like-with-like variants inside one broad task. In side panes,
+`registerPaneTab({id,label,paneId,order}, {id,label,order,render})` adds a tab to a find-or-created host section, and
+`registerPaneSection({…, render})` is the one-tab shorthand. In workspaces, `registerWorkspaceTab` does the same for
+workspace modes. Both tab systems reuse `.tags-srcfilter` plus `.tags-srcfilter-btn`; side-pane tabs use
+`.pane-tabs`, workspace tabs use `.workspace-tabs`, and both mount-but-hide bodies through `.pane-tab`. Side-pane
+active tabs persist as `callosum.panetab.<sectionId>`. Per-tab `hideInReadOnly` is allowed; on a read-only companion
+a section or workspace is hidden only when it is explicitly `hideInReadOnly` or every contained tab is hidden.
+Section-definer and workspace-definer metadata is authoritative regardless of chunk-load order, so a tab-adding chunk
+that loads first only seeds a placeholder. Note the esbuild gotcha: a registered-but-unreferenced component can be
+dead-code-eliminated from the build until a consumer references it, so wire the consumer in the same change.
 
-**AI-usage principle.** The AI's job is to make verification cheap, **never to substitute for it.** For any AI
-feature ask *"where did the judgment go?"* — it must land on a checkable computation or on the human, never hide in
-an opaque selection/score. **The findings output contract (inc 130, METHODS "Review"):** a **FACT** renders as a
-neutral persistent **mark** (`.fact-mark`, e.g. "◆ retracted"), a **CANDIDATE** as a reviewable **card**
-(`.finding-card` → Confirmed / Accepted[needs reason] / Noted); the library badge (`.finding-badge`, "N to review")
-describes the user's **WORK STATE**, never paper quality, and shows nothing at zero. Speculative candidates get a
-`.speculative` dashed card; every candidate routes to its page at **region** precision (no fabricated exact rect).
-This is the FACT-vs-CANDIDATE backbone the later producers plug into. **inc 133** activates the candidate half: a
-producer (statcheck) emits CANDIDATE findings, and a unified **"📋 N to review"** library chip
-(`.trash-toggle.findings-chip`, indigo `--accent` = the work-state/provenance accent, deliberately **not** the
-red/amber reserved for fact/status) + a `?finding=needs-review` filter surface every paper with an unreviewed
-candidate. The chip is a *work-state queue* count (papers you haven't reviewed), never a quality rank — distinct
-from the red retraction chip (a fact) and the amber statcheck chip (a signal). **inc 131 (retraction)** is the
-first producer: its FACT renders a specialized FactMark (`.fact-mark.retraction` — `--flag` amber for correction/concern,
-`--danger` red for `.retraction-severe` = retracted) carrying a **notice** link + the flagging sources; a per-paper
-`.retraction-status` line states "checked — none found" / "unchecked — no DOI" (silence ≠ clean); the
-`.trash-toggle.retraction-chip` (red `--danger`) is the library "N retracted" *filter* count, never a verdict.
+**Accordion pane layout (inc 248) — headers always visible.** The two accordion panes (`.pane-sidebar`,
+`.pane-detail`) are `display:flex; flex-direction:column; overflow:hidden`; they do not scroll as whole panes. The
+center `.pane-list` keeps normal scrolling. `.pane-accordion` is `flex:1; min-height:0`; a collapsed `.acc-section`
+is `flex:0 0 auto`, and the open section is `flex:0 1 auto`: natural height when short, shrinkable when full. Then
+`.acc-section.open .acc-body{overflow-y:auto}` scrolls only the body, so a long Details section never buries the
+other headers. `.acc-body` uses `padding: 2px 14px 14px` to align with the header spacing; Details'
+`.detail-edit-pane` keeps vertical-only inline padding to avoid doubling. All values are existing token/px recipes.
 
-**Accessibility.** Differentiate sections/states by **icon + label, not color alone**; prefer a highlight/glow over
-a blink; gate motion behind `prefers-reduced-motion`. Accordion headers carry `aria-expanded`.
+**"Coming soon" placeholders (inc 163) — honest roadmap stubs.** Planned-but-unbuilt sections, tabs, or workspace
+tabs may be scaffolded only when the capability is genuinely backlog-tracked, placed by the mode-vs-lens rule above,
+and framed with the principle language it will ship with. A placeholder must be inert: no controls, no data, no
+fake result. "Silence is not a certificate" applies to the roadmap too. Recipe: `<ComingSoon title body builds/>`
+from `09_placeholders.jsx` plus the `.coming-soon*` CSS (`--accent-soft` badge, muted body, tokens only). Remove a
+stub in the same increment its real feature lands.
+
+**AI-usage and findings contracts.** The AI's job is to make verification cheap, **never to substitute for it**. For
+any AI feature ask: *where did the judgment go?* It must land on a checkable computation or on the human, never hide
+in an opaque selection or score. The findings output contract (METHODS "Review") keeps **FACT** and **CANDIDATE**
+separate: a fact renders as a neutral persistent mark (`.fact-mark`, e.g. retraction), while a candidate renders as
+a reviewable card (`.finding-card` → Confirmed / Accepted [needs reason] / Noted). The library badge
+(`.finding-badge`, "N to review") describes the user's **work state**, never paper quality, and shows nothing at
+zero. Speculative candidates get a `.speculative` dashed card; every candidate routes to its page at **region**
+precision unless an exact anchor is actually known. The unified "N to review" library chip uses indigo `--accent`
+as the work-state/provenance accent, deliberately separate from red/amber fact/status colors. Retraction facts use
+`.fact-mark.retraction` (`--flag` for correction/concern, `--danger` for retracted) with notice links and source
+provenance; the per-paper retraction status says "checked — none found" or "unchecked — no DOI" rather than implying
+cleanliness from silence.
+
+**Accessibility.** Differentiate sections, tabs, and states by icon + label, not color alone; prefer highlight/glow
+over blinking; gate motion behind `prefers-reduced-motion`. Accordion headers carry `aria-expanded`, and workspace
+and tab strips use tablist/tab semantics.

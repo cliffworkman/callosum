@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-17 — Increment 283: DESIGN §5 workspace/lens rewrite
+- **Files:** `.claude/DESIGN.md`, `.claude/docs/increment-notes/INCREMENT-283-NOTES.md`.
+- **What:** rewrote DESIGN §5 as a coherent two-navigation-dimension model: workspaces/menu bar are center-pane modes of work; THEORY/METHODS side accordions are per-paper lenses. Preserved the shipped registry mechanics and token recipes for `.menubar`, `.workspace-tabs`, `.pane-tabs`, `.tags-srcfilter`, and mount-but-hide bodies.
+- **Why:** closes the inc-280 follow-up by replacing the interim workspace note bolted onto the older accordion rubric with the actual placement rule: mode vs. lens, chosen by the user's cognitive task.
+- **Verify:** static read against `04b_workspaces.jsx` + `05_panes.jsx`; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore `.claude/DESIGN.md` and remove `.claude/docs/increment-notes/INCREMENT-283-NOTES.md` from git.
+
 <!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 280 (workspaces nav: "Finding your way around" rewritten for the menu bar; the 4 moved-section locations [Journals/Funding→Discover, Effect-size/Meta→Extract] + the sidebar-gear reference fixed). -->
 ## 2026-07-17 — Increment 282: credit-the-lineage backfill — the overlooked-work lens (#8 complete)
 - **Files:** `app/frontend/js/36b_overlooked.jsx`, `callosum-app.html`, `tests/test_frontend_assembly.py`, docs.
