@@ -424,6 +424,7 @@ function useLibrary(opts) {
     onToggleTrash: toggleTrash, onRestore: restorePaper,
     onPurge: purgePaper, onEmptyTrash: emptyTrash,
     onCitationsRefreshed: () => setLibRefresh(n => n + 1), onEnriched: () => setLibRefresh(n => n + 1),
+    onRetractionRan: () => { refreshRetractionChip(); setLibRefresh(n => n + 1); setFindingsRefresh(n => n + 1); },
     savedSearches, onApplySavedSearch: applySavedSearch, onSaveSearch: saveCurrentSearch, onDeleteSavedSearch: deleteSavedSearch,
   };
 

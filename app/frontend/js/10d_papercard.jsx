@@ -50,6 +50,7 @@ function PaperCopyButton({ paperId }) {
 // caller append context buttons (the library passes its focus/trash buttons here).
 function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly }) {
   const unresolved = needsMetadata(p);
+  const retracted = p.retraction_status === "retracted";
   return (
     <div
       className={"paper" + (isSelected ? " sel" : "")}
@@ -79,6 +80,7 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
       </div>
       <div className="paper-foot">
         <span className={"tier " + tierClass(p.processing_tier)}>{tierLabel(p.processing_tier)}</span>
+        {retracted && <span className="tier tier-retracted" title="A registry records this paper as retracted — verify the evidence before citing">RETRACTED</span>}
         {p.attachment_count > 0 && <span className="chip">{p.attachment_count} file{p.attachment_count > 1 ? "s" : ""}</span>}
         {unresolved && <span className="needs-doi">needs DOI</span>}
         {/* inc 130: findings — a neutral FactMark + the work-state "N to review" badge (zero shows nothing). */}

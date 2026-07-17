@@ -369,6 +369,14 @@ def test_library_header_polish_labels_and_positive_open_data_signal():
     assert '"Metadata ↻"' in raw
     assert "Filled ${done.fields_filled}" in raw
     assert "Last refreshed ${fmtDateTime(lastRun)}" in raw
+    assert "function RetractionCheckButton(" in raw
+    assert '"Retractions ↻"' in raw
+    assert "<RetractionCheckButton onDone={onRetractionRan} />" in raw
+    assert raw.index("<RetractionCheckButton onDone={onRetractionRan} />") < raw.index(
+        "<TextHealthButton onOpen={onOpenTextHealth} />"
+    )
+    assert 'setDetail(r.data.detail || "")' in raw
+    assert "{run.detail && <>" in raw
     assert '"Text Health"' in raw
     assert "Last refreshed ${fmtDateTime(lastLoaded)}" in raw
     assert "🔎 Open Data · {openDataDetected}" in raw
@@ -377,6 +385,16 @@ def test_library_header_polish_labels_and_positive_open_data_signal():
     assert "⚠ Retracted · {retractionFlagged}" in raw
     assert "📋 Review · {findingsToReview}" in raw
     assert "open data not detected</button>" not in raw
+
+
+def test_retracted_papers_show_danger_badge_on_cards_and_details():
+    raw = assemble_jsx()
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    assert 'const retracted = p.retraction_status === "retracted"' in raw
+    assert 'className="tier tier-retracted"' in raw
+    assert ">RETRACTED</span>" in raw
+    assert 'p.retraction_status === "retracted"' in raw
+    assert ".tier-retracted { background: var(--danger-line); color: var(--danger); }" in css
 
 
 def test_details_extra_urls_are_first_class_rows():

@@ -28,7 +28,8 @@ function FactMark({ finding }) {
   return <span className="fact-mark" title={finding.source}>◆ {findingText(finding)}</span>;
 }
 
-// inc 131: the library-wide retraction check (mirrors the statcheck batch). Public DOI metadata (Crossref +
+// inc 131/292: the library-wide retraction check (mirrors the statcheck batch). It refreshes the local
+// Retraction Watch mirror when available, then checks public DOI metadata (Retraction Watch + Crossref +
 // OpenAlex), no AI. On completion it refreshes the header "N retracted" chip via ctx.onRetractionRan.
 function RetractionBatch({ ctx }) {
   const [run, setRun] = useState({ status: "idle" });
@@ -37,7 +38,7 @@ function RetractionBatch({ ctx }) {
     const poll = (jobId) => api(`/methods/retraction/run/${jobId}`).then(r => {
       if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
       const d = r.data;
-      if (d.status === "done") { setRun({ status: "done", summary: d.summary }); if (ctx.onRetractionRan) ctx.onRetractionRan(); }
+      if (d.status === "done") { setRun({ status: "done", summary: d.summary, detail: d.detail }); if (ctx.onRetractionRan) ctx.onRetractionRan(); }
       else if (d.status === "error") setRun({ status: "error", error: d.detail || "Check failed." });
       else setTimeout(() => poll(jobId), 1500);
     });
@@ -49,7 +50,7 @@ function RetractionBatch({ ctx }) {
   return (
     <div className="retraction-batch">
       <p className="eyebrow">Retraction check</p>
-      <div className="settings-sub">Check every paper's DOI against Crossref + OpenAlex for retractions, corrections, or expressions of concern — public metadata, no AI. A registry record to verify before citing, never an accusation.</div>
+      <div className="settings-sub">Refresh the Retraction Watch mirror when available, then check every paper's DOI against Retraction Watch + Crossref + OpenAlex for retractions, corrections, or expressions of concern — public metadata, no AI. A registry record to verify before citing, never an accusation.</div>
       <div className="settings-actions">
         <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
           {run.status === "running" ? "Checking…" : "Check all papers for retractions"}
@@ -60,6 +61,8 @@ function RetractionBatch({ ctx }) {
       {run.status === "done" && s &&
         <div className="settings-note">
           {s.checked} paper{s.checked === 1 ? "" : "s"} checked · <b>{s.flagged}</b> retracted.
+          {s.database_records != null && <> Retraction Watch mirror: {s.database_records.toLocaleString()} records.</>}
+          {run.detail && <> {run.detail}</>}
           {s.flagged > 0 && ctx.onShowRetractionFlagged && <> <button className="btn-link" onClick={ctx.onShowRetractionFlagged}>Show retracted papers</button></>}
         </div>}
       <RetractionDatabasePanel ctx={ctx} />

@@ -1,5 +1,5 @@
 <!-- qa-coverage
-fe: 03_library.jsx, 04b_workspaces.jsx, 08b_methods_citation_equity.jsx, 08c_methods_citation_context.jsx, 08g_methods_metaanalysis.jsx, 08i_methods_effectsize.jsx, 08j_reference_integrity.jsx, 10_pdf_layer.jsx, 15_axes.jsx, 15b_axis_card.jsx, 20_synthesis.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx, 31_mypubs_dashboard.jsx, 37_cite.jsx, 38_credit.jsx, 40_app.jsx
+fe: 03_library.jsx, 04b_workspaces.jsx, 08_methods_findings.jsx, 08b_methods_citation_equity.jsx, 08c_methods_citation_context.jsx, 08g_methods_metaanalysis.jsx, 08i_methods_effectsize.jsx, 08j_reference_integrity.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 10d_papercard.jsx, 15_axes.jsx, 15b_axis_card.jsx, 20_synthesis.jsx, 25_detail.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx, 31_mypubs_dashboard.jsx, 37_cite.jsx, 38_credit.jsx, 40_app.jsx
 -->
 
 # ROUTE 73 - Workspaces menu bar (two-level center navigation)
@@ -33,6 +33,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - **Discover carries selected-paper context where it matters.** In Discover → Journals/Funding, the selected paper is
   shown before the Discover sub-tabs using the Library tab visual language: dashed selected-paper styling when not
   open, normal open-PDF tab styling when already open. Search stays just Search/Wanted/Gaps/Overlooked + Feed.
+- **Retractions are registry signals with evidence.** The Library header includes **Retractions ↻** before
+  **Text Health**. Running it refreshes the Retraction Watch mirror when available, falls back to the existing mirror
+  when unavailable, and surfaces retracted papers as noninteractive **RETRACTED** badges on cards/details plus the
+  existing evidence-bearing Review finding.
 - **Workspace subsection scroll.** Long Discover/Extract sub-tabs scroll inside their active body; their tab strip and
   the menu bar remain fixed.
 - **Active workspace persists** (`callosum.workspace`) across reload; Library is the default on first load.
@@ -91,6 +95,12 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    they are back in the chosen order. Reload → the last workspace is restored.
 9. Return to Library, click the banner's **Dismiss** button, and reload. Confirm the banner is gone and
    `localStorage.getItem("callosum.workspaces-whatsnew") === "1"`.
+10. In the Library header, confirm **Retractions ↻** appears after **Metadata ↻** and before **Text Health** with the
+    same `.trash-toggle` visual recipe. Run it on a fixture with at least one registry-hit paper if available; confirm
+    the button tooltip gains a last-refreshed summary, fallback text appears if Retraction Watch could not refresh,
+    the red **⚠ Retracted · N** chip updates, and a retracted paper shows a **RETRACTED** badge on its card and Details
+    pane. Open the Review section and confirm the source/date/notice evidence is still visible and worded as a signal,
+    not a verdict.
 
 ## Pass criteria
 
@@ -109,6 +119,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   workspaces and the moved-tools hint. The cross-workspace Extract capture round-trips.
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and
   does not return after workspace switching.
+- Retractions can be launched from the Library header; fallback is visible without hard-failing the batch; retracted
+  papers show the red **RETRACTED** card/detail badge while the Review pane keeps the evidence trail inspectable.
 
 ## Deposit
 

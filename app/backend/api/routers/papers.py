@@ -53,6 +53,7 @@ from app.backend.persistence.repository import (
     soft_delete_paper,
     update_paper_metadata,
 )
+from app.backend.persistence.signals_repo import get_retraction_status
 from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.tags_repo import get_tags_for_paper
 
@@ -125,6 +126,7 @@ def paper_detail(paper_id: int, conn: Connection = Depends(get_connection)) -> P
         attachment_count=counts["attachment_count"],
         chunk_count=counts["chunk_count"],
         tags=get_tags_for_paper(conn, paper_id),
+        retraction_status=(get_retraction_status(conn, paper_id) or {}).get("status"),
     )
 
 
@@ -306,6 +308,7 @@ def _detail_for(conn: Connection, paper_id: int) -> PaperDetailResponse:
         attachment_count=counts["attachment_count"],
         chunk_count=counts["chunk_count"],
         tags=get_tags_for_paper(conn, paper_id),
+        retraction_status=(get_retraction_status(conn, paper_id) or {}).get("status"),
     )
 
 
@@ -329,6 +332,7 @@ def _paper_list_item(row: Any) -> PaperListItem:
         chunk_count=row["chunk_count"],
         cited_by_count=row["cited_by_count"] if "cited_by_count" in row.keys() else None,
         cited_by_as_of=_iso_or_none(row["cited_by_as_of"]) if "cited_by_as_of" in row.keys() else None,
+        retraction_status=row["retraction_status"] if "retraction_status" in row.keys() else None,
         read_at=_iso_or_none(row["read_at"]),
         priority=row["priority"],
     )
@@ -342,6 +346,7 @@ def _paper_detail(
     attachment_count: int,
     chunk_count: int,
     tags: list[Any] | None = None,
+    retraction_status: str | None = None,
 ) -> PaperDetailResponse:
     extra_urls = _urls_from_rows(urls) or _extra_urls_from_csl(row["csl_json"])
     return PaperDetailResponse(
@@ -378,6 +383,7 @@ def _paper_detail(
             )
             for t in (tags or [])
         ],
+        retraction_status=retraction_status,
         read_at=_iso_or_none(row["read_at"]),
         priority=row["priority"],
     )

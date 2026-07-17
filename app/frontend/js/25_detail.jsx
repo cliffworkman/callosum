@@ -282,6 +282,8 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
     <div className="detail-edit-pane" style={{ padding: "10px 0 24px" }}>
       <div className="detail-type-row">
         <TypeSelect value={p.item_type} onSave={saveField} />
+        {p.retraction_status === "retracted" &&
+          <span className="tier tier-retracted" title="A registry records this paper as retracted — verify the evidence before citing">RETRACTED</span>}
         {!readOnly && savingField && <span className="detail-saving">saving…</span>}
         {!readOnly && <button className="btn-link detail-fill" onClick={fillMetadata} disabled={filling}
           title="Fetch any MISSING fields (DOI, abstract, venue…) from Crossref/OpenAlex — fills only blanks, never overwrites what you typed">

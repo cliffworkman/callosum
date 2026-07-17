@@ -19,6 +19,7 @@ class PaperListItem(BaseModel):
     chunk_count: int
     cited_by_count: int | None = None
     cited_by_as_of: str | None = None
+    retraction_status: str | None = None
     read_at: str | None = None
     priority: str | None = None
 
@@ -87,6 +88,7 @@ class PaperDetailResponse(BaseModel):
     chunk_count: int
     attachments: list[AttachmentResponse]
     tags: list[PaperTagRef] = []
+    retraction_status: str | None = None
     read_at: str | None = None
     priority: str | None = None
 

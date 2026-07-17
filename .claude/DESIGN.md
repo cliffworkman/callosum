@@ -131,11 +131,11 @@ Recipe: `--mono`, ~10px, `text-transform:uppercase`, `letter-spacing:.04em`, pad
 radius. Semantic color **pairs**: verified → `--verified-soft`/`--verified`; flag/uncertain/region →
 `--flag-soft`/`--flag`; neutral → `--line`/`--ink-2`; accent/manual → `--accent-soft`/`--accent`.
 (`.tier*`, `.axis-tier*`, `.sent-badge/.cite-status/.coord`, `.needs-doi`, `.chip`.)
-**Narrow exception (inc 203, A9): red `--danger` is permitted on ONE *status* pill — `.cite-status.contradicted`**
-(`--danger-line`/`--danger`), for a cited source that *actively disagrees* with the claim — the strongest negative
-verifier signal, deliberately distinct from amber "uncertain/weak". This is the **only** status that uses red; it is
-**non-interactive** (a pill, not a button), so it doesn't conflate with the §4 destructive-action red. Don't extend
-red to any other status.
+**Narrow exceptions:** red `--danger` is permitted only on the strongest negative **evidence-backed status** pills:
+`.cite-status.contradicted` (inc 203, A9) for a cited source that *actively disagrees* with the claim, and
+`.tier-retracted` (inc 292) for a registry-recorded retraction. Both use `--danger-line`/`--danger`, are
+**non-interactive** status pills, and must remain evidence prompts — not author accusations, scores, or destructive
+actions. Don't extend red to weaker statuses.
 
 ### Chips (interactive, rounded-pill, toggle)
 `--term-chip`: dashed `--line-2` border + `--panel` bg when off; solid `--accent` border + `--accent-soft`

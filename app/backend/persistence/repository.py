@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import (
     Connection,
@@ -18,22 +18,6 @@ from sqlalchemy import (
     select,
 )
 
-from app.backend.persistence.schema import (
-    attachments,
-    axes,
-    chunks,
-    cluster_node_papers,
-    cluster_nodes,
-    open_science_signals,
-    paper_citation_counts,
-    paper_findings,
-    paper_tags,
-    papers,
-)
-
-if TYPE_CHECKING:  # avoid coupling persistence to the embeddings package at import time
-    pass
-
 # Paper lifecycle/state mutators (trash, purge, read/priority, tier) live in paper_lifecycle_repo.py (extracted
 # inc 220 to keep this module under the 600-line cap); re-exported so existing import sites are unchanged.
 from app.backend.persistence.paper_lifecycle_repo import (  # noqa: E402,F401
@@ -47,6 +31,18 @@ from app.backend.persistence.paper_lifecycle_repo import (  # noqa: E402,F401
     set_paper_read,
     soft_delete_paper,
     update_paper_metadata,
+)
+from app.backend.persistence.schema import (
+    attachments,
+    axes,
+    chunks,
+    cluster_node_papers,
+    cluster_nodes,
+    open_science_signals,
+    paper_citation_counts,
+    paper_findings,
+    paper_tags,
+    papers,
 )
 
 # Summary (synthesis) CRUD lives in summaries_repo.py (extracted inc 220); re-exported so call sites are unchanged.
@@ -71,6 +67,15 @@ def _cited_by_as_of_subquery():
     return (
         select(paper_citation_counts.c.retrieved_at)
         .where(paper_citation_counts.c.paper_id == papers.c.id)
+        .scalar_subquery()
+    )
+
+
+def _retraction_status_subquery():
+    """Stored retraction check status for the card badge. A status is a registry signal, not a verdict."""
+    return (
+        select(open_science_signals.c.status)
+        .where(open_science_signals.c.paper_id == papers.c.id, open_science_signals.c.signal_type == "retraction")
         .scalar_subquery()
     )
 
@@ -262,6 +267,7 @@ def list_papers(
                 "cited_by_count"
             ),  # inc 210, A2 — verbatim OpenAlex count + as-of for the card chip
             _cited_by_as_of_subquery().label("cited_by_as_of"),
+            _retraction_status_subquery().label("retraction_status"),
         )
         .where(
             # Trash view excludes merged-away papers (deleted_at + merged_into): restoring one must route through

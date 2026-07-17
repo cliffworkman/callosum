@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 291 (Discover Journals/Funding selected-paper cue). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 292 (Library retractions refresh + badges). -->
+## 2026-07-17 — Increment 292: Library retractions refresh + badges
+- **Files:** `app/backend/api/routers/methods_retraction.py`, `app/backend/api/routers/{papers,paper_models}.py`, `app/backend/persistence/repository.py`, `app/frontend/js/{03_library,08_methods_findings,10_pdf_layer,10b_libmenus,10d_papercard,25_detail}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/{test_retraction,test_frontend_assembly}.py`, `callosum-app.html`, increment notes.
+- **What:** the library-wide retraction batch now attempts a Retraction Watch mirror refresh before checking papers, but treats refresh failure as a visible fallback rather than a hard failure. `/papers` and `/papers/{id}` now include stored `retraction_status`, enabling a red **RETRACTED** badge on paper cards and Details. Added a **Retractions ↻** Library-header button before **Text Health**, with last-run/fallback detail in the tooltip; the Review pane also reports mirror refresh counts/fallback detail.
+- **Why:** Retraction Watch is the richest registry source, but its availability should not block Crossref/OpenAlex checks or the existing local mirror. Retraction remains an evidence-bearing registry signal to inspect before citing, not an accusation or score.
+- **Verify:** frontend rebuilt; focused `tests/test_retraction.py tests/test_retraction_watch.py tests/test_frontend_assembly.py` **55 passed**; `tests/test_help.py` **14 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; throwaway-server Playwright smoke confirmed **Retractions ↻** before **Text Health** with `.trash-toggle`, registry tooltip, and 0 console/page errors; full suite **1245 passed / 1 skipped**; ruff + format + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 291: Discover selected-paper cue for Journals/Funding
 - **Files:** `app/frontend/js/{04b_workspaces,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
 - **What:** added a selected/open-paper cue before the Discover sub-tabs when **Journals** or **Funding** is active. It reuses the Library tab vocabulary: dashed selected-paper styling when the paper is selected but unopened, and normal open-PDF tab styling when that selected paper is already open.

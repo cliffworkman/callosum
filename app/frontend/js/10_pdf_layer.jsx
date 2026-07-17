@@ -231,7 +231,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     openDataDetected, onShowTransparencyReview,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
-                    onCitationsRefreshed, onEnriched, onOpenTextHealth, onOpenReferenceWarnings,
+                    onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
                     savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
@@ -299,6 +299,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <button className="trash-toggle" onClick={onFindDuplicates} title="Scan for likely duplicates">Duplicates</button>}
             {!trashView && <CitationCountsButton asOf={maxCitedAsOf} onRefreshed={onCitationsRefreshed} />}
             {!trashView && <EnrichMetadataButton onRefreshed={onEnriched} />}
+            {!trashView && <RetractionCheckButton onDone={onRetractionRan} />}
             {!trashView && <TextHealthButton onOpen={onOpenTextHealth} />}
             {trashView && state.status === "ready" && state.papers.length > 0 &&
               <button className="trash-toggle danger" onClick={onEmptyTrash}

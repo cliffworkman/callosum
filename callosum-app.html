@@ -1084,6 +1084,7 @@
   }
   .tier-grounded, .tier-fully-chunked, .tier-chunked { background: var(--verified-soft); color: var(--verified); }
   .tier-metadata-only, .tier-metadata-resolved { background: var(--flag-soft); color: var(--flag); }
+  .tier-retracted { background: var(--danger-line); color: var(--danger); }
   .tier-unknown { background: var(--line); color: var(--ink-2); }
   .chip {
     font-size: 11px; color: var(--ink-3); font-family: var(--mono);
@@ -3503,6 +3504,11 @@
       onEmptyTrash: emptyTrash,
       onCitationsRefreshed: () => setLibRefresh((n) => n + 1),
       onEnriched: () => setLibRefresh((n) => n + 1),
+      onRetractionRan: () => {
+        refreshRetractionChip();
+        setLibRefresh((n) => n + 1);
+        setFindingsRefresh((n) => n + 1);
+      },
       savedSearches,
       onApplySavedSearch: applySavedSearch,
       onSaveSearch: saveCurrentSearch,
@@ -4157,7 +4163,7 @@
         }
         const d = r2.data;
         if (d.status === "done") {
-          setRun({ status: "done", summary: d.summary });
+          setRun({ status: "done", summary: d.summary, detail: d.detail });
           if (ctx.onRetractionRan) ctx.onRetractionRan();
         } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Check failed." });
         else setTimeout(() => poll(jobId), 1500);
@@ -4170,7 +4176,7 @@
       poll(r.data.job_id);
     };
     const s = run.summary;
-    return /* @__PURE__ */ React.createElement("div", { className: "retraction-batch" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retraction check"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Check every paper's DOI against Crossref + OpenAlex for retractions, corrections, or expressions of concern \u2014 public metadata, no AI. A registry record to verify before citing, never an accusation."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Checking\u2026" : "Check all papers for retractions")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking retraction registries\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Check failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.checked, " paper", s.checked === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.flagged), " retracted.", s.flagged > 0 && ctx.onShowRetractionFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: ctx.onShowRetractionFlagged }, "Show retracted papers"))), /* @__PURE__ */ React.createElement(RetractionDatabasePanel, { ctx }));
+    return /* @__PURE__ */ React.createElement("div", { className: "retraction-batch" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Retraction check"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Refresh the Retraction Watch mirror when available, then check every paper's DOI against Retraction Watch + Crossref + OpenAlex for retractions, corrections, or expressions of concern \u2014 public metadata, no AI. A registry record to verify before citing, never an accusation."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Checking\u2026" : "Check all papers for retractions")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Checking retraction registries\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Check failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.checked, " paper", s.checked === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.flagged), " retracted.", s.database_records != null && /* @__PURE__ */ React.createElement(React.Fragment, null, " Retraction Watch mirror: ", s.database_records.toLocaleString(), " records."), run.detail && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", run.detail), s.flagged > 0 && ctx.onShowRetractionFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: ctx.onShowRetractionFlagged }, "Show retracted papers"))), /* @__PURE__ */ React.createElement(RetractionDatabasePanel, { ctx }));
   }
   function RetractionDatabasePanel({ ctx }) {
     const [db, setDb] = useState(null);
@@ -7319,6 +7325,7 @@
     onExportBundle,
     onCitationsRefreshed,
     onEnriched,
+    onRetractionRan,
     onOpenTextHealth,
     onOpenReferenceWarnings,
     savedSearches,
@@ -7393,7 +7400,7 @@
         title: libraryNeedsReview ? "Back to the full library" : "Papers whose metadata still needs review \u2014 raw imports, unresolved DOIs"
       },
       libraryNeedsReview ? "\u2190 Library" : "Unsorted"
-    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), !trashView && /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
+    ), !trashView && /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onFindDuplicates, title: "Scan for likely duplicates" }, "Duplicates"), !trashView && /* @__PURE__ */ React.createElement(CitationCountsButton, { asOf: maxCitedAsOf, onRefreshed: onCitationsRefreshed }), !trashView && /* @__PURE__ */ React.createElement(EnrichMetadataButton, { onRefreshed: onEnriched }), !trashView && /* @__PURE__ */ React.createElement(RetractionCheckButton, { onDone: onRetractionRan }), !trashView && /* @__PURE__ */ React.createElement(TextHealthButton, { onOpen: onOpenTextHealth }), trashView && state.status === "ready" && state.papers.length > 0 && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle danger",
@@ -7604,6 +7611,44 @@
     const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
     const title = done ? `${lastRunText}Filled ${done.fields_filled} field(s) across ${done.papers} papers \xB7 recovered ${done.dois_recovered} DOI(s) \xB7 ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields \u2014 never overwrites what you typed.` : "Fill each paper's missing fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 public metadata, fills only blanks, never overwrites your edits.";
     return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, label);
+  }
+  function RetractionCheckButton({ onDone }) {
+    const [busy, setBusy] = useState(false);
+    const [summary, setSummary] = useState(null);
+    const [detail, setDetail] = useState("");
+    const [lastRun, setLastRun] = useState(null);
+    const run = async () => {
+      if (busy) return;
+      setBusy(true);
+      setSummary(null);
+      setDetail("");
+      const start = await apiPost("/methods/retraction/run", {});
+      const jid = start.ok && start.data ? start.data.job_id : null;
+      if (!jid) {
+        setBusy(false);
+        return;
+      }
+      for (let i = 0; i < 1200; i++) {
+        await new Promise((r2) => setTimeout(r2, 600));
+        const r = await api("/methods/retraction/run/" + jid);
+        if (!r.ok) break;
+        if (r.data.status === "done" || r.data.status === "error") {
+          if (r.data.status === "done") {
+            setSummary(r.data.summary || null);
+            setDetail(r.data.detail || "");
+            setLastRun(/* @__PURE__ */ new Date());
+            onDone && onDone();
+          } else {
+            setDetail(r.data.detail || "Retraction check failed.");
+          }
+          break;
+        }
+      }
+      setBusy(false);
+    };
+    const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
+    const title = summary ? `${lastRunText}${summary.checked} checked \xB7 ${summary.flagged} retracted. ${detail || "Retraction Watch mirror refreshed first when available."}` : "Refresh the Retraction Watch mirror when available, then check every DOI for registry retractions. Signal with evidence, not a verdict.";
+    return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, busy ? "Retractions\u2026" : "Retractions \u21BB");
   }
   async function pollTextReprocess(jobId, setProg) {
     for (let i = 0; i < 1200; i++) {
@@ -7825,6 +7870,7 @@
   }
   function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly }) {
     const unresolved = needsMetadata(p);
+    const retracted = p.retraction_status === "retracted";
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -7852,7 +7898,7 @@
       ),
       /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, p.title || /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "Untitled")),
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, unresolved ? /* @__PURE__ */ React.createElement("span", { className: "placeholder" }, "metadata not yet resolved") : /* @__PURE__ */ React.createElement(React.Fragment, null, p.authors && p.authors.length > 0 && /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, fmtAuthors(p.authors)), p.year && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", p.year), p.venue && /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, "\xB7 ", p.venue))),
-      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), findings && findings.has_facts && /* @__PURE__ */ React.createElement("span", { className: "fact-mark fact-mark-card", title: "Has a fact finding (e.g. retracted)" }, "\u25C6 fact"), findings && findings.unreviewed_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "finding-badge", title: "Unreviewed candidate findings to review" }, findings.unreviewed_count, " to review"), referenceWarnings && referenceWarnings.active_count > 0 && /* @__PURE__ */ React.createElement(
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "tier " + tierClass(p.processing_tier) }, tierLabel(p.processing_tier)), retracted && /* @__PURE__ */ React.createElement("span", { className: "tier tier-retracted", title: "A registry records this paper as retracted \u2014 verify the evidence before citing" }, "RETRACTED"), p.attachment_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, p.attachment_count, " file", p.attachment_count > 1 ? "s" : ""), unresolved && /* @__PURE__ */ React.createElement("span", { className: "needs-doi" }, "needs DOI"), findings && findings.has_facts && /* @__PURE__ */ React.createElement("span", { className: "fact-mark fact-mark-card", title: "Has a fact finding (e.g. retracted)" }, "\u25C6 fact"), findings && findings.unreviewed_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "finding-badge", title: "Unreviewed candidate findings to review" }, findings.unreviewed_count, " to review"), referenceWarnings && referenceWarnings.active_count > 0 && /* @__PURE__ */ React.createElement(
         "button",
         {
           type: "button",
@@ -9992,7 +10038,7 @@
       (k) => !CORE_CSL_KEYS.has(k) && isScalarValue(p.csl_json[k])
     );
     const hasPdf = (p.attachments || []).some((a) => a.attachment_type === "pdf" && a.availability === "available");
-    return /* @__PURE__ */ React.createElement(DetailReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "10px 0 24px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), !readOnly && savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), !readOnly && /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(DetailReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "detail-edit-pane", style: { padding: "10px 0 24px" } }, /* @__PURE__ */ React.createElement("div", { className: "detail-type-row" }, /* @__PURE__ */ React.createElement(TypeSelect, { value: p.item_type, onSave: saveField }), p.retraction_status === "retracted" && /* @__PURE__ */ React.createElement("span", { className: "tier tier-retracted", title: "A registry records this paper as retracted \u2014 verify the evidence before citing" }, "RETRACTED"), !readOnly && savingField && /* @__PURE__ */ React.createElement("span", { className: "detail-saving" }, "saving\u2026"), !readOnly && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link detail-fill",

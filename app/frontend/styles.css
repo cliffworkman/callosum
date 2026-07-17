@@ -1060,6 +1060,7 @@
   }
   .tier-grounded, .tier-fully-chunked, .tier-chunked { background: var(--verified-soft); color: var(--verified); }
   .tier-metadata-only, .tier-metadata-resolved { background: var(--flag-soft); color: var(--flag); }
+  .tier-retracted { background: var(--danger-line); color: var(--danger); }
   .tier-unknown { background: var(--line); color: var(--ink-2); }
   .chip {
     font-size: 11px; color: var(--ink-3); font-family: var(--mono);

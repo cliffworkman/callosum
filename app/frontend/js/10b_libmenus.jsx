@@ -100,6 +100,44 @@ function EnrichMetadataButton({ onRefreshed }) {
   return <button className="trash-toggle" onClick={run} disabled={busy} title={title}>{label}</button>;
 }
 
+function RetractionCheckButton({ onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [summary, setSummary] = useState(null);
+  const [detail, setDetail] = useState("");
+  const [lastRun, setLastRun] = useState(null);
+  const run = async () => {
+    if (busy) return;
+    setBusy(true); setSummary(null); setDetail("");
+    const start = await apiPost("/methods/retraction/run", {});
+    const jid = start.ok && start.data ? start.data.job_id : null;
+    if (!jid) { setBusy(false); return; }
+    for (let i = 0; i < 1200; i++) {
+      await new Promise(r => setTimeout(r, 600));
+      const r = await api("/methods/retraction/run/" + jid);
+      if (!r.ok) break;
+      if (r.data.status === "done" || r.data.status === "error") {
+        if (r.data.status === "done") {
+          setSummary(r.data.summary || null); setDetail(r.data.detail || ""); setLastRun(new Date());
+          onDone && onDone();
+        } else {
+          setDetail(r.data.detail || "Retraction check failed.");
+        }
+        break;
+      }
+    }
+    setBusy(false);
+  };
+  const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
+  const title = summary
+    ? `${lastRunText}${summary.checked} checked · ${summary.flagged} retracted. ${detail || "Retraction Watch mirror refreshed first when available."}`
+    : "Refresh the Retraction Watch mirror when available, then check every DOI for registry retractions. Signal with evidence, not a verdict.";
+  return (
+    <button className="trash-toggle" onClick={run} disabled={busy} title={title}>
+      {busy ? "Retractions…" : "Retractions ↻"}
+    </button>
+  );
+}
+
 async function pollTextReprocess(jobId, setProg) {
   for (let i = 0; i < 1200; i++) {
     await new Promise(r => setTimeout(r, 600));

@@ -288,3 +288,44 @@ Partial/unverified:
 - Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.
+
+---
+
+## Codex session summary — Group E Library retractions refresh + badges — 2026-07-17
+
+Branch: `feature/library-ux-polish`.
+
+What changed:
+- Completed handoff group E as Increment 292.
+- `POST /methods/retraction/run` now attempts a Retraction Watch mirror refresh before checking papers. If the mirror
+  refresh fails or lacks a contact email, the batch does not hard-fail: it records fallback detail and continues with
+  the existing local mirror plus configured DOI checkers.
+- The run summary now reports `database_records` / `database_refresh_error`, and the Review pane shows mirror counts
+  or fallback detail after the run.
+- `/papers` and `/papers/{id}` now expose stored `retraction_status` from `open_science_signals`.
+- Added a Library-header **Retractions ↻** `.trash-toggle` before **Text Health**. Its tooltip carries last-run
+  counts and fallback detail; on completion it refreshes the retraction chip, paper list, and findings queue.
+- Added noninteractive red **RETRACTED** badges on paper cards and Details for registry-recorded retractions, using
+  the existing `.tier` pill recipe with `--danger-line`/`--danger`.
+- Updated served help, DESIGN, QA route 73, frontend/backend guards, increment notes, changelog, and rebuilt
+  `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_retraction.py tests\test_retraction_watch.py tests\test_frontend_assembly.py`: 55 passed.
+- `python -m pytest tests\test_help.py`: 14 passed.
+- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1153/1153, uncovered 0.
+- Throwaway-server Playwright smoke confirmed **Retractions ↻** appears before **Text Health**, uses `.trash-toggle`,
+  has the registry-retraction tooltip, and produced 0 console/page errors.
+- `python -m pytest`: 1245 passed, 1 skipped in 1252.85s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted.
+- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
+
+Partial/unverified:
+- Did not run a real browser smoke with a seeded registry-hit paper to visually inspect the card/detail
+  **RETRACTED** badges; this is covered by backend payload tests and frontend assembly guards, but Claude/Opus should
+  include it in the next manual Route 73 pass.
+- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.

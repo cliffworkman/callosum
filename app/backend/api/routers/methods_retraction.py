@@ -69,6 +69,8 @@ class RetractionRunSummary(BaseModel):
     total: int = 0  # live papers
     checked: int = 0  # papers that had a DOI to check
     flagged: int = 0  # papers a registry records as retracted
+    database_records: int | None = None  # Retraction Watch rows refreshed before the run, when available
+    database_refresh_error: str | None = None  # refresh failed; batch continued against the existing mirror
 
 
 class RetractionRunResponse(BaseModel):
@@ -113,6 +115,18 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
         checkers = app.state.retraction_checkers
         total = checked = flagged = 0
         engine = app.state.engine
+        database_records: int | None = None
+        database_refresh_error: str | None = None
+        try:
+            with engine.begin() as conn:
+                database_records = download_retraction_database(app.state.retraction_watch_client, conn)
+        except RetractionWatchUnavailable as exc:
+            database_refresh_error = str(exc)
+            _log.info("retraction batch: Retraction Watch refresh unavailable; using existing mirror: %s", exc)
+        except Exception as exc:  # noqa: BLE001 — a stale/offline mirror must not abort the DOI check
+            database_refresh_error = f"{type(exc).__name__}: {exc}"
+            _log.warning("retraction batch: Retraction Watch refresh failed; using existing mirror: %s", exc)
+
         with engine.connect() as conn:
             ids = list_live_paper_ids(conn)
 
@@ -137,7 +151,18 @@ def _run_retraction_all_job(app: FastAPI, job_id: str) -> None:
             RetractionRunResponse(
                 job_id=job_id,
                 status="done",
-                summary=RetractionRunSummary(total=total, checked=checked, flagged=flagged),
+                detail=(
+                    f"Retraction Watch refresh failed; used existing mirror: {database_refresh_error}"
+                    if database_refresh_error
+                    else None
+                ),
+                summary=RetractionRunSummary(
+                    total=total,
+                    checked=checked,
+                    flagged=flagged,
+                    database_records=database_records,
+                    database_refresh_error=database_refresh_error,
+                ),
             ),
         )
     except Exception as exc:

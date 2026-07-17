@@ -6,6 +6,7 @@ from app.backend.acquisition.registry import PaperRef
 from app.backend.api import create_app
 from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.methods.retraction import (
+    RETRACTION_WATCH_CHECKER,
     RetractionChecker,
     RetractionSignal,
     apply_retraction,
@@ -22,6 +23,7 @@ from app.backend.persistence.signals_repo import (
 )
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
+from integrations.retraction_watch.adapter import RetractionWatchClient
 
 
 def _paper(conn, *, doi=None, title="P") -> int:
@@ -277,6 +279,10 @@ def test_retraction_endpoints_and_filter(temp_db_url):
 
     # the chip count + the library "Retracted" filter
     assert client.get("/methods/retraction/summary").json()["retracted"] == 1
+    papers = client.get("/papers").json()
+    assert next(p for p in papers if p["id"] == a)["retraction_status"] == "retracted"
+    assert next(p for p in papers if p["id"] == b)["retraction_status"] == "none"
+    assert client.get(f"/papers/{a}").json()["retraction_status"] == "retracted"
     ids = [p["id"] for p in client.get("/papers?signal=retraction-retracted").json()]
     assert a in ids and b not in ids
 
@@ -285,6 +291,36 @@ def test_retraction_endpoints_and_filter(temp_db_url):
     assert any(f["payload"]["status"] == "retracted" for f in facts)
 
     assert client.get("/papers/999999/retraction").status_code == 404
+
+
+def test_retraction_run_refreshes_rw_database_before_check(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, doi="10.1/orig", title="A")
+    engine.dispose()
+
+    csv = (
+        "RecordID,Title,OriginalPaperDOI,RetractionDOI,RetractionNature,RetractionDate,Reason,URLS\n"
+        "1,Bad Paper,10.1/orig,10.1/notice,Retraction,2021-03-15,+Data issue,https://x\n"
+    )
+
+    def fake(url, *, timeout, max_bytes):
+        return csv
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.app.state.retraction_watch_client = RetractionWatchClient(fetcher=fake, mailto="x@y.z")
+    client.app.state.retraction_checkers = [RETRACTION_WATCH_CHECKER]
+
+    run = client.post("/methods/retraction/run")
+    assert run.status_code == 202
+    done = client.get(f"/methods/retraction/run/{run.json()['job_id']}").json()
+    assert done["status"] == "done"
+    assert done["detail"] is None
+    assert done["summary"]["database_records"] == 1
+    assert done["summary"]["flagged"] == 1
+    assert client.get("/methods/retraction/database").json()["count"] == 1
+    assert client.get(f"/papers/{a}/retraction").json()["sources"] == ["retraction-watch"]
+    assert client.get(f"/papers/{a}").json()["retraction_status"] == "retracted"
 
 
 # ---- on-import auto-check (inc 134) -----------------------------------------
