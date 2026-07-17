@@ -10,6 +10,13 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 280 (workspaces nav: "Finding your way around" rewritten for the menu bar; the 4 moved-section locations [Journals/Funding→Discover, Effect-size/Meta→Extract] + the sidebar-gear reference fixed). -->
+## 2026-07-17 — Increment 282: credit-the-lineage backfill — the overlooked-work lens (#8 complete)
+- **Files:** `app/frontend/js/36b_overlooked.jsx`, `callosum-app.html`, `tests/test_frontend_assembly.py`, docs.
+- **What:** the overlooked-work lens (#37) operationalizes the Matthew effect (Merton 1968) but credited it only in prose; added the shared `.method-credit` affordance — source paper in-context + one-click **add to library** (`/library/import`), matching statcheck/GRIM/p-curve/etc.
+- **Why:** closes the one Lane-A gap #8 had left (the lens post-dates the inc-180 credit pass). The other credit-less method surfaces are data-source-driven/compositional → NOTICES-level (excluded per the backlog rationale). **#8 now complete** — every method-implementing tool with an identifiable method-paper lineage credits it in-tool + offers it to the library.
+- **Verify:** the overlooked assembly guard extended (OverlookedCredit + .method-credit + Merton CSL/DOI); build clean; line budget; full suite **1237** (unchanged — an existing guard extended).
+- **Revert:** restore the listed files from git (branch `feature/credit-lineage-backfill`).
+
 ## 2026-07-17 — Increment 281: short-write run_write sweep — the "database is locked" residual edge CLOSED
 - **Files:** `app/backend/api/dependencies.py` (+`get_engine`), 17 routers converted (`findings, saved_searches, paper_urls, annotations, feed, wanted, papers, axes, duplicates, critical_review, summaries, gaps, discovery, agent, settings, my_publications, workbench`), `tests/test_short_write_sweep.py` (new guard), notes + backlog.
 - **What:** route the short SELECT-then-write API handlers through **`run_write`** (transaction-level retry, inc 272) so a snapshot-upgrade `SQLITE_BUSY` (which `busy_timeout` can't break) is retried instead of 500ing. Each handler wraps its read+write unit in `run_write(engine, _do)`; GET handlers keep `get_connection`. Idempotent I/O-mixed imports (gaps_add, my-pubs import*, discovery_save) wrap whole (dedupe + cached fetch).

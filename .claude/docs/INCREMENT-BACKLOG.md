@@ -252,7 +252,13 @@ increment opportunistically — not a migration sweep.)*
 DONE. **Remaining only:** coverage *beyond* the 24/50-chunk cap (a real multi-pass / map-reduce synthesis change —
 its own design + a live eyeball; not autonomous-cheap).
 
-**8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **[your call: attributions]** **inc 180 shipped the
+**8. Credit-the-lineage backfill** (`…_credithelpbackfill.md`) — **✅ COMPLETE (inc 282 closed the last gap):** the
+overlooked-work lens (#37, built after the inc-180 pass) operationalized the Matthew effect (Merton 1968) but credited
+it only in prose; inc 282 gave it the shared `.method-credit` affordance (in-context credit + one-click add-to-library).
+Every method-implementing tool with an identifiable method-paper lineage now surfaces it in-tool + offers the source
+paper; the remaining credit-less surfaces (publishers/reference-integrity/funding/gap-finder/retraction/critical-read)
+are data-source-driven or compositional → NOTICES-level, where Lane-A "add the source paper" doesn't apply. _History:_
+**inc 180 shipped the
 statcheck slice** (in-context credit block + one-click "＋ add to library" for Nuijten et al. 2016, matching
 GRIM/p-curve; + consolidated the credit-block CSS into a shared `.method-credit`). **inc 181 shipped Lane B** (a
 Runtime & build dependencies section in `THIRD-PARTY-NOTICES.md` crediting every Python+JS dep with its license).
