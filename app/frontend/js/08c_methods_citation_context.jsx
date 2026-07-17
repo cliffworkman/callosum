@@ -23,18 +23,10 @@ const CITATION_CONTEXT_CSL = [
 ];
 
 function CitationContextCredit() {
-  const [added, setAdded] = useState("idle");
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify(CITATION_CONTEXT_CSL), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-  };
   return (
     <div className="method-credit">
       <b>Method:</b> smart citations (Nicholson et al. 2021, <i>Quantitative Science Studies</i> — the <b>scite</b> index this echoes).{" "}
-      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
-      </button>
+      <MethodCreditButton items={CITATION_CONTEXT_CSL} />
       <div className="method-credit-sub">Citing sentences from <b>Semantic Scholar</b> (Allen Institute for AI); stance classified locally by callosum's own NLI — a signal to read, never a verdict.</div>
     </div>
   );

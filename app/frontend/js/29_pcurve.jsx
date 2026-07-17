@@ -54,7 +54,6 @@ function PcurvePlot({ bins }) {
 
 function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
   const [state, setState] = useState({ status: "running" }); // running | done | error
-  const [added, setAdded] = useState("idle"); // idle | adding | added
   const pollRef = useRef(null);
 
   useEffect(() => {
@@ -74,13 +73,6 @@ function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
     });
     return () => { live = false; if (pollRef.current) clearTimeout(pollRef.current); };
   }, [paperIds]);
-
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify([SNS2014_CSL]), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-    if (r && r.ok && onChanged) onChanged();
-  };
 
   const r = state.result;
   const sig = !!(r && r.right_skew_p != null && r.right_skew_p < 0.05);
@@ -142,9 +134,7 @@ function PcurveModal({ paperIds, onClose, onOpenPaper, onChanged }) {
 
         <div className="method-credit">
           <b>Method:</b> p-curve — Simonsohn, Nelson &amp; Simmons (2014), <i>J. Exp. Psychol. Gen.</i> 143(2):534–547.{" "}
-          <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-            {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
-          </button>
+          <MethodCreditButton items={[SNS2014_CSL]} onChanged={onChanged} />
           <div className="method-credit-sub">
             Re-implemented in Python; reference implementation: <i>scrutiny</i> (Lukas Jung). Surfaced via D. Lakens'
             automated-review catalog.

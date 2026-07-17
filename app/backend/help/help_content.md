@@ -754,6 +754,8 @@ Read it as a **prompt to look, never a verdict**:
 
 Evidence snippets show their source precision before you click: **exact highlight**, **region**, **page only**, or **no source page**. Open **Evidence trail** under a Methods evidence item to see the detector name, matched text, page, anchor note, and the boundary/caveat for that detector. The Bayesian, mixed-model, meta-analysis, and transparency auditors use the same source-jump contract for their evidence snippets: if the matched text can be locally located in the PDF on the expected page, Callosum opens with an exact highlight; otherwise it opens the source page at region precision. A region jump is navigation help, not an exact passage claim.
 
+Many method panels include a small source-credit line. Its **＋ add missing to library** button checks DOI-backed sources first, imports only the sources not already in your library, and changes to **✓ added to library** when the full credited set is present.
+
 **Across your whole library:** in the same **METHODS → Statistics check** section, under **Whole library**, click **Check all papers**. Callosum runs statcheck over every paper and reports "N papers with statistics checked · M with inconsistencies." If any are flagged, a **⚠ N flagged** chip also appears in the Library header as a shortcut. Either click that chip or **Show flagged papers** in the section to filter the Library to just them (a banner appears; **clear** to return) — then open any one to see its specific tests. This is a **list to review, not a ranking**: papers aren't scored or ordered by inconsistency, and the same caveats apply (usually innocent; inline-APA only; absence isn't a clean bill). Re-run the check after editing papers to refresh it.
 
 <!-- section: p-curve -->
@@ -771,7 +773,7 @@ Read it as a prompt to think, not a judgment:
 - It is **collection-level only** — it describes a *body of work you chose to analyze*, never an individual paper or author.
 - Coverage: it reads only **inline APA-style NHST tests** with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes **every** extracted significant test rather than each study's chosen *focal* test (the method normally asks the analyst to pick that), and it conservatively drops results so significant their p rounds to ≈0. It is most meaningful on a **small, curated set** of related findings.
 - Below about 5 significant results the curve is too sparse to interpret; the modal says so.
-- The modal credits the method (Simonsohn, Nelson & Simmons, 2014) and offers a one-click **add to library**.
+- The modal credits the method (Simonsohn, Nelson & Simmons, 2014) and offers a one-click **add missing to library**.
 
 <!-- section: data-consistency-grim -->
 ## Data consistency (GRIM / GRIMMER)
@@ -787,7 +789,7 @@ Read it as a prompt, not a judgment:
 
 - It only applies to **integer-scale** data — not continuous measures (reaction times, proportions). An inconsistency is usually a typo or a misreported N; it is **a prompt to look, never a verdict or an accusation**.
 - Because *you* enter a specific value, it never scans, ranks, or labels papers or people.
-- The section credits the methods (Brown & Heathers; Anaya / Allard) and offers a one-click **add to library**.
+- The section credits the methods (Brown & Heathers; Anaya / Allard) and offers a one-click **add missing to library**.
 
 <!-- section: bayesian-statistics -->
 ## Checking Bayes factors (the Bayesian auditor)
@@ -831,7 +833,7 @@ Read it as a prompt, not a report card:
 - **“Not found” means we didn't detect it in the extracted text** — tables aren't fully read, so check the paper. It is never “missing” and never an accusation.
 - **ICC and the missing-data check show “n/a”** unless their precondition holds (a clustering claim; a longitudinal design with dropout) — a flag that fired on every mixed model would be noise.
 - There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
-- The section credits each check's source and offers a one-click **add methods sources to library**.
+- The section credits each check's source and offers a one-click **add missing to library**.
 
 <!-- section: auditing-meta-analysis-reporting -->
 ## Auditing meta-analysis reporting
@@ -853,7 +855,7 @@ Read it as a prompt, not a report card:
 - **“Not found” means we didn't detect it in the extracted text** — tables/figures aren't fully read, so check the paper. It is never “missing” and never an accusation.
 - The publication-bias note points out that for fewer than ~10 studies a funnel-based check is underpowered, so absence there may be appropriate; the search & selection check is **n/a** for a within-study meta-analysis.
 - There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
-- The section credits each check's source and offers a one-click **add methods sources to library**.
+- The section credits each check's source and offers a one-click **add missing to library**.
 
 <!-- section: auditing-transparency-signals -->
 ## Auditing transparency signals
@@ -874,7 +876,7 @@ Read it as a prompt, not a report card:
 - It detects **reported disclosures in the text** — it does not judge a paper's openness, and it never runs anything.
 - **“Not detected” means we didn't find it in the extracted text, NOT that the artifact is absent** — a data-availability statement can live in an appendix, a footnote, or the journal's structured metadata this reader doesn't fully see. It's a prompt to look, never an accusation of the authors.
 - There is **no transparency score, no rank, and no verdict**; a present check opens its evidence in the PDF.
-- The section credits each detector's source and offers a one-click **add methods sources to library**.
+- The section credits each detector's source and offers a one-click **add missing to library**.
 
 **Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
@@ -1117,7 +1119,7 @@ Getting it into your manuscript:
 - **Copy** (the primary button) puts the statement on the clipboard to paste anywhere (Word, Google Docs, the submission portal — the universal path).
 - **Send to LibreOffice** stages it for the **LibreOffice** Callosum add-on: then in Writer run **Callosum → Insert CRediT statement** and it's inserted at your cursor as plain text. (If you edit the grid afterward, re-send — the staged copy is cleared so you never inject a stale statement.)
 
-The panel credits the standard it follows — the **CRediT / NISO taxonomy** (Brand et al. 2015) and the prior tool **tenzing** (Holcombe et al. 2020) — with a one-click **＋ add these sources to library** so you can cite them.
+The panel credits the standard it follows — the **CRediT / NISO taxonomy** (Brand et al. 2015) and the prior tool **tenzing** (Holcombe et al. 2020) — with a one-click **＋ add missing to library** so you can cite them.
 
 <!-- section: discover-search -->
 ## Finding new papers (Discover)

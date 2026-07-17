@@ -142,18 +142,10 @@ function TransparencyChecklist({ checks, onOpen }) {
 }
 
 function TransparencyCredit() {
-  const [added, setAdded] = useState("idle");
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify(TRANSPARENCY_CSL), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-  };
   return (
     <div className="method-credit">
       <b>Detectors:</b> data &amp; code availability — ODDPub (Riedel et al. 2020); conflict-of-interest, funding &amp; registration indicators — rtransparent (Serghiou et al. 2021); preregistration — Nosek et al. (2018).{" "}
-      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add methods sources to library"}
-      </button>
+      <MethodCreditButton items={TRANSPARENCY_CSL} />
       <div className="method-credit-sub">A reading aid — a rule-based text detector, never a transparency score or a judgment of the authors. Surfaced via D. Lakens' automated-review catalog.</div>
     </div>
   );

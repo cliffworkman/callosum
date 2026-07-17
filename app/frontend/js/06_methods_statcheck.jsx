@@ -172,18 +172,10 @@ function StatcheckPaper({ paperId, onOpenPaper, active }) {
 
 // inc 180: credit the statcheck method in-context + offer its source paper to the library (credit-the-lineage).
 function StatcheckCredit() {
-  const [added, setAdded] = useState("idle");
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify([STATCHECK_CSL]), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-  };
   return (
     <div className="method-credit">
       <b>Method:</b> statcheck — Nuijten, Hartgerink, van Assen, Epskamp &amp; Wicherts (2016), <i>Behavior Research Methods</i> 48:1205–1226.{" "}
-      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
-      </button>
+      <MethodCreditButton items={[STATCHECK_CSL]} />
       <div className="method-credit-sub">Re-implemented in Python (the <i>statcheck</i> R package is by Nuijten &amp; Epskamp) — credited, not reused. Surfaced via D. Lakens' automated-review catalog.</div>
     </div>
   );

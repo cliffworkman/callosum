@@ -21,7 +21,6 @@ const GRIM_CSL = {
 function GrimSection() {
   const [f, setF] = useState({ mean: "", sd: "", n: "", items: "1" });
   const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
-  const [added, setAdded] = useState("idle");
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   const run = async () => {
     const n = parseInt(f.n, 10);
@@ -32,11 +31,6 @@ function GrimSection() {
     if (f.sd.trim()) body.sd = f.sd.trim();
     const r = await apiPost("/methods/grim", body);
     setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
-  };
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify([GRIM_CSL]), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
   };
   const d = state.data;
   return (
@@ -68,9 +62,7 @@ function GrimSection() {
         </div>}
       <div className="method-credit">
         <b>Method:</b> GRIM — Brown &amp; Heathers (2017); GRIMMER — Anaya (2016) / Allard (2018).{" "}
-        <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-          {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
-        </button>
+        <MethodCreditButton items={[GRIM_CSL]} />
         <div className="method-credit-sub">Re-implemented in Python; cf. the <i>scrutiny</i> package (Lukas Jung). Surfaced via D. Lakens' automated-review catalog.</div>
       </div>
     </div>

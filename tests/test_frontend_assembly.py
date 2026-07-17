@@ -184,6 +184,21 @@ def test_overlooked_lens_panel_present_and_honest():
     assert "MERTON1968_CSL" in raw and "10.1126/science.159.3810.56" in raw
 
 
+def test_method_credit_button_checks_and_imports_only_missing_sources():
+    raw = assemble_jsx()
+    assert "function MethodCreditButton(" in raw
+    assert 'apiPost("/library/credit/status", { dois })' in raw
+    assert '"＋ add missing to library"' in raw
+    assert '"✓ added to library"' in raw
+    assert "state.importedAll ? [] : missingCreditItems(allItems, state.present)" in raw
+    assert 'apiPost("/library/import", { content: JSON.stringify(missing), format: "csl-json" })' in raw
+    assert raw.count("<MethodCreditButton items=") >= 12
+    assert "<MethodCreditButton items={CITATION_EQUITY_CSL} />" in raw
+    assert "<MethodCreditButton items={LMM_CSL} />" in raw
+    assert "<MethodCreditButton items={META_CSL} />" in raw
+    assert "<MethodCreditButton items={[CREDIT_TENZING_CSL, CREDIT_TAXONOMY_CSL]} />" in raw
+
+
 def test_stale_discover_placeholder_is_removed_from_theory_accordion():
     raw = assemble_jsx()
     assert 'label: "Funding"' in raw  # relocated to the Discover workspace (inc 280); was THEORY "Funding Discovery"

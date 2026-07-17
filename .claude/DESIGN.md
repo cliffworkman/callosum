@@ -125,6 +125,9 @@ ad-hoc class names are **grouped into** those rules so the recipe isn't re-typed
 - **`.danger` modifier:** red `--danger` text (+ `--danger-line` border for icon hover). The canonical
   destructive color (DESIGN §4); use it on new destructive buttons.
 - **Disabled (all):** `opacity:.45` (ghost uses `.4`) + `--line-2` bg/border + `--ink-3` text; `cursor:default`.
+- **`.method-credit` lineage buttons:** use the shared `MethodCreditButton` helper and the existing `.btn-link`
+  recipe. Label is **"＋ add missing to library"** while any DOI-backed credited source is absent, and
+  **"✓ added to library"** once all DOI-backed sources are present. Multi-source credits import only missing items.
 
 ### Pills / badges (mono, uppercase, soft-bg + matching ink)
 Recipe: `--mono`, ~10px, `text-transform:uppercase`, `letter-spacing:.04em`, padded `2px 7px`, pill

@@ -66,7 +66,6 @@ function CreditSection({ ctx }) {
   const [authors, setAuthors] = useState([_blankAuthor()]);
   const [result, setResult] = useState(null);       // { by_author, by_role, roles }
   const [view, setView] = useState("by_author");    // by_author | by_role
-  const [added, setAdded] = useState("idle");
   const [copied, setCopied] = useState(false);
   const [staged, setStaged] = useState(false);
   const [pulled, setPulled] = useState("idle");     // idle | pulling | none
@@ -127,14 +126,6 @@ function CreditSection({ ctx }) {
     const base = authors.filter((a) => a.name.trim() || Object.keys(a.roles).length);  // drop the empty seed row
     setAuthors([...base, ...fresh].length ? [...base, ...fresh] : [_blankAuthor()]);
     setPulled("idle");
-  };
-
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", {
-      content: JSON.stringify([CREDIT_TENZING_CSL, CREDIT_TAXONOMY_CSL]), format: "csl-json",
-    });
-    setAdded(r && r.ok ? "added" : "idle");
   };
 
   const lines = result ? (view === "by_role" ? result.by_role : result.by_author) : [];
@@ -201,9 +192,7 @@ function CreditSection({ ctx }) {
       <div className="statcheck-caveat">Callosum formats the contributions you assert — it does not infer or verify who did what. The 14 roles are the fixed open <b>NISO CRediT</b> taxonomy; degree of contribution (lead / equal / supporting) is optional.</div>
       <div className="method-credit">
         <b>About this tool:</b> CRediTer formats the <b>CRediT / NISO</b> taxonomy (Brand, Allen, Altman, Hlava &amp; Scott 2015, <i>Learned Publishing</i>) and follows the <i>tenzing</i> workflow (Holcombe, Kovacs, Aust &amp; Aczel 2020, <i>PLOS ONE</i>) — these credit the standard behind this feature, not citations for your manuscript.{" "}
-        <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-          {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add these sources to library"}
-        </button>
+        <MethodCreditButton items={[CREDIT_TENZING_CSL, CREDIT_TAXONOMY_CSL]} />
       </div>
     </div>
   );

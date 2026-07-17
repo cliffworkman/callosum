@@ -168,8 +168,6 @@ Partial/unverified:
 
 Blockers: none.
 
----
-
 ## Codex session summary — Group C selected-paper/PDF tab polish — 2026-07-17
 
 Branch: `feature/library-ux-polish`.
@@ -326,6 +324,45 @@ Partial/unverified:
 - Did not run a real browser smoke with a seeded registry-hit paper to visually inspect the card/detail
   **RETRACTED** badges; this is covered by backend payload tests and frontend assembly guards, but Claude/Opus should
   include it in the next manual Route 73 pass.
+- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.
+
+---
+
+## Codex session summary — Group F Credit-the-lineage add-missing states — 2026-07-17
+
+Branch: `feature/library-ux-polish`.
+
+What changed:
+- Completed handoff group F as Increment 293.
+- Added read-only `POST /library/credit/status`, which normalizes DOI inputs and checks presence with the canonical
+  `find_existing_paper_by_identity(...)` lookup.
+- Added shared `MethodCreditButton` in `app/frontend/js/05_method_credit.jsx`.
+- Converted the existing `.method-credit` lineage buttons across statcheck, GRIM/GRIMMER, citation equity/context,
+  Bayesian statistics, LMM, meta-analysis reporting, transparency, effect-size conversion, p-curve, Overlooked, and
+  CRediT to use the shared helper.
+- Button behavior is now: **＋ add missing to library** when any credited source is absent; **✓ added to library** when
+  every DOI-backed credited source is already present or after a successful import; multi-source credits import only
+  the missing CSL items.
+- Left non-lineage import flows alone: regular Library import UI and Settings OpenURL credit remain separate.
+- Updated served help, DESIGN, QA route 73, frontend/backend guards, increment notes, changelog, and rebuilt
+  `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_citation_import.py tests\test_frontend_assembly.py tests\test_help.py -q`: 52 passed.
+- `python tools\qa\build_surface_map.py check`: API 246/246, FE 1131/1131, uncovered 0.
+- `python -m pytest`: 1247 passed, 1 skipped in 1128.67s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted.
+- `python tools\check_line_budget.py`: all 343 application-source files within the 600-line cap.
+
+Partial/unverified:
+- Did not run a browser smoke for the lineage buttons against a seeded library DOI state. Backend DOI presence,
+  assembled frontend wiring, labels, and missing-only import payload are covered by tests; Claude/Opus should include
+  a manual Route 73 spot check across Methods, Work → CRediT, Extract → Meta-Analysis, and Discover → Search →
+  Overlooked.
 - Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.

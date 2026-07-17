@@ -92,6 +92,26 @@ def test_parse_ris():
     assert recs[1]["type"] == "book" and recs[1]["title"] == "Big Report"
 
 
+def test_credit_status_reports_existing_dois_by_identity(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_paper(conn, title="Existing", csl_json={"title": "Existing", "DOI": "10.1/ABC"}, doi="10.1/ABC")
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url))
+    status = client.post(
+        "/library/credit/status",
+        json={"dois": ["https://doi.org/10.1/ABC", "doi:10.1/missing", ""]},
+    )
+    assert status.status_code == 200
+    assert status.json()["items"] == [
+        {"doi": "10.1/abc", "present": True},
+        {"doi": "10.1/missing", "present": False},
+    ]
+
+    assert client.post("/library/credit/status", json={"dois": ["1" * 256]}).status_code == 422
+
+
 def test_parse_csl_json():
     recs, skipped = parse_csl_json(_CSL_JSON)
     assert len(recs) == 2 and skipped == 0  # both have a title (or DOI)

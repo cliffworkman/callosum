@@ -27,6 +27,7 @@ from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref
 from app.backend.metadata.library_bundle import MAX_BUNDLE_BYTES, BundleError, build_bundle, import_bundle, parse_bundle
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.pdf_processing.library_scan import scan_library_folder
+from app.backend.persistence.repository import find_existing_paper_by_identity
 from app.backend.persistence.sqlite_retry import commit_each, run_write
 from app.backend.persistence.watched_repo import (
     add_watched_folder,
@@ -353,6 +354,39 @@ class ImportJobResponse(BaseModel):
     detail: str | None = None
     summary: ImportSummary | None = None
     progress: JobProgressOut | None = None
+
+
+class CreditStatusRequest(BaseModel):
+    dois: list[str] = Field(default_factory=list, max_length=100)
+
+
+class CreditStatusItem(BaseModel):
+    doi: str
+    present: bool
+
+
+class CreditStatusResponse(BaseModel):
+    items: list[CreditStatusItem] = []
+
+
+@router.post("/library/credit/status", response_model=CreditStatusResponse)
+def credit_status(payload: CreditStatusRequest, request: Request) -> CreditStatusResponse:
+    """Read-only DOI presence check for credit-the-lineage buttons. Uses the canonical library identity lookup."""
+    normalized = []
+    for doi in payload.dois:
+        value = str(doi or "").strip().lower().removeprefix("https://doi.org/").removeprefix("doi:").strip()
+        if not value:
+            continue
+        if len(value) > 255:
+            raise HTTPException(status_code=422, detail="DOI is too long.")
+        if value not in normalized:
+            normalized.append(value)
+    with request.app.state.engine.begin() as conn:
+        items = [
+            CreditStatusItem(doi=doi, present=find_existing_paper_by_identity(conn, doi=doi) is not None)
+            for doi in normalized
+        ]
+    return CreditStatusResponse(items=items)
 
 
 @router.post("/library/import", response_model=ImportJobResponse, status_code=http_status.HTTP_202_ACCEPTED)

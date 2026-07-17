@@ -23,18 +23,10 @@ const MERTON1968_CSL = {
 };
 
 function OverlookedCredit() {
-  const [added, setAdded] = useState("idle");
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify([MERTON1968_CSL]), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-  };
   return (
     <div className="method-credit">
       <b>Method:</b> the Matthew effect in science — Merton, R. K. (1968), <i>Science</i> 159(3810):56–63.{" "}
-      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
-      </button>
+      <MethodCreditButton items={[MERTON1968_CSL]} />
       <div className="method-credit-sub">This lens operationalizes cumulative advantage in citation and recognition (the "rich get richer" of science).</div>
     </div>
   );

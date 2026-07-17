@@ -55,7 +55,6 @@ function EffectSizeSection() {
   const [choiceVal, setChoiceVal] = useState("or"); // the fixed choice (measure), for binary
   const [inputs, setInputs] = useState({});
   const [state, setState] = useState({ status: "idle" }); // idle | running | done | error
-  const [added, setAdded] = useState("idle");
   const [copied, setCopied] = useState(false);
 
   const form = ES_FORMS.find((f) => f.family === family);
@@ -89,12 +88,6 @@ function EffectSizeSection() {
     setState({ status: "running" });
     const r = await apiPost("/methods/effect-size", body);
     setState(r.ok ? { status: "done", data: r.data } : { status: "error", error: r.error });
-  };
-
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify([EFFECTSIZE_CSL]), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
   };
 
   const d = state.data;
@@ -150,9 +143,7 @@ function EffectSizeSection() {
       <div className="statcheck-caveat">This converts one study — it is not a meta-analysis. Pooling, heterogeneity (I²/τ²), meta-regression, and publication-bias inference belong to a synthesis tool (metafor / JASP / RevMan); Callosum hands off the dataset + this provenance.</div>
       <div className="method-credit">
         <b>Formulas:</b> Borenstein, Hedges, Higgins &amp; Rothstein (2009), <i>Introduction to Meta-Analysis</i>; Hedges (1981); Fisher (1915); Haldane (1940) / Anscombe (1956); Wan et al. (2014); Hasselblad &amp; Hedges (1995); cf. the <i>metafor</i> package (Viechtbauer 2010).{" "}
-        <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-          {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add methods source to library"}
-        </button>
+        <MethodCreditButton items={[EFFECTSIZE_CSL]} />
       </div>
     </div>
   );

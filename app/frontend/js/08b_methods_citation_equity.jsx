@@ -78,12 +78,6 @@ function CiteEquitySignal({ s }) {
 // credit + the how-to note. (The tool measures what is cited, never who wrote it — we don't editorialize that to
 // the user; it's just how it works. A regression guard test keeps people-categorization from creeping back in.)
 function CiteEquityFoot() {
-  const [added, setAdded] = useState("idle");
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify(CITATION_EQUITY_CSL), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-  };
   return (
     <React.Fragment>
       <div className="cite-equity-howto">
@@ -94,9 +88,7 @@ function CiteEquityFoot() {
       <div className="method-credit">
         <b>Methods:</b> self-citation (King et al. 2017, <i>Socius</i>); the Matthew effect (Merton 1968, <i>Science</i>;
         Perc 2014, <i>J. R. Soc. Interface</i>).{" "}
-        <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-          {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add to library"}
-        </button>
+        <MethodCreditButton items={CITATION_EQUITY_CSL} />
         <div className="method-credit-sub">Computed structurally from OpenAlex metadata (public) — credited, not reused.</div>
       </div>
     </React.Fragment>

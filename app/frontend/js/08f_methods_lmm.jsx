@@ -198,18 +198,10 @@ function LmmChecklist({ checks, onOpen }) {
 }
 
 function LmmCredit() {
-  const [added, setAdded] = useState("idle");
-  const addCredit = async () => {
-    setAdded("adding");
-    const r = await apiPost("/library/import", { content: JSON.stringify(LMM_CSL), format: "csl-json" });
-    setAdded(r && r.ok ? "added" : "idle");
-  };
   return (
     <div className="method-credit">
       <b>Methods:</b> random-effects structure — Barr et al. (2013), Matuschek et al. (2017); df/inference — Luke (2017); convergence &amp; estimation — Bates et al. (2015, <i>lme4</i>); R² — Nakagawa &amp; Schielzeth (2013); missing-data sensitivity — FDA ICH E9(R1), Troendle et al. (2025), Cro et al. (2020), Moreno-Betancur &amp; Chavance (2016).{" "}
-      <button className="btn-link" disabled={added !== "idle"} onClick={addCredit}>
-        {added === "added" ? "✓ added to library" : added === "adding" ? "adding…" : "＋ add methods sources to library"}
-      </button>
+      <MethodCreditButton items={LMM_CSL} />
       <div className="method-credit-sub">A reading aid — it never runs a model, imputation, or sensitivity analysis. Surfaced via D. Lakens' automated-review catalog.</div>
     </div>
   );
