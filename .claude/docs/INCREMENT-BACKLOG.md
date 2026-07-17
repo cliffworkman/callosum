@@ -51,6 +51,14 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
+**Workspaces nav (inc 280) — UX follow-up (experience pass, persona = returning user re-finding a moved tool):**
+returning users pay a one-time re-learning cost for the moved/renamed tools (Where-to-submit → **Journals** under
+Discover; Effect-size/Meta-analysis → **Extract**; `?`/`⚙` → the menu bar). Not blocking (all reachable + working;
+help corpus updated), but a **one-time "what moved" hint** (or a Where-to-submit → Journals alias) would smooth the
+transition. Also deferred from inc 280: a **mobile treatment** of the menu bar (currently rides inside the center
+region; a dedicated phone-width workspace switcher is the polish) and the **DESIGN.md §5 full rewrite** folding
+THEORY/METHODS into the two-dimension model (an interim note landed in §5).
+
 > **★ DONE (Cliff, 2026-06-26):** the **build-and-test slate** (inc 142–145) **and the full BYOK arc** are shipped —
 > **#10** (inc 146 Gemini key in Settings), inc 147 Test-key, inc 148 synthesis "AI is off" nudge, and **#39**
 > (inc 149 engine + inc 150 Settings UI: Gemini/OpenAI/Anthropic/**local** via one httpx seam; a loopback local

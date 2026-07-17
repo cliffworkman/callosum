@@ -16,22 +16,22 @@ Start by:
 
 <!-- section: app-layout -->
 ## Finding your way around
-Callosum uses three main areas:
+Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Left pane:** Callosum identity, Help, Settings, and an **accordion** with **Axes** and **Synthesis** — click a section header to open it (one open at a time). The **Axes** section has two tabs, **Axes** and **Tags** (your labels live alongside your conceptual lenses).
-- **Center pane:** the Library tab and any open PDF tabs.
-- **Right pane:** a **Details** accordion section — the editable bibliographic information for the paper you have selected (it shows a hint until you select one).
+- **Menu bar (top of the center pane):** switch between **Profile** (your publications + impact), **Library** (your collection + open PDFs), **Discover** (Search · Feed · Journals · Funding), and **Extract** (the meta-analysis workspace: Workbench · Effect-size · Meta-analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), **Synthesis**, **Cite**, and the review/authoring sections — click a section header to open it (one at a time).
+- **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
-The left and right side panels can be resized with the vertical grips, and either can be collapsed with the chevron next to it. Within a side pane, click a section header (e.g. **Synthesis**) to switch to it; the open section is remembered between sessions, and an in-progress synthesis keeps running while you look at another section.
+The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and an in-progress synthesis keeps running while you look at another section.
 
-The center pane always has a **Library** tab. When you open PDFs, each PDF gets its own tab. Switching tabs keeps open PDFs mounted, so you do not have to re-open the same document every time you move between the Library and a paper.
+Under **Library**, the workspace has a **Library** tab (your list) and one tab per open PDF — switching keeps open PDFs mounted, so you don't re-open a document each time. Open papers live under Library; switch to Discover / Extract / Profile and they're tucked away until you come back.
 
 Tips:
 
-- Select a paper once to inspect its metadata in Detail.
+- Select a paper once to inspect its metadata in **Details** (right pane).
 - Double-click a paper in the Library to open its PDF.
-- Click paper titles inside an axis to open their PDFs and follow them in Detail.
-- Use the Help button (`?`) in the sidebar for the in-app help viewer.
+- Click paper titles inside an axis to open their PDFs and follow them in Details.
+- **Help** and **Settings** are on the menu bar (top-right of the center pane).
 
 <!-- section: importing-from-zotero -->
 ## Importing your library from Zotero
@@ -835,7 +835,7 @@ Read it as a prompt, not a report card:
 ## Auditing meta-analysis reporting
 A **meta-analysis** pools results across studies, and the reader needs to see the choices behind the pooled number. The meta-analysis reporting auditor reads a *published* meta-analysis's extracted text and flags whether it *reports* seven such things — it never pools, models heterogeneity, re-computes an effect size, or does bias inference (that's metafor / JASP / RevMan territory). It's local, deterministic, and uses no AI.
 
-In the **METHODS** pane, open **Meta-analysis reporting** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+In the **Extract** workspace (menu bar), open **Meta-analysis** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
 
 - **Effect-size metric** — the index the study effects were converted to (Hedges' g, log odds ratio, Fisher's z, …) — Borenstein et al. 2009; Viechtbauer 2010 (*metafor*).
 - **Model (fixed vs random-effects)** — and the between-study variance estimator (DerSimonian-Laird, REML, Hartung-Knapp) — DerSimonian & Laird 1986; IntHout et al. 2014.
@@ -880,7 +880,7 @@ Read it as a prompt, not a report card:
 ## Converting effect sizes
 When you're preparing a meta-analysis, studies report their results in different currencies — some give group means and SDs, some a *t* or *F*, some a 2×2 table, some a correlation. The **Effect-size converter** turns *one study's* reported statistics into a common metric you can pool downstream, and shows its work.
 
-In the **METHODS** pane, open **Effect-size converter** and pick a family:
+In the **Extract** workspace (menu bar), open **Effect-size** and pick a family:
 
 - **SMD → Hedges' g** — from group means + SDs + Ns, or from a *t* + group Ns, or a two-group one-way *F*.
 - **SD derivation** — recover a standard deviation from an SE, a 95% CI, or an IQR (each derivation is recorded, because *how* you got the SD is a decision worth auditing).
@@ -1062,7 +1062,7 @@ Unreviewed and confirmed concerns keep the paper's reference-warning count activ
 
 <!-- section: funding-discovery -->
 ## Funding Discovery
-The **Funding Discovery** section (Theory) looks for plausible funding prospects from observed funding behavior and scholarly funding lineage, then separately checks whether a current application route is visible. It is not an open-grant search box and it is not a recommendation engine.
+The **Funding** tab (in the **Discover** workspace) looks for plausible funding prospects from observed funding behavior and scholarly funding lineage, then separately checks whether a current application route is visible. It is not an open-grant search box and it is not a recommendation engine.
 
 Use either a **selected library paper** or **Describe research** with a pasted abstract/description plus a short field context. Callosum builds a local multi-facet funding profile from title, abstract, keywords, and deterministic concept rules where available. It does not send full PDFs, notes, private annotations, or protected applicant facts to funding providers by default.
 
@@ -1092,7 +1092,7 @@ You can **Save** an opportunity, scheme, or prospect for later review. In the **
 
 <!-- section: where-to-submit -->
 ## Where to submit (choosing a journal)
-The **Where to submit** section (Theory) matches your work against candidate journals and shows a **uniform, fully-sourced factual profile** for each — fit, open-access color, APC (fee) + waiver policy, license, DOAJ Seal, open impact — so you can weigh them yourself. It **never computes a verdict**: there's no composite score, no "predatory" label, and **every** candidate is shown (including closed-access journals). When open-aligned journals rank higher, that means *these carry goods worth underscoring* (e.g. diamond OA, a DOAJ Seal) — never that the others are bad.
+The **Journals** tab (in the **Discover** workspace; formerly "Where to submit") matches your work against candidate journals and shows a **uniform, fully-sourced factual profile** for each — fit, open-access color, APC (fee) + waiver policy, license, DOAJ Seal, open impact — so you can weigh them yourself. It **never computes a verdict**: there's no composite score, no "predatory" label, and **every** candidate is shown (including closed-access journals). When open-aligned journals rank higher, that means *these carry goods worth underscoring* (e.g. diamond OA, a DOAJ Seal) — never that the others are bad.
 
 **First use asks you to set two preferences** — an **open-science weighting** (how much a journal's openness moves the ranking: Off / Balanced / Strongly favor open) and a **result breadth** (Focused / Broad). Nothing is pre-selected: ranking by topical fit alone is itself a value choice, so neither "on" nor "off" is a neutral default — you decide. Both are asked together so the weighting is one choice among peers, not a singled-out purity test. They're **stored on your machine only and never transmitted**, and you can change them anytime here or in Settings → Where to submit.
 
@@ -1175,7 +1175,7 @@ Gotchas:
 
 <!-- section: settings-and-connection -->
 ## Settings and connection status
-Settings are intentionally small right now. Click the gear (`⚙`) in the sidebar to open **Settings**.
+Settings are intentionally small right now. Open **Settings** from the **menu bar** (top-right of the center pane).
 
 Available settings include:
 

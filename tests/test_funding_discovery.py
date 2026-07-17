@@ -1102,8 +1102,8 @@ def test_frontend_registration_and_forbidden_language_absent():
         + open("app/frontend/js/08l_funding_saved.jsx", encoding="utf-8").read()
         + open("app/frontend/js/08m_funding_results.jsx", encoding="utf-8").read()
     )
-    assert 'label: "Funding Discovery"' in text
-    assert "order: 31" in text
+    assert 'label: "Funding"' in text  # inc 280: relocated to the Discover workspace as the "Funding" tab
+    assert "order: 40" in text
     assert "Open Opportunities" in text and "Recurring Schemes" in text and "Funding Prospects" in text
     assert "Application route" in text and "fundingSurfacesFor" in text
     assert "Saved funding" in text and "/funding-discovery/saved" in text
