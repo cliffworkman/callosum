@@ -111,3 +111,23 @@ Codex session summary — 2026-07-17
 - **Unverified/partial:** no browser or frontend visual check applies to Task 1; no UI code changed. Optional Task 2
   would still need frontend build, assembly test update, full suite, and visual-placement caveat.
 - **Blockers:** none. Pre-existing untracked files were left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Codex session summary update — Task 2 — 2026-07-17
+
+- **Branch:** `feature/workspaces-ux-polish`
+- **Commits:** adds the one-time workspace hint on top of `c1bfa7f` / `897c5ed`; see the final branch log.
+- **Done:** Task 2 complete. Added a thin, dismissible Library workspace banner in `app/frontend/js/30c_frame.jsx`
+  for returning users: "Where to submit" + Funding → Discover; Effect-size + Meta-analysis → Extract; Help +
+  Settings → menu bar. Dismissal persists with `callosum.workspaces-whatsnew=1` via `_loadLayout` / `_saveLayout`.
+  The banner is hidden unless `readOnly === false`, so it does not appear on read-only companions.
+- **Files:** `app/frontend/js/30c_frame.jsx`, `app/frontend/styles.css`, rebuilt `callosum-app.html`,
+  `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_73_workspaces.md`,
+  `.claude/docs/increment-notes/INCREMENT-284-NOTES.md`, `.claude/changes.md`, this handoff.
+- **Verification:** `python tools/build_frontend.py` rebuilt `callosum-app.html`; `python -m pytest
+  tests/test_frontend_assembly.py` **21 passed**; `python tools/qa/build_surface_map.py check` reported **0 uncovered
+  API / 0 uncovered FE**; final full suite **1237 passed / 1 skipped** in 28:59; `ruff check .` passed; `ruff format
+  --check .` passed (`464 files already formatted`); `python tools/check_line_budget.py` passed (`all 342
+  application-source files within the 600-line cap`).
+- **Unverified/partial:** visual placement is **UNVERIFIED** in-browser. Static/build/test coverage confirms the
+  source and rebuilt artifact, but Opus should eyeball the banner above the Library tabs on desktop/mobile.
+- **Blockers:** none. Pre-existing untracked files remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.

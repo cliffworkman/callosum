@@ -81,6 +81,12 @@ def test_workspace_menubar_structure_present():
     assert 'id: "help"' in raw and 'id: "settings"' in raw and "utility: true" in raw
     assert "function HelpView(" in raw and "function SettingsView(" in raw
     assert "function HelpModal(" not in raw and "function SettingsModal(" not in raw
+    # inc 284: returning users get a one-time Library hint for relocated tools.
+    assert "callosum.workspaces-whatsnew" in raw
+    assert "function WorkspacesWhatsNewHint(" in raw
+    assert "New layout:" in raw and "Where to submit" in raw and "Funding" in raw
+    assert "Effect-size" in raw and "Meta-analysis" in raw and "Help" in raw and "Settings" in raw
+    assert '_saveLayout(WORKSPACES_WHATSNEW_KEY, "1")' in raw
 
 
 def test_overlooked_lens_panel_present_and_honest():

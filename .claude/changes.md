@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-17 — Increment 284: one-time workspace "what moved" hint
+- **Files:** `app/frontend/js/30c_frame.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_73_workspaces.md`, docs.
+- **What:** added a dismissible one-time neutral Library banner for returning users: "Where to submit" + Funding now live under Discover; Effect-size + Meta-analysis under Extract; Help + Settings are on the menu bar. Dismissal persists via `callosum.workspaces-whatsnew=1`; the banner is hidden on read-only companions.
+- **Why:** closes the inc-280 UX follow-up for users re-finding relocated tools after the workspace navigation change.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py` **21 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean. Visual placement is **unverified** in-browser.
+- **Revert:** restore the listed files from git.
+
 ## 2026-07-17 — Increment 283: DESIGN §5 workspace/lens rewrite
 - **Files:** `.claude/DESIGN.md`, `.claude/docs/increment-notes/INCREMENT-283-NOTES.md`.
 - **What:** rewrote DESIGN §5 as a coherent two-navigation-dimension model: workspaces/menu bar are center-pane modes of work; THEORY/METHODS side accordions are per-paper lenses. Preserved the shipped registry mechanics and token recipes for `.menubar`, `.workspace-tabs`, `.pane-tabs`, `.tags-srcfilter`, and mount-but-hide bodies.

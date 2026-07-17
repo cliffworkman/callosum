@@ -1518,6 +1518,13 @@
     display: flex; flex-direction: column; height: 100%; overflow: hidden;
     background: var(--panel);
   }
+  .workspace-whatsnew {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    margin: 0; padding: 7px 10px; background: var(--panel-2); border-bottom: 1px solid var(--line);
+    color: var(--ink-2);
+  }
+  .workspace-whatsnew span { min-width: 0; }
+  .workspace-whatsnew-dismiss { flex: 0 0 auto; font-size: 14px; }
   .frame-tabs {
     flex: 0 0 auto; display: flex; align-items: flex-end; gap: 3px;
     padding: 7px 8px 0; background: var(--panel-2);
@@ -11578,8 +11585,18 @@
       }
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
+  const WORKSPACES_WHATSNEW_KEY = "callosum.workspaces-whatsnew";
+  function WorkspacesWhatsNewHint({ readOnly }) {
+    const [dismissed, setDismissed] = useState(() => _loadLayout(WORKSPACES_WHATSNEW_KEY, "0") === "1");
+    if (readOnly !== false || dismissed) return null;
+    const dismiss = () => {
+      setDismissed(true);
+      _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Where to submit"), " + ", /* @__PURE__ */ React.createElement("b", null, "Funding"), " are now under ", /* @__PURE__ */ React.createElement("b", null, "Discover"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "; ", /* @__PURE__ */ React.createElement("b", null, "Help"), " + ", /* @__PURE__ */ React.createElement("b", null, "Settings"), " are on the menu bar."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
+  }
   function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "library" ? " active" : ""),
