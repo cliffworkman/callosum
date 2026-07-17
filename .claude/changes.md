@@ -10,6 +10,16 @@ are the design diary; this is the chronological "what & why" record.
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
 <!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 280 (workspaces nav: "Finding your way around" rewritten for the menu bar; the 4 moved-section locations [Journals/Funding→Discover, Effect-size/Meta→Extract] + the sidebar-gear reference fixed). -->
+## 2026-07-17 — Increment 281: short-write run_write sweep — the "database is locked" residual edge CLOSED
+- **Files:** `app/backend/api/dependencies.py` (+`get_engine`), 17 routers converted (`findings, saved_searches, paper_urls, annotations, feed, wanted, papers, axes, duplicates, critical_review, summaries, gaps, discovery, agent, settings, my_publications, workbench`), `tests/test_short_write_sweep.py` (new guard), notes + backlog.
+- **What:** route the short SELECT-then-write API handlers through **`run_write`** (transaction-level retry, inc 272) so a snapshot-upgrade `SQLITE_BUSY` (which `busy_timeout` can't break) is retried instead of 500ing. Each handler wraps its read+write unit in `run_write(engine, _do)`; GET handlers keep `get_connection`. Idempotent I/O-mixed imports (gaps_add, my-pubs import*, discovery_save) wrap whole (dedupe + cached fetch).
+- **Left raw (guard-test allowlist):** heavy/egress ops (reprocess-pdf, purge, empty-trash, summary-reverify, cr-generate, propose_row) + I/O that must not re-fire on retry (paper_enrich force-refetch, agent_save_reference Crossref, sync setup). No engine `BEGIN IMMEDIATE` (would re-starve the inc 273–278 fetch phases).
+- **Why:** the last open piece of the `database is locked` arc (both halves now shipped). The middleware stays as the belt-and-suspenders backstop.
+- **Invariant:** `test_short_write_sweep.py` fails on any NEW unaccounted raw `conn.commit()` in `routers/**` — machine-enforced.
+- **Verify:** per-router suites green; the guard test green; full suite **1237 passed / 1 skipped**; ruff + line budget clean.
+- **Revert:** `git revert` the sweep commits on `feature/short-write-sweep`, or restore from git.
+
+
 ## 2026-07-17 — Increment 280: workspaces — two-level center navigation (menu bar)
 - **Files:** `app/frontend/js/04b_workspaces.jsx` (new — registry + `MenuBar` + `WorkspacePane`), `30c_frame.jsx` (Library workspace body), `40_app.jsx` (menu bar + workspace state + Help/Settings center slots), `10_pdf_layer.jsx` (Sidebar drops `?`/`⚙`), `08e`/`08k` (→ Discover: Journals/Funding), `08i`/`08g` (→ Extract: Effect-size/Meta-analysis), `18_help.jsx`/`35_settings.jsx` (Modal → View), `styles.css`, `callosum-app.html`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md, qa-routes/route_73_workspaces.md, docs/increment-notes/INCREMENT-280-NOTES.md}`, `tests/{test_frontend_assembly, test_funding_discovery}.py`.
 - **What:** a two-level center nav — a **menu bar of workspaces** (Profile·Library·Discover·Extract + Help·Settings) **inside the center (Library) pane**, above per-workspace sub-tabs. Open PDFs nest under Library; My-Pubs → **Profile**; Journals/Funding relocate THEORY → **Discover**; Effect-size/Meta-analysis METHODS → **Extract**; Help/Settings modals → wide center views. The THEORY/METHODS side accordions **persist** — a second nav dimension (workspaces = *what you're doing*; accordions = *lenses on the paper*).

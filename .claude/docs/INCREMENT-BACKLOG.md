@@ -120,7 +120,7 @@ batch-wide lock).
 gap-finder + my-publications refresh/decompose run **fetch-outside-lock** (reads + external fetches on a read
 connection with an opt-in self-committing cache [`put_cached_committing` + client `cache_engine`], then a short
 `run_write` persist). Every long job now releases the write lock during its slow work; with inc-272's foreground
-retry + middleware, the `database is locked` item is **fully resolved** (both halves shipped). **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
+retry + middleware, the `database is locked` item is **fully resolved** (both halves shipped). **✅ RESIDUAL SNAPSHOT-UPGRADE EDGE CLOSED (inc 281):** the short-write `run_write` uniform sweep routed every short SELECT-then-write API handler (17 routers) through `run_write` (transaction-level retry), so a snapshot-upgrade `SQLITE_BUSY` is retried instead of 500ing; `tests/test_short_write_sweep.py` machine-enforces the zero-unaccounted-raw-commit invariant (allowlist = heavy/egress/IO-mixed ops that must not re-fire on retry). The `database is locked` arc is now complete end-to-end. _Original write-up (the deferred plan this closed) follows:_ **Still open (the residual snapshot-upgrade edge):** a SELECT-then-write endpoint (`add_to_queue`,
 `add_tag`, `add_to_axis`, … — most write routes) can *still* rarely fail with `sqlite3.OperationalError: database is
 locked` when a write collides with a concurrent fetch in the **same instant** — SQLite returns SQLITE_BUSY *immediately*
 for a snapshot-upgrade (busy_timeout can't break it). A human essentially never hits it (it needs two near-simultaneous
