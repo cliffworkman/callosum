@@ -11,14 +11,15 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, ConfigDict, Field
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.persistence.saved_search_repo import (
     delete_saved_search,
     list_saved_searches,
     upsert_saved_search,
 )
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -69,19 +70,24 @@ def list_all_saved_searches(conn: Connection = Depends(get_connection)) -> list[
 
 
 @router.post("/saved-searches", response_model=SavedSearch, status_code=http_status.HTTP_201_CREATED)
-def save_search(payload: SaveSearchRequest, conn: Connection = Depends(get_connection)) -> SavedSearch:
+def save_search(payload: SaveSearchRequest, engine: Engine = Depends(get_engine)) -> SavedSearch:
     if not payload.name.strip():
         raise HTTPException(status_code=422, detail="Name cannot be blank")
-    row = upsert_saved_search(conn, payload.name, payload.params.model_dump())
-    conn.commit()
-    return SavedSearch(
-        id=int(row["id"]), name=row["name"], params=SavedSearchParams.model_validate(row["params"] or {})
-    )
+
+    def _do(conn: Connection) -> SavedSearch:
+        row = upsert_saved_search(conn, payload.name, payload.params.model_dump())
+        return SavedSearch(
+            id=int(row["id"]), name=row["name"], params=SavedSearchParams.model_validate(row["params"] or {})
+        )
+
+    return run_write(engine, _do)
 
 
 @router.delete("/saved-searches/{search_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def remove_saved_search(search_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if not delete_saved_search(conn, search_id):
-        raise HTTPException(status_code=404, detail="Saved search not found")
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def remove_saved_search(search_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if not delete_saved_search(conn, search_id):
+            raise HTTPException(status_code=404, detail="Saved search not found")
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)

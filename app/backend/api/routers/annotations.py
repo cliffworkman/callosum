@@ -8,10 +8,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.persistence.annotations_repo import (
     NATIVE_ANNOTATION_SOURCES,
     create_annotation,
@@ -21,6 +21,7 @@ from app.backend.persistence.annotations_repo import (
     update_annotation,
 )
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -97,61 +98,67 @@ def paper_annotations(paper_id: int, conn: Connection = Depends(get_connection))
 def create_paper_annotation(
     paper_id: int,
     request: AnnotationCreateRequest,
-    conn: Connection = Depends(get_connection),
+    engine: Engine = Depends(get_engine),
 ) -> AnnotationResponse:
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    _validate_annotation_request(request)
-    annotation_id = create_annotation(
-        conn,
-        paper_id=paper_id,
-        attachment_id=request.attachment_id,
-        page=request.page,
-        color=request.color,
-        bboxes_json=_annotation_bboxes_payload(request),
-        anchor_text=request.anchor_text,
-        prefix=request.prefix,
-        suffix=request.suffix,
-        source=request.source or "user",
-        note=request.note,
-    )
-    conn.commit()
-    return _annotation_response(get_annotation(conn, annotation_id))
+    def _do(conn: Connection) -> AnnotationResponse:
+        try:
+            get_paper(conn, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        _validate_annotation_request(request)
+        annotation_id = create_annotation(
+            conn,
+            paper_id=paper_id,
+            attachment_id=request.attachment_id,
+            page=request.page,
+            color=request.color,
+            bboxes_json=_annotation_bboxes_payload(request),
+            anchor_text=request.anchor_text,
+            prefix=request.prefix,
+            suffix=request.suffix,
+            source=request.source or "user",
+            note=request.note,
+        )
+        return _annotation_response(get_annotation(conn, annotation_id))
+
+    return run_write(engine, _do)
 
 
 @router.patch("/annotations/{annotation_id}", response_model=AnnotationResponse)
 def update_paper_annotation(
     annotation_id: int,
     request: AnnotationUpdateRequest,
-    conn: Connection = Depends(get_connection),
+    engine: Engine = Depends(get_engine),
 ) -> AnnotationResponse:
-    if get_annotation(conn, annotation_id) is None:
-        raise HTTPException(status_code=404, detail="Annotation not found")
-    fields = request.model_fields_set
-    if not ({"note", "color"} & fields):
-        raise HTTPException(status_code=422, detail="No updatable fields provided")
-    kwargs: dict[str, Any] = {}
-    if "color" in fields:
-        if request.color not in ANNOTATION_COLORS:
-            raise HTTPException(status_code=422, detail="Unsupported highlight color")
-        kwargs["color"] = request.color
-    if "note" in fields:
-        _validate_annotation_note(request.note)
-        kwargs["note"] = request.note
-    update_annotation(conn, annotation_id, **kwargs)
-    conn.commit()
-    return _annotation_response(get_annotation(conn, annotation_id))
+    def _do(conn: Connection) -> AnnotationResponse:
+        if get_annotation(conn, annotation_id) is None:
+            raise HTTPException(status_code=404, detail="Annotation not found")
+        fields = request.model_fields_set
+        if not ({"note", "color"} & fields):
+            raise HTTPException(status_code=422, detail="No updatable fields provided")
+        kwargs: dict[str, Any] = {}
+        if "color" in fields:
+            if request.color not in ANNOTATION_COLORS:
+                raise HTTPException(status_code=422, detail="Unsupported highlight color")
+            kwargs["color"] = request.color
+        if "note" in fields:
+            _validate_annotation_note(request.note)
+            kwargs["note"] = request.note
+        update_annotation(conn, annotation_id, **kwargs)
+        return _annotation_response(get_annotation(conn, annotation_id))
+
+    return run_write(engine, _do)
 
 
 @router.delete("/annotations/{annotation_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def delete_paper_annotation(annotation_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if get_annotation(conn, annotation_id) is None:
-        raise HTTPException(status_code=404, detail="Annotation not found")
-    delete_annotation(conn, annotation_id)
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_paper_annotation(annotation_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if get_annotation(conn, annotation_id) is None:
+            raise HTTPException(status_code=404, detail="Annotation not found")
+        delete_annotation(conn, annotation_id)
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 def _validate_annotation_note(note: str | None) -> None:
