@@ -13,15 +13,16 @@ from typing import Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import NoResultFound
 
 from app.backend.acquisition.registry import build_default_registry
 from app.backend.acquisition.wanted import run_recheck
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.persistence import wanted_repo
 from app.backend.persistence.repository import get_paper
+from app.backend.persistence.sqlite_retry import run_write
 from integrations.openalex import OpenAlexClient
 
 router = APIRouter()
@@ -108,40 +109,47 @@ def wanted_coverage(conn: Connection = Depends(get_connection)) -> CoverageRespo
 
 
 @router.post("/wanted", response_model=WantedItemResponse, status_code=http_status.HTTP_201_CREATED)
-def add_wanted_item(payload: AddWantedRequest, conn: Connection = Depends(get_connection)) -> WantedItemResponse:
+def add_wanted_item(payload: AddWantedRequest, engine: Engine = Depends(get_engine)) -> WantedItemResponse:
     if payload.paper_id is None and not (payload.doi or payload.pmid or payload.title):
         raise HTTPException(status_code=422, detail="Provide a paper_id, or a doi / pmid / title")
-    if payload.paper_id is not None:
-        try:
-            get_paper(conn, payload.paper_id)  # validate the FK target exists
-        except NoResultFound:
-            raise HTTPException(status_code=404, detail="Paper not found") from None
-    wanted_id = wanted_repo.add_wanted(
-        conn,
-        paper_id=payload.paper_id,
-        doi=payload.doi,
-        pmid=payload.pmid,
-        title=payload.title,
-        note=payload.note,
-    )
-    conn.commit()
-    row = wanted_repo.get_wanted(conn, wanted_id)
-    return _to_response(row or {"id": wanted_id, "status": "wanted"})
+
+    def _do(conn: Connection) -> WantedItemResponse:
+        if payload.paper_id is not None:
+            try:
+                get_paper(conn, payload.paper_id)  # validate the FK target exists
+            except NoResultFound:
+                raise HTTPException(status_code=404, detail="Paper not found") from None
+        wanted_id = wanted_repo.add_wanted(
+            conn,
+            paper_id=payload.paper_id,
+            doi=payload.doi,
+            pmid=payload.pmid,
+            title=payload.title,
+            note=payload.note,
+        )
+        row = wanted_repo.get_wanted(conn, wanted_id)
+        return _to_response(row or {"id": wanted_id, "status": "wanted"})
+
+    return run_write(engine, _do)
 
 
 @router.delete("/wanted/{item_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def delete_wanted_item(item_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    if not wanted_repo.remove_wanted(conn, item_id):
-        raise HTTPException(status_code=404, detail="Wanted item not found")
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def delete_wanted_item(item_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        if not wanted_repo.remove_wanted(conn, item_id):
+            raise HTTPException(status_code=404, detail="Wanted item not found")
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/wanted/sync-library", response_model=SyncResponse)
-def sync_library(conn: Connection = Depends(get_connection)) -> SyncResponse:
-    added = wanted_repo.sync_from_library(conn)
-    conn.commit()
-    return SyncResponse(added=added)
+def sync_library(engine: Engine = Depends(get_engine)) -> SyncResponse:
+    def _do(conn: Connection) -> SyncResponse:
+        added = wanted_repo.sync_from_library(conn)
+        return SyncResponse(added=added)
+
+    return run_write(engine, _do)
 
 
 @router.post("/wanted/recheck", response_model=RecheckJobResponse, status_code=http_status.HTTP_202_ACCEPTED)

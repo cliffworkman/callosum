@@ -9,12 +9,13 @@ from typing import Any, Literal
 from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
 from pydantic import BaseModel, Field
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
 from app.backend.discovery.feed import feed_view, refresh_subscriptions
 from app.backend.persistence import feed_repo
+from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
 
@@ -43,20 +44,25 @@ def list_subscriptions(request: Request, conn: Connection = Depends(get_connecti
 
 @router.post("/feed/subscriptions")
 def add_subscription(
-    payload: SubscriptionRequest, request: Request, conn: Connection = Depends(get_connection)
+    payload: SubscriptionRequest, request: Request, engine: Engine = Depends(get_engine)
 ) -> dict[str, Any]:
     if payload.kind not in request.app.state.feed_registry.kinds:
         raise HTTPException(status_code=422, detail=f"Unknown feed source kind: {payload.kind}")
-    row = feed_repo.add_subscription(conn, kind=payload.kind, value=payload.value.strip(), label=payload.label)
-    conn.commit()
-    return {"id": int(row["id"]), "kind": row["kind"], "value": row["value"], "label": row["label"]}
+
+    def _do(conn: Connection) -> dict[str, Any]:
+        row = feed_repo.add_subscription(conn, kind=payload.kind, value=payload.value.strip(), label=payload.label)
+        return {"id": int(row["id"]), "kind": row["kind"], "value": row["value"], "label": row["label"]}
+
+    return run_write(engine, _do)
 
 
 @router.delete("/feed/subscriptions/{sub_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def remove_subscription(sub_id: int, conn: Connection = Depends(get_connection)) -> Response:
-    feed_repo.remove_subscription(conn, sub_id)  # idempotent — deleting a gone subscription is a no-op
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+def remove_subscription(sub_id: int, engine: Engine = Depends(get_engine)) -> Response:
+    def _do(conn: Connection) -> Response:
+        feed_repo.remove_subscription(conn, sub_id)  # idempotent — deleting a gone subscription is a no-op
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 class FeedRefreshResult(BaseModel):
@@ -106,14 +112,14 @@ class ItemStateRequest(BaseModel):
 
 
 @router.post("/feed/items/{item_id}/state")
-def set_item_state(
-    item_id: int, payload: ItemStateRequest, conn: Connection = Depends(get_connection)
-) -> dict[str, Any]:
-    changed = feed_repo.set_item_state(conn, item_id, is_read=payload.is_read, is_starred=payload.is_starred)
-    if not changed:
-        raise HTTPException(status_code=404, detail="Feed item not found (or no state change requested)")
-    conn.commit()
-    return {"id": item_id, "changed": True}
+def set_item_state(item_id: int, payload: ItemStateRequest, engine: Engine = Depends(get_engine)) -> dict[str, Any]:
+    def _do(conn: Connection) -> dict[str, Any]:
+        changed = feed_repo.set_item_state(conn, item_id, is_read=payload.is_read, is_starred=payload.is_starred)
+        if not changed:
+            raise HTTPException(status_code=404, detail="Feed item not found (or no state change requested)")
+        return {"id": item_id, "changed": True}
+
+    return run_write(engine, _do)
 
 
 class MarkReadRequest(BaseModel):
@@ -121,10 +127,12 @@ class MarkReadRequest(BaseModel):
 
 
 @router.post("/feed/mark-read")
-def mark_read(payload: MarkReadRequest, conn: Connection = Depends(get_connection)) -> dict[str, Any]:
-    marked = feed_repo.mark_all_read(conn, subscription_id=payload.subscription_id)
-    conn.commit()
-    return {"marked": marked}
+def mark_read(payload: MarkReadRequest, engine: Engine = Depends(get_engine)) -> dict[str, Any]:
+    def _do(conn: Connection) -> dict[str, Any]:
+        marked = feed_repo.mark_all_read(conn, subscription_id=payload.subscription_id)
+        return {"marked": marked}
+
+    return run_write(engine, _do)
 
 
 def _run_feed_refresh(app: FastAPI, job_id: str) -> None:
