@@ -174,6 +174,13 @@ function App() {
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
 
+  const activatePaperTab = useCallback((key) => {
+    if (!key) return;
+    selectWorkspace("library");
+    setActiveTab(key);
+    if (mobile) setMobilePane("library");
+  }, [mobile, selectWorkspace, setMobilePane]);
+
   const reorderPdfTabs = useCallback((draggedKey, targetKey) => {
     if (!draggedKey || !targetKey || draggedKey === targetKey) return;
     setTabs(prev => {
@@ -229,6 +236,7 @@ function App() {
   const cols = readingMode
     ? "0px 0px minmax(340px, 1fr) 0px 0px"
     : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
+  const selectedOpenPaperTab = selected == null ? null : (tabs.find(t => t.paperId === selected) || null);
 
   // inc 121: one prop-bundle the accordion hands to each section's render(ctx).
   const paneCtx = {
@@ -259,6 +267,7 @@ function App() {
     onOpenOverlooked: () => setOverlookedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
     selectedPaper: selected,  // Work/Discover/Extract tabs read the app-level selection
+    selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab,
     workspaceTabRequest, citeTabRequest,
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };

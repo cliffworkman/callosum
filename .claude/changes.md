@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 290 (Library selected-paper tab + draggable PDF tab order). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 291 (Discover Journals/Funding selected-paper cue). -->
+## 2026-07-17 — Increment 291: Discover selected-paper cue for Journals/Funding
+- **Files:** `app/frontend/js/{04b_workspaces,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
+- **What:** added a selected/open-paper cue before the Discover sub-tabs when **Journals** or **Funding** is active. It reuses the Library tab vocabulary: dashed selected-paper styling when the paper is selected but unopened, and normal open-PDF tab styling when that selected paper is already open.
+- **Why:** Journals and Funding operate on the selected paper; the cue makes that context visible at the top of those tools and provides a direct click path to open or return to the reader.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py` **39 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; mocked static-bundle browser smoke confirmed Journals/Funding selected/open cues and Search absence; full suite **1243 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 290: Library selected-paper tab + PDF tab reorder
 - **Files:** `app/frontend/js/{30c_frame,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
 - **What:** added a pinned selected-paper tab immediately after **Library** whenever the current selection is not already open in the reader; clicking it opens the PDF via the existing `openPdf` path. Open PDF tabs are now draggable to reorder, while the selected-paper tab remains pinned and non-draggable.

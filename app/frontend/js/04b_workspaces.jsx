@@ -73,6 +73,35 @@ function MenuBar({ active, onActivate, readOnly }) {
   );
 }
 
+function WorkspacePaperCue({ ctx, activeTab }) {
+  if (!ctx || activeTab !== "journals" && activeTab !== "funding") return null;
+  const openTab = ctx.selectedOpenPaperTab || null;
+  const selectedTab = ctx.selectedPaperTab || null;
+  if (openTab) {
+    return (
+      <button
+        type="button"
+        className="frame-tab active workspace-paper-cue"
+        title="Selected paper is open — click to view the PDF"
+        onClick={() => ctx.onActivatePaperTab(openTab.key)}
+      >
+        <span className="frame-tab-label">{openTab.title}</span>
+      </button>
+    );
+  }
+  if (!selectedTab) return null;
+  return (
+    <button
+      type="button"
+      className="frame-tab frame-tab-selected workspace-paper-cue"
+      title="Selected paper, not open — click to open the PDF"
+      onClick={() => ctx.onOpenPdf({ id: selectedTab.id, title: selectedTab.title })}
+    >
+      <span className="frame-tab-label">{selectedTab.title}</span>
+    </button>
+  );
+}
+
 // Renders a registered workspace's sub-tabs (a segmented `.tags-srcfilter` strip when >=2) or its single view.
 // Sub-tab bodies mount-but-hide (`.pane-tab:not(.active){display:none}`) so an in-progress action survives a switch.
 // `wsActive` = whether this whole workspace is the active one, so a tab render can poll only when truly visible
@@ -91,6 +120,7 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
     <div className="workspace-pane">
       {tabs.length > 1 &&
         <div className="tags-srcfilter workspace-tabs" role="tablist">
+          {ws.id === "discover" && <WorkspacePaperCue ctx={ctx} activeTab={at} />}
           {tabs.map(t => (
             <button key={t.id} role="tab" aria-selected={t.id === at}
               className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}

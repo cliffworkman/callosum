@@ -360,6 +360,12 @@ close button, not draggable, and clicking it calls the normal PDF-open path. Ope
 themselves only; drag-over uses the same dashed `--accent` + `--accent-soft` invite. When the selected paper already
 has an open PDF tab, the selected-paper tab is hidden.
 
+**Discover selected-paper cue (inc 291).** Discover → Journals and Discover → Funding show the selected/open paper
+context before the Discover sub-tabs by reusing the Library tab vocabulary: selected-but-not-open uses
+`.frame-tab.frame-tab-selected`; selected-and-open uses `.frame-tab.active`. This cue is a bridge back to the reader
+(open the selected PDF or return to its open reader tab), not a new Discover sub-tab style. Search does not show the
+cue; it stays focused on corpus search + embedded Feed.
+
 **Accordion registry and lens recipe.** The side panes are accordions on the module registry in
 `app/frontend/js/05_panes.jsx`: `registerPaneSection({id, label, paneId, order, render})`,
 `registerPaneTab(host, tab)`, `paneSections`, `sectionTabs`, and

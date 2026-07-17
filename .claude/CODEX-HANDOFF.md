@@ -258,3 +258,33 @@ Partial/unverified:
 - Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.
+
+---
+
+## Codex session summary — Group D Discover selected-paper cue — 2026-07-17
+
+Branch: `feature/library-ux-polish`.
+
+What changed:
+- Completed handoff group D as Increment 291.
+- Added a selected/open paper cue before the Discover sub-tabs when **Journals** or **Funding** is active.
+- Reused the Library tab visual vocabulary exactly: dashed `frame-tab-selected` for selected-but-unopened papers, and normal `frame-tab active` styling for selected papers that are already open in the reader.
+- Clicking the dashed cue opens the selected paper through the existing `openPdf` path; clicking the open-paper cue returns to the Library reader tab for that paper.
+- Kept **Search** free of the cue so Search remains corpus-level.
+- Updated served help, DESIGN, QA route 73, frontend guards, increment notes, changelog, and rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py`: 39 passed.
+- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1151/1151, uncovered 0.
+- Browser smoke against a fresh static bundle with mocked Library/Discover APIs confirmed: Journals shows the dashed selected-paper cue, Search shows no cue, Funding cue opens the PDF, returning to Journals shows the open-PDF styling, and clicking the open cue returns to Library.
+- `python -m pytest`: 1243 passed, 1 skipped in 1229.48s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted after formatting the new assembly guard.
+- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
+
+Partial/unverified:
+- Browser smoke used mocked API responses rather than a fully attached backend/database session; the Discover cue DOM behavior and click paths were verified in Chromium.
+- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.

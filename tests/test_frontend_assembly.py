@@ -137,6 +137,22 @@ def test_library_selected_paper_tab_and_pdf_reorder_present():
     assert ".frame-tab.dragover" in css
 
 
+def test_discover_journals_funding_show_selected_paper_tab_cue():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert "function WorkspacePaperCue({ ctx, activeTab })" in raw
+    assert 'activeTab !== "journals" && activeTab !== "funding"' in raw
+    assert "const openTab = ctx.selectedOpenPaperTab || null" in raw
+    assert 'className="frame-tab active workspace-paper-cue"' in raw
+    assert 'className="frame-tab frame-tab-selected workspace-paper-cue"' in raw
+    assert "ctx.onActivatePaperTab(openTab.key)" in raw
+    assert "ctx.onOpenPdf({ id: selectedTab.id, title: selectedTab.title })" in raw
+    assert 'ws.id === "discover" && <WorkspacePaperCue ctx={ctx} activeTab={at} />' in raw
+    assert "const selectedOpenPaperTab = selected == null ? null" in raw
+    assert "selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab" in raw
+    assert ".workspace-paper-cue" in css
+
+
 def test_my_publications_workspace_loads_without_axis_card_button():
     raw = assemble_jsx()
     assert "function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf })" in raw

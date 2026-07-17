@@ -26,6 +26,8 @@ The three panes stay put; only the center changes as you switch workspaces. The 
 
 Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesis / Discover / Work / Extract and they're tucked away until you come back.
 
+In **Discover → Journals** and **Discover → Funding**, the selected paper appears before the Discover sub-tabs using that same tab language: dashed accent if it is selected but not open, and the normal open-PDF tab style if it is already open. Click the cue to open or return to the reader for that paper.
+
 Tips:
 
 - Select a paper once to inspect its metadata in **Details** (right pane).

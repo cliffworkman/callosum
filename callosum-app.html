@@ -1503,6 +1503,7 @@
   .workspace-slot { flex: 1 1 auto; min-height: 0; flex-direction: column; }  /* inline display:flex when active */
   .workspace-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
   .workspace-tabs { flex: 0 0 auto; padding: 8px 10px 0; background: var(--panel-2); border-bottom: 1px solid var(--line); }
+  .workspace-paper-cue { flex: 0 1 auto; margin-right: 8px; margin-bottom: 6px; }
   /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
   .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }
 
@@ -3741,6 +3742,34 @@
     );
     return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
   }
+  function WorkspacePaperCue({ ctx, activeTab }) {
+    if (!ctx || activeTab !== "journals" && activeTab !== "funding") return null;
+    const openTab = ctx.selectedOpenPaperTab || null;
+    const selectedTab = ctx.selectedPaperTab || null;
+    if (openTab) {
+      return /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "frame-tab active workspace-paper-cue",
+          title: "Selected paper is open \u2014 click to view the PDF",
+          onClick: () => ctx.onActivatePaperTab(openTab.key)
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label" }, openTab.title)
+      );
+    }
+    if (!selectedTab) return null;
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "frame-tab frame-tab-selected workspace-paper-cue",
+        title: "Selected paper, not open \u2014 click to open the PDF",
+        onClick: () => ctx.onOpenPdf({ id: selectedTab.id, title: selectedTab.title })
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label" }, selectedTab.title)
+    );
+  }
   function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
     const tabs = workspaceTabs(ws, readOnly);
     const [activeTab, setActiveTab] = useState(() => _loadLayout("callosum.workspacetab." + ws.id, tabs[0] ? tabs[0].id : null));
@@ -3754,7 +3783,7 @@
     }, [requested ? requested.nonce : null, ws.id]);
     if (tabs.length === 0) return null;
     const at = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0].id;
-    return /* @__PURE__ */ React.createElement("div", { className: "workspace-pane" }, tabs.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter workspace-tabs", role: "tablist" }, tabs.map((t) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "workspace-pane" }, tabs.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter workspace-tabs", role: "tablist" }, ws.id === "discover" && /* @__PURE__ */ React.createElement(WorkspacePaperCue, { ctx, activeTab: at }), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: t.id,
@@ -14224,6 +14253,12 @@
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
+    const activatePaperTab = useCallback((key) => {
+      if (!key) return;
+      selectWorkspace("library");
+      setActiveTab(key);
+      if (mobile) setMobilePane("library");
+    }, [mobile, selectWorkspace, setMobilePane]);
     const reorderPdfTabs = useCallback((draggedKey, targetKey) => {
       if (!draggedKey || !targetKey || draggedKey === targetKey) return;
       setTabs((prev) => {
@@ -14273,6 +14308,7 @@
       return () => window.removeEventListener("keydown", onKey);
     }, [readingMode, anyModalOpen, toggleReading]);
     const cols = readingMode ? "0px 0px minmax(340px, 1fr) 0px 0px" : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
+    const selectedOpenPaperTab = selected == null ? null : tabs.find((t) => t.paperId === selected) || null;
     const paneCtx = {
       readOnly,
       // B5 SP2: hide write controls in every section when the instance is read-only
@@ -14321,6 +14357,9 @@
       onOpenPaper: openPdf,
       selectedPaper: selected,
       // Work/Discover/Extract tabs read the app-level selection
+      selectedPaperTab,
+      selectedOpenPaperTab,
+      onActivatePaperTab: activatePaperTab,
       workspaceTabRequest,
       citeTabRequest,
       capture,

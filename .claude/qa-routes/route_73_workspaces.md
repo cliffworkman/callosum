@@ -30,6 +30,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   not draggable.
 - **Library owns open PDFs.** Opening a PDF lands a sub-tab under **Library** and selects the Library workspace; the
   PDF tab is hidden (not closed) while Discover/Extract/My Publications is active, and reappears on return.
+- **Discover carries selected-paper context where it matters.** In Discover → Journals/Funding, the selected paper is
+  shown before the Discover sub-tabs using the Library tab visual language: dashed selected-paper styling when not
+  open, normal open-PDF tab styling when already open. Search stays just Search/Wanted/Gaps/Overlooked + Feed.
 - **Workspace subsection scroll.** Long Discover/Extract sub-tabs scroll inside their active body; their tab strip and
   the menu bar remain fixed.
 - **Active workspace persists** (`callosum.workspace`) across reload; Library is the default on first load.
@@ -44,9 +47,11 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - Rapidly switch My Publications→Library→Synthesis→Discover→Work→Extract→Help→Settings and back; confirm no flicker/stuck state, no console
   errors, and each center swaps while the side panes hold.
 - Select a paper but do not open it → the selected-paper tab appears after **Library**; click it → the PDF opens and
-  the selected-paper tab disappears.
+  the selected-paper tab disappears. With a selected-but-unopened paper, switch to Discover → Journals/Funding and
+  confirm the same dashed cue appears before the Discover sub-tabs.
 - Open 2+ PDFs, drag their PDF tabs to reorder them, switch to Discover, switch back to Library → both PDF tabs still
-  there in the chosen order; close one → falls back to the Library list, not a blank pane.
+  there in the chosen order; in Journals/Funding the selected-open paper cue uses the normal open-PDF tab style and
+  clicking it returns to the Library reader tab. Close one → falls back to the Library list, not a blank pane.
 - Extract → Workbench "select in PDF": arm a capture → it jumps to Library + opens the paper → select → snaps back to
   Extract with the anchor applied (the cross-workspace capture path).
 - Leave the **Settings** workspace → the panes re-read egress state (the old modal-close behavior); no stale "AI off".
@@ -62,8 +67,11 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    **Search**, **Wanted**, **Gaps**, and **Overlooked** buttons styled identically; click each discovery button and
    confirm it opens its existing modal. Confirm **Feed** appears below the Search results area, not as its own sub-tab.
    Select a paper first, then open **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode
-   when nothing is selected). With enough content to overflow, confirm each body scrolls vertically without moving
-   the Discover sub-tab strip.
+   when nothing is selected). With the selected paper not yet open, confirm **Journals** and **Funding** show the
+   dashed selected-paper cue before **Search · Journals · Funding**; click it and confirm it opens the PDF. Return to
+   Discover → Journals/Funding with that paper open and confirm the cue now uses the normal open-PDF tab styling and
+   clicks back to the reader. Confirm **Search** does not show this cue. With enough content to overflow, confirm each
+   body scrolls vertically without moving the Discover sub-tab strip.
 3. **Synthesis** → ask a small query or use Library selection **summarize**; confirm the workspace opens and the
    history/result state stays mounted when switching away and back.
 4. **Work** → confirm sub-tabs **Cite · CRediT statement**. Inside **Cite**, confirm nested tabs
@@ -96,7 +104,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   menu bar or sub-tab strip.
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Selected-but-unopened papers show the pinned selected-paper tab; clicking it opens the PDF; open PDF tabs nest under
-  Library, reorder by drag, and persist. The active workspace persists across reload; read-only hides the write
+  Library, reorder by drag, and persist. Discover → Journals/Funding reuse that selected/open paper cue before their
+  sub-tabs and click through to the reader. The active workspace persists across reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Extract capture round-trips.
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and
   does not return after workspace switching.
