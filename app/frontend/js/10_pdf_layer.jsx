@@ -228,7 +228,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryTextHealthFilter, onClearTextHealthFilter,
                     libraryReferenceFilter, onClearReferenceFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
-                    transparencyReview, onShowTransparencyReview,
+                    openDataDetected, onShowTransparencyReview,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched, onOpenTextHealth, onOpenReferenceWarnings,
@@ -259,13 +259,12 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
     ? (page + 1) * PAGE_SIZE < state.total
     : state.papers.length === PAGE_SIZE;
   // statcheck #e: two header-chip KINDS, grouped + divided so a check SIGNAL (amber/red) reads as distinct from
-  // your review-QUEUE work-state (indigo). open-data-not-detected stays in the queue group (a go-look work-state,
-  // never a "hides data" verdict — the A-A no-accusation boundary), NOT with the signals.
+  // your review-QUEUE work-state (indigo). The Open Data chip is the positive detected-disclosure signal.
   const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
   const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
   const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
   const showTransparencyChip =
-    !trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-");
+    !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
   return (
     <div className="pane-list-body">
       <div className="pane-head">
@@ -274,23 +273,23 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           {!readOnly && <span className="lib-head-actions">
             {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onExportBundle={onExportBundle} />}
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
-            {(showStatcheckChip || showRetractionChip) &&
+            {(showStatcheckChip || showRetractionChip || showTransparencyChip) &&
               <span className="lib-chip-group lib-chip-signals" title="Check signals — a check detected something concrete on these papers">
                 {showStatcheckChip &&
                   <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
-                    title="Papers where a reported p-value didn't recompute in the last statistics check — a signal to inspect, usually innocent (typos, rounding, one-tailed tests). Distinct from your review queue.">⚠ {statcheckFlagged} flagged</button>}
+                    title="Papers where a reported p-value didn't recompute in the last statistics check — a signal to inspect, usually innocent (typos, rounding, one-tailed tests). Distinct from your review queue.">⚠ Flagged · {statcheckFlagged}</button>}
                 {showRetractionChip &&
                   <button className="trash-toggle retraction-chip" onClick={onShowRetractionFlagged}
-                    title="Papers a registry records as retracted — verify before citing">⚠ {retractionFlagged} retracted</button>}
+                    title="Papers a registry records as retracted — verify before citing">⚠ Retracted · {retractionFlagged}</button>}
+                {showTransparencyChip &&
+                  <button className="trash-toggle transparency-chip" onClick={() => onShowTransparencyReview("transparency-data-detected")}
+                    title="Papers where the transparency auditor detected an open-data disclosure in the text — opens the evidence-bearing signal list, not a score or verdict">🔎 Open Data · {openDataDetected}</button>}
               </span>}
-            {(showFindingsChip || showTransparencyChip) &&
+            {showFindingsChip &&
               <span className="lib-chip-group lib-chip-queue" title="Your review queue — things for you to go look at; clears as you review">
                 {showFindingsChip &&
                   <button className="trash-toggle findings-chip" onClick={onShowFindingsToReview}
-                    title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 {findingsToReview} to review</button>}
-                {showTransparencyChip &&
-                  <button className="trash-toggle transparency-chip" onClick={() => onShowTransparencyReview()}
-                    title="Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text — a list to go look at (it may still share data elsewhere), never a claim that they hide it">🔎 {transparencyReview} · open data not detected</button>}
+                    title="Findings you haven't marked reviewed yet — your review queue, separate from the check signals; open each paper's Review section">📋 Review · {findingsToReview}</button>}
               </span>}
             {!trashView &&
               <button className="trash-toggle" onClick={onToggleNeedsReview}
@@ -346,7 +345,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           </div>}
         {libraryTextHealthFilter &&
           <div className="focus-card">
-            <div className="focus-card-head">Text health: <b>{libraryTextHealthFilter.label}</b></div>
+            <div className="focus-card-head">Text Health: <b>{libraryTextHealthFilter.label}</b></div>
             <div className="focus-card-foot">
               <span className="focus-count">{textHealthShown}</span>
               <button className="axis-link" onClick={onClearTextHealthFilter}>clear</button>
@@ -371,6 +370,14 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
         {librarySignalFilter === "retraction-retracted" &&
           <div className="focus-card">
             <div className="focus-card-head">Retracted — papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice.</div>
+            <div className="focus-card-foot">
+              <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
+              <button className="axis-link" onClick={onClearSignalFilter}>clear</button>
+            </div>
+          </div>}
+        {librarySignalFilter === "transparency-data-detected" &&
+          <div className="focus-card">
+            <div className="focus-card-head">Open Data — papers where the transparency auditor detected a data-availability disclosure in the extracted text.</div>
             <div className="focus-card-foot">
               <span className="focus-count">{state.status === "ready" ? `${state.papers.length} shown` : ""}</span>
               <button className="axis-link" onClick={onClearSignalFilter}>clear</button>

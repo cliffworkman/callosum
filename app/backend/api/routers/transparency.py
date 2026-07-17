@@ -27,7 +27,7 @@ from app.backend.methods.evidence_anchors import anchor_evidence
 from app.backend.methods.transparency import detect_transparency
 from app.backend.methods.transparency_findings import persist_transparency
 from app.backend.persistence.repository import get_chunks_for_paper, get_paper, list_live_paper_ids
-from app.backend.persistence.signals_repo import count_transparency_review
+from app.backend.persistence.signals_repo import count_transparency_review, count_transparency_status
 from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
@@ -94,6 +94,7 @@ class TransparencyRunResponse(BaseModel):
 
 
 class TransparencyLibrarySummary(BaseModel):
+    data_detected: int  # papers where data-availability was detected — a positive, checkable evidence signal
     data_not_detected: int  # papers where data-availability wasn't detected — a REVIEW QUEUE count, not a verdict
 
 
@@ -151,6 +152,9 @@ def transparency_run_status(job_id: str, request: Request) -> TransparencyRunRes
 
 @router.get("/methods/transparency/summary", response_model=TransparencyLibrarySummary)
 def transparency_library_summary(conn: Connection = Depends(get_connection)) -> TransparencyLibrarySummary:
-    # Drives the Library-header review-queue chip: # papers where the auditor ran but didn't detect a data-availability
-    # disclosure. A review queue ("go look"), NEVER "papers that hide their data" (the A-A no-accusation boundary).
-    return TransparencyLibrarySummary(data_not_detected=count_transparency_review(conn, "data_availability"))
+    # Drives the Library-header Open Data chip with the positive detected signal. Keep the not-detected review count
+    # available for the transparency panel; it is still only a "go look" queue, never "papers that hide their data."
+    return TransparencyLibrarySummary(
+        data_detected=count_transparency_status(conn, "data_availability", "detected"),
+        data_not_detected=count_transparency_review(conn, "data_availability"),
+    )

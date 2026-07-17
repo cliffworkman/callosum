@@ -981,8 +981,8 @@
     gap: 6px 10px; min-width: 0;
   }
   .lib-head-actions .trash-toggle { max-width: 100%; white-space: normal; line-height: 1.25; text-align: left; }
-  /* statcheck #e: group the header signal-filter chips by KIND — check "signals" (amber/red: statcheck flagged,
-     retraction) vs "your review queue" (indigo: findings to review, open-data-not-detected) — with a thin divider
+  /* statcheck #e + library polish: group the header signal-filter chips by KIND — check "signals" (amber/red:
+     statcheck flagged, retraction, detected Open Data) vs "your review queue" (indigo: findings to review) — with a thin divider
      between, so the flagged-SIGNAL ≠ to-review-WORK-STATE distinction reads at a glance. */
   .lib-chip-group { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
   .lib-chip-group.lib-chip-queue { padding-left: 10px; border-left: 1px solid var(--line); }
@@ -1017,7 +1017,7 @@
   .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
   .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
-  .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* "open data not detected" — a review queue (go look), indigo work-state, NEVER a "hides data" verdict (inc 251) */
+  .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* Open Data detected — a checkable signal with evidence, never an openness score/verdict */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -2917,7 +2917,7 @@
     const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });
     const [statcheckFlagged, setStatcheckFlagged] = useState(0);
     const [retractionFlagged, setRetractionFlagged] = useState(0);
-    const [transparencyReview, setTransparencyReview] = useState(0);
+    const [openDataDetected, setOpenDataDetected] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -3169,7 +3169,7 @@
     const showTextHealthFilter = useCallback((filter) => {
       const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
       if (!paperIds.length) return;
-      setLibraryTextHealthFilter({ key: filter.key || filter.flag || "text-health", label: filter.label || "Text health", paperIds });
+      setLibraryTextHealthFilter({ key: filter.key || filter.flag || "text-health", label: filter.label || "Text Health", paperIds });
       setTrashView(false);
       setLibraryAxisFilter(null);
       setLibraryTagFilter(null);
@@ -3209,7 +3209,7 @@
     }, []);
     const refreshTransparencyChip = useCallback(() => {
       api("/methods/transparency/summary").then((r) => {
-        if (r.ok) setTransparencyReview(r.data.data_not_detected || 0);
+        if (r.ok) setOpenDataDetected(r.data.data_detected || 0);
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -3478,7 +3478,7 @@
       onShowStatcheckFlagged: showStatcheckFlagged,
       retractionFlagged,
       onShowRetractionFlagged: showRetractionFlagged,
-      transparencyReview,
+      openDataDetected,
       onShowTransparencyReview: showTransparencyReview,
       findingsToReview,
       onShowFindingsToReview: showFindingsToReview,
@@ -7261,7 +7261,7 @@
     onShowStatcheckFlagged,
     retractionFlagged,
     onShowRetractionFlagged,
-    transparencyReview,
+    openDataDetected,
     onShowTransparencyReview,
     findingsToReview,
     onShowFindingsToReview,
@@ -7307,17 +7307,16 @@
     const showStatcheckChip = !trashView && statcheckFlagged > 0 && librarySignalFilter !== "statcheck-inconsistent";
     const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
     const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
-    const showTransparencyChip = !trashView && transparencyReview > 0 && !String(librarySignalFilter || "").startsWith("transparency-");
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
+    const showTransparencyChip = !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
         onClick: onShowStatcheckFlagged,
         title: "Papers where a reported p-value didn't recompute in the last statistics check \u2014 a signal to inspect, usually innocent (typos, rounding, one-tailed tests). Distinct from your review queue."
       },
-      "\u26A0 ",
-      statcheckFlagged,
-      " flagged"
+      "\u26A0 Flagged \xB7 ",
+      statcheckFlagged
     ), showRetractionChip && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -7325,29 +7324,26 @@
         onClick: onShowRetractionFlagged,
         title: "Papers a registry records as retracted \u2014 verify before citing"
       },
-      "\u26A0 ",
-      retractionFlagged,
-      " retracted"
-    )), (showFindingsChip || showTransparencyChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
+      "\u26A0 Retracted \xB7 ",
+      retractionFlagged
+    ), showTransparencyChip && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle transparency-chip",
+        onClick: () => onShowTransparencyReview("transparency-data-detected"),
+        title: "Papers where the transparency auditor detected an open-data disclosure in the text \u2014 opens the evidence-bearing signal list, not a score or verdict"
+      },
+      "\u{1F50E} Open Data \xB7 ",
+      openDataDetected
+    )), showFindingsChip && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle findings-chip",
         onClick: onShowFindingsToReview,
         title: "Findings you haven't marked reviewed yet \u2014 your review queue, separate from the check signals; open each paper's Review section"
       },
-      "\u{1F4CB} ",
-      findingsToReview,
-      " to review"
-    ), showTransparencyChip && /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        className: "trash-toggle transparency-chip",
-        onClick: () => onShowTransparencyReview(),
-        title: "Papers where the transparency auditor ran but didn't detect an open-data disclosure in the text \u2014 a list to go look at (it may still share data elsewhere), never a claim that they hide it"
-      },
-      "\u{1F50E} ",
-      transparencyReview,
-      " \xB7 open data not detected"
+      "\u{1F4CB} Review \xB7 ",
+      findingsToReview
     )), !trashView && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -7364,7 +7360,7 @@
         title: "Permanently delete every paper in Trash \u2014 cannot be undone"
       },
       "Empty Trash"
-    ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label), libraryAxisFilter.hideUncertain ? " \xB7 assigned only" : ""), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), libraryTextHealthFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Text health: ", /* @__PURE__ */ React.createElement("b", null, libraryTextHealthFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, textHealthShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTextHealthFilter }, "clear"))), libraryReferenceFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reference checks: ", /* @__PURE__ */ React.createElement("b", null, libraryReferenceFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, referenceShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearReferenceFilter }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "needs-review" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "To review \u2014 papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onToggleTrash, title: trashView ? "Back to the library" : "View deleted papers" }, trashView ? "\u2190 Library" : "Trash"))), focusAxis && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Adding to ", /* @__PURE__ */ React.createElement("b", null, focusAxis.label), " \u2014 click ", /* @__PURE__ */ React.createElement("b", null, "+ add"), " on the papers below."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, pendingAdd || pendingRemove ? `+${pendingAdd} \u2212${pendingRemove} staged` : "no changes yet"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !(pendingAdd || pendingRemove), onClick: onSaveFocus }, "Save"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onCancelFocus }, "Cancel"))), libraryAxisFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to axis ", /* @__PURE__ */ React.createElement("b", null, libraryAxisFilter.label), libraryAxisFilter.hideUncertain ? " \xB7 assigned only" : ""), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearAxisFilter }, "clear"))), libraryTagFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Filtered to tag ", /* @__PURE__ */ React.createElement("b", null, libraryTagFilter.name)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTagFilter }, "clear"))), libraryNeedsReview && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Unsorted \u2014 papers whose metadata still needs review (raw imports, unresolved DOIs)"), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearNeedsReview }, "clear"))), libraryTextHealthFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Text Health: ", /* @__PURE__ */ React.createElement("b", null, libraryTextHealthFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, textHealthShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearTextHealthFilter }, "clear"))), libraryReferenceFilter && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reference checks: ", /* @__PURE__ */ React.createElement("b", null, libraryReferenceFilter.label)), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, referenceShown), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearReferenceFilter }, "clear"))), librarySignalFilter === "statcheck-inconsistent" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Reporting inconsistencies \u2014 papers where a reported p-value didn't recompute (statcheck). Usually innocent (typos, rounding); a list to review, not a verdict."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "retraction-retracted" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Retracted \u2014 papers a registry (Crossref / OpenAlex) records as retracted. Verify before citing; open each paper's Review section for the notice."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "transparency-data-detected" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "Open Data \u2014 papers where the transparency auditor detected a data-availability disclosure in the extracted text."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), librarySignalFilter === "needs-review" && /* @__PURE__ */ React.createElement("div", { className: "focus-card" }, /* @__PURE__ */ React.createElement("div", { className: "focus-card-head" }, "To review \u2014 papers with findings you haven't reviewed yet. Open each paper's Review section (METHODS) to Confirm or Note each one."), /* @__PURE__ */ React.createElement("div", { className: "focus-card-foot" }, /* @__PURE__ */ React.createElement("span", { className: "focus-count" }, state.status === "ready" ? `${state.papers.length} shown` : ""), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClearSignalFilter }, "clear"))), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
       "input",
       {
         placeholder: fulltextMode || librarySearchField === "fulltext" ? "search inside your PDFs\u2026" : "Search title, author, journal\u2026",
@@ -7518,21 +7514,23 @@
       setProg(null);
     };
     const date = asOf ? String(asOf).slice(0, 10) : null;
+    const title = date ? `Last refreshed ${date}. Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking).` : "Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking).";
     return /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle",
         onClick: run,
         disabled: busy,
-        title: "Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking)"
+        title
       },
-      busy ? prog ? `Citations ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Citations\u2026" : date ? `Citations \xB7 ${date}` : "Citations \u21BB"
+      busy ? prog ? `Citations ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Citations\u2026" : "Citations \u21BB"
     );
   }
   function EnrichMetadataButton({ onRefreshed }) {
     const [busy, setBusy] = useState(false);
     const [prog, setProg] = useState(null);
     const [done, setDone] = useState(null);
+    const [lastRun, setLastRun] = useState(null);
     const run = async () => {
       if (busy) return;
       setBusy(true);
@@ -7550,7 +7548,10 @@
         if (!r.ok) break;
         if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds });
         if (r.data.status === "done" || r.data.status === "error") {
-          if (r.data.status === "done" && r.data.summary) setDone(r.data.summary);
+          if (r.data.status === "done" && r.data.summary) {
+            setDone(r.data.summary);
+            setLastRun(/* @__PURE__ */ new Date());
+          }
           onRefreshed && onRefreshed();
           break;
         }
@@ -7558,8 +7559,9 @@
       setBusy(false);
       setProg(null);
     };
-    const label = busy ? prog ? `Enriching ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Enriching\u2026" : done ? `Filled ${done.fields_filled}` : "Enrich metadata \u21BB";
-    const title = done ? `Filled ${done.fields_filled} field(s) across ${done.papers} papers \xB7 recovered ${done.dois_recovered} DOI(s) \xB7 ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields \u2014 never overwrites what you typed.` : "Fill each paper's missing fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 public metadata, fills only blanks, never overwrites your edits.";
+    const label = busy ? prog ? `Enriching ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Enriching\u2026" : "Metadata \u21BB";
+    const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
+    const title = done ? `${lastRunText}Filled ${done.fields_filled} field(s) across ${done.papers} papers \xB7 recovered ${done.dois_recovered} DOI(s) \xB7 ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields \u2014 never overwrites what you typed.` : "Fill each paper's missing fields (DOI, abstract, venue\u2026) from Crossref/OpenAlex \u2014 public metadata, fills only blanks, never overwrites your edits.";
     return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: run, disabled: busy, title }, label);
   }
   async function pollTextReprocess(jobId, setProg) {
@@ -7578,17 +7580,22 @@
   }
   function TextHealthButton({ onOpen }) {
     const [counts, setCounts] = useState(null);
+    const [lastLoaded, setLastLoaded] = useState(null);
     const load = useCallback(() => {
       api("/papers/text-health/overview").then((r) => {
-        if (r.ok) setCounts(r.data.counts);
+        if (r.ok) {
+          setCounts(r.data.counts);
+          setLastLoaded(/* @__PURE__ */ new Date());
+        }
       });
     }, []);
     useEffect(() => {
       load();
     }, [load]);
     const missing = counts ? counts.missing_section_labels : 0;
-    const label = counts ? missing ? `Text health \xB7 ${missing}` : "Text health \u2713" : "Text health";
-    const title = counts ? `${missing} local PDF(s) have chunks without section labels \xB7 ${counts.no_chunks} may need OCR \xB7 ${counts.tiny_text} have very little extracted text. Open the text-health queue.` : "Open extracted PDF text-health details.";
+    const label = "Text Health";
+    const lastLoadedText = lastLoaded ? `Last refreshed ${fmtDateTime(lastLoaded)}. ` : "";
+    const title = counts ? `${lastLoadedText}${missing} local PDF(s) have chunks without section labels \xB7 ${counts.no_chunks} may need OCR \xB7 ${counts.tiny_text} have very little extracted text. Open the text-health queue.` : "Open extracted PDF text-health details.";
     return /* @__PURE__ */ React.createElement("button", { className: "trash-toggle", onClick: onOpen, title }, label);
   }
   function ReprocessSelectedTextButton({ paperIds, onDone }) {
@@ -9096,7 +9103,7 @@
       return {
         kind: "text-health",
         title: "No usable source text was available.",
-        message: "Check PDF text health for missing extraction, OCR candidates, or stale chunks.",
+        message: "Check PDF Text Health for missing extraction, OCR candidates, or stale chunks.",
         primary: "Open Text Health",
         detail
       };
@@ -10711,7 +10718,7 @@
       poll(start.data.job_id);
     };
     const counts = state.counts;
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal text-health-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "PDF text health"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Deterministic checks over local PDF attachments and extracted chunks. Reprocessing re-reads local PDFs and replaces extracted chunks only; it does not OCR, fetch metadata, or send text anywhere. OCR remains a separate explicit action because it creates a searchable copy."), context && scopedIds.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "wanted-summary" }, "Opened from Synthesis \xB7 showing text-health signals for ", scopedIds.size, " source paper", scopedIds.size === 1 ? "" : "s", ".", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setScopedOnly((v) => !v) }, scopedOnly ? "Show all text-health items" : "Return to synthesis scope")), counts && /* @__PURE__ */ React.createElement("div", { className: "wanted-coverage" }, counts.local_pdfs, " local PDFs \xB7 ", counts.missing_section_labels, " missing section labels \xB7", " ", counts.stale_chunk_version, " stale extraction \xB7 ", counts.no_chunks, " no text \xB7", " ", counts.tiny_text, " tiny text \xB7 ", counts.no_local_pdf, " no local PDF"), /* @__PURE__ */ React.createElement("div", { className: "wanted-actions" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal text-health-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "PDF Text Health"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Deterministic checks over local PDF attachments and extracted chunks. Reprocessing re-reads local PDFs and replaces extracted chunks only; it does not OCR, fetch metadata, or send text anywhere. OCR remains a separate explicit action because it creates a searchable copy."), context && scopedIds.size > 0 && /* @__PURE__ */ React.createElement("div", { className: "wanted-summary" }, "Opened from Synthesis \xB7 showing text-health signals for ", scopedIds.size, " source paper", scopedIds.size === 1 ? "" : "s", ".", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setScopedOnly((v) => !v) }, scopedOnly ? "Show all text-health items" : "Return to synthesis scope")), counts && /* @__PURE__ */ React.createElement("div", { className: "wanted-coverage" }, counts.local_pdfs, " local PDFs \xB7 ", counts.missing_section_labels, " missing section labels \xB7", " ", counts.stale_chunk_version, " stale extraction \xB7 ", counts.no_chunks, " no text \xB7", " ", counts.tiny_text, " tiny text \xB7 ", counts.no_local_pdf, " no local PDF"), /* @__PURE__ */ React.createElement("div", { className: "wanted-actions" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn btn-primary",

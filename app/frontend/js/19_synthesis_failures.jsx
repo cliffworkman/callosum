@@ -32,7 +32,7 @@ function classifySynthesisFailure(error) {
     return {
       kind: "text-health",
       title: "No usable source text was available.",
-      message: "Check PDF text health for missing extraction, OCR candidates, or stale chunks.",
+      message: "Check PDF Text Health for missing extraction, OCR candidates, or stale chunks.",
       primary: "Open Text Health",
       detail,
     };

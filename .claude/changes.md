@@ -9,7 +9,15 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 287 (Synthesis is a workspace; Work owns Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 288 (Library header labels/tooltips; positive Open Data signal chip). -->
+## 2026-07-17 — Increment 288: Library header polish + positive Open Data signal
+- **Files:** `app/frontend/js/{03_library,10b_libmenus,10_pdf_layer,19_synthesis_failures,26b_text_health}.jsx`, `app/frontend/styles.css`, `app/backend/{api/routers/transparency,persistence/signals_repo,persistence/repository}.py`, `app/backend/help/help_content.md`, `tests/{test_frontend_assembly,test_transparency_findings}.py`, `callosum-app.html`, increment notes.
+- **What:** shortened Library header controls to stable labels: **Metadata ↻**, **Citations ↻**, **Text Health**, **⚠ Flagged · N**, **⚠ Retracted · N**, **📋 Review · N**, and **🔎 Open Data · N**. Metadata/citation/text-health dynamic details now live in tooltips. Inverted the old open-data-not-detected chip into a positive `transparency-data-detected` signal and exposed `data_detected` from the transparency summary while preserving `data_not_detected` review queues.
+- **Why:** keeps the Library header from shifting under the user after refreshes and makes the open-data chip a checkable positive signal instead of a negative-sounding absence queue.
+- **Principles:** read `.claude/PRINCIPLES.md`; Open Data remains signal-not-verdict, evidence-bearing, and non-scoring. No claim is made that papers without the chip lack data.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py tests/test_transparency_findings.py` **44 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; full suite **1240 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 287: Synthesis + Work workspace split
 - **Files:** `app/frontend/js/{03_library,04b_workspaces,08b_methods_citation_equity,08c_methods_citation_context,08j_reference_integrity,20_synthesis,30c_frame,37_cite,38_credit,40_app}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, help/design/QA/docs.
 - **What:** added **Synthesis** as a center menu-bar workspace after Library, and added **Work** after Discover. Moved **Cite** out of the THEORY pane into Work, with nested tabs **Suggest → Meta Reference List → Citation concentration → How it's cited**; moved **CRediT statement** into Work. Paper-card ref-signal jumps now route directly to Work → Cite → Meta Reference List, and Library selection summarize opens Synthesis.

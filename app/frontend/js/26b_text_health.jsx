@@ -82,7 +82,7 @@ function TextHealthModal({ onClose, onOpenPaper, onOpenDetails, onShowLibrary, o
     <div className="axis-modal-overlay" onClick={onClose}>
       <div className="axis-modal text-health-modal" onClick={e => e.stopPropagation()}>
         <div className="axis-modal-head">
-          <span>PDF text health</span>
+          <span>PDF Text Health</span>
           <button className="axis-link" onClick={onClose}>×</button>
         </div>
         <div className="axis-modal-note">

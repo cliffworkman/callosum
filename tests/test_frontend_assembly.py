@@ -263,7 +263,7 @@ def test_synthesis_failure_recovery_actions_are_wired():
     assert "Repair cache and retry" in raw
     assert 'apiPost("/settings/repair-summary-cache", {})' in raw
     assert "Open Text Health" in raw
-    assert "Check PDF text health" in raw
+    assert "Check PDF Text Health" in raw
     assert 'onOpenTextHealth({ source: "synthesis", paperIds: body.paper_ids || [], onRetry: retryLast })' in raw
     assert 'api("/papers/text-health/overview")' in raw
     assert "No source chunks matched this query" in raw
@@ -307,12 +307,28 @@ def test_pdf_text_health_controls_are_present_and_local_only_worded():
     assert "Show in Library" in raw
     assert "onShowLibrary={showTextHealthFilter}" in raw
     assert "libraryTextHealthFilter" in raw
-    assert "Text health: <b>{libraryTextHealthFilter.label}</b>" in raw
+    assert "Text Health: <b>{libraryTextHealthFilter.label}</b>" in raw
+    assert "<span>PDF Text Health</span>" in raw
     assert "OCR remains a" in raw
     assert 'apiPost("/papers/text-health/reprocess", { mode: "selected", paper_ids: ids })' in raw
     assert "No OCR, no metadata changes, no network." in raw
     assert "<TextHealthButton onOpen={onOpenTextHealth} />" in raw
     assert "<ReprocessSelectedTextButton paperIds={[...selectedLibraryIds]} onDone={onEnriched} />" in raw
+
+
+def test_library_header_polish_labels_and_positive_open_data_signal():
+    raw = assemble_jsx()
+    assert '"Metadata ↻"' in raw
+    assert "Filled ${done.fields_filled}" in raw
+    assert "Last refreshed ${fmtDateTime(lastRun)}" in raw
+    assert '"Text Health"' in raw
+    assert "Last refreshed ${fmtDateTime(lastLoaded)}" in raw
+    assert "🔎 Open Data · {openDataDetected}" in raw
+    assert 'onShowTransparencyReview("transparency-data-detected")' in raw
+    assert "⚠ Flagged · {statcheckFlagged}" in raw
+    assert "⚠ Retracted · {retractionFlagged}" in raw
+    assert "📋 Review · {findingsToReview}" in raw
+    assert "open data not detected</button>" not in raw
 
 
 def test_details_extra_urls_are_first_class_rows():

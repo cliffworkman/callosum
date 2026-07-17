@@ -47,19 +47,27 @@ def store_transparency_status(conn: Connection, paper_id: int, report) -> None:
         )
 
 
-def count_transparency_review(conn: Connection, disclosure_key: str = "data_availability") -> int:
-    """How many papers have a `not-detected` status for a disclosure — drives the review-queue chip. A count of a
-    REVIEW QUEUE ('the auditor ran and didn't surface it — go look'), never 'papers that hide their data'."""
+def count_transparency_status(
+    conn: Connection, disclosure_key: str = "data_availability", status: str = "detected"
+) -> int:
+    """How many papers have a persisted status for one disclosure. Used by Library chips; a detected count is a
+    checkable signal with evidence, while a not-detected count is only a review queue."""
     total = conn.execute(
         select(func.count())
         .select_from(open_science_signals)
         .where(
             open_science_signals.c.signal_type == TRANSPARENCY_SIGNAL,
             open_science_signals.c.source == disclosure_key,
-            open_science_signals.c.status == "not-detected",
+            open_science_signals.c.status == status,
         )
     ).scalar()
     return int(total or 0)
+
+
+def count_transparency_review(conn: Connection, disclosure_key: str = "data_availability") -> int:
+    """How many papers have a `not-detected` status for a disclosure — a REVIEW QUEUE ('the auditor ran and didn't
+    surface it — go look'), never 'papers that hide their data'."""
+    return count_transparency_status(conn, disclosure_key, "not-detected")
 
 
 def store_statcheck(conn: Connection, paper_id: int, *, checked: int, inconsistent: int, decision_errors: int) -> None:

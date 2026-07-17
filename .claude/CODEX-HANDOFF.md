@@ -167,3 +167,33 @@ Partial/unverified:
 - Pre-existing untracked artifacts were left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.
+
+---
+
+## Codex session summary — Group A Library header polish — 2026-07-17
+
+Branch: `feature/library-ux-polish`.
+
+What changed:
+- Completed handoff group A as Increment 288.
+- Renamed the Library metadata control to stable **Metadata ↻** and moved filled-field/DOI/last-run details into the tooltip.
+- Kept **Citations ↻** stable and moved its last refreshed date into the tooltip.
+- Renamed **Text health** surfaces to **Text Health** / **PDF Text Health** and kept text-health counts in the tooltip/header modal rather than a shifting Library button label.
+- Updated Library chips to **⚠ Flagged · N**, **⚠ Retracted · N**, **📋 Review · N**, and **🔎 Open Data · N**.
+- Inverted the old open-data-not-detected Library chip into a positive `transparency-data-detected` filter backed by a new `data_detected` summary count; preserved `data_not_detected` for the transparency review queues.
+- Updated served help, frontend/backend tests, increment notes, changelog, and rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py tests\test_transparency_findings.py`: 44 passed.
+- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1147/1147, uncovered 0.
+- `python -m pytest`: 1240 passed, 1 skipped in 1445.64s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted.
+- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
+
+Partial/unverified:
+- No browser visual smoke was run for Group A; Cliff/Opus should eyeball the Library header tooltips/chip spacing in the app.
+- Pre-existing untracked artifacts were still left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.

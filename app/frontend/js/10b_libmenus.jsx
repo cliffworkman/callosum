@@ -51,10 +51,13 @@ function CitationCountsButton({ asOf, onRefreshed }) {
     setBusy(false); setProg(null);
   };
   const date = asOf ? String(asOf).slice(0, 10) : null;
+  const title = date
+    ? `Last refreshed ${date}. Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking).`
+    : "Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking).";
   return (
     <button className="trash-toggle" onClick={run} disabled={busy}
-      title="Fetch each paper's cited-by count from OpenAlex (public metadata; shown verbatim, not a ranking)">
-      {busy ? (prog ? `Citations ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Citations…") : (date ? `Citations · ${date}` : "Citations ↻")}
+      title={title}>
+      {busy ? (prog ? `Citations ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Citations…") : "Citations ↻"}
     </button>
   );
 }
@@ -67,6 +70,7 @@ function EnrichMetadataButton({ onRefreshed }) {
   const [busy, setBusy] = useState(false);
   const [prog, setProg] = useState(null);  // {current,total}
   const [done, setDone] = useState(null);  // {papers,dois_recovered,fields_filled,still_missing_doi}
+  const [lastRun, setLastRun] = useState(null);
   const run = async () => {
     if (busy) return;
     setBusy(true); setProg(null); setDone(null);
@@ -79,7 +83,7 @@ function EnrichMetadataButton({ onRefreshed }) {
       if (!r.ok) break;
       if (r.data.progress) setProg({ current: r.data.progress.current, total: r.data.progress.total, eta: r.data.progress.eta_seconds });
       if (r.data.status === "done" || r.data.status === "error") {
-        if (r.data.status === "done" && r.data.summary) setDone(r.data.summary);
+        if (r.data.status === "done" && r.data.summary) { setDone(r.data.summary); setLastRun(new Date()); }
         onRefreshed && onRefreshed();
         break;
       }
@@ -88,9 +92,10 @@ function EnrichMetadataButton({ onRefreshed }) {
   };
   const label = busy
     ? (prog ? `Enriching ${prog.current}/${prog.total}${prog.eta ? " ~" + _fmtEta(prog.eta) : ""}` : "Enriching…")
-    : (done ? `Filled ${done.fields_filled}` : "Enrich metadata ↻");
+    : "Metadata ↻";
+  const lastRunText = lastRun ? `Last refreshed ${fmtDateTime(lastRun)}. ` : "";
   const title = done
-    ? `Filled ${done.fields_filled} field(s) across ${done.papers} papers · recovered ${done.dois_recovered} DOI(s) · ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields — never overwrites what you typed.`
+    ? `${lastRunText}Filled ${done.fields_filled} field(s) across ${done.papers} papers · recovered ${done.dois_recovered} DOI(s) · ${done.still_missing_doi} still missing a DOI. Fills only EMPTY fields — never overwrites what you typed.`
     : "Fill each paper's missing fields (DOI, abstract, venue…) from Crossref/OpenAlex — public metadata, fills only blanks, never overwrites your edits.";
   return <button className="trash-toggle" onClick={run} disabled={busy} title={title}>{label}</button>;
 }
@@ -110,14 +115,16 @@ async function pollTextReprocess(jobId, setProg) {
 
 function TextHealthButton({ onOpen }) {
   const [counts, setCounts] = useState(null);
+  const [lastLoaded, setLastLoaded] = useState(null);
   const load = useCallback(() => {
-    api("/papers/text-health/overview").then(r => { if (r.ok) setCounts(r.data.counts); });
+    api("/papers/text-health/overview").then(r => { if (r.ok) { setCounts(r.data.counts); setLastLoaded(new Date()); } });
   }, []);
   useEffect(() => { load(); }, [load]);
   const missing = counts ? counts.missing_section_labels : 0;
-  const label = counts ? (missing ? `Text health · ${missing}` : "Text health ✓") : "Text health";
+  const label = "Text Health";
+  const lastLoadedText = lastLoaded ? `Last refreshed ${fmtDateTime(lastLoaded)}. ` : "";
   const title = counts
-    ? `${missing} local PDF(s) have chunks without section labels · ${counts.no_chunks} may need OCR · ${counts.tiny_text} have very little extracted text. Open the text-health queue.`
+    ? `${lastLoadedText}${missing} local PDF(s) have chunks without section labels · ${counts.no_chunks} may need OCR · ${counts.tiny_text} have very little extracted text. Open the text-health queue.`
     : "Open extracted PDF text-health details.";
   return <button className="trash-toggle" onClick={onOpen} title={title}>{label}</button>;
 }

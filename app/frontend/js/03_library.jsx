@@ -31,7 +31,7 @@ function useLibrary(opts) {
   const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });  // inc-221: read/priority facet ("" = no filter)
   const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
   const [retractionFlagged, setRetractionFlagged] = useState(0);  // inc-131: # papers a registry records retracted → header chip
-  const [transparencyReview, setTransparencyReview] = useState(0);  // inc-251: # papers where open data wasn't detected → review-queue chip
+  const [openDataDetected, setOpenDataDetected] = useState(0);  // # papers where open-data disclosure was detected → signal chip
   const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
     try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
   });
@@ -198,7 +198,7 @@ function useLibrary(opts) {
   const showTextHealthFilter = useCallback((filter) => {
     const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
     if (!paperIds.length) return;
-    setLibraryTextHealthFilter({ key: filter.key || filter.flag || "text-health", label: filter.label || "Text health", paperIds });
+    setLibraryTextHealthFilter({ key: filter.key || filter.flag || "text-health", label: filter.label || "Text Health", paperIds });
     setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibrarySignalFilter(null); setLibraryReferenceFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
@@ -216,7 +216,7 @@ function useLibrary(opts) {
     api("/methods/retraction/summary").then(r => { if (r.ok) setRetractionFlagged(r.data.retracted || 0); });
   }, []);
   const refreshTransparencyChip = useCallback(() => {
-    api("/methods/transparency/summary").then(r => { if (r.ok) setTransparencyReview(r.data.data_not_detected || 0); });
+    api("/methods/transparency/summary").then(r => { if (r.ok) setOpenDataDetected(r.data.data_detected || 0); });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -418,7 +418,7 @@ function useLibrary(opts) {
     libraryReferenceFilter, onClearReferenceFilter: clearReferenceFilter,
     statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
     retractionFlagged, onShowRetractionFlagged: showRetractionFlagged,
-    transparencyReview, onShowTransparencyReview: showTransparencyReview,
+    openDataDetected, onShowTransparencyReview: showTransparencyReview,
     findingsToReview, onShowFindingsToReview: showFindingsToReview,
     findingsByPaper, referenceWarningsByPaper,
     onToggleTrash: toggleTrash, onRestore: restorePaper,

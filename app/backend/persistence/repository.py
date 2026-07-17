@@ -184,6 +184,9 @@ SEARCH_FIELDS = ("all", "title", "author", "journal")
 SIGNAL_FILTERS = {
     "statcheck-inconsistent": ("statcheck", None, "inconsistent"),
     "retraction-retracted": ("retraction", None, "retracted"),  # inc 131: papers a registry records retracted
+    # Positive transparency signal: papers where the auditor detected a data-availability disclosure. This is a
+    # checkable evidence list, not a score or openness verdict.
+    "transparency-data-detected": ("transparency", "data_availability", "detected"),
     # inc 251 (#44): transparency review queues — papers where the auditor RAN but didn't detect a disclosure in the
     # text ("not detected — go look"), NEVER "papers that hide their data" (the A-A no-accusation boundary). Each pins
     # (signal_type, disclosure_key, status). A `not-applicable` row (e.g. registration for a non-trial paper) is never

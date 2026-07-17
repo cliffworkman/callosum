@@ -957,8 +957,8 @@
     gap: 6px 10px; min-width: 0;
   }
   .lib-head-actions .trash-toggle { max-width: 100%; white-space: normal; line-height: 1.25; text-align: left; }
-  /* statcheck #e: group the header signal-filter chips by KIND — check "signals" (amber/red: statcheck flagged,
-     retraction) vs "your review queue" (indigo: findings to review, open-data-not-detected) — with a thin divider
+  /* statcheck #e + library polish: group the header signal-filter chips by KIND — check "signals" (amber/red:
+     statcheck flagged, retraction, detected Open Data) vs "your review queue" (indigo: findings to review) — with a thin divider
      between, so the flagged-SIGNAL ≠ to-review-WORK-STATE distinction reads at a glance. */
   .lib-chip-group { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; min-width: 0; }
   .lib-chip-group.lib-chip-queue { padding-left: 10px; border-left: 1px solid var(--line); }
@@ -993,7 +993,7 @@
   .trash-toggle.statcheck-chip, .trash-toggle.statcheck-chip:hover { color: var(--flag); font-weight: 600; }   /* statcheck flagged — a status, amber not red (inc 100) */
   .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
-  .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* "open data not detected" — a review queue (go look), indigo work-state, NEVER a "hides data" verdict (inc 251) */
+  .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* Open Data detected — a checkable signal with evidence, never an openness score/verdict */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }

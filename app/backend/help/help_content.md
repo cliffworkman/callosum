@@ -241,7 +241,7 @@ better extraction pattern or when an older import is missing newer text metadata
 the same local PDF and replaces only its extracted text chunks; your bibliographic metadata, files, tags, highlights,
 notes, and annotations are preserved.
 
-The Library header also has **Text health**. It opens a queue grouped by local PDFs with no extracted text, unusually
+The Library header also has **Text Health**. It opens a queue grouped by local PDFs with no extracted text, unusually
 little extracted text, stale extraction provenance, or older chunks missing section labels. From there you can inspect
 affected papers, open them, filter the Library to one text-health group, or reprocess only the papers missing section
 labels or stale extraction rows. If you select papers with checkboxes, the bulk bar offers **reprocess text** for that
@@ -400,7 +400,7 @@ How it works, per paper:
 
 Two ways to run it:
 - **One paper:** open its Detail pane and click **Fill missing fields** (next to the 🔎). It reports which fields it filled.
-- **Your whole library:** click **Enrich metadata ↻** in the Library header. It runs in the background with a progress count, then reports how many DOIs it recovered, how many fields it filled, and how many papers still have no DOI.
+- **Your whole library:** click **Metadata ↻** in the Library header. It runs in the background with a progress count; the tooltip reports how many DOIs it recovered, how many fields it filled, and how many papers still have no DOI.
 
 Because it only ever fills blanks, it's safe to run across everything — including papers you've hand-edited (your typed values stay exactly as you left them, and a hand-edited paper keeps its "hand-edited" status).
 
@@ -874,7 +874,7 @@ Read it as a prompt, not a report card:
 - There is **no transparency score, no rank, and no verdict**; a present check opens its evidence in the PDF.
 - The section credits each detector's source and offers a one-click **add methods sources to library**.
 
-**Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. It also fills a set of **review queues** — lists of papers where the auditor *didn't* detect a given disclosure in the text. When the data queue isn't empty, the Library header shows a **🔎 N · open data not detected** chip that jumps to it. A review queue is a prompt to look — *the paper may still share its data elsewhere* — never a claim that it hides anything, and there is no score or ranking.
+**Checking the whole library.** In the same section, **Whole library → Check all papers** runs the auditor over every paper. Each paper's *detected* disclosures become evidence-carrying marks in its **Review** section. When the data disclosure list isn't empty, the Library header shows a **🔎 Open Data · N** chip that jumps to papers where the auditor detected an open-data disclosure. The section also fills review queues for disclosures *not detected* in extracted text; those queues are prompts to look — *the paper may still share artifacts elsewhere* — never claims that it hides anything, and there is no score or ranking.
 
 <!-- section: converting-effect-sizes -->
 ## Converting effect sizes

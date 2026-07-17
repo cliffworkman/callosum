@@ -195,8 +195,11 @@ def test_batch_run_persists_then_review_filter(temp_db_url):
     # the review queue: only the bare paper lacks a data-availability disclosure (the open one is excluded)
     q = client.get("/papers", params={"signal": "transparency-data-not-detected"}).json()
     assert [p["title"] for p in q] == ["Bare paper"]
-    # the summary drives the chip
-    assert client.get("/methods/transparency/summary").json()["data_not_detected"] == 1
+    # the positive Open Data signal: only the open paper has detected data-availability evidence
+    open_data = client.get("/papers", params={"signal": "transparency-data-detected"}).json()
+    assert [p["title"] for p in open_data] == ["Open paper"]
+    # the summary drives the positive chip while preserving the review-queue count
+    assert client.get("/methods/transparency/summary").json() == {"data_detected": 1, "data_not_detected": 1}
     # both papers lack preregistration → both in that review queue
     prereg = client.get("/papers", params={"signal": "transparency-preregistration-not-detected"}).json()
     assert {p["title"] for p in prereg} == {"Open paper", "Bare paper"}
