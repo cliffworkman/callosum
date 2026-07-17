@@ -7,10 +7,10 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi import status as http_status
-from sqlalchemy import Connection
+from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from app.backend.api.dependencies import get_connection
+from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.routers.paper_edit_input import edits_from_request
 from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
 from app.backend.api.routers.paper_models import (
@@ -179,42 +179,48 @@ def reprocess_paper_pdf(
 def update_paper(
     paper_id: int,
     request: PaperUpdateRequest,
-    conn: Connection = Depends(get_connection),
+    engine: Engine = Depends(get_engine),
 ) -> PaperDetailResponse:
-    try:
-        paper = get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    edits = edits_from_request(request)
-    if not edits:
-        raise HTTPException(status_code=422, detail="No updatable fields provided")
-    try:
-        update_paper_metadata(conn, paper_id, **build_paper_update(paper, edits))
-        if "extra_urls" in edits:
-            replace_paper_urls(conn, paper_id, edits["extra_urls"])
-        refresh_processing_tier(conn, paper_id)
-        conn.commit()
-    except IntegrityError:
-        conn.rollback()
-        raise HTTPException(status_code=409, detail="That identifier is already on another paper") from None
-    return _detail_for(conn, paper_id)
+    def _do(conn: Connection) -> PaperDetailResponse:
+        try:
+            paper = get_paper(conn, paper_id)
+        except NoResultFound:
+            raise HTTPException(status_code=404, detail="Paper not found") from None
+        edits = edits_from_request(request)
+        if not edits:
+            raise HTTPException(status_code=422, detail="No updatable fields provided")
+        try:
+            update_paper_metadata(conn, paper_id, **build_paper_update(paper, edits))
+            if "extra_urls" in edits:
+                replace_paper_urls(conn, paper_id, edits["extra_urls"])
+            refresh_processing_tier(conn, paper_id)
+        except IntegrityError:
+            # run_write rolls the unit back on any exception; a non-lock error propagates un-retried.
+            raise HTTPException(status_code=409, detail="That identifier is already on another paper") from None
+        return _detail_for(conn, paper_id)
+
+    return run_write(engine, _do)
 
 
 @router.delete("/papers/{paper_id}", status_code=http_status.HTTP_204_NO_CONTENT)
-def delete_paper(paper_id: int, conn: Connection = Depends(get_connection)) -> Response:
+def delete_paper(paper_id: int, engine: Engine = Depends(get_engine)) -> Response:
     # Soft-delete (move to Trash): hidden from the library/axes/clustering but kept + restorable.
-    if not soft_delete_paper(conn, paper_id):
-        raise HTTPException(status_code=404, detail="Paper not found or already in Trash")
-    conn.commit()
-    return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+    def _do(conn: Connection) -> Response:
+        if not soft_delete_paper(conn, paper_id):
+            raise HTTPException(status_code=404, detail="Paper not found or already in Trash")
+        return Response(status_code=http_status.HTTP_204_NO_CONTENT)
+
+    return run_write(engine, _do)
 
 
 @router.post("/papers/{paper_id}/restore", response_model=PaperDetailResponse)
-def restore_paper_endpoint(paper_id: int, conn: Connection = Depends(get_connection)) -> PaperDetailResponse:
-    if not restore_paper(conn, paper_id):
-        raise HTTPException(status_code=404, detail="Paper not found in Trash")
-    conn.commit()
-    return _detail_for(conn, paper_id)
+def restore_paper_endpoint(paper_id: int, engine: Engine = Depends(get_engine)) -> PaperDetailResponse:
+    def _do(conn: Connection) -> PaperDetailResponse:
+        if not restore_paper(conn, paper_id):
+            raise HTTPException(status_code=404, detail="Paper not found in Trash")
+        return _detail_for(conn, paper_id)
+
+    return run_write(engine, _do)
 
 
 @router.post("/papers/{paper_id}/read", response_model=PaperDetailResponse)
