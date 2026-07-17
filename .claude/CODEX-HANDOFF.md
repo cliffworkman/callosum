@@ -170,6 +170,36 @@ Blockers: none.
 
 ---
 
+## Codex session summary — Group C selected-paper/PDF tab polish — 2026-07-17
+
+Branch: `feature/library-ux-polish`.
+
+What changed:
+- Completed handoff group C as Increment 290.
+- Added a pinned selected-paper tab immediately after **Library** when the current paper selection is not already open in the reader.
+- Styled the selected-paper tab with the documented dashed `--accent` / `--accent-soft` pending affordance; it has no close button and is not draggable.
+- Clicking the selected-paper tab opens the PDF through the existing `openPdf` path, then the temporary tab disappears because the paper is now an open reader tab.
+- Made normal open PDF tabs draggable among themselves to reorder the Library reader tab strip; active tab state stays keyed by the existing `pdf:<paper_id>` key.
+- Updated served help, DESIGN, QA route 73, frontend guards, increment notes, changelog, and rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py`: 38 passed.
+- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1147/1147, uncovered 0.
+- Browser smoke against a fresh static bundle with mocked Library APIs confirmed: selected-paper tab appears pinned after Library, is not draggable, opens into a PDF tab, disappears once open, and two open PDF tabs reorder by drag/drop.
+- `python -m pytest`: 1242 passed, 1 skipped in 1277.28s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted after formatting the new assembly guard.
+- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
+
+Partial/unverified:
+- Browser smoke used mocked Library API responses rather than a fully attached backend/database session; the tab-strip DOM behavior was verified in Chromium.
+- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.
+
+---
+
 ## Codex session summary — Group A Library header polish — 2026-07-17
 
 Branch: `feature/library-ux-polish`.

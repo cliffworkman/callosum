@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 289 (workspace body scrolling; My Publications label/load path; Extract label casing). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 290 (Library selected-paper tab + draggable PDF tab order). -->
+## 2026-07-17 — Increment 290: Library selected-paper tab + PDF tab reorder
+- **Files:** `app/frontend/js/{30c_frame,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
+- **What:** added a pinned selected-paper tab immediately after **Library** whenever the current selection is not already open in the reader; clicking it opens the PDF via the existing `openPdf` path. Open PDF tabs are now draggable to reorder, while the selected-paper tab remains pinned and non-draggable.
+- **Why:** keeps the selected paper visible in the Library tab strip without pretending it is already open, and lets users keep multiple reader tabs in their own working order.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py` **38 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; mocked static-bundle browser smoke confirmed the selected-paper tab and PDF tab drag reorder; full suite **1242 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 289: Workspace scroll + My Publications workspace polish
 - **Files:** `app/frontend/js/{04b_workspaces,08g_methods_metaanalysis,08i_methods_effectsize,15_axes,15b_axis_card,30c_frame,31_mypubs_dashboard,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
 - **What:** made registered workspace bodies vertically scroll within the bounded center pane; renamed menu-bar **Profile** to **My Publications**; renamed Extract tabs **Effect-Size** and **Meta-Analysis**; made the My Publications dashboard resolve its own axis and refetch on `axisRefresh`; removed the redundant My Publications axis-card dashboard button.

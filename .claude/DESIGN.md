@@ -326,7 +326,8 @@ by implementation detail or whether the tool uses AI.
    tools belong here: Synthesis holds verified corpus answers; Discover holds Search (including Feed plus
    Wanted/Gaps/Overlooked launchers), Journals, and Funding; Work holds Cite (Suggest, Meta Reference List, Citation
    Concentration, How it's cited) and CRediT statement; Extract holds Workbench, Effect-Size, and Meta-Analysis;
-   My Publications holds the user's publication dashboard. Open PDFs remain **Library** sub-tabs.
+   My Publications holds the user's publication dashboard. Open PDFs remain **Library** sub-tabs; a selected paper
+   that is not yet open appears as a pinned, non-draggable Library sub-tab immediately after the Library tab.
 2. **The THEORY and METHODS side accordions are lenses on the selected paper** — *how the user is evaluating or
    interpreting the current paper*. The left THEORY pane holds compact literature-context lenses such as Axes, Tags,
    Reading queue, and Review/findings. The right METHODS pane holds paper-evaluation lenses such as Details, GRIM,
@@ -351,6 +352,13 @@ border; `.menubar-item.active` uses the established active accent semantics (`--
 use `.workspace-body pane-tab` so inactive tabs stay mounted but hidden (`.pane-tab:not(.active){display:none}`).
 The active workspace persists at `callosum.workspace`, and each workspace tab persists at
 `callosum.workspacetab.<workspaceId>`.
+
+**Library PDF tab recipe (inc 290).** Inside the Library workspace, the tab strip order is fixed as: **Library**,
+then the optional selected-paper tab, then open PDF tabs. The selected-paper tab is a transient "selected, not
+opened" affordance: dashed `--accent` border + `--accent-soft` fill (same pending/drop-target semantics as §4), no
+close button, not draggable, and clicking it calls the normal PDF-open path. Open PDF tabs are draggable among
+themselves only; drag-over uses the same dashed `--accent` + `--accent-soft` invite. When the selected paper already
+has an open PDF tab, the selected-paper tab is hidden.
 
 **Accordion registry and lens recipe.** The side panes are accordions on the module registry in
 `app/frontend/js/05_panes.jsx`: `registerPaneSection({id, label, paneId, order, render})`,

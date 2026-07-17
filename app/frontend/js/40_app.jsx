@@ -22,6 +22,7 @@ function App() {
   const [selected, setSelected] = useState(null);
   // tabbed library frame: a persistent Library tab plus open PDF tabs.
   const [tabs, setTabs] = useState([]);            // [{ key, paperId, title, target }]
+  const [selectedPaperTab, setSelectedPaperTab] = useState(null);  // selected in Library, not yet opened as a PDF tab
   const [activeTab, setActiveTab] = useState("library");
   // inc 280: the top-level "what am I doing" workspace (menu bar, 04b_workspaces.jsx). `activeTab` above is now the
   // Library workspace's sub-tab (the list | an open PDF). The active workspace persists across reloads; a
@@ -173,6 +174,33 @@ function App() {
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
 
+  const reorderPdfTabs = useCallback((draggedKey, targetKey) => {
+    if (!draggedKey || !targetKey || draggedKey === targetKey) return;
+    setTabs(prev => {
+      const from = prev.findIndex(t => t.key === draggedKey);
+      const to = prev.findIndex(t => t.key === targetKey);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (selected == null || tabs.some(t => t.paperId === selected)) {
+      setSelectedPaperTab(null);
+      return undefined;
+    }
+    let live = true;
+    api(`/papers/${selected}`).then(r => {
+      if (!live) return;
+      const p = r.ok ? r.data : null;
+      setSelectedPaperTab({ id: selected, title: (p && p.title) || `Paper ${selected}` });
+    });
+    return () => { live = false; };
+  }, [selected, tabs]);
+
   // inc 254: any 401 from the api* helpers means Remote access is on but this browser holds no valid token — a
   // lockout. Register ONE handler (the api* layer notifies it) that raises the honest recovery overlay.
   useEffect(() => { onAuthRequired(() => setAuthLocked(true)); }, []);
@@ -260,8 +288,8 @@ function App() {
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
             onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
           }}
-          tabs={tabs} activeTab={activeTab}
-          onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf}
+          tabs={tabs} selectedPaperTab={selectedPaperTab} activeTab={activeTab}
+          onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf} onReorderTabs={reorderPdfTabs}
           annoRefresh={annoRefresh}
           readingMode={readingMode} onToggleReading={toggleReading}
           mobile={mobile}

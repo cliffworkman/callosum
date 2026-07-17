@@ -24,7 +24,7 @@ Callosum has three panes, plus a **menu bar** across the top of the center pane 
 
 The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
 
-Under **Library**, the workspace has a **Library** tab (your list) and one tab per open PDF — switching keeps open PDFs mounted, so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesis / Discover / Work / Extract and they're tucked away until you come back.
+Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesis / Discover / Work / Extract and they're tucked away until you come back.
 
 Tips:
 

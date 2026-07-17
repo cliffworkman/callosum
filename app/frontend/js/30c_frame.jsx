@@ -22,7 +22,14 @@ function WorkspacesWhatsNewHint({ readOnly }) {
   );
 }
 
-function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
+
+function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActivate, onClose, onOpenPdf, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+  const [dragOverKey, setDragOverKey] = useState(null);
+  const openSelectedPaper = () => {
+    if (!selectedPaperTab) return;
+    onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title });
+  };
   return (
     <div className="lib-frame">
       <WorkspacesWhatsNewHint readOnly={libraryProps && libraryProps.readOnly} />
@@ -31,11 +38,40 @@ function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOp
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}
           onClick={() => onActivate("library")}
         >Library</button>
+        {selectedPaperTab &&
+          <button
+            className="frame-tab frame-tab-selected"
+            title="Selected paper, not open — click to open the PDF"
+            onClick={openSelectedPaper}
+          >
+            <span className="frame-tab-label">{selectedPaperTab.title}</span>
+          </button>}
         {tabs.map(t => (
           <span
             key={t.key}
-            className={"frame-tab" + (activeTab === t.key ? " active" : "")}
+            draggable
+            className={"frame-tab" + (activeTab === t.key ? " active" : "") + (dragOverKey === t.key ? " dragover" : "")}
             onClick={() => onActivate(t.key)}
+            onDragStart={(e) => {
+              e.dataTransfer.setData(PDF_TAB_DRAG_TYPE, t.key);
+              e.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={(e) => {
+              if (!Array.from(e.dataTransfer.types || []).includes(PDF_TAB_DRAG_TYPE)) return;
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              setDragOverKey(t.key);
+            }}
+            onDragLeave={() => setDragOverKey(k => (k === t.key ? null : k))}
+            onDrop={(e) => {
+              const dragged = e.dataTransfer.getData(PDF_TAB_DRAG_TYPE);
+              setDragOverKey(null);
+              if (!dragged || dragged === t.key) return;
+              e.preventDefault();
+              e.stopPropagation();
+              onReorderTabs(dragged, t.key);
+            }}
+            onDragEnd={() => setDragOverKey(null)}
           >
             <span className="frame-tab-label" title={t.title}>{t.title}</span>
             <button

@@ -6,7 +6,8 @@ fe: 03_library.jsx, 04b_workspaces.jsx, 08b_methods_citation_equity.jsx, 08c_met
 
 **Tier:** 1 local-stateful (no egress of its own)
 **Goal:** Exercise the inc-280/286 menu bar — the second nav dimension inside the center (Library) pane — and prove it
-switches workspaces cleanly, keeps the three panes separate + full-height, nests open PDFs under Library, and that
+switches workspaces cleanly, keeps the three panes separate + full-height, nests open PDFs under Library with the
+selected-paper pre-open affordance + draggable open-PDF tab order, and that
 the relocated tools (Synthesis as its own workspace; Wanted/Gaps/Overlooked/Search/Feed/Journals/Funding under
 Discover; Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT under Work; Effect-Size/Meta-Analysis
 under Extract; My Publications in the menu bar; Help/Settings as utility views) work in their new homes. Also covers the inc-284/286 one-time Library
@@ -23,6 +24,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - **The menu bar lives inside the center pane; the three panes stay separate + full height.** The left (Axes) +
   right (Details) accordions remain visible and full-height in every workspace; only the center swaps. A menu bar
   spanning the whole app width, or a pane that loses height when switching, is a regression (Medium).
+- **Library owns selected + open PDFs.** Selecting a paper without opening it shows a pinned, distinct selected-paper
+  tab immediately after **Library**; clicking it opens the PDF. Once opened, the selected-paper tab disappears and a
+  normal PDF tab appears. Open PDF tabs can be dragged to reorder them; the selected-paper tab stays pinned and is
+  not draggable.
 - **Library owns open PDFs.** Opening a PDF lands a sub-tab under **Library** and selects the Library workspace; the
   PDF tab is hidden (not closed) while Discover/Extract/My Publications is active, and reappears on return.
 - **Workspace subsection scroll.** Long Discover/Extract sub-tabs scroll inside their active body; their tab strip and
@@ -38,8 +43,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 - Rapidly switch My Publications→Library→Synthesis→Discover→Work→Extract→Help→Settings and back; confirm no flicker/stuck state, no console
   errors, and each center swaps while the side panes hold.
-- Open 2+ PDFs, switch to Discover, switch back to Library → both PDF tabs still there; close one → falls back to the
-  Library list, not a blank pane.
+- Select a paper but do not open it → the selected-paper tab appears after **Library**; click it → the PDF opens and
+  the selected-paper tab disappears.
+- Open 2+ PDFs, drag their PDF tabs to reorder them, switch to Discover, switch back to Library → both PDF tabs still
+  there in the chosen order; close one → falls back to the Library list, not a blank pane.
 - Extract → Workbench "select in PDF": arm a capture → it jumps to Library + opens the paper → select → snaps back to
   Extract with the anchor applied (the cross-workspace capture path).
 - Leave the **Settings** workspace → the panes re-read egress state (the old modal-close behavior); no stale "AI off".
@@ -70,8 +77,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    dashboard/profile button is absent.
 7. **Help** → the help corpus renders as a wide center view (no modal overlay); **Settings** → the settings render as
    a wide center view; both are reached from the menu bar (the sidebar has no `?`/`⚙`).
-8. Open a PDF from the Library list → a Library sub-tab; switch to Discover → the PDF tab is hidden; return → it's
-   back. Reload → the last workspace is restored.
+8. Select a Library paper without opening it → a distinct selected-paper tab appears immediately after **Library**.
+   Click that tab → it opens the PDF through the normal reader path and the selected-paper tab disappears. Open a
+   second PDF, drag the open PDF tabs to reorder them, then switch to Discover → the PDF tabs are hidden; return →
+   they are back in the chosen order. Reload → the last workspace is restored.
 9. Return to Library, click the banner's **Dismiss** button, and reload. Confirm the banner is gone and
    `localStorage.getItem("callosum.workspaces-whatsnew") === "1"`.
 
@@ -86,7 +95,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - Long Journals, Funding, Effect-Size, and Meta-Analysis bodies scroll inside their workspace body without moving the
   menu bar or sub-tab strip.
 - Help + Settings render as center views; the sidebar header shows only the brand.
-- Open PDFs nest under Library + persist; the active workspace persists across reload; read-only hides the write
+- Selected-but-unopened papers show the pinned selected-paper tab; clicking it opens the PDF; open PDF tabs nest under
+  Library, reorder by drag, and persist. The active workspace persists across reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Extract capture round-trips.
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and
   does not return after workspace switching.

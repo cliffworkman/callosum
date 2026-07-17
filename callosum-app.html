@@ -1543,6 +1543,18 @@
     background: var(--panel); color: var(--ink); font-weight: 600;
     border-color: var(--line); box-shadow: inset 0 2px 0 var(--accent);
   }
+  .frame-tab-selected {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    border-style: dashed;
+  }
+  .frame-tab-selected:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .frame-tab.dragover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    border-style: dashed;
+  }
   .frame-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   .frame-tab-close {
     border: none; background: transparent; color: var(--ink-3);
@@ -11612,7 +11624,13 @@
     };
     return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesis"), " is on the menu bar; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-Size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
-  function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+  const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
+  function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActivate, onClose, onOpenPdf, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+    const [dragOverKey, setDragOverKey] = useState(null);
+    const openSelectedPaper = () => {
+      if (!selectedPaperTab) return;
+      onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title });
+    };
     return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -11620,12 +11638,41 @@
         onClick: () => onActivate("library")
       },
       "Library"
+    ), selectedPaperTab && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "frame-tab frame-tab-selected",
+        title: "Selected paper, not open \u2014 click to open the PDF",
+        onClick: openSelectedPaper
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label" }, selectedPaperTab.title)
     ), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "span",
       {
         key: t.key,
-        className: "frame-tab" + (activeTab === t.key ? " active" : ""),
-        onClick: () => onActivate(t.key)
+        draggable: true,
+        className: "frame-tab" + (activeTab === t.key ? " active" : "") + (dragOverKey === t.key ? " dragover" : ""),
+        onClick: () => onActivate(t.key),
+        onDragStart: (e) => {
+          e.dataTransfer.setData(PDF_TAB_DRAG_TYPE, t.key);
+          e.dataTransfer.effectAllowed = "move";
+        },
+        onDragOver: (e) => {
+          if (!Array.from(e.dataTransfer.types || []).includes(PDF_TAB_DRAG_TYPE)) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDragOverKey(t.key);
+        },
+        onDragLeave: () => setDragOverKey((k) => k === t.key ? null : k),
+        onDrop: (e) => {
+          const dragged = e.dataTransfer.getData(PDF_TAB_DRAG_TYPE);
+          setDragOverKey(null);
+          if (!dragged || dragged === t.key) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onReorderTabs(dragged, t.key);
+        },
+        onDragEnd: () => setDragOverKey(null)
       },
       /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label", title: t.title }, t.title),
       /* @__PURE__ */ React.createElement(
@@ -14006,6 +14053,7 @@
     } = useUiPrefs();
     const [selected, setSelected] = useState(null);
     const [tabs, setTabs] = useState([]);
+    const [selectedPaperTab, setSelectedPaperTab] = useState(null);
     const [activeTab, setActiveTab] = useState("library");
     const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
     const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
@@ -14176,6 +14224,33 @@
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
+    const reorderPdfTabs = useCallback((draggedKey, targetKey) => {
+      if (!draggedKey || !targetKey || draggedKey === targetKey) return;
+      setTabs((prev) => {
+        const from = prev.findIndex((t) => t.key === draggedKey);
+        const to = prev.findIndex((t) => t.key === targetKey);
+        if (from < 0 || to < 0) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+      });
+    }, []);
+    useEffect(() => {
+      if (selected == null || tabs.some((t) => t.paperId === selected)) {
+        setSelectedPaperTab(null);
+        return void 0;
+      }
+      let live = true;
+      api(`/papers/${selected}`).then((r) => {
+        if (!live) return;
+        const p = r.ok ? r.data : null;
+        setSelectedPaperTab({ id: selected, title: p && p.title || `Paper ${selected}` });
+      });
+      return () => {
+        live = false;
+      };
+    }, [selected, tabs]);
     useEffect(() => {
       onAuthRequired(() => setAuthLocked(true));
     }, []);
@@ -14276,10 +14351,12 @@
           onExportBundle: () => downloadBundle("library")
         },
         tabs,
+        selectedPaperTab,
         activeTab,
         onActivate: setActiveTab,
         onClose: closeTab,
         onOpenPdf: openPdf,
+        onReorderTabs: reorderPdfTabs,
         annoRefresh,
         readingMode,
         onToggleReading: toggleReading,

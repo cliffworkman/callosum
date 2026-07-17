@@ -1519,6 +1519,18 @@
     background: var(--panel); color: var(--ink); font-weight: 600;
     border-color: var(--line); box-shadow: inset 0 2px 0 var(--accent);
   }
+  .frame-tab-selected {
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    border-style: dashed;
+  }
+  .frame-tab-selected:hover { background: var(--accent-soft); border-color: var(--accent); }
+  .frame-tab.dragover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    border-style: dashed;
+  }
   .frame-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   .frame-tab-close {
     border: none; background: transparent; color: var(--ink-3);

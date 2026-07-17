@@ -121,6 +121,22 @@ def test_workspace_menubar_structure_present():
     )
 
 
+def test_library_selected_paper_tab_and_pdf_reorder_present():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert "selectedPaperTab" in raw
+    assert "tabs.some(t => t.paperId === selected)" in raw
+    assert 'className="frame-tab frame-tab-selected"' in raw
+    assert 'title="Selected paper, not open' in raw
+    assert "onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title })" in raw
+    assert 'const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab"' in raw
+    assert "draggable" in raw and "onReorderTabs(dragged, t.key)" in raw
+    assert "function LibraryFrame({ libraryProps, tabs, selectedPaperTab" in raw
+    assert "const reorderPdfTabs = useCallback((draggedKey, targetKey)" in raw
+    assert ".frame-tab-selected" in css
+    assert ".frame-tab.dragover" in css
+
+
 def test_my_publications_workspace_loads_without_axis_card_button():
     raw = assemble_jsx()
     assert "function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf })" in raw
