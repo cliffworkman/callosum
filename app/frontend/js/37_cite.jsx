@@ -241,10 +241,40 @@ function CitePane({ ctx }) {
   );
 }
 
-// inc 156: register CITE as a THEORY-pane accordion section, after SYNTHESIS (order 20).
-// inc 248: Cite now holds tabs — [Suggest | Citation concentration | How it's cited]; this defines the section +
-// its first tab (labeled "Suggest"); 08b/08c add the two citation-analysis tabs (registerPaneTab).
-registerPaneSection({
-  id: "cite", label: "Cite", tabLabel: "Suggest", paneId: "theory", order: 25,
+function CiteWorkspacePane({ ctx }) {
+  const readOnly = !!(ctx && ctx.readOnly);
+  const tabs = citeTabs(readOnly);
+  const [activeTab, setActiveTab] = useState(() => _loadLayout("callosum.citetab", tabs[0] ? tabs[0].id : null));
+  const setTab = (id) => { setActiveTab(id); _saveLayout("callosum.citetab", id); };
+  const request = ctx && ctx.citeTabRequest ? ctx.citeTabRequest : null;
+  useEffect(() => {
+    if (request && tabs.some(t => t.id === request.tabId)) setTab(request.tabId);
+  }, [request ? request.nonce : null]);
+  if (tabs.length === 0) return null;
+  const at = tabs.some(t => t.id === activeTab) ? activeTab : tabs[0].id;
+  return (
+    <div className="cite-workspace">
+      <div className="tags-srcfilter pane-tabs" role="tablist" aria-label="Cite tools">
+        {tabs.map(t => (
+          <button key={t.id} role="tab" aria-selected={t.id === at}
+            className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}
+            onClick={() => setTab(t.id)}>{t.label}</button>
+        ))}
+      </div>
+      {tabs.map(t => (
+        <div key={t.id} className={"pane-tab" + (t.id === at ? " active" : "")}>{t.render(ctx)}</div>
+      ))}
+    </div>
+  );
+}
+
+// inc 286: Work → Cite owns the citation-authoring tabs. Suggest remains available read-only; the paper-specific
+// audits hide per tab on read-only companions.
+registerCiteTab({
+  id: "suggest", label: "Suggest", order: 10,
   render: (ctx) => <CitePane ctx={ctx} />,
 });
+registerWorkspaceTab(
+  { id: "work", label: "Work", order: 50 },
+  { id: "cite", label: "Cite", order: 10, render: (ctx) => <CiteWorkspacePane ctx={ctx} /> },
+);

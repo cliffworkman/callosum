@@ -155,3 +155,30 @@ Codex session summary update — Increment 285 — 2026-07-17
   below Search. Playwright narrow (`390x844`) confirmed the action row wraps cleanly and Feed remains below Search.
 - **Pending:** none after this commit is pushed.
 - **Blockers:** none. Pre-existing untracked files remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Codex session summary update — Increment 286 — 2026-07-17
+
+- **Branch:** `feature/workspaces-ux-polish`
+- **Commits:** this increment's final commit is `feat: add synthesis and work workspaces` on top of the earlier
+  workspace-polish commits.
+- **Done:** added **Synthesis** as its own menu-bar workspace after Library and before Discover. Added **Work** after
+  Discover. Moved **Cite** out of the THEORY pane into Work with nested tabs **Suggest → Meta Reference List →
+  Citation concentration → How it's cited**. Moved **CRediT statement** out of THEORY and into Work. Updated Library
+  selection summarize to open Synthesis, and paper-card ref-signal jumps to open Work → Cite → Meta Reference List.
+  Updated the one-time layout notice, help corpus, DESIGN note, QA route, frontend assembly guard, and rebuilt
+  `callosum-app.html`.
+- **Files:** `app/frontend/js/{03_library,04b_workspaces,08b_methods_citation_equity,08c_methods_citation_context,08j_reference_integrity,20_synthesis,30c_frame,37_cite,38_credit,40_app}.jsx`,
+  `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `app/backend/help/help_content.md`,
+  `.claude/DESIGN.md`, `.claude/qa-routes/route_73_workspaces.md`, `.claude/docs/increment-notes/INCREMENT-286-NOTES.md`,
+  `.claude/changes.md`, this handoff.
+- **Verification:** `python tools/build_frontend.py` rebuilt `callosum-app.html`; `python -m pytest
+  tests/test_frontend_assembly.py tests/test_help.py` **35 passed**; `python tools/qa/build_surface_map.py check`
+  reported **245/245 API** and **1145/1145 FE** covered; final `python -m pytest` **1237 passed / 1 skipped** in
+  20:46 on the formatted tree; `ruff check .` passed; `ruff format --check .` passed (`464 files already formatted`);
+  `python tools/check_line_budget.py` passed (`all 342 application-source files within the 600-line cap`).
+- **Visual check:** Playwright desktop/narrow smoke confirmed Synthesis renders as a workspace, Work renders
+  Cite/CRediT, Work → Cite renders Suggest/Meta Reference List/Citation concentration/How-it's-cited in order, and
+  Meta Reference List renders under Work → Cite. The expanded menu bar is now contained by horizontal scrolling; a
+  hit-test beyond the center pane hits the right pane, not menu buttons. Narrow mobile loads with no console errors.
+- **Pending:** none after this commit is pushed.
+- **Blockers:** none. Pre-existing untracked files remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.

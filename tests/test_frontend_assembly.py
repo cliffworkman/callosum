@@ -64,20 +64,37 @@ def test_workspace_menubar_structure_present():
     # The registry + menu bar + workspace pane are wired (inc 280).
     assert "function registerWorkspace(" in raw and "function registerWorkspaceTab(" in raw
     assert "function MenuBar(" in raw and "function WorkspacePane(" in raw
-    # The four core workspaces are registered, Profile before Library, Library default.
-    for wid in ('id: "profile"', 'id: "library"', 'id: "discover"', 'id: "extract"'):
+    # The core workspaces are registered in menu order, with Library default.
+    for wid in (
+        'id: "profile"',
+        'id: "library"',
+        'id: "synthesis"',
+        'id: "discover"',
+        'id: "work"',
+        'id: "extract"',
+    ):
         assert wid in raw, wid
     # Discover holds Search+Journals+Funding; Feed is embedded below Search results (inc 285).
-    # Extract holds Workbench+Effect-size+Meta-analysis.
+    # Work holds Cite+CRediT; Extract holds Workbench+Effect-size+Meta-analysis.
     assert 'id: "search"' in raw and 'id: "feed"' not in raw and 'id: "workbench"' in raw
     assert 'id: "journals"' in raw and 'id: "funding"' in raw and 'id: "effectsize"' in raw
-    assert 'label: "Meta-analysis"' in raw
-    # The four relocated sections no longer register as THEORY/METHODS pane sections.
+    assert 'label: "Meta-analysis"' in raw and 'label: "CRediT statement"' in raw
+    assert "function CiteWorkspacePane(" in raw and "function registerCiteTab(" in raw
+    assert 'id: "suggest", label: "Suggest", order: 10' in raw
+    assert 'id: "meta-references", label: "Meta Reference List", order: 15' in raw
+    assert 'id: "citation-equity", label: "Citation concentration", order: 20' in raw
+    assert 'id: "citation-context", label: "How it\'s cited", order: 30' in raw
+    # The relocated sections no longer register as THEORY/METHODS pane sections.
     assert 'id: "publishers"' not in raw and 'id: "funding-discovery"' not in raw
     assert 'label: "Effect-size converter"' not in raw and 'label: "Meta-analysis reporting"' not in raw
+    assert 'id: "synthesis", label: "Synthesis", paneId: "theory"' not in raw
+    assert 'id: "cite", label: "Cite", tabLabel: "Suggest", paneId: "theory"' not in raw
+    assert 'id: "meta-references", label: "Meta Reference List", paneId: "theory"' not in raw
+    assert 'id: "credit", label: "CRediT statement", paneId: "theory"' not in raw
     # The shell renders the menu bar + persists the active workspace.
     assert "menubar-nav" in raw and '"callosum.workspace"' in raw
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
+    assert 'activeWorkspace === "synthesis"' in raw and 'activeWorkspace === "work"' in raw
     # Stage 3: Help + Settings are utility workspaces (center views), not modals.
     assert 'id: "help"' in raw and 'id: "settings"' in raw and "utility: true" in raw
     assert "function HelpView(" in raw and "function SettingsView(" in raw
@@ -92,9 +109,9 @@ def test_workspace_menubar_structure_present():
     # inc 284: returning users get a one-time Library hint for relocated tools.
     assert "callosum.workspaces-whatsnew" in raw
     assert "function WorkspacesWhatsNewHint(" in raw
-    assert "New layout:" in raw and "Wanted" in raw and "Gaps" in raw and "Overlooked" in raw
-    assert "Discover → Search" in raw and "Where to submit" in raw and "Funding" in raw
-    assert "Effect-size" in raw and "Meta-analysis" in raw and "Help" in raw and "Settings" in raw
+    assert "New layout:" in raw and "Synthesis" in raw and "Meta Reference List" in raw and "CRediT" in raw
+    assert "Discover → Search" in raw and "Wanted" in raw and "Gaps" in raw and "Overlooked" in raw
+    assert "Effect-size" in raw and "Meta-analysis" in raw and "Work" in raw
     assert '_saveLayout(WORKSPACES_WHATSNEW_KEY, "1")' in raw
 
 
@@ -130,7 +147,8 @@ def test_stale_discover_placeholder_is_removed_from_theory_accordion():
 
 def test_meta_reference_list_sits_before_journal_search_with_accessible_review_controls():
     raw = assemble_jsx()
-    assert 'id: "meta-references", label: "Meta Reference List", paneId: "theory", order: 28' in raw
+    assert 'id: "meta-references", label: "Meta Reference List", order: 15' in raw
+    assert 'aria-label="Cite tools"' in raw and "callosum.citetab" in raw
     # inc 280: "Where to submit" relocated out of THEORY to the Discover workspace as the Journals tab.
     assert 'id: "publishers", label: "Where to submit", paneId: "theory"' not in raw
     assert 'id: "journals", label: "Journals"' in raw
@@ -149,7 +167,8 @@ def test_meta_reference_list_sits_before_journal_search_with_accessible_review_c
     assert "Reference checks: <b>{libraryReferenceFilter.label}</b>" in raw
     assert 'aria-label="Open Meta Reference List for this paper"' in raw
     assert "onOpenReferenceWarnings && onOpenReferenceWarnings(p)" in raw
-    assert 'setTheoryOpen("meta-references")' in raw
+    assert 'requestWorkspaceTab("work", "cite")' in raw
+    assert 'requestCiteTab("meta-references")' in raw
     assert "onOpenReferenceWarnings: openReferenceWarnings" in raw
 
 

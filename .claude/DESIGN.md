@@ -321,26 +321,29 @@ Callosum now has **two navigation dimensions**, and new tools should be placed b
 by implementation detail or whether the tool uses AI.
 
 1. **Workspaces are modes of work in the center pane** — *what the user is doing right now*. The menu bar inside the
-   center Library pane switches between **Profile / Library / Discover / Extract**, plus right-aligned **Help /
-   Settings** utilities. Outward-facing, generative, cross-paper, or wide-output tools belong here: Discover holds
-   Search (including Feed plus Wanted/Gaps/Overlooked launchers), Journals, and Funding; Extract holds Workbench,
-   Effect-size, and Meta-analysis; Profile holds the
-   user's publication dashboard. Open PDFs remain **Library** sub-tabs.
+   center Library pane switches between **Profile / Library / Synthesis / Discover / Work / Extract**, plus
+   right-aligned **Help / Settings** utilities. Outward-facing, generative, authoring, cross-paper, or wide-output
+   tools belong here: Synthesis holds verified corpus answers; Discover holds Search (including Feed plus
+   Wanted/Gaps/Overlooked launchers), Journals, and Funding; Work holds Cite (Suggest, Meta Reference List, Citation
+   Concentration, How it's cited) and CRediT statement; Extract holds Workbench, Effect-size, and Meta-analysis;
+   Profile holds the user's publication dashboard. Open PDFs remain **Library** sub-tabs.
 2. **The THEORY and METHODS side accordions are lenses on the selected paper** — *how the user is evaluating or
-   interpreting the current paper*. The left THEORY pane holds literature-understanding lenses such as Axes, Tags,
-   Synthesis, Cite, and CRediT. The right METHODS pane holds paper-evaluation lenses such as Details, GRIM,
-   Statistics check, Review, transparency, reference integrity, and other methods checks. The side panes persist
-   across all workspaces; only the center switches.
+   interpreting the current paper*. The left THEORY pane holds compact literature-context lenses such as Axes, Tags,
+   Reading queue, and Review/findings. The right METHODS pane holds paper-evaluation lenses such as Details, GRIM,
+   Statistics check, transparency, and other methods checks. The side panes persist across all workspaces; only the
+   center switches.
 
 The placement question is therefore: **is this a mode the user enters, or a lens on the current paper?** A tool that
-searches beyond the current PDF, produces a broad workbench, or needs center-width output is a workspace or workspace
-tab. A tool that helps inspect, cite, classify, or evaluate the selected paper is a side-accordion section or tab.
+searches beyond the current PDF, produces a broad workbench, supports writing/authoring, or needs center-width output
+is a workspace or workspace tab. A compact tool that only inspects or classifies the selected paper can stay a
+side-accordion section or tab.
 
 **Workspace registry and menu-bar recipe.** The center menu bar is data-driven by
 `app/frontend/js/04b_workspaces.jsx`: `registerWorkspace`, `registerWorkspaceTab`, `workspaces`,
 `workspaceTabs`, `getWorkspace`, `<MenuBar/>`, and `<WorkspacePane/>`. A workspace can be shell-rendered by `40_app`
-(Library, Profile, Help, Settings) or populated by registered tabs (Discover, Extract). Host metadata is order-sorted
-and idempotent by id; read-only companions hide workspaces or tabs marked `hideInReadOnly`. The menu bar lives
+(Library, Profile, Help, Settings) or populated by registered tabs (Synthesis, Discover, Work, Extract). Host
+metadata is order-sorted and idempotent by id; read-only companions hide workspaces or tabs marked `hideInReadOnly`.
+The menu bar lives
 **inside** the center pane, not app-wide, so the three-pane layout stays separate and full height. Token recipe:
 `.menubar` is a `flex:0 0 auto` bar at the top of `.workspace-frame`, with `--panel-2` background and `--line`
 border; `.menubar-item.active` uses the established active accent semantics (`--accent-soft`, `--accent-line`,
@@ -358,10 +361,10 @@ The visible chrome still shows section headers only — no large "THEORY" or "ME
 `paneId: "theory"` and `paneId: "methods"` remain the internal architecture. One section is open per pane, and the
 open sections persist as `callosum.theoryOpen` / `callosum.methodsOpen`.
 
-**THEORY and METHODS ordering.** THEORY is for *knowing the literature*: Axes and Tags are grouped together because
-they are conceptual labeling lenses; Synthesis reports what the corpus says; Cite groups citation suggestion and
-citation-analysis tabs under one paper-oriented task. METHODS is for *evaluating how a paper was studied*, ordered
-by cognitive task: Details (`order: 10`) → Data consistency / GRIM (`order: 20`, raw data check before analysis
+**THEORY and METHODS ordering.** THEORY is for compact selected-paper literature lenses: Axes and Tags are grouped
+together because they are conceptual labeling lenses; Queue and Review/findings stay as side-pane paper-context
+surfaces. Larger corpus synthesis and writing/citation authoring now live in center workspaces. METHODS is for
+*evaluating how a paper was studied*, ordered by cognitive task: Details (`order: 10`) → Data consistency / GRIM (`order: 20`, raw data check before analysis
 check) → Statistics check (`order: 30`, statcheck and related tests) → Review (`order: 40`, findings) → other
 methods checks. Future statistical checks become tabs inside **Statistics check**, not sibling sections. Future
 paper-evaluation modules follow the METHODS order; future literature-understanding lenses follow the THEORY order.
@@ -369,9 +372,11 @@ paper-evaluation modules follow the METHODS order; future literature-understandi
 **Tabs within a section or workspace.** Tabs are for like-with-like variants inside one broad task. In side panes,
 `registerPaneTab({id,label,paneId,order}, {id,label,order,render})` adds a tab to a find-or-created host section, and
 `registerPaneSection({…, render})` is the one-tab shorthand. In workspaces, `registerWorkspaceTab` does the same for
-workspace modes. Both tab systems reuse `.tags-srcfilter` plus `.tags-srcfilter-btn`; side-pane tabs use
-`.pane-tabs`, workspace tabs use `.workspace-tabs`, and both mount-but-hide bodies through `.pane-tab`. Side-pane
-active tabs persist as `callosum.panetab.<sectionId>`. Per-tab `hideInReadOnly` is allowed; on a read-only companion
+workspace modes. Work → Cite has one nested tab registry (`registerCiteTab`) for citation-authoring variants where
+Meta Reference List belongs after Suggest and before Citation Concentration. All tab systems reuse `.tags-srcfilter`
+plus `.tags-srcfilter-btn`; side-pane tabs use `.pane-tabs`, workspace tabs use `.workspace-tabs`, and both
+mount-but-hide bodies through `.pane-tab`. Side-pane active tabs persist as `callosum.panetab.<sectionId>`. Per-tab
+`hideInReadOnly` is allowed; on a read-only companion
 a section or workspace is hidden only when it is explicitly `hideInReadOnly` or every contained tab is hidden.
 Section-definer and workspace-definer metadata is authoritative regardless of chunk-load order, so a tab-adding chunk
 that loads first only seeds a placeholder. Note the esbuild gotcha: a registered-but-unreferenced component can be

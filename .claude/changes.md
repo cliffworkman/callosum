@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 285 (Discover Search now owns Wanted/Gaps/Overlooked launchers; Feed is embedded below Search). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 286 (Synthesis is a workspace; Work owns Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT). -->
+## 2026-07-17 — Increment 286: Synthesis + Work workspace split
+- **Files:** `app/frontend/js/{03_library,04b_workspaces,08b_methods_citation_equity,08c_methods_citation_context,08j_reference_integrity,20_synthesis,30c_frame,37_cite,38_credit,40_app}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, help/design/QA/docs.
+- **What:** added **Synthesis** as a center menu-bar workspace after Library, and added **Work** after Discover. Moved **Cite** out of the THEORY pane into Work, with nested tabs **Suggest → Meta Reference List → Citation concentration → How it's cited**; moved **CRediT statement** into Work. Paper-card ref-signal jumps now route directly to Work → Cite → Meta Reference List, and Library selection summarize opens Synthesis.
+- **Why:** separates broad corpus synthesis and writing/citation authoring from the compact selected-paper THEORY accordion while preserving the existing modals/components and keeping open PDFs under Library.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py` **35 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; Playwright desktop/narrow smoke passed with menu overflow contained by horizontal scrolling; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-17 — Increment 285: Discover Search owns discovery launchers + Feed
 - **Files:** `app/frontend/js/{04b_workspaces,30d_discover,30e_feed,10_pdf_layer,40_app}.jsx`, `app/frontend/js/{09_placeholders,30c_frame}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, help/design/QA/docs.
 - **What:** moved **Wanted**, **Gaps**, and **Overlooked** out of the Library header and into **Discover → Search** as primary buttons immediately after Search, preserving their existing modal flows. Removed the standalone Discover **Feed** sub-tab and embedded Feed beneath the Search contents/results.
