@@ -18,13 +18,13 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **Profile** (your publications + impact), **Library** (your collection + open PDFs), **Discover** (Search · Feed · Journals · Funding), and **Extract** (the meta-analysis workspace: Workbench · Effect-size · Meta-analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
-- **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), **Synthesis**, **Cite**, and the review/authoring sections — click a section header to open it (one at a time).
+- **Menu bar (top of the center pane):** switch between **Profile** (your publications + impact), **Library** (your collection + open PDFs), **Synthesis** (verified answers over your library), **Discover** (Search, Feed, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-size · Meta-analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
-The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and an in-progress synthesis keeps running while you look at another section.
+The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
 
-Under **Library**, the workspace has a **Library** tab (your list) and one tab per open PDF — switching keeps open PDFs mounted, so you don't re-open a document each time. Open papers live under Library; switch to Discover / Extract / Profile and they're tucked away until you come back.
+Under **Library**, the workspace has a **Library** tab (your list) and one tab per open PDF — switching keeps open PDFs mounted, so you don't re-open a document each time. Open papers live under Library; switch to Synthesis / Discover / Work / Extract / Profile and they're tucked away until you come back.
 
 Tips:
 
@@ -285,11 +285,11 @@ Notes:
 
 <!-- section: suggesting-citations -->
 ## Suggesting citations for a draft sentence
-The **Cite** panel (left pane, under Synthesis) helps you find which papers to consider citing for a sentence you're writing. By default it searches **your library** only and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. That default path runs entirely on your machine (no AI is sent off-device).
+The **Work → Cite → Suggest** tab helps you find which papers to consider citing for a sentence you're writing. By default it searches **your library** only and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. That default path runs entirely on your machine (no AI is sent off-device).
 
 To use it:
 
-- Open the **Cite** section in the left pane, paste a sentence from your draft into the box, and click **Suggest**.
+- Open **Work → Cite → Suggest**, paste a sentence from your draft into the box, and click **Suggest**.
 - Callosum ranks your library by how closely each paper's text matches your sentence and shows a card per paper with:
   - a **stance** pill — **supports** (green), **contrasts** (amber), or **mentions** (grey) — read from a local language model over the matched passage. If the model can't be loaded, the card says "stance unavailable" rather than guessing.
   - a **match** score (relevance to your sentence — a ranking aid, **not** a correctness claim).
@@ -441,7 +441,7 @@ What Callosum does and doesn't do here: it **only builds a link and opens it in 
 
 <!-- section: wanted-list -->
 ## Wanted list & re-checking for copies
-The wanted list tracks papers you want an open-access copy of, so Callosum can keep looking for one. Open it from the **Wanted** button at the top of the library.
+The wanted list tracks papers you want an open-access copy of, so Callosum can keep looking for one. Open it from **Discover → Search → Wanted**.
 
 It holds two kinds of entries:
 
@@ -676,7 +676,7 @@ Synthesis is for asking a question across your library and getting a citation-gr
 There are two ways to run a synthesis:
 
 - **Ask a question.** Type a question in **Ask a synthesis question about the library...**, click **Synthesize**, and Callosum retrieves the most relevant chunks across your library, generates an answer, and verifies each citation. Read the result under **Verified** and **Flagged · needs review**.
-- **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum generates a verified synthesis of just those papers (the Synthesis pane shows a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
+- **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum opens the **Synthesis** workspace and generates a verified synthesis of just those papers (showing a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
 
 Use the section buttons (**Methods**, **Results**, **Data availability**, and so on) when you want synthesis to search only particular parts of section-aware PDFs. No section selected means the normal all-chunks behavior. A section filter narrows retrieval only; it does not change verification thresholds or make a claim more certain. Older chunks without section metadata will not match a section filter until the PDF is reprocessed.
 
@@ -684,7 +684,7 @@ Each cited sentence carries a status pill: **verified** (green — the source su
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
 
-If AI features are not enabled, synthesis will not run. The Synthesis pane shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section (where you set a key + turn on data egress). The nudge clears once AI is on.
+If AI features are not enabled, synthesis will not run. The Synthesis workspace shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section (where you set a key + turn on data egress). The nudge clears once AI is on.
 
 Tips:
 
@@ -999,7 +999,7 @@ Gotcha: a merge composes the surviving record from the choices you make in the d
 
 <!-- section: finding-gaps -->
 ## Finding gaps in your library
-The **Gaps** button (in the library header) finds works **related to several of your papers** that aren't in your library yet — in two directions you can toggle between:
+The **Gaps** button in **Discover → Search** finds works **related to several of your papers** that aren't in your library yet — in two directions you can toggle between:
 
 - **Works you cite** (backward): works that **several of your papers cite** but you don't have — often the foundational references your collection leans on.
 - **Works citing you** (forward): newer works that **cite several of your papers** but you don't have — recent work building on your collection.
@@ -1012,7 +1012,7 @@ After a Refresh it tells you how many papers it scanned ("scanned M of N — the
 
 <!-- section: overlooked-lens -->
 ## Finding work the field overlooked
-The **Overlooked** button (in the library header, next to **Gaps**) looks, **per axis**, for external works that are **relevant to that axis but under-cited for their year** — work you may be missing because the field overlooked it, not because it's weak. (This is different from the **Find overlooked work** action on a single paper's citation-concentration audit, which is about that one reference list's omissions; this one is a library-wide discovery lens tied to an axis.)
+The **Overlooked** button in **Discover → Search** looks, **per axis**, for external works that are **relevant to that axis but under-cited for their year** — work you may be missing because the field overlooked it, not because it's weak. (This is different from the **Find overlooked work** action on a single paper's citation-concentration audit, which is about that one reference list's omissions; this one is a library-wide discovery lens tied to an axis.)
 
 Choose an **axis**, then click **Refresh** to scan (via OpenAlex for that axis's topic). Each candidate shows **two separate signals, side by side — never blended into one score**:
 
@@ -1023,7 +1023,7 @@ Read the two together: relevant **and** under-cited for its year = *possibly* ov
 
 <!-- section: citation-equity -->
 ## Checking citation concentration
-The **Citation concentration** tab (in the **THEORY → Cite** section, with a paper selected) describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open the section, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
+The **Work → Cite → Citation concentration** tab, with a paper selected, describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open the tab, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
 
 - **Self-citation** — how many references include an author of the paper (King et al. 2017).
 - **Reliance on highly-cited work** — how much the list leans on already-famous papers, against the field (the Matthew effect; Merton 1968 / Perc 2014).
@@ -1036,7 +1036,7 @@ Every signal shows its **basis** (expand to see the exact references / venues / 
 
 <!-- section: citation-context -->
 ## Seeing how a paper is cited (and how it cites)
-The **How it's cited** tab (in the **THEORY → Cite** section, with a DOI'd paper selected) has a two-way toggle:
+The **Work → Cite → How it's cited** tab, with a DOI'd paper selected, has a two-way toggle:
 - **How it's cited** — how the *later literature* responded to this paper: do subsequent papers **support** it, **contrast** it, or just **mention** it?
 - **How it cites its sources** — how *this paper* uses each of its own references: does it support, contrast, or mention each cited work?
 
@@ -1046,13 +1046,13 @@ You get a **count** breakdown (N supporting · M contrasting · K mentioning) an
 
 <!-- section: meta-reference-list -->
 ## Checking reference signals
-The **Meta Reference List** section (Theory) is a pre-flight reference check for the selected paper. It surfaces only three negative signals: **Could not verify**, **Known retraction signal**, and **Previously flagged in your library**. These are prompts to inspect evidence, never a verdict on the paper or on the citation.
+The **Work → Cite → Meta Reference List** tab is a pre-flight reference check for the selected paper. It surfaces only three negative signals: **Could not verify**, **Known retraction signal**, and **Previously flagged in your library**. These are prompts to inspect evidence, never a verdict on the paper or on the citation.
 
 Click **Check references** to fetch the paper's linked reference list from Semantic Scholar using the paper DOI; if that linked list is unavailable, Callosum falls back to OpenAlex's referenced-work records for the same DOI. The run shows determinate progress while it works, then records when the paper was last checked. It also exposes **Source coverage for last run** so you can see which sources succeeded, returned no records, were not searched, or failed. One source failure does not erase results from another source; use **Retry reference check** when coverage is partial or failed.
 
 For library triage, select multiple papers in the Library and use **check refs** in the bulk bar. This runs the same Meta Reference List checker for each selected paper that has a DOI, skips selected papers without a DOI, refreshes the paper warning badges, and then filters the Library to papers with active reference signals so you can review them immediately. The filter is clearable. It does not run automatically on import and does not create a background watcher.
 
-When a paper card shows a **ref signal** badge, click it to select that paper and open the **Meta Reference List** section directly. The badge is only a jump to the evidence surface; the count means active unreviewed or confirmed-concern reference signals, not a paper-quality verdict.
+When a paper card shows a **ref signal** badge, click it to select that paper and open **Work → Cite → Meta Reference List** directly. The badge is only a jump to the evidence surface; the count means active unreviewed or confirmed-concern reference signals, not a paper-quality verdict.
 
 Callosum then resolves cited works through the existing metadata sources where possible. A search miss is shown cautiously as **Could not verify with available sources**; it is not a claim that the work is absent from the literature. Retraction signals are shown separately and more strongly, with their source evidence. Local propagation means the same referenced entity has an active signal elsewhere in your own library.
 
@@ -1100,7 +1100,7 @@ Give it a **selected library paper** (with a DOI) or **paste an abstract + a sub
 
 <!-- section: credit-statement -->
 ## Building a CRediT contribution statement
-When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **CRediT statement** section (Theory) builds one for you.
+When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **Work → CRediT statement** tab builds one for you.
 
 It is an **authoring aid, not a verifier.** Callosum formats the contributions **you assert** — it never infers, scores, or judges who did what. You are the source of truth; there's no confidence number and no verdict.
 
@@ -1119,7 +1119,7 @@ The panel credits the standard it follows — the **CRediT / NISO taxonomy** (Br
 
 <!-- section: discover-search -->
 ## Finding new papers (Discover)
-The **Discover** tab (beside **Library** in the center) searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
+The **Discover → Search** tab searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
 
 Type a query and press **Enter** (or **Search**). Results come back as a dense list you can triage fast:
 
@@ -1130,7 +1130,7 @@ Type a query and press **Enter** (or **Search**). Results come back as a dense l
 
 <!-- section: following-sources-feed -->
 ## Following sources (Feed)
-The **Feed** tab (beside Discover) is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
+The **Feed** section below **Discover → Search** is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
 
 To use it:
 

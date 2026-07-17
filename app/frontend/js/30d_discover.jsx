@@ -3,7 +3,7 @@
 // the complete deduped list is always shown (axis-relevance highlight is SP1b). Save is metadata-only
 // (POST /discovery/save → imported_source="discovery-import"); no PDF fetch. Function declarations hoist
 // in the shared IIFE, so LibraryFrame (30c) references this regardless of chunk order.
-function DiscoverPane({ onSaved }) {
+function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | ready | error
   const [items, setItems] = useState([]);
@@ -85,6 +85,9 @@ function DiscoverPane({ onSaved }) {
           <button className="btn btn-primary" onClick={runSearch} disabled={status === "loading" || !q.trim()}>
             {status === "loading" ? "Searching…" : "Search"}
           </button>
+          {onOpenWanted && <button className="btn btn-primary" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
+          {onOpenGaps && <button className="btn btn-primary" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
+          {onOpenOverlooked && <button className="btn btn-primary" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}
         </div>
         <div className="discover-hint">
           Public metadata search · the complete list is shown (nothing filtered) · <b>j/k</b> move · <b>s</b> save · <b>Enter</b> abstract
@@ -133,6 +136,7 @@ function DiscoverPane({ onSaved }) {
               : null}
           </div>
         ))}
+        <FeedPane onSaved={onSaved} active={active} embedded />
       </div>
     </div>
   );

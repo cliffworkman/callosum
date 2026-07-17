@@ -209,4 +209,7 @@ function CreditSection({ ctx }) {
   );
 }
 
-registerPaneSection({ id: "credit", label: "CRediT statement", paneId: "theory", order: 35, hideInReadOnly: true, render: (ctx) => <CreditSection ctx={ctx} /> });
+registerWorkspaceTab(
+  { id: "work", label: "Work", order: 50 },
+  { id: "credit", label: "CRediT statement", order: 20, hideInReadOnly: true, render: (ctx) => <CreditSection ctx={ctx} /> },
+);

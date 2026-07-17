@@ -190,7 +190,7 @@ function MetaReferenceList({ ctx }) {
   );
 }
 
-registerPaneSection({
-  id: "meta-references", label: "Meta Reference List", paneId: "theory", order: 28, hideInReadOnly: true,
+registerCiteTab({
+  id: "meta-references", label: "Meta Reference List", order: 15, hideInReadOnly: true,
   render: (ctx) => <MetaReferenceList ctx={ctx} />,
 });

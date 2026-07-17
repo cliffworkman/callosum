@@ -27,12 +27,24 @@ function App() {
   // Library workspace's sub-tab (the list | an open PDF). The active workspace persists across reloads; a
   // library-list navigation (filter/focus, via gotoLibrary) also switches to the Library workspace.
   const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
+  const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
+  const [citeTabRequest, setCiteTabRequest] = useState(null);
   const selectWorkspace = useCallback((id) => {
     // leaving Settings re-reads egress state in the panes (inc 148), the old modal-close behavior.
     setActiveWorkspace(prev => { if (prev === "settings" && id !== "settings") setSettingsNonce(n => n + 1); return id; });
     _saveLayout("callosum.workspace", id);
   }, []);
   const gotoLibrary = useCallback((t) => { selectWorkspace("library"); setActiveTab(t); }, [selectWorkspace]);
+  const openSynthesisWorkspace = useCallback(() => {
+    selectWorkspace("synthesis");
+    if (mobile) setMobilePane("library");
+  }, [mobile, selectWorkspace, setMobilePane]);
+  const requestWorkspaceTab = useCallback((wsId, tabId) => {
+    setWorkspaceTabRequest(prev => ({ wsId, tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
+  }, []);
+  const requestCiteTab = useCallback((tabId) => {
+    setCiteTabRequest(prev => ({ tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
+  }, []);
   const [myPubsAxisId, setMyPubsAxisId] = useState(null);  // which axis' impact opened the Profile workspace
   // Bumped after a synthesis highlight is saved, so an already-open PdfViewer refetches its annotations (PdfViewer).
   const [annoRefresh, setAnnoRefresh] = useState(0);
@@ -68,7 +80,7 @@ function App() {
   const lib = useLibrary({
     selected, setSelected, setActiveTab: gotoLibrary,
     cancelFocus: () => cancelFocusRef.current(),
-    setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen: () => {},  // inc 280: Settings is a workspace; library nav (gotoLibrary) leaves it
+    setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen: () => {}, onOpenSynthesis: openSynthesisWorkspace,
     setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), autoScanWatched, readOnly, healthLoaded,
   });
   const {
@@ -132,10 +144,11 @@ function App() {
   const openReferenceWarnings = useCallback((paper) => {
     if (!paper || paper.id == null) return;
     setSelected(paper.id);
-    setLeftOpen(true);
-    setTheoryOpen("meta-references");
-    if (mobile) setMobilePane("theory");
-  }, [mobile, setLeftOpen, setTheoryOpen, setMobilePane]);
+    requestWorkspaceTab("work", "cite");
+    requestCiteTab("meta-references");
+    selectWorkspace("work");
+    if (mobile) setMobilePane("library");
+  }, [mobile, requestWorkspaceTab, requestCiteTab, selectWorkspace, setMobilePane]);
   const openTextHealth = useCallback((context = null) => {
     setTextHealthContext(context || null);
     setTextHealthOpen(true);
@@ -218,9 +231,14 @@ function App() {
   // inc 280: props the menu-bar workspace sub-tabs' render(ctx, active) closures need (Discover: Search/Feed via
   // onDiscoverSaved; Extract: Workbench via the capture trio + onOpenPdf).
   const workspaceCtx = {
+    ...paneCtx,
     onDiscoverSaved: () => setLibRefresh(n => n + 1),
+    onOpenWanted: () => setWantedOpen(true),
+    onOpenGaps: () => setGapsOpen(true),
+    onOpenOverlooked: () => setOverlookedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
-    selectedPaper: selected,  // Journals/Funding/Meta (relocated from THEORY/METHODS) read the app-level selection
+    selectedPaper: selected,  // Work/Discover/Extract tabs read the app-level selection
+    workspaceTabRequest, citeTabRequest,
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };
 
@@ -244,11 +262,8 @@ function App() {
             focusAxis, focusMembers, focusPending,
             onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,
             onFindDuplicates: () => setDuplicatesOpen(true),
-            onOpenWanted: () => setWantedOpen(true),
             onOpenTextHealth: () => openTextHealth(),
             onOpenReferenceWarnings: openReferenceWarnings,
-            onOpenGaps: () => setGapsOpen(true),
-            onOpenOverlooked: () => setOverlookedOpen(true),
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
             onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
           }}
@@ -263,8 +278,14 @@ function App() {
       <div className="workspace-slot" style={{ display: activeWorkspace === "profile" ? "flex" : "none" }}>
         <MyPubsDashboard axisId={myPubsAxisId} onSummarize={summarizePaperIds} onSelectPaper={setSelected} onOpenPdf={openPdf} />
       </div>
+      <div className="workspace-slot" style={{ display: activeWorkspace === "synthesis" ? "flex" : "none" }}>
+        <WorkspacePane ws={getWorkspace("synthesis")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "synthesis"} />
+      </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "discover" ? "flex" : "none" }}>
         <WorkspacePane ws={getWorkspace("discover")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "discover"} />
+      </div>
+      <div className="workspace-slot" style={{ display: activeWorkspace === "work" ? "flex" : "none" }}>
+        <WorkspacePane ws={getWorkspace("work")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "work"} />
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "extract" ? "flex" : "none" }}>
         <WorkspacePane ws={getWorkspace("extract")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "extract"} />
@@ -322,7 +343,7 @@ function App() {
     // B5 (inc 239): a one-tap return to the synthesis you came from (only while reading the source it opened).
     const selectMobilePane = (pane) => { setMobilePane(pane); setCitationReturn(false); };
     const backPill = citationReturn && mobilePane === "library"
-      ? <button className="pdf-back-pill" onClick={() => selectMobilePane("theory")}>← Synthesis</button>
+      ? <button className="pdf-back-pill" onClick={() => { selectWorkspace("synthesis"); selectMobilePane("library"); }}>← Synthesis</button>
       : null;
     return (
       <div className={"app mobile" + (readOnly ? " read-only" : "")}>

@@ -556,17 +556,16 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
   );
 }
 
-// inc 121: the old RightPane (inc-57 vertical Synthesis/Details split with a draggable .divider-h) is retired —
-// SYNTHESIS now lives in the THEORY (left) accordion and DETAILS in the METHODS (right) accordion (05_panes.jsx).
+// inc 121: the old RightPane (inc-57 vertical Synthesis/Details split with a draggable .divider-h) is retired.
+// inc 287: SYNTHESIS now lives in the center menu bar as its own workspace; DETAILS remains in METHODS.
 
 // ─────────────────────────────────────────────────────────────
 // PDF tab — streams /papers/{id}/pdf and renders it with PDF.js.
 // Honest about the not-available-locally case; never a blank canvas.
 // ─────────────────────────────────────────────────────────────
 
-// inc 121: register SYNTHESIS as a THEORY-pane accordion section (see 05_panes.jsx). RightPane is removed in T3.
-registerPaneSection({
-  id: "synthesis", label: "Synthesis", paneId: "theory", order: 20,
+registerWorkspace({
+  id: "synthesis", label: "Synthesis", order: 30, hideInReadOnly: false,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
     pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
     onOpenTextHealth={ctx.onOpenTextHealth} readOnly={ctx.readOnly} onCriticalReviewSources={ctx.onCriticalReviewSources} />,

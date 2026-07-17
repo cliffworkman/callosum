@@ -9,7 +9,35 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 280 (workspaces nav: "Finding your way around" rewritten for the menu bar; the 4 moved-section locations [Journals/Funding→Discover, Effect-size/Meta→Extract] + the sidebar-gear reference fixed). -->
+<!-- HELP-DOCS-SYNCED 2026-07-17 — corpus current through inc 287 (Synthesis is a workspace; Work owns Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT). -->
+## 2026-07-17 — Increment 287: Synthesis + Work workspace split
+- **Files:** `app/frontend/js/{03_library,04b_workspaces,08b_methods_citation_equity,08c_methods_citation_context,08j_reference_integrity,20_synthesis,30c_frame,37_cite,38_credit,40_app}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, help/design/QA/docs.
+- **What:** added **Synthesis** as a center menu-bar workspace after Library, and added **Work** after Discover. Moved **Cite** out of the THEORY pane into Work, with nested tabs **Suggest → Meta Reference List → Citation concentration → How it's cited**; moved **CRediT statement** into Work. Paper-card ref-signal jumps now route directly to Work → Cite → Meta Reference List, and Library selection summarize opens Synthesis.
+- **Why:** separates broad corpus synthesis and writing/citation authoring from the compact selected-paper THEORY accordion while preserving the existing modals/components and keeping open PDFs under Library.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py` **35 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; Playwright desktop/narrow smoke passed with menu overflow contained by horizontal scrolling; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
+## 2026-07-17 — Increment 286: Discover Search owns discovery launchers + Feed
+- **Files:** `app/frontend/js/{04b_workspaces,30d_discover,30e_feed,10_pdf_layer,40_app}.jsx`, `app/frontend/js/{09_placeholders,30c_frame}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, help/design/QA/docs.
+- **What:** moved **Wanted**, **Gaps**, and **Overlooked** out of the Library header and into **Discover → Search** as primary buttons immediately after Search, preserving their existing modal flows. Removed the standalone Discover **Feed** sub-tab and embedded Feed beneath the Search contents/results.
+- **Why:** keeps outward-facing literature discovery tools together under Discover while reducing Library header sprawl and making Feed part of the Search surface instead of a sibling mode.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py tests/test_help.py` **35 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; Playwright desktop + narrow checks passed; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
+## 2026-07-17 — Increment 285: one-time workspace "what moved" hint
+- **Files:** `app/frontend/js/30c_frame.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_73_workspaces.md`, docs.
+- **What:** added a dismissible one-time neutral Library banner for returning users: "Where to submit" + Funding now live under Discover; Effect-size + Meta-analysis under Extract; Help + Settings are on the menu bar. Dismissal persists via `callosum.workspaces-whatsnew=1`; the banner is hidden on read-only companions.
+- **Why:** closes the inc-280 UX follow-up for users re-finding relocated tools after the workspace navigation change.
+- **Verify:** frontend rebuilt; `tests/test_frontend_assembly.py` **21 passed**; QA surface map **0 uncovered API / 0 uncovered FE**; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean. Visual placement is **unverified** in-browser.
+- **Revert:** restore the listed files from git.
+
+## 2026-07-17 — Increment 284: DESIGN §5 workspace/lens rewrite
+- **Files:** `.claude/DESIGN.md`, `.claude/docs/increment-notes/INCREMENT-284-NOTES.md`.
+- **What:** rewrote DESIGN §5 as a coherent two-navigation-dimension model: workspaces/menu bar are center-pane modes of work; THEORY/METHODS side accordions are per-paper lenses. Preserved the shipped registry mechanics and token recipes for `.menubar`, `.workspace-tabs`, `.pane-tabs`, `.tags-srcfilter`, and mount-but-hide bodies.
+- **Why:** closes the inc-280 follow-up by replacing the interim workspace note bolted onto the older accordion rubric with the actual placement rule: mode vs. lens, chosen by the user's cognitive task.
+- **Verify:** static read against `04b_workspaces.jsx` + `05_panes.jsx`; full suite **1237 passed / 1 skipped**; ruff + line-budget gates clean.
+- **Revert:** restore `.claude/DESIGN.md` and remove `.claude/docs/increment-notes/INCREMENT-284-NOTES.md` from git.
+
 ## 2026-07-17 — Increment 283: PDF text-health — fix "missing section labels" (per-line detection + honest staleness)
 - **Files:** `app/backend/pdf_processing/sections.py`, `app/backend/pdf_processing/extraction.py`, `tests/test_pdf_processing.py`, increment notes.
 - **What:** Text Health flagged 101/102 papers as *missing section labels* with a misleading *0 stale extraction*. Root cause: the whole library was extracted **before** section detection landed (commit `91ed1ae`), so 100% of chunks had `section = NULL` — and because that commit never bumped `DEFAULT_CHUNKING_STRATEGY`, the stale check saw those chunks as current. Fix: (A) `SectionTracker.observe_block` scans blocks **per line** so headings PyMuPDF merged with body text are caught (`observe`/`detect_section_heading` unchanged); (B) bumped the strategy to `pymupdf-block-v2` so pre-section chunks honestly read as `stale_chunk_version`. The existing **Reprocess missing section labels** job then backfills (re-extract + re-embed).

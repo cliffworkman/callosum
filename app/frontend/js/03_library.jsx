@@ -10,7 +10,7 @@
 function useLibrary(opts) {
   const {
     selected, setSelected, setActiveTab, cancelFocus,
-    setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen,
+    setMethodsOpen, setSettingsOpen, onOpenSynthesis,
     setTagRefresh, setAxisRefresh, autoScanWatched, readOnly, healthLoaded,
   } = opts;
 
@@ -63,14 +63,14 @@ function useLibrary(opts) {
     });
   }, [selectedLibraryIds, setSelected]);
 
-  // inc-62: "summarize N" → drive the (always-visible) Synthesis pane to summarize the selected subset.
+  // inc-62 → inc 287: "summarize N" → drive the Synthesis workspace to summarize the selected subset.
   const bulkSummarizePapers = useCallback((focus) => {
     const ids = [...selectedLibraryIds];
     if (!ids.length) return;
     setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1, focus: (focus || "").trim() || null }));
-    setLeftOpen(true); setTheoryOpen("synthesis");
+    if (onOpenSynthesis) onOpenSynthesis();
     setSelectedLibraryIds(new Set());
-  }, [selectedLibraryIds, setLeftOpen, setTheoryOpen]);
+  }, [selectedLibraryIds, onOpenSynthesis]);
 
   const bulkPcurvePapers = useCallback(() => {
     const ids = [...selectedLibraryIds];
@@ -98,12 +98,12 @@ function useLibrary(opts) {
     setLibRefresh(n => n + 1); setAxisRefresh(n => n + 1); setTagRefresh(n => n + 1);
   }, [setSelected, setAxisRefresh, setTagRefresh]);
 
-  // inc 117 (SP1): summarize an explicit id set (from the My Publications tab) → drive the synthesis section.
+  // inc 117 (SP1) → inc 287: summarize an explicit id set (from the My Publications tab) → drive Synthesis.
   const summarizePaperIds = useCallback((ids) => {
     if (!ids || !ids.length) return;
     setPendingSummarize(prev => ({ paper_ids: ids, count: ids.length, nonce: (prev ? prev.nonce : 0) + 1 }));
-    setLeftOpen(true); setTheoryOpen("synthesis");
-  }, [setLeftOpen, setTheoryOpen]);
+    if (onOpenSynthesis) onOpenSynthesis();
+  }, [onOpenSynthesis]);
 
   const bulkExportPapers = useCallback((format) => downloadCitationExport([...selectedLibraryIds], format), [selectedLibraryIds]);
   const bulkBibliography = useCallback((style) => downloadBibliography([...selectedLibraryIds], style), [selectedLibraryIds]);

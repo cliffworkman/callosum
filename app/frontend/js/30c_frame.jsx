@@ -5,9 +5,27 @@
 // lives in the shell (40_app) and is threaded through so a PdfViewer surfaces the capture UI + returns the anchor —
 // arming it opens the paper under Library, and applying it switches back to Extract. Hoists reference PdfViewer /
 // PaperList regardless of chunk order.
+const WORKSPACES_WHATSNEW_KEY = "callosum.workspaces-whatsnew";
+
+function WorkspacesWhatsNewHint({ readOnly }) {
+  const [dismissed, setDismissed] = useState(() => _loadLayout(WORKSPACES_WHATSNEW_KEY, "0") === "1");
+  if (readOnly !== false || dismissed) return null;
+  const dismiss = () => {
+    setDismissed(true);
+    _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
+  };
+  return (
+    <div className="axis-hint workspace-whatsnew" role="status">
+      <span>New layout: <b>Synthesis</b> is on the menu bar; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-size</b> + <b>Meta-analysis</b> under <b>Extract</b>.</span>
+      <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss workspace layout notice" title="Dismiss" onClick={dismiss}>×</button>
+    </div>
+  );
+}
+
 function LibraryFrame({ libraryProps, tabs, activeTab, onActivate, onClose, onOpenPdf, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
   return (
     <div className="lib-frame">
+      <WorkspacesWhatsNewHint readOnly={libraryProps && libraryProps.readOnly} />
       <div className="frame-tabs">
         <button
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}

@@ -1,13 +1,14 @@
 // Workspaces (the menu bar) — a SECOND navigation dimension above the THEORY/METHODS side accordions. Where the
 // accordions are *lenses on the current paper* (05_panes.jsx), a workspace is *what you're doing right now*:
-// Profile | Library | Discover | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
+// Profile | Library | Synthesis | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
 // exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single `render` (Profile,
-// Help, Settings) OR >=2 sub-tabs (Discover: Search|Feed|Journals|Funding; Extract: Workbench|Effect-size|Meta).
+// Help, Settings) OR >=2 sub-tabs (Discover: Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-size|Meta).
 // Library is registered as a shell-rendered workspace (no registered tabs) because its content — the library list +
 // the dynamic open-PDF tabs — is bespoke and owned by 40_app. Render closures resolve their components by hoist
 // (the 05_panes `details`→`DetailContent` precedent), so a workspace defined here can reference a component from a
 // later chunk. See DESIGN.md §5.
 const WORKSPACES = [];
+const CITE_TABS = [];
 
 function _ensureWs(id) {
   let w = WORKSPACES.find(x => x.id === id);
@@ -32,6 +33,12 @@ function registerWorkspaceTab(host, tab) {
   const w = _ensureWs(host.id);
   if (!w.defined) { w.label = host.label; w.order = host.order || 0; if (host.hideInReadOnly != null) w.hideInReadOnly = !!host.hideInReadOnly; if (host.utility != null) w.utility = !!host.utility; }
   _addWsTab(w, tab);
+}
+function registerCiteTab(tab) {
+  if (!CITE_TABS.some(t => t.id === tab.id)) CITE_TABS.push(tab);
+}
+function citeTabs(readOnly) {
+  return [...CITE_TABS].filter(t => !(readOnly && t.hideInReadOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 function _wsHiddenReadOnly(w) {
@@ -73,9 +80,13 @@ function MenuBar({ active, onActivate, readOnly }) {
 function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
   const tabs = workspaceTabs(ws, readOnly);
   const [activeTab, setActiveTab] = useState(() => _loadLayout("callosum.workspacetab." + ws.id, tabs[0] ? tabs[0].id : null));
+  const setTab = (id) => { setActiveTab(id); _saveLayout("callosum.workspacetab." + ws.id, id); };
+  const requested = ctx && ctx.workspaceTabRequest && ctx.workspaceTabRequest.wsId === ws.id ? ctx.workspaceTabRequest : null;
+  useEffect(() => {
+    if (requested && tabs.some(t => t.id === requested.tabId)) setTab(requested.tabId);
+  }, [requested ? requested.nonce : null, ws.id]);
   if (tabs.length === 0) return null;
   const at = tabs.some(t => t.id === activeTab) ? activeTab : tabs[0].id;
-  const setTab = (id) => { setActiveTab(id); _saveLayout("callosum.workspacetab." + ws.id, id); };
   return (
     <div className="workspace-pane">
       {tabs.length > 1 &&
@@ -97,21 +108,18 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
 
 // ── the built-in workspaces ─────────────────────────────────────────────────────────────────────────────────
 // Library + Profile are SHELL-RENDERED (no `render`): 40_app owns their bespoke bodies (the library list + dynamic
-// open-PDF tabs; the impact dashboard). Discover + Extract are populated by tabs (self-registered here for the
-// built-ins; Stage 2 relocates Journals/Funding/Effect-size/Meta-analysis into them by `registerWorkspaceTab`).
+// open-PDF tabs; the impact dashboard). Synthesis / Discover / Work / Extract are populated by registered tabs.
 // Every write surface's tab carries `hideInReadOnly` so the whole workspace drops on a read-only companion.
 registerWorkspace({ id: "profile", label: "Profile", order: 10 });
 registerWorkspace({ id: "library", label: "Library", order: 20 });
-registerWorkspace({ id: "discover", label: "Discover", order: 30 });
-registerWorkspace({ id: "extract", label: "Extract", order: 40 });
+registerWorkspace({ id: "discover", label: "Discover", order: 40 });
+registerWorkspace({ id: "work", label: "Work", order: 50 });
+registerWorkspace({ id: "extract", label: "Extract", order: 60 });
 
 registerWorkspaceTab({ id: "discover" }, {
   id: "search", label: "Search", order: 10, hideInReadOnly: true,
-  render: (ctx) => <DiscoverPane onSaved={ctx.onDiscoverSaved} />,
-});
-registerWorkspaceTab({ id: "discover" }, {
-  id: "feed", label: "Feed", order: 20, hideInReadOnly: true,
-  render: (ctx, active) => <FeedPane onSaved={ctx.onDiscoverSaved} active={active} />,
+  render: (ctx, active) => <DiscoverPane onSaved={ctx.onDiscoverSaved} active={active}
+    onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked} />,
 });
 registerWorkspaceTab({ id: "extract" }, {
   id: "workbench", label: "Workbench", order: 10, hideInReadOnly: true,
