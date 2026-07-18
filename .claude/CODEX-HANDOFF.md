@@ -1,368 +1,126 @@
-# Codex handoff — 2026-07-17 (session 2): Library/workspaces UX polish list
+# Codex handoff — 2026-07-18 (session 3): Discover/Search/Synthesize IA + search sources & history
 
-You (Codex) are picking up **callosum** with the maintainer (Cliff) **supervising live** — you'll work through the
-list below together. **Read `.claude/CLAUDE.md` in full first** (invariants, rules, commands, verification, the four
-gates). Everything below assumes you've read it.
+Picking up **callosum** with the maintainer (Cliff) **supervising live**. **Read `.claude/CLAUDE.md` in full first**
+(invariants, rules, commands, verification, the four gates #8–#11). Everything below assumes you've read it.
 
-## Git state (read carefully — base on the right thing)
-
-- **`main`** has **Increment 283 = PDF text-health section-labels fix** (Opus, this session; pushed).
-- **`feature/workspaces-ux-polish`** (pushed to origin) has Codex's four workspace increments (numbered 283–286 in
-  that branch): DESIGN §5 rewrite · one-time "what moved" hint · Discover→Search consolidation (Wanted/Gaps/
-  Overlooked/Feed) · **Synthesis + Work workspaces** (Cite + nested tabs + CRediT moved out of THEORY). Opus reviewed
-  these: build matches source, ruff (both), line-budget, QA (0 uncovered), and the honesty panels are pure relocations
-  — all green; the full suite was mid-run at handoff.
-
-### Task 0 — FIRST: get the workspaces work onto `main` (if not already done)
-Check `git log --oneline main | head`. **If you see "Increment 287 / synthesis and work workspaces" already on main,
-Opus finished the merge — skip to Task 1 and branch off `main`.** Otherwise finalize it:
-1. `git checkout -b integrate-workspaces main` (or reuse the existing one) and
-   `git merge feature/workspaces-ux-polish`.
-2. **Conflicts are only docs.** Keep Opus's `INCREMENT-283-NOTES.md` (section labels). Reconcile `.claude/changes.md`
-   (both added entries). **Increment renumber (uniform +1 for Codex's four):** Opus's section-labels stays **283**;
-   Codex's DESIGN-rewrite→**284**, hint→**285**, discover→**286**, synthesis/work→**287**. Rename the four
-   `INCREMENT-28{3,4,5,6}-NOTES.md` accordingly and bump each H1. Update the six `// inc 286` provenance comments
-   (03_library ×2, 08b, 08c, 20_synthesis, 37_cite) → `inc 287`. Set the `HELP-DOCS-SYNCED` marker to "through inc 287".
-3. Bump `.claude/CLAUDE.md` (currently "Increment 283 / 1239 tests") to the new top increment + the real final
-   pytest count.
-4. `python tools/build_frontend.py` (comments are stripped, so the HTML shouldn't change — confirm no unexpected
-   diff), full `pytest`, both ruff gates, line-budget, QA check — then merge to `main` + push. Delete the branch.
-
-**All the list items below assume the workspaces IA (Synthesis/Work workspaces, Discover=Search·Journals·Funding,
-Extract=Workbench·Effect-Size·Meta-Analysis, Profile) is present** — so land Task 0 first, then branch for the list.
+## Git state — base on `feature/library-ux-polish`
+- `main` has inc 283 (PDF section-labels) + the workspaces IA (284–287).
+- **`feature/library-ux-polish`** (pushed) has inc 288–293 (Codex library-UX) + 294 (Reading-Queue priority strata +
+  sync) + **295 (Feed: follow journals by title, Suggest-from-library, typeahead)**. This branch has the full current
+  IA (Profile · Library · Synthesis · Discover · Work · Extract; Discover = Search·Journals·Funding with Feed
+  **embedded in Search** since inc 285). **Cut your branch from it:** `git checkout feature/library-ux-polish && git
+  checkout -b feature/discover-search-synthesize`.
 
 ## Hard rules for THIS session
-
-1. **Feature branch; do NOT push to `main` without Cliff's OK.** `git checkout -b feature/library-ux-polish`.
-2. **Verification is not optional and not claimed without running it** (Opus re-verifies on return):
-   - full `python -m pytest` (~20 min) green; `ruff check .` **and** `ruff format --check .` both pass;
-     `python tools/check_line_budget.py` clean.
-   - After ANY `app/frontend/` edit: `python tools/build_frontend.py`, then `pytest tests/test_frontend_assembly.py`;
-     commit the rebuilt `callosum-app.html`.
-3. **Gates (CLAUDE.md #8–#11):** read `.claude/DESIGN.md` before any CSS/inline-style (rule #8 — reuse tokens/recipes,
-   no new raw hex, no borrowed color semantics). **Run the Principles gate (#9)** for the signal-touching items
-   (open-data inversion, RETRACTED styling, retraction auto-update) — read `.claude/PRINCIPLES.md`; these must stay
-   *signal-not-verdict*, evidence-shown, inspectable. Add/extend a **QA route (#10)** in the same increment for every
-   changed surface (`.claude/qa-routes/`, then `python tools/qa/build_surface_map.py check`). Run the **experience
-   pass (#11)** on each user-facing change.
-4. **Do NOT touch the design invariants** (egress gate; coordinate honesty; signal-not-verdict / no composite scores;
-   evidence always shown). Nothing here should — if something seems to, stop and leave a note.
-5. **No over-claiming.** Report the actual pytest pass count; say "partial"/"unverified" honestly (esp. visual
-   placement — flag what Cliff should eyeball).
-6. Minimal diffs (#7). One increment-notes file per real increment (bump the number); `.claude/changes.md` entry each;
-   keep CLAUDE.md current. **Watch the 600-line cap** on the frontend chunks you touch (`10_pdf_layer.jsx`,
-   `30c_frame.jsx`, `40_app.jsx`, `04b_workspaces.jsx` are the big ones — split with the shared-IIFE hoist precedent).
+1. **Feature branch; do NOT push to `main` without Cliff's OK.** Commit incrementally; leave the branch for review.
+2. **Verification is not optional and not claimed without running it:** full `python -m pytest` (~20 min) green;
+   `ruff check .` **and** `ruff format --check .`; `python tools/check_line_budget.py`. After ANY `app/frontend/`
+   edit: `python tools/build_frontend.py` then `pytest tests/test_frontend_assembly.py`; commit the rebuilt
+   `callosum-app.html`.
+3. **Gates (#8–#11):** read `.claude/DESIGN.md` before CSS (reuse tokens/recipes). **Principles (#9):** Search's
+   contract is **"AI augments, never filters — the complete list is shown"** and Critical Read / Critique is
+   **signal-not-verdict** — neither may regress. Add/extend a **QA route (#10)** per changed surface
+   (`build_surface_map.py check` → 0 uncovered). Run the **experience pass (#11)** on each user-facing change.
+4. **Do NOT touch the design invariants** (egress gate; coordinate honesty; signal-not-verdict; evidence shown).
+5. **No over-claiming.** Report the real pytest count; say "partial"/"unverified" (esp. visual placement — flag what
+   Cliff/Opus should eyeball). Minimal diffs; one increment-notes file + `changes.md` entry per increment (bump the
+   number — next is **296**); keep CLAUDE.md current.
+6. **Line-budget watch** (near-cap files you'll touch): `04b_workspaces.jsx`, `30d_discover.jsx`, `20_synthesis.jsx`,
+   `40_app.jsx` — split with the shared-IIFE hoist precedent if one crosses 600.
 
 ---
 
-## The list (group into a few increments; suggested grouping A–F)
+## The list (group into a few increments)
 
-### A. Library-header buttons — labels, formats, tooltips
-Files: the Library header + its count chips live in `app/frontend/js/10_pdf_layer.jsx` +
-`10b_libmenus.jsx` + `10d_papercard.jsx`; find each chip/button by its current text.
-1. **"Enrich metadata" → "Metadata".** Keep the little refresh icon; clicking still restarts the refresh.
-   **Do NOT change the label to "Filled #"** — a changing label (e.g. to a count) misleads users into thinking the
-   click *shows* the filled papers rather than *re-runs* enrichment. Label stays stable ("Metadata"); the count/last-run
-   goes in the tooltip (item 6).
-2. **"🔎 # - open data not detected" → "🔎 Open Data · #", and invert the set:** show papers **with** open data
-   detected (count + filter), not those without. **(Principles gate #9 — this changes what a signal reports; keep it a
-   checkable signal, not a verdict.)** Update the corresponding filter so clicking lists the open-data papers.
-3. **"⚠# flagged" → "⚠ Flagged · #".**
-4. **"⚠# retracted" → "⚠ Retracted · #".**
-5. **"📋 # to review" → "📋 Review · #".**
-6. **Move "last refreshed" out of the button text into the tooltip** for every refreshable Library tool (metadata,
-   text-health, citation refresh, retractions). Button shows the stable label + refresh icon; `title=` carries
-   "Last refreshed <date>". (Prevents the label from shifting under the user between runs.)
-7. **"Text health" → "Text Health"** (also the modal title in `26b_text_health.jsx`).
+### A. Search across selectable sources (a dropdown like the Feed's)
+`GET /discovery/search` **already** fans out to a multi-source `SourceProvider` registry
+(`app/backend/discovery/providers.py`) — Crossref + PubMed — and merges/dedups (results show `it.sources` pills). The
+ask is to let the user **pick which source(s)**, not always-all.
+- **Backend:** add an **optional `source` query param** to `GET /discovery/search` (`routers/discovery.py`) that, when
+  set, restricts the fan-out to that provider; default = all (current behavior). Expose the provider list (a `kinds`/
+  `source_meta`-style property on the registry, or a tiny `GET /discovery/sources`) — mirror the Feed registry's
+  `source_meta` (`discovery/feed.py`).
+- **Frontend (`30d_discover.jsx`):** add a source `<select>` in the searchbar (default **All**, then Crossref /
+  PubMed / …) — reuse the Feed's `<select className="lib-sort">` recipe (`30e_feed.jsx`). Pass `&source=` to the
+  fetch. **Keep the "AI augments, never filters — complete list shown" copy + the source pills** (Principles #9):
+  choosing a source narrows *which providers are queried*, never AI-filters results.
+- **QA:** extend the discovery search route for the `source` param.
 
-### B. Workspace-subsection scrolling, labels, My Publications/Profile
-8. **Discover → Journals + Funding subsection bodies don't scroll.** Files: `08e_methods_publishers.jsx` (Journals),
-   `08k_funding_discovery.jsx` (Funding), the `.workspace-body`/`.workspace-pane` CSS in `styles.css`. Give the tab
-   body an `overflow-y:auto` + bounded height so long content scrolls (check DESIGN.md for the pane recipe first).
-9. **Extract → same scroll fix for Effect-size + Meta-analysis** (`08i_methods_effectsize.jsx`,
-   `08g_methods_metaanalysis.jsx`). **Rename labels: "Meta-analysis" → "Meta-Analysis"; "Effect-size" → "Effect-Size".**
-10. **"Publications" → "My Publications"** (the Profile workspace / dashboard: `31_mypubs_dashboard.jsx` + the menu-bar
-    label in `04b_workspaces.jsx`/`40_app.jsx`).
-11. **Profile doesn't populate after a refresh** until you interact with the My-Publications axis. Fix so the Profile
-    dashboard loads its data on view (its own fetch/effect), independent of the axis. Trace where My-Pubs data is
-    fetched (`31_mypubs_dashboard.jsx`, the My-Pubs axis in `15_axes.jsx`/`15b_axis_card.jsx`, `MyPubsPrompt`) — the
-    dashboard should not depend on the axis being touched.
-12. **Remove the "Profile" button from the My-Publications axis** (redundant now that Profile is a menu-bar workspace).
-    In `15_axes.jsx`/`15b_axis_card.jsx` / `MyPubsPrompt`.
+### B. Re-separate Feed from Search — Discover = **Feed · Search · Journals · Funding**
+Inc 285 embedded Feed *inside* Search. Undo that: Feed becomes its own Discover sub-tab again.
+- `04b_workspaces.jsx`: register a **Feed** tab under `{id:"discover"}` (first, so the order reads Feed · Search ·
+  Journals · Funding) via `registerWorkspaceTab` — render `<FeedPane .../>` standalone (the `embedded` prop on
+  `FeedPane` was added in inc 285; render it un-embedded).
+- `30d_discover.jsx`: remove the embedded-Feed block (the inc-285 in-Search Feed) so Search is just Search again.
+- Keep the Wanted/Gaps/Overlooked launchers where they are (inc 285 put them in Search — leave unless Cliff says).
+- **QA/help:** update `route_44_feed.md` / the workspace route + the help "menu bar" + Feed lines for the split.
 
-### C. Selected-paper "dummy" tab + draggable tabs (`40_app.jsx` + `30c_frame.jsx` + `04b_workspaces.jsx`)
-13. **A "selected paper" tab:** when a paper is *selected but not yet open* in the reader, show a tab **first, right
-    after the Library tab**, representing that paper. **Distinct color** (signals "selected, not opened" — pick from the
-    DESIGN token set, don't invent a hex; read DESIGN.md #8). **Clicking it opens the PDF immediately** (calls the
-    existing `openPdf`). Only render it when the selected paper is **not already** an open reader tab.
-14. **Make the open-PDF tabs draggable to reorder** (there's an axis drag-reorder precedent — see
-    `drive_inc212_dragreorder.py` / the axis card DnD). **But preserve the selected-paper tab's primacy:** it stays
-    pinned first-after-Library and is only shown while a paper is selected-but-not-open (not draggable out of that slot).
-    Experience pass (#11): does reorder feel natural; does the selected tab's color read as "not yet opened"?
+### C. **Synthesize** workspace with **Ask + Critique** (move Critical Read in)
+- `20_synthesis.jsx:567`: relabel the workspace `label: "Synthesis"` → **"Synthesize"** (match the active voice of
+  Discover/Extract). Convert it from a single `render` into **two sub-tabs** via `registerWorkspaceTab({id:"synthesis"},
+  …)`: **Ask** = the current `SynthesisPane`; **Critique** = Critical Read.
+- Move Critical Read out of the METHODS accordion: `08x_methods_critical.jsx:158` is
+  `registerPaneSection({id:"critical_read", paneId:"methods", order:40})` → change to
+  `registerWorkspaceTab({id:"synthesis"}, {id:"critique", label:"Critique", order:20, hideInReadOnly:true, render})`.
+  `CriticalReadSection` uses `ctx.selectedPaper` + `ctx.onOpenPaper` (in the workspace ctx) and
+  `ctx.methodsOpen === "critical_read"` for its active-check — **adapt that** to the workspace's `active` 2nd render
+  arg (the inc-280 MetaSection `methodsOpen` adapter is the precedent). Check `08y_critical_set.jsx` (the multi-paper
+  "set critical review") — relocate/point it consistently.
+- **QA/help/DESIGN:** update the workspace QA route, DESIGN §5 (Synthesize = Ask + Critique; METHODS loses Critical
+  read), and the help menu-bar line.
 
-### D. Selected-paper cue inside Discover subsections
-15. In **Discover → Journals**, render the **selected-paper tab (dummy styling) OR the current open-paper tab (opened
-    styling)** — styled *exactly* as those tabs already are — **before** the Search…Funding sub-tabs, keeping those
-    sub-tabs' own (aesthetically distinct) styling. Purpose: reuse the existing visual dictionary so users see at a
-    glance what "Selected paper" refers to. **Do the same in Discover → Funding.** (Reuse the tab component from item 13
-    / the open-PDF tab; don't fork its styles.)
-
-### E. Retractions
-Files: `app/backend/api/routers/methods_retraction.py` (per-DOI detection + the Retraction Watch DB mirror),
-the Library header, `styles.css` + DESIGN.md for the badge.
-16. **"Check all papers for retractions" auto-updates the DB first:** by default, check whether the Retraction Watch
-    mirror has an update and, if so, download + apply it **before** running the library check. (Keep it local/offline-
-    tolerant: if the update fetch fails, fall back to the existing mirror and say so — don't hard-fail. **Principles
-    gate #9:** retraction is a *signal with evidence* (the RW record), not a verdict — keep the source/date shown.)
-17. **Retracted-paper styling:** a clear card/badge reading **"RETRACTED"** using the **same text/size/shape recipe as
-    the "CHUNKED" badge** (find the CHUNKED badge in the paper card — `10d_papercard.jsx` / `25_detail.jsx` — and mirror
-    it with `--danger` semantics per DESIGN.md; red = retracted/destructive is the existing meaning). Show it wherever
-    a paper is presented (card + detail).
-18. **Add a "Retractions" button (with a refresh icon) to the Library header, placed BEFORE "Text Health".** Wire it to
-    the retraction check (item 16); last-run in the tooltip (item 6). QA route + experience pass.
-
-### F. Credit-the-lineage button — "add missing" states
-Files: the shared `.method-credit` recipe + its button; the overlooked lens credit is `36b_overlooked.jsx`
-(`OverlookedCredit`), and statcheck/GRIM/etc. share the same affordance (grep `.method-credit` /
-`add to library`). Import path: `POST /library/import` (csl-json). Many credits add **one** paper; some add **several**.
-19. **Change the button text to "＋ add missing to library".**
-20. **When all the credit's item(s) already exist in the library**, show **"✓ added to library"** with the existing
-    post-click styling (the current success state).
-21. **Partial case (a credit that adds >1 item, some present, some not):** show **"＋ add missing to library"**;
-    clicking imports **only the missing** items, then flips to **"✓ added to library"** (success styling).
-    → Needs a "which of these DOIs/items are already in the library?" check on mount. Reuse the existing library
-    lookup (by DOI) rather than importing blind; `/library/import` is idempotent, but the button STATE must reflect
-    present-vs-missing so the label is honest. Keep it per-credit-component (the shared affordance).
-
----
+### D. Clearable search history (recall previous results) — for **Search** and **Journals** — + clear an active search
+New. NOTE: `saved_search_repo.py` is *named saved searches* (a different feature) — this is a lightweight **recent-
+query history**.
+- **Recall:** keep a per-surface recent-query history (start with `localStorage`, like `callosum.feedAutoRefresh`) —
+  the last N queries; a small dropdown/list to **recall** (re-run) one, and a **Clear history** action. Apply to
+  **Search** (`30d_discover.jsx`) and **Journals** ("Where to submit", `08e_methods_publishers.jsx` — its run
+  inputs/results).
+- **Clear active search:** a **Clear** (×) button on the active Search that resets the query + results list to empty.
+- **Design choice to confirm with Cliff:** recall = *re-run the stored query* (simple, always fresh, tiny storage)
+  vs *store & replay the actual past results* (literal "recall previous results", offline, but heavier). Recommend
+  **re-run the query** unless Cliff wants stored results. Ask before building.
+- **QA/experience:** history + clear are new controls → QA route + experience pass.
 
 ## When done / window ends
-Leave the branch un-merged with clean commits (push the branch to origin as backup is fine). Append a **"Codex session
-summary"** to the BOTTOM of this file per group: what changed, the **actual** pytest pass count + both ruff results,
-what's partial/unverified (flag visual placements for Cliff/Opus to eyeball), any blocker. Opus re-verifies against it.
+Leave the branch un-merged with clean commits (pushing the branch as backup is fine). Append a **"Codex session
+summary"** to the BOTTOM of this file per increment: what changed, the **actual** pytest pass count + both ruff
+results, what's partial/unverified (flag visual placements), any blocker. Opus re-verifies against it on return.
 
 ---
 
-## Codex session summary — Task 0 workspace integration — 2026-07-17
+## Codex session summary — Group A Discover Search selectable sources — 2026-07-18
 
-Branch: `integrate-workspaces`.
-
-What changed:
-- Merged the `feature/workspaces-ux-polish` work onto current `main`, preserving Opus increment 283 for the PDF text-health section-label fix.
-- Renumbered Codex workspace increments to avoid the collision: DESIGN rewrite = 284, workspace hint = 285, Discover/Search consolidation = 286, Synthesis/Work split = 287.
-- Renamed/retitled the increment note files, moved the help sync marker through inc 287, updated the six workspace provenance comments from inc 286 to inc 287, and bumped `.claude/CLAUDE.md` to Increment 287.
-- Rebuilt `callosum-app.html` after the merge/renumber reconciliation.
-
-Verification:
-- `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py`: 35 passed.
-- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1145/1145, uncovered 0.
-- `python -m pytest`: 1239 passed, 1 skipped in 1464.65s.
-- `ruff check .`: passed.
-- `ruff format --check .`: 464 files already formatted.
-- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
-
-Partial/unverified:
-- This integration pass did not rerun the browser visual smoke checks; the feature branch had already recorded desktop/narrow Playwright checks for the workspace UI.
-- Pre-existing untracked artifacts were left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
-
-Blockers: none.
-
-## Codex session summary — Group C selected-paper/PDF tab polish — 2026-07-17
-
-Branch: `feature/library-ux-polish`.
+Branch: `feature/discover-search-synthesize`.
 
 What changed:
-- Completed handoff group C as Increment 290.
-- Added a pinned selected-paper tab immediately after **Library** when the current paper selection is not already open in the reader.
-- Styled the selected-paper tab with the documented dashed `--accent` / `--accent-soft` pending affordance; it has no close button and is not draggable.
-- Clicking the selected-paper tab opens the PDF through the existing `openPdf` path, then the temporary tab disappears because the paper is now an open reader tab.
-- Made normal open PDF tabs draggable among themselves to reorder the Library reader tab strip; active tab state stays keyed by the existing `pdf:<paper_id>` key.
-- Updated served help, DESIGN, QA route 73, frontend guards, increment notes, changelog, and rebuilt `callosum-app.html`.
-
-Verification:
-- `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py`: 38 passed.
-- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1147/1147, uncovered 0.
-- Browser smoke against a fresh static bundle with mocked Library APIs confirmed: selected-paper tab appears pinned after Library, is not draggable, opens into a PDF tab, disappears once open, and two open PDF tabs reorder by drag/drop.
-- `python -m pytest`: 1242 passed, 1 skipped in 1277.28s.
-- `ruff check .`: passed.
-- `ruff format --check .`: 464 files already formatted after formatting the new assembly guard.
-- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
-
-Partial/unverified:
-- Browser smoke used mocked Library API responses rather than a fully attached backend/database session; the tab-strip DOM behavior was verified in Chromium.
-- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
-
-Blockers: none.
-
----
-
-## Codex session summary — Group A Library header polish — 2026-07-17
-
-Branch: `feature/library-ux-polish`.
-
-What changed:
-- Completed handoff group A as Increment 288.
-- Renamed the Library metadata control to stable **Metadata ↻** and moved filled-field/DOI/last-run details into the tooltip.
-- Kept **Citations ↻** stable and moved its last refreshed date into the tooltip.
-- Renamed **Text health** surfaces to **Text Health** / **PDF Text Health** and kept text-health counts in the tooltip/header modal rather than a shifting Library button label.
-- Updated Library chips to **⚠ Flagged · N**, **⚠ Retracted · N**, **📋 Review · N**, and **🔎 Open Data · N**.
-- Inverted the old open-data-not-detected Library chip into a positive `transparency-data-detected` filter backed by a new `data_detected` summary count; preserved `data_not_detected` for the transparency review queues.
-- Updated served help, frontend/backend tests, increment notes, changelog, and rebuilt `callosum-app.html`.
-
-Verification:
-- `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py tests\test_transparency_findings.py`: 44 passed.
-- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1147/1147, uncovered 0.
-- `python -m pytest`: 1240 passed, 1 skipped in 1445.64s.
-- `ruff check .`: passed.
-- `ruff format --check .`: 464 files already formatted.
-- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
-
-Partial/unverified:
-- No browser visual smoke was run for Group A; Cliff/Opus should eyeball the Library header tooltips/chip spacing in the app.
-- Pre-existing untracked artifacts were still left untouched: `.claude/funding-ui-pass-*.png` and `www/`.
-
-Blockers: none.
-
----
-
-## Codex session summary — Group B workspace scroll + My Publications — 2026-07-17
-
-Branch: `feature/library-ux-polish`.
-
-What changed:
-- Completed handoff group B as Increment 289.
-- Added bounded `overflow-y:auto` scrolling to active registered workspace bodies, covering Discover → Journals/Funding and Extract → Effect-Size/Meta-Analysis.
-- Renamed menu-bar **Profile** to **My Publications**.
-- Renamed Extract tab labels **Effect-Size** and **Meta-Analysis**.
-- Made the My Publications dashboard resolve its own `my_publications` axis from `/axes` and refetch on `axisRefresh`, so Settings refreshes populate the workspace without touching the Axes card.
-- Removed the redundant My Publications axis-card dashboard/profile button and its App/Axes plumbing.
-- Updated served help, DESIGN, QA route 73, frontend guards, increment notes, changelog, and rebuilt `callosum-app.html`.
-
-Verification:
-- `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py tests\test_my_publications.py`: 78 passed.
-- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1145/1145, uncovered 0.
-- Browser smoke against the fresh static bundle on `http://127.0.0.1:8765/callosum-app.html`: desktop/narrow DOM checks confirmed **My Publications**, **Effect-Size**, **Meta-Analysis**, absent old dashboard button, visible Discover/Extract workspace bodies with `overflow-y:auto`, and narrow viewport page width contained while the menu bar scrolls internally. Static-bundle API console errors were expected because no backend was attached.
-- `python -m pytest`: 1241 passed, 1 skipped in 1514.22s.
-- `ruff check .`: passed.
-- `ruff format --check .`: 464 files already formatted.
-- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
-
-Partial/unverified:
-- Did not run a fully attached backend browser session with real paper/funding/journal data; the live `:8888` tab was serving a stale bundle, so browser smoke used the freshly rebuilt static bundle for DOM/layout checks only.
-- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
-
-Blockers: none.
-
----
-
-## Codex session summary — Group D Discover selected-paper cue — 2026-07-17
-
-Branch: `feature/library-ux-polish`.
-
-What changed:
-- Completed handoff group D as Increment 291.
-- Added a selected/open paper cue before the Discover sub-tabs when **Journals** or **Funding** is active.
-- Reused the Library tab visual vocabulary exactly: dashed `frame-tab-selected` for selected-but-unopened papers, and normal `frame-tab active` styling for selected papers that are already open in the reader.
-- Clicking the dashed cue opens the selected paper through the existing `openPdf` path; clicking the open-paper cue returns to the Library reader tab for that paper.
-- Kept **Search** free of the cue so Search remains corpus-level.
-- Updated served help, DESIGN, QA route 73, frontend guards, increment notes, changelog, and rebuilt `callosum-app.html`.
-
-Verification:
-- `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py`: 39 passed.
-- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1151/1151, uncovered 0.
-- Browser smoke against a fresh static bundle with mocked Library/Discover APIs confirmed: Journals shows the dashed selected-paper cue, Search shows no cue, Funding cue opens the PDF, returning to Journals shows the open-PDF styling, and clicking the open cue returns to Library.
-- `python -m pytest`: 1243 passed, 1 skipped in 1229.48s.
-- `ruff check .`: passed.
-- `ruff format --check .`: 464 files already formatted after formatting the new assembly guard.
-- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
-
-Partial/unverified:
-- Browser smoke used mocked API responses rather than a fully attached backend/database session; the Discover cue DOM behavior and click paths were verified in Chromium.
-- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
-
-Blockers: none.
-
----
-
-## Codex session summary — Group E Library retractions refresh + badges — 2026-07-17
-
-Branch: `feature/library-ux-polish`.
-
-What changed:
-- Completed handoff group E as Increment 292.
-- `POST /methods/retraction/run` now attempts a Retraction Watch mirror refresh before checking papers. If the mirror
-  refresh fails or lacks a contact email, the batch does not hard-fail: it records fallback detail and continues with
-  the existing local mirror plus configured DOI checkers.
-- The run summary now reports `database_records` / `database_refresh_error`, and the Review pane shows mirror counts
-  or fallback detail after the run.
-- `/papers` and `/papers/{id}` now expose stored `retraction_status` from `open_science_signals`.
-- Added a Library-header **Retractions ↻** `.trash-toggle` before **Text Health**. Its tooltip carries last-run
-  counts and fallback detail; on completion it refreshes the retraction chip, paper list, and findings queue.
-- Added noninteractive red **RETRACTED** badges on paper cards and Details for registry-recorded retractions, using
-  the existing `.tier` pill recipe with `--danger-line`/`--danger`.
-- Updated served help, DESIGN, QA route 73, frontend/backend guards, increment notes, changelog, and rebuilt
+- Completed handoff group A as Increment 296.
+- Added `GET /discovery/sources`, returning registry-driven source metadata for the Search picker.
+- Added optional `source=<kind>` to `GET /discovery/search`; omitted source preserves the prior all-provider fan-out,
+  while a selected source queries only that registered provider. Unknown source kinds return 422.
+- Extended `SourceRegistry` with `kinds`, `source_meta`, `get`, and `search_one`; Crossref/PubMed now expose display
+  labels.
+- Added a Discover → Search source dropdown using the existing `.lib-sort` recipe: **All sources**, **Crossref**,
+  **PubMed**, and future registered providers.
+- Preserved the honesty contract: source choice controls where to query, not AI filtering; the complete returned list
+  is shown and source pills remain visible.
+- Updated served help, route 43 QA coverage, security audit, increment notes, changelog, and rebuilt
   `callosum-app.html`.
 
 Verification:
 - `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_retraction.py tests\test_retraction_watch.py tests\test_frontend_assembly.py`: 55 passed.
-- `python -m pytest tests\test_help.py`: 14 passed.
-- `python tools\qa\build_surface_map.py check`: API 245/245, FE 1153/1153, uncovered 0.
-- Throwaway-server Playwright smoke confirmed **Retractions ↻** appears before **Text Health**, uses `.trash-toggle`,
-  has the registry-retraction tooltip, and produced 0 console/page errors.
-- `python -m pytest`: 1245 passed, 1 skipped in 1252.85s.
-- `ruff check .`: passed.
-- `ruff format --check .`: 464 files already formatted.
-- `python tools\check_line_budget.py`: all 342 application-source files within the 600-line cap.
-
-Partial/unverified:
-- Did not run a real browser smoke with a seeded registry-hit paper to visually inspect the card/detail
-  **RETRACTED** badges; this is covered by backend payload tests and frontend assembly guards, but Claude/Opus should
-  include it in the next manual Route 73 pass.
-- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
-
-Blockers: none.
-
----
-
-## Codex session summary — Group F Credit-the-lineage add-missing states — 2026-07-17
-
-Branch: `feature/library-ux-polish`.
-
-What changed:
-- Completed handoff group F as Increment 293.
-- Added read-only `POST /library/credit/status`, which normalizes DOI inputs and checks presence with the canonical
-  `find_existing_paper_by_identity(...)` lookup.
-- Added shared `MethodCreditButton` in `app/frontend/js/05_method_credit.jsx`.
-- Converted the existing `.method-credit` lineage buttons across statcheck, GRIM/GRIMMER, citation equity/context,
-  Bayesian statistics, LMM, meta-analysis reporting, transparency, effect-size conversion, p-curve, Overlooked, and
-  CRediT to use the shared helper.
-- Button behavior is now: **＋ add missing to library** when any credited source is absent; **✓ added to library** when
-  every DOI-backed credited source is already present or after a successful import; multi-source credits import only
-  the missing CSL items.
-- Left non-lineage import flows alone: regular Library import UI and Settings OpenURL credit remain separate.
-- Updated served help, DESIGN, QA route 73, frontend/backend guards, increment notes, changelog, and rebuilt
-  `callosum-app.html`.
-
-Verification:
-- `python tools\build_frontend.py` passed.
-- `python -m pytest tests\test_citation_import.py tests\test_frontend_assembly.py tests\test_help.py -q`: 52 passed.
-- `python tools\qa\build_surface_map.py check`: API 246/246, FE 1131/1131, uncovered 0.
-- `python -m pytest`: 1247 passed, 1 skipped in 1128.67s.
+- `python -m pytest tests\test_discovery.py tests\test_frontend_assembly.py tests\test_help.py -q`: 65 passed.
+- `python tools\qa\build_surface_map.py check`: API 248/248, FE 1141/1141, uncovered 0.
+- `python -m pytest`: 1259 passed, 1 skipped in 1388.35s.
 - `ruff check .`: passed.
 - `ruff format --check .`: 464 files already formatted.
 - `python tools\check_line_budget.py`: all 343 application-source files within the 600-line cap.
 
 Partial/unverified:
-- Did not run a browser smoke for the lineage buttons against a seeded library DOI state. Backend DOI presence,
-  assembled frontend wiring, labels, and missing-only import payload are covered by tests; Claude/Opus should include
-  a manual Route 73 spot check across Methods, Work → CRediT, Extract → Meta-Analysis, and Discover → Search →
-  Overlooked.
+- No browser smoke was run for the dropdown placement/state. Assembly/backend tests cover the data flow and labels;
+  Cliff/Opus should visually spot-check Discover → Search with **All sources**, **Crossref**, and **PubMed**.
+- Pre-existing uncommitted Feed/session-3 handoff changes were present before Group A started; I preserved them and
+  kept Group A conceptually separate.
 - Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.

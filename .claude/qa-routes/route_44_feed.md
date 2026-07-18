@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /feed, /feed/subscriptions, /feed/subscriptions/{sub_id}, /feed/refresh, /feed/refresh/{job_id}, /feed/items/{item_id}/state, /feed/mark-read
+api: /feed, /feed/subscriptions, /feed/subscriptions/{sub_id}, /feed/refresh, /feed/refresh/{job_id}, /feed/items/{item_id}/state, /feed/mark-read, /feed/library-journals
 fe: 30e_feed.jsx
 -->
 
@@ -46,6 +46,12 @@ that kind). The refresh job runs `refresh_subscriptions` over the registry in a 
   item shows in-library without a re-poll) — like the Search tab.
 - **A bad source never sinks the run.** `refresh_subscriptions` skips a source/subscription that raises.
 - **Save = metadata-only, no PDF** (reuses `/discovery/save` — the OA-acquire lane is untouched).
+- **Follow journals by TITLE; suggestions are the user's own library (inc 295).** `journal` (by title) is the default
+  Follow kind (ISSN dropped). `GET /feed/library-journals` returns `[{journal, count}]` from `papers.venue` —
+  **read-only, local, no egress** — powering the **Suggest** modal + the follow typeahead. It is a **tally of the
+  user's own library, ordered by count — NOT a quality ranking or recommendation** (signal-not-verdict). The
+  journal-title poll resolves title→ISSN then works via the **already-audited Crossref host** (egress only on
+  Refresh); a blank/oversized title fetches nothing.
 
 ## Adversarial checklist
 
@@ -66,6 +72,10 @@ that kind). The refresh job runs `refresh_subscriptions` over the registry in a 
    `?starred=true`. `POST /feed/mark-read` → unread_count 0.
 5. `POST /feed/refresh` again → `new_items:0`, read state intact.
 6. `DELETE /feed/subscriptions/{id}` → 204; `GET /feed` → no items (cascade). **0** genai-host requests throughout.
+7. (inc 295) `GET /feed/library-journals` → `{journals:[{journal,count}]}` from the seeded library's venues,
+   most-frequent first (a paper with no venue is excluded); **no external request**. (UI) The Follow kind defaults to
+   **Journal**; typing predicts from those library journals; **Suggest** opens a modal listing them by count with a
+   **Follow** (already-followed → ✓ Following) that `POST /feed/subscriptions {kind:"journal"}`.
 
 ## Pass criteria
 

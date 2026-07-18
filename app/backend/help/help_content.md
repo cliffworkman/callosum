@@ -1123,7 +1123,7 @@ The panel credits the standard it follows — the **CRediT / NISO taxonomy** (Br
 
 <!-- section: discover-search -->
 ## Finding new papers (Discover)
-The **Discover → Search** tab searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical) — results from both are merged, and a paper indexed in both shows both source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
+The **Discover → Search** tab searches the wider literature by keyword, title, or author — so you can find papers *outside* your library and pull them in. It searches public bibliographic metadata across **Crossref** (which also covers bioRxiv/medRxiv preprints) and **PubMed** (biomedical). Leave the source dropdown on **All sources** to merge results from every provider, or choose a single provider such as **Crossref** or **PubMed** when you deliberately want that source only. A paper indexed in more than one searched source shows multiple source pills. The only thing that leaves the machine is your search terms — this is **not** the AI/Gemini egress.
 
 Type a query and press **Enter** (or **Search**). Results come back as a dense list you can triage fast:
 
@@ -1132,13 +1132,15 @@ Type a query and press **Enter** (or **Search**). Results come back as a dense l
 
 **The complete list is always shown — nothing is filtered or re-ordered by a relevance score.** If a result is a likely match to one of your **axes**, it gets a small **"likely: &lt;axis&gt; · match 0.NN"** badge (the same similarity number an axis card shows) — a *hint* drawn on top of the full list; a result with no badge isn't "irrelevant," just not a strong axis match, and it's shown and savable like any other. Saving a result adds its **metadata** to your library (deduped, so you can't create a duplicate) — it does **not** download a PDF (that stays the separate "Acquire OA copy" step). The saved paper appears in your Library immediately; tidy its metadata or run **Acquire OA copy** from there.
 
+Choosing a source controls **where Search asks**, not what Callosum is allowed to hide: **All sources** shows the complete merged list from all enabled search providers; **Crossref** or **PubMed** shows the complete returned list from that provider.
+
 <!-- section: following-sources-feed -->
 ## Following sources (Feed)
 The **Feed** section below **Discover → Search** is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
 
 To use it:
 
-- **Follow a source** — pick the **source type** (**bioRxiv category**, **medRxiv category**, **PubMed search**, or **Journal (ISSN)**) and enter a value: a bioRxiv/medRxiv subject like `neuroscience` or `epidemiology` (the box suggests common ones), a PubMed query like `CRISPR off-target`, or a journal's ISSN like `1476-4687`. Click **Follow**. Each followed source shows as a chip (with its source tag) you can remove with its **×**.
+- **Follow a source** — the default source type is **Journal**: type a **journal title** like `Nature Neuroscience` and, as you type, the box suggests **journals already in your library**. Click **Follow** to add it (Callosum finds the journal's recent articles for you). Prefer to browse? Click **Suggest** to open a list of every journal you already have papers from — ranked by how many papers you have from each — and Follow one in a click. You can also switch the source type to **bioRxiv category** / **medRxiv category** (a subject like `neuroscience`) or **PubMed search** (a query like `CRISPR off-target`). Each followed source shows as a chip (with its source tag) you can remove with its **×**.
 - **Refresh** polls every followed source and adds any new items (re-polling never duplicates an item or resets what you've already read).
 - Filter by **All / Unread / Starred**; **Mark all read** clears the unread count.
 - Each item shows an unread dot, the title, authors, posted date, and journal. **Click a row to mark it read**; **★** stars it for later; **Save** adds its metadata to your library (deduped, no PDF — like Discover); a paper you already have is marked **✓ in library**. **Abstract** expands the summary.

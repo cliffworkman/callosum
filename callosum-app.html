@@ -11852,8 +11852,15 @@
     const [expanded, setExpanded] = useState(() => /* @__PURE__ */ new Set());
     const [savingKey, setSavingKey] = useState(null);
     const [relevance, setRelevance] = useState({});
+    const [sources, setSources] = useState([]);
+    const [source, setSource] = useState("");
     const inputRef = useRef(null);
     const listRef = useRef(null);
+    useEffect(() => {
+      api("/discovery/sources").then((r) => {
+        if (r.ok) setSources(r.data.sources || []);
+      });
+    }, []);
     const runSearch = useCallback(async () => {
       const query = q.trim();
       if (!query) return;
@@ -11862,7 +11869,8 @@
       setCursor(-1);
       setExpanded(/* @__PURE__ */ new Set());
       setRelevance({});
-      const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25`);
+      const sourceParam = source ? `&source=${encodeURIComponent(source)}` : "";
+      const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25${sourceParam}`);
       if (r.ok) {
         const rows = (r.data.items || []).map((it) => ({ ...it, saved: !!it.in_library }));
         setItems(rows);
@@ -11879,7 +11887,7 @@
         setError(r.error || "Search failed.");
         setStatus("error");
       }
-    }, [q]);
+    }, [q, source]);
     const save = useCallback(async (it) => {
       if (!it || it.saved || savingKey) return;
       setSavingKey(it.dedup_key);
@@ -11940,9 +11948,9 @@
         value: q,
         onChange: (e) => setQ(e.target.value),
         autoFocus: true,
-        placeholder: "Search the literature (Crossref) \u2014 title, author, keywords\u2026"
+        placeholder: "Search the literature \u2014 title, author, keywords\u2026"
       }
-    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: runSearch, disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search"), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 the complete list is shown (nothing filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: source, onChange: (e) => setSource(e.target.value), title: "Search source" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All sources"), sources.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.kind, value: s.kind }, s.label || s.kind))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: runSearch, disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search"), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 source choice controls where to query; the complete returned list is shown (nothing AI-filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: it.dedup_key,
@@ -11982,6 +11990,8 @@
     const [refreshing, setRefreshing] = useState(false);
     const [savingKey, setSavingKey] = useState(null);
     const [expanded, setExpanded] = useState(() => /* @__PURE__ */ new Set());
+    const [libJournals, setLibJournals] = useState([]);
+    const [suggestOpen, setSuggestOpen] = useState(false);
     const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("callosum.feedAutoRefresh") === "1");
     const autoRanRef = useRef(0);
     const loadSubs = useCallback(async () => {
@@ -12007,6 +12017,15 @@
     useEffect(() => {
       loadItems();
     }, [loadItems]);
+    useEffect(() => {
+      api("/feed/library-journals").then((r) => {
+        if (r.ok) setLibJournals(r.data.journals || []);
+      });
+    }, []);
+    const followJournal = useCallback(async (title) => {
+      const r = await apiPost("/feed/subscriptions", { kind: "journal", value: title, label: title });
+      if (r.ok) loadSubs();
+    }, [loadSubs]);
     const follow = useCallback(async () => {
       const value = selKind === "biorxiv_category" ? cat.trim().toLowerCase() : cat.trim();
       if (!value || !selKind) return;
@@ -12114,7 +12133,7 @@
           }
         }
       }
-    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, ((sourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !cat.trim() }, "Follow"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: refresh, disabled: refreshing || !subs.length }, refreshing ? "Refreshing\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), /* @__PURE__ */ React.createElement("div", { className: "feed-controls-right" }, /* @__PURE__ */ React.createElement("label", { className: "feed-autorefresh", title: "When you open the Feed and a source is stale (>6h), refresh it automatically" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAuto }), " Auto-refresh on open"), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null))), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title)), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, (selKind === "journal" ? libJournals.map((j) => j.journal) : (sourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !cat.trim() }, "Follow"), selKind === "journal" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setSuggestOpen(true), title: "Journals already in your library" }, "Suggest") : null, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: refresh, disabled: refreshing || !subs.length }, refreshing ? "Refreshing\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), /* @__PURE__ */ React.createElement("div", { className: "feed-controls-right" }, /* @__PURE__ */ React.createElement("label", { className: "feed-autorefresh", title: "When you open the Feed and a source is stale (>6h), refresh it automatically" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAuto }), " Auto-refresh on open"), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null))), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title)), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "feed-star" + (it.is_starred ? " on" : ""),
@@ -12139,7 +12158,14 @@
     ), it.abstract ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: (e) => {
       e.stopPropagation();
       toggleExpand(it.id);
-    } }, expanded.has(it.id) ? "Hide abstract" : "Abstract") : null), expanded.has(it.id) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null))));
+    } }, expanded.has(it.id) ? "Hide abstract" : "Abstract") : null), expanded.has(it.id) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null))), suggestOpen ? /* @__PURE__ */ React.createElement(FeedSuggestModal, { journals: libJournals, subs, onFollow: followJournal, onClose: () => setSuggestOpen(false) }) : null);
+  }
+  function FeedSuggestModal({ journals, subs, onFollow, onClose }) {
+    const followed = new Set((subs || []).filter((s) => s.kind === "journal").map((s) => (s.value || "").toLowerCase()));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-modal-overlay", onClick: onClose }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", null, "Journals in your library"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "Journals you already have papers from \u2014 ", /* @__PURE__ */ React.createElement("b", null, "Follow"), " one to pull its recent articles into your feed. Ordered by how many papers you have from each (a tally of your own library, not a quality ranking)."), !journals.length ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No journals in your library yet \u2014 import some papers, then their journals show up here.") : journals.map((j) => {
+      const isFollowed = followed.has((j.journal || "").toLowerCase());
+      return /* @__PURE__ */ React.createElement("div", { key: j.journal, className: "gap-row" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-info" }, /* @__PURE__ */ React.createElement("div", { className: "gap-row-title" }, j.journal), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, j.count, " paper", j.count === 1 ? "" : "s", " in your library"))), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, isFollowed ? /* @__PURE__ */ React.createElement("span", { className: "discover-inlib" }, "\u2713 Following") : /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onFollow(j.journal) }, "Follow")));
+    })));
   }
   function usePinchZoom({ scrollRef, pagesRef, scaleRef, active, onCommit }) {
     useEffect(() => {

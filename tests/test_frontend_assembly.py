@@ -121,6 +121,15 @@ def test_workspace_menubar_structure_present():
     )
 
 
+def test_discover_search_source_selector_present():
+    raw = assemble_jsx()
+    assert 'api("/discovery/sources")' in raw
+    assert 'const sourceParam = source ? `&source=${encodeURIComponent(source)}` : "";' in raw
+    assert 'className="lib-sort" value={source}' in raw
+    assert '<option value="">All sources</option>' in raw
+    assert "source choice controls where to query; the complete returned list is shown" in raw
+
+
 def test_library_selected_paper_tab_and_pdf_reorder_present():
     raw = assemble_jsx()
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
@@ -493,6 +502,15 @@ def test_priority_syncs_between_cards_and_queue():
     assert "<ReadPriorityControl paper={p} onChanged={onReadingChanged} />" in raw
     assert "function ReadPriorityControl({ paper, onChanged })" in raw
     assert "if (onChanged) onChanged();" in raw
+
+
+def test_feed_suggests_journals_from_library():
+    raw = assemble_jsx()
+    # the Feed follows journals by TITLE; a Suggest modal + typeahead read the user's own library journals
+    assert "function FeedSuggestModal(" in raw
+    assert 'api("/feed/library-journals")' in raw
+    assert 'apiPost("/feed/subscriptions", { kind: "journal", value: title, label: title })' in raw
+    assert 'selKind === "journal"' in raw and "libJournals.map(j => j.journal)" in raw
 
 
 def test_built_artifact_is_in_sync():

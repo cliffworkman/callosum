@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
@@ -61,10 +61,21 @@ def discovery_search(
     request: Request,
     q: str = Query(min_length=1, max_length=500),
     limit: int = Query(default=25, ge=1, le=50),
+    source: str | None = Query(default=None, min_length=1, max_length=50),
     conn: Connection = Depends(get_connection),
 ) -> dict[str, Any]:
-    items = run_search(conn, request.app.state.discovery_registry, q.strip(), limit)
+    registry = request.app.state.discovery_registry
+    source_name = (source or "").strip().lower() or None
+    if source_name and source_name not in registry.kinds:
+        raise HTTPException(status_code=422, detail=f"Unknown discovery source: {source_name}")
+    items = run_search(conn, registry, q.strip(), limit, source=source_name)
     return {"items": [item.to_dict() for item in items]}
+
+
+@router.get("/discovery/sources")
+def discovery_sources(request: Request) -> dict[str, Any]:
+    registry = request.app.state.discovery_registry
+    return {"sources": registry.source_meta}
 
 
 @router.post("/discovery/relevance")

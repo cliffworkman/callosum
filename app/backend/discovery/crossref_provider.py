@@ -85,6 +85,7 @@ def message_to_item(message: dict[str, Any]) -> Item | None:
 
 class CrossrefSearchProvider:
     name = "crossref"
+    label = "Crossref"
 
     def __init__(self, fetcher: SearchFetcher | None = None, mailto: str | None = None, timeout: float = 15.0) -> None:
         self.fetcher = fetcher or _httpx_search

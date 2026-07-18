@@ -28,11 +28,18 @@ def _csl_author(name: str) -> dict[str, str]:
     return {"family": name.strip()}
 
 
-def run_search(conn: Connection, registry: SourceRegistry, query: str, limit: int = 25) -> list[Item]:
-    """Fan out → dedup across providers (union sources) → mark `in_library`. Order preserved (first occurrence)."""
+def run_search(
+    conn: Connection, registry: SourceRegistry, query: str, limit: int = 25, source: str | None = None
+) -> list[Item]:
+    """Fan out, or query one selected provider, then dedup + mark `in_library`. Order preserved."""
     merged: dict[str, Item] = {}
     order: list[str] = []
-    for item in registry.search_all(query, limit):
+    source_name = (source or "").strip().lower()
+    try:
+        found = registry.search_one(source_name, query, limit) if source_name else registry.search_all(query, limit)
+    except KeyError as exc:
+        raise ValueError(f"Unknown discovery source: {source_name}") from exc
+    for item in found:
         key = item.dedup_key
         if key in merged:
             merged[key] = merged[key].merged_with(item)

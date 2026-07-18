@@ -23,7 +23,7 @@ from sqlalchemy import (
 
 from app.backend.persistence.schema_base import metadata
 
-# A source the user has chosen to follow. kind = "biorxiv_category" (later: "journal_issn", "pubmed_query"); value
+# A source the user has chosen to follow. kind = "biorxiv_category" / "journal" (by title) / "pubmed_query"; value
 # = the category / ISSN / query. UNIQUE(kind, value) so adding the same subscription is idempotent (get-or-create).
 feed_subscriptions = Table(
     "feed_subscriptions",

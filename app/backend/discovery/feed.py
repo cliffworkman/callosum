@@ -88,18 +88,19 @@ class FeedRegistry:
 
 
 def build_default_feed_registry() -> FeedRegistry:
-    """The shipped feed sources: bioRxiv-by-category (SP2a) + PubMed-keyword + journal-by-ISSN (SP2c). Adding a source
-    is one `register()`, no endpoint/UI edit (the Follow picker is data-driven from `source_meta`)."""
+    """The shipped feed sources: journal-by-title (inc 295, the default) + bioRxiv/medRxiv-by-category + PubMed-keyword.
+    Registration order sets the Follow picker's default (first = default) → Journal is default. Adding a source is one
+    `register()`, no endpoint/UI edit (the Follow picker is data-driven from `source_meta`)."""
     from app.backend.discovery.biorxiv_source import BioRxivFeedSource
-    from app.backend.discovery.journal_issn_source import JournalIssnFeedSource
+    from app.backend.discovery.journal_title_source import JournalTitleFeedSource
     from app.backend.discovery.pubmed_provider import PubMedKeywordFeedSource
 
     return (
         FeedRegistry()
+        .register(JournalTitleFeedSource())  # first → the default kind in the Follow picker
         .register(BioRxivFeedSource(server="biorxiv"))
         .register(BioRxivFeedSource(server="medrxiv"))
         .register(PubMedKeywordFeedSource())
-        .register(JournalIssnFeedSource())
     )
 
 

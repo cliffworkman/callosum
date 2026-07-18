@@ -98,12 +98,13 @@ def test_biorxiv_fetch_filters_category_and_dedups():
 
 def test_default_feed_registry_registers_sources():
     reg = build_default_feed_registry()
-    assert reg.kinds == ["biorxiv_category", "medrxiv_category", "pubmed_query", "journal_issn"]  # SP2c-3: + medRxiv
+    # inc 295: journal-by-title is registered FIRST → it's the Follow picker's default; journal-by-ISSN dropped.
+    assert reg.kinds == ["journal", "biorxiv_category", "medrxiv_category", "pubmed_query"]
     meta = {m["kind"]: m for m in reg.source_meta}
+    assert meta["journal"]["label"] == "Journal"
     assert meta["biorxiv_category"]["label"] == "bioRxiv category" and meta["biorxiv_category"]["suggestions"]
     assert meta["medrxiv_category"]["label"] == "medRxiv category" and meta["medrxiv_category"]["suggestions"]
     assert meta["pubmed_query"]["label"] == "PubMed search"
-    assert meta["journal_issn"]["label"] == "Journal (ISSN)"
 
 
 def test_medrxiv_source_uses_the_medrxiv_server():
@@ -130,11 +131,11 @@ def test_medrxiv_source_uses_the_medrxiv_server():
     assert items[0].journal == "medRxiv" and "medrxiv.org" in items[0].url  # server-aware label + URL
 
 
-# ---- journal-by-ISSN Feed source (SP2c-2, inc 190) -------------------------
+# ---- journal-by-title Feed source (inc 295) --------------------------------
 
 
-def test_journal_issn_record_and_fetch():
-    from app.backend.discovery.journal_issn_source import JournalIssnFeedSource, record_to_feed_entry
+def test_journal_title_record_and_fetch():
+    from app.backend.discovery.journal_title_source import JournalTitleFeedSource, record_to_feed_entry
 
     msg = {
         "DOI": "10.1038/AbC",
@@ -151,14 +152,25 @@ def test_journal_issn_record_and_fetch():
 
     captured = {}
 
-    def fake(issn, rows, *, mailto, timeout):
-        captured["issn"] = issn
+    def fake_lookup(title, *, mailto, timeout):
+        captured["title"] = title
+        return "1476-4687"  # resolve the journal title → its ISSN
+
+    def fake_works(params, *, mailto, timeout):
+        captured["params"] = params
         return [msg, {**msg, "DOI": "10.1038/b", "title": ["Second"]}]
 
-    src = JournalIssnFeedSource(fetcher=fake, mailto="x@example.com")
-    items = src.fetch("1476-4687", limit=10)
-    assert [i.doi for i in items] == ["10.1038/abc", "10.1038/b"] and captured["issn"] == "1476-4687"
-    assert src.fetch("not-an-issn", limit=10) == []  # invalid ISSN → no fetch (validated before the request)
+    src = JournalTitleFeedSource(works_fetcher=fake_works, issn_lookup=fake_lookup, mailto="x@example.com")
+    items = src.fetch("Nature", limit=10)
+    assert [i.doi for i in items] == ["10.1038/abc", "10.1038/b"]
+    assert captured["title"] == "Nature" and captured["params"]["filter"] == "issn:1476-4687"  # exact ISSN path
+
+    # no ISSN match → fuzzy container-title works query
+    src2 = JournalTitleFeedSource(works_fetcher=fake_works, issn_lookup=lambda *a, **k: None, mailto="x@example.com")
+    src2.fetch("Some Journal", limit=5)
+    assert captured["params"].get("query.container-title") == "Some Journal"
+
+    assert src.fetch("", limit=10) == []  # blank title → no fetch (validated before the request)
 
 
 # ---- PubMed-keyword Feed source (SP2c, inc 189) ----------------------------
@@ -298,3 +310,17 @@ def test_feed_endpoints(temp_db_url):
 
     assert client.delete(f"/feed/subscriptions/{sid}").status_code == 204
     assert client.get("/feed").json()["items"] == []  # cascade removed the items
+
+
+def test_library_journals_endpoint(temp_db_url):
+    # inc 295: the Feed "Suggest" journals + typeahead read the library's own venues (local, no egress).
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_paper(conn, title="A", csl_json={"title": "A"}, venue="Nature")
+        create_paper(conn, title="B", csl_json={"title": "B"}, venue="Nature")
+        create_paper(conn, title="C", csl_json={"title": "C"}, venue="Cell")
+        create_paper(conn, title="D", csl_json={"title": "D"})  # no venue → excluded
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    journals = client.get("/feed/library-journals").json()["journals"]
+    assert journals == [{"journal": "Nature", "count": 2}, {"journal": "Cell", "count": 1}]  # most-frequent first

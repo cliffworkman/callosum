@@ -75,6 +75,7 @@ class Item:
 @runtime_checkable
 class SourceProvider(Protocol):
     name: str
+    label: str
 
     def search(self, query: str, limit: int) -> list[Item]: ...
 
@@ -91,6 +92,20 @@ class SourceRegistry:
     def providers(self) -> list[SourceProvider]:
         return list(self._providers)
 
+    @property
+    def kinds(self) -> list[str]:
+        return [provider.name for provider in self._providers]
+
+    @property
+    def source_meta(self) -> list[dict[str, str]]:
+        return [
+            {"kind": provider.name, "label": getattr(provider, "label", provider.name)} for provider in self._providers
+        ]
+
+    def get(self, name: str) -> SourceProvider | None:
+        normalized = (name or "").strip().lower()
+        return next((provider for provider in self._providers if provider.name == normalized), None)
+
     def search_all(self, query: str, limit: int) -> list[Item]:
         """Fan out to every provider; a provider that raises is skipped (never breaks the whole search)."""
         out: list[Item] = []
@@ -100,6 +115,16 @@ class SourceRegistry:
             except Exception:  # noqa: BLE001 — one bad source must not sink the others
                 continue
         return out
+
+    def search_one(self, name: str, query: str, limit: int) -> list[Item]:
+        """Search one named provider; provider errors still fail closed to an empty list."""
+        provider = self.get(name)
+        if provider is None:
+            raise KeyError(name)
+        try:
+            return provider.search(query, limit)
+        except Exception:  # noqa: BLE001 — one bad source must not sink the search UI
+            return []
 
 
 def build_default_registry() -> SourceRegistry:

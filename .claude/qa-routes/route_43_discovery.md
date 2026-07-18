@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /discovery/search, /discovery/save, /discovery/relevance
+api: /discovery/search, /discovery/sources, /discovery/save, /discovery/relevance
 fe: 30d_discover.jsx
 -->
 
@@ -7,8 +7,9 @@ fe: 30d_discover.jsx
 
 **Tier:** 2 external (Crossref metadata)
 **Goal:** Exercise the discovery Search flow end to end — the **Discover** center tab's query box →
-`GET /discovery/search` (fans out to the SourceProvider registry, dedups across sources, marks `in_library`, returns
-the **complete** list — no AI filtering, that is SP1b) → keyboard-triage results → one-click **Save** →
+`GET /discovery/sources` (data-driven provider picker) + `GET /discovery/search` (fans out to the selected provider
+set, dedups across sources, marks `in_library`, returns the **complete** list from that provider set — no AI
+filtering, that is SP1b) → keyboard-triage results → one-click **Save** →
 `POST /discovery/save` (a **metadata-only, deduped** library paper; **no PDF fetch** — acquisition stays the OA lane).
 Public-metadata search (Crossref now) — **never** the Gemini library-text gate. Backend = inc 183; the Discover tab UI
 (`30d_discover.jsx`) = inc 184.
@@ -20,7 +21,8 @@ Crossref metadata is fine). Register console/pageerror/request listeners before 
 
 **Sources:** the default registry holds **Crossref** + **PubMed** (NCBI E-utilities, SP1a inc 186) — both fan out
 behind `/discovery/search` with no endpoint/UI change (the registry's promise). A result from both (same DOI) collapses
-to one row with both source pills.
+to one row with both source pills. The UI source dropdown defaults to **All sources** (the historical fan-out) and can
+restrict the provider fan-out to one registry source such as **Crossref** or **PubMed**.
 
 **Seed note:** the real Crossref/PubMed search hits the network. To exercise the flow **offline + deterministically**,
 inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake provider (mirror `tests/test_discovery.py`'s
@@ -35,7 +37,8 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 - **Console-error budget = 0.** Any console `error` >= Medium; any `pageerror` >= High.
 - **Egress gate.** ANY request to a `generativelanguage`/Gemini/genai host is **Critical** (discovery is public
   metadata only — Crossref, never the library-text gate).
-- **Complete list, AI augments-never-filters.** `GET /discovery/search` returns every deduped result; nothing is
+- **Complete list, AI augments-never-filters.** `GET /discovery/search` returns every deduped result from the selected
+  provider set; choosing a source controls **where to query**, not which results AI may hide. Nothing is
   hidden/reordered by a relevance score. **`POST /discovery/relevance` (SP1b)** is a *highlight* only — it returns
   the best-matching axis + similarity for items that clear that axis's cutoff; a below-cutoff item is simply absent
   from the map (**no badge ≠ "irrelevant"** — silence is not a certificate). The match is **one labeled cosine
@@ -60,6 +63,7 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 - Save a novel result → `created:true`; save it again → `created:false`, same `paper_id`, no duplicate in `/papers`
 - Save a result matching an existing paper → deduped onto it (`created:false`)
 - Blank `q` → 422; oversized `limit` → 422 (capped at 50)
+- Unknown `source` → 422; `GET /discovery/sources` lists the data-driven picker options
 - **0** genai-host requests throughout
 
 ## UI flow (the Discover tab, inc 184)
@@ -73,19 +77,24 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 
 ## Steps
 
-1. (Offline, fake registry as above) `GET /discovery/search?q=<seeded topic>` → confirm the response shape:
+1. (Offline, fake registry as above) `GET /discovery/sources` → confirm it returns source metadata for the picker
+   (`All sources` is UI-only; each returned source has `kind` + `label`).
+2. `GET /discovery/search?q=<seeded topic>` with no `source` → confirm the response shape:
    `{items:[{title, authors, year, journal, doi, sources, in_library, dedup_key, ...}]}`; one item `in_library:true`
    (matches a seeded paper), the rest `false`.
-2. Confirm cross-provider dedup: a DOI returned by two fake providers appears once with `sources` unioned.
-3. `POST /discovery/save {title, doi, ...}` for a novel result → `{paper_id, created:true}`; verify it now appears in
+3. Confirm cross-provider dedup: a DOI returned by two fake providers appears once with `sources` unioned.
+4. Repeat `GET /discovery/search?q=<seeded topic>&source=pubmed` → confirm only the PubMed fake provider is queried
+   and the returned list is complete for that provider. Try `source=missing` → 422.
+5. `POST /discovery/save {title, doi, ...}` for a novel result → `{paper_id, created:true}`; verify it now appears in
    `GET /papers` with `imported_source: discovery-import` and **no attachment/PDF**.
-4. `POST /discovery/save` again with the same identity → `{paper_id:<same>, created:false}`; `GET /papers` shows no
+6. `POST /discovery/save` again with the same identity → `{paper_id:<same>, created:false}`; `GET /papers` shows no
    duplicate.
-5. Adversarial: blank `q` → 422; `limit=999` → 422; **0** genai-host requests.
+7. Adversarial: blank `q` → 422; `limit=999` → 422; unknown `source` → 422; **0** genai-host requests.
 
 ## Pass criteria
 
-- Search returns the complete deduped list with `sources` + `in_library` + `dedup_key`; nothing AI-filtered.
+- Search returns the complete deduped list for All or the selected provider with `sources` + `in_library` +
+  `dedup_key`; nothing AI-filtered.
 - Save creates a metadata-only, deduped paper (`discovery-import`); re-save is idempotent (same id, `created:false`);
   **no PDF fetched**.
 - Bad inputs fail closed (422); a failing provider is skipped, not fatal.

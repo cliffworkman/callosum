@@ -14,6 +14,8 @@ function FeedPane({ onSaved, active, embedded }) {
   const [refreshing, setRefreshing] = useState(false);
   const [savingKey, setSavingKey] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
+  const [libJournals, setLibJournals] = useState([]); // inc 295: journals already in the library (Suggest + typeahead)
+  const [suggestOpen, setSuggestOpen] = useState(false);
   // SP2c-3: opt-in auto-refresh when the Feed is opened + a source is stale (pull-first; default off).
   const [autoRefresh, setAutoRefresh] = useState(() => localStorage.getItem("callosum.feedAutoRefresh") === "1");
   const autoRanRef = useRef(0);
@@ -36,6 +38,13 @@ function FeedPane({ onSaved, active, embedded }) {
 
   useEffect(() => { loadSubs(); }, [loadSubs]);
   useEffect(() => { loadItems(); }, [loadItems]);
+  // inc 295: the library's own journals (venue + count) drive the journal typeahead + the Suggest modal — local, no egress.
+  useEffect(() => { api("/feed/library-journals").then(r => { if (r.ok) setLibJournals(r.data.journals || []); }); }, []);
+
+  const followJournal = useCallback(async (title) => {
+    const r = await apiPost("/feed/subscriptions", { kind: "journal", value: title, label: title });
+    if (r.ok) loadSubs();
+  }, [loadSubs]);
 
   const follow = useCallback(async () => {
     // bioRxiv categories are lowercase in the API; PubMed queries keep the user's casing.
@@ -150,9 +159,15 @@ function FeedPane({ onSaved, active, embedded }) {
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); follow(); } }}
           />
           <datalist id="feed-source-suggestions">
-            {((sourceMeta.find(m => m.kind === selKind) || {}).suggestions || []).map(c => <option key={c} value={c} />)}
+            {(selKind === "journal"
+              ? libJournals.map(j => j.journal)  // inc 295: predict from YOUR library's journals as you type
+              : ((sourceMeta.find(m => m.kind === selKind) || {}).suggestions || [])
+            ).map(c => <option key={c} value={c} />)}
           </datalist>
           <button className="btn btn-ghost" onClick={follow} disabled={!cat.trim()}>Follow</button>
+          {selKind === "journal"
+            ? <button className="btn btn-ghost" onClick={() => setSuggestOpen(true)} title="Journals already in your library">Suggest</button>
+            : null}
           <button className="btn btn-primary" onClick={refresh} disabled={refreshing || !subs.length}>
             {refreshing ? "Refreshing…" : "Refresh"}
           </button>
@@ -208,6 +223,47 @@ function FeedPane({ onSaved, active, embedded }) {
             {expanded.has(it.id) && it.abstract ? <div className="discover-abstract">{it.abstract}</div> : null}
           </div>
         ))}
+      </div>
+      {suggestOpen
+        ? <FeedSuggestModal journals={libJournals} subs={subs} onFollow={followJournal} onClose={() => setSuggestOpen(false)} />
+        : null}
+    </div>
+  );
+}
+
+// inc 295: journals already in the user's library (venue + paper count) — follow one to seed the feed. Ranked by
+// count (a transparent tally of the user's own library, not a quality ranking). Reuses the axis-modal + gap-row recipes.
+function FeedSuggestModal({ journals, subs, onFollow, onClose }) {
+  const followed = new Set((subs || []).filter(s => s.kind === "journal").map(s => (s.value || "").toLowerCase()));
+  return (
+    <div className="axis-modal-overlay" onClick={onClose}>
+      <div className="axis-modal" onClick={e => e.stopPropagation()}>
+        <div className="axis-modal-head">
+          <span>Journals in your library</span>
+          <button className="axis-link" onClick={onClose}>×</button>
+        </div>
+        <div className="axis-modal-note">
+          Journals you already have papers from — <b>Follow</b> one to pull its recent articles into your feed. Ordered
+          by how many papers you have from each (a tally of your own library, not a quality ranking).
+        </div>
+        {!journals.length
+          ? <div className="axis-hint">No journals in your library yet — import some papers, then their journals show up here.</div>
+          : journals.map(j => {
+            const isFollowed = followed.has((j.journal || "").toLowerCase());
+            return (
+              <div key={j.journal} className="gap-row">
+                <div className="gap-row-info">
+                  <div className="gap-row-title">{j.journal}</div>
+                  <div className="gap-row-meta"><span className="gap-count">{j.count} paper{j.count === 1 ? "" : "s"} in your library</span></div>
+                </div>
+                <div className="gap-row-actions">
+                  {isFollowed
+                    ? <span className="discover-inlib">✓ Following</span>
+                    : <button className="axis-link" onClick={() => onFollow(j.journal)}>Follow</button>}
+                </div>
+              </div>
+            );
+          })}
       </div>
     </div>
   );

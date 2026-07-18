@@ -105,6 +105,7 @@ def test_registry_search_all_skips_a_failing_provider():
 def test_build_default_registry_registers_crossref_and_pubmed():
     reg = build_default_registry()
     assert [p.name for p in reg.providers] == ["crossref", "pubmed"]  # adding a source = one register() (SP1a)
+    assert reg.source_meta == [{"kind": "crossref", "label": "Crossref"}, {"kind": "pubmed", "label": "PubMed"}]
 
 
 # ---- run_search: cross-provider dedup + in_library marking -----------------
@@ -120,6 +121,31 @@ def test_run_search_dedups_across_providers_and_unions_sources(temp_db_url):
     engine.dispose()
     assert len(items) == 1  # one DOI → one row
     assert items[0].sources == ("crossref", "pubmed") and items[0].abstract == "from pubmed"
+
+
+def test_run_search_can_query_one_named_source(temp_db_url):
+    reg = (
+        SourceRegistry()
+        .register(_FakeProvider("crossref", [Item("Crossref Paper", sources=("crossref",), doi="10.1/c")]))
+        .register(_FakeProvider("pubmed", [Item("PubMed Paper", sources=("pubmed",), doi="10.1/p")]))
+    )
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        items = run_search(conn, reg, "paper", source="pubmed")
+    engine.dispose()
+    assert [item.title for item in items] == ["PubMed Paper"]
+
+
+def test_run_search_rejects_unknown_source(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        try:
+            run_search(conn, SourceRegistry(), "paper", source="missing")
+        except ValueError as exc:
+            assert "Unknown discovery source: missing" in str(exc)
+        else:  # pragma: no cover - defensive clarity
+            raise AssertionError("unknown source should fail closed")
+    engine.dispose()
 
 
 def test_run_search_marks_in_library(temp_db_url):
@@ -189,6 +215,31 @@ def test_search_endpoint_shape(temp_db_url):
     item = body["items"][0]
     assert item["doi"] == "10.1/e" and item["dedup_key"] == "doi:10.1/e" and item["in_library"] is False
     assert item["sources"] == ["crossref"] and item["year"] == 2022
+
+
+def test_sources_endpoint_returns_search_provider_metadata(temp_db_url):
+    reg = SourceRegistry().register(_FakeProvider("crossref", [])).register(_FakeProvider("pubmed", []))
+    client = _client(temp_db_url, reg)
+    assert client.get("/discovery/sources").json() == {
+        "sources": [{"kind": "crossref", "label": "crossref"}, {"kind": "pubmed", "label": "pubmed"}]
+    }
+
+
+def test_search_endpoint_can_restrict_to_one_source(temp_db_url):
+    reg = (
+        SourceRegistry()
+        .register(_FakeProvider("crossref", [Item("Crossref Paper", sources=("crossref",), doi="10.1/c")]))
+        .register(_FakeProvider("pubmed", [Item("PubMed Paper", sources=("pubmed",), doi="10.1/p")]))
+    )
+    client = _client(temp_db_url, reg)
+    body = client.get("/discovery/search", params={"q": "paper", "source": "pubmed"}).json()
+    assert [item["title"] for item in body["items"]] == ["PubMed Paper"]
+
+
+def test_search_endpoint_rejects_unknown_source(temp_db_url):
+    client = _client(temp_db_url, SourceRegistry())
+    r = client.get("/discovery/search", params={"q": "paper", "source": "missing"})
+    assert r.status_code == 422 and "Unknown discovery source" in r.json()["detail"]
 
 
 def test_search_endpoint_rejects_blank_query(temp_db_url):

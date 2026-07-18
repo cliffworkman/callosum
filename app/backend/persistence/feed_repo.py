@@ -8,7 +8,7 @@ from typing import Any
 
 from sqlalchemy import Connection, RowMapping, and_, delete, func, insert, select, update
 
-from app.backend.persistence.schema import feed_items, feed_subscriptions
+from app.backend.persistence.schema import feed_items, feed_subscriptions, papers
 
 
 def add_subscription(conn: Connection, *, kind: str, value: str, label: str | None = None) -> RowMapping:
@@ -121,3 +121,15 @@ def unread_count(conn: Connection) -> int:
     return int(
         conn.execute(select(func.count()).select_from(feed_items).where(feed_items.c.is_read == 0)).scalar() or 0
     )
+
+
+def list_library_journals(conn: Connection) -> list[dict[str, Any]]:
+    """Distinct journals (``papers.venue``) present in the LIVE library with paper counts, most-frequent first —
+    powers the Feed's "Suggest" journals modal + typeahead. Reads the user's own library data; local, no egress."""
+    stmt = (
+        select(papers.c.venue, func.count().label("count"))
+        .where(papers.c.venue.is_not(None), papers.c.venue != "", papers.c.deleted_at.is_(None))
+        .group_by(papers.c.venue)
+        .order_by(func.count().desc(), papers.c.venue)
+    )
+    return [{"journal": r[0], "count": int(r[1])} for r in conn.execute(stmt)]

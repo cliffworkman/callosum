@@ -140,6 +140,7 @@ def summary_to_item(rec: dict[str, Any]) -> Item | None:
 
 class PubMedSearchProvider:
     name = "pubmed"
+    label = "PubMed"
 
     def __init__(self, fetcher: SearchFetcher | None = None, email: str | None = None, timeout: float = 15.0) -> None:
         self.fetcher = fetcher or _eutils_search

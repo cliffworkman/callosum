@@ -12,14 +12,21 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
   const [expanded, setExpanded] = useState(() => new Set());
   const [savingKey, setSavingKey] = useState(null);
   const [relevance, setRelevance] = useState({}); // dedup_key -> {axis_label, similarity} — a HINT, never a filter
+  const [sources, setSources] = useState([]);
+  const [source, setSource] = useState("");
   const inputRef = useRef(null);
   const listRef = useRef(null);
+
+  useEffect(() => {
+    api("/discovery/sources").then(r => { if (r.ok) setSources(r.data.sources || []); });
+  }, []);
 
   const runSearch = useCallback(async () => {
     const query = q.trim();
     if (!query) return;
     setStatus("loading"); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({});
-    const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25`);
+    const sourceParam = source ? `&source=${encodeURIComponent(source)}` : "";
+    const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25${sourceParam}`);
     if (r.ok) {
       const rows = (r.data.items || []).map(it => ({ ...it, saved: !!it.in_library }));
       setItems(rows); setStatus("ready"); setCursor(rows.length ? 0 : -1);
@@ -34,7 +41,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     } else {
       setItems([]); setError(r.error || "Search failed."); setStatus("error");
     }
-  }, [q]);
+  }, [q, source]);
 
   const save = useCallback(async (it) => {
     if (!it || it.saved || savingKey) return;
@@ -80,8 +87,12 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
         <div className="searchbar">
           <input
             ref={inputRef} value={q} onChange={e => setQ(e.target.value)} autoFocus
-            placeholder="Search the literature (Crossref) — title, author, keywords…"
+            placeholder="Search the literature — title, author, keywords…"
           />
+          <select className="lib-sort" value={source} onChange={e => setSource(e.target.value)} title="Search source">
+            <option value="">All sources</option>
+            {sources.map(s => <option key={s.kind} value={s.kind}>{s.label || s.kind}</option>)}
+          </select>
           <button className="btn btn-primary" onClick={runSearch} disabled={status === "loading" || !q.trim()}>
             {status === "loading" ? "Searching…" : "Search"}
           </button>
@@ -90,7 +101,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
           {onOpenOverlooked && <button className="btn btn-primary" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}
         </div>
         <div className="discover-hint">
-          Public metadata search · the complete list is shown (nothing filtered) · <b>j/k</b> move · <b>s</b> save · <b>Enter</b> abstract
+          Public metadata search · source choice controls where to query; the complete returned list is shown (nothing AI-filtered) · <b>j/k</b> move · <b>s</b> save · <b>Enter</b> abstract
         </div>
       </div>
       <div className="pane-list-body" ref={listRef} tabIndex={0}>

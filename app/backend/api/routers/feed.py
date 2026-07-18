@@ -42,6 +42,13 @@ def list_subscriptions(request: Request, conn: Connection = Depends(get_connecti
     return {"subscriptions": subs, "kinds": registry.kinds, "source_meta": registry.source_meta}
 
 
+@router.get("/feed/library-journals")
+def library_journals(conn: Connection = Depends(get_connection)) -> dict[str, Any]:
+    """Journals already present in the library (venue + paper count, most-frequent first) — powers the Feed's
+    "Suggest" journals modal + the follow typeahead. Read-only, local (no egress); the user's own data, not a ranking."""
+    return {"journals": feed_repo.list_library_journals(conn)}
+
+
 @router.post("/feed/subscriptions")
 def add_subscription(
     payload: SubscriptionRequest, request: Request, engine: Engine = Depends(get_engine)
