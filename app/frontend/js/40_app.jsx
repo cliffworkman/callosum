@@ -38,6 +38,7 @@ function App() {
   const gotoLibrary = useCallback((t) => { selectWorkspace("library"); setActiveTab(t); }, [selectWorkspace]);
   const openSynthesisWorkspace = useCallback(() => {
     selectWorkspace("synthesis");
+    setWorkspaceTabRequest(prev => ({ wsId: "synthesis", tabId: "ask", nonce: (prev ? prev.nonce : 0) + 1 }));
     if (mobile) setMobilePane("library");
   }, [mobile, selectWorkspace, setMobilePane]);
   const requestWorkspaceTab = useCallback((wsId, tabId) => {

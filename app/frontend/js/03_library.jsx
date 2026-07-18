@@ -63,7 +63,7 @@ function useLibrary(opts) {
     });
   }, [selectedLibraryIds, setSelected]);
 
-  // inc-62 → inc 287: "summarize N" → drive the Synthesis workspace to summarize the selected subset.
+  // inc-62 → inc 287/298: "summarize N" → drive Synthesize → Ask to summarize the selected subset.
   const bulkSummarizePapers = useCallback((focus) => {
     const ids = [...selectedLibraryIds];
     if (!ids.length) return;

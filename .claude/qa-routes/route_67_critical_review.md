@@ -6,7 +6,7 @@ fe: 08x_methods_critical.jsx
 # ROUTE 67 - Critical read (scrutiny surface: Tier-1 facts + Tier-2 AI candidates)
 
 **Tier:** 2 local-stateful + egress-gated
-**Goal:** Exercise the single-paper "Critical read" METHODS section — the deterministic Tier-1 backbone (async
+**Goal:** Exercise the single-paper **Synthesize → Critique** tab — the deterministic Tier-1 backbone (async
 job) and the opt-in, egress-gated Tier-2 AI critique candidates (accept/reject) — and prove it stays a **signal,
 never a verdict**: no score, facts vs. candidates distinct, no author accusation, egress honored.
 
@@ -39,7 +39,7 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 
 ## Steps
 
-1. Select a paper with a processed PDF. Open the **Critical read** METHODS section. Confirm the Tier-1 job runs
+1. Select a paper with a processed PDF. Open **Synthesize → Critique**. Confirm the Tier-1 job runs
    (`POST /papers/{id}/critical-read` → poll `GET /critical-read/{job_id}`) and the backbone renders: method-check
    flags + any corpus-contested claims, each with its grounding (the contesting passage + page) and confidence.
 2. Confirm a paper with nothing flagged shows an **honest** "nothing surfaced by these checks — not a clean bill of

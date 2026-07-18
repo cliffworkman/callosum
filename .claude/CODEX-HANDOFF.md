@@ -7,8 +7,8 @@ Picking up **callosum** with the maintainer (Cliff) **supervising live**. **Read
 - `main` has inc 283 (PDF section-labels) + the workspaces IA (284–287).
 - **`feature/library-ux-polish`** (pushed) has inc 288–293 (Codex library-UX) + 294 (Reading-Queue priority strata +
   sync) + **295 (Feed: follow journals by title, Suggest-from-library, typeahead)**. This branch has the full current
-  IA (Profile · Library · Synthesis · Discover · Work · Extract; Discover = Search·Journals·Funding with Feed
-  **embedded in Search** since inc 285). **Cut your branch from it:** `git checkout feature/library-ux-polish && git
+  IA (Profile · Library · Synthesize · Discover · Work · Extract; Synthesize = Ask·Critique; Discover =
+  Feed·Search·Journals·Funding). **Cut your branch from it:** `git checkout feature/library-ux-polish && git
   checkout -b feature/discover-search-synthesize`.
 
 ## Hard rules for THIS session
@@ -24,7 +24,7 @@ Picking up **callosum** with the maintainer (Cliff) **supervising live**. **Read
 4. **Do NOT touch the design invariants** (egress gate; coordinate honesty; signal-not-verdict; evidence shown).
 5. **No over-claiming.** Report the real pytest count; say "partial"/"unverified" (esp. visual placement — flag what
    Cliff/Opus should eyeball). Minimal diffs; one increment-notes file + `changes.md` entry per increment (bump the
-   number — next is **296**); keep CLAUDE.md current.
+   number — next is **299**); keep CLAUDE.md current.
 6. **Line-budget watch** (near-cap files you'll touch): `04b_workspaces.jsx`, `30d_discover.jsx`, `20_synthesis.jsx`,
    `40_app.jsx` — split with the shared-IIFE hoist precedent if one crosses 600.
 
@@ -157,3 +157,25 @@ Partial/unverified:
 - Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.
+---
+
+## Codex update — 2026-07-18: Group C / Increment 298 complete
+
+- Implemented **Synthesize** as the renamed center workspace label while preserving the internal `synthesis` id.
+- Split Synthesize into registered sub-tabs: **Ask** for the existing synthesis pane and **Critique** for the single-paper Critical Read surface.
+- Moved Critical Read out of the METHODS accordion; its active gating now comes from the workspace-tab `active` argument.
+- Updated selection summarize to request **Synthesize → Ask** so a remembered Critique tab does not intercept summarize flows.
+- Updated critical-set helper copy, served help, design notes, and QA routes for the new IA.
+- Rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools/build_frontend.py` — passed.
+- Focused `python -m pytest tests/test_frontend_assembly.py tests/test_help.py tests/test_critical_review.py tests/test_critical_review_set.py -q` — 73 passed.
+- `python -m ruff check .` — passed.
+- `python -m ruff format --check .` — passed after formatting `tests/test_frontend_assembly.py`.
+- `python tools/check_line_budget.py` — passed.
+- `python tools/qa/build_surface_map.py check` — 248 API / 1141 FE, 0 uncovered.
+- Full `python -m pytest -q` — 1260 passed, 1 skipped.
+
+Handoff caveat:
+- No browser smoke was run for the visual placement. Claude/Opus should eyeball the menu order and Synthesize tabs in the running UI, especially read-only behavior hiding **Critique**.

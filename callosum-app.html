@@ -6930,16 +6930,15 @@
       gen === "generating" ? "Suggesting\u2026" : "Suggest critiques (AI)"
     ), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
   }
-  function CriticalReadSection({ ctx }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A ", /* @__PURE__ */ React.createElement("b", null, "critical read"), ": what to check before you cite \u2014 the paper\u2019s method-check flags, claims the rest of your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a verdict or a score."), /* @__PURE__ */ React.createElement(CriticalReadPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active: ctx.methodsOpen === "critical_read" }));
+  function CriticalReadSection({ ctx, active }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A ", /* @__PURE__ */ React.createElement("b", null, "critical read"), ": what to check before you cite \u2014 the paper\u2019s method-check flags, claims the rest of your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a verdict or a score."), /* @__PURE__ */ React.createElement(CriticalReadPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
-  registerPaneSection({
-    id: "critical_read",
-    label: "Critical read",
-    paneId: "methods",
-    order: 40,
+  registerWorkspaceTab({ id: "synthesis" }, {
+    id: "critique",
+    label: "Critique",
+    order: 20,
     hideInReadOnly: true,
-    render: (ctx) => /* @__PURE__ */ React.createElement(CriticalReadSection, { ctx })
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(CriticalReadSection, { ctx, active })
   });
   function _crSetKinds(aggregate) {
     const seen = [];
@@ -6956,7 +6955,7 @@
         byKind[s.kind] = s;
       });
       return /* @__PURE__ */ React.createElement("tr", { key: row.paper_id }, /* @__PURE__ */ React.createElement("td", { className: "cr-matrix-title", title: row.title }, row.title), kinds.map((k) => /* @__PURE__ */ React.createElement("td", { key: k, title: byKind[k] ? byKind[k].detail || byKind[k].label || "" : "" }, byKind[k] ? byKind[k].label || "\u2022" : "\u2014")), /* @__PURE__ */ React.createElement("td", null, row.contested_count || 0));
-    }))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, "Facts each check surfaced \u2014 ", /* @__PURE__ */ React.createElement("b", null, "not a score"), ". An empty cell means ", /* @__PURE__ */ React.createElement("i", null, "this check found nothing on this paper"), ", not a clean bill of health.", kinds.length === 0 && /* @__PURE__ */ React.createElement("span", null, " No method checks (statcheck, transparency, \u2026) have been ", /* @__PURE__ */ React.createElement("b", null, "run"), " on these papers yet \u2014 run them from each paper\u2019s METHODS pane to populate this. The ", /* @__PURE__ */ React.createElement("i", null, "contested"), " column reflects only intra-set disagreement, which needs no prior check.")));
+    }))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, "Facts each check surfaced \u2014 ", /* @__PURE__ */ React.createElement("b", null, "not a score"), ". An empty cell means ", /* @__PURE__ */ React.createElement("i", null, "this check found nothing on this paper"), ", not a clean bill of health.", kinds.length === 0 && /* @__PURE__ */ React.createElement("span", null, " No method checks (statcheck, transparency, \u2026) have been ", /* @__PURE__ */ React.createElement("b", null, "run"), " on these papers yet \u2014 run them from each paper\u2019s Synthesize \u2192 Critique tab to populate this. The ", /* @__PURE__ */ React.createElement("i", null, "contested"), " column reflects only intra-set disagreement, which needs no prior check.")));
   }
   function CriticalSetDisagreements({ contested, titleById, onOpen }) {
     const label = (id) => titleById[id] || "Paper " + id;
@@ -9698,8 +9697,14 @@
   }
   registerWorkspace({
     id: "synthesis",
-    label: "Synthesis",
+    label: "Synthesize",
     order: 30,
+    hideInReadOnly: false
+  });
+  registerWorkspaceTab({ id: "synthesis" }, {
+    id: "ask",
+    label: "Ask",
+    order: 10,
     hideInReadOnly: false,
     render: (ctx) => /* @__PURE__ */ React.createElement(
       SynthesisPane,
@@ -11763,7 +11768,7 @@
       setDismissed(true);
       _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesis"), " is on the menu bar; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-Size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesize"), " is on the menu bar with ", /* @__PURE__ */ React.createElement("b", null, "Ask"), " + ", /* @__PURE__ */ React.createElement("b", null, "Critique"), "; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-Size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActivate, onClose, onOpenPdf, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
@@ -14223,6 +14228,7 @@
     }, [selectWorkspace]);
     const openSynthesisWorkspace = useCallback(() => {
       selectWorkspace("synthesis");
+      setWorkspaceTabRequest((prev) => ({ wsId: "synthesis", tabId: "ask", nonce: (prev ? prev.nonce : 0) + 1 }));
       if (mobile) setMobilePane("library");
     }, [mobile, selectWorkspace, setMobilePane]);
     const requestWorkspaceTab = useCallback((wsId, tabId) => {

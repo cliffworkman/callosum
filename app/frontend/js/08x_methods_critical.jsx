@@ -142,7 +142,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, active }) {
   );
 }
 
-function CriticalReadSection({ ctx }) {
+function CriticalReadSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">
@@ -150,12 +150,12 @@ function CriticalReadSection({ ctx }) {
         your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a
         verdict or a score.
       </div>
-      <CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "critical_read"} />
+      <CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
     </div>
   );
 }
 
-registerPaneSection({
-  id: "critical_read", label: "Critical read", paneId: "methods", order: 40, hideInReadOnly: true,
-  render: (ctx) => <CriticalReadSection ctx={ctx} />,
+registerWorkspaceTab({ id: "synthesis" }, {
+  id: "critique", label: "Critique", order: 20, hideInReadOnly: true,
+  render: (ctx, active) => <CriticalReadSection ctx={ctx} active={active} />,
 });

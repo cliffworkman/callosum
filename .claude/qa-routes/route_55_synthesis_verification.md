@@ -3,7 +3,7 @@ api: /summarize*, /summaries*
 fe: 19_synthesis_failures.jsx, 20_synthesis.jsx
 -->
 
-# ROUTE 55 - Synthesis and verification
+# ROUTE 55 - Synthesize → Ask and verification
 
 **Tier:** 2 egress/external
 **Goal:** Exhaust summary generation, polling, persisted summary browsing/deletion, verification/citation honesty,
@@ -36,9 +36,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 
 ## Steps
 
-1. Open the Synthesis pane (`20_synthesis.jsx`) and existing summaries (`GET /summaries`). Confirm empty/list states.
+1. Open **Synthesize → Ask** (`20_synthesis.jsx`) and existing summaries (`GET /summaries`). Confirm empty/list states.
 2. Generate a paper-scope summary (`POST /summarize`) using the fake generator. Poll (`GET /summarize/{job_id}`) through completion; navigate away mid-job and return.
-   - **inc 145 (Skeptical synthesizer):** select papers in the Library → the selection bar shows a **"Focus on…" input**; typing a question + **summarize** sends `scope_type:"papers"` **with `query=<focus>`** (a query-RANKED synthesis of just the selection) and the Synthesis scope-note reads "… · focused on '…'" (the focus also reflects into the Synthesis textarea). Blank focus → a general selection summary (no `query`). Confirm the focus is honest — it ranks coverage, never fabricates a claim the evidence doesn't support.
+   - **inc 145 (Skeptical synthesizer):** select papers in the Library → the selection bar shows a **"Focus on…" input**; typing a question + **summarize** sends `scope_type:"papers"` **with `query=<focus>`** (a query-RANKED synthesis of just the selection) and the Synthesize → Ask scope-note reads "… · focused on '…'" (the focus also reflects into the Ask textarea). Blank focus → a general selection summary (no `query`). Confirm the focus is honest — it ranks coverage, never fabricates a claim the evidence doesn't support.
 3. Generate cluster and query summaries, including an empty/whitespace query. Confirm validation and no orphaned spinners.
 4. Open persisted summary detail (`GET /summaries/{summary_id}`). Confirm every sentence shows visible verification status and every citation shows confidence, quote, page, and coordinate precision.
 5. Click citations. Assert exact/region/null coordinate honesty in the PDF viewer.
@@ -60,7 +60,7 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
       scope, Text Health opens scoped to those source papers, offers **Show all text-health items** / **Return to
       synthesis scope**, shows **Reprocess scoped papers** only for scoped papers with missing section labels or stale
       extraction, and after a reprocess completes offers **Retry synthesis** for the same request.
-      Before opening Text Health, the Synthesis pane should show a compact diagnostic such as selected-paper count,
+      Before opening Text Health, Synthesize → Ask should show a compact diagnostic such as selected-paper count,
       no local PDF, no extracted text, stale extraction, or missing section labels; query/all-library zero-source
       cases should say no source chunks matched the query or active section filter.
     - provider timeout/rate/HTTP failure -> **Retry** plus an optional Settings link.

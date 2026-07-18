@@ -6,7 +6,7 @@ fe: 08y_critical_set.jsx
 # ROUTE 71 - Set (multi-paper) critical review (fact-matrix + intra-set contradictions + AI cross-paper candidates)
 
 **Tier:** 2 local-stateful + egress-gated
-**Goal:** Exercise the multi-paper "critical read" — the modal launched from a shown synthesis ("Critically review
+**Goal:** Exercise the multi-paper "critical read" — the modal launched from a shown Synthesize → Ask result ("Critically review
 these sources") or the library bulk bar ("critical read") — and prove it stays a **signal, never a verdict**: the
 Tier-1 aggregate is a fact-matrix (no score), intra-set contradictions open the right PDF, and Tier-2 AI cross-paper
 candidates are egress-gated, verbatim-grounded, and human-confirmed. Extends route 67 (single-paper) to the set.
@@ -57,7 +57,7 @@ fake/loopback provider. Register listeners before navigation.
    modal. Confirm the right PDF/page.
 3. Confirm an all-quiet set shows the honest "nothing surfaced by this check … only silence from these checks",
    never "these papers agree."
-4. From a **shown synthesis**, click **"Critically review these sources (N)"** → the modal opens over the synthesis's
+4. From a shown **Synthesize → Ask** result, click **"Critically review these sources (N)"** → the modal opens over the synthesis's
    cited papers (2..12). Confirm the button is hidden for a read-only instance and when <2 papers were cited.
 5. **Egress OFF (default):** confirm the Tier-2 control is hidden (the "enable AI in Settings" note). Directly
    `POST /critical-read/set {llm:true}` → the job completes with `llm_status.status == "unavailable"` and no

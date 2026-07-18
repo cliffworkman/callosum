@@ -16,7 +16,7 @@ function WorkspacesWhatsNewHint({ readOnly }) {
   };
   return (
     <div className="axis-hint workspace-whatsnew" role="status">
-      <span>New layout: <b>Synthesis</b> is on the menu bar; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-Size</b> + <b>Meta-Analysis</b> under <b>Extract</b>.</span>
+      <span>New layout: <b>Synthesize</b> is on the menu bar with <b>Ask</b> + <b>Critique</b>; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-Size</b> + <b>Meta-Analysis</b> under <b>Extract</b>.</span>
       <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss workspace layout notice" title="Dismiss" onClick={dismiss}>×</button>
     </div>
   );

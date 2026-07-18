@@ -9,7 +9,7 @@ fe: 03_library.jsx, 04b_workspaces.jsx, 05_method_credit.jsx, 08_methods_finding
 **Goal:** Exercise the inc-280/286 menu bar — the second nav dimension inside the center (Library) pane — and prove it
 switches workspaces cleanly, keeps the three panes separate + full-height, nests open PDFs under Library with the
 selected-paper pre-open affordance + draggable open-PDF tab order, and that
-the relocated tools (Synthesis as its own workspace; Feed/Search/Wanted/Gaps/Overlooked/Journals/Funding under
+the relocated tools (Synthesize as its own workspace with Ask/Critique; Feed/Search/Wanted/Gaps/Overlooked/Journals/Funding under
 Discover; Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT under Work; Effect-Size/Meta-Analysis
 under Extract; My Publications in the menu bar; Help/Settings as utility views) work in their new homes. Also covers the inc-284/286 one-time Library
 hint that tells returning users where those relocated tools moved. Pure client navigation; no new API surface.
@@ -47,13 +47,13 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - **Active workspace persists** (`callosum.workspace`) across reload; Library is the default on first load.
 - **One-time moved-tools hint:** on a read-write instance, the Library workspace shows the thin "New layout" banner
   until dismissed; dismissing writes `callosum.workspaces-whatsnew=1` and it stays gone after reload.
-- **Read-only companion:** write-only workspaces/tabs (Discover, Extract, Work → CRediT and paper-audit Cite tabs) are
-  hidden; Profile, Library, Synthesis history, and Work → Cite → Suggest show. A visible moved-tools hint on a
+- **Read-only companion:** write-only workspaces/tabs (Discover, Extract, Synthesize → Critique, Work → CRediT and
+  paper-audit Cite tabs) are hidden; Profile, Library, Synthesize → Ask history, and Work → Cite → Suggest show. A visible moved-tools hint on a
   read-only instance is High.
 
 ## Adversarial checklist
 
-- Rapidly switch My Publications→Library→Synthesis→Discover→Work→Extract→Help→Settings and back; confirm no flicker/stuck state, no console
+- Rapidly switch My Publications→Library→Synthesize→Discover→Work→Extract→Help→Settings and back; confirm no flicker/stuck state, no console
   errors, and each center swaps while the side panes hold.
 - Select a paper but do not open it → the selected-paper tab appears after **Library**; click it → the PDF opens and
   the selected-paper tab disappears. With a selected-but-unopened paper, switch to Discover → Journals/Funding and
@@ -68,9 +68,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 ## Steps
 
-1. Confirm the **menu bar** sits at the top of the center pane: **My Publications · Library · Synthesis · Discover · Work · Extract** left,
+1. Confirm the **menu bar** sits at the top of the center pane: **My Publications · Library · Synthesize · Discover · Work · Extract** left,
    **Help · Settings** right. Library is active by default; the left/right accordions are present + full height.
-   Confirm the Library workspace shows the one-time "New layout" banner pointing Synthesis to the menu bar,
+   Confirm the Library workspace shows the one-time "New layout" banner pointing Synthesize to the menu bar,
    Cite/Meta Reference List/CRediT to Work, Discover tools to Discover Search, and Effect-Size/Meta-Analysis to Extract.
 2. **Discover** → confirm four sub-tabs **Feed · Search · Journals · Funding**. In **Feed**, confirm the standalone
    Feed controls render there and not inside Search. In **Search**, confirm the search row has
@@ -82,8 +82,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    Discover → Journals/Funding with that paper open and confirm the cue now uses the normal open-PDF tab styling and
    clicks back to the reader. Confirm **Search** does not show this cue. With enough content to overflow, confirm each
    body scrolls vertically without moving the Discover sub-tab strip.
-3. **Synthesis** → ask a small query or use Library selection **summarize**; confirm the workspace opens and the
-   history/result state stays mounted when switching away and back.
+3. **Synthesize** → confirm sub-tabs **Ask · Critique**. In **Ask**, ask a small query or use Library selection
+   **summarize**; confirm the workspace opens to Ask and the history/result state stays mounted when switching away
+   and back. In **Critique**, select a processed paper and confirm the single-paper critical-read surface auto-runs
+   there, not in the METHODS accordion.
 4. **Work** → confirm sub-tabs **Cite · CRediT statement**. Inside **Cite**, confirm nested tabs
    **Suggest · Meta Reference List · Citation concentration · How it's cited**. With a selected paper, click a
    Library **ref signal** badge and confirm it jumps directly to **Work → Cite → Meta Reference List**.
@@ -116,8 +118,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 - All primary workspaces plus Help/Settings switch cleanly; 0 console/page errors; the three panes stay separate +
   full-height throughout.
-- Relocated tools work in their new homes (Feed is its own Discover tab; Wanted/Gaps/Overlooked open from Discover
-  Search; Synthesis opens from the menu and selection summarize; Work → Cite owns Suggest/Meta Reference
+- Relocated tools work in their new homes (Synthesize has Ask/Critique; Feed is its own Discover tab;
+  Wanted/Gaps/Overlooked open from Discover Search; selection summarize opens Synthesize → Ask; single-paper Critical
+  Read opens in Synthesize → Critique; Work → Cite owns Suggest/Meta Reference
   List/Citation Concentration/How-it's-cited; Work → CRediT opens; Journals/Funding read the selection; Meta opens
   the PDF; Effect-Size runs).
 - Long Journals, Funding, Effect-Size, and Meta-Analysis bodies scroll inside their workspace body without moving the

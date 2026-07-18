@@ -18,13 +18,13 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesis** (verified answers over your library), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-Size · Meta-Analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask + Critique), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-Size · Meta-Analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
 The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
 
-Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesis / Discover / Work / Extract and they're tucked away until you come back.
+Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesize / Discover / Work / Extract and they're tucked away until you come back.
 
 In **Discover → Journals** and **Discover → Funding**, the selected paper appears before the Discover sub-tabs using that same tab language: dashed accent if it is selected but not open, and the normal open-PDF tab style if it is already open. Click the cue to open or return to the reader for that paper.
 
@@ -672,13 +672,13 @@ Turn on **Group by domain** (in the Publications controls, and independently in 
 Resolving your publications and the dashboard metrics are **LLM-free** and work offline — only your name/ORCID and public identifiers go to OpenAlex (the same kind of public lookup as resolving a DOI). The one exception is the optional research-summary **Generate**, which sends your own publication titles/abstracts to Gemini and therefore works only with the data-egress gate (`CALLOSUM_ALLOW_DATA_EGRESS`) on; with it off, the charts and metrics still render and Generate shows a consent note.
 
 <!-- section: synthesis-overview -->
-## Synthesis: asking questions over the library
-Synthesis is for asking a question across your library and getting a citation-grounded answer. It is best for questions where you want a compact reading guide, not a final conclusion.
+## Synthesize: asking questions and critiquing sources
+The **Synthesize** workspace has two tabs: **Ask** for citation-grounded answers over your library, and **Critique** for a skeptical read of the selected paper. Ask is best for questions where you want a compact reading guide, not a final conclusion.
 
 There are two ways to run a synthesis:
 
-- **Ask a question.** Type a question in **Ask a synthesis question about the library...**, click **Synthesize**, and Callosum retrieves the most relevant chunks across your library, generates an answer, and verifies each citation. Read the result under **Verified** and **Flagged · needs review**.
-- **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum opens the **Synthesis** workspace and generates a verified synthesis of just those papers (showing a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
+- **Ask a question.** Open **Synthesize → Ask**, type a question in **Ask a synthesis question about the library...**, click **Synthesize**, and Callosum retrieves the most relevant chunks across your library, generates an answer, and verifies each citation. Read the result under **Verified** and **Flagged · needs review**.
+- **Summarize a selection.** Check the papers you want in the **Library**, then click **summarize** in the selection bar. Callosum opens **Synthesize → Ask** and generates a verified synthesis of just those papers (showing a "N selected papers" note), spreading its attention across all the papers you picked. **Optionally type a question in the "Focus on…" box** in the selection bar first: with a focus, the synthesis is *query-ranked* on that question across your selection ("…focused on …"); leave it blank for a general summary.
 
 Use the section buttons (**Methods**, **Results**, **Data availability**, and so on) when you want synthesis to search only particular parts of section-aware PDFs. No section selected means the normal all-chunks behavior. A section filter narrows retrieval only; it does not change verification thresholds or make a claim more certain. Older chunks without section metadata will not match a section filter until the PDF is reprocessed.
 
@@ -686,7 +686,7 @@ Each cited sentence carries a status pill: **verified** (green — the source su
 
 Saved syntheses appear in **History** (a question shows its text; a selection shows "N papers"), where you can reload or delete them.
 
-If AI features are not enabled, synthesis will not run. The Synthesis workspace shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section (where you set a key + turn on data egress). The nudge clears once AI is on.
+If AI features are not enabled, synthesis will not run. **Synthesize → Ask** shows a short **"AI summaries are off"** nudge with an **Enable in Settings →** button that takes you straight to the AI-features section (where you set a key + turn on data egress). The nudge clears once AI is on.
 
 Tips:
 
@@ -917,7 +917,7 @@ Every value is **yours to enter and anchor** — the workspace extracts, structu
 <!-- section: critically-reading -->
 ## Critically reading a paper
 
-The **Critical read** section (in a paper's METHODS pane) assembles a *scrutiny surface* — what a skeptical reader should check before citing. It is a **signal, never a verdict**: there is no quality score, and it critiques the work's claims and methods, never the authors.
+Open **Synthesize → Critique** with a paper selected. It assembles a *scrutiny surface* — what a skeptical reader should check before citing. It is a **signal, never a verdict**: there is no quality score, and it critiques the work's claims and methods, never the authors.
 
 It has two tiers, kept deliberately distinct:
 

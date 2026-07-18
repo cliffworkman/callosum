@@ -324,9 +324,10 @@ Callosum now has **two navigation dimensions**, and new tools should be placed b
 by implementation detail or whether the tool uses AI.
 
 1. **Workspaces are modes of work in the center pane** — *what the user is doing right now*. The menu bar inside the
-   center Library pane switches between **My Publications / Library / Synthesis / Discover / Work / Extract**, plus
+   center Library pane switches between **My Publications / Library / Synthesize / Discover / Work / Extract**, plus
    right-aligned **Help / Settings** utilities. Outward-facing, generative, authoring, cross-paper, or wide-output
-   tools belong here: Synthesis holds verified corpus answers; Discover holds Feed, Search (including
+   tools belong here: Synthesize holds Ask (verified corpus answers) and Critique (single-paper critical read);
+   Discover holds Feed, Search (including
    Wanted/Gaps/Overlooked launchers), Journals, and Funding; Work holds Cite (Suggest, Meta Reference List, Citation
    Concentration, How it's cited) and CRediT statement; Extract holds Workbench, Effect-Size, and Meta-Analysis;
    My Publications holds the user's publication dashboard. Open PDFs remain **Library** sub-tabs; a selected paper
@@ -334,7 +335,8 @@ by implementation detail or whether the tool uses AI.
 2. **The THEORY and METHODS side accordions are lenses on the selected paper** — *how the user is evaluating or
    interpreting the current paper*. The left THEORY pane holds compact literature-context lenses such as Axes, Tags,
    Reading queue, and Review/findings. The right METHODS pane holds paper-evaluation lenses such as Details, GRIM,
-   Statistics check, transparency, and other methods checks. The side panes persist across all workspaces; only the
+   Statistics check, transparency, and other methods checks. Single-paper Critical Read lives in **Synthesize →
+   Critique** rather than METHODS because it is a wide scrutiny workflow, not a compact side-lens. The side panes persist across all workspaces; only the
    center switches.
 
 The placement question is therefore: **is this a mode the user enters, or a lens on the current paper?** A tool that
@@ -345,7 +347,7 @@ side-accordion section or tab.
 **Workspace registry and menu-bar recipe.** The center menu bar is data-driven by
 `app/frontend/js/04b_workspaces.jsx`: `registerWorkspace`, `registerWorkspaceTab`, `workspaces`,
 `workspaceTabs`, `getWorkspace`, `<MenuBar/>`, and `<WorkspacePane/>`. A workspace can be shell-rendered by `40_app`
-(Library, My Publications, Help, Settings) or populated by registered tabs (Synthesis, Discover, Work, Extract). Host
+(Library, My Publications, Help, Settings) or populated by registered tabs (Synthesize, Discover, Work, Extract). Host
 metadata is order-sorted and idempotent by id; read-only companions hide workspaces or tabs marked `hideInReadOnly`.
 The menu bar lives
 **inside** the center pane, not app-wide, so the three-pane layout stays separate and full height. Token recipe:

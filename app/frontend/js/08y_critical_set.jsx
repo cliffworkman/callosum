@@ -50,7 +50,7 @@ function CriticalSetMatrix({ aggregate }) {
         paper</i>, not a clean bill of health.
         {kinds.length === 0 &&
           <span> No method checks (statcheck, transparency, …) have been <b>run</b> on these papers yet — run them
-          from each paper’s METHODS pane to populate this. The <i>contested</i> column reflects only intra-set
+          from each paper’s Synthesize → Critique tab to populate this. The <i>contested</i> column reflects only intra-set
           disagreement, which needs no prior check.</span>}
       </div>
     </div>

@@ -1,6 +1,6 @@
 // Workspaces (the menu bar) — a SECOND navigation dimension above the THEORY/METHODS side accordions. Where the
 // accordions are *lenses on the current paper* (05_panes.jsx), a workspace is *what you're doing right now*:
-// My Publications | Library | Synthesis | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
+// My Publications | Library | Synthesize | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
 // exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single `render` (My Publications,
 // Help, Settings) OR >=2 sub-tabs (Discover: Feed|Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-Size|Meta).
 // Library is registered as a shell-rendered workspace (no registered tabs) because its content — the library list +
@@ -138,7 +138,7 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
 
 // ── the built-in workspaces ─────────────────────────────────────────────────────────────────────────────────
 // Library + My Publications are SHELL-RENDERED (no `render`): 40_app owns their bespoke bodies (the library list + dynamic
-// open-PDF tabs; the impact dashboard). Synthesis / Discover / Work / Extract are populated by registered tabs.
+// open-PDF tabs; the impact dashboard). Synthesize / Discover / Work / Extract are populated by registered tabs.
 // Every write surface's tab carries `hideInReadOnly` so the whole workspace drops on a read-only companion.
 registerWorkspace({ id: "profile", label: "My Publications", order: 10 });
 registerWorkspace({ id: "library", label: "Library", order: 20 });

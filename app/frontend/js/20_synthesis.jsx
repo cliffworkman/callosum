@@ -558,6 +558,7 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
 
 // inc 121: the old RightPane (inc-57 vertical Synthesis/Details split with a draggable .divider-h) is retired.
 // inc 287: SYNTHESIS now lives in the center menu bar as its own workspace; DETAILS remains in METHODS.
+// inc 298: relabeled to Synthesize and split into Ask (this pane) + Critique (single-paper critical read).
 
 // ─────────────────────────────────────────────────────────────
 // PDF tab — streams /papers/{id}/pdf and renders it with PDF.js.
@@ -565,7 +566,10 @@ function CitationCard({ citation, onOpenCitation, onSaveHighlight }) {
 // ─────────────────────────────────────────────────────────────
 
 registerWorkspace({
-  id: "synthesis", label: "Synthesis", order: 30, hideInReadOnly: false,
+  id: "synthesis", label: "Synthesize", order: 30, hideInReadOnly: false,
+});
+registerWorkspaceTab({ id: "synthesis" }, {
+  id: "ask", label: "Ask", order: 10, hideInReadOnly: false,
   render: (ctx) => <SynthesisPane onOpenCitation={ctx.onOpenCitation} onSaveHighlight={ctx.onSaveHighlight}
     pendingSummarize={ctx.pendingSummarize} onOpenSettings={ctx.onOpenSettings} settingsNonce={ctx.settingsNonce}
     onOpenTextHealth={ctx.onOpenTextHealth} readOnly={ctx.readOnly} onCriticalReviewSources={ctx.onCriticalReviewSources} />,

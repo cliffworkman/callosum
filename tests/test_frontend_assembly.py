@@ -97,6 +97,11 @@ def test_workspace_menubar_structure_present():
     assert "menubar-nav" in raw and '"callosum.workspace"' in raw
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
     assert 'activeWorkspace === "synthesis"' in raw and 'activeWorkspace === "work"' in raw
+    assert 'id: "synthesis", label: "Synthesize", order: 30' in raw
+    assert 'id: "ask", label: "Ask", order: 10' in raw
+    assert 'id: "critique", label: "Critique", order: 20, hideInReadOnly: true' in raw
+    assert 'id: "critical_read", label: "Critical read", paneId: "methods"' not in raw
+    assert 'wsId: "synthesis", tabId: "ask"' in raw
     # Stage 3: Help + Settings are utility workspaces (center views), not modals.
     assert 'id: "help"' in raw and 'id: "settings"' in raw and "utility: true" in raw
     assert "function HelpView(" in raw and "function SettingsView(" in raw
@@ -112,7 +117,7 @@ def test_workspace_menubar_structure_present():
     # inc 284: returning users get a one-time Library hint for relocated tools.
     assert "callosum.workspaces-whatsnew" in raw
     assert "function WorkspacesWhatsNewHint(" in raw
-    assert "New layout:" in raw and "Synthesis" in raw and "Meta Reference List" in raw and "CRediT" in raw
+    assert "New layout:" in raw and "Synthesize" in raw and "Meta Reference List" in raw and "CRediT" in raw
     assert "Discover → Search" in raw and "Wanted" in raw and "Gaps" in raw and "Overlooked" in raw
     assert "Effect-Size" in raw and "Meta-Analysis" in raw and "Work" in raw
     assert '_saveLayout(WORKSPACES_WHATSNEW_KEY, "1")' in raw
@@ -348,6 +353,15 @@ def test_synthesis_failure_recovery_actions_are_wired():
     assert "lastLaunchRef.current = { body, runningMessage }" in raw
     assert "onOpenTextHealth={ctx.onOpenTextHealth}" in raw
     assert "onOpenTextHealth: openTextHealth" in raw
+
+
+def test_single_paper_critical_read_lives_in_synthesize_critique():
+    raw = assemble_jsx()
+    assert 'id: "critique", label: "Critique", order: 20, hideInReadOnly: true' in raw
+    assert "render: (ctx, active) => <CriticalReadSection ctx={ctx} active={active} />" in raw
+    assert "<CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />" in raw
+    assert 'ctx.methodsOpen === "critical_read"' not in raw
+    assert 'registerPaneSection({\n  id: "critical_read"' not in raw
 
 
 def test_pdf_text_health_controls_are_present_and_local_only_worded():

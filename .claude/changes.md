@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 297 (Discover Feed restored as its own sub-tab). -->
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 298 (Synthesize Ask/Critique split + Critical Read relocation). -->
+## 2026-07-18 — Increment 298: Synthesize Ask/Critique split
+- **Files:** `app/frontend/js/{03_library,04b_workspaces,08x_methods_critical,08y_critical_set,20_synthesis,30c_frame,40_app}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_55_synthesis_verification.md,qa-routes/route_67_critical_review.md,qa-routes/route_71_critical_review_set.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
+- **What:** renamed the center workspace label to **Synthesize**, split it into **Ask** and **Critique**, moved single-paper Critical Read out of METHODS into **Synthesize → Critique**, and made selection summarize request **Ask**.
+- **Why:** synthesis and critique are wide center-pane workflows over evidence. METHODS remains for compact paper-method lenses, while Critique gets the room it needs without changing the signal-not-verdict contract.
+- **Verify:** frontend rebuilt; focused `tests/test_frontend_assembly.py tests/test_help.py tests/test_critical_review.py tests/test_critical_review_set.py` **73 passed**; QA surface map **248 API / 1141 FE, 0 uncovered**; full suite **1260 passed / 1 skipped**; ruff + format + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-18 — Increment 297: Discover Feed restored as its own sub-tab
 - **Files:** `app/frontend/js/{04b_workspaces,09_placeholders,30d_discover}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_44_feed.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
 - **What:** re-separated Feed from Search inside the Discover workspace. Discover now presents **Feed · Search · Journals · Funding**; Feed renders standalone as the first Discover sub-tab, while Search no longer embeds Feed beneath its results. Wanted/Gaps/Overlooked remain Search launchers.
