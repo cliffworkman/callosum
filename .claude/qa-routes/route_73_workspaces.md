@@ -65,6 +65,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   Extract with the anchor applied (the cross-workspace capture path).
 - Leave the **Settings** workspace → the panes re-read egress state (the old modal-close behavior); no stale "AI off".
 - Resize to `375x812`, hard refresh → the menu bar + center are usable; no horizontal overflow.
+- At `375x812`, confirm the desktop workspace tab strip is replaced by a compact **Workspace** select in the center
+  region; choosing My Publications / Library / Synthesize / Discover / Work / Extract / Help / Settings switches
+  the active workspace without horizontal overflow.
 
 ## Steps
 
@@ -72,6 +75,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    **Help · Settings** right. Library is active by default; the left/right accordions are present + full height.
    Confirm the Library workspace shows the one-time "New layout" banner pointing Synthesize to the menu bar,
    Cite/Meta Reference List/CRediT to Work, Discover tools to Discover Search, and Effect-Size/Meta-Analysis to Extract.
+   Resize to phone width and confirm that same workspace list is reachable from the **Workspace** dropdown, grouped
+   into Workspaces and Utilities, while the bottom mobile nav still switches only **Library / Panels / Details**.
 2. **Discover** → confirm four sub-tabs **Feed · Search · Journals · Funding**. In **Feed**, confirm the standalone
    Feed controls render there and not inside Search. In **Search**, confirm the search row has
    **Search**, **Clear ×**, **Recent searches**, **Clear history**, **Wanted**, **Gaps**, and **Overlooked** controls;
@@ -122,6 +127,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 - All primary workspaces plus Help/Settings switch cleanly; 0 console/page errors; the three panes stay separate +
   full-height throughout.
+- On phone-width screens the workspace switcher is a compact **Workspace** select instead of the desktop tab strip,
+  and it switches the same visible workspaces/utilities without horizontal overflow.
 - Relocated tools work in their new homes (Synthesize has Ask/Critique; Feed is its own Discover tab;
   Wanted/Gaps/Overlooked open from Discover Search; selection summarize opens Synthesize → Ask; single-paper Critical
   Read opens in Synthesize → Critique; Work → Cite owns Suggest/Meta Reference

@@ -5,8 +5,8 @@ well: you build a batch of backlog items; Opus reviews (build / tests / gates / 
 **Read `.claude/CLAUDE.md` in full first** (invariants, rules, commands, verification, the four gates #8–#11).
 
 ## Base + git state
-`main` is at **Increment 301** — it carries the whole recent run (workspaces IA · library-UX · reading-queue priority
-strata · Feed-by-title · Discover/Synthesize · **fast pytest** · six misc UX fixes). Cut your branch from it:
+`main` is at **Increment 302** — it carries the whole recent run (workspaces IA · library-UX · reading-queue priority
+strata · Feed-by-title · Discover/Synthesize · **fast pytest** · six misc UX fixes · mobile workspace switcher). Cut your branch from it:
 `git checkout main && git pull && git checkout -b feature/backlog-<short>`.
 
 ## The task — work `.claude/docs/INCREMENT-BACKLOG.md` top-down, but VERIFY first
@@ -17,12 +17,11 @@ the whole A1–A10 benchmark list is closed). So, per candidate:
 2. **Verify it isn't already shipped** — grep the code + `.claude/changes.md` + `INCREMENT-BACKLOG-DONE.md` before
    building. If it's already done, **mark it DONE in the backlog** (reconciling drift is real, valuable work) and
    move on. Don't rebuild shipped features.
-3. **Build** the genuinely-open one as a single increment (bump the number — **next is 302**), honoring every gate.
+3. **Build** the genuinely-open one as a single increment (bump the number — **next is 303**), honoring every gate.
 
 ### Concrete verified-open first picks
-- **Mobile menu-bar treatment** (inc-280 follow-up): the workspace menu bar rides inside the center region; a
-  **phone-width workspace switcher** is the deferred polish. Files: `04b_workspaces.jsx` (`MenuBar`),
-  `02_mobilenav.jsx`, the `mobile` flag in `40_app.jsx`; the inc-237/238 responsive read-mode is the precedent.
+- **Mobile menu-bar treatment** (inc-280 follow-up): **shipped in inc 302**. Phone-width center region now renders a
+  compact Workspace dropdown, separate from the bottom Library / Panels / Details mobile region nav.
 - **A8 — synthesis scope label at summarize** ("summarizing N papers; uncertain excluded"): *largely* shipped by the
   inc-153 coverage readout — **verify, and add the uncertain-inclusion statement only if it's missing** (small).
 - **Reading-pane polish** (split-gated): a "fit page"/fit-height option, free-form note colors/labels, a
@@ -63,3 +62,12 @@ Leave the branch un-merged with clean commits (pushing the branch to origin as b
 session summary"** to the BOTTOM of this file per increment: what changed, the actual `pytest -n auto` pass count +
 both ruff results, what's partial/unverified, any blocker, and **which backlog items you built vs. found
 already-shipped (and marked DONE)**. Opus reads this first on return and re-verifies against it.
+
+## Codex Session Summary — Increment 302 (2026-07-18)
+
+- **Built:** top autonomous backlog item, mobile workspace switcher. `MenuBar` now takes the existing `mobile` flag; desktop still renders the horizontal workspace tab strip, while phone-width screens render a compact Workspace `<select>` grouped into Workspaces and Utilities. The bottom mobile nav remains only Library / Panels / Details.
+- **Docs/coverage:** updated Help, DESIGN, route 73, route 00, frontend assembly guard, opt-in e2e smoke, backlog/DONE breadcrumbs, changelog, increment notes, and added `.claude/security-audits/2026-07-18_mobile-workspace-switcher.md` with PASS.
+- **Verification:** `python tools/build_frontend.py`; `pytest tests/test_frontend_assembly.py tests/test_help.py -q` = 48 passed; `CALLOSUM_RUN_E2E=1 pytest tests/e2e/test_smoke.py -q` = 3 passed; `ruff check .`; `ruff format --check .`; `python tools/check_line_budget.py`; `python tools/qa/build_surface_map.py check` = 248 API / 1157 FE, 0 uncovered; `pytest -n auto -q` = 1264 passed, 1 skipped.
+- **Environment note:** `pytest -n auto -q` initially could not run because `pytest-xdist` was absent. Installed `requirements-dev.txt`, then upgraded pytest/pluggy within the declared `pytest>=7.4,<9` range to satisfy the installed Playwright plugin. No repo dependency files changed.
+- **Partial/unverified:** automated browser smoke covers the mobile dropdown switching and overflow. Human eyeball still recommended for real-content mobile proportions and desktop menu bar appearance.
+- **Next backlog candidates:** A8 synthesis scope label is likely mostly shipped by inc 153 and should be verified before any edit; reading-pane polish remains viable but requires extracting from `30_viewer.jsx` before adding features due the line cap.

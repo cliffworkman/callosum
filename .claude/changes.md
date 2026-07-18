@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 301 (Missing-PDF filter + sort direction toggle + read/priority/Missing-PDF filters in Trash). -->
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 302 (mobile workspace switcher). -->
+## 2026-07-18 — Increment 302: Mobile workspace switcher
+- **Files:** `app/frontend/js/{04b_workspaces,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_00_smoke_readonly.md,qa-routes/route_73_workspaces.md,security-audits/2026-07-18_mobile-workspace-switcher.md}`, `.claude/docs/{INCREMENT-BACKLOG.md,INCREMENT-BACKLOG-DONE.md,increment-notes/INCREMENT-302-NOTES.md}`, `tests/{test_frontend_assembly.py,e2e/test_smoke.py}`, `callosum-app.html`.
+- **What:** at phone width, the center workspace menu now renders as a compact **Workspace** dropdown grouped into Workspaces and Utilities, while the bottom mobile nav remains the region switcher (**Library / Panels / Details**). Desktop keeps the horizontal menu bar.
+- **Why:** the inc-280 workspace menu was reachable on phones but still behaved like a desktop tab strip. The compact switcher makes moved workspaces reachable without side-scrolling or confusing them with the bottom region nav.
+- **Verify:** frontend rebuilt; focused `tests/test_frontend_assembly.py tests/test_help.py` **48 passed**; opt-in browser smoke `CALLOSUM_RUN_E2E=1 pytest tests/e2e/test_smoke.py -q` **3 passed**; QA surface map **248 API / 1157 FE, 0 uncovered**; full suite **1264 passed / 1 skipped**; ruff + format + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-18 — Increment 301: six misc UX fixes (Trash search · read-mode menu bar · Discover recall · duplicate card · invert sort · Missing-PDF filter)
 - **Files:** `app/frontend/js/{40_app,03_library,10_pdf_layer,30d_discover,19_duplicates}.jsx`, `app/frontend/styles.css`, `app/backend/api/routers/papers.py`, `app/backend/persistence/{repository,paper_query_repo}.py` (new leaf), `app/backend/help/help_content.md`, `tests/{test_papers,test_frontend_assembly}.py`, `callosum-app.html`, increment notes.
 - **What:** (1) Trash gets the read/priority/Missing-PDF filters (un-gated `!trashView`; backend already applied them); (2) the menu bar hides in read mode; (3) Discover → Search reloads your last search on access; (4) merging a duplicate removes its card; (5) a **▲/▼** sort direction toggle (fields dropdown, mapped to the existing backend sort keys — no backend change); (6) a **◫ Missing PDF** filter — new `GET /papers?missing_pdf=` (NOT EXISTS a local PDF, mirrors Text-Health no_local_pdf). `repository.py` was at the 600-cap, so two leaf helpers moved to `paper_query_repo.py` (re-exported).

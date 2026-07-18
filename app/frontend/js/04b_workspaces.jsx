@@ -56,10 +56,32 @@ function workspaceTabs(w, readOnly) {
 function getWorkspace(id) { return WORKSPACES.find(w => w.id === id) || null; }
 
 // The global top bar: brand + the primary workspace switcher + right-aligned utilities (Help/Settings).
-function MenuBar({ active, onActivate, readOnly }) {
+function MenuBar({ active, onActivate, readOnly, mobile }) {
   const all = workspaces(readOnly);
   const primary = all.filter(w => !w.utility);
   const utils = all.filter(w => w.utility);
+  if (mobile) {
+    return (
+      <div className="menubar menubar-mobile">
+        <label className="mobile-workspace-label" htmlFor="mobile-workspace-select">Workspace</label>
+        <select
+          id="mobile-workspace-select"
+          className="lib-sort mobile-workspace-select"
+          value={active}
+          onChange={e => onActivate(e.target.value)}
+          aria-label="Workspace"
+        >
+          <optgroup label="Workspaces">
+            {primary.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+          </optgroup>
+          {utils.length > 0 &&
+            <optgroup label="Utilities">
+              {utils.map(w => <option key={w.id} value={w.id}>{w.label}</option>)}
+            </optgroup>}
+        </select>
+      </div>
+    );
+  }
   const item = (w) => (
     <button key={w.id} role="tab" aria-selected={w.id === active}
       className={"menubar-item" + (w.id === active ? " active" : "")}

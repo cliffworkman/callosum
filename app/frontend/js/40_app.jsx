@@ -288,7 +288,7 @@ function App() {
   const centerEl = (
     <div className="workspace-frame">
       {/* inc 301: hide the menu bar in read mode (the focused reader); the reader's own Reading toggle exits it. */}
-      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} />}
+      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} mobile={mobile} />}
       <div className="workspace-slot" style={{ display: activeWorkspace === "library" ? "flex" : "none" }}>
         <LibraryFrame
           libraryProps={{

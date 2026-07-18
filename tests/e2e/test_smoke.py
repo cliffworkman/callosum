@@ -219,6 +219,18 @@ def test_tool_panes_resist_visual_drift(server: str):
             timeout=30000,
         )
         _assert_no_document_horizontal_overflow(page, "mobile library")
+        workspace_select = page.locator("#mobile-workspace-select")
+        assert workspace_select.count() == 1, "mobile workspace select missing"
+        assert page.locator(".menubar-nav").count() == 0, "desktop workspace tab strip rendered on mobile"
+        workspace_select.select_option("discover")
+        page.wait_for_function("() => localStorage.getItem('callosum.workspace') === 'discover'", timeout=30000)
+        assert page.locator(".workspace-tabs:visible").count() >= 1
+        _assert_no_document_horizontal_overflow(page, "mobile discover")
+        workspace_select.select_option("help")
+        page.wait_for_function("() => localStorage.getItem('callosum.workspace') === 'help'", timeout=30000)
+        assert "Help" in page.inner_text("body")
+        _assert_no_document_horizontal_overflow(page, "mobile help")
+        workspace_select.select_option("library")
 
         panel_button = page.locator(".mobile-nav-btn", has_text="Panels")
         if panel_button.count():

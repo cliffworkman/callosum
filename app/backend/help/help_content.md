@@ -22,7 +22,7 @@ Callosum has three panes, plus a **menu bar** across the top of the center pane 
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
-The three panes stay put; only the center changes as you switch workspaces. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
+The three panes stay put; only the center changes as you switch workspaces. On a phone-width screen, the center pane uses a compact **Workspace** dropdown instead of the full desktop tab strip. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
 
 Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesize / Discover / Work / Extract and they're tucked away until you come back.
 
@@ -105,7 +105,7 @@ Everything stays on your machine — the file is read in your browser and merged
 <!-- section: reading-on-your-phone -->
 ## Reading on your phone (mobile)
 
-callosum's window is **responsive** — open it on a phone-width screen and the three-pane layout collapses to a single column with a bottom nav (**Library · Panels · Details**). You browse and search the library, open a paper (its metadata, abstract, and the PDF, rendered by your phone's own viewer), and read its verified syntheses. On a wider screen the usual desktop layout returns.
+callosum's window is **responsive** — open it on a phone-width screen and the three-pane layout collapses to a single column with a bottom nav (**Library · Panels · Details**). In the Library region, use the compact **Workspace** dropdown to switch between Library, Synthesize, Discover, Work, Extract, Help, and Settings without side-scrolling a desktop menu. You browse and search the library, open a paper (its metadata, abstract, and the PDF, rendered by your phone's own viewer), and read its verified syntheses. On a wider screen the usual desktop layout returns.
 
 To reach it from your phone you use a **cloudflared tunnel** (the same outbound-only bridge the Google Docs add-on uses), configured **read-only**. Read-only is a deployment: you run a second callosum instance for the tunnel with **`CALLOSUM_READ_ONLY=1`** (which makes the server reject *every* change — scan, edit, tag, delete — with a 403) and Remote access on (so an access token gates all access). Your desktop instance stays fully editable; the phone reads the same library. The full runbook is `adapters/mobile/README.md`. You can't accidentally change anything from your phone.
 

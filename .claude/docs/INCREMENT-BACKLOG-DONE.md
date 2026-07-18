@@ -11,6 +11,9 @@ new work goes in the open backlog.
 - [x] **DESIGN.md design dictionary** (2026-06-19) — Pass 1 tokens + element recipes, Pass 2 inconsistencies +
   canonical rules; **CLAUDE.md rule #8** (read it before any CSS change) + reference-table + decision rows.
   *(The Pass-2 consolidation worklist remainder is still open — see the open backlog.)*
+- [x] **Mobile workspace switcher** (inc 302) — at phone width, the center workspace menu renders as a compact
+  **Workspace** dropdown instead of the desktop horizontal tab strip; the bottom mobile nav remains the region
+  switcher (**Library / Panels / Details**).
 
 ## Theme 1 — Axes UX (inc 44–52)
 - [x] **A. Axis edit modal + title/term decoupling** (inc 44) — one Edit Axis modal; the **title is cosmetic**

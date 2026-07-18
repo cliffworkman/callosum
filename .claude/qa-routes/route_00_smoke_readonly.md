@@ -1,10 +1,11 @@
 <!-- qa-coverage
 api: GET /health, GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, GET /papers/{paper_id}/pdf, GET /papers/{paper_id}/annotations, GET /tags, GET /axes, GET /help/corpus, GET /citations/styles, GET /summaries
-fe: 02_mobilenav.jsx, 04_layout.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 10d_papercard.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
+fe: 02_mobilenav.jsx, 04_layout.jsx, 04b_workspaces.jsx, 05_panes.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 10d_papercard.jsx, 15_axes.jsx, 20_synthesis.jsx, 25_detail.jsx, 30_viewer.jsx, 30c_frame.jsx, 35_settings.jsx, 18_help.jsx, 40_app.jsx
 -->
 
 <!-- B5 (inc 237): at a phone-width viewport (≤760px) the app renders single-column with a bottom `.mobile-nav`
-(Library / Panels / Details); tapping a tab switches the region. Above 760px the desktop 3-pane grid is unchanged.
+(Library / Panels / Details); tapping a tab switches the region. The center region uses a compact Workspace select
+instead of the desktop workspace tab strip. Above 760px the desktop 3-pane grid is unchanged.
 Read-only over the tunnel is the CALLOSUM_READ_ONLY method gate (403 on writes) + the read-only cloudflared ingress
 allowlist — covered by tests/test_mobile_ingress.py + adapters/mobile/. -->
 
@@ -64,7 +65,9 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 8. **Reading mode / panels** (`40_app.jsx`): toggle reading mode (both panels collapse, center remains
    visible, Esc/Exit restores); drag a divider to resize; collapse/expand a panel. Confirm reading mode does
    NOT persist across reload.
-9. **Responsive**: resize to `375x812`, hard refresh, confirm no horizontal overflow on the library view.
+9. **Responsive**: resize to `375x812`, hard refresh, confirm no horizontal overflow on the library view. In the
+   center region, confirm the **Workspace** dropdown switches between Library/Synthesize/Discover/Help while the
+   bottom nav continues to switch only Library/Panels/Details.
 
 ## Pass criteria
 
@@ -75,6 +78,7 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 - 0 requests to any genai/Gemini host.
 - No unexpected 4xx/5xx in the network log (the `/papers/{id}/pdf` 404 for the no-local-PDF paper is expected).
 - No horizontal overflow at `375x812`.
+- The phone-width Workspace dropdown is reachable and does not replace the bottom region nav.
 
 ## Deposit
 

@@ -123,6 +123,12 @@
   }
   .menubar-item:hover { background: var(--hover); color: var(--ink); }
   .menubar-item.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; border-color: var(--accent-line); }
+  .menubar-mobile { gap: 8px; padding: 7px 10px; }
+  .mobile-workspace-label {
+    flex: 0 0 auto; font-family: var(--sans); font-size: 11px; font-weight: 600; color: var(--ink-3);
+    text-transform: uppercase; letter-spacing: .04em;
+  }
+  .mobile-workspace-select { flex: 1 1 auto; min-width: 0; max-width: 100%; }
 
   /* B5 (inc 237): responsive mobile layout. When the viewport is phone-width the App renders `.app.mobile` — a
      single column showing one region at a time, with a bottom nav. Desktop (`.app`, above) is untouched. dvh handles

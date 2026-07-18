@@ -358,6 +358,10 @@ use `.workspace-body pane-tab` so inactive tabs stay mounted but hidden (`.pane-
 The active workspace persists at `callosum.workspace`, and each workspace tab persists at
 `callosum.workspacetab.<workspaceId>`.
 
+On phone-width screens (inc 302), that same center-pane menu bar renders as a compact **Workspace** `<select>`
+instead of the desktop horizontal tab strip. It switches the same visible workspaces/utilities and stays separate
+from the bottom `.mobile-nav`, which only chooses the visible region: Library / Panels / Details.
+
 **Library PDF tab recipe (inc 290).** Inside the Library workspace, the tab strip order is fixed as: **Library**,
 then the optional selected-paper tab, then open PDF tabs. The selected-paper tab is a transient "selected, not
 opened" affordance: dashed `--accent` border + `--accent-soft` fill (same pending/drop-target semantics as §4), no
