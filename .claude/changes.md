@@ -9,6 +9,13 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-18 — Increment 300: Fast pytest — targeted dev runs + xdist parallelism + testmon
+- **Files:** `requirements-dev.txt`, `.github/workflows/ci.yml`, `.gitignore`, `.claude/CLAUDE.md`, increment notes. (No application code.)
+- **What:** added `pytest-xdist` (parallel `pytest -n auto`, ~3-4× faster) + `pytest-testmon` (`pytest --testmon` runs only tests whose covered code changed). CI's offline suite → `pytest -n auto -q`. CLAUDE.md Verification protocol now prescribes **targeted dev runs** (`pytest tests/test_<area>.py`) as the default, with the full parallel run only before merge (or lean on CI).
+- **Why:** the full serial suite is ~45 min; running everything for a localized change was wasted wall-clock. Tests are hermetic (per-test `tmp_path` DB + isolated settings), so parallelism is safe and coverage is unchanged.
+- **Verify:** `pytest -n auto -q` matches the serial count (1261 passed / 1 skipped) with no new failures; targeted single-file runs finish in seconds; ruff + line-budget clean. **User step:** `pip install -r requirements-dev.txt` to get the new plugins.
+- **Revert:** restore the listed files from git; `pip uninstall pytest-xdist pytest-testmon`.
+
 <!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 299 (Discover Search/Journals recent-query recall). -->
 ## 2026-07-18 — Increment 299: Discover Search/Journals recent-query recall
 - **Files:** `app/frontend/js/{30d_discover,08e_methods_publishers}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_43_discovery.md,qa-routes/route_60_publishers.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.

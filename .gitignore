@@ -1,5 +1,7 @@
 .local/
 .pytest_cache/
+.testmondata
+.testmondata-journal
 __pycache__/
 *.py[cod]
 *.sqlite

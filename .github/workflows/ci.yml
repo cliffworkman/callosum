@@ -29,8 +29,8 @@ jobs:
         run: ruff format --check .
       - name: Line budget (rule #1 — 600-line cap on app/ + integrations/)
         run: python tools/check_line_budget.py
-      - name: Pytest (offline suite; the browser e2e is opt-in and runs in the job below)
-        run: pytest -q
+      - name: Pytest (offline suite; parallel via pytest-xdist; the browser e2e is opt-in and runs in the job below)
+        run: pytest -n auto -q
       - name: QA surface-coverage check (report-only until the route suite is green; inc 120)
         run: python tools/qa/build_surface_map.py check || true
 

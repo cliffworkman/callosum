@@ -4,6 +4,8 @@
 -r requirements.txt
 
 pytest>=7.4,<9
+pytest-xdist>=3  # parallel test runner (`pytest -n auto`) — cuts the full-suite wall-clock ~3-4x (inc 300)
+pytest-testmon>=2  # change-based selection (`pytest --testmon`) — runs only tests whose covered code changed (inc 300)
 httpx>=0.27,<1
 # Pin ruff EXACTLY: its 0.x minor releases change lint/format behavior (an unpinned `>=0.9,<1` let CI grab
 # 0.15.x, which flagged import-ordering the dev version accepted → red CI). Bump deliberately, reformatting then.

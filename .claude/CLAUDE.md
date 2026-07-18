@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 299** (see Increment workflow) with **1261 pytest tests
+It is currently at **Increment 300** (see Increment workflow) with **1261 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -192,8 +192,11 @@ Run from the project root. The shell is **PowerShell** (Windows).
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
 | `npm install` | Install the build-time frontend toolchain (pinned `esbuild`) — required once before `tools/build_frontend.py` / live assembly (inc 102) |
 | `python tools/build_frontend.py` | Rebuild `callosum-app.html` from `app/frontend/` (esbuild-precompiles the JSX) — run after any `app/frontend/` edit |
-| `pytest` | Run the full test suite (`testpaths=tests`, `pythonpath=.`) |
-| `pytest tests/test_api.py -k summary` | Run a focused subset |
+| `pytest tests/test_<area>.py -q` | **Default dev loop — run only the changed area's tests** (seconds, not ~45 min). See the Verification protocol §1. |
+| `pytest --testmon -q` | Run only tests whose covered code changed since the last run (pytest-testmon, inc 300; first run builds `.testmondata`) |
+| `pytest -n auto -q` | Full suite in **parallel** (pytest-xdist, inc 300) — ~3-4× faster; use before merge (CI runs this) |
+| `pytest` | Full test suite, **serial** (`testpaths=tests`, `pythonpath=.`) — slow; prefer `-n auto` for full runs |
+| `pytest tests/test_api.py -k summary` | Run a focused subset (by name) |
 | `alembic upgrade head` | Apply DB migrations |
 | `alembic revision -m "<desc>"` | Create a new migration (no down-migrations by design) |
 | `python tools/validation_harness.py` | Run the PDF→extract→embed→retrieve→summarize validation harness (writes a `validation.sqlite` + report + debug images under `.local/`) |
@@ -393,7 +396,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 299). Each increment of real work
+callosum is built in **numbered increments** (currently at 300). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -416,9 +419,16 @@ recreate one here.
 
 No change is "done" without verification appropriate to the surface it touches.
 
-1. **pytest is the primary gate.** `pytest` must be green before any change is "done." Add or
-   update tests for new behavior (the suite already covers API, persistence, PDF extraction,
-   embeddings, clustering, summarization, and NLI verification).
+1. **pytest is the primary gate — but run it *targeted*, not whole, during dev (inc 300).** The full serial suite is
+   ~45 min; **don't run everything for a localized change.** The suite is split per-resource, so:
+   - **While developing:** run only the changed area's file(s) — `pytest tests/test_<area>.py -q` (feed →
+     `test_feed.py`, discovery → `test_discovery.py`, queue → `test_reading_queue.py`, …); for any `app/frontend/`
+     edit also run `pytest tests/test_frontend_assembly.py -q`. Or let **`pytest --testmon -q`** pick the affected
+     tests automatically (change-based selection). These finish in **seconds**.
+   - **Before merging / calling a multi-file change done:** run the full suite once — **`pytest -n auto -q`**
+     (parallel, ~3-4× faster) — and it must be green. CI also runs `pytest -n auto -q`, so you can lean on CI for the
+     full gate. Add/update tests for new behavior (the suite covers API, persistence, PDF extraction, embeddings,
+     clustering, summarization, NLI). Report the actual pass count from whichever run you cite.
 2. **Pipeline / retrieval / extraction changes:** run `python tools/validation_harness.py`
    against the library and eyeball the generated report + debug images in `.local/`. This is
    how extraction accuracy, chunking, embedding, and retrieval quality are checked end-to-end.
