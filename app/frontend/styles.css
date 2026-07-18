@@ -874,6 +874,13 @@
     border-radius: var(--radius-sm); padding: 3px 6px; font-size: 11.5px; font-family: var(--sans); cursor: pointer;
   }
   .lib-sort:hover { border-color: var(--accent); }
+  /* inc 301: the sort direction toggle (▲/▼) + the "Missing PDF" filter facet — reuse the .lib-sort recipe + the
+     established accent-soft active-facet state (no new tokens). */
+  .lib-sort-dir { flex: none; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); border-radius: var(--radius-sm); padding: 3px 6px; font-size: 11.5px; line-height: 1; cursor: pointer; }
+  .lib-sort-dir:hover { border-color: var(--accent); color: var(--ink); }
+  .lib-facet-toggle { flex: none; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); border-radius: var(--radius-sm); padding: 3px 8px; font-size: 11.5px; font-family: var(--sans); cursor: pointer; }
+  .lib-facet-toggle:hover { border-color: var(--accent); }
+  .lib-facet-toggle.on { background: var(--accent-soft); border-color: var(--accent-line); color: var(--accent); font-weight: 600; }
   /* citation export (inc 70): the bulk-bar format picker + the Details "Cite" row (links reuse .btn-link) */
   .bulk-export { border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); border-radius: var(--radius-sm); padding: 2px 4px; font-size: 11px; font-family: var(--sans); cursor: pointer; }
   .bulk-export:hover { border-color: var(--accent); }

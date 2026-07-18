@@ -80,6 +80,9 @@ def papers_index(
     finding: str | None = Query(default=None),  # the "to review" queue: papers with unreviewed candidate findings
     read_status: str | None = Query(default=None),  # inc 220: "read" / "unread" filter
     priority: str | None = Query(default=None),  # inc 220: filter to a priority level (allowlisted in repo)
+    missing_pdf: bool = Query(
+        default=False
+    ),  # inc 301: only papers with no local PDF (mirrors Text-Health no_local_pdf)
     sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted in repo)
     conn: Connection = Depends(get_connection),
 ) -> list[PaperListItem]:
@@ -99,6 +102,7 @@ def papers_index(
         finding=finding,
         read_status=read_status,
         priority=priority,
+        missing_pdf=missing_pdf,
         sort=sort,
     )
     return [_paper_list_item(row) for row in rows]

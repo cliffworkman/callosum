@@ -548,6 +548,26 @@ def test_feed_suggests_journals_from_library():
     assert 'selKind === "journal"' in raw and "libJournals.map(j => j.journal)" in raw
 
 
+def test_misc_ux_batch_wiring():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    # F2: the menu bar is hidden in read mode
+    assert "!readingMode && <MenuBar active={activeWorkspace}" in raw
+    # F5: sort = a field + a ▲/▼ direction toggle mapped onto the existing backend sort keys
+    assert "const SORT_FIELDS = [" in raw and "function _sortKey(field, dir)" in raw
+    assert 'className="lib-sort-dir"' in raw and ".lib-sort-dir {" in css
+    # F6: the missing-PDF filter facet (fetch param + toggle chip)
+    assert 'if (libraryMissingPdf) qs.set("missing_pdf", "true")' in raw
+    assert 'className={"lib-facet-toggle" + (libraryMissingPdf ? " on" : "")}' in raw and ".lib-facet-toggle.on" in css
+    # F1: read + priority filters are available in Trash too (the !trashView gate removed)
+    assert "read + priority filter facets (your triage labels) — now available in Trash too" in raw
+    # F3: Discover → Search reloads the last search on access
+    assert "runSearch({ q: last.q, source: last.source" in raw
+    # F4: a completed merge drops its duplicate card
+    assert "mergedIds={dupMergedIds}" in raw
+    assert "function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone })" in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

@@ -9,6 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 301 (Missing-PDF filter + sort direction toggle + read/priority/Missing-PDF filters in Trash). -->
+## 2026-07-18 — Increment 301: six misc UX fixes (Trash search · read-mode menu bar · Discover recall · duplicate card · invert sort · Missing-PDF filter)
+- **Files:** `app/frontend/js/{40_app,03_library,10_pdf_layer,30d_discover,19_duplicates}.jsx`, `app/frontend/styles.css`, `app/backend/api/routers/papers.py`, `app/backend/persistence/{repository,paper_query_repo}.py` (new leaf), `app/backend/help/help_content.md`, `tests/{test_papers,test_frontend_assembly}.py`, `callosum-app.html`, increment notes.
+- **What:** (1) Trash gets the read/priority/Missing-PDF filters (un-gated `!trashView`; backend already applied them); (2) the menu bar hides in read mode; (3) Discover → Search reloads your last search on access; (4) merging a duplicate removes its card; (5) a **▲/▼** sort direction toggle (fields dropdown, mapped to the existing backend sort keys — no backend change); (6) a **◫ Missing PDF** filter — new `GET /papers?missing_pdf=` (NOT EXISTS a local PDF, mirrors Text-Health no_local_pdf). `repository.py` was at the 600-cap, so two leaf helpers moved to `paper_query_repo.py` (re-exported).
+- **Why:** small quality-of-life gaps in daily library work; none touches an honesty invariant (search/sort/filter/view-state; "Missing PDF" is a factual attribute, not a judgment).
+- **Verify:** `tests/test_papers.py` +2 (missing_pdf filter + trash priority filter), `tests/test_frontend_assembly.py` +1 (all six UI features); QA surface **248 API / 1155 FE, 0 uncovered**; frontend rebuilt; ruff (both) + line-budget clean; full `pytest -n auto` green (count below). **User step:** restart the backend to serve `?missing_pdf=`.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-18 — Increment 300: Fast pytest — targeted dev runs + xdist parallelism + testmon
 - **Files:** `requirements-dev.txt`, `.github/workflows/ci.yml`, `.gitignore`, `.claude/CLAUDE.md`, increment notes. (No application code.)
 - **What:** added `pytest-xdist` (parallel `pytest -n auto`, ~3-4× faster) + `pytest-testmon` (`pytest --testmon` runs only tests whose covered code changed). CI's offline suite → `pytest -n auto -q`. CLAUDE.md Verification protocol now prescribes **targeted dev runs** (`pytest tests/test_<area>.py`) as the default, with the full parallel run only before merge (or lean on CI).
@@ -16,7 +24,6 @@ are the design diary; this is the chronological "what & why" record.
 - **Verify:** `pytest -n auto -q` matches the serial count (1261 passed / 1 skipped) with no new failures; targeted single-file runs finish in seconds; ruff + line-budget clean. **User step:** `pip install -r requirements-dev.txt` to get the new plugins.
 - **Revert:** restore the listed files from git; `pip uninstall pytest-xdist pytest-testmon`.
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 299 (Discover Search/Journals recent-query recall). -->
 ## 2026-07-18 — Increment 299: Discover Search/Journals recent-query recall
 - **Files:** `app/frontend/js/{30d_discover,08e_methods_publishers}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_43_discovery.md,qa-routes/route_60_publishers.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
 - **What:** added browser-local recent-query history for **Discover → Search** and **Discover → Journals**. Recall re-runs stored inputs for fresh results; Search stores query+source and Journals stores selected-paper or pasted abstract+subject run shapes. Search also gains **Clear ×** for the active query/results and both surfaces gain **Clear history** for their local recall list.

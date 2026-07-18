@@ -29,6 +29,7 @@ function useLibrary(opts) {
   const [libraryTextHealthFilter, setLibraryTextHealthFilter] = useState(null);  // local-only PDF text-health view: {key,label,paperIds}
   const [libraryReferenceFilter, setLibraryReferenceFilter] = useState(null);  // local-only refs triage view: {label,paperIds}
   const [libraryReading, setLibraryReading] = useState({ read: "", priority: "" });  // inc-221: read/priority facet ("" = no filter)
+  const [libraryMissingPdf, setLibraryMissingPdf] = useState(false);  // inc-301: only papers with no local PDF
   const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
   const [retractionFlagged, setRetractionFlagged] = useState(0);  // inc-131: # papers a registry records retracted → header chip
   const [openDataDetected, setOpenDataDetected] = useState(0);  // # papers where open-data disclosure was detected → signal chip
@@ -332,6 +333,7 @@ function useLibrary(opts) {
       if (libraryItemType) qs.set("item_type", libraryItemType);
       if (libraryReading.read) qs.set("read_status", libraryReading.read);  // inc-221: read/priority facet
       if (libraryReading.priority) qs.set("priority", libraryReading.priority);
+      if (libraryMissingPdf) qs.set("missing_pdf", "true");  // inc-301: papers with no local PDF
       if (librarySort !== "added") qs.set("sort", librarySort);
     };
     const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
@@ -379,7 +381,7 @@ function useLibrary(opts) {
       else setListState({ status: "error", error: r.error, authRequired: r.authRequired, papers: [] });  // inc 254: 401 → honest lockout copy
     });
     return () => { live = false; };
-  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, librarySort, findingsRefresh, setSelected]);
+  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected]);
 
   // inc-91: distinct item types present in the library (for the Type filter dropdown)
   useEffect(() => {
@@ -407,6 +409,7 @@ function useLibrary(opts) {
     librarySearchField, onSearchFieldChange: (f) => { setLibrarySearchField(f); setPage(0); },
     libraryItemType, itemTypes, onItemTypeChange: (t) => { setLibraryItemType(t); setPage(0); },
     libraryReading, onReadingFilter: changeReadingFilter,
+    libraryMissingPdf, onToggleMissingPdf: () => { setLibraryMissingPdf(v => !v); setPage(0); },
     onToggleLibrarySelect: toggleLibrarySelect, onClearLibrarySelect: clearLibrarySelect,
     onBulkDelete: bulkDeletePapers, onBulkSummarize: bulkSummarizePapers, onBulkPcurve: bulkPcurvePapers, onBulkMerge: bulkMergePapers, onBulkCriticalRead: bulkCriticalReadPapers, onBulkExport: bulkExportPapers, onBulkExportBundle: bulkExportBundle, onBulkBibliography: bulkBibliography, onSelectAll: selectAllLibrary,
     onBulkReferenceCheckDone: bulkReferenceCheckDone,

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any
 
 from sqlalchemy import (
@@ -252,6 +252,7 @@ def list_papers(
     finding: str | None = None,
     read_status: str | None = None,
     priority: str | None = None,
+    missing_pdf: bool = False,
     sort: str = "added",
 ) -> list[RowMapping]:
     attachment_count = (
@@ -346,32 +347,28 @@ def list_papers(
         stmt = stmt.where(papers.c.read_at.is_(None))
     if priority in PRIORITY_LEVELS:
         stmt = stmt.where(papers.c.priority == priority)  # bound value over the allowlist (rule #3)
+    if missing_pdf:
+        # Papers with no local PDF to read/extract — a factual "you still need the PDF" facet mirroring the
+        # Text-Health `no_local_pdf` flag: NOT EXISTS a PDF attachment (content_type/attachment_type) with a resolved
+        # local path. Bound/parameterized (rule #3); composes with the deleted/q/type/read/priority clauses above.
+        pdf_present = select(attachments.c.id).where(
+            attachments.c.paper_id == papers.c.id,
+            or_(
+                func.lower(attachments.c.content_type) == "application/pdf",
+                func.lower(attachments.c.attachment_type) == "pdf",
+            ),
+            attachments.c.resolved_path.is_not(None),
+        )
+        stmt = stmt.where(~pdf_present.exists())
     return list(conn.execute(stmt.limit(limit).offset(offset)).mappings())
 
 
-def get_papers_for_export(conn: Connection, paper_ids: Sequence[int]) -> list[RowMapping]:
-    """Full rows (incl. csl_json) for the given LIVE paper ids, ordered by id, for citation export (inc 70).
-    Bound-param IN (rule #3); trashed papers are never exported."""
-    if not paper_ids:
-        return []
-    stmt = (
-        select(papers)
-        .where(papers.c.id.in_(set(int(pid) for pid in paper_ids)), papers.c.deleted_at.is_(None))
-        .order_by(papers.c.id)
-    )
-    return list(conn.execute(stmt).mappings())
-
-
-def list_item_types(conn: Connection) -> list[RowMapping]:
-    """Distinct CSL item types present among LIVE papers + a per-type count, most-common first (inc 91).
-    Drives the library Type-filter dropdown so it only offers types that actually exist (honest facets)."""
-    stmt = (
-        select(papers.c.item_type, func.count().label("count"))
-        .where(papers.c.deleted_at.is_(None), papers.c.item_type.is_not(None))
-        .group_by(papers.c.item_type)
-        .order_by(func.count().desc(), papers.c.item_type)
-    )
-    return list(conn.execute(stmt).mappings())
+# inc 301: get_papers_for_export + list_item_types moved to paper_query_repo.py to hold this file under the 600-line
+# cap (rule #1; the inc-220/262 pattern). Re-exported so call sites (routers) still import them from `repository`.
+from app.backend.persistence.paper_query_repo import (  # noqa: E402,F401
+    get_papers_for_export,
+    list_item_types,
+)
 
 
 def list_live_paper_ids(conn: Connection) -> list[int]:

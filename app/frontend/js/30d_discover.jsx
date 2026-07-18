@@ -85,6 +85,15 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     }
   }, [q, source, sources, rememberSearch]);
 
+  // inc 301: reload the last search whenever Discover → Search is accessed with nothing currently shown — resume
+  // where you left off. Guarded so it never clobbers an in-progress or already-shown search; no re-run loop
+  // (runSearch flips status off "idle", so the guard blocks the next pass).
+  useEffect(() => {
+    if (!active || status !== "idle" || items.length || q.trim()) return;
+    const last = history[0];
+    if (last && last.q) runSearch({ q: last.q, source: last.source || "", sourceLabel: last.sourceLabel });
+  }, [active, status, items.length, q, history, runSearch]);
+
   const save = useCallback(async (it) => {
     if (!it || it.saved || savingKey) return;
     setSavingKey(it.dedup_key);

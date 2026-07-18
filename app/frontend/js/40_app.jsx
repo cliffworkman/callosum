@@ -56,6 +56,7 @@ function App() {
   // that open them + onMerged do). Refs break the focus↔library cycle: useLibrary's filter/merge callbacks need
   // cancelFocus + setAxisRefresh, which come from useFocusMode (declared after useLibrary). See below.
   const [duplicatesOpen, setDuplicatesOpen] = useState(false);  // inc-56 duplicate-detection modal
+  const [dupMergedIds, setDupMergedIds] = useState(null);       // inc-301: last merged group's ids → hide its dup card
   const [wantedOpen, setWantedOpen] = useState(false);          // inc-76 wanted-list / OA re-check modal
   const [textHealthOpen, setTextHealthOpen] = useState(false);  // local PDF text-health maintenance queue
   const [textHealthContext, setTextHealthContext] = useState(null);  // optional source scope, e.g. Synthesis retry
@@ -286,7 +287,8 @@ function App() {
   // bodies are bespoke); Discover + Extract render their registered sub-tabs via WorkspacePane.
   const centerEl = (
     <div className="workspace-frame">
-      <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} />
+      {/* inc 301: hide the menu bar in read mode (the focused reader); the reader's own Reading toggle exits it. */}
+      {!readingMode && <MenuBar active={activeWorkspace} onActivate={selectWorkspace} readOnly={readOnly} />}
       <div className="workspace-slot" style={{ display: activeWorkspace === "library" ? "flex" : "none" }}>
         <LibraryFrame
           libraryProps={{
@@ -346,9 +348,11 @@ function App() {
     <React.Fragment>
       {duplicatesOpen &&
         <DuplicatesModal onClose={() => setDuplicatesOpen(false)} onOpenPaper={openPdf}
-          onChanged={() => setLibRefresh(n => n + 1)} onMerge={(ids) => setMergeIds(ids)} />}
+          onChanged={() => setLibRefresh(n => n + 1)} onMerge={(ids) => setMergeIds(ids)}
+          mergedIds={dupMergedIds} onMergeDone={() => setDupMergedIds(null)} />}
       {mergeIds &&
-        <MergePapersModal ids={mergeIds} onClose={() => setMergeIds(null)} onMerged={onMerged} />}
+        <MergePapersModal ids={mergeIds} onClose={() => setMergeIds(null)}
+          onMerged={(survivorId) => { if (duplicatesOpen) setDupMergedIds(mergeIds); onMerged(survivorId); }} />}
       {critSetIds &&
         <CriticalSetModal ids={critSetIds} onClose={() => setCritSetIds(null)} onOpenPaper={openPdf} />}
       {wantedOpen &&

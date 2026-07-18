@@ -45,7 +45,7 @@ function DuplicateGroupCard({ group, onOpenPaper, onChanged, onDismiss, onMerge 
   );
 }
 
-function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge }) {
+function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone }) {
   const [state, setState] = useState({ status: "loading", groups: [] });
   const [dismissed, setDismissed] = useState(() => new Set());  // session-only hide for the current scan
   const [dismissedPairs, setDismissedPairs] = useState([]);     // persisted dismissals, for un-dismiss (inc 67)
@@ -75,6 +75,16 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge }) {
     });
     return () => { live = false; if (timer) clearTimeout(timer); };
   }, []);
+
+  // inc 301: once a merge completes, drop that group's card (reuse the session `dismissed` hide). `mergedIds` is the
+  // just-merged group's paper ids (from 40_app); find the matching group and hide it, then clear the signal.
+  useEffect(() => {
+    if (!mergedIds || !mergedIds.length || state.status !== "ready") return;
+    const idset = new Set(mergedIds.map(Number));
+    const idx = state.groups.findIndex(g => (g.papers || []).some(p => idset.has(Number(p.id))));
+    if (idx >= 0) setDismissed(s => new Set(s).add(idx));
+    onMergeDone && onMergeDone();
+  }, [mergedIds]);  // eslint-disable-line react-hooks/exhaustive-deps -- fire only when a new merge completes
 
   const remaining = state.status === "ready" ? state.groups.filter((_, i) => !dismissed.has(i)).length : 0;
   return (

@@ -216,6 +216,26 @@ function Sidebar({ conn, ctx, theoryOpen, onTheoryOpen }) {
   );
 }
 
+// inc 301: sort = a field + a direction, mapped onto the existing backend sort keys (no backend change) so a single
+// ▲/▼ toggle inverts any field instead of the user hunting the paired "Z-A" dropdown option.
+const SORT_FIELDS = [
+  { field: "added", label: "Date added", asc: "added", desc: "recent" },
+  { field: "title", label: "Title", asc: "title", desc: "title_desc" },
+  { field: "year", label: "Year", asc: "year_asc", desc: "year_desc" },
+  { field: "author", label: "Author", asc: "author", desc: "author_desc" },
+];
+function _sortFieldDir(key) {
+  for (const f of SORT_FIELDS) {
+    if (f.asc === key) return { field: f.field, dir: "asc" };
+    if (f.desc === key) return { field: f.field, dir: "desc" };
+  }
+  return { field: "added", dir: "desc" };
+}
+function _sortKey(field, dir) {
+  const f = SORT_FIELDS.find(x => x.field === field) || SORT_FIELDS[0];
+  return dir === "asc" ? f.asc : f.desc;
+}
+
 function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, total, onOpenPdf,
                     focusAxis, focusMembers, focusPending, onToggleFocusPaper, onSaveFocus, onCancelFocus,
                     trashView, selectedLibraryIds, librarySort, onSortChange, librarySearchField, onSearchFieldChange,
@@ -232,7 +252,8 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
-                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged }) {
+                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged,
+                    libraryMissingPdf, onToggleMissingPdf }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -411,34 +432,42 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
               <option value="">All types</option>
               {itemTypes.map(t => <option key={t.item_type} value={t.item_type}>{_typeLabel(t.item_type)} ({t.count})</option>)}
             </select>}
-          {/* inc 221: read + priority filter facets (your triage labels). Live library only. */}
-          {!trashView &&
-            <select className="lib-sort" value={(libraryReading && libraryReading.read) || ""} onChange={e => onReadingFilter({ ...libraryReading, read: e.target.value })} title="Filter by read state">
-              <option value="">Read: all</option>
-              <option value="unread">Unread</option>
-              <option value="read">Read</option>
-            </select>}
-          {!trashView &&
-            <select className="lib-sort" value={(libraryReading && libraryReading.priority) || ""} onChange={e => onReadingFilter({ ...libraryReading, priority: e.target.value })} title="Filter by priority">
-              <option value="">Priority: all</option>
-              <option value="high">High</option>
-              <option value="normal">Normal</option>
-              <option value="low">Low</option>
-            </select>}
-          <span className="lib-sort-label">Sort</span>
-          <select className="lib-sort" value={librarySort} onChange={e => onSortChange(e.target.value)} title="Sort the library">
-            <option value="added">Date added</option>
-            <option value="recent">Recently added</option>
-            <option value="title">Title (A–Z)</option>
-            <option value="title_desc">Title (Z–A)</option>
-            <option value="year_desc">Year (newest)</option>
-            <option value="year_asc">Year (oldest)</option>
-            <option value="author">Author (A–Z)</option>
-            <option value="author_desc">Author (Z–A)</option>
-            <option value="citations_desc">Most cited</option>
-            <option value="priority">By priority</option>
-            <option value="unread">Unread first</option>
+          {/* inc 221/301: read + priority filter facets (your triage labels) — now available in Trash too. */}
+          <select className="lib-sort" value={(libraryReading && libraryReading.read) || ""} onChange={e => onReadingFilter({ ...libraryReading, read: e.target.value })} title="Filter by read state">
+            <option value="">Read: all</option>
+            <option value="unread">Unread</option>
+            <option value="read">Read</option>
           </select>
+          <select className="lib-sort" value={(libraryReading && libraryReading.priority) || ""} onChange={e => onReadingFilter({ ...libraryReading, priority: e.target.value })} title="Filter by priority">
+            <option value="">Priority: all</option>
+            <option value="high">High</option>
+            <option value="normal">Normal</option>
+            <option value="low">Low</option>
+          </select>
+          {/* inc 301: filter to papers with no local PDF — a factual facet mirroring Text-Health's no_local_pdf. */}
+          <button className={"lib-facet-toggle" + (libraryMissingPdf ? " on" : "")} onClick={onToggleMissingPdf}
+            title="Show only papers with no local PDF" aria-pressed={!!libraryMissingPdf}>◫ Missing PDF</button>
+          {/* inc 301: sort = a field + a ▲/▼ direction toggle (the 4 paired fields); the explicit one-way sorts stay whole. */}
+          <span className="lib-sort-label">Sort</span>
+          {(() => {
+            const special = librarySort === "citations_desc" || librarySort === "priority" || librarySort === "unread";
+            const fd = _sortFieldDir(librarySort);
+            return (
+              <>
+                <select className="lib-sort" value={special ? librarySort : fd.field} title="Sort the library"
+                  onChange={e => { const v = e.target.value; onSortChange(SORT_FIELDS.some(f => f.field === v) ? _sortKey(v, fd.dir) : v); }}>
+                  {SORT_FIELDS.map(f => <option key={f.field} value={f.field}>{f.label}</option>)}
+                  <option value="citations_desc">Most cited</option>
+                  <option value="priority">By priority</option>
+                  <option value="unread">Unread first</option>
+                </select>
+                {!special &&
+                  <button className="lib-sort-dir" aria-label="Invert sort direction"
+                    title={fd.dir === "asc" ? "Ascending — click for descending" : "Descending — click for ascending"}
+                    onClick={() => onSortChange(_sortKey(fd.field, fd.dir === "asc" ? "desc" : "asc"))}>{fd.dir === "asc" ? "▲" : "▼"}</button>}
+              </>
+            );
+          })()}
         </div>
         {state.status === "ready" && !fulltextMode &&
           <div className="list-meta">

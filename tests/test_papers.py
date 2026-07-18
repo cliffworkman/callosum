@@ -1285,3 +1285,68 @@ def test_priority_sort_recency_tiebreak_within_tier(temp_db_url: str) -> None:
     ordered = [p["id"] for p in client.get("/papers", params={"sort": "priority"}).json()]
     # high tier first (newest-added first within it), then the unset tier (newest-added first within it).
     assert ordered == [hi_new, hi_old, un_new, un_old]
+
+
+def test_list_missing_pdf_filter(temp_db_url: str, tmp_path: Path) -> None:
+    # inc 301: `missing_pdf=true` → only papers with no LOCAL PDF (mirrors Text-Health no_local_pdf).
+    pdf = tmp_path / "a.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        has_pdf = create_paper(conn, title="Has PDF", csl_json={"title": "Has PDF"})
+        create_attachment(
+            conn,
+            paper_id=has_pdf,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(pdf),
+            resolved_path=str(pdf),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+        no_att = create_paper(conn, title="No attachment", csl_json={"title": "No attachment"})
+        non_pdf = create_paper(conn, title="Non-PDF only", csl_json={"title": "Non-PDF only"})
+        create_attachment(
+            conn,
+            paper_id=non_pdf,
+            storage_mode="linked",
+            availability="available",
+            resolved_path="x.txt",
+            content_type="text/plain",
+            attachment_type="text",
+        )
+        wanted = create_paper(conn, title="Wanted PDF (no local file)", csl_json={"title": "Wanted"})
+        create_attachment(
+            conn,
+            paper_id=wanted,
+            storage_mode="url",  # a known-but-unfetched PDF (a URL reference, no local file)
+            availability="missing",
+            content_type="application/pdf",
+            attachment_type="pdf",
+        )  # no resolved_path → counts as "missing PDF"
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert {has_pdf, no_att, non_pdf, wanted} <= {p["id"] for p in client.get("/papers").json()}
+    missing = {p["id"] for p in client.get("/papers", params={"missing_pdf": "true"}).json()}
+    assert no_att in missing and non_pdf in missing and wanted in missing  # no local PDF
+    assert has_pdf not in missing  # has a local PDF → excluded
+
+
+def test_trash_listing_applies_read_and_priority_filters(temp_db_url: str) -> None:
+    # inc 301: the read/priority filters (and missing_pdf) now work on the Trash (deleted) listing too.
+    from app.backend.persistence.repository import set_paper_priority, soft_delete_paper
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        hi = create_paper(conn, title="Trashed High", csl_json={"title": "Trashed High"})
+        lo = create_paper(conn, title="Trashed Low", csl_json={"title": "Trashed Low"})
+        set_paper_priority(conn, hi, "high")
+        soft_delete_paper(conn, hi)
+        soft_delete_paper(conn, lo)
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    trashed = {p["id"] for p in client.get("/papers", params={"deleted": "true"}).json()}
+    assert trashed == {hi, lo}
+    high_trashed = {p["id"] for p in client.get("/papers", params={"deleted": "true", "priority": "high"}).json()}
+    assert high_trashed == {hi}  # the priority filter applies to the deleted listing too
