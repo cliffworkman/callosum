@@ -320,29 +320,36 @@ Ranked; "legit" = a context difference worth keeping.
 
 ## 5. Navigation architecture — workspaces + per-paper lenses
 
-Callosum now has **two navigation dimensions**, and new tools should be placed by the user's **cognitive task**, not
-by implementation detail or whether the tool uses AI.
+Callosum has **two navigation dimensions**. Place new tools by the user's **cognitive task**, not by implementation
+detail, data source, or whether AI is involved.
 
-1. **Workspaces are modes of work in the center pane** — *what the user is doing right now*. The menu bar inside the
-   center Library pane switches between **My Publications / Library / Synthesize / Discover / Work / Extract**, plus
-   right-aligned **Help / Settings** utilities. Outward-facing, generative, authoring, cross-paper, or wide-output
-   tools belong here: Synthesize holds Ask (verified corpus answers) and Critique (single-paper critical read);
-   Discover holds Feed, Search (including
-   Wanted/Gaps/Overlooked launchers), Journals, and Funding; Work holds Cite (Suggest, Meta Reference List, Citation
-   Concentration, How it's cited) and CRediT statement; Extract holds Workbench, Effect-Size, and Meta-Analysis;
-   My Publications holds the user's publication dashboard. Open PDFs remain **Library** sub-tabs; a selected paper
-   that is not yet open appears as a pinned, non-draggable Library sub-tab immediately after the Library tab.
-2. **The THEORY and METHODS side accordions are lenses on the selected paper** — *how the user is evaluating or
-   interpreting the current paper*. The left THEORY pane holds compact literature-context lenses such as Axes, Tags,
-   Reading queue, and Review/findings. The right METHODS pane holds paper-evaluation lenses such as Details, GRIM,
-   Statistics check, transparency, and other methods checks. Single-paper Critical Read lives in **Synthesize →
-   Critique** rather than METHODS because it is a wide scrutiny workflow, not a compact side-lens. The side panes persist across all workspaces; only the
-   center switches.
+1. **Center workspaces are modes of work**: what the user is doing now. The center menu switches between **My
+   Publications / Library / Synthesize / Discover / Work / Extract**, plus **Help / Settings** utilities. A tool
+   belongs in a workspace when the user enters a broad mode, compares many papers, searches beyond the selected PDF,
+   writes, cites, extracts datasets, or needs center-width output.
+2. **Side panes are selected-paper lenses**: what the user is inspecting about the current paper while the center
+   mode stays available. A tool belongs in a side accordion when it is compact, paper-scoped, and useful as persistent
+   context beside the reader.
 
-The placement question is therefore: **is this a mode the user enters, or a lens on the current paper?** A tool that
-searches beyond the current PDF, produces a broad workbench, supports writing/authoring, or needs center-width output
-is a workspace or workspace tab. A compact tool that only inspects or classifies the selected paper can stay a
-side-accordion section or tab.
+Use this placement question first: **is this a mode the user enters, or a lens on the current paper?** If the tool
+creates a workbench, produces broad output, or coordinates multiple papers, it is a workspace or workspace tab. If it
+only labels, inspects, or verifies the selected paper, it can stay in a side accordion section or tab.
+
+The current center workspace map is:
+
+- **My Publications**: the user's publication dashboard.
+- **Library**: the reading surface, library list, selected-paper tab, and open PDF tabs.
+- **Synthesize**: Ask for verified corpus answers and Critique for a wide single-paper critical read.
+- **Discover**: Feed, Search, Wanted, Gaps, Overlooked, Journals, and Funding.
+- **Work**: Cite (Suggest, Meta Reference List, Citation Concentration, How it's cited) and CRediT statement.
+- **Extract**: Workbench, Effect-Size, and Meta-Analysis.
+- **Help / Settings**: utilities, right-aligned on desktop and grouped as Utilities on mobile.
+
+The internal pane ids `theory` and `methods` remain implementation vocabulary for the left and right side panes. They
+are **not** a reason to place new broad features in side accordions. The left side pane holds compact
+literature-context lenses such as Axes, Tags, Reading queue, and Review/findings. The right side pane holds compact
+paper-evaluation lenses such as Details, GRIM, Statistics check, transparency, and related methods checks. Single-paper
+Critical Read lives in **Synthesize → Critique** because it is a wide scrutiny workflow, not a compact side lens.
 
 **Workspace registry and menu-bar recipe.** The center menu bar is data-driven by
 `app/frontend/js/04b_workspaces.jsx`: `registerWorkspace`, `registerWorkspaceTab`, `workspaces`,
@@ -389,13 +396,14 @@ The visible chrome still shows section headers only — no large "THEORY" or "ME
 `paneId: "theory"` and `paneId: "methods"` remain the internal architecture. One section is open per pane, and the
 open sections persist as `callosum.theoryOpen` / `callosum.methodsOpen`.
 
-**THEORY and METHODS ordering.** THEORY is for compact selected-paper literature lenses: Axes and Tags are grouped
-together because they are conceptual labeling lenses; Queue and Review/findings stay as side-pane paper-context
-surfaces. Larger corpus synthesis and writing/citation authoring now live in center workspaces. METHODS is for
-*evaluating how a paper was studied*, ordered by cognitive task: Details (`order: 10`) → Data consistency / GRIM (`order: 20`, raw data check before analysis
-check) → Statistics check (`order: 30`, statcheck and related tests) → Review (`order: 40`, findings) → other
-methods checks. Future statistical checks become tabs inside **Statistics check**, not sibling sections. Future
-paper-evaluation modules follow the METHODS order; future literature-understanding lenses follow the THEORY order.
+**Side-pane ordering.** The left side pane is for compact selected-paper literature lenses: Axes and Tags are grouped
+together because they are conceptual labeling lenses; Queue and Review/findings stay as paper-context surfaces. The
+right side pane is for *evaluating how a paper was studied*, ordered by cognitive task: Details (`order: 10`) → Data
+consistency / GRIM (`order: 20`, raw data check before analysis check) → Statistics check (`order: 30`, statcheck and
+related tests) → Review (`order: 40`, findings) → other methods checks. Future statistical checks become tabs inside
+**Statistics check**, not sibling sections. Future paper-evaluation modules follow the right-pane order; future
+literature-understanding lenses follow the left-pane order. Larger corpus synthesis and writing/citation authoring
+belong in center workspaces.
 
 **Tabs within a section or workspace.** Tabs are for like-with-like variants inside one broad task. In side panes,
 `registerPaneTab({id,label,paneId,order}, {id,label,order,render})` adds a tab to a find-or-created host section, and

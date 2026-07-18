@@ -14,6 +14,11 @@ new work goes in the open backlog.
 - [x] **Mobile workspace switcher** (inc 302) — at phone width, the center workspace menu renders as a compact
   **Workspace** dropdown instead of the desktop horizontal tab strip; the bottom mobile nav remains the region
   switcher (**Library / Panels / Details**).
+- [x] **Navigation placement rubric rewrite** (inc 303) — `DESIGN.md §5` is now the canonical mode-vs-lens rule:
+  center workspaces are broad modes of work, side panes are selected-paper lenses, and THEORY/METHODS survive only as
+  internal pane ids.
+- [x] **Benchmark backlog reconciliation** (inc 303) — A8 was closed-as-covered in inc 205, and A5 color tags shipped
+  in inc 207; both stale open bullets are now marked done in the open backlog with their rationale.
 
 ## Theme 1 — Axes UX (inc 44–52)
 - [x] **A. Axis edit modal + title/term decoupling** (inc 44) — one Edit Axis modal; the **title is cosmetic**

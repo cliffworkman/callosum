@@ -56,8 +56,8 @@ returning users pay a one-time re-learning cost for the moved/renamed tools (Whe
 Discover; Effect-size/Meta-analysis → **Extract**; `?`/`⚙` → the menu bar). Not blocking (all reachable + working;
 help corpus updated), but a **one-time "what moved" hint** (or a Where-to-submit → Journals alias) would smooth the
 transition. Also deferred from inc 280: ✅ **mobile menu-bar treatment shipped inc 302** (phone-width center region
-uses a compact Workspace dropdown rather than the desktop tab strip). Remaining here: the **DESIGN.md §5 full
-rewrite** folding THEORY/METHODS into the two-dimension model (an interim note landed in §5).
+uses a compact Workspace dropdown rather than the desktop tab strip) and ✅ **DESIGN.md §5 rewrite shipped inc 303**
+(canonical mode-vs-lens placement rule; THEORY/METHODS retained as internal pane ids only).
 
 > **★ DONE (Cliff, 2026-06-26):** the **build-and-test slate** (inc 142–145) **and the full BYOK arc** are shipped —
 > **#10** (inc 146 Gemini key in Settings), inc 147 Test-key, inc 148 synthesis "AI is off" nudge, and **#39**
@@ -761,13 +761,14 @@ settled — don't re-litigate. Item codes (A1…D) match that doc.
   only the explanatory note from inc 205; the real Discover/Search (inc 184) + Feed (inc 188) remain center-pane tabs
   in the library frame (`30c_frame.jsx`). A frontend-assembly regression asserts the stale THEORY registration does
   not return.
-- **A8 — synthesis scope label at summarize** ("summarizing N papers; uncertain excluded"). *Largely shipped by the
-  inc-153 coverage readout* — verify + add the uncertain-inclusion statement if missing.
+- ✅ **A8 — CLOSED-AS-COVERED inc 205:** the synthesis scope label is covered by the pre-run selected-paper scope
+  note (inc 145) plus the inc-153 post-run coverage readout. A literal "uncertain excluded" statement was rejected
+  as dishonest because synthesis summarizes the shown scope, not a hidden uncertain tier.
 - ✅ **A1 — DONE (inc 208): saved searches.** A named bundle of the existing facets (q/search_field/item_type/axis/
   tag/needs-review/signal/sort), stored in a `saved_searches` table (JSON params, `extra="forbid"`) + recalled from a
   **Saved ▾** header menu (apply / save current / delete). Distinct from an axis (replays GET /papers filters, no new
   query semantics, no score).
-- **A5 — color tags ONLY** (a color attribute on tags). **Ratings/flags are declined** (Cliff, 2026-06-29): a
+- ✅ **A5 — DONE inc 207: color tags ONLY** (a color attribute on tags). **Ratings/flags are declined** (Cliff, 2026-06-29): a
   unidimensional star/rating reduces a paper to one number, erasing the multi-dimensionality that tags capture —
   "I'd give bad science 5 stars for teachability." This coheres with the charter (#7 no opaque composite,
   inspectability over authority): tags are the flexible, orthogonal, inspectable way to judge a paper; a star is a

@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 302 (mobile workspace switcher). -->
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 303; inc 303 is docs/backlog-only and requires no served-help change. -->
+## 2026-07-18 — Increment 303: Navigation rubric rewrite + backlog reconciliation
+- **Files:** `.claude/DESIGN.md`, `.claude/docs/{INCREMENT-BACKLOG.md,INCREMENT-BACKLOG-DONE.md,increment-notes/INCREMENT-303-NOTES.md}`, `.claude/{CLAUDE.md,CODEX-HANDOFF.md,changes.md}`.
+- **What:** rewrote `DESIGN.md §5` into the canonical mode-vs-lens placement rule: center workspaces are broad modes of work; side panes are selected-paper lenses; THEORY/METHODS remain internal pane ids, not a product taxonomy. Reconciled stale open backlog bullets by marking A8 closed-as-covered (inc 205) and A5 color tags done (inc 207).
+- **Why:** the inc-280 workspace migration and inc-302 mobile follow-up were shipped, but the design guide and open backlog still carried transitional language that could steer future tools back into the side accordions.
+- **Verify:** docs-only; no frontend rebuild required; ruff + format + line-budget gates clean; QA surface map **248 API / 1157 FE, 0 uncovered**; full suite **1264 passed / 1 skipped**.
+- **Revert:** restore the listed docs from git. No frontend rebuild required.
+
 ## 2026-07-18 — Increment 302: Mobile workspace switcher
 - **Files:** `app/frontend/js/{04b_workspaces,40_app}.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_00_smoke_readonly.md,qa-routes/route_73_workspaces.md,security-audits/2026-07-18_mobile-workspace-switcher.md}`, `.claude/docs/{INCREMENT-BACKLOG.md,INCREMENT-BACKLOG-DONE.md,increment-notes/INCREMENT-302-NOTES.md}`, `tests/{test_frontend_assembly.py,e2e/test_smoke.py}`, `callosum-app.html`.
 - **What:** at phone width, the center workspace menu now renders as a compact **Workspace** dropdown grouped into Workspaces and Utilities, while the bottom mobile nav remains the region switcher (**Library / Panels / Details**). Desktop keeps the horizontal menu bar.
