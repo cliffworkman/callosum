@@ -20,6 +20,22 @@ const PUB_BREADTHS = [
   { id: "focused", label: "Focused (top 10)", topK: 10 },
   { id: "broad", label: "Broad (top 25)", topK: 25 },
 ];
+const PUB_HISTORY_KEY = "callosum.discover.journalsHistory.v1";
+const PUB_HISTORY_LIMIT = 8;
+
+function _pubLoadHistory() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(PUB_HISTORY_KEY) || "[]");
+    return Array.isArray(rows) ? rows.filter(r => r && r.kind).slice(0, PUB_HISTORY_LIMIT) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function _pubSaveHistory(rows) {
+  try { localStorage.setItem(PUB_HISTORY_KEY, JSON.stringify(rows)); } catch (e) { /* ignore */ }
+}
+
 function pubWeightId(value) {  // stored float → the nearest named level id (for the segmented control's active state)
   if (value == null) return null;
   let best = PUB_WEIGHTS[0];
@@ -147,6 +163,8 @@ function PublishersPanel({ ctx }) {
   const [abstract, setAbstract] = useState("");
   const [subject, setSubject] = useState("");
   const [state, setState] = useState({ status: "idle" });  // idle | running | done | error
+  const [history, setHistory] = useState(_pubLoadHistory);
+  const [lastRunInput, setLastRunInput] = useState(null);
 
   const loadStatus = () => api("/settings").then(r => { if (r.ok) setStatus(r.data); });
   useEffect(() => { loadStatus(); }, []);
@@ -168,11 +186,39 @@ function PublishersPanel({ ctx }) {
   const weighting = status.publisher_weighting ?? 0.0;
   const weightingOn = weighting > 0;
 
-  const run = async (overrideWeighting) => {
+  const rememberRun = (entry) => {
+    setHistory(prev => {
+      const key = entry.kind === "paper"
+        ? `paper:${entry.paperId}`
+        : `abstract:${(entry.subject || "").trim().toLowerCase()}\n${(entry.abstract || "").trim().toLowerCase()}`;
+      const next = [entry, ...prev.filter(p => {
+        const pkey = p.kind === "paper"
+          ? `paper:${p.paperId}`
+          : `abstract:${(p.subject || "").trim().toLowerCase()}\n${(p.abstract || "").trim().toLowerCase()}`;
+        return pkey !== key;
+      })].slice(0, PUB_HISTORY_LIMIT);
+      _pubSaveHistory(next);
+      return next;
+    });
+  };
+
+  const clearRunHistory = () => {
+    setHistory([]); _pubSaveHistory([]);
+  };
+
+  const run = async (overrideWeighting, overrideInput) => {
     const w = overrideWeighting != null ? overrideWeighting : weighting;
-    const body = mode === "paper"
-      ? { paper_id: ctx.selectedPaper, weighting: w, top_k: breadth.topK }
-      : { abstract: abstract, subject: subject, weighting: w, top_k: breadth.topK };
+    const input = overrideInput || (mode === "paper"
+      ? { kind: "paper", paperId: ctx.selectedPaper, label: meta ? meta.title : null }
+      : { kind: "abstract", abstract: abstract.trim(), subject: subject.trim() });
+    if (overrideInput) {
+      setMode(input.kind === "paper" ? "paper" : "abstract");
+      if (input.kind === "abstract") { setAbstract(input.abstract || ""); setSubject(input.subject || ""); }
+    }
+    const body = input.kind === "paper"
+      ? { paper_id: input.paperId, weighting: w, top_k: breadth.topK }
+      : { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK };
+    setLastRunInput(input);
     setState({ status: "running", progress: null });
     const poll = (jobId) => api(`/methods/publishers/run/${jobId}`).then(r => {
       if (!r.ok) { setState({ status: "error", error: r.error }); return; }
@@ -183,6 +229,9 @@ function PublishersPanel({ ctx }) {
     });
     const r = await apiPost("/methods/publishers/run", body);
     if (!r.ok) { setState({ status: "error", error: r.error }); return; }
+    rememberRun(input.kind === "paper"
+      ? { kind: "paper", paperId: input.paperId, label: input.label || `Paper ${input.paperId}` }
+      : { kind: "abstract", abstract: input.abstract, subject: input.subject });
     poll(r.data.job_id);
   };
 
@@ -191,7 +240,7 @@ function PublishersPanel({ ctx }) {
     const val = PUB_WEIGHTS.find(x => x.id === levelId).value;
     setStatus(s => ({ ...s, publisher_weighting: val }));
     await apiPut("/settings", { set_publisher_weighting: true, publisher_weighting: val });
-    if (state.status === "done") run(val);
+    if (state.status === "done") run(val, lastRunInput || undefined);
   };
 
   const rep = state.report;
@@ -199,6 +248,9 @@ function PublishersPanel({ ctx }) {
   const elevated = rep ? rep.profiles.filter(p => p.elevated_for && p.elevated_for.length > 0) : [];
   const elevatedGoods = [...new Set(elevated.flatMap(p => p.elevated_for))];
   const absent = rep && rep.profiles[0] ? rep.profiles[0].legitimacy_absent : [];
+  const historyLabel = (h) => h.kind === "paper"
+    ? `Selected paper · ${h.label || "paper " + h.paperId}`
+    : `Abstract · ${h.subject || "untitled subject"}`;
 
   return (
     <div className="pub-panel">
@@ -225,9 +277,22 @@ function PublishersPanel({ ctx }) {
           </div>}
 
       {state.status !== "running" &&
-        <button className="btn btn-primary" disabled={!canRun} onClick={() => run()}>
-          {state.status === "done" ? "Search again" : "Find journals"}
-        </button>}
+        <div className="settings-actions">
+          <button className="btn btn-primary" disabled={!canRun} onClick={() => run()}>
+            {state.status === "done" ? "Search again" : "Find journals"}
+          </button>
+          <select className="lib-sort" value="" onChange={e => {
+            const h = history[Number(e.target.value)];
+            if (h) run(null, h);
+          }} title="Recall and re-run a recent Journals search">
+            <option value="">Recent journal searches</option>
+            {history.map((h, i) => <option key={`${h.kind}-${h.paperId || h.subject}-${i}`} value={i}>
+              {historyLabel(h)}
+            </option>)}
+          </select>
+          <button className="btn btn-primary" disabled={!history.length} onClick={clearRunHistory}
+            title="Clear recent Journals search history stored in this browser">Clear history</button>
+        </div>}
 
       {state.status === "running" && <ProgressBar progress={state.progress} label="Matching journals…" />}
       {state.status === "error" && <div className="axis-err">Couldn't search: {state.error}</div>}

@@ -24,7 +24,7 @@ Picking up **callosum** with the maintainer (Cliff) **supervising live**. **Read
 4. **Do NOT touch the design invariants** (egress gate; coordinate honesty; signal-not-verdict; evidence shown).
 5. **No over-claiming.** Report the real pytest count; say "partial"/"unverified" (esp. visual placement — flag what
    Cliff/Opus should eyeball). Minimal diffs; one increment-notes file + `changes.md` entry per increment (bump the
-   number — next is **299**); keep CLAUDE.md current.
+   number — next is **300**); keep CLAUDE.md current.
 6. **Line-budget watch** (near-cap files you'll touch): `04b_workspaces.jsx`, `30d_discover.jsx`, `20_synthesis.jsx`,
    `40_app.jsx` — split with the shared-IIFE hoist precedent if one crosses 600.
 
@@ -179,3 +179,32 @@ Verification:
 
 Handoff caveat:
 - No browser smoke was run for the visual placement. Claude/Opus should eyeball the menu order and Synthesize tabs in the running UI, especially read-only behavior hiding **Critique**.
+---
+
+## Codex update — 2026-07-18: Group D / Increment 299 complete
+
+- Added browser-local recent-query recall to **Discover → Search**.
+  - Stores query + source provider in `callosum.discover.searchHistory.v1`.
+  - **Recent searches** re-runs the stored input for fresh results.
+  - **Clear ×** resets only the active query/results/error/cursor/relevance state.
+  - **Clear history** clears only the local recall list.
+- Added browser-local recent-run recall to **Discover → Journals**.
+  - Stores selected-paper runs as paper id + label.
+  - Stores pasted runs as abstract + subject.
+  - **Recent journal searches** re-runs the stored input shape for fresh results.
+  - Weighting adjustment after recall re-runs the last active input, including recalled inputs.
+- Updated served help, DESIGN, route 43 Discovery QA, route 60 Journals QA, route 73 Workspaces QA, changelog, and increment notes.
+- Rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools/build_frontend.py` — passed.
+- `python -m pytest tests/test_frontend_assembly.py tests/test_help.py -q` — 47 passed.
+- `python -m pytest tests/test_discovery.py tests/test_publishers.py tests/test_frontend_assembly.py tests/test_help.py -q` — 80 passed.
+- `python -m ruff check .` — passed.
+- `python -m ruff format --check .` — passed after formatting `tests/test_frontend_assembly.py`.
+- `python tools/check_line_budget.py` — passed.
+- `python tools/qa/build_surface_map.py check` — 248 API / 1151 FE, 0 uncovered.
+- Full `python -m pytest -q` — 1261 passed, 1 skipped.
+
+Handoff caveat:
+- No browser smoke was run for the new history controls. Claude/Opus should manually verify Search recall/clear and Journals recall, especially weighting adjustment after recalling a stored Journals input.

@@ -61,7 +61,7 @@ network is available; the hermetic pytest suite (`tests/test_publishers.py`) cov
 
 ## Frontend — the "Where to submit" panel (SP1b, `08e_methods_publishers.jsx`)
 
-Open THEORY → **Where to submit**. Assert:
+Open Discover → **Journals**. Assert:
 - **First-use choice gate.** On a fresh instance the panel shows a "set your preferences" step with **two** segmented
   controls (open-science weighting + result breadth) and **no option pre-selected** — no output/run controls appear
   until BOTH are set. **Save preferences** is disabled until both are chosen. Any pre-highlighted default is
@@ -69,6 +69,9 @@ Open THEORY → **Where to submit**. Assert:
 - **Local-only note at the point of choice** ("stored on this machine only — never transmitted"). Missing it is Medium.
 - **Once set, the gate does not re-fire** — the panel shows the input (Selected paper / Paste abstract) + Find journals.
   The prefs stay editable in Settings → **Where to submit** (and via the output thumb).
+- **Recent journal searches.** After a selected-paper run and a pasted abstract+subject run, the **Recent journal
+  searches** dropdown appears. Recalling a row re-runs that stored input shape with fresh results (it does not replay
+  cached result cards); **Clear history** removes the browser-local list and it stays gone after reload.
 - **Output legibility (non-negotiable).** After a run, the results view **always** shows the weighting's state inline
   ("Open-science weighting: <level> — N journals elevated for <goods> · adjust") with a segmented control that re-runs
   on change. Missing/absent output thumb is **High**.
@@ -85,6 +88,8 @@ Open THEORY → **Where to submit**. Assert:
 - 0 genai-host requests; the abstract text is in no outbound request.
 - No composite score, no "predatory" label; closed journals + no-signal journals still appear.
 - Neither/both-input -> 422; nonexistent/no-DOI paper -> 404/422; unknown job -> 404; empty topic -> honest `shown:0`.
+- Recent journal-search recall re-runs stored inputs for fresh results; clearing history only clears the local recall
+  list and does not affect settings or saved papers.
 
 ## Deposit
 

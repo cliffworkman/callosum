@@ -4806,6 +4806,22 @@
     { id: "focused", label: "Focused (top 10)", topK: 10 },
     { id: "broad", label: "Broad (top 25)", topK: 25 }
   ];
+  const PUB_HISTORY_KEY = "callosum.discover.journalsHistory.v1";
+  const PUB_HISTORY_LIMIT = 8;
+  function _pubLoadHistory() {
+    try {
+      const rows = JSON.parse(localStorage.getItem(PUB_HISTORY_KEY) || "[]");
+      return Array.isArray(rows) ? rows.filter((r) => r && r.kind).slice(0, PUB_HISTORY_LIMIT) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function _pubSaveHistory(rows) {
+    try {
+      localStorage.setItem(PUB_HISTORY_KEY, JSON.stringify(rows));
+    } catch (e) {
+    }
+  }
   function pubWeightId(value) {
     if (value == null) return null;
     let best = PUB_WEIGHTS[0];
@@ -4868,6 +4884,8 @@
     const [abstract, setAbstract] = useState("");
     const [subject, setSubject] = useState("");
     const [state, setState] = useState({ status: "idle" });
+    const [history, setHistory] = useState(_pubLoadHistory);
+    const [lastRunInput, setLastRunInput] = useState(null);
     const loadStatus = () => api("/settings").then((r) => {
       if (r.ok) setStatus(r.data);
     });
@@ -4893,9 +4911,35 @@
     const breadth = PUB_BREADTHS.find((x) => x.id === status.publisher_breadth) || PUB_BREADTHS[1];
     const weighting = status.publisher_weighting ?? 0;
     const weightingOn = weighting > 0;
-    const run = async (overrideWeighting) => {
+    const rememberRun = (entry) => {
+      setHistory((prev) => {
+        const key = entry.kind === "paper" ? `paper:${entry.paperId}` : `abstract:${(entry.subject || "").trim().toLowerCase()}
+${(entry.abstract || "").trim().toLowerCase()}`;
+        const next = [entry, ...prev.filter((p) => {
+          const pkey = p.kind === "paper" ? `paper:${p.paperId}` : `abstract:${(p.subject || "").trim().toLowerCase()}
+${(p.abstract || "").trim().toLowerCase()}`;
+          return pkey !== key;
+        })].slice(0, PUB_HISTORY_LIMIT);
+        _pubSaveHistory(next);
+        return next;
+      });
+    };
+    const clearRunHistory = () => {
+      setHistory([]);
+      _pubSaveHistory([]);
+    };
+    const run = async (overrideWeighting, overrideInput) => {
       const w = overrideWeighting != null ? overrideWeighting : weighting;
-      const body = mode === "paper" ? { paper_id: ctx.selectedPaper, weighting: w, top_k: breadth.topK } : { abstract, subject, weighting: w, top_k: breadth.topK };
+      const input = overrideInput || (mode === "paper" ? { kind: "paper", paperId: ctx.selectedPaper, label: meta ? meta.title : null } : { kind: "abstract", abstract: abstract.trim(), subject: subject.trim() });
+      if (overrideInput) {
+        setMode(input.kind === "paper" ? "paper" : "abstract");
+        if (input.kind === "abstract") {
+          setAbstract(input.abstract || "");
+          setSubject(input.subject || "");
+        }
+      }
+      const body = input.kind === "paper" ? { paper_id: input.paperId, weighting: w, top_k: breadth.topK } : { abstract: input.abstract, subject: input.subject, weighting: w, top_k: breadth.topK };
+      setLastRunInput(input);
       setState({ status: "running", progress: null });
       const poll = (jobId) => api(`/methods/publishers/run/${jobId}`).then((r2) => {
         if (!r2.ok) {
@@ -4915,20 +4959,34 @@
         setState({ status: "error", error: r.error });
         return;
       }
+      rememberRun(input.kind === "paper" ? { kind: "paper", paperId: input.paperId, label: input.label || `Paper ${input.paperId}` } : { kind: "abstract", abstract: input.abstract, subject: input.subject });
       poll(r.data.job_id);
     };
     const adjustWeighting = async (levelId) => {
       const val = PUB_WEIGHTS.find((x) => x.id === levelId).value;
       setStatus((s) => ({ ...s, publisher_weighting: val }));
       await apiPut("/settings", { set_publisher_weighting: true, publisher_weighting: val });
-      if (state.status === "done") run(val);
+      if (state.status === "done") run(val, lastRunInput || void 0);
     };
     const rep = state.report;
     const canRun = mode === "paper" ? ctx.selectedPaper != null && (!meta || meta.hasDoi) : abstract.trim() && subject.trim();
     const elevated = rep ? rep.profiles.filter((p) => p.elevated_for && p.elevated_for.length > 0) : [];
     const elevatedGoods = [...new Set(elevated.flatMap((p) => p.elevated_for))];
     const absent = rep && rep.profiles[0] ? rep.profiles[0].legitimacy_absent : [];
-    return /* @__PURE__ */ React.createElement("div", { className: "pub-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pub-intro" }, "Facts to weigh, never a verdict. Every candidate is shown (including closed journals); elevation underscores goods a journal offers, never flags the others. No composite score. Your abstract stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter pub-mode", role: "group", "aria-label": "Input" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "paper" ? " on" : ""), onClick: () => setMode("paper") }, "Selected paper"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "abstract" ? " on" : ""), onClick: () => setMode("abstract") }, "Paste an abstract")), mode === "paper" ? ctx.selectedPaper == null ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper in the library, or paste an abstract instead.") : meta && !meta.hasDoi ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so its research topic can't be resolved \u2014 paste its abstract + a subject instead.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input-note" }, "Matching ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "the selected paper"), " against candidate journals in its field.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input" }, /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 4, placeholder: "Paste your abstract\u2026", value: abstract, onChange: (e) => setAbstract(e.target.value) }), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "Subject / field (e.g. cognitive neuroscience)", value: subject, onChange: (e) => setSubject(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "The abstract is embedded locally and never sent; only the subject term (a coarse public keyword) is used to gather candidate journals.")), state.status !== "running" && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canRun, onClick: () => run() }, state.status === "done" ? "Search again" : "Find journals"), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Matching journals\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && /* @__PURE__ */ React.createElement("div", { className: "pub-results" }, /* @__PURE__ */ React.createElement("div", { className: "pub-thumb" }, /* @__PURE__ */ React.createElement("span", { className: "pub-thumb-state" }, "Open-science weighting: ", /* @__PURE__ */ React.createElement("b", null, pubWeightLabel(weighting)), weightingOn ? ` \u2014 ${elevated.length} journal${elevated.length === 1 ? "" : "s"} elevated${elevatedGoods.length ? " for " + elevatedGoods.join(", ") : ""}` : " \u2014 ranked by topical fit only", " \xB7 adjust:"), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: pubWeightId(weighting), onChange: adjustWeighting, ariaLabel: "Adjust open-science weighting" })), rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidate journals found for this topic.") : /* @__PURE__ */ React.createElement(React.Fragment, null, rep.profiles.map((p) => /* @__PURE__ */ React.createElement(PubProfileCard, { key: p.source_id, p, weightingOn })), absent && absent.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, "Not checked in this version: ", absent.join("; "), ". Absence of a signal is common for new + regional journals and is ", /* @__PURE__ */ React.createElement("b", null, "not"), " a mark against a journal."))));
+    const historyLabel = (h) => h.kind === "paper" ? `Selected paper \xB7 ${h.label || "paper " + h.paperId}` : `Abstract \xB7 ${h.subject || "untitled subject"}`;
+    return /* @__PURE__ */ React.createElement("div", { className: "pub-panel" }, /* @__PURE__ */ React.createElement("div", { className: "pub-intro" }, "Facts to weigh, never a verdict. Every candidate is shown (including closed journals); elevation underscores goods a journal offers, never flags the others. No composite score. Your abstract stays on your machine."), /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter pub-mode", role: "group", "aria-label": "Input" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "paper" ? " on" : ""), onClick: () => setMode("paper") }, "Selected paper"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "tags-srcfilter-btn" + (mode === "abstract" ? " on" : ""), onClick: () => setMode("abstract") }, "Paste an abstract")), mode === "paper" ? ctx.selectedPaper == null ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper in the library, or paste an abstract instead.") : meta && !meta.hasDoi ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper has no DOI, so its research topic can't be resolved \u2014 paste its abstract + a subject instead.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input-note" }, "Matching ", /* @__PURE__ */ React.createElement("b", null, meta ? meta.title : "the selected paper"), " against candidate journals in its field.") : /* @__PURE__ */ React.createElement("div", { className: "pub-input" }, /* @__PURE__ */ React.createElement("textarea", { className: "settings-input", rows: 4, placeholder: "Paste your abstract\u2026", value: abstract, onChange: (e) => setAbstract(e.target.value) }), /* @__PURE__ */ React.createElement("input", { className: "settings-input", placeholder: "Subject / field (e.g. cognitive neuroscience)", value: subject, onChange: (e) => setSubject(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "The abstract is embedded locally and never sent; only the subject term (a coarse public keyword) is used to gather candidate journals.")), state.status !== "running" && /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: !canRun, onClick: () => run() }, state.status === "done" ? "Search again" : "Find journals"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: "", onChange: (e) => {
+      const h = history[Number(e.target.value)];
+      if (h) run(null, h);
+    }, title: "Recall and re-run a recent Journals search" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Recent journal searches"), history.map((h, i) => /* @__PURE__ */ React.createElement("option", { key: `${h.kind}-${h.paperId || h.subject}-${i}`, value: i }, historyLabel(h)))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        disabled: !history.length,
+        onClick: clearRunHistory,
+        title: "Clear recent Journals search history stored in this browser"
+      },
+      "Clear history"
+    )), state.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { progress: state.progress, label: "Matching journals\u2026" }), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't search: ", state.error), state.status === "done" && rep && /* @__PURE__ */ React.createElement("div", { className: "pub-results" }, /* @__PURE__ */ React.createElement("div", { className: "pub-thumb" }, /* @__PURE__ */ React.createElement("span", { className: "pub-thumb-state" }, "Open-science weighting: ", /* @__PURE__ */ React.createElement("b", null, pubWeightLabel(weighting)), weightingOn ? ` \u2014 ${elevated.length} journal${elevated.length === 1 ? "" : "s"} elevated${elevatedGoods.length ? " for " + elevatedGoods.join(", ") : ""}` : " \u2014 ranked by topical fit only", " \xB7 adjust:"), /* @__PURE__ */ React.createElement(PubSegmented, { options: PUB_WEIGHTS, value: pubWeightId(weighting), onChange: adjustWeighting, ariaLabel: "Adjust open-science weighting" })), rep.shown === 0 ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "No candidate journals found for this topic.") : /* @__PURE__ */ React.createElement(React.Fragment, null, rep.profiles.map((p) => /* @__PURE__ */ React.createElement(PubProfileCard, { key: p.source_id, p, weightingOn })), absent && absent.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "pub-absent" }, "Not checked in this version: ", absent.join("; "), ". Absence of a signal is common for new + regional journals and is ", /* @__PURE__ */ React.createElement("b", null, "not"), " a mark against a journal."))));
   }
   registerWorkspaceTab(
     { id: "discover" },
@@ -11855,6 +11913,22 @@
       }
     ))));
   }
+  const DISCOVER_SEARCH_HISTORY_KEY = "callosum.discover.searchHistory.v1";
+  const DISCOVER_SEARCH_HISTORY_LIMIT = 8;
+  function _discoverLoadSearchHistory() {
+    try {
+      const rows = JSON.parse(localStorage.getItem(DISCOVER_SEARCH_HISTORY_KEY) || "[]");
+      return Array.isArray(rows) ? rows.filter((r) => r && r.q).slice(0, DISCOVER_SEARCH_HISTORY_LIMIT) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+  function _discoverSaveSearchHistory(rows) {
+    try {
+      localStorage.setItem(DISCOVER_SEARCH_HISTORY_KEY, JSON.stringify(rows));
+    } catch (e) {
+    }
+  }
   function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked }) {
     const [q, setQ] = useState("");
     const [status, setStatus] = useState("idle");
@@ -11866,6 +11940,7 @@
     const [relevance, setRelevance] = useState({});
     const [sources, setSources] = useState([]);
     const [source, setSource] = useState("");
+    const [history, setHistory] = useState(_discoverLoadSearchHistory);
     const inputRef = useRef(null);
     const listRef = useRef(null);
     useEffect(() => {
@@ -11873,21 +11948,52 @@
         if (r.ok) setSources(r.data.sources || []);
       });
     }, []);
-    const runSearch = useCallback(async () => {
-      const query = q.trim();
+    const rememberSearch = useCallback((entry) => {
+      setHistory((prev) => {
+        const key = `${entry.source || ""}
+${entry.q.trim().toLowerCase()}`;
+        const next = [entry, ...prev.filter((p) => `${p.source || ""}
+${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
+        _discoverSaveSearchHistory(next);
+        return next;
+      });
+    }, []);
+    const clearActiveSearch = useCallback(() => {
+      setQ("");
+      setItems([]);
+      setError("");
+      setCursor(-1);
+      setExpanded(/* @__PURE__ */ new Set());
+      setRelevance({});
+      setStatus("idle");
+      if (inputRef.current) inputRef.current.focus();
+    }, []);
+    const clearSearchHistory = useCallback(() => {
+      setHistory([]);
+      _discoverSaveSearchHistory([]);
+    }, []);
+    const runSearch = useCallback(async (override) => {
+      const query = (override && override.q != null ? override.q : q).trim();
       if (!query) return;
+      const selectedSource = override && override.source != null ? override.source : source;
+      const selectedLabel = override && override.sourceLabel ? override.sourceLabel : selectedSource ? (sources.find((s) => s.kind === selectedSource) || {}).label || selectedSource : "All sources";
+      if (override) {
+        setQ(query);
+        setSource(selectedSource || "");
+      }
       setStatus("loading");
       setError("");
       setCursor(-1);
       setExpanded(/* @__PURE__ */ new Set());
       setRelevance({});
-      const sourceParam = source ? `&source=${encodeURIComponent(source)}` : "";
+      const sourceParam = selectedSource ? `&source=${encodeURIComponent(selectedSource)}` : "";
       const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25${sourceParam}`);
       if (r.ok) {
         const rows = (r.data.items || []).map((it) => ({ ...it, saved: !!it.in_library }));
         setItems(rows);
         setStatus("ready");
         setCursor(rows.length ? 0 : -1);
+        rememberSearch({ q: query, source: selectedSource || "", sourceLabel: selectedLabel });
         if (rows.length) {
           const rr = await apiPost("/discovery/relevance", {
             items: rows.map((it) => ({ dedup_key: it.dedup_key, title: it.title || "", abstract: it.abstract || null }))
@@ -11899,7 +12005,7 @@
         setError(r.error || "Search failed.");
         setStatus("error");
       }
-    }, [q, source]);
+    }, [q, source, sources, rememberSearch]);
     const save = useCallback(async (it) => {
       if (!it || it.saved || savingKey) return;
       setSavingKey(it.dedup_key);
@@ -11962,7 +12068,28 @@
         autoFocus: true,
         placeholder: "Search the literature \u2014 title, author, keywords\u2026"
       }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: source, onChange: (e) => setSource(e.target.value), title: "Search source" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All sources"), sources.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.kind, value: s.kind }, s.label || s.kind))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: runSearch, disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search"), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 source choice controls where to query; the complete returned list is shown (nothing AI-filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: source, onChange: (e) => setSource(e.target.value), title: "Search source" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All sources"), sources.map((s) => /* @__PURE__ */ React.createElement("option", { key: s.kind, value: s.kind }, s.label || s.kind))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: () => runSearch(), disabled: status === "loading" || !q.trim() }, status === "loading" ? "Searching\u2026" : "Search"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: clearActiveSearch,
+        disabled: status === "loading" || !q && !items.length && status === "idle",
+        title: "Clear the current query and results"
+      },
+      "Clear \xD7"
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: "", onChange: (e) => {
+      const h = history[Number(e.target.value)];
+      if (h) runSearch(h);
+    }, title: "Recall and re-run a recent Search query" }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Recent searches"), history.map((h, i) => /* @__PURE__ */ React.createElement("option", { key: `${h.source || "all"}-${h.q}-${i}`, value: i }, h.q, " \xB7 ", h.sourceLabel || h.source || "All sources"))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: clearSearchHistory,
+        disabled: !history.length,
+        title: "Clear recent Search query history stored in this browser"
+      },
+      "Clear history"
+    ), onOpenWanted && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenWanted, title: "Papers you want an OA copy of \u2014 re-check open-access sources" }, "Wanted"), onOpenGaps && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenGaps, title: "Works related to several of your papers that you don't have yet \u2014 references you cite, or newer work citing you" }, "Gaps"), onOpenOverlooked && /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: onOpenOverlooked, title: "Per axis: works relevant to it but under-cited for their year \u2014 work the field may have overlooked" }, "Overlooked")), /* @__PURE__ */ React.createElement("div", { className: "discover-hint" }, "Public metadata search \xB7 source choice controls where to query; the complete returned list is shown (nothing AI-filtered) \xB7 ", /* @__PURE__ */ React.createElement("b", null, "j/k"), " move \xB7 ", /* @__PURE__ */ React.createElement("b", null, "s"), " save \xB7 ", /* @__PURE__ */ React.createElement("b", null, "Enter"), " abstract")), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body", ref: listRef, tabIndex: 0 }, status === "idle" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Search journals + preprints, then save any result to your library \u2014 metadata only, no PDF."), status === "error" && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, error), status === "ready" && !items.length && /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No results. Try different terms."), items.map((it, i) => /* @__PURE__ */ React.createElement(
       "div",
       {
         key: it.dedup_key,

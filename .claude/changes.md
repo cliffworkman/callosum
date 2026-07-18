@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 298 (Synthesize Ask/Critique split + Critical Read relocation). -->
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 299 (Discover Search/Journals recent-query recall). -->
+## 2026-07-18 — Increment 299: Discover Search/Journals recent-query recall
+- **Files:** `app/frontend/js/{30d_discover,08e_methods_publishers}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_43_discovery.md,qa-routes/route_60_publishers.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
+- **What:** added browser-local recent-query history for **Discover → Search** and **Discover → Journals**. Recall re-runs stored inputs for fresh results; Search stores query+source and Journals stores selected-paper or pasted abstract+subject run shapes. Search also gains **Clear ×** for the active query/results and both surfaces gain **Clear history** for their local recall list.
+- **Why:** repeated discovery work should be easy to resume without treating prior result snapshots as current evidence. Re-running preserves the existing complete-list and signal-not-verdict contracts.
+- **Verify:** frontend rebuilt; focused `tests/test_discovery.py tests/test_publishers.py tests/test_frontend_assembly.py tests/test_help.py` **80 passed**; QA surface map **248 API / 1151 FE, 0 uncovered**; full suite **1261 passed / 1 skipped**; ruff + format + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-18 — Increment 298: Synthesize Ask/Critique split
 - **Files:** `app/frontend/js/{03_library,04b_workspaces,08x_methods_critical,08y_critical_set,20_synthesis,30c_frame,40_app}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_55_synthesis_verification.md,qa-routes/route_67_critical_review.md,qa-routes/route_71_critical_review_set.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
 - **What:** renamed the center workspace label to **Synthesize**, split it into **Ask** and **Critique**, moved single-paper Critical Read out of METHODS into **Synthesize → Critique**, and made selection summarize request **Ask**.

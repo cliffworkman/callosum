@@ -74,13 +74,17 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    Cite/Meta Reference List/CRediT to Work, Discover tools to Discover Search, and Effect-Size/Meta-Analysis to Extract.
 2. **Discover** → confirm four sub-tabs **Feed · Search · Journals · Funding**. In **Feed**, confirm the standalone
    Feed controls render there and not inside Search. In **Search**, confirm the search row has
-   **Search**, **Wanted**, **Gaps**, and **Overlooked** buttons styled identically; click each discovery button and
-   confirm it opens its existing modal. Confirm **Feed** does not appear below the Search results area.
+   **Search**, **Clear ×**, **Recent searches**, **Clear history**, **Wanted**, **Gaps**, and **Overlooked** controls;
+   click each discovery button and confirm it opens its existing modal. Run two searches, recall the first from
+   **Recent searches**, and confirm it re-runs; **Clear ×** empties the active Search query/results and **Clear
+   history** removes the local recall list. Confirm **Feed** does not appear below the Search results area.
    Select a paper first, then open **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode
    when nothing is selected). With the selected paper not yet open, confirm **Journals** and **Funding** show the
    dashed selected-paper cue before **Feed · Search · Journals · Funding**; click it and confirm it opens the PDF. Return to
    Discover → Journals/Funding with that paper open and confirm the cue now uses the normal open-PDF tab styling and
-   clicks back to the reader. Confirm **Search** does not show this cue. With enough content to overflow, confirm each
+   clicks back to the reader. In **Journals**, run a selected-paper search and a pasted abstract+subject search, then
+   recall both from **Recent journal searches** and confirm each re-runs its stored input shape; **Clear history**
+   removes that local list. Confirm **Search** does not show this cue. With enough content to overflow, confirm each
    body scrolls vertically without moving the Discover sub-tab strip.
 3. **Synthesize** → confirm sub-tabs **Ask · Critique**. In **Ask**, ask a small query or use Library selection
    **summarize**; confirm the workspace opens to Ask and the history/result state stays mounted when switching away
@@ -125,6 +129,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   the PDF; Effect-Size runs).
 - Long Journals, Funding, Effect-Size, and Meta-Analysis bodies scroll inside their workspace body without moving the
   menu bar or sub-tab strip.
+- Search/Journals recent-history controls are browser-local recall lists that re-run stored inputs, not cached result
+  replay. Their Clear history actions do not touch saved papers; Search **Clear ×** empties only the active query and
+  results.
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Selected-but-unopened papers show the pinned selected-paper tab; clicking it opens the PDF; open PDF tabs nest under
   Library, reorder by drag, and persist. Discover → Journals/Funding reuse that selected/open paper cue before their

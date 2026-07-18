@@ -70,6 +70,9 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 
 - The center frame has a persistent **Discover** tab (beside Library). Opening it shows a query box + a "the complete
   list is shown (nothing filtered)" hint + keyboard-triage hints (`j/k` move, `s` save, `Enter` abstract).
+- The Search row has **Recent searches** and **Clear history** controls backed by browser `localStorage`; recalling
+  a recent query re-runs the stored query + source setting for fresh results. **Clear ×** empties the active query,
+  error, cursor, relevance badges, and result list without touching saved papers or the recent-query list.
 - Searching renders dense result rows: serif title, authors/year/journal meta, **source pill(s)** (e.g. `crossref`),
   and either a **Save** button or a green **✓ in library** marker. **j/k** move the cursor (`.discover-item.cur`
   highlight), **s** saves the focused row, **Enter** toggles its abstract.
@@ -85,11 +88,14 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 3. Confirm cross-provider dedup: a DOI returned by two fake providers appears once with `sources` unioned.
 4. Repeat `GET /discovery/search?q=<seeded topic>&source=pubmed` → confirm only the PubMed fake provider is queried
    and the returned list is complete for that provider. Try `source=missing` → 422.
-5. `POST /discovery/save {title, doi, ...}` for a novel result → `{paper_id, created:true}`; verify it now appears in
+5. In the UI, run two searches with different source settings. Use **Recent searches** to recall the first one and
+   confirm it re-runs with that source setting. Click **Clear ×** and confirm the active query/results empty. Click
+   **Clear history** and confirm the recall list is empty after reload.
+6. `POST /discovery/save {title, doi, ...}` for a novel result → `{paper_id, created:true}`; verify it now appears in
    `GET /papers` with `imported_source: discovery-import` and **no attachment/PDF**.
-6. `POST /discovery/save` again with the same identity → `{paper_id:<same>, created:false}`; `GET /papers` shows no
+7. `POST /discovery/save` again with the same identity → `{paper_id:<same>, created:false}`; `GET /papers` shows no
    duplicate.
-7. Adversarial: blank `q` → 422; `limit=999` → 422; unknown `source` → 422; **0** genai-host requests.
+8. Adversarial: blank `q` → 422; `limit=999` → 422; unknown `source` → 422; **0** genai-host requests.
 
 ## Pass criteria
 
@@ -98,6 +104,8 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
 - Save creates a metadata-only, deduped paper (`discovery-import`); re-save is idempotent (same id, `created:false`);
   **no PDF fetched**.
 - Bad inputs fail closed (422); a failing provider is skipped, not fatal.
+- Recent-query recall re-runs stored query/source inputs; Clear × resets only the active Search state, and Clear
+  history removes the browser-local recent list.
 - 0 console/page errors; **0 genai-host requests**.
 
 ## Deposit

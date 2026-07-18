@@ -371,6 +371,11 @@ context before the Discover sub-tabs by reusing the Library tab vocabulary: sele
 (open the selected PDF or return to its open reader tab), not a new Discover sub-tab style. Feed and Search do not
 show the cue; Feed stays focused on followed-source triage, and Search stays focused on corpus search.
 
+**Discover recent-query recall (inc 299).** Discover → Search and Discover → Journals keep small browser-local
+recent lists in `localStorage`. Recall controls re-run the stored input with fresh provider results; they do not
+replay cached rows. Search also has a **Clear ×** control for the active query/results. These controls reuse
+`.lib-sort` and `.btn.btn-primary`, so they stay visually in the existing search/action row vocabulary.
+
 **Accordion registry and lens recipe.** The side panes are accordions on the module registry in
 `app/frontend/js/05_panes.jsx`: `registerPaneSection({id, label, paneId, order, render})`,
 `registerPaneTab(host, tab)`, `paneSections`, `sectionTabs`, and

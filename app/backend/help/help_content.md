@@ -1102,6 +1102,8 @@ The **Journals** tab (in the **Discover** workspace; formerly "Where to submit")
 
 Give it a **selected library paper** (with a DOI) or **paste an abstract + a subject** keyword, then **Find journals**. Your abstract is embedded **locally and never leaves the machine** — only a coarse topic/subject term is used to gather the candidate pool. Each result links to its sources (the journal homepage, OpenAlex, DOAJ). The results view always shows your **open-science weighting's current state** with a control to adjust it right there (it re-runs), so the setting never operates unseen. High APC is shown as **cost information, not a flag**; impact metrics carry the caveat that they inherit a Matthew-effect bias; and a journal with no legitimacy signals still appears with its facts (absence is common for new + regional journals and is not a mark against them).
 
+Recent Journals searches are also stored in this browser only. Use **Recent journal searches** to re-run a selected-paper or pasted-abstract search input, and **Clear history** to forget that local list.
+
 <!-- section: credit-statement -->
 ## Building a CRediT contribution statement
 When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **Work → CRediT statement** tab builds one for you.
@@ -1133,6 +1135,8 @@ Type a query and press **Enter** (or **Search**). Results come back as a dense l
 **The complete list is always shown — nothing is filtered or re-ordered by a relevance score.** If a result is a likely match to one of your **axes**, it gets a small **"likely: &lt;axis&gt; · match 0.NN"** badge (the same similarity number an axis card shows) — a *hint* drawn on top of the full list; a result with no badge isn't "irrelevant," just not a strong axis match, and it's shown and savable like any other. Saving a result adds its **metadata** to your library (deduped, so you can't create a duplicate) — it does **not** download a PDF (that stays the separate "Acquire OA copy" step). The saved paper appears in your Library immediately; tidy its metadata or run **Acquire OA copy** from there.
 
 Choosing a source controls **where Search asks**, not what Callosum is allowed to hide: **All sources** shows the complete merged list from all enabled search providers; **Crossref** or **PubMed** shows the complete returned list from that provider.
+
+Recent Search queries are stored in this browser only. Use **Recent searches** to re-run one with its saved source setting, **Clear history** to forget that list, or **Clear ×** to empty the active query and results without touching saved papers.
 
 <!-- section: following-sources-feed -->
 ## Following sources (Feed)

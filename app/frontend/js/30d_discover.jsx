@@ -3,6 +3,22 @@
 // the complete deduped list is always shown (axis-relevance highlight is SP1b). Save is metadata-only
 // (POST /discovery/save → imported_source="discovery-import"); no PDF fetch. Function declarations hoist
 // in the shared IIFE, so LibraryFrame (30c) references this regardless of chunk order.
+const DISCOVER_SEARCH_HISTORY_KEY = "callosum.discover.searchHistory.v1";
+const DISCOVER_SEARCH_HISTORY_LIMIT = 8;
+
+function _discoverLoadSearchHistory() {
+  try {
+    const rows = JSON.parse(localStorage.getItem(DISCOVER_SEARCH_HISTORY_KEY) || "[]");
+    return Array.isArray(rows) ? rows.filter(r => r && r.q).slice(0, DISCOVER_SEARCH_HISTORY_LIMIT) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function _discoverSaveSearchHistory(rows) {
+  try { localStorage.setItem(DISCOVER_SEARCH_HISTORY_KEY, JSON.stringify(rows)); } catch (e) { /* ignore */ }
+}
+
 function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverlooked }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("idle"); // idle | loading | ready | error
@@ -14,6 +30,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
   const [relevance, setRelevance] = useState({}); // dedup_key -> {axis_label, similarity} — a HINT, never a filter
   const [sources, setSources] = useState([]);
   const [source, setSource] = useState("");
+  const [history, setHistory] = useState(_discoverLoadSearchHistory);
   const inputRef = useRef(null);
   const listRef = useRef(null);
 
@@ -21,15 +38,40 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     api("/discovery/sources").then(r => { if (r.ok) setSources(r.data.sources || []); });
   }, []);
 
-  const runSearch = useCallback(async () => {
-    const query = q.trim();
+  const rememberSearch = useCallback((entry) => {
+    setHistory(prev => {
+      const key = `${entry.source || ""}\n${entry.q.trim().toLowerCase()}`;
+      const next = [entry, ...prev.filter(p => `${p.source || ""}\n${p.q.trim().toLowerCase()}` !== key)]
+        .slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
+      _discoverSaveSearchHistory(next);
+      return next;
+    });
+  }, []);
+
+  const clearActiveSearch = useCallback(() => {
+    setQ(""); setItems([]); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({}); setStatus("idle");
+    if (inputRef.current) inputRef.current.focus();
+  }, []);
+
+  const clearSearchHistory = useCallback(() => {
+    setHistory([]); _discoverSaveSearchHistory([]);
+  }, []);
+
+  const runSearch = useCallback(async (override) => {
+    const query = (override && override.q != null ? override.q : q).trim();
     if (!query) return;
+    const selectedSource = override && override.source != null ? override.source : source;
+    const selectedLabel = override && override.sourceLabel
+      ? override.sourceLabel
+      : (selectedSource ? ((sources.find(s => s.kind === selectedSource) || {}).label || selectedSource) : "All sources");
+    if (override) { setQ(query); setSource(selectedSource || ""); }
     setStatus("loading"); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({});
-    const sourceParam = source ? `&source=${encodeURIComponent(source)}` : "";
+    const sourceParam = selectedSource ? `&source=${encodeURIComponent(selectedSource)}` : "";
     const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25${sourceParam}`);
     if (r.ok) {
       const rows = (r.data.items || []).map(it => ({ ...it, saved: !!it.in_library }));
       setItems(rows); setStatus("ready"); setCursor(rows.length ? 0 : -1);
+      rememberSearch({ q: query, source: selectedSource || "", sourceLabel: selectedLabel });
       // SP1b: highlight likely axis matches WITHIN the complete list (best-effort; failure → no badges, never
       // breaks the list). The list is never filtered/reordered by relevance.
       if (rows.length) {
@@ -41,7 +83,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     } else {
       setItems([]); setError(r.error || "Search failed."); setStatus("error");
     }
-  }, [q, source]);
+  }, [q, source, sources, rememberSearch]);
 
   const save = useCallback(async (it) => {
     if (!it || it.saved || savingKey) return;
@@ -93,9 +135,23 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
             <option value="">All sources</option>
             {sources.map(s => <option key={s.kind} value={s.kind}>{s.label || s.kind}</option>)}
           </select>
-          <button className="btn btn-primary" onClick={runSearch} disabled={status === "loading" || !q.trim()}>
+          <button className="btn btn-primary" onClick={() => runSearch()} disabled={status === "loading" || !q.trim()}>
             {status === "loading" ? "Searching…" : "Search"}
           </button>
+          <button className="btn btn-primary" onClick={clearActiveSearch}
+            disabled={status === "loading" || (!q && !items.length && status === "idle")}
+            title="Clear the current query and results">Clear ×</button>
+          <select className="lib-sort" value="" onChange={e => {
+            const h = history[Number(e.target.value)];
+            if (h) runSearch(h);
+          }} title="Recall and re-run a recent Search query">
+            <option value="">Recent searches</option>
+            {history.map((h, i) => <option key={`${h.source || "all"}-${h.q}-${i}`} value={i}>
+              {h.q} · {h.sourceLabel || h.source || "All sources"}
+            </option>)}
+          </select>
+          <button className="btn btn-primary" onClick={clearSearchHistory} disabled={!history.length}
+            title="Clear recent Search query history stored in this browser">Clear history</button>
           {onOpenWanted && <button className="btn btn-primary" onClick={onOpenWanted} title="Papers you want an OA copy of — re-check open-access sources">Wanted</button>}
           {onOpenGaps && <button className="btn btn-primary" onClick={onOpenGaps} title="Works related to several of your papers that you don't have yet — references you cite, or newer work citing you">Gaps</button>}
           {onOpenOverlooked && <button className="btn btn-primary" onClick={onOpenOverlooked} title="Per axis: works relevant to it but under-cited for their year — work the field may have overlooked">Overlooked</button>}

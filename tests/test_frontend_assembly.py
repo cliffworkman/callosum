@@ -131,10 +131,29 @@ def test_workspace_menubar_structure_present():
 def test_discover_search_source_selector_present():
     raw = assemble_jsx()
     assert 'api("/discovery/sources")' in raw
-    assert 'const sourceParam = source ? `&source=${encodeURIComponent(source)}` : "";' in raw
+    assert 'const sourceParam = selectedSource ? `&source=${encodeURIComponent(selectedSource)}` : "";' in raw
     assert 'className="lib-sort" value={source}' in raw
     assert '<option value="">All sources</option>' in raw
     assert "source choice controls where to query; the complete returned list is shown" in raw
+
+
+def test_discover_search_and_journals_recent_history_controls():
+    raw = assemble_jsx()
+    assert 'const DISCOVER_SEARCH_HISTORY_KEY = "callosum.discover.searchHistory.v1"' in raw
+    assert "function _discoverLoadSearchHistory()" in raw and "rememberSearch({ q: query" in raw
+    assert 'title="Recall and re-run a recent Search query"' in raw
+    assert 'title="Clear the current query and results"' in raw
+    assert 'setQ(""); setItems([]); setError(""); setCursor(-1)' in raw
+    assert "Clear ×" in raw and "Recent searches" in raw and "Clear history" in raw
+    assert 'const PUB_HISTORY_KEY = "callosum.discover.journalsHistory.v1"' in raw
+    assert "function _pubLoadHistory()" in raw and "const rememberRun = (entry) =>" in raw
+    assert 'title="Recall and re-run a recent Journals search"' in raw
+    assert "Recent journal searches" in raw
+    assert "run(null, h)" in raw
+    assert "const [lastRunInput, setLastRunInput] = useState(null)" in raw
+    assert 'if (state.status === "done") run(val, lastRunInput || undefined)' in raw
+    assert "paper_id: input.paperId" in raw
+    assert "abstract: input.abstract, subject: input.subject" in raw
 
 
 def test_library_selected_paper_tab_and_pdf_reorder_present():
