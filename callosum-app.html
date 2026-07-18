@@ -1549,13 +1549,14 @@
     color: var(--accent);
     background: var(--accent-soft);
     border-color: var(--accent);
-    border-style: dashed;
+    /* re-enabling all four dashed sides re-adds the bottom the base tab dropped; pin every side to 1px so the
+       bottom isn't rendered at the `border-bottom: none` reset width (medium ~3px) and read heavier than the rest. */
+    border: 1px dashed var(--accent);
   }
   .frame-tab-selected:hover { background: var(--accent-soft); border-color: var(--accent); }
   .frame-tab.dragover {
     background: var(--accent-soft);
-    border-color: var(--accent);
-    border-style: dashed;
+    border: 1px dashed var(--accent);
   }
   .frame-tab-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
   .frame-tab-close {
