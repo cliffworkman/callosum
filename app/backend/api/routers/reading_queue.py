@@ -33,6 +33,7 @@ class ReadingQueueItem(BaseModel):
     title: str
     authors: list[str]
     year: int | None = None
+    priority: str | None = None  # the user's hand-set triage label (high/normal/low or null) — drives queue grouping
 
 
 class AddToQueueRequest(BaseModel):
@@ -55,6 +56,7 @@ def get_reading_queue(conn: Connection = Depends(get_connection)) -> list[Readin
             title=r["title"],
             authors=_authors_from_csl(r["csl_json"], fallback=r["first_author_family_name"]),
             year=r["year"],
+            priority=r["priority"],
         )
         for r in list_reading_queue(conn)
     ]

@@ -48,7 +48,7 @@ function PaperCopyButton({ paperId }) {
 // inc 117 (My-Pubs SP1): the per-paper library card, extracted from PaperList so the My Publications tab can
 // render the same aesthetic + parity (#13). `selecting` shows the copy button + checkbox; `footExtra` lets a
 // caller append context buttons (the library passes its focus/trash buttons here).
-function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly }) {
+function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
   const unresolved = needsMetadata(p);
   const retracted = p.retraction_status === "retracted";
   return (
@@ -105,7 +105,7 @@ function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked,
           : <span className="paper-cite paper-cite-static"
               title={citeInfo.asOf ? `Cited by ${citeInfo.count}, per OpenAlex · as of ${String(citeInfo.asOf).slice(0, 10)}` : "Cited-by count, per OpenAlex"}>{citeInfo.count} cited-by</span>)}
         {footExtra}
-        {!readOnly && <ReadPriorityControl paper={p} />}  {/* inc 220: read toggle + priority (user markers) */}
+        {!readOnly && <ReadPriorityControl paper={p} onChanged={onReadingChanged} />}  {/* inc 220: read toggle + priority (user markers); inc 294: onChanged re-reads the Queue strata */}
       </div>
     </div>
   );

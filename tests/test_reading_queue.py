@@ -128,3 +128,39 @@ def test_reading_queue_endpoints(temp_db_url):
 
     # adding a nonexistent paper → 404
     assert client.post("/reading-queue", json={"paper_id": 99999}).status_code == 404
+
+
+# ---- priority strata (inc 294) --------------------------------------------
+
+
+def test_list_reading_queue_surfaces_priority(temp_db_url):
+    from app.backend.persistence.repository import set_paper_priority
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, "Alpha")
+        b = _paper(conn, "Beta")
+        add_to_queue(conn, a)
+        add_to_queue(conn, b)
+        set_paper_priority(conn, a, "high")
+        rows = {r["id"]: r["priority"] for r in list_reading_queue(conn)}
+    engine.dispose()
+    assert rows[a] == "high"
+    assert rows[b] is None  # unset → null → the frontend's "Unprioritized" group
+
+
+def test_priority_surfaces_in_queue_and_clears(temp_db_url):
+    # The cross-group drag reuses POST /papers/{id}/priority; the queue GET must then reflect the new label, and a
+    # drop into "Unprioritized" clears it (priority: null).
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = _paper(conn, "Alpha")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+    client.post("/reading-queue", json={"paper_id": a})
+
+    assert client.get("/reading-queue").json()[0]["priority"] is None  # unset → Unprioritized
+    assert client.post(f"/papers/{a}/priority", json={"priority": "high"}).status_code == 200
+    assert client.get("/reading-queue").json()[0]["priority"] == "high"  # drag Low→High reflected
+    assert client.post(f"/papers/{a}/priority", json={"priority": None}).status_code == 200
+    assert client.get("/reading-queue").json()[0]["priority"] is None  # drag → Unprioritized clears it

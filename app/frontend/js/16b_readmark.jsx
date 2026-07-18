@@ -1,14 +1,15 @@
 // inc 220: per-paper reading markers on a library card — a manual read/unread toggle + a user-set priority
 // (high/normal/low). Both are personal triage labels the user sets BY HAND, never an AI score (the inc-207
-// declined-ratings logic). Self-contained + optimistic (local state mirrors the paper prop; reverts on a failed
-// write; the persisted value shows on the next list fetch) so it needs no cross-pane refresh wiring. Function
-// hoists in the shared IIFE → PaperCard (10_pdf_layer.jsx, loads earlier) renders it. Kept out of 10_pdf_layer
-// to stay under the 600-line cap (the inc-208 10b_libmenus pattern).
+// declined-ratings logic). Optimistic: local state mirrors the paper prop and reverts on a failed write.
+// inc 294: priority now ALSO drives the Reading Queue's strata, so a change here must invalidate that other view —
+// `onChanged` (fired after a successful priority write) bumps the queue refresh so both panes re-read the one
+// source of truth (papers.priority). Function hoists in the shared IIFE → PaperCard (10_pdf_layer.jsx, loads
+// earlier) renders it. Kept out of 10_pdf_layer to stay under the 600-line cap (the inc-208 10b_libmenus pattern).
 
 const PRIORITY_LEVELS = ["high", "normal", "low"];
 const _cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
-function ReadPriorityControl({ paper }) {
+function ReadPriorityControl({ paper, onChanged }) {
   const [read, setRead] = useState(!!paper.read_at);
   const [priority, setPriority] = useState(paper.priority || "");
   const [pop, setPop] = useState(false);
@@ -31,7 +32,10 @@ function ReadPriorityControl({ paper }) {
     const prev = priority;
     setPriority(level || "");  // optimistic
     setPop(false);
-    apiPost(`/papers/${paper.id}/priority`, { priority: level }).then((r) => { if (!r.ok) setPriority(prev); });
+    apiPost(`/papers/${paper.id}/priority`, { priority: level }).then((r) => {
+      if (!r.ok) { setPriority(prev); return; }
+      if (onChanged) onChanged();  // inc 294: re-read the Queue strata from the persisted value
+    });
   };
 
   return (

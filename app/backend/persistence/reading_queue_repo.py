@@ -24,6 +24,7 @@ def list_reading_queue(conn: Connection) -> list[RowMapping]:
             papers.c.year,
             papers.c.csl_json,
             papers.c.first_author_family_name,
+            papers.c.priority,
             reading_queue.c.position,
         )
         .select_from(reading_queue.join(papers, papers.c.id == reading_queue.c.paper_id))

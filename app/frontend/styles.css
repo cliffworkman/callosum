@@ -805,6 +805,14 @@
     font-size: 13px; line-height: 1; padding: 0 3px; border-radius: var(--radius-sm); }
   .queue-done:hover { color: var(--verified); }
   .queue-x:hover { color: var(--danger); }
+  /* inc 294: priority strata — group headers reuse the muted priority colors (pr-high stronger, others --ink-2); the
+     cross-group drop-invite reuses the queue-drop accent-soft/dashed recipe (transient/pending). No new tokens/colors. */
+  .queue-group { border: 1px dashed transparent; border-radius: var(--radius-sm); padding: 1px; margin-bottom: 2px; }
+  .queue-group.drop { background: var(--accent-soft); border-color: var(--accent); }
+  .queue-group-head { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 5px 8px 3px; }
+  .queue-group-head.pr-high { color: var(--ink); }
+  .queue-group-count { font-weight: 400; color: var(--ink-3); }
+  .queue-group-empty { font-size: 10.5px; color: var(--ink-3); font-style: italic; padding: 2px 8px 5px; }
   .detail-queue { font-size: 11.5px; white-space: nowrap; }  /* the Details "+ Reading queue" button (inc 219) */
 
   /* axis re-score row + cutoff flipper (inc 45) */

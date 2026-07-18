@@ -244,7 +244,10 @@ function App() {
     conn, selectedPaper: selected, onSelectPaper: setSelected, onOpenPaper: openPdf,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
-    onTagsChanged: () => setTagRefresh(n => n + 1), onQueueChanged: () => setQueueRefresh(n => n + 1),
+    onTagsChanged: () => setTagRefresh(n => n + 1),
+    // inc 294: a queue change (drag/add/remove) also reloads the library list so each card's priority control
+    // re-syncs from the new papers.priority — keeps the Queue strata and the cards showing one source of truth.
+    onQueueChanged: () => { setQueueRefresh(n => n + 1); setLibRefresh(n => n + 1); },
     pendingSummarize, axisRefresh, tagRefresh, queueRefresh, hideUncertainDefault, axisCutoffDefault,
     methodsOpen,  // inc-140: the open METHODS section id, so a section can tell when it's the active one (statcheck auto-run)
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
@@ -288,6 +291,9 @@ function App() {
           libraryProps={{
             ...libraryBits,
             readOnly,
+            // inc 294: a card priority change reloads the Queue tab (the card is already optimistic, so no library
+            // reload needed here) — the other half of keeping the cards ↔ Queue strata in sync.
+            onReadingChanged: () => setQueueRefresh(n => n + 1),
             selected, onSelect: setSelected,
             focusAxis, focusMembers, focusPending,
             onToggleFocusPaper: toggleFocusPaper, onSaveFocus: saveFocus, onCancelFocus: cancelFocus,

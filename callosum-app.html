@@ -829,6 +829,14 @@
     font-size: 13px; line-height: 1; padding: 0 3px; border-radius: var(--radius-sm); }
   .queue-done:hover { color: var(--verified); }
   .queue-x:hover { color: var(--danger); }
+  /* inc 294: priority strata — group headers reuse the muted priority colors (pr-high stronger, others --ink-2); the
+     cross-group drop-invite reuses the queue-drop accent-soft/dashed recipe (transient/pending). No new tokens/colors. */
+  .queue-group { border: 1px dashed transparent; border-radius: var(--radius-sm); padding: 1px; margin-bottom: 2px; }
+  .queue-group.drop { background: var(--accent-soft); border-color: var(--accent); }
+  .queue-group-head { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 5px 8px 3px; }
+  .queue-group-head.pr-high { color: var(--ink); }
+  .queue-group-count { font-weight: 400; color: var(--ink-3); }
+  .queue-group-empty { font-size: 10.5px; color: var(--ink-3); font-style: italic; padding: 2px 8px 5px; }
   .detail-queue { font-size: 11.5px; white-space: nowrap; }  /* the Details "+ Reading queue" button (inc 219) */
 
   /* axis re-score row + cutoff flipper (inc 45) */
@@ -7330,7 +7338,8 @@
     onApplySavedSearch,
     onSaveSearch,
     onDeleteSavedSearch,
-    readOnly
+    readOnly,
+    onReadingChanged
   }) {
     const [bulkFocus, setBulkFocus] = useState("");
     const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
@@ -7511,7 +7520,8 @@
           onOpenReferenceWarnings,
           citeInfo: p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : void 0,
           footExtra,
-          readOnly
+          readOnly,
+          onReadingChanged
         }
       );
     }), state.status === "ready" && (page > 0 || hasNextPage) && /* @__PURE__ */ React.createElement("div", { className: "pginate" }, /* @__PURE__ */ React.createElement("button", { disabled: page === 0, onClick: () => onPage(page - 1) }, "\u2190 Prev"), /* @__PURE__ */ React.createElement("button", { disabled: !hasNextPage, onClick: () => onPage(page + 1) }, "Next \u2192"))));
@@ -7866,7 +7876,7 @@
       copied ? /* @__PURE__ */ React.createElement(CheckIcon, null) : /* @__PURE__ */ React.createElement(ClipboardIcon, null)
     );
   }
-  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly }) {
+  function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
     const unresolved = needsMetadata(p);
     const retracted = p.retraction_status === "retracted";
     return /* @__PURE__ */ React.createElement(
@@ -7931,7 +7941,7 @@
         },
         citeInfo.count,
         " cited-by"
-      )), footExtra, !readOnly && /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p }), "  ")
+      )), footExtra, !readOnly && /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p, onChanged: onReadingChanged }), "  ")
     );
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
@@ -8704,10 +8714,18 @@
   }
   const QUEUE_ITEM_MIME = "application/x-callosum-queueitem";
   const PAPER_CARD_MIME = "application/x-callosum-paper";
+  const QUEUE_GROUPS = [
+    { key: "high", label: "High" },
+    { key: "normal", label: "Normal" },
+    { key: "low", label: "Low" },
+    { key: "unprioritized", label: "Unprioritized" }
+  ];
+  const queueGroupOf = (it) => it.priority === "high" || it.priority === "normal" || it.priority === "low" ? it.priority : "unprioritized";
   function QueuePanel({ onOpenPaper, onSelectPaper, selectedPaper, queueRefresh, onQueueChanged, readOnly }) {
     const [items, setItems] = useState([]);
     const [cardOver, setCardOver] = useState(false);
     const [rowOver, setRowOver] = useState(null);
+    const [groupOver, setGroupOver] = useState(null);
     const [notice, setNotice] = useState(null);
     const load = useCallback(() => {
       api("/reading-queue").then((r) => {
@@ -8741,19 +8759,82 @@
         changed();
       });
     }, [changed]);
-    const reorderToIndex = useCallback((draggedId, targetId) => {
-      if (draggedId === targetId) return;
+    const moveTo = useCallback(async (draggedId, targetGroup, targetId) => {
+      const dragged = items.find((it) => it.id === draggedId);
+      if (!dragged || draggedId === targetId) return;
+      if (queueGroupOf(dragged) !== targetGroup) {
+        const priority = targetGroup === "unprioritized" ? null : targetGroup;
+        const pr = await apiPost(`/papers/${draggedId}/priority`, { priority });
+        if (!pr.ok) {
+          setNotice(pr.error);
+          return;
+        }
+      }
       const order = items.map((it) => it.id);
       const from = order.indexOf(draggedId);
-      if (from < 0) return;
-      order.splice(from, 1);
-      const to = order.indexOf(targetId);
-      order.splice(to < 0 ? order.length : to, 0, draggedId);
-      apiPut("/reading-queue/order", { paper_ids: order }).then((r) => {
-        if (!r.ok) setNotice(r.error);
-        load();
-      });
-    }, [items, load]);
+      if (from >= 0) order.splice(from, 1);
+      if (targetId != null) {
+        const to = order.indexOf(targetId);
+        order.splice(to < 0 ? order.length : to, 0, draggedId);
+      } else {
+        let insertAt = order.length;
+        for (let i = order.length - 1; i >= 0; i--) {
+          const it = items.find((x) => x.id === order[i]);
+          if (it && queueGroupOf(it) === targetGroup) {
+            insertAt = i + 1;
+            break;
+          }
+        }
+        order.splice(insertAt, 0, draggedId);
+      }
+      const ord = await apiPut("/reading-queue/order", { paper_ids: order });
+      if (!ord.ok) setNotice(ord.error);
+      changed();
+    }, [items, changed]);
+    const rowDragProps = (it) => readOnly ? {} : {
+      draggable: true,
+      onDragStart: (e) => {
+        e.dataTransfer.setData(QUEUE_ITEM_MIME, String(it.id));
+        e.dataTransfer.effectAllowed = "move";
+      },
+      onDragOver: (e) => {
+        if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setRowOver(it.id);
+        }
+      },
+      onDragLeave: () => setRowOver((o) => o === it.id ? null : o),
+      onDrop: (e) => {
+        if (!e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setRowOver(null);
+        setGroupOver(null);
+        const dragged = parseInt(e.dataTransfer.getData(QUEUE_ITEM_MIME), 10);
+        if (dragged) moveTo(dragged, queueGroupOf(it), it.id);
+      }
+    };
+    const groupDropProps = (g) => readOnly ? {} : {
+      onDragOver: (e) => {
+        if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setGroupOver(g.key);
+        }
+      },
+      onDragLeave: (e) => {
+        if (e.currentTarget === e.target) setGroupOver((o) => o === g.key ? null : o);
+      },
+      onDrop: (e) => {
+        if (!e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) return;
+        e.preventDefault();
+        setGroupOver(null);
+        setRowOver(null);
+        const dragged = parseInt(e.dataTransfer.getData(QUEUE_ITEM_MIME), 10);
+        if (dragged) moveTo(dragged, g.key, null);
+      }
+    };
     return /* @__PURE__ */ React.createElement(
       "div",
       {
@@ -8776,52 +8857,35 @@
           if (pid) addPaper(pid);
         })
       },
-      /* @__PURE__ */ React.createElement("div", { className: "queue-head" }, items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"}${readOnly ? "" : " \xB7 drag to reorder"}` : "Reading queue"),
+      /* @__PURE__ */ React.createElement("div", { className: "queue-head" }, items.length > 0 ? `${items.length} paper${items.length === 1 ? "" : "s"}${readOnly ? "" : " \xB7 drag to reorder or re-prioritise"}` : "Reading queue"),
       notice && /* @__PURE__ */ React.createElement("div", { className: "axis-err", onClick: () => setNotice(null) }, notice),
-      items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Your reading queue is empty \u2014 drag a paper here, or use ", /* @__PURE__ */ React.createElement("b", null, "+ Reading queue"), " in a paper's details.") : items.map((it) => /* @__PURE__ */ React.createElement(
-        "div",
-        {
-          key: it.id,
-          className: "queue-row" + (selectedPaper === it.id ? " sel" : "") + (rowOver === it.id ? " dragover" : ""),
-          draggable: !readOnly,
-          onDragStart: readOnly ? void 0 : ((e) => {
-            e.dataTransfer.setData(QUEUE_ITEM_MIME, String(it.id));
-            e.dataTransfer.effectAllowed = "move";
-          }),
-          onDragOver: readOnly ? void 0 : ((e) => {
-            if (e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-              setRowOver(it.id);
-            }
-          }),
-          onDragLeave: readOnly ? void 0 : (() => setRowOver((o) => o === it.id ? null : o)),
-          onDrop: readOnly ? void 0 : ((e) => {
-            if (!e.dataTransfer.types.includes(QUEUE_ITEM_MIME)) return;
-            e.preventDefault();
-            e.stopPropagation();
-            setRowOver(null);
-            const dragged = parseInt(e.dataTransfer.getData(QUEUE_ITEM_MIME), 10);
-            if (dragged) reorderToIndex(dragged, it.id);
-          })
-        },
-        !readOnly && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder" }, "\u283F"),
-        /* @__PURE__ */ React.createElement(
-          "button",
+      items.length === 0 ? /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Your reading queue is empty \u2014 drag a paper here, or use ", /* @__PURE__ */ React.createElement("b", null, "+ Reading queue"), " in a paper's details.") : QUEUE_GROUPS.map((g) => {
+        const groupItems = items.filter((it) => queueGroupOf(it) === g.key);
+        return /* @__PURE__ */ React.createElement("div", { key: g.key, className: "queue-group" + (groupOver === g.key ? " drop" : ""), ...groupDropProps(g) }, /* @__PURE__ */ React.createElement("div", { className: "queue-group-head pr-" + (g.key === "unprioritized" ? "none" : g.key) }, g.label, " ", /* @__PURE__ */ React.createElement("span", { className: "queue-group-count" }, groupItems.length)), groupItems.length === 0 ? !readOnly && /* @__PURE__ */ React.createElement("div", { className: "queue-group-empty" }, "Drag a paper here to mark it ", g.label.toLowerCase(), ".") : groupItems.map((it) => /* @__PURE__ */ React.createElement(
+          "div",
           {
-            className: "queue-open",
-            title: "Open this paper",
-            onClick: () => {
-              if (onOpenPaper) onOpenPaper({ id: it.id, title: it.title });
-              if (onSelectPaper) onSelectPaper(it.id);
-            }
+            key: it.id,
+            className: "queue-row" + (selectedPaper === it.id ? " sel" : "") + (rowOver === it.id ? " dragover" : ""),
+            ...rowDragProps(it)
           },
-          /* @__PURE__ */ React.createElement("span", { className: "queue-title" }, it.title),
-          /* @__PURE__ */ React.createElement("span", { className: "queue-meta" }, [(it.authors || []).slice(0, 2).join(", "), it.year].filter(Boolean).join(" \xB7 "))
-        ),
-        !readOnly && /* @__PURE__ */ React.createElement("button", { className: "queue-done", title: "Mark as read \u2014 removes it from the queue", onClick: () => remove(it.id, "Marked done") }, "\u2713"),
-        !readOnly && /* @__PURE__ */ React.createElement("button", { className: "queue-x", title: "Remove from the queue", onClick: () => remove(it.id, "Removed") }, "\xD7")
-      ))
+          !readOnly && /* @__PURE__ */ React.createElement("span", { className: "axis-grip", title: "Drag to reorder or move to another priority" }, "\u283F"),
+          /* @__PURE__ */ React.createElement(
+            "button",
+            {
+              className: "queue-open",
+              title: "Open this paper",
+              onClick: () => {
+                if (onOpenPaper) onOpenPaper({ id: it.id, title: it.title });
+                if (onSelectPaper) onSelectPaper(it.id);
+              }
+            },
+            /* @__PURE__ */ React.createElement("span", { className: "queue-title" }, it.title),
+            /* @__PURE__ */ React.createElement("span", { className: "queue-meta" }, [(it.authors || []).slice(0, 2).join(", "), it.year].filter(Boolean).join(" \xB7 "))
+          ),
+          !readOnly && /* @__PURE__ */ React.createElement("button", { className: "queue-done", title: "Mark as read \u2014 removes it from the queue", onClick: () => remove(it.id, "Marked done") }, "\u2713"),
+          !readOnly && /* @__PURE__ */ React.createElement("button", { className: "queue-x", title: "Remove from the queue", onClick: () => remove(it.id, "Removed") }, "\xD7")
+        )));
+      })
     );
   }
   registerPaneTab(
@@ -8845,7 +8909,7 @@
   );
   const PRIORITY_LEVELS = ["high", "normal", "low"];
   const _cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-  function ReadPriorityControl({ paper }) {
+  function ReadPriorityControl({ paper, onChanged }) {
     const [read, setRead] = useState(!!paper.read_at);
     const [priority, setPriority] = useState(paper.priority || "");
     const [pop, setPop] = useState(false);
@@ -8873,7 +8937,11 @@
       setPriority(level || "");
       setPop(false);
       apiPost(`/papers/${paper.id}/priority`, { priority: level }).then((r) => {
-        if (!r.ok) setPriority(prev);
+        if (!r.ok) {
+          setPriority(prev);
+          return;
+        }
+        if (onChanged) onChanged();
       });
     };
     return /* @__PURE__ */ React.createElement("span", { className: "paper-mark", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement(
@@ -14344,7 +14412,12 @@
       onFilterToAxis: filterToAxis,
       onEnterFocus: enterFocus,
       onTagsChanged: () => setTagRefresh((n) => n + 1),
-      onQueueChanged: () => setQueueRefresh((n) => n + 1),
+      // inc 294: a queue change (drag/add/remove) also reloads the library list so each card's priority control
+      // re-syncs from the new papers.priority — keeps the Queue strata and the cards showing one source of truth.
+      onQueueChanged: () => {
+        setQueueRefresh((n) => n + 1);
+        setLibRefresh((n) => n + 1);
+      },
       pendingSummarize,
       axisRefresh,
       tagRefresh,
@@ -14395,6 +14468,9 @@
         libraryProps: {
           ...libraryBits,
           readOnly,
+          // inc 294: a card priority change reloads the Queue tab (the card is already optimistic, so no library
+          // reload needed here) — the other half of keeping the cards ↔ Queue strata in sync.
+          onReadingChanged: () => setQueueRefresh((n) => n + 1),
           selected,
           onSelect: setSelected,
           focusAxis,

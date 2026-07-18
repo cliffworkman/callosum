@@ -232,7 +232,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
-                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly }) {
+                    savedSearches, onApplySavedSearch, onSaveSearch, onDeleteSavedSearch, readOnly, onReadingChanged }) {
   const [bulkFocus, setBulkFocus] = useState("");  // inc-145: optional focus query for the multi-paper synthesis
   const pendingOps = focusAxis ? Object.values(focusPending || {}) : [];
   const pendingAdd = pendingOps.filter(o => o === "add").length;
@@ -543,7 +543,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
             referenceWarnings={referenceWarningsByPaper && referenceWarningsByPaper[p.id]}
             onOpenReferenceWarnings={onOpenReferenceWarnings}
             citeInfo={p.cited_by_count != null ? { count: p.cited_by_count, asOf: p.cited_by_as_of } : undefined}
-            footExtra={footExtra} readOnly={readOnly}
+            footExtra={footExtra} readOnly={readOnly} onReadingChanged={onReadingChanged}
           />
         );
       })}

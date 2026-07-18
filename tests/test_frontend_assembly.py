@@ -465,6 +465,36 @@ def test_set_critical_review_modal_shipped():
     assert "the model’s framing, not a verified link" in raw  # related_paper_ids is framing, not a #13-verified link
 
 
+def test_reading_queue_is_stratified_by_priority():
+    raw = assemble_jsx()
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    # four priority strata; an unset paper falls into "Unprioritized"
+    assert 'label: "Unprioritized"' in raw
+    assert "const queueGroupOf =" in raw
+    # a cross-group drag reuses POST /papers/{id}/priority (Unprioritized clears to null), then reorders via the
+    # existing full-id-list contract — no new endpoint
+    assert 'targetGroup === "unprioritized" ? null : targetGroup' in raw
+    assert "apiPost(`/papers/${draggedId}/priority`, { priority })" in raw
+    assert 'apiPut("/reading-queue/order", { paper_ids: order })' in raw
+    # group headers reuse the muted priority colors + the queue-drop accent recipe (no new color semantics)
+    assert ".queue-group.drop { background: var(--accent-soft); border-color: var(--accent); }" in css
+    assert ".queue-group-head.pr-high" in css
+
+
+def test_priority_syncs_between_cards_and_queue():
+    # papers.priority is one source of truth shown in both the Library cards and the Queue strata; a change in
+    # either pane must re-read it in the other (inc 294 cache-coherence wiring).
+    raw = assemble_jsx()
+    # queue → cards: a queue change also reloads the library list so each card re-reads papers.priority
+    assert "onQueueChanged: () => { setQueueRefresh(n => n + 1); setLibRefresh(n => n + 1); }" in raw
+    # cards → queue: a card priority change reloads the Queue tab
+    assert "onReadingChanged: () => setQueueRefresh(n => n + 1)" in raw
+    # the callback is threaded down to the priority control, which fires it only after a successful write
+    assert "<ReadPriorityControl paper={p} onChanged={onReadingChanged} />" in raw
+    assert "function ReadPriorityControl({ paper, onChanged })" in raw
+    assert "if (onChanged) onChanged();" in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

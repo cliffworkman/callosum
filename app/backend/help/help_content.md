@@ -628,7 +628,7 @@ To add a paper:
 
 Adding a paper that's already queued does nothing (no duplicates).
 
-To order it: **drag a row by its ⠿ grip** to where you want it. The order is saved.
+The queue is **grouped by priority** — **High / Normal / Low / Unprioritized** — using the same priority you set on a library card (papers you haven't prioritised sit under *Unprioritized*). **Drag a row by its ⠿ grip** to reorder it within its group, or **drag it onto another group to change its priority** — drop it on *Unprioritized* to clear the priority. Your order and priority are saved, and the new priority also shows on the paper's card.
 
 To work through it:
 
