@@ -3818,9 +3818,16 @@
   registerWorkspace({ id: "work", label: "Work", order: 50 });
   registerWorkspace({ id: "extract", label: "Extract", order: 60 });
   registerWorkspaceTab({ id: "discover" }, {
+    id: "feed",
+    label: "Feed",
+    order: 10,
+    hideInReadOnly: true,
+    render: (ctx, active) => /* @__PURE__ */ React.createElement(FeedPane, { onSaved: ctx.onDiscoverSaved, active })
+  });
+  registerWorkspaceTab({ id: "discover" }, {
     id: "search",
     label: "Search",
-    order: 10,
+    order: 20,
     hideInReadOnly: true,
     render: (ctx, active) => /* @__PURE__ */ React.createElement(
       DiscoverPane,
@@ -11977,7 +11984,7 @@
         toggleExpand(it.dedup_key);
       } }, expanded.has(it.dedup_key) ? "Hide abstract" : "Abstract") : null),
       expanded.has(it.dedup_key) && it.abstract ? /* @__PURE__ */ React.createElement("div", { className: "discover-abstract" }, it.abstract) : null
-    )), /* @__PURE__ */ React.createElement(FeedPane, { onSaved, active, embedded: true })));
+    ))));
   }
   function FeedPane({ onSaved, active, embedded }) {
     const [subs, setSubs] = useState([]);

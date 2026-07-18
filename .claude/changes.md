@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 296 (Discover Search selectable sources). -->
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 297 (Discover Feed restored as its own sub-tab). -->
+## 2026-07-18 — Increment 297: Discover Feed restored as its own sub-tab
+- **Files:** `app/frontend/js/{04b_workspaces,09_placeholders,30d_discover}.jsx`, `app/backend/help/help_content.md`, `.claude/{DESIGN.md,qa-routes/route_44_feed.md,qa-routes/route_73_workspaces.md}`, `tests/test_frontend_assembly.py`, `callosum-app.html`, increment notes.
+- **What:** re-separated Feed from Search inside the Discover workspace. Discover now presents **Feed · Search · Journals · Funding**; Feed renders standalone as the first Discover sub-tab, while Search no longer embeds Feed beneath its results. Wanted/Gaps/Overlooked remain Search launchers.
+- **Why:** Feed is a recurring triage mode, not a one-off query result section. Restoring it as a sibling tab keeps Search focused on explicit provider-scoped searches while leaving followed-source monitoring quickly reachable.
+- **Verify:** frontend rebuilt; focused `tests/test_frontend_assembly.py tests/test_help.py tests/test_feed.py` **57 passed**; QA surface map **248 API / 1141 FE, 0 uncovered**; full suite **1259 passed / 1 skipped**; ruff + format + line-budget gates clean.
+- **Revert:** restore the listed files from git and rebuild `callosum-app.html`.
+
 ## 2026-07-18 — Increment 296: Discover Search selectable sources
 - **Files:** `app/backend/discovery/{providers,search,crossref_provider,pubmed_provider}.py`, `app/backend/api/routers/discovery.py`, `app/frontend/js/30d_discover.jsx`, `app/backend/help/help_content.md`, `.claude/qa-routes/route_43_discovery.md`, `.claude/security-audits/2026-07-18_discovery-search-source-picker.md`, `tests/{test_discovery,test_frontend_assembly}.py`, `callosum-app.html`, increment notes.
 - **What:** Discover → Search now has a source dropdown using the existing `.lib-sort` recipe. **All sources** preserves the prior Crossref+PubMed fan-out and dedup; choosing **Crossref** or **PubMed** sends `source=<kind>` to `/discovery/search` so only that registered provider is queried. Added read-only `GET /discovery/sources` so the picker is registry-driven, and unknown source kinds fail closed with 422.

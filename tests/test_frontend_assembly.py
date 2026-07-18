@@ -75,9 +75,10 @@ def test_workspace_menubar_structure_present():
     ):
         assert wid in raw, wid
     assert 'id: "profile", label: "My Publications", order: 10' in raw
-    # Discover holds Search+Journals+Funding; Feed is embedded below Search results (inc 285).
+    # Discover holds Feed+Search+Journals+Funding.
     # Work holds Cite+CRediT; Extract holds Workbench+Effect-Size+Meta-Analysis.
-    assert 'id: "search"' in raw and 'id: "feed"' not in raw and 'id: "workbench"' in raw
+    assert 'id: "feed", label: "Feed", order: 10' in raw
+    assert 'id: "search", label: "Search", order: 20' in raw and 'id: "workbench"' in raw
     assert 'id: "journals"' in raw and 'id: "funding"' in raw and 'id: "effectsize"' in raw
     assert 'label: "Effect-Size"' in raw and 'label: "Meta-Analysis"' in raw and 'label: "CRediT statement"' in raw
     assert "function CiteWorkspacePane(" in raw and "function registerCiteTab(" in raw
@@ -100,8 +101,9 @@ def test_workspace_menubar_structure_present():
     assert 'id: "help"' in raw and 'id: "settings"' in raw and "utility: true" in raw
     assert "function HelpView(" in raw and "function SettingsView(" in raw
     assert "function HelpModal(" not in raw and "function SettingsModal(" not in raw
-    # inc 285: library discovery modals launch from Discover Search, not the Library header; Feed renders below Search.
-    assert "<FeedPane onSaved={onSaved} active={active} embedded />" in raw
+    # inc 297: library discovery modals stay in Discover Search; Feed is its own Discover tab again.
+    assert "<FeedPane onSaved={ctx.onDiscoverSaved} active={active} />" in raw
+    assert "<FeedPane onSaved={onSaved} active={active} embedded />" not in raw
     assert "onOpenWanted={ctx.onOpenWanted}" in raw and "onOpenGaps={ctx.onOpenGaps}" in raw
     assert "onOpenOverlooked={ctx.onOpenOverlooked}" in raw
     assert 'title="Papers you want an OA copy of' in raw and 'title="Works related to several of your papers' in raw
@@ -214,7 +216,7 @@ def test_stale_discover_placeholder_is_removed_from_theory_accordion():
     assert '{ id: "discover", label: "Discover", paneId: "theory"' not in raw
     assert 'label: "Beyond library"' not in raw
     assert 'title="Beyond library"' not in raw
-    assert "Discover/Search (inc 184) + embedded Feed (inc 188/285) now ship in the Discover workspace" in raw
+    assert "Discover/Search (inc 184) + Feed (inc 188/297) now ship in the Discover workspace" in raw
 
 
 def test_meta_reference_list_sits_before_journal_search_with_accessible_review_controls():

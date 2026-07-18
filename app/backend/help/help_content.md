@@ -18,7 +18,7 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesis** (verified answers over your library), **Discover** (Search, Feed, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-Size · Meta-Analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesis** (verified answers over your library), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-Size · Meta-Analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
@@ -1136,7 +1136,7 @@ Choosing a source controls **where Search asks**, not what Callosum is allowed t
 
 <!-- section: following-sources-feed -->
 ## Following sources (Feed)
-The **Feed** section below **Discover → Search** is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
+The **Discover → Feed** tab is for *keeping up* rather than searching: you **follow** a source, and Callosum collects its recent items for you to triage. It is **pull-only and opt-in** — nothing subscribes you automatically and nothing notifies you; you add a source, then click **Refresh** to poll it. The only thing that leaves the machine is the poll to the public source (bioRxiv) — this is **not** the AI/Gemini egress.
 
 To use it:
 

@@ -19,7 +19,7 @@ function ComingSoon({ title, body, builds }) {
 }
 
 // NB: the THEORY → Discover placeholder (Beyond library / Feed / Search tabs) was removed in inc 205 — the real
-// Discover/Search (inc 184) + embedded Feed (inc 188/285) now ship in the Discover workspace, which is their home;
+// Discover/Search (inc 184) + Feed (inc 188/297) now ship in the Discover workspace, which is their home;
 // per the inc-163 convention, a stub is dropped in the increment its real feature lands.
 
 // ── METHODS: NB — the "Mixed-model reporting" (real: inc 247, 08f) + "Bayesian statistics" (real: inc 241, 08d)

@@ -6,7 +6,7 @@ fe: 30e_feed.jsx
 # ROUTE 44 — Literature Feed (subscriptions + polling + read/starred)
 
 **Tier:** 2 external (bioRxiv metadata)
-**Goal:** Exercise the Feed end to end — the **Feed** center tab: follow a bioRxiv category (subscription),
+**Goal:** Exercise the Feed end to end — the **Discover → Feed** center sub-tab: follow a bioRxiv category (subscription),
 **Refresh** to poll it, then triage the polled items (read / starred / save). **Pull-only, opt-in** — nothing
 auto-subscribes, nothing pushes; the user adds a source, then a refresh polls it. Public-metadata polling (bioRxiv
 now) — **never** the Gemini gate. Save reuses `/discovery/save` (metadata-only, **no PDF**). Backend = inc 187 (SP2a);
@@ -14,7 +14,7 @@ the Feed tab UI (`30e_feed.jsx`) = inc 188 (SP2b).
 
 ## UI flow (the Feed tab, inc 188)
 
-- The center frame has a persistent **Feed** tab (beside Discover). It shows the followed-source chips (each with an
+- The Discover workspace has a persistent **Feed** sub-tab before Search. It shows the followed-source chips (each with an
   unfollow ×), an add-a-category box (a datalist of common bioRxiv categories) + **Follow**, a **Refresh** button,
   an **All / Unread (N) / Starred** filter, and **Mark all read**.
 - Each item row: an unread dot + serif title (read items dim), authors/posted-date/journal meta, a **★** star toggle,

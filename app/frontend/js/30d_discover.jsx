@@ -1,4 +1,4 @@
-// Literature discovery — the Search center tab (backlog #28, inc 184; backend inc 183).
+// Literature discovery — the Discover > Search workspace tab (backlog #28, inc 184; backend inc 183).
 // Query box → GET /discovery/search → a dense, keyboard-triage results list. AI augments, never filters:
 // the complete deduped list is always shown (axis-relevance highlight is SP1b). Save is metadata-only
 // (POST /discovery/save → imported_source="discovery-import"); no PDF fetch. Function declarations hoist
@@ -147,7 +147,6 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
               : null}
           </div>
         ))}
-        <FeedPane onSaved={onSaved} active={active} embedded />
       </div>
     </div>
   );

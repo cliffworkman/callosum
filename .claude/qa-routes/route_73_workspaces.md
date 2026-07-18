@@ -9,7 +9,7 @@ fe: 03_library.jsx, 04b_workspaces.jsx, 05_method_credit.jsx, 08_methods_finding
 **Goal:** Exercise the inc-280/286 menu bar — the second nav dimension inside the center (Library) pane — and prove it
 switches workspaces cleanly, keeps the three panes separate + full-height, nests open PDFs under Library with the
 selected-paper pre-open affordance + draggable open-PDF tab order, and that
-the relocated tools (Synthesis as its own workspace; Wanted/Gaps/Overlooked/Search/Feed/Journals/Funding under
+the relocated tools (Synthesis as its own workspace; Feed/Search/Wanted/Gaps/Overlooked/Journals/Funding under
 Discover; Cite/Meta Reference List/Citation Concentration/How-it's-cited/CRediT under Work; Effect-Size/Meta-Analysis
 under Extract; My Publications in the menu bar; Help/Settings as utility views) work in their new homes. Also covers the inc-284/286 one-time Library
 hint that tells returning users where those relocated tools moved. Pure client navigation; no new API surface.
@@ -31,9 +31,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   not draggable.
 - **Library owns open PDFs.** Opening a PDF lands a sub-tab under **Library** and selects the Library workspace; the
   PDF tab is hidden (not closed) while Discover/Extract/My Publications is active, and reappears on return.
-- **Discover carries selected-paper context where it matters.** In Discover → Journals/Funding, the selected paper is
+- **Discover carries selected-paper context where it matters.** Discover sub-tabs appear in the order
+  **Feed · Search · Journals · Funding**. In Discover → Journals/Funding, the selected paper is
   shown before the Discover sub-tabs using the Library tab visual language: dashed selected-paper styling when not
-  open, normal open-PDF tab styling when already open. Search stays just Search/Wanted/Gaps/Overlooked + Feed.
+  open, normal open-PDF tab styling when already open. Search stays just Search/Wanted/Gaps/Overlooked.
 - **Retractions are registry signals with evidence.** The Library header includes **Retractions ↻** before
   **Text Health**. Running it refreshes the Retraction Watch mirror when available, falls back to the existing mirror
   when unavailable, and surfaces retracted papers as noninteractive **RETRACTED** badges on cards/details plus the
@@ -71,12 +72,13 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    **Help · Settings** right. Library is active by default; the left/right accordions are present + full height.
    Confirm the Library workspace shows the one-time "New layout" banner pointing Synthesis to the menu bar,
    Cite/Meta Reference List/CRediT to Work, Discover tools to Discover Search, and Effect-Size/Meta-Analysis to Extract.
-2. **Discover** → confirm three sub-tabs **Search · Journals · Funding**. In **Search**, confirm the search row has
+2. **Discover** → confirm four sub-tabs **Feed · Search · Journals · Funding**. In **Feed**, confirm the standalone
+   Feed controls render there and not inside Search. In **Search**, confirm the search row has
    **Search**, **Wanted**, **Gaps**, and **Overlooked** buttons styled identically; click each discovery button and
-   confirm it opens its existing modal. Confirm **Feed** appears below the Search results area, not as its own sub-tab.
+   confirm it opens its existing modal. Confirm **Feed** does not appear below the Search results area.
    Select a paper first, then open **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode
    when nothing is selected). With the selected paper not yet open, confirm **Journals** and **Funding** show the
-   dashed selected-paper cue before **Search · Journals · Funding**; click it and confirm it opens the PDF. Return to
+   dashed selected-paper cue before **Feed · Search · Journals · Funding**; click it and confirm it opens the PDF. Return to
    Discover → Journals/Funding with that paper open and confirm the cue now uses the normal open-PDF tab styling and
    clicks back to the reader. Confirm **Search** does not show this cue. With enough content to overflow, confirm each
    body scrolls vertically without moving the Discover sub-tab strip.
@@ -114,8 +116,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 
 - All primary workspaces plus Help/Settings switch cleanly; 0 console/page errors; the three panes stay separate +
   full-height throughout.
-- Relocated tools work in their new homes (Wanted/Gaps/Overlooked open from Discover Search; Feed appears below
-  Search results; Synthesis opens from the menu and selection summarize; Work → Cite owns Suggest/Meta Reference
+- Relocated tools work in their new homes (Feed is its own Discover tab; Wanted/Gaps/Overlooked open from Discover
+  Search; Synthesis opens from the menu and selection summarize; Work → Cite owns Suggest/Meta Reference
   List/Citation Concentration/How-it's-cited; Work → CRediT opens; Journals/Funding read the selection; Meta opens
   the PDF; Effect-Size runs).
 - Long Journals, Funding, Effect-Size, and Meta-Analysis bodies scroll inside their workspace body without moving the

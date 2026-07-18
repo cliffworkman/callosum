@@ -124,3 +124,36 @@ Partial/unverified:
 - Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
 
 Blockers: none.
+
+---
+
+## Codex session summary — Group B Feed restored as Discover sub-tab — 2026-07-18
+
+Branch: `feature/discover-search-synthesize`.
+
+What changed:
+- Completed handoff group B as Increment 297.
+- Re-separated Feed from Search inside Discover.
+- Discover sub-tabs now render in this order: **Feed · Search · Journals · Funding**.
+- `04b_workspaces.jsx` registers Feed as the first Discover tab and renders `<FeedPane .../>` standalone.
+- `30d_discover.jsx` no longer embeds `<FeedPane ... embedded />` under Search results.
+- Wanted/Gaps/Overlooked remain in Discover → Search as requested.
+- Updated served help, DESIGN, route 44 Feed QA, route 73 Workspaces QA, placeholder commentary, frontend assembly
+  guards, increment notes, changelog, and rebuilt `callosum-app.html`.
+
+Verification:
+- `python tools\build_frontend.py` passed.
+- `python -m pytest tests\test_frontend_assembly.py tests\test_help.py tests\test_feed.py -q`: 57 passed.
+- `python tools\qa\build_surface_map.py check`: API 248/248, FE 1141/1141, uncovered 0.
+- `python -m pytest`: 1259 passed, 1 skipped in 1353.75s.
+- `ruff check .`: passed.
+- `ruff format --check .`: 464 files already formatted.
+- `python tools\check_line_budget.py`: all 343 application-source files within the 600-line cap.
+
+Partial/unverified:
+- No browser smoke was run for the restored Feed sub-tab placement. Assembly tests cover registration/order and reject
+  the old embedded Feed; Cliff/Opus should visually spot-check Discover shows **Feed · Search · Journals · Funding**
+  and that Search no longer has Feed below its result list.
+- Pre-existing untracked artifacts remain untouched: `.claude/funding-ui-pass-*.png` and `www/`.
+
+Blockers: none.

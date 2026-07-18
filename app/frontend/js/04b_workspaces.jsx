@@ -2,7 +2,7 @@
 // accordions are *lenses on the current paper* (05_panes.jsx), a workspace is *what you're doing right now*:
 // My Publications | Library | Synthesis | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
 // exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single `render` (My Publications,
-// Help, Settings) OR >=2 sub-tabs (Discover: Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-Size|Meta).
+// Help, Settings) OR >=2 sub-tabs (Discover: Feed|Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-Size|Meta).
 // Library is registered as a shell-rendered workspace (no registered tabs) because its content — the library list +
 // the dynamic open-PDF tabs — is bespoke and owned by 40_app. Render closures resolve their components by hoist
 // (the 05_panes `details`→`DetailContent` precedent), so a workspace defined here can reference a component from a
@@ -147,7 +147,11 @@ registerWorkspace({ id: "work", label: "Work", order: 50 });
 registerWorkspace({ id: "extract", label: "Extract", order: 60 });
 
 registerWorkspaceTab({ id: "discover" }, {
-  id: "search", label: "Search", order: 10, hideInReadOnly: true,
+  id: "feed", label: "Feed", order: 10, hideInReadOnly: true,
+  render: (ctx, active) => <FeedPane onSaved={ctx.onDiscoverSaved} active={active} />,
+});
+registerWorkspaceTab({ id: "discover" }, {
+  id: "search", label: "Search", order: 20, hideInReadOnly: true,
   render: (ctx, active) => <DiscoverPane onSaved={ctx.onDiscoverSaved} active={active}
     onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked} />,
 });

@@ -326,7 +326,7 @@ by implementation detail or whether the tool uses AI.
 1. **Workspaces are modes of work in the center pane** — *what the user is doing right now*. The menu bar inside the
    center Library pane switches between **My Publications / Library / Synthesis / Discover / Work / Extract**, plus
    right-aligned **Help / Settings** utilities. Outward-facing, generative, authoring, cross-paper, or wide-output
-   tools belong here: Synthesis holds verified corpus answers; Discover holds Search (including Feed plus
+   tools belong here: Synthesis holds verified corpus answers; Discover holds Feed, Search (including
    Wanted/Gaps/Overlooked launchers), Journals, and Funding; Work holds Cite (Suggest, Meta Reference List, Citation
    Concentration, How it's cited) and CRediT statement; Extract holds Workbench, Effect-Size, and Meta-Analysis;
    My Publications holds the user's publication dashboard. Open PDFs remain **Library** sub-tabs; a selected paper
@@ -366,8 +366,8 @@ has an open PDF tab, the selected-paper tab is hidden.
 **Discover selected-paper cue (inc 291).** Discover → Journals and Discover → Funding show the selected/open paper
 context before the Discover sub-tabs by reusing the Library tab vocabulary: selected-but-not-open uses
 `.frame-tab.frame-tab-selected`; selected-and-open uses `.frame-tab.active`. This cue is a bridge back to the reader
-(open the selected PDF or return to its open reader tab), not a new Discover sub-tab style. Search does not show the
-cue; it stays focused on corpus search + embedded Feed.
+(open the selected PDF or return to its open reader tab), not a new Discover sub-tab style. Feed and Search do not
+show the cue; Feed stays focused on followed-source triage, and Search stays focused on corpus search.
 
 **Accordion registry and lens recipe.** The side panes are accordions on the module registry in
 `app/frontend/js/05_panes.jsx`: `registerPaneSection({id, label, paneId, order, render})`,
