@@ -349,11 +349,14 @@ misses true duplicates like a preprint-vs-published pair). `metadata/paper_merge
 `38_merge.jsx`; made reversible in inc 265 (#16). Any *further* merge UX polish (e.g. an inline post-merge Undo
 toast) is a nicety, backlogged.
 
-**18. Author/expert keywords as FIRST-ORDER tags — remaining sources** — **[blocked]** Zotero tags (inc 71) +
-Crossref `subject` (inc 73) already import as tags. Remaining: **OpenAlex `concepts`** + **PubMed MeSH** (richer
-index keywords) — they arrive only when those integrations land (OpenAlex client exists for OA-location only today;
-PubMed via the connected MCP). On a Feed/Search **save** (librarypaneltab track), attach the source's keywords as
-tags. Blocked on those integrations + the Feed/Search track (**#28**).
+**18. Author/expert keywords as FIRST-ORDER tags — remaining sources** — ✅ **SHIPPED inc 306.** Zotero tags
+(inc 71) + Crossref `subject` (inc 73) already imported; **OpenAlex topics (`keyword:openalex`) + PubMed MeSH
+(`keyword:pubmed`) now import during the multi-pass metadata enrich** (`enrich_sources.py` sources advertise a
+`keyword_source` + `keywords()`; the OpenAlex client's own work-fetch replaced the "OA-location only" limitation,
+and the app has its own PubMed provider — the old blockers are gone). Preferred OpenAlex **topics** (curated) over
+the noisier legacy `concepts`; scores filter noise server-side but are never surfaced (no opaque score). The library
+"Enrich metadata" action backfills the whole library. Frontend was pre-scaffolded (`tagSourceLabel`). See
+`INCREMENT-306-NOTES.md`. *(The Feed/Search-**save** keyword attach is a separate, still-open slice under #28.)*
 
 **19. Tags ↔ findings / system-facts (the retraction-surfacing connection)** — **[blocked + design]**
 `opus4.8_future-tracks_theorymethods.md`'s **findings subsystem** emits a retraction FACT (Crossref Retraction

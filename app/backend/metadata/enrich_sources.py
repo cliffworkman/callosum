@@ -23,6 +23,13 @@ from integrations.crossref import CrossrefClient
 from integrations.europepmc.adapter import EuropePmcClient
 from integrations.openalex import OpenAlexClient
 
+# Imported-keyword tag provenances emitted by these sources (inc 306). `keyword:crossref` (inc 73) lives in
+# `enrichment.py` with the Crossref-subject importer; these two ride the multi-pass cascade — a source that
+# advertises `keyword_source` + `keywords()` has its terms imported as tags. The frontend
+# (`00_lib.jsx::tagSourceLabel`) already renders both provenances.
+OPENALEX_KEYWORD_SOURCE = "keyword:openalex"
+PUBMED_KEYWORD_SOURCE = "keyword:pubmed"
+
 
 @dataclass(frozen=True)
 class EnrichRef:
@@ -94,9 +101,11 @@ class CrossrefEnrichSource:
 
 
 class OpenAlexEnrichSource:
-    """OpenAlex by DOI/PMID/title → a CSL-fragment (notably venue / abstract / type that Crossref may lack)."""
+    """OpenAlex by DOI/PMID/title → a CSL-fragment (notably venue / abstract / type that Crossref may lack).
+    Also contributes `keyword:openalex` tags (inc 306) from the same cached work — see `keywords`."""
 
     name = "openalex"
+    keyword_source = OPENALEX_KEYWORD_SOURCE
 
     def __init__(self, client: OpenAlexClient | None = None) -> None:
         self._client = client
@@ -107,6 +116,15 @@ class OpenAlexEnrichSource:
             return None
         client = self._client or OpenAlexClient()
         return client.fetch_work_csl(conn, paper_ref)
+
+    def keywords(self, conn: Connection, ref: EnrichRef) -> list[str]:
+        """Curated OpenAlex topics as keyword names (inc 306). Reuses the cached work `fetch` already retrieved
+        (same client + ref) → no extra egress. Fail-closed → []."""
+        paper_ref = ref.to_paper_ref()
+        if paper_ref is None:
+            return []
+        client = self._client or OpenAlexClient()
+        return client.fetch_work_keywords(conn, paper_ref)
 
 
 def _title_overlap(a: str | None, b: str | None) -> bool:
@@ -143,21 +161,36 @@ class PubMedEnrichSource:
     abstract + journal/year/DOI/PMID. The biomedical abstract fallback. Public metadata; fail-closed."""
 
     name = "pubmed"
+    keyword_source = PUBMED_KEYWORD_SOURCE
 
     def __init__(
         self,
         *,
         search=None,
         abstract_fetcher=None,
+        mesh_fetcher=None,
         email: str | None = None,
         timeout: float = 15.0,
     ) -> None:
-        from app.backend.discovery.pubmed_provider import _eutils_search, fetch_abstracts
+        from app.backend.discovery.pubmed_provider import _eutils_search, fetch_abstracts, fetch_mesh_terms
 
         self._search = search or _eutils_search
         self._abstracts = abstract_fetcher or fetch_abstracts
+        self._mesh = mesh_fetcher or fetch_mesh_terms
         self._email = email if email is not None else resolved_mailto("CALLOSUM_CROSSREF_MAILTO")
         self._timeout = timeout
+
+    def keywords(self, conn: Connection, ref: EnrichRef) -> list[str]:
+        """PubMed MeSH descriptors as keyword names (inc 306) — one efetch when a PMID is known (biomedical papers
+        only). Public metadata, fail-closed → []. `conn` is unused (efetch is not conn-cached) but kept for the
+        uniform source `keywords(conn, ref)` shape."""
+        pmid = "".join(ch for ch in str(ref.pmid or "") if ch.isdigit())
+        if not pmid:
+            return []
+        try:
+            return (self._mesh([pmid], email=self._email, timeout=self._timeout) or {}).get(pmid) or []
+        except Exception:  # noqa: BLE001 — fail-closed; a bad efetch never sinks the enrich
+            return []
 
     def _abstract_for(self, pmid: str) -> str | None:
         try:

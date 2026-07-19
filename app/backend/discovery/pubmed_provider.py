@@ -23,6 +23,13 @@ _DOI_RE = re.compile(r"10\.\d{4,9}/\S+")
 _PMID_RE = re.compile(r"<PMID[^>]*>(\d+)</PMID>")
 _ABSTRACT_RE = re.compile(r"<AbstractText[^>]*>(.*?)</AbstractText>", re.DOTALL)
 _TAG_RE = re.compile(r"<[^>]+>")
+# MeSH (inc 306): read descriptors ONLY from inside the MeshHeadingList block (never a DescriptorName elsewhere),
+# per-MeshHeading so we can tell a MAJOR heading (the paper's primary subjects) from a check-tag ("Humans",
+# "Male", "Adult", …). A heading is major if its DescriptorName OR any QualifierName carries MajorTopicYN="Y".
+_MESHLIST_RE = re.compile(r"<MeshHeadingList>(.*?)</MeshHeadingList>", re.DOTALL)
+_MESHHEADING_RE = re.compile(r"<MeshHeading>(.*?)</MeshHeading>", re.DOTALL)
+_DESCRIPTOR_RE = re.compile(r"<DescriptorName[^>]*>(.*?)</DescriptorName>", re.DOTALL)
+_MAJOR_MARKER = 'MajorTopicYN="Y"'
 
 
 class SearchFetcher(Protocol):
@@ -114,6 +121,52 @@ def fetch_abstracts(pmids: list[str], *, email: str | None, timeout: float) -> d
     if resp.status_code != 200 or not resp.text:
         return {}
     return _parse_abstracts(resp.text)
+
+
+def _parse_mesh(xml: str) -> dict[str, list[str]]:
+    """Parse efetch PubMed XML → {pmid: [MeSH descriptor names]}. Targeted regex (NOT an XML parser) → no XXE/
+    entity surface (rule #4, the `_parse_abstracts` pattern). Descriptors are read only from the MeshHeadingList,
+    deduped, order preserved. Prefers the **major** headings (the indexer's primary subjects) so generic check-tags
+    ("Humans", "Male", "Adult") don't become facet noise; falls back to all headings when none are marked major."""
+    out: dict[str, list[str]] = {}
+    for article in xml.split("<PubmedArticle>")[1:]:
+        pmid_m = _PMID_RE.search(article)
+        block_m = _MESHLIST_RE.search(article)
+        if not pmid_m or not block_m:
+            continue
+        major: list[str] = []
+        every: list[str] = []
+        for heading in _MESHHEADING_RE.findall(block_m.group(1)):
+            desc_m = _DESCRIPTOR_RE.search(heading)
+            if not desc_m:
+                continue
+            name = html.unescape(_TAG_RE.sub("", desc_m.group(1))).strip()
+            if not name:
+                continue
+            if name not in every:
+                every.append(name)
+            if _MAJOR_MARKER in heading and name not in major:
+                major.append(name)
+        names = major or every
+        if names:
+            out[pmid_m.group(1)] = names
+    return out
+
+
+def fetch_mesh_terms(pmids: list[str], *, email: str | None, timeout: float) -> dict[str, list[str]]:
+    """efetch the MeSH descriptor headings for a set of PMIDs (one batched call, inc 306 — the `keyword:pubmed`
+    tag source). Constant host; digit-validated PMIDs as a bound param → no SSRF. Fail-closed (non-200 → {}).
+    Public bibliographic metadata (like the abstract fetch), NOT the Gemini library-text gate."""
+    ids = [p for p in pmids if isinstance(p, str) and p.isdigit()]
+    if not ids:
+        return {}
+    params: dict[str, Any] = {"db": "pubmed", "id": ",".join(ids), "retmode": "xml", "tool": TOOL}
+    if email:
+        params["email"] = email
+    resp = httpx.get(f"{EUTILS}/efetch.fcgi", params=params, timeout=timeout)
+    if resp.status_code != 200 or not resp.text:
+        return {}
+    return _parse_mesh(resp.text)
 
 
 def summary_to_item(rec: dict[str, Any]) -> Item | None:

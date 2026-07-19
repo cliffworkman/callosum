@@ -19,6 +19,7 @@ from sqlalchemy import Connection, Engine
 from app.backend.acquisition.registry import OaColor, OaLocation, OaVersion, PaperRef
 from app.backend.app_settings import resolved_mailto
 from integrations.api_cache import get_cached, put_cached, put_cached_committing
+from integrations.openalex.work_keywords import keywords_from_work
 
 OPENALEX_PROVIDER = "openalex"
 OPENALEX_BASE_URL = "https://api.openalex.org/works"
@@ -152,6 +153,12 @@ class OpenAlexClient:
         raw = work.get("id") if isinstance(work, dict) else None
         wid = str(raw).rsplit("/", 1)[-1] if raw else None
         return wid if wid and re.fullmatch(r"W\d+", wid) else None
+
+    def fetch_work_keywords(self, conn: Connection, ref: PaperRef) -> list[str]:
+        """Curated keyword display-names (topics, else concepts) for a paper (inc 306 — the `keyword:openalex`
+        tag source). Reads the cached work populated by the enrich cascade → zero extra egress in the normal path.
+        Fail-closed → `[]`."""
+        return keywords_from_work(self._fetch_work(conn, ref) or {})
 
     def fetch_citing_works(self, conn: Connection, work_id: str) -> list[dict[str, Any]]:
         """Works that CITE a given work (inc 137 forward gap) — `?filter=cites:<W…>`, capped, cached, fail-closed.

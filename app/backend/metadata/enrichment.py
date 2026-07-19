@@ -226,6 +226,19 @@ def apply_crossref_subject_tags(conn: Connection, paper_id: int, csl_json: dict[
     return [str(s).strip() for s in keep]
 
 
+def _apply_keyword_tags(conn: Connection, paper_id: int, names: Any, source: str) -> list[str]:
+    """Write imported-keyword tags (inc 306): drop blanks + inc-143 suppressed names, then add the rest under
+    `source`. Additive, idempotent (`add_tag_to_paper` is get-or-create); never touches paper metadata. The
+    fetching of the names lives in the enrich sources (`enrich_sources.py`); this is only the tag-write tail."""
+    clean = [str(n).strip() for n in (names or []) if str(n).strip()]
+    if not clean:
+        return []
+    suppressed = suppressed_tag_names(conn, paper_id)
+    keep = [n for n in clean if n not in suppressed]
+    add_tags_to_paper(conn, paper_id, keep, import_source=source)
+    return keep
+
+
 def _doi_for_paper(conn: Connection, paper_id: int, *, existing_doi: str | None) -> DoiCandidate | None:
     if existing_doi:
         return DoiCandidate(doi=str(existing_doi), source="paper-doi")
@@ -436,6 +449,19 @@ def enrich_paper_metadata_multi(
 
     update_paper_metadata(conn, paper_id, **updates)
     apply_crossref_subject_tags(conn, paper_id, merged)
+    # inc 306: additional imported-keyword sources (OpenAlex topics, PubMed MeSH) ride the SAME registry the CSL
+    # cascade uses — a source that advertises `keyword_source` + `keywords()` contributes tags. Driving it off the
+    # registry (not a separate client) keeps it hermetic by construction: an empty/stub registry emits no keywords.
+    keyword_ref = EnrichRef(doi=doi, pmid=pmid, title=title, year=paper_year)
+    for source in registry.sources:
+        source_label = getattr(source, "keyword_source", None)
+        if not source_label or not hasattr(source, "keywords"):
+            continue
+        try:
+            names = source.keywords(conn, keyword_ref)
+        except Exception:  # noqa: BLE001 — keyword tags are a nicety; never sink the enrich for one bad source
+            names = []
+        _apply_keyword_tags(conn, paper_id, names, source_label)
     _hook_my_publications(conn, paper_id)
     refresh_processing_tier(conn, paper_id)
     return MultiEnrichResult(

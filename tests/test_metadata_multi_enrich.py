@@ -405,3 +405,77 @@ def test_enrich_commits_per_paper_partial_progress(temp_db_url, monkeypatch):
     done = _drive_enrich(client)
     assert done["status"] == "done"  # per-paper skip → the run completes
     assert done["summary"]["fields_filled"] >= 2  # paper A enriched + committed before B failed
+
+
+# ---- inc 306: imported keyword tags from the enrich sources -----------------
+
+
+class _KeywordStubSource:
+    """A source that advertises the inc-306 keyword capability (keyword_source + keywords) — no network."""
+
+    def __init__(self, name: str, keyword_source: str, names: list[str]) -> None:
+        self.name = name
+        self.keyword_source = keyword_source
+        self._names = list(names)
+
+    def fetch(self, conn, ref):
+        return None  # contributes no CSL, only keyword tags
+
+    def keywords(self, conn, ref):
+        return list(self._names)
+
+
+def test_enrich_imports_source_keyword_tags(temp_db_url):
+    from app.backend.persistence.tags_repo import get_tags_for_paper
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(
+            conn, title="P", doi="10.1/a", csl_json={"title": "P", "DOI": "10.1/a"}, imported_source="pdf-scaffold"
+        )
+        registry = _reg(
+            _KeywordStubSource("openalex", "keyword:openalex", ["Facial Recognition", "Emotion Perception"]),
+            _KeywordStubSource("pubmed", "keyword:pubmed", ["Face", "Emotions"]),
+        )
+        enrich_paper_metadata_multi(conn, pid, registry=registry, search_provider=_StubSearch([]))
+        tags = {t["name"]: t["import_source"] for t in get_tags_for_paper(conn, pid)}
+    assert tags["Facial Recognition"] == "keyword:openalex"
+    assert tags["Emotion Perception"] == "keyword:openalex"
+    assert tags["Face"] == "keyword:pubmed"
+    assert tags["Emotions"] == "keyword:pubmed"
+
+
+def test_enrich_keyword_tags_respect_suppression_and_are_idempotent(temp_db_url):
+    from app.backend.persistence.tags_repo import get_tags_for_paper, remove_tag_from_paper
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(
+            conn, title="P", doi="10.1/a", csl_json={"title": "P", "DOI": "10.1/a"}, imported_source="pdf-scaffold"
+        )
+        registry = _reg(_KeywordStubSource("openalex", "keyword:openalex", ["Topic A", "Topic B"]))
+        enrich_paper_metadata_multi(conn, pid, registry=registry, search_provider=_StubSearch([]))
+        rows = {t["name"]: t["id"] for t in get_tags_for_paper(conn, pid)}
+        remove_tag_from_paper(conn, pid, rows["Topic A"])  # deleting a keyword:* tag records an inc-143 suppression
+        enrich_paper_metadata_multi(conn, pid, registry=registry, search_provider=_StubSearch([]))  # re-enrich
+        names = [t["name"] for t in get_tags_for_paper(conn, pid)]
+    assert "Topic A" not in names  # suppression held across re-enrich
+    assert names.count("Topic B") == 1  # additive + idempotent (no duplicate)
+
+
+def test_enrich_without_keyword_capable_source_adds_no_keyword_tags(temp_db_url):
+    """The hermetic guarantee: a registry whose sources don't advertise `keyword_source` emits no keyword tags."""
+    from app.backend.persistence.tags_repo import get_tags_for_paper
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(
+            conn, title="P", doi="10.1/a", csl_json={"title": "P", "DOI": "10.1/a"}, imported_source="pdf-scaffold"
+        )
+        enrich_paper_metadata_multi(
+            conn, pid, registry=_reg(_StubSource("s", {"abstract": "x"})), search_provider=_StubSearch([])
+        )
+        keyword_tags = [
+            t for t in get_tags_for_paper(conn, pid) if str(t["import_source"] or "").startswith("keyword:")
+        ]
+    assert keyword_tags == []
