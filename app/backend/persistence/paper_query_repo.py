@@ -24,6 +24,15 @@ def get_papers_for_export(conn: Connection, paper_ids: Sequence[int]) -> list[Ro
     return list(conn.execute(stmt).mappings())
 
 
+def titles_for_ids(conn: Connection, paper_ids: Sequence[int]) -> dict[int, str]:
+    """Map paper id → title for a set of ids (inc 304 — per-item progress labels for import/embed jobs). Bound IN
+    (rule #3); a missing/empty title falls back to ``paper <id>``."""
+    if not paper_ids:
+        return {}
+    rows = conn.execute(select(papers.c.id, papers.c.title).where(papers.c.id.in_({int(p) for p in paper_ids})))
+    return {int(r[0]): (r[1] or f"paper {r[0]}") for r in rows}
+
+
 def list_item_types(conn: Connection) -> list[RowMapping]:
     """Distinct CSL item types present among LIVE papers + a per-type count, most-common first (inc 91).
     Drives the library Type-filter dropdown so it only offers types that actually exist (honest facets)."""

@@ -69,10 +69,14 @@ uses a compact Workspace dropdown rather than the desktop tab strip) and ✅ **D
 > **Reading-pane follow-ups (Close-reader pass, inc 144 — shipped highlights/notes export):** ✅ **remembered
 > scroll position per paper — inc 175**; ✅ **Notes-panel extraction (`30b_notes.jsx`, relieves the cap) + noted-only
 > filter + note/text search — inc 176**; ✅ **next/prev-mark toolbar navigation — inc 177**; ✅ **mark-nav `[`/`]`
-> hotkeys — inc 179.** Remaining (diminishing + **split-gated**: `30_viewer.jsx` is now 599/600 MAXED → extract
-> another low-coupling unit first): keyboard zoom (Ctrl +/− — **conflicts with browser zoom**); a "fit
-> page"/fit-height option (touches the fit-mode logic — render-risk); free-form note colors/labels; a
-> scrollbar/minimap marker. (See `INCREMENT-144/175/176/177/179-NOTES.md`.)
+> hotkeys — inc 179.** **Remaining is now largely drift or render-risky (reconciled inc 304):** ✅ the
+> **scrollbar/minimap marker is DONE — inc 215** (`30_viewer.jsx` + `30f_pdf_gestures.jsx`); ✅ **highlight
+> colors already exist** (the `a.color` swatch in `30b_notes.jsx`) — only *free-form note **text labels*** remain
+> of that item; keyboard zoom (Ctrl +/−) is **declined — conflicts with browser zoom**. The one genuinely-open
+> item is a **"fit-height" page-view mode** (a 4th mode beside the existing page/width/two in `30_viewer.jsx`) —
+> render-risk + **needs a browser eyeball to verify** (can't ship blind) + `30_viewer.jsx` is at 596/600 so it's
+> **split-gated** (extract a low-coupling unit first, the inc-176/182 pattern). Left for a browser-equipped
+> session. (See `INCREMENT-144/175/176/177/179/215-NOTES.md`.)
 
 **Beta feedback — Bella (Slack, 2026-06-30): reading-workflow markers.** Three small, related per-paper-state
 features (Cliff queued them; duplicate-detection + the Unsorted tab she also asked for already exist — inc 56/64 +
@@ -226,8 +230,9 @@ couldn't be read + why** (155) + the **import** path's **skipped-record reportin
 parsers now report entries dropped at parse for no-title-and-no-DOI, plus record-cap overflow; the summary shows
 "N skipped (no title or DOI)", and `failed`/`skipped` are now distinct). A rough **ETA** ("~Ns left") — ✅
 **SHIPPED inc 225** (`Job.started_at` + `eta_seconds()` → all the job status payloads + ProgressBar/libmenus).
-**Remaining:** a per-item **title** in the import/embed/enrich progress label (scan already has the filename, inc
-214); a **cancel** button — **deferred** (correct cooperative cancellation needs the four `_run_*_job`
+**Remaining:** ✅ a per-item **title** in the import/embed progress label — **SHIPPED inc 304** (`titles_for_ids`
+in `paper_query_repo.py`, fetched once per job; both embed loops now read "Embedding <title> — k / N"; enrich/scan
+already carried the filename, inc 214); a **cancel** button — **deferred** (correct cooperative cancellation needs the four `_run_*_job`
 single-`engine.begin()` blocks split into per-item transactions = the same infra as the SQLite read-then-write
 concurrency pass above).
 

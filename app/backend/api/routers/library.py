@@ -27,7 +27,7 @@ from app.backend.metadata.enrichment import enrich_paper_metadata_from_crossref
 from app.backend.metadata.library_bundle import MAX_BUNDLE_BYTES, BundleError, build_bundle, import_bundle, parse_bundle
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.pdf_processing.library_scan import scan_library_folder
-from app.backend.persistence.repository import find_existing_paper_by_identity
+from app.backend.persistence.repository import find_existing_paper_by_identity, titles_for_ids
 from app.backend.persistence.sqlite_retry import commit_each, run_write
 from app.backend.persistence.watched_repo import (
     add_watched_folder,
@@ -429,8 +429,10 @@ def _run_import_job(app: FastAPI, job_id: str, content: str, fmt: str | None) ->
             embed_papers(conn, model=model, vector_store=store, paper_ids=[paper_id])
             auto_check_retractions(conn, [paper_id], checkers=app.state.retraction_checkers)
 
+        with engine.connect() as titles_conn:  # inc 304: per-item title in the progress label
+            titles = titles_for_ids(titles_conn, created)
         for index, paper_id in enumerate(created, start=1):
-            jobs.mark_progress(job_id, index, len(created), "Embedding papers")
+            jobs.mark_progress(job_id, index, len(created), f"Embedding {titles.get(paper_id, 'paper')[:60]}")
             commit_each(engine, [paper_id], _embed_and_check, on_item_error="skip", logger=_log)
         jobs.mark_done(
             job_id,
@@ -542,8 +544,10 @@ def _run_bundle_import_job(app: FastAPI, job_id: str, content: str) -> None:
         # write lock is released between papers.
         result = run_write(engine, lambda conn: import_bundle(conn, bundle))  # additive, non-destructive; no egress
         created = [int(pid) for pid in result["created"]]
+        with engine.connect() as titles_conn:  # inc 304: per-item title in the progress label
+            titles = titles_for_ids(titles_conn, created)
         for index, paper_id in enumerate(created, start=1):
-            jobs.mark_progress(job_id, index, len(created), "Embedding papers")
+            jobs.mark_progress(job_id, index, len(created), f"Embedding {titles.get(paper_id, 'paper')[:60]}")
             commit_each(
                 engine,
                 [paper_id],

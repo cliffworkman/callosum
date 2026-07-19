@@ -368,6 +368,7 @@ def list_papers(
 from app.backend.persistence.paper_query_repo import (  # noqa: E402,F401
     get_papers_for_export,
     list_item_types,
+    titles_for_ids,
 )
 
 

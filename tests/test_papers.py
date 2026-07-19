@@ -1287,6 +1287,19 @@ def test_priority_sort_recency_tiebreak_within_tier(temp_db_url: str) -> None:
     assert ordered == [hi_new, hi_old, un_new, un_old]
 
 
+def test_titles_for_ids(temp_db_url: str) -> None:
+    # inc 304: id→title map for per-item progress labels; missing ids omitted, blank falls back to "paper <id>".
+    from app.backend.persistence.repository import titles_for_ids
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="Alpha", csl_json={"title": "Alpha"})
+        b = create_paper(conn, title="Beta", csl_json={"title": "Beta"})
+        assert titles_for_ids(conn, [a, b, 99999]) == {a: "Alpha", b: "Beta"}
+        assert titles_for_ids(conn, []) == {}
+    engine.dispose()
+
+
 def test_list_missing_pdf_filter(temp_db_url: str, tmp_path: Path) -> None:
     # inc 301: `missing_pdf=true` → only papers with no LOCAL PDF (mirrors Text-Health no_local_pdf).
     pdf = tmp_path / "a.pdf"

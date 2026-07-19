@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 303; inc 303 is docs/backlog-only and requires no served-help change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 304; inc 304 is a progress-label content change and requires no served-help change. -->
+## 2026-07-18 — Increment 304: per-item titles in import/embed progress labels (backlog #4)
+- **Files:** `app/backend/persistence/{paper_query_repo,repository}.py`, `app/backend/api/routers/library.py`, `tests/test_papers.py`, `.claude/docs/increment-notes/INCREMENT-304-NOTES.md`.
+- **What:** the two long import jobs' determinate progress bar now reads **"Embedding <paper title> — k / N"** instead of the static "Embedding papers". New read helper `titles_for_ids(conn, paper_ids)` (leaf `paper_query_repo.py`, re-exported from `repository`) is fetched **once per job** and both embed loops read the per-item title from it.
+- **Why:** backlog #4 — a user importing many PDFs had no idea which paper was in flight; the title closes that legibility gap. Backend-only (rides the inc-142 `ProgressBar` + `/jobs/{id}` poll); no frontend rebuild.
+- **Verify:** `pytest tests/test_papers.py::test_titles_for_ids` + `tests/test_citation_import.py` green; full `pytest -n auto -q` **1265 passed / 1 skipped** (9m35s); ruff check + format + line-budget clean; no QA surface change (existing `progress.label` field, content-only).
+- **Revert:** restore the four listed files from git. No frontend rebuild required.
+
 ## 2026-07-18 — Increment 303: Navigation rubric rewrite + backlog reconciliation
 - **Files:** `.claude/DESIGN.md`, `.claude/docs/{INCREMENT-BACKLOG.md,INCREMENT-BACKLOG-DONE.md,increment-notes/INCREMENT-303-NOTES.md}`, `.claude/{CLAUDE.md,CODEX-HANDOFF.md,changes.md}`.
 - **What:** rewrote `DESIGN.md §5` into the canonical mode-vs-lens placement rule: center workspaces are broad modes of work; side panes are selected-paper lenses; THEORY/METHODS remain internal pane ids, not a product taxonomy. Reconciled stale open backlog bullets by marking A8 closed-as-covered (inc 205) and A5 color tags done (inc 207).
