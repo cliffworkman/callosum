@@ -149,7 +149,7 @@ def test_discover_search_and_journals_recent_history_controls():
     assert 'const DISCOVER_SEARCH_HISTORY_KEY = "callosum.discover.searchHistory.v1"' in raw
     assert "function _discoverLoadSearchHistory()" in raw and "rememberSearch({ q: query" in raw
     assert 'title="Recall and re-run a recent Search query"' in raw
-    assert 'title="Clear the current query and results"' in raw
+    assert 'title="Clear the current query and results (cancels an in-flight search)"' in raw
     assert 'setQ(""); setItems([]); setError(""); setCursor(-1)' in raw
     assert "Clear ×" in raw and "Recent searches" in raw and "Clear history" in raw
     assert 'const PUB_HISTORY_KEY = "callosum.discover.journalsHistory.v1"' in raw

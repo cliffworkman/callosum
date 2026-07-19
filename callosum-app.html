@@ -161,6 +161,10 @@
   .app.mobile .mobile-body { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
   .app.mobile .mobile-body > * { flex: 1 1 auto; min-width: 0; height: 100%; }
   .app.mobile .pane { height: 100%; }
+  /* inc 308 (QA): the desktop Help is a 200px+1fr two-column grid; at phone width it clips + scrolls internally.
+     Collapse to a single column with the section list scrollable above the article. */
+  .app.mobile .help-layout { grid-template-columns: 1fr; overflow: visible; }
+  .app.mobile .help-toc { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 6px; max-height: 28vh; }
   .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
   .mobile-nav-btn {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -2344,6 +2348,7 @@
 <script>
 (() => {
   const { useState, useEffect, useCallback, useRef } = React;
+  const AppReadOnly = React.createContext(void 0);
   const API_BASE = (() => {
     const params = new URLSearchParams(window.location.search);
     const override = params.get("api") || window.CALLOSUM_API_BASE || "";
@@ -3905,6 +3910,7 @@
     });
   }
   function MethodCreditButton({ items, onChanged }) {
+    const readOnly = React.useContext(AppReadOnly);
     const [state, setState] = useState({ status: "checking", present: /* @__PURE__ */ new Set(), importedAll: false });
     const allItems = creditItems(items);
     const refresh = useCallback(() => {
@@ -3923,8 +3929,9 @@
       });
     }, [JSON.stringify(allItems.map(creditDoi))]);
     useEffect(() => {
-      refresh();
-    }, [refresh]);
+      if (readOnly === false) refresh();
+    }, [refresh, readOnly]);
+    if (readOnly !== false) return null;
     const missing = state.status === "ready" ? state.importedAll ? [] : missingCreditItems(allItems, state.present) : allItems;
     const done = state.status === "ready" && missing.length === 0;
     const addMissing = async () => {
@@ -12040,6 +12047,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [history, setHistory] = useState(_discoverLoadSearchHistory);
     const inputRef = useRef(null);
     const listRef = useRef(null);
+    const searchGenRef = useRef(0);
     useEffect(() => {
       api("/discovery/sources").then((r) => {
         if (r.ok) setSources(r.data.sources || []);
@@ -12056,6 +12064,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       });
     }, []);
     const clearActiveSearch = useCallback(() => {
+      searchGenRef.current += 1;
       setQ("");
       setItems([]);
       setError("");
@@ -12078,6 +12087,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setQ(query);
         setSource(selectedSource || "");
       }
+      const gen = searchGenRef.current += 1;
       setStatus("loading");
       setError("");
       setCursor(-1);
@@ -12085,6 +12095,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setRelevance({});
       const sourceParam = selectedSource ? `&source=${encodeURIComponent(selectedSource)}` : "";
       const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25${sourceParam}`);
+      if (searchGenRef.current !== gen) return;
       if (r.ok) {
         const rows = (r.data.items || []).map((it) => ({ ...it, saved: !!it.in_library }));
         setItems(rows);
@@ -12095,7 +12106,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           const rr = await apiPost("/discovery/relevance", {
             items: rows.map((it) => ({ dedup_key: it.dedup_key, title: it.title || "", abstract: it.abstract || null }))
           });
-          if (rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
+          if (searchGenRef.current === gen && rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
         }
       } else {
         setItems([]);
@@ -12176,8 +12187,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       {
         className: "btn btn-primary",
         onClick: clearActiveSearch,
-        disabled: status === "loading" || !q && !items.length && status === "idle",
-        title: "Clear the current query and results"
+        disabled: !q && !items.length && status === "idle",
+        title: "Clear the current query and results (cancels an in-flight search)"
       },
       "Clear \xD7"
     ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: "", onChange: (e) => {
@@ -14111,6 +14122,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     return { name: "", roles: {} };
   }
   function CreditSection({ ctx }) {
+    const readOnly = React.useContext(AppReadOnly);
     const paperKey = "callosum.credit." + (ctx && ctx.selectedPaper != null ? ctx.selectedPaper : "_");
     const [authors, setAuthors] = useState([_blankAuthor()]);
     const [result, setResult] = useState(null);
@@ -14139,6 +14151,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       _saveLayout(paperKey, JSON.stringify(authors));
     }, [authors, paperKey]);
     useEffect(() => {
+      if (readOnly !== false) return;
       const body = { authors: authors.map((a) => ({
         name: a.name,
         roles: Object.keys(a.roles).map((role) => ({ role, degree: a.roles[role] || null }))
@@ -14149,7 +14162,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         if (r.ok) setResult(r.data);
       }, 250);
       return () => clearTimeout(t);
-    }, [authors]);
+    }, [authors, readOnly]);
     const setName = (i) => (e) => setAuthors(authors.map((a, ai) => ai === i ? { ...a, name: e.target.value } : a));
     const addAuthor = () => setAuthors([...authors, _blankAuthor()]);
     const removeAuthor = (i) => setAuthors(authors.length > 1 ? authors.filter((_, ai) => ai !== i) : [_blankAuthor()]);
@@ -14850,9 +14863,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         selectWorkspace("synthesis");
         selectMobilePane("library");
       } }, "\u2190 Synthesis") : null;
-      return /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals);
+      return /* @__PURE__ */ React.createElement(AppReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "app mobile" + (readOnly ? " read-only" : "") }, readOnlyBadge, /* @__PURE__ */ React.createElement("div", { className: "mobile-body" }, activeEl), backPill, /* @__PURE__ */ React.createElement(MobileNav, { active: mobilePane, onSelect: selectMobilePane }), modals));
     }
-    return /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement(AppReadOnly.Provider, { value: readOnly }, /* @__PURE__ */ React.createElement("div", { className: "app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : ""), style: { gridTemplateColumns: cols } }, readOnlyBadge, leftOpen && !readingMode ? sidebarEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), /* @__PURE__ */ React.createElement(
       Divider,
       {
         side: "left",
@@ -14888,7 +14901,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           });
         }
       }
-    ), rightOpen && !readingMode ? detailEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), modals);
+    ), rightOpen && !readingMode ? detailEl : /* @__PURE__ */ React.createElement("div", { className: "pane-collapsed" }), modals));
   }
   ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
   const WB_DESIGNS = [

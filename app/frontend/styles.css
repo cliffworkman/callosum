@@ -137,6 +137,10 @@
   .app.mobile .mobile-body { flex: 1 1 auto; min-height: 0; display: flex; overflow: hidden; }
   .app.mobile .mobile-body > * { flex: 1 1 auto; min-width: 0; height: 100%; }
   .app.mobile .pane { height: 100%; }
+  /* inc 308 (QA): the desktop Help is a 200px+1fr two-column grid; at phone width it clips + scrolls internally.
+     Collapse to a single column with the section list scrollable above the article. */
+  .app.mobile .help-layout { grid-template-columns: 1fr; overflow: visible; }
+  .app.mobile .help-toc { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 6px; max-height: 28vh; }
   .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
   .mobile-nav-btn {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;

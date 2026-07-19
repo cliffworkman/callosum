@@ -22,6 +22,7 @@ function missingCreditItems(items, presentDoiSet) {
 }
 
 function MethodCreditButton({ items, onChanged }) {
+  const readOnly = React.useContext(AppReadOnly);  // inc 308: tri-state; only check/import when confirmed read-write
   const [state, setState] = useState({ status: "checking", present: new Set(), importedAll: false });
   const allItems = creditItems(items);
   const refresh = useCallback(() => {
@@ -33,7 +34,12 @@ function MethodCreditButton({ items, onChanged }) {
       setState({ status: "ready", present, importedAll: false });
     });
   }, [JSON.stringify(allItems.map(creditDoi))]);
-  useEffect(() => { refresh(); }, [refresh]);
+  // Fire the read-implemented-as-POST /library/credit/status only once /health confirms a read-WRITE instance —
+  // a read-only companion never issues the doomed POST (which would 403 + log a console error).
+  useEffect(() => { if (readOnly === false) refresh(); }, [refresh, readOnly]);
+
+  // Importing is a write, so the whole affordance is hidden on a read-only companion (and until /health resolves).
+  if (readOnly !== false) return null;
 
   const missing = state.status === "ready" ? (state.importedAll ? [] : missingCreditItems(allItems, state.present)) : allItems;
   const done = state.status === "ready" && missing.length === 0;

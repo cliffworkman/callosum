@@ -33,6 +33,8 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
   const [history, setHistory] = useState(_discoverLoadSearchHistory);
   const inputRef = useRef(null);
   const listRef = useRef(null);
+  const searchGenRef = useRef(0);  // inc 308 (QA): bumps per search + on Clear, so Clear cancels an in-flight search
+                                   // and a late response can't repopulate a cleared/superseded query.
 
   useEffect(() => {
     api("/discovery/sources").then(r => { if (r.ok) setSources(r.data.sources || []); });
@@ -49,6 +51,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
   }, []);
 
   const clearActiveSearch = useCallback(() => {
+    searchGenRef.current += 1;  // cancel any in-flight search so its late response can't repopulate the cleared state
     setQ(""); setItems([]); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({}); setStatus("idle");
     if (inputRef.current) inputRef.current.focus();
   }, []);
@@ -65,9 +68,11 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
       ? override.sourceLabel
       : (selectedSource ? ((sources.find(s => s.kind === selectedSource) || {}).label || selectedSource) : "All sources");
     if (override) { setQ(query); setSource(selectedSource || ""); }
+    const gen = (searchGenRef.current += 1);
     setStatus("loading"); setError(""); setCursor(-1); setExpanded(new Set()); setRelevance({});
     const sourceParam = selectedSource ? `&source=${encodeURIComponent(selectedSource)}` : "";
     const r = await api(`/discovery/search?q=${encodeURIComponent(query)}&limit=25${sourceParam}`);
+    if (searchGenRef.current !== gen) return;  // a newer search or a Clear superseded this one — drop the late result
     if (r.ok) {
       const rows = (r.data.items || []).map(it => ({ ...it, saved: !!it.in_library }));
       setItems(rows); setStatus("ready"); setCursor(rows.length ? 0 : -1);
@@ -78,7 +83,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
         const rr = await apiPost("/discovery/relevance", {
           items: rows.map(it => ({ dedup_key: it.dedup_key, title: it.title || "", abstract: it.abstract || null })),
         });
-        if (rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
+        if (searchGenRef.current === gen && rr.ok && rr.data && rr.data.relevance) setRelevance(rr.data.relevance);
       }
     } else {
       setItems([]); setError(r.error || "Search failed."); setStatus("error");
@@ -148,8 +153,8 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
             {status === "loading" ? "Searching…" : "Search"}
           </button>
           <button className="btn btn-primary" onClick={clearActiveSearch}
-            disabled={status === "loading" || (!q && !items.length && status === "idle")}
-            title="Clear the current query and results">Clear ×</button>
+            disabled={!q && !items.length && status === "idle"}
+            title="Clear the current query and results (cancels an in-flight search)">Clear ×</button>
           <select className="lib-sort" value="" onChange={e => {
             const h = history[Number(e.target.value)];
             if (h) runSearch(h);

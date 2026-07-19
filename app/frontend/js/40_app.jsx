@@ -388,6 +388,7 @@ function App() {
       ? <button className="pdf-back-pill" onClick={() => { selectWorkspace("synthesis"); selectMobilePane("library"); }}>← Synthesis</button>
       : null;
     return (
+      <AppReadOnly.Provider value={readOnly}>
       <div className={"app mobile" + (readOnly ? " read-only" : "")}>
         {readOnlyBadge}
         <div className="mobile-body">{activeEl}</div>
@@ -395,10 +396,12 @@ function App() {
         <MobileNav active={mobilePane} onSelect={selectMobilePane} />
         {modals}
       </div>
+      </AppReadOnly.Provider>
     );
   }
 
   return (
+    <AppReadOnly.Provider value={readOnly}>
     <div className={"app" + (readingMode ? " reading" : "") + (readOnly ? " read-only" : "")} style={{ gridTemplateColumns: cols }}>
       {readOnlyBadge}
       {leftOpen && !readingMode ? sidebarEl : <div className="pane-collapsed" />}
@@ -422,6 +425,7 @@ function App() {
       {rightOpen && !readingMode ? detailEl : <div className="pane-collapsed" />}
       {modals}
     </div>
+    </AppReadOnly.Provider>
   );
 }
 

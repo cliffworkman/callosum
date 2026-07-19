@@ -62,6 +62,7 @@ function _blankAuthor() {
 }
 
 function CreditSection({ ctx }) {
+  const readOnly = React.useContext(AppReadOnly);  // inc 308: only format via the backend when confirmed read-write
   const paperKey = "callosum.credit." + (ctx && ctx.selectedPaper != null ? ctx.selectedPaper : "_");
   const [authors, setAuthors] = useState([_blankAuthor()]);
   const [result, setResult] = useState(null);       // { by_author, by_role, roles }
@@ -88,8 +89,11 @@ function CreditSection({ ctx }) {
     _saveLayout(paperKey, JSON.stringify(authors));
   }, [authors, paperKey]);
 
-  // Debounced format via the deterministic backend (the source of truth for the statement text).
+  // Debounced format via the deterministic backend (the source of truth for the statement text). Gated on a
+  // confirmed read-WRITE instance (inc 308) so the mount-time POST never fires + 403s during the brief window
+  // before /health resolves on a read-only companion (the CRediT tab is `hideInReadOnly`, but it can mount first).
   useEffect(() => {
+    if (readOnly !== false) return;
     const body = { authors: authors.map((a) => ({
       name: a.name,
       roles: Object.keys(a.roles).map((role) => ({ role, degree: a.roles[role] || null })),
@@ -100,7 +104,7 @@ function CreditSection({ ctx }) {
       if (r.ok) setResult(r.data);
     }, 250);
     return () => clearTimeout(t);
-  }, [authors]);
+  }, [authors, readOnly]);
 
   const setName = (i) => (e) => setAuthors(authors.map((a, ai) => ai === i ? { ...a, name: e.target.value } : a));
   const addAuthor = () => setAuthors([...authors, _blankAuthor()]);

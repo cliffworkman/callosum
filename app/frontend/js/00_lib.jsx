@@ -1,5 +1,12 @@
 const { useState, useEffect, useCallback, useRef } = React;
 
+// App-wide read-only signal (inc 308 — QA fix): tri-state from /health — `undefined` until it resolves, then
+// `true` (CALLOSUM_READ_ONLY) / `false`. Components that fire a read-implemented-as-POST (e.g. the credit-status
+// / CRediT-statement checks) consume this and fire only when it is `false`, so a read-only companion never issues
+// a doomed write that 403s + logs a console error. Provided by the App root; the detail pane keeps its own
+// narrower `DetailReadOnly` (24_detail_fields.jsx) for field editability.
+const AppReadOnly = React.createContext(undefined);
+
 // ─────────────────────────────────────────────────────────────
 // CONFIG — defaults to the same-origin API served by FastAPI.
 // Launch the backend with, e.g.:
