@@ -51,6 +51,35 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
+**QA 2026-07-19 (Codex pass) — read-only + mobile polish [frontend; needs a browser-equipped fix pass].** A Codex
+QA + manual-visual pass (routes 00/70/73 + direct Playwright) found **no Critical/High**; the below were verified
+against the code and filed here because they're frontend/visual and can't be shipped on a static read (no Playwright
+this session). Evidence under `.claude/qa-inbox/_processed/{20260719_103907,visual_20260719_manual}/`. Fix + let a
+Codex QA re-run confirm.
+- **[Medium] Read-only companion fires blocked credit POSTs → 403 console errors.** `05_method_credit.jsx` POSTs
+  `/library/credit/status` + `38_credit.jsx` POSTs `/credit/statement` (reads-implemented-as-POST) which the
+  read-only method gate 403s. **Fix:** a `readOnly` React context (provide in `40_app.jsx` — it already holds
+  `readOnly`/`healthLoaded`), consume in `MethodCreditButton` (~15 call sites) + `38_credit.jsx`; skip those POSTs +
+  hide the import action when read-only (the `40_app.jsx:74` read-implemented-as-POST precedent). *Confirmed real.*
+- **[Medium] Mobile Help keeps the desktop two-column layout + clips text.** `styles.css` `.help-layout` is a fixed
+  `200px 1fr` grid, `overflow:hidden`, **no mobile media query** → internal H-scroll + clipped copy at 375px.
+  **Fix:** a mobile media query → `grid-template-columns:1fr` + `overflow:visible` (DESIGN.md gate). *Confirmed.*
+- **[Medium] Opening a metadata-only paper as a PDF tab logs a 404.** The selected-but-unopened cue opened the
+  seeded *Signal Detection Theory* (no PDF) → `GET /papers/2/pdf` 404 console error. **Fix:** don't open a PDF tab /
+  fire the PDF GET for a paper with no PDF attachment; show the null-PDF state (`30c_frame.jsx`/`30_viewer.jsx`).
+  *Plausible — needs a browser trace to separate a real guard gap from a fixture artifact.*
+- **[Medium] Discover Search `Clear ×` can't reset a search stuck in `Searching…`.** `30d_discover.jsx` disables
+  Clear during `status==="loading"`; with no search-abort a hung (egress-off) search can't be cleared. **Fix:** a
+  fetch-generation guard so Clear resets q + results mid-search and a late response can't repopulate. *Partly a
+  fixture artifact (offline search never completes), but the abort gap is real.*
+- **[Low ×4] mobile CSS polish (DESIGN.md gate; browser-verified):** Discover Feed `Unread`/`Starred` filter buttons
+  too narrow (label wraps mid-word); mobile workspace "New layout" migration notice too tall (82px above Library
+  controls); mobile Settings collapsed provider rows collide the endpoint badge with `Use`; mobile Work provenance
+  line (`from your library · local, no egress`) hugs the right edge.
+- **[housekeeping] `route_00_smoke_readonly.md` steps 4–5** still describe the pre-inc-280 THEORY/METHODS accordion
+  with a left-pane SYNTHESIS section; the Wanted-in-header + stale-flag were corrected in triage, but the pane-
+  structure steps need a browser-verified rewrite to the current workspace IA.
+
 **Tech-debt (inc 305 web-stack migration) — TestClient httpx→httpx2:** starlette 1.x deprecates using `httpx`
 under `starlette.testclient` (`StarletteDeprecationWarning: install httpx2 instead`). **Dev/test-only** (the
 `TestClient`; the shipped server never imports it) + a warning not an error, so the suite is green — but migrate

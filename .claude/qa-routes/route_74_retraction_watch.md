@@ -3,7 +3,7 @@ api: /methods/retraction/database, /methods/retraction/database/refresh, /method
 fe: 08_methods_findings.jsx
 -->
 
-# ROUTE 40 — Retraction Watch DB (the bulk third source)
+# ROUTE 74 — Retraction Watch DB (the bulk third source)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the Retraction Watch database surface — the as-of line, the Refresh-database action, and the

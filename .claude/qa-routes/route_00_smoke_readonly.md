@@ -32,7 +32,8 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 2. **Library shell** (`10_pdf_layer.jsx` + `10d_papercard.jsx`): the seeded papers list; the search box; the search-scope dropdown;
    the Sort dropdown; the Type filter dropdown; the "+ Add ▾" menu (open it — the entries are **Watched
    folders…** and **Import file…** [scanning is reached *via* Watched folders, not a top-level entry], then
-   close); the Unsorted toggle; the Duplicates / Wanted buttons; pagination if present; the per-card
+   close); the Unsorted toggle; the Duplicates button (**Wanted moved to Discover → Search** in the inc-280
+   workspace IA — it is no longer a Library-header button); pagination if present; the per-card
    copy-BibTeX button + checkbox; single-click selection; double-click/open behavior; paper citation-count button
    where present; and read/priority controls when the instance is read-write. Click each control that has a
    read-only or menu-opening effect; do **not** mutate in this read-only smoke. Confirm each responds (no dead clicks).
@@ -42,6 +43,11 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
    **Facial Anomaly Perception** and confirm it shows the honest **"PDF not available locally"** null-state
    (its attachment rows point at files that aren't on disk — this is the coordinate-honesty `null` case and the
    *correct* behavior, NOT a bug; the resulting `/papers/{id}/pdf` 404 + its browser console line are expected).
+<!-- STALE — inc 280/302 workspace IA: **Synthesis moved OUT of the left pane into the center "Synthesize"
+     workspace** (menu bar: My Publications · Library · Synthesize · Discover · Work · Extract · Help · Settings).
+     The left pane in the Library workspace is now the Axes pane (Axes/Tags tabs); the right is Details. Steps 4–5
+     below still describe the pre-migration THEORY/METHODS accordion with a left-pane SYNTHESIS section and need a
+     browser-verified rewrite to the current pane structure (filed under the QA-2026-07-19 backlog batch). -->
 4. **THEORY accordion — left pane** (`05_panes.jsx` + `15_axes.jsx`/`20_synthesis.jsx`/`10_pdf_layer.jsx`):
    the left pane is an **accordion** with section headers **AXES · SYNTHESIS**, one body open at a time (AXES open
    by default). The **AXES** section has two **tabs** (`.pane-tabs` segmented chips), **Axes** (default) and
