@@ -9,7 +9,14 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-18 — corpus current through inc 304; inc 304 is a progress-label content change and requires no served-help change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-19 — corpus current through inc 305; inc 305 is a dependency bump and requires no served-help change. -->
+## 2026-07-19 — Increment 305: web-stack CVE migration (FastAPI 0.115→0.139, Starlette 0.45→1.3.1)
+- **Files:** `requirements.txt`, `tests/test_health.py`, `app/backend/api/routers/my_publications.py`, `.claude/security-audits/2026-07-19_web-stack-cve-migration.md`, `.claude/docs/increment-notes/INCREMENT-305-NOTES.md`, `.claude/{CLAUDE.md,changes.md}`.
+- **What:** bumped the pinned web stack (`fastapi==0.139.2`, `starlette==1.3.1`) to clear all **14 open Dependabot advisories** (6 high / 6 moderate / 2 low), every one on starlette (a high covers `>=0.4.1,<1.3.1`, so 1.3.1 is the floor; fastapi 0.115 caps starlette `<0.46`, so both move together). Two code changes: (1) fastapi 0.139 defers `include_router` behind a lazy `_IncludedRouter`, so the mutation-surface lockdown test grew a recursive `_iter_api_routes` walker (descends `original_router.routes`) — the write-route allowlist is unchanged, proving the bump added no mutation surface; (2) `my_publications.py` renamed the deprecated `HTTP_422_UNPROCESSABLE_ENTITY` → `HTTP_422_UNPROCESSABLE_CONTENT` (same value 422).
+- **Why:** the starlette CVEs aren't exploitable in the current localhost-only single-user shape, but the project enforces the web-stack discipline now rather than retrofitting before a public deployment.
+- **Verify:** security audit **PASS** (`2026-07-19_web-stack-cve-migration.md`); `pytest tests/test_health.py` 6 passed; full `pytest -n auto -q` **1265 passed / 1 skipped**; ruff check + format + line-budget clean; QA surface map **248 API / 1157 FE, 0 uncovered**. New transitive dep `annotated-doc 0.0.4` (fastapi 0.139). Non-blocking follow-up: TestClient httpx→httpx2 deprecation (dev-only).
+- **Revert:** `git checkout main -- requirements.txt tests/test_health.py` then `pip install -r requirements-dev.txt` to restore fastapi 0.115.8 + starlette 0.45.3.
+
 ## 2026-07-18 — Increment 304: per-item titles in import/embed progress labels (backlog #4)
 - **Files:** `app/backend/persistence/{paper_query_repo,repository}.py`, `app/backend/api/routers/library.py`, `tests/test_papers.py`, `.claude/docs/increment-notes/INCREMENT-304-NOTES.md`.
 - **What:** the two long import jobs' determinate progress bar now reads **"Embedding <paper title> — k / N"** instead of the static "Embedding papers". New read helper `titles_for_ids(conn, paper_ids)` (leaf `paper_query_repo.py`, re-exported from `repository`) is fetched **once per job** and both embed loops read the per-item title from it.

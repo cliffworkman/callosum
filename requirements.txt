@@ -1,9 +1,13 @@
 SQLAlchemy>=2.0,<3
 alembic>=1.13,<2
-# Pin the web stack exactly: `fastapi>=0.115,<1` let CI pull fastapi 0.138 + starlette 1.x, and starlette 1.0
-# restructured routing (the route-surface introspection test reads app.routes/APIRoute). Bump deliberately.
-fastapi==0.115.8
-starlette==0.45.3
+# Pin the web stack exactly. Bumped to fastapi 0.139.2 + starlette 1.3.1 to clear 14 Dependabot advisories on
+# starlette (6 high; a high covers the whole `>=0.4.1,<1.3.1` range, so 1.3.1 is the floor — see the security
+# audit 2026-07-19_web-stack-cve-migration.md). fastapi 0.139 now defers each include_router behind a lazy
+# `_IncludedRouter` (routes no longer sit flat on app.routes), so the mutation-surface lockdown test
+# (tests/test_health.py::_iter_api_routes) was updated to walk the included routers. Bump fastapi + starlette
+# together deliberately (fastapi 0.115 caps starlette <0.46, so no patched starlette fits the old fastapi).
+fastapi==0.139.2
+starlette==1.3.1
 httpx>=0.27,<1
 PyMuPDF>=1.24,<2
 sentence-transformers>=3,<6

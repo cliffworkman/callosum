@@ -343,12 +343,12 @@ def rename_my_publications_domain(payload: RenameDomainRequest, engine: Engine =
     # SP2 (inc 118, #15): rename a research domain (identified by its paper_ids set); marks it custom so a
     # Re-decompose preserves the name by paper-overlap. Local profile-JSON write; no egress.
     if not payload.label.strip():
-        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Label cannot be empty.")
+        raise HTTPException(status_code=http_status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Label cannot be empty.")
 
     def _do(conn: Connection) -> Response:
         if not rename_domain(conn, payload.paper_ids, payload.label):
             raise HTTPException(
-                status_code=http_status.HTTP_422_UNPROCESSABLE_ENTITY, detail="No domain matches those papers."
+                status_code=http_status.HTTP_422_UNPROCESSABLE_CONTENT, detail="No domain matches those papers."
             )
         return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 

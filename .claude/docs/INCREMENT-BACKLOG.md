@@ -51,6 +51,13 @@ _Italic notes are light implementation pointers, not designs._
 
 ## ▶ AUTONOMOUS — Claude Code builds these, top-down (simplest first)
 
+**Tech-debt (inc 305 web-stack migration) — TestClient httpx→httpx2:** starlette 1.x deprecates using `httpx`
+under `starlette.testclient` (`StarletteDeprecationWarning: install httpx2 instead`). **Dev/test-only** (the
+`TestClient`; the shipped server never imports it) + a warning not an error, so the suite is green — but migrate
+the test client to `httpx2` before the deprecation becomes a removal. The app's **runtime** `httpx`
+(`httpx>=0.27,<1`, external-metadata client) is a separate, unaffected dep. See `INCREMENT-305-NOTES.md` +
+`security-audits/2026-07-19_web-stack-cve-migration.md`.
+
 **Workspaces nav (inc 280) — UX follow-up (experience pass, persona = returning user re-finding a moved tool):**
 returning users pay a one-time re-learning cost for the moved/renamed tools (Where-to-submit → **Journals** under
 Discover; Effect-size/Meta-analysis → **Extract**; `?`/`⚙` → the menu bar). Not blocking (all reachable + working;

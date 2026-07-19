@@ -16,6 +16,29 @@ from tests.api_helpers import (
 HEAD = alembic_head()  # the real Alembic head — never a hardcoded revision string (see api_helpers.alembic_head)
 
 
+def _iter_api_routes(app) -> list[APIRoute]:
+    """Every ``APIRoute`` mounted on the app, flattened. FastAPI 0.139 / starlette 1.x restructured routing:
+    each ``include_router`` now sits behind a lazy ``_IncludedRouter`` container instead of copying its routes
+    flat onto ``app.routes``, so a plain ``for route in app.routes`` sees only the top-level ``/`` shell. We
+    descend the ``original_router`` each ``_IncludedRouter`` wraps (callosum includes every router bare — no
+    ``prefix`` — so those routes already carry their full paths), plus any generic ``.routes`` container, and
+    collect the ``APIRoute`` leaves. Keeps the mutation-surface lockdown below framework-version-independent."""
+    out: list[APIRoute] = []
+
+    def walk(routes) -> None:
+        for route in routes:
+            if isinstance(route, APIRoute):
+                out.append(route)
+            included = getattr(route, "original_router", None)
+            if included is not None and getattr(included, "routes", None):
+                walk(included.routes)
+            elif getattr(route, "routes", None):
+                walk(route.routes)
+
+    walk(app.routes)
+    return out
+
+
 def test_health_reports_reachable_and_migrated(temp_db_url: str) -> None:
     response = TestClient(create_app(db_url=temp_db_url)).get("/health")
 
@@ -222,9 +245,8 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
     }
     api_routes = [
         route
-        for route in app.routes
-        if isinstance(route, APIRoute)
-        and route.path in allowed_route_paths | {path for path, _ in allowed_mutation_routes}
+        for route in _iter_api_routes(app)
+        if route.path in allowed_route_paths | {path for path, _ in allowed_mutation_routes}
     ]
     write_routes = [route for route in api_routes if not (route.methods or set()) <= {"GET"}]
 
