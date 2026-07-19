@@ -12,8 +12,27 @@ from app.backend.api import create_app
 from app.backend.discovery.crossref_provider import CrossrefSearchProvider, message_to_item
 from app.backend.discovery.providers import Item, SourceRegistry, build_default_registry
 from app.backend.discovery.search import DISCOVERY_SOURCE, run_search, save_item
+from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper, find_existing_paper_by_identity
+from app.backend.persistence.tags_repo import get_tags_for_paper
+
+
+class _KeywordSource:
+    """An enrich source that advertises inc-306/307 keyword tags (no network) — for the save background enrich."""
+
+    name = "kw"
+    keyword_source = "keyword:openalex"
+
+    def __init__(self, names) -> None:
+        self._names = list(names)
+
+    def fetch(self, conn, ref):
+        return None
+
+    def keywords(self, conn, ref):
+        return list(self._names)
+
 
 # ---- Item: dedup key precedence + cross-provider merge ----------------------
 
@@ -250,6 +269,9 @@ def test_search_endpoint_rejects_blank_query(temp_db_url):
 def test_save_endpoint_creates_then_search_marks_in_library(temp_db_url):
     reg = SourceRegistry().register(_FakeProvider("crossref", [Item("Cycle Paper", doi="10.1/cycle")]))
     client = _client(temp_db_url, reg)
+    client.app.state.enrich_registry = (
+        EnrichmentRegistry()
+    )  # inc 307: empty → the save background enrich makes no network call
 
     before = client.get("/discovery/search", params={"q": "cycle"}).json()["items"][0]
     assert before["in_library"] is False
@@ -259,6 +281,26 @@ def test_save_endpoint_creates_then_search_marks_in_library(temp_db_url):
 
     after = client.get("/discovery/search", params={"q": "cycle"}).json()["items"][0]
     assert after["in_library"] is True  # the saved paper now dedups against the library
+
+
+def test_save_enriches_saved_paper_with_keyword_tags(temp_db_url):
+    """inc 307: a Feed/Search save runs the enrich in the background, so the saved paper arrives with keyword tags."""
+    reg = SourceRegistry().register(_FakeProvider("crossref", [Item("Topic Paper", doi="10.1/kw")]))
+    client = _client(temp_db_url, reg)
+    client.app.state.enrich_registry = EnrichmentRegistry().register(
+        _KeywordSource(["Social Psychology", "Gender Studies"])
+    )
+
+    saved = client.post("/discovery/save", json={"title": "Topic Paper", "doi": "10.1/kw"})
+    assert saved.status_code == 200 and saved.json()["created"] is True
+
+    # the FastAPI BackgroundTask runs within the TestClient request → tags are attached by the time it returns.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        tags = {t["name"]: t["import_source"] for t in get_tags_for_paper(conn, int(saved.json()["paper_id"]))}
+    engine.dispose()
+    assert tags.get("Social Psychology") == "keyword:openalex"
+    assert tags.get("Gender Studies") == "keyword:openalex"
 
 
 def test_registry_accepts_a_new_provider_with_no_endpoint_edit(temp_db_url):

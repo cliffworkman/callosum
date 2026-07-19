@@ -117,7 +117,7 @@ function FeedPane({ onSaved, active, embedded }) {
     if (item.in_library || savingKey) return;
     setSavingKey(item.id);
     const r = await apiPost("/discovery/save", {
-      title: item.title, doi: item.doi || null, abstract: item.abstract || null,
+      title: item.title, doi: item.doi || null, pmid: item.pmid || null, abstract: item.abstract || null,
       authors: item.authors || [], journal: item.journal || null, year: item.year || null, url: item.url || null,
     });
     setSavingKey(null);

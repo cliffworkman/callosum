@@ -9,6 +9,7 @@ from app.backend.api import create_app
 from app.backend.embeddings.models import DEFAULT_NORMALIZATION
 from app.backend.embeddings.retrieval import search_similar
 from app.backend.embeddings.vector_store import InMemoryVectorStore
+from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import (
     create_attachment,
@@ -690,12 +691,12 @@ def test_patch_paper_allows_duplicate_doi_for_merge_workflow(temp_db_url: str) -
 
 def test_reresolve_populates_metadata_from_crossref(temp_db_url: str) -> None:
     seeded = _seed_library(temp_db_url)
-    client = TestClient(
-        create_app(
-            db_url=temp_db_url,
-            crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, _crossref_body("10.123/facial"))),
-        )
+    app = create_app(
+        db_url=temp_db_url,
+        crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, _crossref_body("10.123/facial"))),
     )
+    app.state.enrich_registry = EnrichmentRegistry()  # inc 307: no keyword-import network on re-resolve
+    client = TestClient(app)
 
     body = client.post(f"/papers/{seeded['facial_paper_id']}/re-resolve").json()
 
@@ -724,9 +725,9 @@ def test_reresolve_imports_crossref_subjects_as_keyword_tags(temp_db_url: str) -
     pid = seeded["facial_paper_id"]
     body = _crossref_body("10.123/facial")
     body["message"]["subject"] = ["Neuroscience", "Vision"]
-    client = TestClient(
-        create_app(db_url=temp_db_url, crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, body)))
-    )
+    app = create_app(db_url=temp_db_url, crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, body)))
+    app.state.enrich_registry = EnrichmentRegistry()  # inc 307: only Crossref subjects here, no keyword-import network
+    client = TestClient(app)
 
     detail = client.post(f"/papers/{pid}/re-resolve").json()
     assert {"Neuroscience", "Vision"} <= {t["name"] for t in detail["tags"]}  # subjects → keyword tags
@@ -734,6 +735,40 @@ def test_reresolve_imports_crossref_subjects_as_keyword_tags(temp_db_url: str) -
     assert sorted(t["name"] for t in detail2["tags"]) == sorted(t["name"] for t in detail["tags"])
     nid = next(t["id"] for t in detail2["tags"] if t["name"] == "Neuroscience")
     assert pid in {p["id"] for p in client.get("/papers", params={"tag_id": nid}).json()}  # filterable like any tag
+
+
+class _KwSource:
+    """A registry source advertising inc-306/307 keyword tags (no network) — for the re-resolve keyword test."""
+
+    name = "kw"
+    keyword_source = "keyword:openalex"
+
+    def __init__(self, names) -> None:
+        self._names = list(names)
+
+    def fetch(self, conn, ref):
+        return None
+
+    def keywords(self, conn, ref):
+        return list(self._names)
+
+
+def test_reresolve_also_imports_registry_keyword_tags(temp_db_url: str) -> None:
+    """inc 307: 🔎 re-resolve now also applies the registry keyword sources (OpenAlex topics / PubMed MeSH), not
+    just Crossref subjects — matching Fill-metadata. The tags carry their source provenance."""
+    seeded = _seed_library(temp_db_url)
+    pid = seeded["facial_paper_id"]
+    app = create_app(
+        db_url=temp_db_url,
+        crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, _crossref_body("10.123/facial"))),
+    )
+    app.state.enrich_registry = EnrichmentRegistry().register(_KwSource(["Face Perception", "Social Cognition"]))
+    client = TestClient(app)
+
+    detail = client.post(f"/papers/{pid}/re-resolve").json()
+    tags = {t["name"]: t["source"] for t in detail["tags"]}
+    assert tags.get("Face Perception") == "keyword:openalex"  # registry keyword source, not just Crossref subjects
+    assert tags.get("Social Cognition") == "keyword:openalex"
 
 
 def test_reresolve_requires_a_doi(temp_db_url: str) -> None:
@@ -749,12 +784,12 @@ def test_reresolve_requires_a_doi(temp_db_url: str) -> None:
 
 def test_reresolve_is_graceful_when_crossref_misses(temp_db_url: str) -> None:
     seeded = _seed_library(temp_db_url)
-    client = TestClient(
-        create_app(
-            db_url=temp_db_url,
-            crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(404, {"status": "error"})),
-        )
+    app = create_app(
+        db_url=temp_db_url,
+        crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(404, {"status": "error"})),
     )
+    app.state.enrich_registry = EnrichmentRegistry()  # inc 307: no keyword-import network on re-resolve
+    client = TestClient(app)
 
     response = client.post(f"/papers/{seeded['facial_paper_id']}/re-resolve")
 
@@ -764,12 +799,12 @@ def test_reresolve_is_graceful_when_crossref_misses(temp_db_url: str) -> None:
 
 def test_reresolve_forces_past_a_user_edit(temp_db_url: str) -> None:
     seeded = _seed_library(temp_db_url)
-    client = TestClient(
-        create_app(
-            db_url=temp_db_url,
-            crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, _crossref_body("10.123/facial"))),
-        )
+    app = create_app(
+        db_url=temp_db_url,
+        crossref_client=CrossrefClient(fetcher=_FakeCrossrefFetcher(200, _crossref_body("10.123/facial"))),
     )
+    app.state.enrich_registry = EnrichmentRegistry()  # inc 307: no keyword-import network on re-resolve
+    client = TestClient(app)
     pid = seeded["facial_paper_id"]
 
     client.patch(f"/papers/{pid}", json={"venue": "My Manual Edit"})  # marks user-edited

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, FastAPI, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection, Engine
 
@@ -17,9 +17,25 @@ from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.discovery.relevance import score_axis_relevance
 from app.backend.discovery.search import run_search, save_item
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
+from app.backend.metadata import enrich_paper_metadata_multi
+from app.backend.metadata.enrich_sources import build_default_enrich_registry
 from app.backend.persistence.sqlite_retry import run_write
 
 router = APIRouter()
+
+
+def _enrich_saved_paper_bg(app: FastAPI, paper_id: int) -> None:
+    """Background: run the multi-pass enrich on a just-saved discovery paper (inc 307) so it arrives with the same
+    keyword tags (OpenAlex topics + PubMed MeSH + Crossref subjects) + gap-fills as any enriched paper. Rides the
+    app registry (hermetic in tests: an empty `app.state.enrich_registry` fetches nothing). Fail-closed — a save is
+    never blocked or failed by enrichment; this runs after the response is sent."""
+    try:
+        registry = app.state.enrich_registry or build_default_enrich_registry(
+            crossref_client=app.state.crossref_client, openalex_client=app.state.openalex_client
+        )
+        run_write(app.state.engine, lambda conn: enrich_paper_metadata_multi(conn, paper_id, registry=registry))
+    except Exception:  # noqa: BLE001 — background enrichment is best-effort; never surface to the caller
+        pass
 
 
 # The embedding model is heavy to load; cache the default on app.state (a sync endpoint must not reload it per
@@ -49,6 +65,7 @@ class RelevanceRequest(BaseModel):
 class SaveRequest(BaseModel):
     title: str = Field(min_length=1, max_length=2000)
     doi: str | None = Field(default=None, max_length=300)
+    pmid: str | None = Field(default=None, max_length=40)  # inc 307: drives PubMed MeSH on the background enrich
     abstract: str | None = Field(default=None, max_length=20000)
     authors: list[str] = Field(default_factory=list, max_length=500)
     journal: str | None = Field(default=None, max_length=600)
@@ -93,12 +110,15 @@ def discovery_relevance(
 
 
 @router.post("/discovery/save")
-def discovery_save(payload: SaveRequest, engine: Engine = Depends(get_engine)) -> dict[str, Any]:
+def discovery_save(
+    payload: SaveRequest, request: Request, background: BackgroundTasks, engine: Engine = Depends(get_engine)
+) -> dict[str, Any]:
     def _do(conn: Connection) -> dict[str, Any]:
         return save_item(
             conn,
             title=payload.title.strip(),
             doi=payload.doi,
+            pmid=payload.pmid,
             abstract=payload.abstract,
             authors=payload.authors,
             journal=payload.journal,
@@ -106,4 +126,9 @@ def discovery_save(payload: SaveRequest, engine: Engine = Depends(get_engine)) -
             url=payload.url,
         )
 
-    return run_write(engine, _do)
+    result = run_write(engine, _do)
+    # inc 307: a newly-saved paper skips the enrich cascade (bare create), so enrich it in the background — it
+    # arrives with the same keyword tags as any enriched paper. The save response returns immediately.
+    if result.get("created") and (payload.doi or payload.pmid):
+        background.add_task(_enrich_saved_paper_bg, request.app, int(result["paper_id"]))
+    return result

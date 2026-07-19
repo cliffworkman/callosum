@@ -9,6 +9,7 @@ from app.backend.metadata.enrichment import (
     enrich_paper_metadata_from_identifier,
     enrich_paper_metadata_multi,
     enrich_pdf_scaffold_library,
+    import_registry_keyword_tags,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "enrich_paper_metadata_from_identifier",
     "enrich_paper_metadata_multi",
     "enrich_pdf_scaffold_library",
+    "import_registry_keyword_tags",
 ]

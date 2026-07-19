@@ -356,7 +356,9 @@ toast) is a nicety, backlogged.
 and the app has its own PubMed provider — the old blockers are gone). Preferred OpenAlex **topics** (curated) over
 the noisier legacy `concepts`; scores filter noise server-side but are never surfaced (no opaque score). The library
 "Enrich metadata" action backfills the whole library. Frontend was pre-scaffolded (`tagSourceLabel`). See
-`INCREMENT-306-NOTES.md`. *(The Feed/Search-**save** keyword attach is a separate, still-open slice under #28.)*
+`INCREMENT-306-NOTES.md`. ✅ **inc 307** closed the remaining paths: a **Feed/Search save** now background-enriches
+the new paper (so it arrives tagged) and **🔎 re-resolve** now imports the OpenAlex/PubMed keywords too — every
+ingest/refresh path populates the tags via `import_registry_keyword_tags`. See `INCREMENT-307-NOTES.md`.
 
 **19. Tags ↔ findings / system-facts (the retraction-surfacing connection)** — **[blocked + design]**
 `opus4.8_future-tracks_theorymethods.md`'s **findings subsystem** emits a retraction FACT (Crossref Retraction

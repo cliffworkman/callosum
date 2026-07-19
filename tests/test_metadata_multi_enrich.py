@@ -479,3 +479,20 @@ def test_enrich_without_keyword_capable_source_adds_no_keyword_tags(temp_db_url)
             t for t in get_tags_for_paper(conn, pid) if str(t["import_source"] or "").startswith("keyword:")
         ]
     assert keyword_tags == []
+
+
+def test_import_registry_keyword_tags_applies_and_is_hermetic(temp_db_url):
+    """inc 307: the extracted keyword importer applies a capable source's tags; an empty registry emits nothing."""
+    from app.backend.metadata.enrichment import import_registry_keyword_tags
+    from app.backend.persistence.tags_repo import get_tags_for_paper
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, title="P", doi="10.1/a", csl_json={"title": "P", "DOI": "10.1/a"})
+        ref = EnrichRef(doi="10.1/a", title="P")
+        import_registry_keyword_tags(
+            conn, pid, ref=ref, registry=_reg(_KeywordStubSource("oa", "keyword:openalex", ["Topic X"]))
+        )
+        import_registry_keyword_tags(conn, pid, ref=ref, registry=EnrichmentRegistry())  # empty → no-op, no network
+        tags = {t["name"]: t["import_source"] for t in get_tags_for_paper(conn, pid)}
+    assert tags == {"Topic X": "keyword:openalex"}

@@ -49,10 +49,14 @@ inject `app.state.discovery_registry` with a `SourceRegistry` holding a fake pro
   the `dedup_key` is DOI → PMID → normalized-title precedence.
 - **`in_library` truth.** A result whose DOI/identity matches a live library paper is flagged `in_library:true` (so
   the UI can show "already have it"); a novel result is `false`.
-- **Save = metadata-only, deduped, no PDF.** `POST /discovery/save` creates a paper with `imported_source` =
-  `discovery-import` (kept out of the crossref-update allowlist, like user-edited); saving the same identity twice
-  returns `created:false` with the **same** `paper_id` (no duplicate row); **no PDF is fetched** (the OA-acquire lane
-  is untouched → no paywall circumvention).
+- **Save = deduped create, then background enrich (inc 307), no PDF.** `POST /discovery/save` creates the paper
+  immediately (`created:true`) and returns at once; a **FastAPI background task** then runs the multi-pass enrich on
+  the new paper, so it arrives with the same **source-labeled keyword tags** (`keyword:openalex` / `keyword:pubmed` /
+  `keyword:crossref`) as any enriched paper — and its `imported_source` becomes `crossref` (deliberate: it's now
+  genuinely Crossref-enriched; gap-fill only fills EMPTY fields, never overwrites). Saving the same identity twice
+  returns `created:false` with the **same** `paper_id` and enqueues **no** enrich; **no PDF is fetched** (the
+  OA-acquire lane is untouched → no paywall circumvention). The enrich egress is public bibliographic metadata (NOT
+  the Gemini gate); with egress unset the save + its background enrich still make **no** `generativelanguage` call.
 - **Fail closed.** A blank `q` → 422; a provider that raises is skipped (one bad source never sinks the search).
 
 ## Adversarial checklist

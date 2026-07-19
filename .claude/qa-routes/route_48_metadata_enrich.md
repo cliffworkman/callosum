@@ -54,6 +54,11 @@ Register console/pageerror/request listeners on any opened page.
 5. `GET /library/enrich/refresh/nope` → **404**.
 6. (UI) The library header shows **Enrich metadata ↻**; clicking it runs the batch with progress, then the library
    reloads. The Details pane shows **Fill missing fields** (next to 🔎 re-resolve).
+7. **Keyword tags populate via enrichment (inc 306/307).** Both **Fill metadata** AND **🔎 re-resolve** import the
+   rich, **source-labeled** keyword tags (`keyword:openalex` topics + `keyword:pubmed` MeSH, alongside
+   `keyword:crossref` subjects) — verify a re-resolved/filled paper gains muted keyword chips whose tooltip names the
+   source, that **no numeric score** is shown on any chip (OpenAlex scores filter server-side only), and that
+   deleting one then re-running does **not** re-add it (inc-143 suppression holds across both paths).
 
 ## Pass criteria
 

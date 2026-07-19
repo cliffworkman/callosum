@@ -22,8 +22,9 @@ from app.backend.metadata import (
     enrich_paper_metadata_from_crossref,
     enrich_paper_metadata_from_identifier,
     enrich_paper_metadata_multi,
+    import_registry_keyword_tags,
 )
-from app.backend.metadata.enrich_sources import build_default_enrich_registry
+from app.backend.metadata.enrich_sources import EnrichRef, build_default_enrich_registry
 from app.backend.methods.retraction import auto_check_retractions
 from app.backend.persistence.repository import get_paper
 from integrations.crossref import CrossrefClient
@@ -72,6 +73,24 @@ def reresolve_paper(
         enrich_paper_metadata_from_identifier(
             conn, paper_id, source=source, openalex_client=request.app.state.openalex_client, force=True
         )
+    # inc 307: re-resolve now also imports the rich keyword tags (OpenAlex topics + PubMed MeSH) — matching
+    # fill-metadata, not just the Crossref subjects `enrich_paper_metadata_from_crossref` already applied. Rides the
+    # app registry (hermetic in tests: an empty/stub registry emits nothing); fail-closed — never a 500.
+    refreshed = get_paper(conn, paper_id)
+    registry = request.app.state.enrich_registry or build_default_enrich_registry(
+        crossref_client=request.app.state.crossref_client, openalex_client=request.app.state.openalex_client
+    )
+    import_registry_keyword_tags(
+        conn,
+        paper_id,
+        ref=EnrichRef(
+            doi=refreshed["doi"],
+            pmid=str((refreshed["csl_json"] or {}).get("PMID") or "").strip() or None,
+            title=refreshed["title"],
+            year=refreshed["year"],
+        ),
+        registry=registry,
+    )
     # inc 224: a (re-)resolved identifier can newly reveal a retraction — auto-check now (inc-134 hook; best-effort).
     auto_check_retractions(conn, [paper_id], checkers=request.app.state.retraction_checkers)
     conn.commit()

@@ -12114,6 +12114,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       const r = await apiPost("/discovery/save", {
         title: it.title,
         doi: it.doi || null,
+        pmid: it.pmid || null,
         abstract: it.abstract || null,
         authors: it.authors || [],
         journal: it.journal || null,
@@ -12337,6 +12338,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       const r = await apiPost("/discovery/save", {
         title: item.title,
         doi: item.doi || null,
+        pmid: item.pmid || null,
         abstract: item.abstract || null,
         authors: item.authors || [],
         journal: item.journal || null,

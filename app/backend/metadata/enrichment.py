@@ -239,6 +239,24 @@ def _apply_keyword_tags(conn: Connection, paper_id: int, names: Any, source: str
     return keep
 
 
+def import_registry_keyword_tags(
+    conn: Connection, paper_id: int, *, ref: EnrichRef, registry: EnrichmentRegistry
+) -> None:
+    """Apply the registry's keyword sources (OpenAlex topics, PubMed MeSH) as tags for a paper (inc 306/307).
+    Reusable across every enrich path — the multi-pass enrich, the per-paper re-resolve, and the Feed/Search-save
+    background enrich all call this. Fail-closed per source; hermetic by construction: an empty/stub registry (the
+    hermetic-test posture) advertises no `keyword_source`, so nothing is fetched or written."""
+    for source in registry.sources:
+        source_label = getattr(source, "keyword_source", None)
+        if not source_label or not hasattr(source, "keywords"):
+            continue
+        try:
+            names = source.keywords(conn, ref)
+        except Exception:  # noqa: BLE001 — keyword tags are a nicety; never sink the enrich for one bad source
+            names = []
+        _apply_keyword_tags(conn, paper_id, names, source_label)
+
+
 def _doi_for_paper(conn: Connection, paper_id: int, *, existing_doi: str | None) -> DoiCandidate | None:
     if existing_doi:
         return DoiCandidate(doi=str(existing_doi), source="paper-doi")
@@ -449,19 +467,11 @@ def enrich_paper_metadata_multi(
 
     update_paper_metadata(conn, paper_id, **updates)
     apply_crossref_subject_tags(conn, paper_id, merged)
-    # inc 306: additional imported-keyword sources (OpenAlex topics, PubMed MeSH) ride the SAME registry the CSL
-    # cascade uses — a source that advertises `keyword_source` + `keywords()` contributes tags. Driving it off the
-    # registry (not a separate client) keeps it hermetic by construction: an empty/stub registry emits no keywords.
-    keyword_ref = EnrichRef(doi=doi, pmid=pmid, title=title, year=paper_year)
-    for source in registry.sources:
-        source_label = getattr(source, "keyword_source", None)
-        if not source_label or not hasattr(source, "keywords"):
-            continue
-        try:
-            names = source.keywords(conn, keyword_ref)
-        except Exception:  # noqa: BLE001 — keyword tags are a nicety; never sink the enrich for one bad source
-            names = []
-        _apply_keyword_tags(conn, paper_id, names, source_label)
+    # inc 306/307: OpenAlex topics + PubMed MeSH ride the SAME registry the CSL cascade uses (a source advertising
+    # `keyword_source` + `keywords()` contributes tags). Extracted so re-resolve + Feed/Search-save reuse it.
+    import_registry_keyword_tags(
+        conn, paper_id, ref=EnrichRef(doi=doi, pmid=pmid, title=title, year=paper_year), registry=registry
+    )
     _hook_my_publications(conn, paper_id)
     refresh_processing_tier(conn, paper_id)
     return MultiEnrichResult(

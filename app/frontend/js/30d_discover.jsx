@@ -98,7 +98,7 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
     if (!it || it.saved || savingKey) return;
     setSavingKey(it.dedup_key);
     const r = await apiPost("/discovery/save", {
-      title: it.title, doi: it.doi || null, abstract: it.abstract || null,
+      title: it.title, doi: it.doi || null, pmid: it.pmid || null, abstract: it.abstract || null,
       authors: it.authors || [], journal: it.journal || null,
       year: it.year || null, url: it.url || null,
     });
