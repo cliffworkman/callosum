@@ -188,7 +188,7 @@ function CitePane({ ctx }) {
   const suggestions = state.status === "done" ? state.suggestions : [];
   const beyond = state.status === "done" ? state.beyond : [];
   return (
-    <div className="cite-pane">
+    <div className="cite-pane ws-pad">
       <textarea
         className="synth-input"
         placeholder="Paste a sentence from your draft to find papers to cite…"

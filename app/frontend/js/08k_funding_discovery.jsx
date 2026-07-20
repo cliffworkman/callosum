@@ -221,7 +221,7 @@ function FundingDiscoveryPanel({ ctx }) {
   const hiddenLowerCount = Math.max(0, surfacedResultItems.length - baseResultItems.length);
 
   return (
-    <div className="funding-panel">
+    <div className="funding-panel ws-pad">
       <div className="funding-intro">
         Discovers plausible funding prospects from funding behavior and funding lineage, then separately checks for a
         current application surface. Absence of a surfaced record is not evidence that no mechanism exists.

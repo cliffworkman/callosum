@@ -318,6 +318,17 @@ Ranked; "legit" = a context difference worth keeping.
 9. **Settings group cards — RESOLVED (2026-07-20).** The settings redesign needed a named grouping wrapper, but
    not a new surface language: `.settings-card` uses the canonical panel/card tokens exactly, while its subsection
    grids remain unframed. The pattern and its responsive/provider-grid rules are documented in §2 above.
+10. **Missing content padding on 6 workspace tabs — RESOLVED (2026-07-20).** `.workspace-body` is deliberately
+    unpadded (a full-bleed list tab like Discover Feed/Search wants edge-to-edge rows), so a content-style tab must
+    supply its own — `.wb-pane` (Work → Meta-Analyze) and `.synth` (Synthesize → Ask) already did; Work → Cite/
+    Meta-Reference/CRediT, Discover → Journals/Funding, and Synthesize → Critique didn't (`.cite-pane` had no base
+    rule at all — only an incomplete mobile-only patch; `.cite-workspace`/`.statcheck-section` used by Critique had
+    no rule at all; `.grim-section` used by CRediT had none either). Fixed with one new standalone class,
+    `.ws-pad { padding: 16px 18px }` (the `.wb-pane`/`.synth` rhythm), added alongside each broken component's
+    existing root class. Kept standalone rather than folded into `.grim-section`/`.statcheck-section` directly,
+    because those two are *also* legitimately used inside already-padded contexts — a METHODS accordion `.acc-body`
+    (GRIM/statcheck/Bayes/LMM/transparency/meta-analysis-reporting), and `EffectSizeSection`'s `.grim-section`
+    nested inside Workbench's already-padded `.wb-pane` — where adding padding to the bare class would double it.
 
 ---
 

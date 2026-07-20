@@ -4,7 +4,7 @@
 // this is presentation only. Reuses the existing .settings-subsection divider recipe (DESIGN.md rule #8).
 function MetaReferencePane({ ctx }) {
   return (
-    <div className="cite-workspace">
+    <div className="cite-workspace ws-pad">
       <p className="eyebrow">Meta Reference List</p>
       <MetaReferenceList ctx={ctx} />
       <div className="settings-subsection">

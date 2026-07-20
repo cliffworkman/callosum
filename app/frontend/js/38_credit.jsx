@@ -142,7 +142,7 @@ function CreditSection({ ctx }) {
   };
 
   return (
-    <div className="grim-section">
+    <div className="grim-section ws-pad">
       <div className="settings-sub">Build a <b>CRediT contribution statement</b> — assign each author their <a href="https://credit.niso.org/" target="_blank" rel="noopener noreferrer">NISO CRediT</a> roles (optionally lead / equal / supporting), and Callosum formats it. It formats the contributions <b>you assert</b>; it does not verify who did what — you are the source of truth.</div>
 
       {ctx && ctx.selectedPaper != null &&

@@ -153,9 +153,8 @@
      Use/Delete actions next to it (the box shrank; its content didn't). Let the badge wrap onto its own line
      inside the toggle instead of overflowing sideways. */
   .app.mobile .provider-toggle { flex-wrap: wrap; row-gap: 2px; }
-  /* (4) Work → Cite → Suggest's .cite-pane has no padding (unlike Synthesize's .synth), so the right-aligned
-     ".from your library · local, no egress" provenance line ran flush to the screen edge. */
-  .app.mobile .cite-pane { padding: 0 14px; }
+  /* (4) superseded — .cite-pane now carries real base padding via .ws-pad (see the padding-sweep fix below), so
+     this mobile-only patch is redundant; removed rather than left as a contradictory one-off. */
   .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
   .mobile-nav-btn {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -1580,6 +1579,13 @@
   .workspace-paper-cue { flex: 0 1 auto; margin-right: 8px; }  /* the old margin-bottom inflated the flex row's cross-axis height beyond Library's own .frame-tabs sizing */
   /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
   .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }
+  /* .workspace-body itself is deliberately unpadded — a full-bleed list tab (Discover Feed/Search) wants its rows
+     edge-to-edge (padding lives on .pane-head + each .discover-item instead). A content-style tab needs its own
+     outer padding; add .ws-pad alongside its existing content class (matches .wb-pane/.synth's 16px/18px rhythm).
+     Standalone rather than folded into a shared class like .grim-section/.statcheck-section, because those are
+     ALSO used inside already-padded contexts (a METHODS accordion .acc-body, or nested inside an already-padded
+     .wb-pane like Effect-Size inside Workbench) where adding padding directly would double it. DESIGN.md §3. */
+  .ws-pad { padding: 16px 18px; }
 
   /* inc 280 (stage 3): a center-rendered utility view (Help, Settings) — the former modal body, filling the slot. */
   .workspace-view { flex: 1 1 auto; min-height: 0; padding: 16px 22px; }

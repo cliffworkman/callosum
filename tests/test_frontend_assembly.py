@@ -619,7 +619,9 @@ def test_qa_20260719_mobile_batch_and_pdf_404_fix():
     # 4 mobile-CSS spacing fixes (browser-verified with Playwright, inc 308 follow-up)
     assert ".app.mobile .feed-controls .tags-srcfilter-btn { flex: 0 1 auto" in css
     assert ".app.mobile .provider-toggle { flex-wrap: wrap" in css
-    assert ".app.mobile .cite-pane { padding: 0 14px" in css
+    # superseded by the padding-sweep fix below: .cite-pane now gets real base padding via .ws-pad, so the
+    # mobile-only patch was removed rather than left as a contradictory one-off (DESIGN.md §3 #10).
+    assert ".app.mobile .cite-pane { padding: 0 14px" not in css
     # the workspace "what moved" hint gets a shorter mobile-specific copy (was 4 lines / 82px on a phone)
     assert "function WorkspacesWhatsNewHint({ readOnly, mobile })" in raw
     assert "tools moved into <b>Discover</b> and <b>Work</b>" in raw
@@ -629,6 +631,24 @@ def test_qa_20260719_mobile_batch_and_pdf_404_fix():
     assert "const hasPdf = paper.attachment_count == null ? null : paper.attachment_count > 0;" in raw
     assert "knownNoPdf={t.hasPdf === false}" in raw
     assert 'if (knownNoPdf) { setState({ status: "unavailable" }); return; }' in raw
+
+
+def test_padding_sweep_ws_pad_on_six_workspace_tabs_only():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert ".ws-pad { padding: 16px 18px" in css
+    # The 6 workspace tabs that had no outer padding each got ws-pad added to their existing root class.
+    assert 'className="cite-pane ws-pad"' in raw
+    assert 'className="cite-workspace ws-pad"' in raw
+    assert 'className="grim-section ws-pad"' in raw
+    assert 'className="pub-panel ws-pad"' in raw
+    assert 'className="funding-panel ws-pad"' in raw
+    assert 'className="statcheck-section ws-pad"' in raw
+    # ws-pad must NOT leak onto the shared-class siblings that are already correctly padded elsewhere (a METHODS
+    # accordion .acc-body, or EffectSizeSection nested inside Workbench's already-padded .wb-pane) — regression
+    # guard for the exact double-padding collision the fix was designed to avoid.
+    assert 'className="grim-section"' in raw  # GRIM's own accordion section, unchanged
+    assert 'className="statcheck-section"' in raw  # statcheck/Bayes/LMM/transparency/meta-analysis, unchanged
 
 
 def test_sync_settings_ui_wired_and_honest():

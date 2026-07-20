@@ -144,7 +144,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, active }) {
 
 function CriticalReadSection({ ctx, active }) {
   return (
-    <div className="statcheck-section">
+    <div className="statcheck-section ws-pad">
       <div className="settings-sub">
         A <b>critical read</b>: what to check before you cite — the paper’s method-check flags, claims the rest of
         your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a

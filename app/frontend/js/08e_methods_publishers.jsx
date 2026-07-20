@@ -253,7 +253,7 @@ function PublishersPanel({ ctx }) {
     : `Abstract · ${h.subject || "untitled subject"}`;
 
   return (
-    <div className="pub-panel">
+    <div className="pub-panel ws-pad">
       <div className="pub-intro">
         Facts to weigh, never a verdict. Every candidate is shown (including closed journals); elevation underscores
         goods a journal offers, never flags the others. No composite score. Your abstract stays on your machine.
