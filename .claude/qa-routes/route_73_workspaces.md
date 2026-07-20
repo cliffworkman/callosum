@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: POST /library/credit/status
-fe: 03_library.jsx, 04b_workspaces.jsx, 05_method_credit.jsx, 08_methods_findings.jsx, 08b_methods_citation_equity.jsx, 08c_methods_citation_context.jsx, 08i_methods_effectsize.jsx, 08j_reference_integrity.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 10d_papercard.jsx, 15_axes.jsx, 15b_axis_card.jsx, 20_synthesis.jsx, 25_detail.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx, 31_mypubs_dashboard.jsx, 37_cite.jsx, 37b_meta_reference.jsx, 38_credit.jsx, 40_app.jsx, 45_workbench.jsx
+fe: 03_library.jsx, 04b_workspaces.jsx, 05_method_credit.jsx, 08b_methods_citation_equity.jsx, 08c_methods_citation_context.jsx, 08i_methods_effectsize.jsx, 08j_reference_integrity.jsx, 08x_methods_critical.jsx, 10_pdf_layer.jsx, 10b_libmenus.jsx, 10d_papercard.jsx, 15_axes.jsx, 15b_axis_card.jsx, 20_synthesis.jsx, 25_detail.jsx, 30c_frame.jsx, 30d_discover.jsx, 30e_feed.jsx, 31_mypubs_dashboard.jsx, 37_cite.jsx, 37b_meta_reference.jsx, 38_credit.jsx, 40_app.jsx, 45_workbench.jsx
 -->
 
 # ROUTE 73 - Workspaces menu bar (two-level center navigation)
@@ -40,7 +40,7 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - **Retractions are registry signals with evidence.** The Library header includes **Retractions ↻** before
   **Text Health**. Running it refreshes the Retraction Watch mirror when available, falls back to the existing mirror
   when unavailable, and surfaces retracted papers as noninteractive **RETRACTED** badges on cards/details plus the
-  existing evidence-bearing Review finding.
+  evidence-bearing signal row in **Synthesize → Critique**'s Tier-1 backbone (route 39/67).
 - **Credit buttons are honest about existing sources.** The shared lineage buttons say **＋ add missing to library**
   while any DOI-backed source is absent, say **✓ added to library** when all DOI-backed sources are already present,
   and import only missing items in partial multi-source cases.
@@ -129,8 +129,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
     same `.trash-toggle` visual recipe. Run it on a fixture with at least one registry-hit paper if available; confirm
     the button tooltip gains a last-refreshed summary, fallback text appears if Retraction Watch could not refresh,
     the red **⚠ Retracted · N** chip updates, and a retracted paper shows a **RETRACTED** badge on its card and Details
-    pane. Open the Review section and confirm the source/date/notice evidence is still visible and worded as a signal,
-    not a verdict.
+    pane. Open **Synthesize → Critique** for that paper and confirm the source/date/notice evidence is still visible
+    (a Tier-1 signal row + notice link) and worded as a signal, not a verdict.
 10. Open several lineage surfaces: Methods → Statistics check, Methods → Bayesian statistics, Work → CRediT, Work →
     Meta-Analyze (Effect-size calculator subsection), and Discover → Search → Overlooked. Confirm their
     `.method-credit` buttons use the common **＋ add missing to library** label before import, flip to
@@ -161,7 +161,7 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and
   does not return after workspace switching.
 - Retractions can be launched from the Library header; fallback is visible without hard-failing the batch; retracted
-  papers show the red **RETRACTED** card/detail badge while the Review pane keeps the evidence trail inspectable.
+  papers show the red **RETRACTED** card/detail badge while Synthesize → Critique keeps the evidence trail inspectable.
 - Credit-the-lineage buttons accurately distinguish missing, already-present, and partial multi-source states, and the
   button label never implies a blind import when every credited source is already in the library.
 

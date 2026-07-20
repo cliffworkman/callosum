@@ -334,7 +334,8 @@ function App() {
       {activeWorkspace === "settings" &&
         <div className="workspace-slot" style={{ display: "flex" }}>
           <SettingsView theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault}
-            axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} />
+            axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
+            onRetractionRan={refreshRetractionChip} />
         </div>}
     </div>
   );

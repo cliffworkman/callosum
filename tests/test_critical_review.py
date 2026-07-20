@@ -216,7 +216,19 @@ def test_build_scrutiny_backbone_gathers_stored_signals() -> None:
         signals_repo.store_statcheck(c, pid, checked=12, inconsistent=3, decision_errors=0)
         # a stored FACT → paper_findings
         findings_repo.upsert_findings(
-            c, pid, "retraction", [{"kind": "fact", "payload": {"status": "retracted", "reason": "data issue"}}]
+            c,
+            pid,
+            "retraction",
+            [
+                {
+                    "kind": "fact",
+                    "payload": {
+                        "status": "retracted",
+                        "reason": "data issue",
+                        "notice_url": "https://doi.org/10.1/notice",
+                    },
+                }
+            ],
         )
         fake_contested = [
             ContestedClaim(
@@ -229,10 +241,13 @@ def test_build_scrutiny_backbone_gathers_stored_signals() -> None:
     kinds = {s["kind"] for s in backbone.method_signals}
     assert "statcheck" in kinds  # from open_science_signals
     assert "retraction" in kinds  # from the paper_findings FACT
-    for s in backbone.method_signals:  # the fixed {kind, label, detail} shape
-        assert set(s.keys()) == {"kind", "label", "detail"}
+    for s in backbone.method_signals:  # the fixed {kind, label, detail, notice_url} shape
+        assert set(s.keys()) == {"kind", "label", "detail", "notice_url"}
     statcheck = next(s for s in backbone.method_signals if s["kind"] == "statcheck")
     assert "3 inconsistent" in statcheck["detail"]  # grounded in the stored counts, no re-run
+    assert statcheck["notice_url"] is None  # only a retraction FACT ever carries a registry notice link
+    retraction = next(s for s in backbone.method_signals if s["kind"] == "retraction")
+    assert retraction["notice_url"] == "https://doi.org/10.1/notice"  # passed through verbatim, never re-derived
     assert backbone.contested_claims == fake_contested  # the passed-in claims, not recomputed
     assert backbone.citation_signal is None  # concentration/overlooked is network-based → no local Tier-1 read
 

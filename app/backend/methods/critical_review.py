@@ -119,7 +119,7 @@ class ScrutinyBackbone:
     the source of truth). Empty lists mean "these checks surfaced nothing" — the honest null result, NOT "this
     paper is clean" (silence is not a certificate; PRINCIPLES #6)."""
 
-    method_signals: list[dict]  # each {"kind": str, "label": str, "detail": str | None}
+    method_signals: list[dict]  # each {"kind": str, "label": str, "detail": str | None, "notice_url": str | None}
     citation_signal: dict | None
     contested_claims: list[ContestedClaim]  # computed by the caller (find_contested_claims), passed in
 
@@ -178,10 +178,13 @@ def _finding_detail(payload) -> str | None:
 
 
 def _stored_method_signals(conn, paper_id) -> list[dict]:
-    """Gather the paper's already-stored deterministic signals into the flat {kind, label, detail} shape: the
-    ``open_science_signals`` check-status rows (statcheck / retraction / transparency) + the ``paper_findings``
-    FACT rows the producers persist. READS ONLY — runs no auditor, invents no judgement. Precondition-not-met
-    ("not-applicable") rows are dropped; every other stored result is surfaced."""
+    """Gather the paper's already-stored deterministic signals into the flat {kind, label, detail, notice_url}
+    shape: the ``open_science_signals`` check-status rows (statcheck / retraction / transparency) + the
+    ``paper_findings`` FACT rows the producers persist. READS ONLY — runs no auditor, invents no judgement.
+    Precondition-not-met ("not-applicable") rows are dropped; every other stored result is surfaced.
+    ``notice_url`` (retraction facts only, e.g. a doi.org registry link) is passed through verbatim so the UI can
+    offer the same evidence link the retired left-pane Review accordion's FactMark used to (PRINCIPLES: every
+    claim carries its evidence) — never re-derived here."""
     signals: list[dict] = []
     status_rows = conn.execute(
         select(
@@ -201,14 +204,17 @@ def _stored_method_signals(conn, paper_id) -> list[dict]:
                 "kind": row["signal_type"],
                 "label": _signal_label(row["signal_type"], row["source"]),
                 "detail": _open_science_detail(row["signal_type"], row["status"], row["evidence_snippet"]),
+                "notice_url": None,
             }
         )
     for fact in get_paper_findings(conn, paper_id)["facts"]:
+        payload = fact["payload"] if isinstance(fact["payload"], dict) else {}
         signals.append(
             {
                 "kind": fact["source"],
                 "label": _signal_label(fact["source"], None),
                 "detail": _finding_detail(fact["payload"]),
+                "notice_url": payload.get("notice_url"),
             }
         )
     return signals

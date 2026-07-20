@@ -423,7 +423,10 @@ def test_single_paper_critical_read_lives_in_synthesize_critique():
     raw = assemble_jsx()
     assert 'id: "critique", label: "Critique", order: 20, hideInReadOnly: true' in raw
     assert "render: (ctx, active) => <CriticalReadSection ctx={ctx} active={active} />" in raw
-    assert "<CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />" in raw
+    assert (
+        "<CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} "
+        "onFindingsChanged={ctx.onFindingsChanged} />"
+    ) in raw
     assert 'ctx.methodsOpen === "critical_read"' not in raw
     assert 'registerPaneSection({\n  id: "critical_read"' not in raw
 
@@ -480,7 +483,6 @@ def test_library_header_polish_labels_and_positive_open_data_signal():
         "<TextHealthButton onOpen={onOpenTextHealth} />"
     )
     assert 'setDetail(r.data.detail || "")' in raw
-    assert "{run.detail && <>" in raw
     assert '"Text Health"' in raw
     assert "Last refreshed ${fmtDateTime(lastLoaded)}" in raw
     assert "🔎 Open Data · {openDataDetected}" in raw
@@ -678,6 +680,32 @@ def test_sync_settings_ui_wired_and_honest():
     assert "Nothing is picked automatically" in raw
     # PDFs never sync — the honesty copy is present, not just the backend's own SYNCABLE exclusion
     assert "PDFs stay local" in raw and "never synced" in raw
+
+
+def test_review_accordion_retired_into_critique():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    # 08_methods_findings.jsx (the left-pane "Review" accordion) is gone entirely — no dangling registration.
+    assert 'id: "findings", label: "Review", paneId: "theory"' not in raw
+    assert "function FindingsSection(" not in raw
+    assert "function RetractionBatch(" not in raw
+    assert "function RetractionStatusLine(" not in raw
+    # The candidate-review queue (findingText/FindingCard) moved into Critique verbatim, plus a fetch of
+    # /papers/{id}/findings and a "Needs your review" block wired to ctx.onFindingsChanged.
+    assert "function findingText(" in raw and "function FindingCard(" in raw
+    assert "/papers/${paperId}/findings" in raw and "cr-findings" in raw
+    assert "onFindingsChanged={ctx.onFindingsChanged}" in raw
+    # Facts (retraction included) stay covered by Tier-1's method_signals — no separate FactMark render; the
+    # notice link now rides the signal row itself (critical_review.py's notice_url passthrough).
+    assert "function FactMark(" not in raw
+    assert "s.notice_url &&" in raw
+    # The Retraction Watch DB admin panel relocated to Settings -> Local maintenance, wired to onRetractionRan.
+    assert "function LocalMaintenanceSettings({ onRetractionRan })" in raw
+    assert "Retraction Watch database" in raw and '"Refresh database"' in raw
+    assert "onRetractionRan={refreshRetractionChip}" in raw
+    # Dead CSS cleaned up alongside the file (rule #5) — the retired classes don't linger unreferenced.
+    assert ".findings-section" not in css and ".retraction-batch" not in css and ".retraction-db" not in css
+    assert ".fact-mark.retraction" not in css
 
 
 def test_built_artifact_is_in_sync():

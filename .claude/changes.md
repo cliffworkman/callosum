@@ -9,6 +9,36 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-20 inc 314 — rewrote the "Reviewing findings" + "Checking for retractions" sections
+(and the Metadata-access cross-reference) for the retired Review accordion: findings now live in Synthesize →
+Critique ("What the checks surfaced" facts + a "Needs your review" candidate queue), and the Retraction Watch
+database admin view moved to Settings → Local maintenance. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-20 — Increment 314: retire the left-pane "Review" accordion into Synthesize → Critique
+- **Files:** `app/frontend/js/08x_methods_critical.jsx`, `35_settings.jsx`, `40_app.jsx` (deleted:
+  `08_methods_findings.jsx`), `app/backend/methods/critical_review.py`,
+  `app/backend/api/routers/critical_review.py`, `app/frontend/styles.css`, `app/backend/help/help_content.md`,
+  `tests/{test_critical_review,test_frontend_assembly}.py`, `callosum-app.html`,
+  `.claude/qa-routes/route_67_critical_review.md` (rewritten), `route_39_retraction.md`,
+  `route_74_retraction_watch.md`, `route_73_workspaces.md` (deleted: `route_38_findings.md`),
+  `.claude/DESIGN.md`, `.claude/CLAUDE.md`,
+  `.claude/docs/increment-notes/INCREMENT-314-NOTES.md`.
+- **What:** verified (not assumed) that the left-pane "Review" accordion was almost fully redundant with
+  Synthesize → Critique before touching anything — its library-wide retraction batch duplicated the Library
+  header's own button, and its FACT display was already a subset of Critique's Tier-1 backbone. Moved the one
+  real gap (the reviewable CANDIDATE queue — statcheck-flagged issues etc., Confirmed/Accepted/Noted) into
+  Critique as a new "Needs your review" block. Caught and fixed a real regression while writing the QA route:
+  Critique's generic signal rendering was dropping the retraction fact's clickable notice-URL evidence link —
+  fixed with a small, justified backend addition (`notice_url` threaded through `_stored_method_signals`) rather
+  than accepted as a silent loss. Relocated the Retraction Watch DB admin panel to Settings → Local maintenance
+  (no equivalent existed elsewhere). Deleted the accordion file, its dead-only CSS, and the QA route that
+  described it (folded into route 67); updated DESIGN.md's navigation map and the help corpus.
+- **Why:** the user asked whether Review could move into Critique and go away entirely; the honest answer needed
+  verification, not a guess, and surfaced one real functional gap (the candidate queue) and one real regression
+  risk (the notice link) that a same-day retirement would otherwise have shipped broken.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-314-NOTES.md` for the full
+  before/after + the Playwright verification against the real testing DB (a real retracted paper's notice link,
+  a real statcheck candidate's review-and-persist round-trip).
+
 <!-- HELP-DOCS-SYNCED 2026-07-20 inc 313 — rewrote every stale "Extract"/"Work → Cite → …"/"CRediT statement"
 reference across the corpus (menu bar description, mobile Workspace dropdown, meta-analysis auditor location,
 effect-size converter location, the extraction-workspace section header, citation-concentration/how-it's-cited/

@@ -4,7 +4,7 @@
 // AI features — the unified LLM provider roster (`AiSettings`) lives in js/35b_providers.jsx (inc 256). It
 // hoists across the shared IIFE, so SettingsModal below references it directly.
 
-function LocalMaintenanceSettings() {
+function LocalMaintenanceSettings({ onRetractionRan }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const repairSummaryCache = async () => {
@@ -14,6 +14,30 @@ function LocalMaintenanceSettings() {
     if (r.ok) setMsg(`Scanned ${r.data.scanned} summary cache row${r.data.scanned === 1 ? "" : "s"}; removed ${r.data.removed} malformed row${r.data.removed === 1 ? "" : "s"}.`);
     else setMsg("Couldn't repair summary cache: " + (r.error || "error"));
   };
+
+  // Retraction Watch DB mirror (inc 132; moved from the old left-pane Review accordion — the library-wide
+  // retraction check itself lives as a header button now, `10b_libmenus.jsx`'s RetractionCheckButton; this is
+  // just the "how fresh is the local mirror" admin view + a refresh-only action).
+  const [db, setDb] = useState(null);  // { count, retrieved_at } | null
+  const [dbRun, setDbRun] = useState({ status: "idle" });
+  const loadDb = () => api("/methods/retraction/database").then(r => { if (r.ok) setDb(r.data); });
+  useEffect(() => { loadDb(); }, []);
+  const refreshDb = async () => {
+    setDbRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/retraction/database/refresh/${jobId}`).then(r => {
+      if (!r.ok) { setDbRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setDbRun({ status: "done" }); loadDb(); if (onRetractionRan) onRetractionRan(); }
+      else if (d.status === "error") setDbRun({ status: "error", error: d.detail || "Download failed." });
+      else setTimeout(() => poll(jobId), 2000);
+    });
+    const r = await apiPost("/methods/retraction/database/refresh", {});
+    if (!r.ok) { setDbRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const ageDays = db && db.retrieved_at ? Math.floor((Date.now() - new Date(db.retrieved_at).getTime()) / 86400000) : null;
+  const stale = ageDays != null && ageDays > 30;
+
   return (
     <>
       <p className="eyebrow">Local maintenance</p>
@@ -29,6 +53,25 @@ function LocalMaintenanceSettings() {
         </span>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
+      <div className="settings-field">
+        <div className="settings-row settings-maintenance-action">
+          <span className="settings-field-label">Retraction Watch database</span>
+          <button className="btn btn-ghost" disabled={dbRun.status === "running"} onClick={refreshDb}>
+            {dbRun.status === "running" ? "Downloading…" : "Refresh database"}
+          </button>
+        </div>
+        <span className="settings-sub">
+          The local mirror of the Retraction Watch database (Crossref-hosted, CC0) — the richest source
+          (reason/date/notice) the library's retraction check can draw on.
+        </span>
+        <div className={"settings-note" + (stale ? " settings-note-err" : "")}>
+          {db && db.count > 0
+            ? `${db.count.toLocaleString()} records${db.retrieved_at ? " · as of " + db.retrieved_at.slice(0, 10) : ""}`
+            : "Not downloaded — refresh to enable the richest source"}
+          {stale && ` · ${ageDays} days old — refresh recommended`}
+        </div>
+      </div>
+      {dbRun.status === "error" && <div className="settings-note settings-note-err">{dbRun.error}</div>}
     </>
   );
 }
@@ -373,7 +416,7 @@ function SettingsCard({ title, children }) {
 }
 
 // inc 280 (stage 3): the Settings center view (the menu-bar "Settings" utility workspace) — formerly a modal.
-function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed }) {
+function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan }) {
   const dark = theme === "dark";
   return (
     <div className="workspace-view scroll settings-view">
@@ -436,7 +479,7 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
               </div>
             </div>
             <div className="settings-section"><AcquisitionSettings /></div>
-            <div className="settings-section"><LocalMaintenanceSettings /></div>
+            <div className="settings-section"><LocalMaintenanceSettings onRetractionRan={onRetractionRan} /></div>
             <div className="settings-section settings-section-wide"><PublishersSettings /></div>
           </div>
         </SettingsCard>

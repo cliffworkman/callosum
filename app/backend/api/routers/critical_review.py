@@ -51,6 +51,7 @@ class MethodSignalResponse(BaseModel):
     kind: str
     label: str
     detail: str | None = None
+    notice_url: str | None = None
 
 
 class ScrutinyBackboneResponse(BaseModel):

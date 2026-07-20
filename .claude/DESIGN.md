@@ -364,7 +364,7 @@ Callosum has **two navigation dimensions**. Place new tools by the user's **cogn
 detail, data source, or whether AI is involved.
 
 1. **Center workspaces are modes of work**: what the user is doing now. The center menu switches between **My
-   Publications / Library / Synthesize / Discover / Work / Extract**, plus **Help / Settings** utilities. A tool
+   Publications / Library / Synthesize / Discover / Work**, plus **Help / Settings** utilities. A tool
    belongs in a workspace when the user enters a broad mode, compares many papers, searches beyond the selected PDF,
    writes, cites, extracts datasets, or needs center-width output.
 2. **Side panes are selected-paper lenses**: what the user is inspecting about the current paper while the center
@@ -379,22 +379,26 @@ The current center workspace map is:
 
 - **My Publications**: the user's publication dashboard.
 - **Library**: the reading surface, library list, selected-paper tab, and open PDF tabs.
-- **Synthesize**: Ask for verified corpus answers and Critique for a wide single-paper critical read.
+- **Synthesize**: Ask for verified corpus answers and Critique for a wide single-paper critical read (facts +
+  the reviewable candidate-finding queue, e.g. statcheck-flagged issues — see below).
 - **Discover**: Feed, Search, Wanted, Gaps, Overlooked, Journals, and Funding.
-- **Work**: Cite (Suggest, Meta Reference List, Citation Concentration, How it's cited) and CRediT statement.
-- **Extract**: Workbench, Effect-Size, and Meta-Analysis.
+- **Work**: Cite, Meta-Reference (Meta Reference List, Citation Concentration, How it's cited), CRediT, and
+  Meta-Analyze (the meta-analysis workbench, with an Effect-size calculator subsection).
 - **Help / Settings**: utilities, right-aligned on desktop and grouped as Utilities on mobile.
 
 The internal pane ids `theory` and `methods` remain implementation vocabulary for the left and right side panes. They
 are **not** a reason to place new broad features in side accordions. The left side pane holds compact
-literature-context lenses such as Axes, Tags, Reading queue, and Review/findings. The right side pane holds compact
+literature-context lenses such as Axes, Tags, and Reading queue. The right side pane holds compact
 paper-evaluation lenses such as Details, GRIM, Statistics check, transparency, and related methods checks. Single-paper
-Critical Read lives in **Synthesize → Critique** because it is a wide scrutiny workflow, not a compact side lens.
+Critical Read lives in **Synthesize → Critique** because it is a wide scrutiny workflow, not a compact side lens — the
+left pane's former "Review" accordion (FACT-vs-CANDIDATE findings review) retired into Critique's Tier-1 backbone for
+the same reason (2026-07-20): its FACTs were already a subset of what Critique surfaces, and only its reviewable
+CANDIDATE queue needed an actual new home.
 
 **Workspace registry and menu-bar recipe.** The center menu bar is data-driven by
 `app/frontend/js/04b_workspaces.jsx`: `registerWorkspace`, `registerWorkspaceTab`, `workspaces`,
 `workspaceTabs`, `getWorkspace`, `<MenuBar/>`, and `<WorkspacePane/>`. A workspace can be shell-rendered by `40_app`
-(Library, My Publications, Help, Settings) or populated by registered tabs (Synthesize, Discover, Work, Extract). Host
+(Library, My Publications, Help, Settings) or populated by registered tabs (Synthesize, Discover, Work). Host
 metadata is order-sorted and idempotent by id; read-only companions hide workspaces or tabs marked `hideInReadOnly`.
 The menu bar lives
 **inside** the center pane, not app-wide, so the three-pane layout stays separate and full height. Token recipe:
@@ -437,10 +441,10 @@ The visible chrome still shows section headers only — no large "THEORY" or "ME
 open sections persist as `callosum.theoryOpen` / `callosum.methodsOpen`.
 
 **Side-pane ordering.** The left side pane is for compact selected-paper literature lenses: Axes and Tags are grouped
-together because they are conceptual labeling lenses; Queue and Review/findings stay as paper-context surfaces. The
+together because they are conceptual labeling lenses; Queue stays as a paper-context surface. The
 right side pane is for *evaluating how a paper was studied*, ordered by cognitive task: Details (`order: 10`) → Data
 consistency / GRIM (`order: 20`, raw data check before analysis check) → Statistics check (`order: 30`, statcheck and
-related tests) → Review (`order: 40`, findings) → other methods checks. Future statistical checks become tabs inside
+related tests) → other methods checks. Future statistical checks become tabs inside
 **Statistics check**, not sibling sections. Future paper-evaluation modules follow the right-pane order; future
 literature-understanding lenses follow the left-pane order. Larger corpus synthesis and writing/citation authoring
 belong in center workspaces.
@@ -475,16 +479,18 @@ stub in the same increment its real feature lands.
 
 **AI-usage and findings contracts.** The AI's job is to make verification cheap, **never to substitute for it**. For
 any AI feature ask: *where did the judgment go?* It must land on a checkable computation or on the human, never hide
-in an opaque selection or score. The findings output contract (METHODS "Review") keeps **FACT** and **CANDIDATE**
-separate: a fact renders as a neutral persistent mark (`.fact-mark`, e.g. retraction), while a candidate renders as
-a reviewable card (`.finding-card` → Confirmed / Accepted [needs reason] / Noted). The library badge
-(`.finding-badge`, "N to review") describes the user's **work state**, never paper quality, and shows nothing at
-zero. Speculative candidates get a `.speculative` dashed card; every candidate routes to its page at **region**
-precision unless an exact anchor is actually known. The unified "N to review" library chip uses indigo `--accent`
-as the work-state/provenance accent, deliberately separate from red/amber fact/status colors. Retraction facts use
-`.fact-mark.retraction` (`--flag` for correction/concern, `--danger` for retracted) with notice links and source
-provenance; the per-paper retraction status says "checked — none found" or "unchecked — no DOI" rather than implying
-cleanliness from silence.
+in an opaque selection or score. The findings output contract (**Synthesize → Critique**, since the 2026-07-20
+retirement of the left-pane "Review" accordion) keeps **FACT** and **CANDIDATE** separate: a fact is one of Tier 1's
+`method_signals` — a neutral, already-stored status (retraction included, labeled "Retraction status") rendered the
+same as every other method-check signal, never singled out with its own persistent mark or its own honest-null
+line — while a candidate renders as a reviewable card (`.finding-card` → Confirmed / Accepted [needs reason] /
+Noted). The library badge (`.finding-badge`, "N to review") describes the user's **work state**, never paper
+quality, and shows nothing at zero. Speculative candidates get a `.speculative` dashed card; every candidate routes
+to its page at **region** precision unless an exact anchor is actually known. The unified "N to review" library
+chip uses indigo `--accent` as the work-state/provenance accent, deliberately separate from red/amber fact/status
+colors. "Nothing surfaced by these checks... read on your own judgment" is Tier 1's one honest-null message for
+*every* signal (retraction included) — silence is never implied cleanliness, but it is stated once for the whole
+backbone rather than per-detector.
 
 **Accessibility.** Differentiate sections, tabs, and states by icon + label, not color alone; prefer highlight/glow
 over blinking; gate motion behind `prefers-reduced-motion`. Accordion headers carry `aria-expanded`, and workspace

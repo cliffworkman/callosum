@@ -1,14 +1,16 @@
 <!-- qa-coverage
 api: /methods/retraction/database, /methods/retraction/database/refresh, /methods/retraction/database/refresh/{job_id}
-fe: 08_methods_findings.jsx
+fe: 35_settings.jsx, 08x_methods_critical.jsx
 -->
 
 # ROUTE 74 — Retraction Watch DB (the bulk third source)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the Retraction Watch database surface — the as-of line, the Refresh-database action, and the
-fact that the RW source (the richest: reason/date/notice) feeds the producer's merge — while preserving the
-retraction honesty invariants. Public bulk CC0 metadata; **never** the Gemini gate.
+**Goal:** Exhaust the Retraction Watch database surface — now **Settings → Local maintenance** (moved from the
+retired left-pane Review accordion, 2026-07-20; the library-wide check itself lives as a Library-header button,
+route 39) — the as-of line, the Refresh-database action, and the fact that the RW source (the richest:
+reason/date/notice) feeds the producer's merge, surfaced via **Synthesize → Critique**'s Tier-1 backbone — while
+preserving the retraction honesty invariants. Public bulk CC0 metadata; **never** the Gemini gate.
 
 ## Environment
 
@@ -52,16 +54,21 @@ RetractionWatchClient(fetcher=lambda url, **k: FAKE_CSV, mailto="x@y.z")` on the
 
 - click Refresh with no mailto → a clear error, no crash
 - double-click Refresh → at most one download
-- a paper with no DOI → no RW match, "unchecked — no DOI" (unchanged from SP1)
+- a paper with no DOI → no RW match, honestly no retraction signal row surfaced (unchanged from SP1)
 - resize to `375x812` → no horizontal overflow
 
 ## Steps
 
-1. Open the **METHODS → Review** section. Confirm the **"Retraction Watch database: N records · as of <date>"**
-   line (or "not downloaded — refresh to enable the richest source" when empty) + a **Refresh database** button.
-2. With the mirror seeded, open the matching paper → its retraction **FactMark** shows "⚠ Retracted" + a
-   **notice** link, and its tooltip carries the **RW reason** + sources (incl. `retraction-watch`).
-3. Trigger **Refresh database** with an injected fake client → it completes and the as-of line updates.
+1. Open **Settings → Local maintenance**. Confirm the **"Retraction Watch database: N records · as of <date>"**
+   line (or "Not downloaded — refresh to enable the richest source" when empty, `> 30 days old — refresh
+   recommended` amber cue when stale) + a **Refresh database** button, beside the existing "Repair synthesis
+   cache" action.
+2. With the mirror seeded, open the matching paper → **Synthesize → Critique** → its Tier-1 "Retraction status"
+   row shows the retracted detail + a **notice** link, sourced from the RW-enriched fact (reason + sources incl.
+   `retraction-watch`).
+3. Trigger **Refresh database** with an injected fake client → it completes and the as-of line updates; the
+   Library header's "N retracted" chip refreshes too (`onRetractionRan`, threaded from `40_app.jsx` into
+   `SettingsView` → `LocalMaintenanceSettings`).
 4. (Real-download check — the user's, optional, not automated:) with a mailto set, Refresh → the count + a
    known-retracted library DOI flags. This verifies the live URL + CSV schema (the one thing the hermetic tests
    assume).
@@ -69,11 +76,13 @@ RetractionWatchClient(fetcher=lambda url, **k: FAKE_CSV, mailto="x@y.z")` on the
 
 ## Pass criteria
 
-- The as-of line + Refresh action render and work (offline with an injected client).
-- The RW source contributes the richest detail to a flagged paper's FactMark; reinstatements never flagged.
+- The as-of line + Refresh action render and work (offline with an injected client), inside Settings → Local
+  maintenance.
+- The RW source contributes the richest detail to a flagged paper's Critique signal row; reinstatements never
+  flagged.
 - 0 console/page errors; **0 genai-host requests**.
 - Fail-closed on mailto-absent; mobile viewport has no overflow.
 
 ## Deposit
 
-Write `.claude/qa-inbox/<RUN_ID>/route_40_retraction_watch.md` + `screenshots/` (see `_TEMPLATE.md`).
+Write `.claude/qa-inbox/<RUN_ID>/route_74_retraction_watch.md` + `screenshots/` (see `_TEMPLATE.md`).

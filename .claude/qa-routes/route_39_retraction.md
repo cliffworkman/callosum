@@ -1,15 +1,18 @@
 <!-- qa-coverage
 api: /papers/{paper_id}/retraction, /methods/retraction/run, /methods/retraction/run/{job_id}, /methods/retraction/summary
-fe: 08_methods_findings.jsx
+fe: 10_pdf_layer.jsx, 10b_libmenus.jsx, 08x_methods_critical.jsx
 -->
 
 # ROUTE 39 — Retraction producer (Crossref + OpenAlex → a FACT)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the retraction findings producer — the library-wide check, the "N retracted" chip + filter,
-the retraction FactMark + notice link, and the per-paper check status — while preserving FACT-not-candidate,
-silence≠clean, no-accusation, and evidence-carried. Sources are **public DOI metadata** (Crossref + OpenAlex),
-never the Gemini gate.
+**Goal:** Exhaust the retraction findings producer — the library-wide check (a Library-header button,
+`RetractionCheckButton`), the "N retracted" chip + filter, the retraction fact + its notice link (now inside
+**Synthesize → Critique**'s Tier-1 backbone, since the 2026-07-20 retirement of the left-pane Review accordion —
+its dedicated `FactMark` component is gone, but the same fact + evidence link render via Critique's generic
+method-signal list), and the per-paper check status — while preserving FACT-not-candidate, silence≠clean,
+no-accusation, and evidence-carried. Sources are **public DOI metadata** (Crossref + OpenAlex), never the Gemini
+gate.
 
 ## Environment
 
@@ -43,13 +46,15 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 - **No uncompletable control.** Any visible control that can't be completed through the UI is a bug.
 - **Egress gate.** ANY request to a `generativelanguage`/Gemini/genai host is **Critical** (retraction is
   public-metadata only; the library-text gate must not fire).
-- **FACT not candidate.** A retraction renders as a neutral **FactMark** (status + notice link), never a
-  reviewable card with Confirmed/Accepted/Noted.
-- **Silence ≠ clean.** A checked-clean paper shows "checked — none found"; a no-DOI paper shows "unchecked — no
-  DOI"; neither is ever presented as "clean / verified". A never-checked paper says so.
+- **FACT not candidate.** A retraction renders as a neutral method-signal row in Critique's Tier-1 backbone
+  (label "Retraction status" + a status/reason detail), never a reviewable card with Confirmed/Accepted/Noted.
+- **Silence ≠ clean.** A paper with nothing surfaced shows Tier-1's honest "nothing surfaced by these checks —
+  read on your own judgment" message; a never-checked/no-DOI paper is never presented as "clean / verified".
 - **No accusation / not a verdict.** The chip is a **filter** count of papers a registry records retracted —
   never a score, rank, or author judgment; the framing says "verify before citing".
-- **Evidence carried.** The FactMark links the **notice** (a doi.org URL) + names the flagging source(s).
+- **Evidence carried.** A retracted paper's signal row links the **notice** (a doi.org URL, `notice_url` passed
+  through verbatim from the stored fact payload — `critical_review.py::_stored_method_signals`, never re-derived)
+  and its detail names the flagging source(s).
 - **On-import lifecycle (inc 134/224).** The FACT can also land *without* a manual batch — on scan + citation
   import (134), and on the DOI-bearing enrich/acquire paths (224: OA-acquire, `re-resolve`, `fill-metadata`).
   These auto-checks are best-effort (a source error never breaks the import/enrich), reuse the same
@@ -65,21 +70,25 @@ To exercise the **live batch** path, inject deterministic checkers on the runnin
 ## Steps
 
 1. Baseline screenshot. The library header shows a red **"⚠ N retracted"** chip (from `GET
-   /methods/retraction/summary`); a retracted paper's card carries the ◆-fact mark.
+   /methods/retraction/summary`) and a **"Retractions ↻"** button (`RetractionCheckButton`, `10b_libmenus.jsx`);
+   a retracted paper's card carries the ◆-fact mark.
 2. Click the chip → the library filters to the retracted paper(s) (`?signal=retraction-retracted`) with a
    non-accusatory banner ("verify before citing"); **clear** restores the full library.
-3. Open the retracted paper → **METHODS → Review**. Confirm the **retraction FactMark** ("⚠ Retracted") with a
-   **notice** link (opens doi.org in a new tab) and a Source(s) tooltip — NOT a reviewable card.
-4. Open a checked-clean paper → Review → "Retraction: checked — none found (…)". Open a no-DOI paper → Review →
-   "Retraction: unchecked — no DOI". (`GET /papers/{id}/retraction`.)
-5. In the Review section, run **Check all papers for retractions** (`POST /methods/retraction/run`, with injected
-   deterministic checkers) → it completes, reports "N retracted", and refreshes the chip.
-6. Adversarial: a 404 on an unknown paper's retraction; double-click the batch; mobile viewport has no overflow.
+3. Open the retracted paper → **Synthesize → Critique**. Confirm the Tier-1 backbone's method-signal list shows a
+   **"Retraction status"** row (label + a status/reason detail) with a **notice** link (opens doi.org in a new
+   tab, `notice_url` passed through from the stored fact) — a plain signal row, NOT a reviewable card.
+4. Click the Library header's **Retractions ↻** button (`POST /methods/retraction/run`, with injected
+   deterministic checkers) → it completes, its tooltip reports "N checked · M retracted", and the chip refreshes.
+5. Adversarial: a 404 on an unknown paper's retraction (`GET /papers/{id}/retraction` — still exposed and tested,
+   though no longer called by the frontend post-merge; kept as a minimal, low-risk leftover rather than an
+   unplanned backend deletion); double-click the batch button; mobile viewport has no overflow.
 
 ## Pass criteria
 
-- The producer's read surfaces render: chip + filter, FactMark + notice link, per-paper status (none/unchecked).
-- FACT-not-candidate; silence≠clean; chip is a filter, not a verdict; the notice link + sources are shown.
+- The producer's read surfaces render: chip + filter, the Library header's batch button, and Critique's
+  Tier-1 signal row (label + detail + notice link) for a retracted paper.
+- FACT-not-candidate; silence≠clean (Tier-1's honest-null message covers a paper with nothing surfaced); chip is
+  a filter, not a verdict; the notice link + sources are shown.
 - 0 console/page errors; **0 genai-host requests**.
 - Bad inputs fail closed (404); mobile viewport has no horizontal overflow.
 
