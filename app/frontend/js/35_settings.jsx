@@ -43,18 +43,6 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
       <p className="eyebrow">Local maintenance</p>
       <div className="settings-field">
         <div className="settings-row settings-maintenance-action">
-          <span className="settings-field-label">Synthesis cache</span>
-          <button className="btn btn-ghost" disabled={busy} onClick={repairSummaryCache}>
-            {busy ? "Scanning…" : "Repair synthesis cache"}
-          </button>
-        </div>
-        <span className="settings-sub">
-          Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.
-        </span>
-      </div>
-      {msg && <div className="settings-note">{msg}</div>}
-      <div className="settings-field">
-        <div className="settings-row settings-maintenance-action">
           <span className="settings-field-label">Retraction Watch database</span>
           <button className="btn btn-ghost" disabled={dbRun.status === "running"} onClick={refreshDb}>
             {dbRun.status === "running" ? "Downloading…" : "Refresh database"}
@@ -72,6 +60,18 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
         </div>
       </div>
       {dbRun.status === "error" && <div className="settings-note settings-note-err">{dbRun.error}</div>}
+      <div className="settings-field">
+        <div className="settings-row settings-maintenance-action">
+          <span className="settings-field-label">Synthesis cache</span>
+          <button className="btn btn-ghost" disabled={busy} onClick={repairSummaryCache}>
+            {busy ? "Scanning…" : "Repair synthesis cache"}
+          </button>
+        </div>
+        <span className="settings-sub">
+          Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.
+        </span>
+      </div>
+      {msg && <div className="settings-note">{msg}</div>}
     </>
   );
 }
