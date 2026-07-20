@@ -649,6 +649,10 @@ def test_padding_sweep_ws_pad_on_six_workspace_tabs_only():
     # guard for the exact double-padding collision the fix was designed to avoid.
     assert 'className="grim-section"' in raw  # GRIM's own accordion section, unchanged
     assert 'className="statcheck-section"' in raw  # statcheck/Bayes/LMM/transparency/meta-analysis, unchanged
+    # The same promotion left .settings-sub's 300px cap (correct in the narrow Settings/accordion home) wrapping
+    # text at under half the available width in these same wide tabs -- relaxed via the same ws-pad/wb-pane
+    # markers, never touching the bare .settings-sub rule the narrow accordion contexts still rely on.
+    assert ".ws-pad .settings-sub, .wb-pane .settings-sub { max-width: none" in css
 
 
 def test_sync_settings_ui_wired_and_honest():

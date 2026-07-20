@@ -1610,6 +1610,11 @@
      ALSO used inside already-padded contexts (a METHODS accordion .acc-body, or nested inside an already-padded
      .wb-pane like Effect-Size inside Workbench) where adding padding directly would double it. DESIGN.md §3. */
   .ws-pad { padding: 16px 18px; }
+  /* .settings-sub's 300px cap (below) is correct in its narrow Settings/accordion home but wraps prematurely once
+     reused for a top-level intro or wide-control caption inside a .ws-pad workspace tab (or .wb-pane's own nested
+     Effect-Size subsection, which doesn't carry .ws-pad itself — same double-padding-avoidance reasoning as
+     above). Matches .wb-intro/.method-credit's existing uncapped behavior in these same wide panes. */
+  .ws-pad .settings-sub, .wb-pane .settings-sub { max-width: none; }
 
   /* inc 280 (stage 3): a center-rendered utility view (Help, Settings) — the former modal body, filling the slot. */
   .workspace-view { flex: 1 1 auto; min-height: 0; padding: 16px 22px; }
