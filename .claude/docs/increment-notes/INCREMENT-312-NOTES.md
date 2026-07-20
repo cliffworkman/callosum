@@ -51,6 +51,15 @@ since they directly block the account/sync features from ever working for real.
    back to the existing (already-correct) 401→502 fail-closed path on any refresh problem. `expires_in` from the
    refresh response becomes a *more* accurate expiry going forward than the original ID-token-`exp` proxy used at
    first sign-in.
+   - **The refresh code alone wasn't enough to prove out live**, and the fallback-on-any-failure design (by intent,
+     to preserve the existing fail-closed behavior) meant a broken refresh failed *silently* — indistinguishable
+     from "never attempted" without instrumentation. Added `logger.info`/`logger.warning` lines to
+     `_fresh_access_token` (skip/success/failure, each with the reason) — this is what caught the actual live gap
+     in seconds: `has_refresh_token=False`. Root cause: Authentik only *issues* a refresh token when the client
+     requests the **`offline_access`** scope — the "Refresh Token" grant-type checkbox being enabled on the
+     provider only means it's *allowed*, not requested. Added `offline_access` to the callosum provider's Selected
+     Scopes and to `CALLOSUM_OIDC_SCOPES`; `ops/accounts-authentik-setup.md` step 5/6 updated so this isn't a
+     re-discovered gap on the next Authentik setup.
 
 **A fourth issue, found but not a bug** — `transport.py`'s `pull`/`push` discarded the response body on a non-200,
 so a 422 just read "HTTP 422" with no detail. Now includes `resp.text[:500]` in the raised `SyncServerError` — this
@@ -86,6 +95,12 @@ stripped copy.
    `https://sync.clffwrkmn.net`, **Run sync now** → `Pushed 1514, applied 0` (first-ever sync, chunked in batches of
    500 without erroring). A second run → `Pushed 0, applied 0` (idempotent, as expected).
 4. Confirmed unauthenticated `sync_server` requests still 401 (fail-closed), `/health` reports `configured: true`.
+5. **The refresh fix's real test:** signed in, ran a successful sync, waited 6 minutes (past the access token's real
+   lifetime), ran again → reproduced `Signature has expired` — the diagnostic logging showed `has_refresh_token=
+   False`, i.e. no refresh token had ever been issued. Added `offline_access` to the provider's scopes (Authentik
+   only issues a refresh token when it's requested, regardless of the "Refresh Token" grant-type checkbox) +
+   `CALLOSUM_OIDC_SCOPES`, signed out/in again, repeated the same wait-6-minutes-then-sync test → succeeded with no
+   re-authentication needed.
 
 ## Pytest
 `tests/test_sync_endpoints.py` + `tests/test_sync_engine.py` + `tests/test_sync_server.py` + `tests/test_auth_oidc.py`

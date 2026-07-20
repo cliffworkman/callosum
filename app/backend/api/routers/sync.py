@@ -9,6 +9,7 @@ in memory). The rich Settings → Sync UI + conflict-review screen is SP3c; this
 
 from __future__ import annotations
 
+import logging
 import time
 from datetime import datetime
 from typing import Literal
@@ -29,6 +30,7 @@ from app.backend.sync.engine import run_sync
 from app.backend.sync.transport import HttpSyncTransport, SyncServerError
 
 router = APIRouter()  # full /sync/* paths per the house convention (the QA surface extractor reads literal paths)
+logger = logging.getLogger("callosum")
 
 _REFRESH_MARGIN_SECONDS = 30  # refresh a little before actual expiry, not exactly at the edge
 
@@ -46,14 +48,23 @@ def _fresh_access_token(request: Request) -> str | None:
         return None
     expires_at, refresh_token = session.get("expires_at"), session.get("refresh_token")
     if not refresh_token or expires_at is None or expires_at > time.time() + _REFRESH_MARGIN_SECONDS:
+        logger.info(
+            "sync: skipping token refresh (expires_at=%s, now=%s, has_refresh_token=%s)",
+            expires_at,
+            int(time.time()),
+            bool(refresh_token),
+        )
         return session["access_token"]  # still comfortably valid, or nothing/no way to refresh
     client = getattr(request.app.state, "oidc_client", None)
     if client is None:
+        logger.warning("sync: near-expiry token but no oidc_client available to refresh it")
         return session["access_token"]
     try:
         tokens = client.refresh_access_token(refresh_token)
-    except oidc_mod.OidcError:
+    except oidc_mod.OidcError as exc:
+        logger.warning("sync: token refresh failed, falling back to the stale token: %s", exc)
         return session["access_token"]
+    logger.info("sync: token refreshed successfully")
     session = {**session, **{k: tokens[k] for k in ("access_token", "refresh_token", "id_token") if k in tokens}}
     if "expires_in" in tokens:
         session["expires_at"] = int(time.time()) + int(tokens["expires_in"])

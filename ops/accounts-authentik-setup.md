@@ -69,7 +69,12 @@ Admin → **Applications → Create with provider → OAuth2/OpenID Provider**:
 - **Client type:** **Public** (so it uses **PKCE**, no client secret — callosum is a native/local app, RFC 8252).
 - **Redirect URIs:** `http://127.0.0.1:8080/oauth/callback` — add a line per port you run callosum on (8888, etc.), or
   use Authentik's **regex** mode for `http://127\.0\.0\.1:\d+/oauth/callback` and `http://localhost:\d+/oauth/callback`.
-- **Scopes:** `openid`, `profile`, and the **`orcid`** scope from step 4.
+- **Scopes:** `openid`, `profile`, the **`orcid`** scope from step 4, and **`offline_access`** (Authentik's built-in
+  "authentik default OAuth Mapping: OpenID 'offline_access'", already in the Available list — no new mapping
+  needed). **This one is easy to miss:** the "Refresh Token" grant type being checked on the provider only means
+  refresh is *allowed*; Authentik only actually *issues* a refresh token when `offline_access` is requested. Without
+  it, `/sync/run` reuses the original short-lived access token forever and starts failing with `Signature has
+  expired` a few minutes after sign-in (found + fixed live, inc 312).
 - Note the provider's **OpenID Configuration Issuer** (e.g. `https://auth.example.com/application/o/callosum/`) and the
   **Client ID**.
 
@@ -80,7 +85,7 @@ Set these in callosum's gitignored **`.env`** (or the process environment), then
 ```
 CALLOSUM_OIDC_ISSUER=https://auth.example.com/application/o/callosum/
 CALLOSUM_OIDC_CLIENT_ID=<the client id from step 5>
-CALLOSUM_OIDC_SCOPES=openid profile orcid
+CALLOSUM_OIDC_SCOPES=openid profile orcid offline_access
 CALLOSUM_OIDC_CLAIM_ORCID=orcid
 ```
 
