@@ -7,6 +7,8 @@ pytest>=7.4,<9
 pytest-xdist>=3  # parallel test runner (`pytest -n auto`) — cuts the full-suite wall-clock ~3-4x (inc 300)
 pytest-testmon>=2  # change-based selection (`pytest --testmon`) — runs only tests whose covered code changed (inc 300)
 httpx>=0.27,<1
+httpx2>=2,<3  # starlette 1.x (inc 305) prefers httpx2 under TestClient and warns (deprecation) without it — this
+              # is dev/test-only; `fastapi.testclient.TestClient` auto-prefers it once installed, no source change
 # Pin ruff EXACTLY: its 0.x minor releases change lint/format behavior (an unpinned `>=0.9,<1` let CI grab
 # 0.15.x, which flagged import-ordering the dev version accepted → red CI). Bump deliberately, reformatting then.
 ruff==0.9.6

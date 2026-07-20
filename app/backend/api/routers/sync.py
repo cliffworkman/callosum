@@ -9,21 +9,56 @@ in memory). The rich Settings → Sync UI + conflict-review screen is SP3c; this
 
 from __future__ import annotations
 
+import time
+from datetime import datetime
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import Connection
+from sqlalchemy.exc import OperationalError
 
 from app.backend import app_settings as settings
+from app.backend.api.auth import oidc as oidc_mod
 from app.backend.api.dependencies import get_connection
+from app.backend.persistence import sync_conflicts_repo
+from app.backend.persistence.sqlite_retry import is_sqlite_locked, run_write
+from app.backend.sync.changeset import SYNCABLE, collect_local
 from app.backend.sync.crypto import SyncCryptoError, SyncKeyring, create_keyring, unlock_with_passphrase
 from app.backend.sync.engine import run_sync
 from app.backend.sync.transport import HttpSyncTransport, SyncServerError
 
 router = APIRouter()  # full /sync/* paths per the house convention (the QA surface extractor reads literal paths)
 
+_REFRESH_MARGIN_SECONDS = 30  # refresh a little before actual expiry, not exactly at the edge
+
 
 def _access_token() -> str | None:
     return (settings.stored_oauth_session() or {}).get("access_token")
+
+
+def _fresh_access_token(request: Request) -> str | None:
+    """The stored access token, refreshed first via the stored refresh_token if it's near/past expiry — Authentik's
+    access tokens are short-lived, and a sync run can easily happen well after the original sign-in. Falls back to
+    whatever's stored on any refresh problem; sync_run's existing 401->502 handling is the fail-closed backstop."""
+    session = settings.stored_oauth_session()
+    if not session or not session.get("access_token"):
+        return None
+    expires_at, refresh_token = session.get("expires_at"), session.get("refresh_token")
+    if not refresh_token or expires_at is None or expires_at > time.time() + _REFRESH_MARGIN_SECONDS:
+        return session["access_token"]  # still comfortably valid, or nothing/no way to refresh
+    client = getattr(request.app.state, "oidc_client", None)
+    if client is None:
+        return session["access_token"]
+    try:
+        tokens = client.refresh_access_token(refresh_token)
+    except oidc_mod.OidcError:
+        return session["access_token"]
+    session = {**session, **{k: tokens[k] for k in ("access_token", "refresh_token", "id_token") if k in tokens}}
+    if "expires_in" in tokens:
+        session["expires_at"] = int(time.time()) + int(tokens["expires_in"])
+    settings.set_oauth_session(session)
+    return session["access_token"]
 
 
 class SyncStatus(BaseModel):
@@ -103,7 +138,7 @@ class RunResult(BaseModel):
 def sync_run(request: Request, body: RunBody, conn: Connection = Depends(get_connection)) -> RunResult:
     cfg = settings.stored_sync_settings()
     keyring = settings.stored_sync_keyring()
-    token = _access_token()
+    token = _fresh_access_token(request)
     if not cfg["enabled"]:
         raise HTTPException(status_code=409, detail="sync is off")
     if keyring is None:
@@ -115,7 +150,11 @@ def sync_run(request: Request, body: RunBody, conn: Connection = Depends(get_con
     try:
         dek = unlock_with_passphrase(SyncKeyring.from_dict(keyring), body.passphrase)
     except SyncCryptoError as exc:
-        raise HTTPException(status_code=401, detail="wrong passphrase") from exc
+        # 422 (not 401), matching sync_setup's own SyncCryptoError handling above: every api* fetch helper in the
+        # frontend treats ANY 401 as "the remote-access bearer token is invalid" and fires the app-wide
+        # AccessLockOverlay lockout-recovery flow (inc 254) — a wrong LOCAL sync passphrase is a different kind of
+        # failure entirely and must not trip that unrelated global recovery UI.
+        raise HTTPException(status_code=422, detail="wrong passphrase") from exc
     # an injected transport (tests bind one to the in-process server) wins; else build one per run
     transport = getattr(request.app.state, "sync_transport", None) or HttpSyncTransport(cfg["server_url"], token)
     try:
@@ -123,7 +162,66 @@ def sync_run(request: Request, body: RunBody, conn: Connection = Depends(get_con
         conn.commit()  # the dependency uses engine.connect(); a sync-server error before here → rollback (no half-apply)
     except SyncServerError as exc:
         raise HTTPException(status_code=502, detail=f"sync server error: {exc}") from exc
+    except OperationalError as exc:
+        # A short, local SQLite write-lock collision (e.g. a concurrent watched-folder rescan holding the writer
+        # lock) — deliberately NOT auto-retried here (unlike the run_write short-write sweep, inc 281): retrying
+        # a mixed local+egress run risks re-pushing to the sync server. Give an honest, actionable message instead
+        # of letting a raw 500/traceback surface — the user's own retry (a fresh /sync/run) is the safe recovery.
+        if is_sqlite_locked(exc):
+            raise HTTPException(
+                status_code=503,
+                detail="Sync couldn't get a database write lock just now (another operation is "
+                "writing) — try running sync again in a moment.",
+            ) from exc
+        raise
     finally:
         transport.close()
     settings.set_sync_cursor(result.new_cursor)
     return RunResult(pushed=result.pushed, applied=result.applied, conflicts=result.conflicts, cursor=result.new_cursor)
+
+
+# --- SP3c: conflict review (read `sync_conflicts`, pick a side) ------------------------------------------------
+# Deliberately NOT gated on enabled/signed-in/configured — a conflict is local data from a past sync run; the user
+# can review and resolve one whether or not sync happens to be on right now.
+
+
+class ConflictOut(BaseModel):
+    id: int
+    collection: str
+    record_id: str
+    losing_version: int | None
+    losing_payload: dict | None  # "mine" — the local side that lost the last-write-wins merge
+    detected_at: datetime
+    current: dict | None  # "theirs" — the live domain value, for a mine-vs-current diff (None if since deleted)
+
+
+@router.get("/sync/conflicts", response_model=list[ConflictOut])
+def list_sync_conflicts(conn: Connection = Depends(get_connection)) -> list[ConflictOut]:
+    rows = sync_conflicts_repo.list_unresolved_conflicts(conn)
+    by_name = {c.name: c for c in SYNCABLE}
+    current_by_collection: dict[str, dict] = {}
+    out: list[ConflictOut] = []
+    for row in rows:
+        coll = row["collection"]
+        if coll not in current_by_collection:
+            c = by_name.get(coll)
+            current_by_collection[coll] = collect_local(conn, (c,)) if c is not None else {}
+        current = current_by_collection[coll].get((coll, row["record_id"]))
+        out.append(ConflictOut(**row, current=current))
+    return out
+
+
+class ResolveConflictBody(BaseModel):
+    side: Literal["mine", "theirs"]
+
+
+@router.post("/sync/conflicts/{conflict_id}/resolve")
+def resolve_sync_conflict(conflict_id: int, body: ResolveConflictBody, request: Request) -> dict:
+    def op(c: Connection) -> None:
+        if not sync_conflicts_repo.resolve_conflict(c, conflict_id, body.side):
+            # un-retried (HTTPException propagates immediately, run_write only retries a lock error) — and
+            # nothing was written yet: resolve_conflict's False-paths are read-checks, no execute() before them.
+            raise HTTPException(status_code=409, detail="conflict not found, already resolved, or could not be applied")
+
+    run_write(request.app.state.engine, op)  # a short local write — inc 281's run_write sweep, not a raw commit
+    return {"resolved": True}

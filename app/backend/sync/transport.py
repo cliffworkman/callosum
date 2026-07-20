@@ -35,7 +35,7 @@ class HttpSyncTransport:
         except httpx.HTTPError as exc:
             raise SyncServerError(f"pull request failed: {exc}") from exc
         if resp.status_code != 200:
-            raise SyncServerError(f"pull failed: HTTP {resp.status_code}")
+            raise SyncServerError(f"pull failed: HTTP {resp.status_code}: {resp.text[:500]}")
         try:
             data = resp.json()
             records = [
@@ -70,7 +70,7 @@ class HttpSyncTransport:
         except httpx.HTTPError as exc:
             raise SyncServerError(f"push request failed: {exc}") from exc
         if resp.status_code != 200:
-            raise SyncServerError(f"push failed: HTTP {resp.status_code}")
+            raise SyncServerError(f"push failed: HTTP {resp.status_code}: {resp.text[:500]}")
         try:
             return int(resp.json()["seq"])
         except (KeyError, TypeError, ValueError) as exc:

@@ -93,8 +93,14 @@ function DiscoverPane({ onSaved, active, onOpenWanted, onOpenGaps, onOpenOverloo
   // inc 301: reload the last search whenever Discover → Search is accessed with nothing currently shown — resume
   // where you left off. Guarded so it never clobbers an in-progress or already-shown search; no re-run loop
   // (runSearch flips status off "idle", so the guard blocks the next pass).
+  // inc 308 (QA fix): only on a genuine tab (re)activation (wasActive false→true) — not on every idle+empty
+  // state change while already active, which otherwise fires right after Clear × (clearActiveSearch produces
+  // that exact same idle+empty shape) and silently re-runs the just-cleared search.
+  const wasActiveRef = useRef(false);
   useEffect(() => {
-    if (!active || status !== "idle" || items.length || q.trim()) return;
+    const justActivated = active && !wasActiveRef.current;
+    wasActiveRef.current = active;
+    if (!justActivated || status !== "idle" || items.length || q.trim()) return;
     const last = history[0];
     if (last && last.q) runSearch({ q: last.q, source: last.source || "", sourceLabel: last.sourceLabel });
   }, [active, status, items.length, q, history, runSearch]);

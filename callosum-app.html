@@ -165,6 +165,21 @@
      Collapse to a single column with the section list scrollable above the article. */
   .app.mobile .help-layout { grid-template-columns: 1fr; overflow: visible; }
   .app.mobile .help-toc { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 6px; max-height: 28vh; }
+  /* QA 2026-07-19 mobile-CSS batch (browser-verified with Playwright): 4 spacing fixes at 375px. */
+  /* (1) Discover Feed's All/Unread/Starred filter buttons were flex:1 (from the shared .tags-srcfilter-btn base),
+     so 3 buttons squeezed into equal thirds and "Unread (391)" wrapped mid-word. Content-sized + let the
+     container's existing flex-wrap do the work, mirroring the .synth-section-filter override above. */
+  .app.mobile .feed-controls .tags-srcfilter-btn { flex: 0 1 auto; white-space: normal; }
+  /* (2) the workspace "what moved" hint's full desktop sentence ran 4 lines / 82px on a 375px phone; see the
+     shorter `mobile` copy branch in WorkspacesWhatsNewHint (30c_frame.jsx). */
+  /* (3) Settings' collapsed provider rows: .provider-toggle (flex:1; min-width:0) can shrink to fit, but its
+     nowrap caret+name+badge children can't — they overflowed past the toggle's own shrunk box straight into the
+     Use/Delete actions next to it (the box shrank; its content didn't). Let the badge wrap onto its own line
+     inside the toggle instead of overflowing sideways. */
+  .app.mobile .provider-toggle { flex-wrap: wrap; row-gap: 2px; }
+  /* (4) Work → Cite → Suggest's .cite-pane has no padding (unlike Synthesize's .synth), so the right-aligned
+     ".from your library · local, no egress" provenance line ran flush to the screen edge. */
+  .app.mobile .cite-pane { padding: 0 14px; }
   .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
   .mobile-nav-btn {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -11328,7 +11343,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       /* @__PURE__ */ React.createElement("span", { className: "pcurve-test-p" }, "p = ", t.p)
     )))), /* @__PURE__ */ React.createElement("div", { className: "pcurve-coverage" }, "Coverage: p-curve reads only inline APA-style NHST tests with exact statistics (tables, Bayesian, and CI-only reporting are invisible); it includes every extracted significant test rather than each study's chosen focal test, and conservatively drops results so significant their p rounds to \u22480. Run it on a small, curated set for the most meaningful curve.")), /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Method:"), " p-curve \u2014 Simonsohn, Nelson & Simmons (2014), ", /* @__PURE__ */ React.createElement("i", null, "J. Exp. Psychol. Gen."), " 143(2):534\u2013547.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: [SNS2014_CSL], onChanged }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python; reference implementation: ", /* @__PURE__ */ React.createElement("i", null, "scrutiny"), " (Lukas Jung). Surfaced via D. Lakens' automated-review catalog."))));
   }
-  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture }) {
+  function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf }) {
     const [state, setState] = useState({ status: "loading" });
     const [scale, setScale] = useState(1.15);
     const [page, setPage] = useState(1);
@@ -11386,8 +11401,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       let cancelled = false;
       const token = ++tokenRef.current;
-      setState({ status: "loading" });
       setPage(1);
+      if (knownNoPdf) {
+        setState({ status: "unavailable" });
+        return;
+      }
+      setState({ status: "loading" });
       (async () => {
         let pdfjsLib2;
         try {
@@ -11923,14 +11942,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     ), /* @__PURE__ */ React.createElement("label", { className: "pdf-annot-notedonly", title: "Show only highlights that have a note" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: notedOnly, onChange: (e) => setNotedOnly(e.target.checked) }), " Noted")), annotations.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights yet. Select text in the PDF to add one, then click it to add a note."), annotations.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-empty" }, "No highlights match this filter."), shown.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, className: "pdf-annot-item" }, /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-row", onClick: () => onJump(a), title: "Jump to this highlight" }, /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-chip", style: { background: a.color } }), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-page" }, "p.", a.page), /* @__PURE__ */ React.createElement("span", { className: "pdf-annot-snip" }, (a.anchor_text || "").slice(0, 90) || "(no text)")), a.note && /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-note" }, a.note), /* @__PURE__ */ React.createElement("div", { className: "pdf-annot-actions" }, /* @__PURE__ */ React.createElement("button", { onClick: (e) => onEdit(a, e.clientX - 250, e.clientY + 6) }, a.note ? "Edit note" : "Add note"), /* @__PURE__ */ React.createElement("button", { className: "danger", onClick: () => onDelete(a.id) }, "Delete")))));
   }
   const WORKSPACES_WHATSNEW_KEY = "callosum.workspaces-whatsnew";
-  function WorkspacesWhatsNewHint({ readOnly }) {
+  function WorkspacesWhatsNewHint({ readOnly, mobile }) {
     const [dismissed, setDismissed] = useState(() => _loadLayout(WORKSPACES_WHATSNEW_KEY, "0") === "1");
     if (readOnly !== false || dismissed) return null;
     const dismiss = () => {
       setDismissed(true);
       _saveLayout(WORKSPACES_WHATSNEW_KEY, "1");
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesize"), " is on the menu bar with ", /* @__PURE__ */ React.createElement("b", null, "Ask"), " + ", /* @__PURE__ */ React.createElement("b", null, "Critique"), "; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-Size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), "."), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
+    return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, mobile ? /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: tools moved into ", /* @__PURE__ */ React.createElement("b", null, "Discover"), ", ", /* @__PURE__ */ React.createElement("b", null, "Work"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Extract"), " on the menu bar \u2014 see ", /* @__PURE__ */ React.createElement("b", null, "Help"), " for the full map.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesize"), " is on the menu bar with ", /* @__PURE__ */ React.createElement("b", null, "Ask"), " + ", /* @__PURE__ */ React.createElement("b", null, "Critique"), "; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta Reference List"), ", and ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), "; ", /* @__PURE__ */ React.createElement("b", null, "Effect-Size"), " + ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analysis"), " under ", /* @__PURE__ */ React.createElement("b", null, "Extract"), ".")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
   function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActivate, onClose, onOpenPdf, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
@@ -11939,7 +11958,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (!selectedPaperTab) return;
       onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title });
     };
-    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "lib-frame" }, /* @__PURE__ */ React.createElement(WorkspacesWhatsNewHint, { readOnly: libraryProps && libraryProps.readOnly, mobile }), /* @__PURE__ */ React.createElement("div", { className: "frame-tabs" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "frame-tab" + (activeTab === "library" ? " active" : ""),
@@ -12011,6 +12030,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         target: t.target || null,
         annoRefresh,
         mobile,
+        knownNoPdf: t.hasPdf === false,
         armedCapture: capture && !capture.result && capture.paperId === t.paperId ? capture : null,
         onCaptureAnchor,
         onCancelCapture
@@ -12114,8 +12134,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setStatus("error");
       }
     }, [q, source, sources, rememberSearch]);
+    const wasActiveRef = useRef(false);
     useEffect(() => {
-      if (!active || status !== "idle" || items.length || q.trim()) return;
+      const justActivated = active && !wasActiveRef.current;
+      wasActiveRef.current = active;
+      if (!justActivated || status !== "idle" || items.length || q.trim()) return;
       const last = history[0];
       if (last && last.q) runSearch({ q: last.q, source: last.source || "", sourceLabel: last.sourceLabel });
     }, [active, status, items.length, q, history, runSearch]);
@@ -13445,7 +13468,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: () => onAutoScanWatched(!autoScanWatched)
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
-    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start."));
+    )), /* @__PURE__ */ React.createElement(MetadataSettings, null), /* @__PURE__ */ React.createElement(AcquisitionSettings, null), /* @__PURE__ */ React.createElement(PublishersSettings, null), /* @__PURE__ */ React.createElement(LibreOfficeSettings, null), /* @__PURE__ */ React.createElement(WordSettings, null), /* @__PURE__ */ React.createElement(RemoteAccessSettings, null), /* @__PURE__ */ React.createElement(AgentSettings, null), /* @__PURE__ */ React.createElement(AccountSettings, null), /* @__PURE__ */ React.createElement(SyncSettings, null), /* @__PURE__ */ React.createElement(MyPubsSettings, { onRefreshed: onMyPubsRefreshed }), /* @__PURE__ */ React.createElement("div", { className: "axis-modal-note" }, "More settings will live here \u2014 this is just the start."));
   }
   const AI_KEY_URLS = {
     gemini: "https://aistudio.google.com/apikey",
@@ -13746,6 +13769,182 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       },
       /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
     )), /* @__PURE__ */ React.createElement("div", { className: "settings-ai-note" }, "Whichever provider you choose, every summary sentence is still ", /* @__PURE__ */ React.createElement("b", null, "verified locally"), " against your PDFs \u2014 your model choice affects draft quality + coverage, never which citations are accepted."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+  }
+  function _fmtConflictValue(v) {
+    if (v === null || v === void 0) return "\u2014";
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  }
+  function ConflictCard({ c, busy, onResolve }) {
+    const [open, setOpen] = useState(false);
+    const mine = c.losing_payload || {};
+    const current = c.current || {};
+    const keys = Array.from(/* @__PURE__ */ new Set([...Object.keys(mine), ...Object.keys(current)])).sort();
+    return /* @__PURE__ */ React.createElement("div", { className: "provider-card" }, /* @__PURE__ */ React.createElement("div", { className: "provider-card-head" }, /* @__PURE__ */ React.createElement("button", { className: "provider-toggle", onClick: () => setOpen(!open), "aria-expanded": open }, /* @__PURE__ */ React.createElement("span", { className: "provider-caret" }, open ? "\u25BE" : "\u25B8"), /* @__PURE__ */ React.createElement("span", { className: "provider-name" }, c.collection), /* @__PURE__ */ React.createElement("span", { className: "provider-badge" }, new Date(c.detected_at).toLocaleString()))), open && /* @__PURE__ */ React.createElement("div", { className: "provider-body" }, /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-wrap" }, /* @__PURE__ */ React.createElement("table", { className: "cr-matrix" }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("th", null, "Field"), /* @__PURE__ */ React.createElement("th", null, "Mine"), /* @__PURE__ */ React.createElement("th", null, "Current (theirs)"))), /* @__PURE__ */ React.createElement("tbody", null, keys.map((k) => /* @__PURE__ */ React.createElement("tr", { key: k }, /* @__PURE__ */ React.createElement("td", { className: "cr-matrix-title" }, k), /* @__PURE__ */ React.createElement("td", null, _fmtConflictValue(mine[k])), /* @__PURE__ */ React.createElement("td", null, _fmtConflictValue(current[k])))))), /* @__PURE__ */ React.createElement("div", { className: "cr-matrix-caption" }, `"Mine" is what you edited locally; "Current" is what's already applied (the other device's newer edit). Neither is picked for you.`)), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: () => onResolve(c.id, "mine") }, "Keep mine"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: () => onResolve(c.id, "theirs") }, "Keep theirs"))));
+  }
+  function ConflictReviewPanel({ onClose, onResolved }) {
+    const [conflicts, setConflicts] = useState(null);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const load = () => api("/sync/conflicts").then((r) => {
+      if (r.ok) setConflicts(r.data);
+    });
+    useEffect(() => {
+      load();
+    }, []);
+    const resolve = async (id, side) => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPost(`/sync/conflicts/${id}/resolve`, { side });
+      setBusy(false);
+      if (r.ok) {
+        await load();
+        if (onResolved) onResolved();
+      } else setMsg("Couldn't resolve: " + r.error);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Conflicts to review", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Two devices edited the same item since your last sync. Nothing is picked automatically \u2014 choose which version to keep for each.")), conflicts === null && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Loading\u2026"), conflicts && conflicts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "No conflicts to review."), conflicts && conflicts.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "provider-list" }, conflicts.map((c) => /* @__PURE__ */ React.createElement(ConflictCard, { key: c.id, c, busy, onResolve: resolve }))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, msg), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: onClose }, "Close")));
+  }
+  function SyncSettings() {
+    const [status, setStatus] = useState(null);
+    const [conflictCount, setConflictCount] = useState(0);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const [msgErr, setMsgErr] = useState(false);
+    const [passphrase, setPassphrase] = useState("");
+    const [confirmPassphrase, setConfirmPassphrase] = useState("");
+    const [settingUp, setSettingUp] = useState(false);
+    const [recoveryCode, setRecoveryCode] = useState("");
+    const [serverUrl, setServerUrl] = useState("");
+    const [runPassphrase, setRunPassphrase] = useState("");
+    const [running, setRunning] = useState(false);
+    const [runResult, setRunResult] = useState(null);
+    const [reviewing, setReviewing] = useState(false);
+    const loadConflictCount = () => api("/sync/conflicts").then((r) => {
+      if (r.ok) setConflictCount(r.data.length);
+    });
+    const load = () => {
+      api("/sync/status").then((r) => {
+        if (r.ok) {
+          setStatus(r.data);
+          setServerUrl(r.data.server_url || "");
+        }
+      });
+      loadConflictCount();
+    };
+    useEffect(() => {
+      load();
+    }, []);
+    const note = (text, err) => {
+      setMsg(text);
+      setMsgErr(!!err);
+    };
+    const setup = async () => {
+      if (!passphrase || passphrase !== confirmPassphrase) {
+        note("Passphrases don't match.", true);
+        return;
+      }
+      setSettingUp(true);
+      note("");
+      const r = await apiPost("/sync/setup", { passphrase });
+      setSettingUp(false);
+      setPassphrase("");
+      setConfirmPassphrase("");
+      if (r.ok) {
+        setRecoveryCode(r.data.recovery_code);
+        await load();
+      } else note("Couldn't set up sync: " + r.error, true);
+    };
+    const saveServerUrl = async () => {
+      setBusy(true);
+      note("");
+      const r = await apiPut("/sync/settings", { enabled: !!(status && status.enabled), server_url: serverUrl.trim() || null });
+      setBusy(false);
+      if (r.ok) {
+        setStatus(r.data);
+        note("Saved.");
+      } else note("Couldn't save: " + r.error, true);
+    };
+    const toggleEnabled = async () => {
+      setBusy(true);
+      note("");
+      const r = await apiPut("/sync/settings", { enabled: !status.enabled, server_url: serverUrl.trim() || null });
+      setBusy(false);
+      if (r.ok) {
+        setStatus(r.data);
+        note(r.data.enabled ? "Sync is on." : "Sync is off.");
+      } else note("Couldn't toggle: " + r.error, true);
+    };
+    const run = async () => {
+      if (!runPassphrase) return;
+      setRunning(true);
+      note("");
+      setRunResult(null);
+      const r = await apiPost("/sync/run", { passphrase: runPassphrase });
+      setRunning(false);
+      setRunPassphrase("");
+      if (r.ok) {
+        setRunResult(r.data);
+        await load();
+      } else note("Sync run failed: " + r.error, true);
+    };
+    if (!status) return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Cross-device sync"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Loading\u2026"));
+    const step2 = status.configured;
+    const step3 = status.configured && status.signed_in;
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Cross-device sync"), /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Optional, end-to-end encrypted sync of your papers, tags, axes, notes, and highlights across devices, via a sync server. ", /* @__PURE__ */ React.createElement("b", null, "PDFs stay local"), " (never synced); embeddings and other derived data are rebuilt on each device, not transmitted. Off by default."), conflictCount > 0 && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setReviewing(true) }, conflictCount, " conflict", conflictCount === 1 ? "" : "s", " to review \u2192")), !status.configured && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "1. Choose a passphrase", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Encrypts your synced data end-to-end \u2014 Callosum never sees or transmits the passphrase itself, only a key derived from it. ", /* @__PURE__ */ React.createElement("b", null, "There is no server-side reset:"), " losing both the passphrase and the recovery code (shown once, next step) means the encrypted data can't be recovered.")), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "new-password",
+        placeholder: "A strong passphrase",
+        value: passphrase,
+        onChange: (e) => setPassphrase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "new-password",
+        placeholder: "Confirm passphrase",
+        value: confirmPassphrase,
+        onChange: (e) => setConfirmPassphrase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: settingUp || !passphrase || passphrase !== confirmPassphrase, onClick: setup }, settingUp ? "Setting up\u2026" : "Set up sync")), settingUp && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Deriving your encryption key\u2026" })), recoveryCode && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Recovery code \u2014 shown once; save it now", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The only way to unlock your synced data if you forget your passphrase. ", /* @__PURE__ */ React.createElement("b", null, "There is no server-side reset."), " It will not be shown again.")), /* @__PURE__ */ React.createElement("input", { className: "settings-input", readOnly: true, value: recoveryCode, onFocus: (e) => e.target.select() }), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setRecoveryCode("") }, "I've saved it"))), step2 && !status.signed_in && /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "2. ", /* @__PURE__ */ React.createElement("b", null, "Sign in"), " (see Account, below) to continue setting up sync."), step3 && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "2. Sync server URL", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Where your encrypted data is stored \u2014 only opaque ciphertext ever reaches it; it never sees your passphrase, key, or plaintext.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "url",
+        placeholder: "https://your-sync-server.example.com",
+        value: serverUrl,
+        onChange: (e) => setServerUrl(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy || !serverUrl.trim(), onClick: saveServerUrl }, "Save"))), step3 && /* @__PURE__ */ React.createElement("div", { className: "settings-row" }, /* @__PURE__ */ React.createElement("span", { className: "settings-label" }, "3. Enable sync", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Off by default. When on, your papers/tags/axes/notes/highlights sync as opaque, end-to-end-encrypted data to the server above.")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "settings-switch" + (status.enabled ? " on" : ""),
+        role: "switch",
+        "aria-checked": status.enabled,
+        "aria-label": "Enable sync",
+        disabled: busy || !serverUrl.trim(),
+        onClick: toggleEnabled
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "settings-knob" })
+    )), status.enabled && /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Run sync now", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Re-enter your passphrase each time \u2014 it's never remembered between runs.")), /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        className: "settings-input",
+        type: "password",
+        autoComplete: "off",
+        placeholder: "Passphrase",
+        value: runPassphrase,
+        onChange: (e) => setRunPassphrase(e.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: running || !runPassphrase, onClick: run }, running ? "Syncing\u2026" : "Run sync")), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Syncing\u2026" }), runResult && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Pushed ", runResult.pushed, ", applied ", runResult.applied, ".", runResult.conflicts > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", " ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => setReviewing(true) }, runResult.conflicts, " new conflict", runResult.conflicts === 1 ? "" : "s", " \u2192")))), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (msgErr ? " settings-note-err" : "") }, msg), reviewing && /* @__PURE__ */ React.createElement(ConflictReviewPanel, { onClose: () => {
+      setReviewing(false);
+      loadConflictCount();
+    }, onResolved: loadConflictCount }));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");
@@ -14560,11 +14759,12 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const openPdf = useCallback((paper, target) => {
       const key = "pdf:" + paper.id;
       const title = paper.title || "Paper " + paper.id;
+      const hasPdf = paper.attachment_count == null ? null : paper.attachment_count > 0;
       setTabs((prev) => {
         const found = prev.some((t) => t.key === key);
         const nextTarget = target === void 0 ? null : target;
-        if (!found) return [...prev, { key, paperId: paper.id, title, target: nextTarget }];
-        return prev.map((t) => t.key === key ? { ...t, title, target: nextTarget } : t);
+        if (!found) return [...prev, { key, paperId: paper.id, title, target: nextTarget, hasPdf }];
+        return prev.map((t) => t.key === key ? { ...t, title, target: nextTarget, hasPdf: hasPdf == null ? t.hasPdf : hasPdf } : t);
       });
       selectWorkspace("library");
       setActiveTab(key);

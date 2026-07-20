@@ -58,3 +58,21 @@ server); new auth (the server validates OIDC tokens); a new dependency (server-o
 Authentik token validation; bounded inputs; fail-closed transport + unlock; the local app gains no dependency and the
 server is fenced from it. The **live deploy + live-Authentik token validation** is the maintainer's manual step (the
 pure flow + contracts are pytest-proven); per-user rate-limiting + retention are recorded for the pre-public pass.
+
+---
+
+## Addendum — inc 310/311 (Sync UI, SP3c): `/sync/run` wrong-passphrase status changed 401 → 422
+
+**Why:** building the first real frontend caller of `/sync/run` (the Settings → Sync UI) surfaced that this audit's
+own "wrong passphrase → 401" behavior (lines 38/52/original) collides with an app-wide convention: every `api*`
+fetch helper in the frontend (`00_lib.jsx`) treats **any** 401 response, from **any** endpoint, as "the
+remote-access bearer token is invalid" and fires the inc-254 `AccessLockOverlay` global lockout-recovery flow. A
+user who mistypes their **local sync passphrase** would have been shown that unrelated, confusing full-screen
+recovery overlay instead of a simple "wrong passphrase" message. Fixed by changing the status to **422**
+(`app/backend/api/routers/sync.py::sync_run`) — matching `sync_setup`'s own `SyncCryptoError` handling, which
+already used 422 for the equivalent failure at setup time. The **security-relevant invariant this audit
+tests — a wrong passphrase causes zero records to reach the sync server — is unchanged**; only the HTTP status
+code changed. `test_run_refused_when_off_or_wrong_passphrase` and `test_run_with_wrong_passphrase_does_not_egress`
+updated to assert 422. `.claude/qa-routes/route_46_sync.md` updated to match.
+
+**Addendum result: PASS — no security-relevant behavior changed, only a status-code/frontend-integration fix.**

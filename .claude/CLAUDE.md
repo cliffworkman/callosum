@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 308** (see Increment workflow) with **1283 pytest tests
+It is currently at **Increment 312** (see Increment workflow) with **1291 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -476,9 +476,15 @@ be made public later — so the discipline below is enforced now, not retrofitte
   (197–201); the **egress channel** is the opt-in `/sync/*` endpoints + the self-hostable **`sync_server/`** (inc 202):
   **default-off**, runs only when enabled + configured + signed-in, and **only opaque AES-GCM ciphertext** leaves (the
   DEK never does — E2E; the server can't read it). The Gemini library-text gate (#3) is a *separate* channel, untouched.
-  Audits `2026-06-29_sync-crypto-sp3a.md` + `…_sync-engine-sp3b.md` + `…_sync-server.md` (PASS). Follow-ons: **SP3c**
-  (the Sync UI + conflict review), the live deploy (Postgres + Authentik), + per-user rate-limiting/retention on the
-  server (recorded for the pre-public pass).
+  Audits `2026-06-29_sync-crypto-sp3a.md` + `…_sync-engine-sp3b.md` + `…_sync-server.md` (PASS, + a 2026-07-20
+  addendum on the latter). **SP3c (the Settings → Sync UI + conflict review) shipped incs 310–311** — conflict
+  list/resolve endpoints, the setup/enable/run UI, and a conflict-review panel; browser-verified with Playwright.
+  **The maintainer's own account platform is live (inc 312, 2026-07-20):** Authentik + `sync_server` self-hosted on
+  a home LAN box, exposed via an outbound-only Cloudflare Tunnel (no hosting cost) — a real ORCID sign-in and a
+  real 1,514-record sync both verified end-to-end. Getting the live round-trip working surfaced + fixed three real
+  bugs (zero-leeway JWT timestamp checks, a JWKS-verifier issuer-string mismatch, and `/sync/run` never refreshing
+  a stale access token) — see `INCREMENT-312-NOTES.md`. Follow-ons (yours, not code): per-user rate-limiting/
+  retention on the server before any public/multi-tenant deploy (this remains a single-maintainer self-host).
 - SQLAlchemy bound parameters (rule #3); PDF + external-input validation at the boundary
   (rule #4).
 

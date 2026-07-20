@@ -131,4 +131,5 @@ Authentik offers.
 - **Identity only** — the ORCID handshake sends no library text. The egress gate for AI summaries is unaffected.
 - The **account platform holds PII** (emails / ORCID iDs / tokens) — that's the service *you* run; keep it patched +
   behind TLS. Cross-device **sync** (the only step that would move library data off your machine) is a separate,
-  future, explicitly-consented feature (SP3) — it does not exist yet.
+  explicitly-consented, opt-in feature (SP3, shipped incs 197–202 + 310–311) — see `sync_server/README.md` for
+  standing up its own server + Authentik audience.

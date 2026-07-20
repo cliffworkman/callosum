@@ -40,29 +40,31 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 3. **PDF viewer** (`30_viewer.jsx`): open the seeded **Renderable Seed Paper** (the one paper backed by a real
    on-disk PDF — see `_TEMPLATE.md` → Seed contract). Confirm the 2 pages render, the text layer aligns (no
    gross drift), zoom in/out re-renders, and the citation/annotation overlay layers mount. Screenshot. Then open
-   **Facial Anomaly Perception** and confirm it shows the honest **"PDF not available locally"** null-state
-   (its attachment rows point at files that aren't on disk — this is the coordinate-honesty `null` case and the
-   *correct* behavior, NOT a bug; the resulting `/papers/{id}/pdf` 404 + its browser console line are expected).
-<!-- STALE — inc 280/302 workspace IA: **Synthesis moved OUT of the left pane into the center "Synthesize"
-     workspace** (menu bar: My Publications · Library · Synthesize · Discover · Work · Extract · Help · Settings).
-     The left pane in the Library workspace is now the Axes pane (Axes/Tags tabs); the right is Details. Steps 4–5
-     below still describe the pre-migration THEORY/METHODS accordion with a left-pane SYNTHESIS section and need a
-     browser-verified rewrite to the current pane structure (filed under the QA-2026-07-19 backlog batch). -->
-4. **THEORY accordion — left pane** (`05_panes.jsx` + `15_axes.jsx`/`20_synthesis.jsx`/`10_pdf_layer.jsx`):
-   the left pane is an **accordion** with section headers **AXES · SYNTHESIS**, one body open at a time (AXES open
-   by default). The **AXES** section has two **tabs** (`.pane-tabs` segmented chips), **Axes** (default) and
-   **Tags** (inc 139 — Tags is no longer its own section). Click the **Tags** tab → the tag list renders, or the
-   **"No tags yet — add tags from a paper's Details pane"** hint when the library has none; click **Axes** back →
-   the axis view returns (mount-but-hide — the axis state is preserved). Click the **SYNTHESIS** header → AXES
-   collapses and the synthesis query box renders (empty state ok). Reload and confirm the open section **persists**
-   (`callosum.theoryOpen`) and the active AXES tab persists (`callosum.panetab.axes`).
-5. **METHODS accordion — right pane** (`25_detail.jsx`): the right pane is the **DETAILS** accordion section. On
-   load the **top library paper is auto-selected** (inc 138), so DETAILS shows its editable Details right away (not
-   the empty hint); selecting a different paper updates it. The **"Select a paper to see its details"** hint shows
-   only when nothing is selected (e.g. an empty library — no paper to auto-select). (AXES scoring/merge/suggest is
-   exercised in its own route — here just confirm AXES lists the seeded axis.) Bonus check: switch THEORY to
-   SYNTHESIS, select another paper (METHODS shows its details), switch THEORY back to AXES — the synthesis section's
-   state is preserved (mount-but-hide).
+   **Facial Anomaly Perception** (double-click its library card) and confirm it shows the honest
+   **"PDF not available locally"** null-state (its attachment rows point at files that aren't on disk — the
+   coordinate-honesty `null` case). **Since the inc-308 QA follow-up fix (browser-verified 2026-07-19):** opening
+   it via the library card is a **zero-console-error, zero-network-404** path — the card's own `attachment_count`
+   (already known client-side) short-circuits the doomed `/papers/{id}/pdf` fetch (`40_app.jsx`'s `openPdf` +
+   `PdfViewer`'s `knownNoPdf` prop). A 404 here now is a **regression**, not an expected artifact.
+4. **Axes accordion — left pane** (`05_panes.jsx` + `15_axes.jsx`): the left pane is an **accordion** with section
+   headers **Axes · Review**, one body open at a time (**Axes** open by default). The **Axes** section has three
+   **tabs** (`.pane-tabs` segmented chips): **Axes** (default), **Tags**, and **Queue** (the reading queue, inc 219).
+   Click **Tags** → the tag list renders, or the **"No tags yet…"** hint when the library has none; click **Queue**
+   → the to-read queue renders (empty state ok); click **Axes** back → the axis view returns (mount-but-hide — state
+   preserved). Click the **Review** header → Axes collapses and the findings/candidates review queue renders (empty
+   state ok, or the seeded retraction/statcheck facts if present). Reload and confirm the open section **persists**
+   (`callosum.theoryOpen`) and the active Axes-section tab persists (`callosum.panetab.axes`).
+5. **Details/Methods accordion — right pane** (`25_detail.jsx` + the METHODS modules): the right pane is an
+   accordion with section headers **Details · Data consistency (GRIM) · Statistics check · Bayesian statistics ·
+   Mixed-model reporting · Transparency signals** (plus further checks below the fold — Meta-analysis reporting,
+   Overlooked, Cite, CRediT statement — not exercised here, just confirm the pane scrolls to reach them). **Details**
+   is open by default. On load the **top library paper is auto-selected** (inc 138), so Details shows its editable
+   fields right away (not the empty hint); selecting a different paper updates it. The **"Select a paper to see its
+   details"** hint shows only when nothing is selected (e.g. an empty library). Click **Data consistency (GRIM)** →
+   Details collapses and the GRIM panel renders (mount-but-hide — Details' state is preserved). (Per-check
+   scoring/merge/suggest and the METHODS auditors' own findings are exercised in their own routes; here just confirm
+   each header opens its section with no console error.) Reload and confirm the open right-pane section persists
+   (`callosum.methodsOpen`).
 6. **Settings** (`35_settings.jsx`): open the gear. Confirm theme toggle, default-axis-cutoff slider,
    hide-uncertain toggle, watched-folder auto-rescan toggle, help-assistant section all render. Toggle dark
    mode on/off and confirm the chrome re-themes while the (future) PDF page stays light. Close.
@@ -77,12 +79,13 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
 
 ## Pass criteria
 
-- App mounts; "Callosum" present; 0 page errors. Console errors = 0 **except** the single browser-emitted
-  "Failed to load resource: 404" from deliberately opening the no-local-PDF paper in step 3 (that 404 is the
-  expected null-state, handled by the UI as "PDF not available locally") — any *other* console error is ≥ Medium.
+- App mounts; "Callosum" present; 0 page errors, **0 console errors** — including opening the no-local-PDF paper in
+  step 3: since the inc-308 QA follow-up fix, that path makes no `/pdf` request at all (a `knownNoPdf` short-circuit
+  from the card's own `attachment_count`), so **any** console error here, including a `/papers/{id}/pdf` 404, is a
+  regression (≥ Medium) — not an expected artifact as earlier versions of this route assumed.
 - Every control above is present and responds (no dead clicks, no uncompletable control).
 - 0 requests to any genai/Gemini host.
-- No unexpected 4xx/5xx in the network log (the `/papers/{id}/pdf` 404 for the no-local-PDF paper is expected).
+- No unexpected 4xx/5xx in the network log (the no-local-PDF paper should produce **no** `/pdf` request at all).
 - No horizontal overflow at `375x812`.
 - The phone-width Workspace dropdown is reachable and does not replace the bottom region nav.
 

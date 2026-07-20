@@ -9,7 +9,132 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-19 — corpus current through inc 308; QA fixes (read-only credit gating, mobile Help CSS, Clear-× guard) are behavior/CSS with no new user-facing feature — no help change. -->
+## 2026-07-20 — Increment 312: the account platform goes live (Authentik + sync_server on juno) + three real bugs fixed
+- **Files:** `app/backend/api/auth/oidc.py`, `sync_server/auth.py`, `app/backend/sync/transport.py`,
+  `app/backend/sync/engine.py`, `app/backend/api/routers/sync.py`, `tests/test_sync_endpoints.py`
+- **What:** Stood up Authentik + sync_server on the maintainer's own Debian box (juno), exposed via a Cloudflare
+  Tunnel — no hosting cost. Getting a real ORCID sign-in + a real sync run working surfaced and fixed three bugs:
+  (1) zero-leeway JWT timestamp checks too strict for any cross-machine deployment (`leeway=60` added in both
+  `oidc.py` and `sync_server/auth.py`); (2) `sync_server`'s `JwksVerifier` compared a slash-stripped issuer against
+  the JWT's real (trailing-slash) `iss` claim, failing every check; (3) `/sync/run` never refreshed a stale access
+  token via the stored `refresh_token`, so any sync more than a few minutes after sign-in failed. Also: chunked
+  `run_sync`'s push into batches of 500 (a first-ever sync can easily exceed a server's per-push cap), and
+  `transport.py` now surfaces the actual response body on a non-200 instead of just the status code.
+- **Why:** backlog #15's last open item was making Authentik/sync_server actually reachable; the bugs above would
+  have silently blocked every real user of "Sign in with ORCID" or cross-device sync, not just this deployment.
+- **Revert:** `git log` this commit; the juno-side infra (docker-compose, cloudflared config, systemd units) has no
+  git history — see `.claude/docs/increment-notes/INCREMENT-312-NOTES.md` for the full setup.
+
+<!-- HELP-DOCS-SYNCED 2026-07-20 inc 311 — added "Cross-device sync" (setup steps, what syncs/doesn't, conflict
+review) and corrected the now-stale "sync doesn't exist yet" note under Account. Nothing above this line has an
+un-synced corpus change. -->
+## 2026-07-20 — Increment 311: Sync UI (SP3c) Increment B — the Settings → Sync UI + conflict review (frontend)
+- **Files:** `app/frontend/js/35c_sync.jsx` (new), `app/frontend/js/35_settings.jsx`, `callosum-app.html`,
+  `app/backend/api/routers/sync.py`, `tests/{test_sync_endpoints,test_frontend_assembly}.py`,
+  `app/backend/help/help_content.md`, `.claude/qa-routes/route_46_sync.md`,
+  `.claude/security-audits/2026-06-29_sync-server.md` (addendum),
+  `.claude/docs/increment-notes/INCREMENT-311-NOTES.md`.
+- **What:** built the frontend half of the approved Sync UI plan — a new `SyncSettings` section (split into its
+  own chunk; `35_settings.jsx` was already at the 600-line cap) covering setup (passphrase + confirm, a one-time
+  recovery-code reveal), a sequential enable gate (setup → sign-in → server URL → enable, matching the backend's
+  own gate order), "Run sync now" (re-entering the passphrase every time, no session-remember), and a
+  conflict-review panel (a collapsible card per conflict, a generic field-diff table reusing the `cr-matrix`
+  recipe, Keep-mine/Keep-theirs actions). Manually browser-verified the whole flow with Playwright against an
+  isolated scratch instance (`CALLOSUM_SETTINGS_PATH` + `PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring`, so
+  the check never touched a real stored keyring/passphrase) — which surfaced two real backend bugs, fixed in the
+  same increment: (1) `/sync/run`'s wrong-passphrase case used **401**, which the frontend's `api*` helpers treat
+  as "the remote-access bearer token is invalid," firing the unrelated app-wide lockout-recovery overlay — changed
+  to **422**, matching `sync_setup`'s own equivalent handling; (2) an unhandled `sqlite3.OperationalError` ("database
+  is locked," e.g. colliding with a concurrent watched-folder rescan) surfaced as a raw 500 — now a clean **503**
+  ("try again"), deliberately not auto-retried (retrying a mixed local+egress run risks a duplicate push).
+- **Why:** the first real UI caller of `/sync/run` is what exposed both bugs — they were latent since inc 202 but
+  invisible with no frontend exercising the endpoint.
+- **Verify:** `test_sync_endpoints.py` 12 passed (2 status-code assertions updated); `test_frontend_assembly.py` 36
+  passed (+1 new); full suite `pytest -n auto -q` unchanged-count baseline + these; `ruff check`/`ruff format --check`/
+  line-budget clean; QA surface map 250/250 API + 1188/1188 FE, 0 uncovered (route_46 extended with FE steps 9-13).
+- **Revert:** `git checkout main -- app/frontend/js/35_settings.jsx app/backend/api/routers/sync.py tests/test_sync_endpoints.py tests/test_frontend_assembly.py app/backend/help/help_content.md` + `rm app/frontend/js/35c_sync.jsx` + `python tools/build_frontend.py`.
+
+## 2026-07-19 — Increment 310: Sync UI (SP3c) Increment A — list + resolve conflicts (backend)
+- **Files:** `app/backend/sync/engine.py`, `app/backend/persistence/sync_conflicts_repo.py` (new),
+  `app/backend/api/routers/sync.py`, `tests/test_sync_endpoints.py`, `.claude/qa-routes/route_46_sync.md`,
+  `.claude/security-audits/2026-07-19_sync-conflict-resolution.md`,
+  `.claude/docs/increment-notes/INCREMENT-310-NOTES.md`.
+- **What:** planned + built Increment A of the approved Sync UI (SP3c) plan — the backend gap a UI needs before it
+  can be built: `GET /sync/conflicts` (list unresolved rows, paired with the live domain value for a diff) and
+  `POST /sync/conflicts/{id}/resolve {side: "mine"|"theirs"}`. "Mine" reuses the exact remote-apply write path
+  (`_apply_record`/`_apply_link`) rather than a new ad-hoc writer, and deliberately doesn't touch `sync_state` —
+  the next ordinary sync run's hash-diff naturally picks up and pushes the restored value. The resolve endpoint's
+  request body can only choose between two already-server-held values, never supply data to write.
+- **Why:** backlog #15's last open slice (Settings → Sync UI + conflict review) turned out to need backend work
+  first — `sync_conflicts` was written by the engine but nothing read or resolved it. Planned with 3 parallel
+  research passes (API surface, Settings UI conventions, the full 194–202 increment/spec history) before building.
+- **Verify:** `tests/test_sync_endpoints.py` 13 passed (7 existing + 5 new); full suite `pytest -n auto -q` 1288
+  passed, 1 skipped (was 1283); `ruff check` + `ruff format --check` + line-budget clean; QA surface map 250/250
+  API, 0 uncovered. Caught and fixed a real gate along the way: the first draft used a raw `conn.commit()`, which
+  inc 281's `test_short_write_sweep.py` correctly flagged — converted to `run_write` (see increment notes).
+- **Revert:** `git checkout main -- app/backend/sync/engine.py app/backend/api/routers/sync.py tests/test_sync_endpoints.py` + `rm app/backend/persistence/sync_conflicts_repo.py`.
+
+## 2026-07-19 — Increment 309: backlog §1 close-out (mobile CSS batch, real PDF-404 fix, route_00 rewrite, httpx2)
+- **Files:** `app/frontend/js/{30_viewer,30c_frame,40_app}.jsx`, `app/frontend/styles.css`, `callosum-app.html`,
+  `tests/test_frontend_assembly.py`, `.claude/qa-routes/route_00_smoke_readonly.md`, `requirements-dev.txt`,
+  `pyproject.toml`, `.claude/security-audits/2026-07-19_httpx2-testclient-migration.md`,
+  `.claude/docs/increment-notes/INCREMENT-309-NOTES.md`.
+- **What:** cleared the reorganized backlog's entire §1 "Near-term" batch in one Playwright-equipped session.
+  (1) Fixed all 4 mobile-CSS QA findings (Feed filter-button wrapping, the whatsnew notice's height, Settings
+  provider-badge/Use collision, Work's edge-hugging provenance line) — each reproduced and re-verified visually
+  before/after, not guessed from source. (2) Actually **fixed** the metadata-only-paper PDF 404 (previously just
+  documented as an "expected" console error): `openPdf` now threads the library card's already-known
+  `attachment_count` through to `PdfViewer`, which skips the doomed fetch entirely instead of relying on a 404
+  to fall back gracefully. (3) Rewrote `route_00_smoke_readonly.md` steps 4–5 to the actual current pane
+  structure (confirmed live, not assumed) and fixed its now-inverted "404 is expected" pass criteria. (4) Migrated
+  the `httpx→httpx2` TestClient deprecation — turned out to need zero source changes (starlette auto-prefers
+  `httpx2` once installed) but surfaced that this dev environment's fastapi/starlette were never actually
+  upgraded per inc 305's pin bump, so synced that too.
+- **Why:** the user asked to "blow through" the backlog's near-term items now that Playwright made them
+  genuinely checkable, rather than leaving them as filed-but-unverified findings.
+- **Verify:** `test_frontend_assembly.py` 35 passed (+1 new regression guard); full suite `pytest -n auto -q`
+  1283 passed, 1 skipped (unchanged count); `ruff check .` + `ruff format --check .` + `check_line_budget.py`
+  clean. Manually re-verified every fix in a real browser (see `INCREMENT-309-NOTES.md`).
+- **Revert:** `git checkout main -- app/frontend/js/{30_viewer,30c_frame,40_app}.jsx app/frontend/styles.css tests/test_frontend_assembly.py requirements-dev.txt pyproject.toml` + `python tools/build_frontend.py`.
+
+## 2026-07-19 — INCREMENT-BACKLOG.md: full audit + reorg (autonomous/Cliff cut retired)
+- **Files:** `.claude/docs/INCREMENT-BACKLOG.md`.
+- **What:** at Cliff's request, dropped the legacy "autonomous vs ⛔ NEEDS CLIFF" cut-line organization (935→343
+  lines) in favor of grouping by what an item actually is (near-term / needs-a-decision / gated / future-track),
+  keeping the same why-it-needs-a-human labels. Before rewriting, audited every open item against all 308
+  increment-notes titles (not just this file's own claims) and found real drift: **#12** (critical-review,
+  single- *and* multi-paper) was listed as gated/unbuilt but shipped inc 266 + inc 271; **B1 SP2** (gated MCP
+  agent writes) was called "the one genuinely-new architectural item" still to build but shipped inc 216; the
+  **workspaces-nav "what moved" hint** was listed open but shipped inc 285; **#5**'s multi-URL field had shipped
+  inc 214 (only per-attachment PDF serving remained); the ~60-line SQLite `database is locked` saga was already
+  fully closed (inc 272–281) but read as open due to its own verbose history; and the entire Competitive-benchmark
+  A1–A10 + B1–B5 list is now closed. Verified directly (not just by doc claims) that `SECURITY.md`/`CITATION.cff`/
+  `.env.example`/`uv.lock`/`.pre-commit-config.yaml` don't exist, confirming #20 stays genuinely open.
+- **Why:** the doc had drifted — some items marked "still needs building" had already shipped, which risks
+  wasted re-planning or a wrong answer to "what's left." Cliff asked for a review that "reflects exactly what's
+  left," not a reformat.
+- **Verify:** manual read-through; numbering kept stable (cross-referenced from CLAUDE.md/session handoffs/
+  increment-notes) — nothing renumbered, only regrouped or moved to the Shipped breadcrumbs with its number kept.
+- **Revert:** `git checkout main -- .claude/docs/INCREMENT-BACKLOG.md`.
+
+<!-- HELP-DOCS-SYNCED 2026-07-19 — corpus current through inc 308 (incl. its Playwright follow-up fix below); behavior/CSS only, no new user-facing feature — no help change. -->
+## 2026-07-19 — Increment 308 follow-up: Playwright browser-verification + Discover Clear × real fix
+- **Files:** `app/frontend/js/30d_discover.jsx`, `callosum-app.html`, `.claude/docs/increment-notes/INCREMENT-308-NOTES.md`.
+- **What:** installed a session-local Playwright MCP server and browser-verified all 4 of inc 308's manual-verification
+  steps directly (bypassing the Codex QA loop). Read-only credit gating, read-write credit affordance, and mobile
+  Help all passed as shipped. Discover `Clear ×` **did not actually work** as inc 308 claimed: clicking it was
+  immediately undone by an unrelated existing effect (inc 301's "resume last search when idle+empty") that shares
+  the exact state shape `clearActiveSearch` produces, so every Clear click silently re-ran the just-cleared search
+  (confirmed via the network log — a fresh `/discovery/search` + `/discovery/relevance` pair fired right after each
+  click). Fixed by having that resume effect track a `wasActiveRef` and only fire on a genuine tab (re)entry
+  (`active` false→true), not on every idle+empty state change while already active.
+- **Why:** the session handoff flagged inc 308's frontend fixes as visually unverified; direct browser verification
+  is more reliable and faster here than a Codex QA re-run for a small, already-scoped set of checks.
+- **Verify:** `test_frontend_assembly` 34 passed (unchanged); manually re-verified in-browser: Clear × now stays
+  cleared with no repopulation, and switching away from and back to Discover → Search still correctly resumes the
+  last search (the original inc-301 behavior is intact). No backend change → full count unchanged (1283).
+- **Revert:** `git checkout main -- app/frontend/js/30d_discover.jsx` + `python tools/build_frontend.py`.
+
 ## 2026-07-19 — Increment 308: QA-pass fixes (Codex 2026-07-19) — read-only credit + mobile Help + Clear ×
 - **Files:** `app/frontend/js/{00_lib,05_method_credit,38_credit,40_app,30d_discover}.jsx`, `app/frontend/styles.css`, `callosum-app.html`, `tests/test_frontend_assembly.py`, `.claude/docs/{increment-notes/INCREMENT-308-NOTES.md,INCREMENT-BACKLOG.md}`, `.claude/CLAUDE.md`, `.claude/changes.md`.
 - **What:** fixed the 3 highest-confidence Medium QA findings. (1) **Read-only credit 403s:** new app-wide tri-state `AppReadOnly` context; `MethodCreditButton` + `CreditSection` fire `/library/credit/status` + `/credit/statement` only when `readOnly === false` (a read-only companion no longer issues doomed write-method POSTs). (2) **Mobile Help** collapses the 2-column grid to 1 column at phone width. (3) **Discover `Clear ×`** gains a fetch-generation guard so it cancels an in-flight/stuck search and a late response can't repopulate.

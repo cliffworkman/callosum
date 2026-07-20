@@ -575,6 +575,48 @@ def test_misc_ux_batch_wiring():
     assert "function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, onMergeDone })" in raw
 
 
+def test_qa_20260719_mobile_batch_and_pdf_404_fix():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    # 4 mobile-CSS spacing fixes (browser-verified with Playwright, inc 308 follow-up)
+    assert ".app.mobile .feed-controls .tags-srcfilter-btn { flex: 0 1 auto" in css
+    assert ".app.mobile .provider-toggle { flex-wrap: wrap" in css
+    assert ".app.mobile .cite-pane { padding: 0 14px" in css
+    # the workspace "what moved" hint gets a shorter mobile-specific copy (was 4 lines / 82px on a phone)
+    assert "function WorkspacesWhatsNewHint({ readOnly, mobile })" in raw
+    assert "tools moved into <b>Discover</b>, <b>Work</b>, and <b>Extract</b>" in raw
+    # a paper opened with a known attachment_count of 0 skips the doomed /pdf fetch entirely (no 404, no
+    # console error) instead of relying on the 404 being handled gracefully after the fact
+    assert "const hasPdf = paper.attachment_count == null ? null : paper.attachment_count > 0;" in raw
+    assert "knownNoPdf={t.hasPdf === false}" in raw
+    assert 'if (knownNoPdf) { setState({ status: "unavailable" }); return; }' in raw
+
+
+def test_sync_settings_ui_wired_and_honest():
+    raw = assemble_jsx()
+    # SyncSettings (35c_sync.jsx, split from 35_settings.jsx at the 600-line cap) is wired into SettingsView.
+    assert "function SyncSettings()" in raw
+    assert "<SyncSettings />" in raw
+    # the setup step never redisplays the passphrase; the recovery code is a distinct, explicitly one-time reveal
+    assert 'type="password" autoComplete="new-password" placeholder="A strong passphrase"' in raw
+    assert "Recovery code — shown once; save it now" in raw
+    assert "There is no server-side reset" in raw
+    # enable is gated on setup + signed-in + a server URL (mirrors the backend's own 422 gate order), never a
+    # bare toggle
+    assert "disabled={busy || !serverUrl.trim()}" in raw and "onClick={toggleEnabled}" in raw
+    # the passphrase is re-entered every run — no session-remember in this slice
+    assert "Re-enter your passphrase each time — it's never remembered between runs." in raw
+    # conflicts: surfaced count + review list + a generic (not per-collection-bespoke) field diff, two explicit
+    # actions, never an auto-pick
+    assert "function ConflictReviewPanel(" in raw
+    assert "function ConflictCard(" in raw
+    assert "<th>Field</th><th>Mine</th><th>Current (theirs)</th>" in raw
+    assert 'onClick={() => onResolve(c.id, "mine")}' in raw and 'onClick={() => onResolve(c.id, "theirs")}' in raw
+    assert "Nothing is picked automatically" in raw
+    # PDFs never sync — the honesty copy is present, not just the backend's own SYNCABLE exclusion
+    assert "PDFs stay local" in raw and "never synced" in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

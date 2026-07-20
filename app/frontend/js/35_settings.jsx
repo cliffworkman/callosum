@@ -544,6 +544,8 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
 
         <AccountSettings />
 
+        <SyncSettings />
+
         <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
 
         <div className="axis-modal-note">More settings will live here — this is just the start.</div>

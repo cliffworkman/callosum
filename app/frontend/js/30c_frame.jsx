@@ -7,7 +7,7 @@
 // PaperList regardless of chunk order.
 const WORKSPACES_WHATSNEW_KEY = "callosum.workspaces-whatsnew";
 
-function WorkspacesWhatsNewHint({ readOnly }) {
+function WorkspacesWhatsNewHint({ readOnly, mobile }) {
   const [dismissed, setDismissed] = useState(() => _loadLayout(WORKSPACES_WHATSNEW_KEY, "0") === "1");
   if (readOnly !== false || dismissed) return null;
   const dismiss = () => {
@@ -16,7 +16,10 @@ function WorkspacesWhatsNewHint({ readOnly }) {
   };
   return (
     <div className="axis-hint workspace-whatsnew" role="status">
-      <span>New layout: <b>Synthesize</b> is on the menu bar with <b>Ask</b> + <b>Critique</b>; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-Size</b> + <b>Meta-Analysis</b> under <b>Extract</b>.</span>
+      <span>{mobile
+        ? <>New layout: tools moved into <b>Discover</b>, <b>Work</b>, and <b>Extract</b> on the menu bar — see <b>Help</b> for the full map.</>
+        : <>New layout: <b>Synthesize</b> is on the menu bar with <b>Ask</b> + <b>Critique</b>; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-Size</b> + <b>Meta-Analysis</b> under <b>Extract</b>.</>}
+      </span>
       <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss workspace layout notice" title="Dismiss" onClick={dismiss}>×</button>
     </div>
   );
@@ -32,7 +35,7 @@ function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActiv
   };
   return (
     <div className="lib-frame">
-      <WorkspacesWhatsNewHint readOnly={libraryProps && libraryProps.readOnly} />
+      <WorkspacesWhatsNewHint readOnly={libraryProps && libraryProps.readOnly} mobile={mobile} />
       <div className="frame-tabs">
         <button
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}
@@ -94,6 +97,7 @@ function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActiv
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} mobile={mobile}
+            knownNoPdf={t.hasPdf === false}
             armedCapture={capture && !capture.result && capture.paperId === t.paperId ? capture : null}
             onCaptureAnchor={onCaptureAnchor} onCancelCapture={onCancelCapture} />
         </div>

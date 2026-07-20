@@ -9,9 +9,12 @@ token).
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Protocol
+
+logger = logging.getLogger("callosum_sync")
 
 
 class InvalidToken(Exception):
@@ -32,9 +35,11 @@ class JwksVerifier:
     test path (with an injected fake verifier) needs no crypto extras loaded."""
 
     def __init__(self, issuer: str, audience: str, jwks_url: str | None = None) -> None:
-        self._issuer = issuer.rstrip("/")
+        self._issuer = (
+            issuer  # kept verbatim: must exact-match the JWT's `iss` claim (Authentik's includes a trailing slash)
+        )
         self._audience = audience
-        self._jwks_url = jwks_url or f"{self._issuer}/jwks/"
+        self._jwks_url = jwks_url or f"{issuer.rstrip('/')}/jwks/"
         self._jwk_client = None
 
     def verify(self, token: str) -> Identity:
@@ -53,8 +58,10 @@ class JwksVerifier:
                 algorithms=["RS256"],
                 audience=self._audience,
                 issuer=self._issuer,
+                leeway=60,  # tolerate normal clock drift between this server and the account platform
             )
         except Exception as exc:  # any decode/verify failure → fail closed
+            logger.warning("token verification failed: %s", exc)
             raise InvalidToken("token verification failed") from exc
         sub = claims.get("sub")
         if not sub:

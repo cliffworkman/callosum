@@ -15,6 +15,7 @@ reports only a non-secret status.
 
 from __future__ import annotations
 
+import logging
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -27,6 +28,7 @@ from app.backend.api.auth import oidc as oidc_mod
 from app.backend.persistence import profile_repo
 
 router = APIRouter()
+logger = logging.getLogger("callosum")
 
 _LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 _CALLBACK_PATH = "/oauth/callback"
@@ -78,7 +80,8 @@ def oauth_callback(request: Request, code: str | None = None, state: str | None 
     try:
         tokens = client.exchange_code(code=code, code_verifier=flow["code_verifier"], redirect_uri=flow["redirect_uri"])
         identity = client.identity_from_tokens(tokens)
-    except oidc_mod.OidcError:
+    except oidc_mod.OidcError as exc:
+        logger.warning("sign-in callback failed: %s", exc)
         return RedirectResponse(url="/?signin=error", status_code=303)
 
     app_settings.set_oauth_session(

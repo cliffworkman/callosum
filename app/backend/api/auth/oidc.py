@@ -137,6 +137,16 @@ class OidcClient:
         except Exception as exc:  # noqa: BLE001
             raise OidcError(f"Token exchange failed: {exc}") from exc
 
+    def refresh_access_token(self, refresh_token: str) -> dict:
+        d = self.discovery()
+        try:
+            return self._post_form(
+                d["token_endpoint"],
+                {"grant_type": "refresh_token", "refresh_token": refresh_token, "client_id": self.config.client_id},
+            )
+        except Exception as exc:  # noqa: BLE001
+            raise OidcError(f"Token refresh failed: {exc}") from exc
+
     def identity_from_tokens(self, tokens: dict) -> Identity:
         id_token = tokens.get("id_token")
         if not id_token:
@@ -160,6 +170,7 @@ class OidcClient:
                 audience=self.config.client_id,
                 issuer=d.get("issuer", self.config.issuer),
                 options={"require": ["exp", "iss", "aud"]},
+                leeway=60,  # tolerate normal clock drift between this machine and a self-hosted account platform
             )
         except Exception as exc:  # noqa: BLE001 — a verification failure is never trusted
             raise OidcError(f"id-token verification failed: {exc}") from exc

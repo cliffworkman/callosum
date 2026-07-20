@@ -1,6 +1,6 @@
 // buildAnnotationDigest (the highlights/notes Markdown digest) lives in 00_lib.jsx (a pure util; relocated inc 175).
 
-function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture }) {
+function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, onCaptureAnchor, onCancelCapture, knownNoPdf }) {
   const [state, setState] = useState({ status: "loading" });
   const [scale, setScale] = useState(1.15);
   const [page, setPage] = useState(1);
@@ -59,8 +59,11 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
   useEffect(() => {
     let cancelled = false;
     const token = ++tokenRef.current;
-    setState({ status: "loading" });
     setPage(1);
+    // inc 308 (QA): a caller that already knows (via attachment_count) this paper has no PDF skips the doomed
+    // fetch entirely — same "unavailable" null-state, no predictable 404 / console error.
+    if (knownNoPdf) { setState({ status: "unavailable" }); return; }
+    setState({ status: "loading" });
     (async () => {
       let pdfjsLib;
       try {

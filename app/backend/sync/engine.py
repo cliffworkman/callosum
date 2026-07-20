@@ -42,6 +42,11 @@ from app.backend.sync.changeset import (
 )
 from app.backend.sync.crypto import decrypt_payload, encrypt_payload
 
+# Comfortably under the reference sync-server's per-push cap (MAX_RECORDS_PER_PUSH = 1000 in sync_server/app.py) —
+# a large first-ever sync (every row counts as "new") pushes in several requests instead of exceeding an arbitrary
+# server's limit in one call.
+_PUSH_BATCH_SIZE = 500
+
 
 @dataclass(frozen=True)
 class SyncBlob:
@@ -182,6 +187,24 @@ def _apply_record(conn: Connection, c: SyncableCollection, r: RemoteRecord, by_n
     return True
 
 
+def apply_conflict_resolution(conn: Connection, collection: str, record_id: str, payload: dict) -> bool:
+    """SP3c: write a conflict's kept losing (local) payload back into the live domain row — the "keep mine"
+    resolution. Deliberately reuses the exact apply path a remote winner takes (`_apply_record`/`_apply_link`), so
+    a resolution can't write anything a normal sync apply couldn't (same FK-translation, same `_coerce_for_write`
+    column allowlist, rule #4). Does NOT touch `sync_state` — the version passed to `_apply_record` is a dummy
+    (unused by the write itself); leaving `sync_state` alone means the *next* `run_sync`'s ordinary hash-diff sees
+    the restored value differs from what's recorded and treats it as a fresh local change, pushing it with a
+    version that naturally out-versions the remote side — no separate versioning path to get wrong.
+    Returns False if the collection is unrecognized or an FK target isn't present locally (the caller should
+    surface this as a failure, never mark the conflict resolved without actually restoring the value)."""
+    by_name = {c.name: c for c in SYNCABLE}
+    c = by_name.get(collection)
+    if c is None:
+        return False
+    r = RemoteRecord(collection, record_id, version=0, deleted=False, payload=payload)
+    return _apply_record(conn, c, r, by_name)
+
+
 def run_sync(
     conn: Connection,
     dek: bytes,
@@ -247,9 +270,13 @@ def run_sync(
         )
         for ch in push_changes
     ]
-    if blobs:
-        transport.push(blobs)
-        for ch in push_changes:
+    # Chunked: a reference sync-server caps a single push (e.g. 1000 records) — comfortably under that so a large
+    # first-ever sync (every row counts as "new") doesn't blow past an arbitrary server's limit in one request.
+    for start in range(0, len(blobs), _PUSH_BATCH_SIZE):
+        batch_blobs = blobs[start : start + _PUSH_BATCH_SIZE]
+        batch_changes = push_changes[start : start + _PUSH_BATCH_SIZE]
+        transport.push(batch_blobs)
+        for ch in batch_changes:
             _set_sync_state(conn, ch.collection, ch.record_id, ch.new_version, ch.payload, ch.deleted)
             if ch.deleted and by_name[ch.collection].pk is not None:  # a link table has no own identity to forget
                 forget_identity(conn, by_name[ch.collection], ch.record_id)

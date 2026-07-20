@@ -141,6 +141,21 @@
      Collapse to a single column with the section list scrollable above the article. */
   .app.mobile .help-layout { grid-template-columns: 1fr; overflow: visible; }
   .app.mobile .help-toc { border-right: 0; border-bottom: 1px solid var(--line); padding-right: 0; padding-bottom: 6px; max-height: 28vh; }
+  /* QA 2026-07-19 mobile-CSS batch (browser-verified with Playwright): 4 spacing fixes at 375px. */
+  /* (1) Discover Feed's All/Unread/Starred filter buttons were flex:1 (from the shared .tags-srcfilter-btn base),
+     so 3 buttons squeezed into equal thirds and "Unread (391)" wrapped mid-word. Content-sized + let the
+     container's existing flex-wrap do the work, mirroring the .synth-section-filter override above. */
+  .app.mobile .feed-controls .tags-srcfilter-btn { flex: 0 1 auto; white-space: normal; }
+  /* (2) the workspace "what moved" hint's full desktop sentence ran 4 lines / 82px on a 375px phone; see the
+     shorter `mobile` copy branch in WorkspacesWhatsNewHint (30c_frame.jsx). */
+  /* (3) Settings' collapsed provider rows: .provider-toggle (flex:1; min-width:0) can shrink to fit, but its
+     nowrap caret+name+badge children can't — they overflowed past the toggle's own shrunk box straight into the
+     Use/Delete actions next to it (the box shrank; its content didn't). Let the badge wrap onto its own line
+     inside the toggle instead of overflowing sideways. */
+  .app.mobile .provider-toggle { flex-wrap: wrap; row-gap: 2px; }
+  /* (4) Work → Cite → Suggest's .cite-pane has no padding (unlike Synthesize's .synth), so the right-aligned
+     ".from your library · local, no egress" provenance line ran flush to the screen edge. */
+  .app.mobile .cite-pane { padding: 0 14px; }
   .mobile-nav { flex: 0 0 auto; display: flex; border-top: 1px solid var(--line); background: var(--panel); }
   .mobile-nav-btn {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;

@@ -5,14 +5,22 @@ through an injected `HttpSyncTransport` bound to an in-process sync-server (no s
 
 from __future__ import annotations
 
+import time
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select, update
 from sqlalchemy.pool import StaticPool
 
+from alembic import command
+from alembic.config import Config
 from app.backend import app_settings
 from app.backend.api import create_app
+from app.backend.persistence import schema
 from app.backend.persistence.repository import create_paper
+from app.backend.sync.crypto import create_keyring, unlock_with_passphrase
+from app.backend.sync.engine import PullResult, SyncBlob, run_sync
 from app.backend.sync.transport import HttpSyncTransport
 from sync_server.app import create_server
 from sync_server.auth import Identity, InvalidToken
@@ -80,7 +88,8 @@ def test_run_refused_when_off_or_wrong_passphrase(temp_db_url: str) -> None:
     c.post("/sync/setup", json={"passphrase": "pw"})
     _sign_in()
     c.put("/sync/settings", json={"enabled": True, "server_url": "https://s"})
-    assert c.post("/sync/run", json={"passphrase": "WRONG"}).status_code == 401  # wrong passphrase fails closed
+    # 422, not 401 — the frontend's api* helpers treat any 401 as the unrelated remote-access lockout (inc 254)
+    assert c.post("/sync/run", json={"passphrase": "WRONG"}).status_code == 422  # wrong passphrase fails closed
 
 
 def test_run_happy_path_syncs_and_advances_cursor(temp_db_url: str) -> None:
@@ -114,12 +123,162 @@ def test_run_with_wrong_passphrase_does_not_egress(temp_db_url: str) -> None:
     _sign_in()
     c.post("/sync/setup", json={"passphrase": "pw"})
     c.put("/sync/settings", json={"enabled": True, "server_url": "https://s"})
-    assert c.post("/sync/run", json={"passphrase": "nope"}).status_code == 401
+    assert c.post("/sync/run", json={"passphrase": "nope"}).status_code == 422
     # nothing reached the server (the bad passphrase fails before the transport is used)
     assert server.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"}).json()["records"] == []
+
+
+# --- token refresh: a sync run can happen well after the original sign-in, so a near/past-expiry access token
+# must be refreshed via the stored refresh_token before it's used against the sync server ---
+
+
+class _FakeRefreshClient:
+    """No network — records each refresh call so tests can assert it happened (or didn't)."""
+
+    def __init__(self) -> None:
+        self.refreshed_with: list[str] = []
+
+    def refresh_access_token(self, refresh_token: str) -> dict:
+        self.refreshed_with.append(refresh_token)
+        return {"access_token": "u:alice-refreshed", "refresh_token": "new-refresh", "expires_in": 300}
+
+
+def test_run_refreshes_a_near_expired_access_token(temp_db_url: str) -> None:
+    fake = _FakeRefreshClient()
+    c = TestClient(create_app(db_url=temp_db_url, oidc_client=fake))
+    app_settings.set_oauth_session(
+        {"access_token": "u:alice", "refresh_token": "old-refresh", "sub": "alice", "expires_at": 1}
+    )
+    c.post("/sync/run", json={"passphrase": "pw"})  # 409 (sync off) — refresh already ran before that gate
+    assert fake.refreshed_with == ["old-refresh"]
+    session = app_settings.stored_oauth_session()
+    assert session["access_token"] == "u:alice-refreshed" and session["refresh_token"] == "new-refresh"
+    assert session["expires_at"] > time.time()
+
+
+def test_run_does_not_refresh_a_still_valid_token(temp_db_url: str) -> None:
+    fake = _FakeRefreshClient()
+    c = TestClient(create_app(db_url=temp_db_url, oidc_client=fake))
+    app_settings.set_oauth_session(
+        {"access_token": "u:alice", "refresh_token": "old-refresh", "sub": "alice", "expires_at": time.time() + 3600}
+    )
+    c.post("/sync/run", json={"passphrase": "pw"})
+    assert fake.refreshed_with == []  # comfortably valid — no needless refresh call
+    assert app_settings.stored_oauth_session()["access_token"] == "u:alice"
 
 
 @pytest.mark.parametrize("passphrase", ["", " " * 3])
 def test_setup_rejects_blank_passphrase(temp_db_url: str, passphrase: str) -> None:
     c = TestClient(create_app(db_url=temp_db_url))
     assert c.post("/sync/setup", json={"passphrase": passphrase}).status_code == 422
+
+
+# --- SP3c: /sync/conflicts (list + resolve) --------------------------------------------------------------------
+# These two endpoints are deliberately NOT gated on enabled/signed-in/configured (a conflict is local data from a
+# past sync run), so the tests below hit them directly against a database that already has one — produced via the
+# same two-simulated-devices recipe as tests/test_sync_engine.py, but through engine.run_sync directly (bypassing
+# app_settings/API-layer sign-in state, which — unlike the db — is a single shared store per test process, not
+# something that can represent two independent "devices" the way two separate sqlite files can).
+
+
+class _FakeTransport:
+    """A minimal in-memory server for engine.run_sync: latest blob per (collection, record_id) at a monotonic
+    sequence, LWW by version. Mirrors test_sync_engine.py's FakeTransport."""
+
+    def __init__(self) -> None:
+        self._seq = 0
+        self._store: dict[tuple[str, str], dict] = {}
+
+    def push(self, records: list[SyncBlob]) -> int:
+        for b in records:
+            cur = self._store.get((b.collection, b.record_id))
+            if cur is None or b.version > cur["blob"].version:
+                self._seq += 1
+                self._store[(b.collection, b.record_id)] = {"blob": b, "seq": self._seq}
+        return self._seq
+
+    def pull(self, since: int) -> PullResult:
+        entries = sorted(self._store.values(), key=lambda e: e["seq"])
+        return PullResult(records=[e["blob"] for e in entries if e["seq"] > since], seq=self._seq)
+
+
+def _fresh_db(path: Path) -> str:
+    db_url = f"sqlite:///{path.as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", db_url)
+    command.upgrade(config, "head")
+    return db_url
+
+
+def _make_conflict(tmp_path: Path) -> str:
+    """Two simulated devices edit the same paper concurrently; B's edit loses (A syncs first) and is surfaced as
+    a conflict in B's database. Returns db_b's URL, which now holds exactly one unresolved conflict."""
+    keyring, _ = create_keyring("pw")
+    dek = unlock_with_passphrase(keyring, "pw")
+    server = _FakeTransport()
+    db_a, db_b = _fresh_db(tmp_path / "a.sqlite"), _fresh_db(tmp_path / "b.sqlite")
+    _add_paper(db_a, "Original")
+    ea, eb = create_engine(db_a), create_engine(db_b)
+
+    def _run(eng, since: int) -> int:
+        with eng.begin() as conn:
+            return run_sync(conn, dek, server, since=since).new_cursor
+
+    ca, cb = _run(ea, 0), _run(eb, 0)  # B pulls A's "Original" → both share the paper at v1
+    with ea.begin() as conn:
+        conn.execute(update(schema.papers).values(title="A-edit"))
+    ca = _run(ea, ca)  # server now has v2 = "A-edit"
+    with eb.begin() as conn:
+        conn.execute(update(schema.papers).values(title="B-edit"))  # B's own, not-yet-synced edit
+    with eb.begin() as conn:
+        result = run_sync(conn, dek, server, since=cb)  # B pulls A's v2 → conflict; remote wins, B's edit kept
+    assert result.conflicts == 1
+    ea.dispose()
+    eb.dispose()
+    return db_b
+
+
+def test_list_conflicts_shows_mine_and_current(tmp_path: Path) -> None:
+    db_b = _make_conflict(tmp_path)
+    c = TestClient(create_app(db_url=db_b))
+    listed = c.get("/sync/conflicts").json()
+    assert len(listed) == 1
+    conflict = listed[0]
+    assert conflict["collection"] == "papers"
+    assert conflict["losing_payload"]["title"] == "B-edit"  # mine
+    assert conflict["current"]["title"] == "A-edit"  # theirs (already applied to the domain row)
+
+
+def test_resolve_theirs_just_marks_resolved(tmp_path: Path) -> None:
+    db_b = _make_conflict(tmp_path)
+    c = TestClient(create_app(db_url=db_b))
+    conflict_id = c.get("/sync/conflicts").json()[0]["id"]
+    r = c.post(f"/sync/conflicts/{conflict_id}/resolve", json={"side": "theirs"})
+    assert r.status_code == 200 and r.json() == {"resolved": True}
+    assert c.get("/sync/conflicts").json() == []  # no longer listed
+    eng = create_engine(db_b)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers.c.title)).scalar() == "A-edit"  # untouched — theirs already won
+    eng.dispose()
+
+
+def test_resolve_mine_restores_the_losing_value(tmp_path: Path) -> None:
+    db_b = _make_conflict(tmp_path)
+    c = TestClient(create_app(db_url=db_b))
+    conflict_id = c.get("/sync/conflicts").json()[0]["id"]
+    r = c.post(f"/sync/conflicts/{conflict_id}/resolve", json={"side": "mine"})
+    assert r.status_code == 200 and r.json() == {"resolved": True}
+    assert c.get("/sync/conflicts").json() == []
+    eng = create_engine(db_b)
+    with eng.connect() as conn:
+        assert conn.execute(select(schema.papers.c.title)).scalar() == "B-edit"  # restored
+    eng.dispose()
+
+
+def test_resolve_unknown_or_already_resolved_conflict_fails_closed(tmp_path: Path) -> None:
+    db_b = _make_conflict(tmp_path)
+    c = TestClient(create_app(db_url=db_b))
+    assert c.post("/sync/conflicts/999/resolve", json={"side": "theirs"}).status_code == 409
+    conflict_id = c.get("/sync/conflicts").json()[0]["id"]
+    c.post(f"/sync/conflicts/{conflict_id}/resolve", json={"side": "theirs"})
+    assert c.post(f"/sync/conflicts/{conflict_id}/resolve", json={"side": "mine"}).status_code == 409

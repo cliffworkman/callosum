@@ -107,11 +107,16 @@ function App() {
   const openPdf = useCallback((paper, target) => {
     const key = "pdf:" + paper.id;
     const title = paper.title || ("Paper " + paper.id);
+    // inc 308 (QA): when the caller already knows this paper has no attachment (the library card carries
+    // attachment_count), skip the doomed /pdf fetch entirely instead of opening a tab that 404s. Callers that
+    // don't have this info (e.g. a bare {id, title} from a citation jump) pass `undefined` → unchanged behavior.
+    const hasPdf = paper.attachment_count == null ? null : paper.attachment_count > 0;
     setTabs(prev => {
       const found = prev.some(t => t.key === key);
       const nextTarget = target === undefined ? null : target;
-      if (!found) return [...prev, { key, paperId: paper.id, title, target: nextTarget }];
-      return prev.map(t => t.key === key ? { ...t, title, target: nextTarget } : t);
+      if (!found) return [...prev, { key, paperId: paper.id, title, target: nextTarget, hasPdf }];
+      // Don't clobber an already-known hasPdf with "unknown" from a caller that didn't pass attachment_count.
+      return prev.map(t => t.key === key ? { ...t, title, target: nextTarget, hasPdf: hasPdf == null ? t.hasPdf : hasPdf } : t);
     });
     selectWorkspace("library");  // a PDF opens under the Library workspace
     setActiveTab(key);  // focuses the existing tab if already open

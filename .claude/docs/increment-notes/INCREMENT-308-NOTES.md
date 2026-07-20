@@ -5,10 +5,11 @@ Triaging the Codex QA pass (see the 2026-07-19 triage entry in `changes.md`) sur
 all frontend. This increment fixes the **three highest-confidence, non-pixel-tuning** ones; the rest (subjective
 mobile CSS spacing + an ambiguous PDF-404 that may be a fixture artifact) stay filed for a browser-equipped pass.
 
-> **⚠️ Unverified visually.** There is no Playwright MCP this session, so these frontend changes are **not
-> browser-verified** — they build clean (esbuild) + pass `test_frontend_assembly`, and the logic is sound on
-> review, but per the verification protocol they should be confirmed by the next Codex QA run (route_43/48 +
-> read-only companion + mobile visual). Flagged so the QA loop closes the verification.
+> **✅ Browser-verified 2026-07-19 (follow-up session).** A Playwright MCP server was added for this session and
+> used to drive a real browser directly against two fresh dev-server instances (read-write on :8899, read-only
+> `CALLOSUM_READ_ONLY=1` on :8900), bypassing the Codex QA loop. All 4 manual-verification steps below were run;
+> #1–#3 passed as originally implemented. #4 (Discover `Clear ×`) was **not** actually fixed as claimed — see
+> "Follow-up fix" below.
 
 ## Implemented
 - **[Medium] Read-only companion no longer fires blocked credit POSTs (→ 403 console errors).** New app-wide
@@ -27,6 +28,19 @@ mobile CSS spacing + an ambiguous PDF-404 that may be a fixture artifact) stay f
   if superseded; `clearActiveSearch` bumps the generation so a late response can't repopulate a cleared query; and
   Clear is no longer `disabled` during `loading`, so a search stuck in `Searching…` (e.g. offline) can be reset.
 
+## Follow-up fix (2026-07-19, browser-verified session)
+The originally-shipped `Clear ×` fix (`searchGenRef` generation guard) was **correct in isolation** but was
+**silently defeated** by an unrelated existing effect: inc 301's "reload the last search whenever Discover →
+Search is accessed with nothing currently shown" resume effect. `clearActiveSearch` resets `q`/`items`/`status`
+to exactly the same idle+empty shape that effect watches for — so on every Clear click, the resume effect fired
+immediately afterward and re-ran the just-cleared search. Confirmed via the network log: each Clear click
+produced a fresh `GET /discovery/search` + `POST /discovery/relevance` for the identical query, and the UI never
+visibly cleared. **Fix:** `30d_discover.jsx`'s resume effect now tracks a `wasActiveRef` and only fires on a
+genuine `active` false→true transition (tab (re)entry), not on every idle+empty state change while already
+active — so Clear (which doesn't change `active`) no longer re-triggers it, while switching away and back to
+the Search sub-tab still correctly resumes the last search (verified both paths in-browser). Rebuilt
+(`tools/build_frontend.py`) and re-verified; `test_frontend_assembly` still 34 passed.
+
 ## Not done here (filed, need a browser)
 - **[Medium] Metadata-only paper opened as a PDF tab → `/papers/2/pdf` 404** — plausibly a fixture artifact; needs a
   browser trace to confirm a real guard gap before touching the viewer/frame.
@@ -43,14 +57,23 @@ mobile CSS spacing + an ambiguous PDF-404 that may be a fixture artifact) stay f
 - **Experience (#11):** these ARE the experience fixes (read-only companion cleanliness; mobile Help readability;
   a non-dead Clear control).
 
-## Manual verification (for the browser-equipped re-check)
-1. `CALLOSUM_READ_ONLY=1` instance → open `/`, switch Synthesize/Work → **zero** `POST /library/credit/status` or
-   `/credit/statement` 403s in the console; no credit "add to library" affordance shown.
-2. Read-write instance → Work → Cite → the credit affordance still appears + `+ add missing to library` works.
-3. Mobile 375px → Help → single column, no internal horizontal scroll, article not clipped.
-4. Discover → Search: run a query, click Clear × mid-`Searching…` → input + results reset, and the earlier
-   search's late response does not repopulate.
+## Manual verification (run 2026-07-19, Playwright against :8899 rw / :8900 ro)
+1. `CALLOSUM_READ_ONLY=1` instance → opened `/`, switched Library/Synthesize/Work → **PASS**: zero
+   `POST /library/credit/status` or `/credit/statement` requests fired at all (confirmed via network log filter),
+   zero console errors, no credit UI rendered at all (the whole method-check/CRediT surface is absent, not just
+   gated) — a "Read-only" badge shows in the Details pane.
+2. Read-write instance → Work → Cite/CRediT statement → **PASS**: credit affordance renders correctly across every
+   method section (statcheck, GRIM, transparency signals, CRediT statement); `/library/credit/status` and
+   `/credit/statement` POSTs succeed (200), zero console errors. (Could not exercise the literal
+   `+ add missing to library` click — every method's source paper was already in this library's fixture data — but
+   the render + fetch path that inc 308 actually changed is confirmed regression-free.)
+3. Mobile 375px → Help → **PASS**: single column, `document.documentElement.scrollWidth === clientWidth` (no
+   horizontal overflow), TOC band `max-height: 196px` (28vh of a 700px viewport, as specified), article not clipped.
+4. Discover → Search: **FAILED as originally shipped**, confirmed and fixed — see "Follow-up fix" above. Re-verified
+   after the fix: a query's results now stay cleared after `Clear ×` (no new network request fires), and leaving +
+   returning to the Search sub-tab still correctly resumes the last search.
 
 ## Pytest
-Frontend-only + one assembly-test string update (the Clear-button title). `test_frontend_assembly` **34 passed**;
-no backend change → full count unchanged at **1283 / 1 skipped** (CI confirms).
+Frontend-only + one assembly-test string update (the Clear-button title). `test_frontend_assembly` **34 passed**
+(re-run after the follow-up fix, still 34 passed); no backend change → full count unchanged at **1283 / 1 skipped**
+(CI confirms).
