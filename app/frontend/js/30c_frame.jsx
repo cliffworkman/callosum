@@ -1,10 +1,11 @@
 // The Library workspace body — the library list + one sub-tab per open PDF, with a Reading-mode toggle. (Formerly
 // the whole center frame; in inc 280 the Discover/Feed/Extract top-level tabs graduated to menu-bar *workspaces*
-// [04b_workspaces.jsx] and the My-Pubs dashboard to the My Publications workspace, so this is now just Library.) PDF tabs
-// stay mounted (hidden) so switching back doesn't re-stream them. The Extract "select-in-PDF" capture (inc 255) now
-// lives in the shell (40_app) and is threaded through so a PdfViewer surfaces the capture UI + returns the anchor —
-// arming it opens the paper under Library, and applying it switches back to Extract. Hoists reference PdfViewer /
-// PaperList regardless of chunk order.
+// [04b_workspaces.jsx] and the My-Pubs dashboard to the My Publications workspace, so this is now just Library;
+// Extract was later folded into Work → Meta-Analyze.) PDF tabs stay mounted (hidden) so switching back doesn't
+// re-stream them. The Workbench "select-in-PDF" capture (inc 255) now lives in the shell (40_app) and is threaded
+// through so a PdfViewer surfaces the capture UI + returns the anchor — arming it opens the paper under Library,
+// and applying it switches back to Work → Meta-Analyze. Hoists reference PdfViewer / PaperList regardless of
+// chunk order.
 const WORKSPACES_WHATSNEW_KEY = "callosum.workspaces-whatsnew";
 
 function WorkspacesWhatsNewHint({ readOnly, mobile }) {
@@ -17,8 +18,8 @@ function WorkspacesWhatsNewHint({ readOnly, mobile }) {
   return (
     <div className="axis-hint workspace-whatsnew" role="status">
       <span>{mobile
-        ? <>New layout: tools moved into <b>Discover</b>, <b>Work</b>, and <b>Extract</b> on the menu bar — see <b>Help</b> for the full map.</>
-        : <>New layout: <b>Synthesize</b> is on the menu bar with <b>Ask</b> + <b>Critique</b>; <b>Cite</b>, <b>Meta Reference List</b>, and <b>CRediT</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>; <b>Effect-Size</b> + <b>Meta-Analysis</b> under <b>Extract</b>.</>}
+        ? <>New layout: tools moved into <b>Discover</b> and <b>Work</b> on the menu bar — see <b>Help</b> for the full map.</>
+        : <>New layout: <b>Synthesize</b> is on the menu bar with <b>Ask</b> + <b>Critique</b>; <b>Cite</b>, <b>Meta-Reference</b>, <b>CRediT</b>, and <b>Meta-Analyze</b> are under <b>Work</b>; <b>Wanted</b>, <b>Gaps</b>, and <b>Overlooked</b> are under <b>Discover → Search</b>.</>}
       </span>
       <button type="button" className="btn-icon workspace-whatsnew-dismiss" aria-label="Dismiss workspace layout notice" title="Dismiss" onClick={dismiss}>×</button>
     </div>

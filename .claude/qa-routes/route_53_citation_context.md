@@ -43,8 +43,8 @@ regardless. Register listeners before navigation.
 
 ## Steps
 
-1. Select a DOI'd paper → open THEORY → the **Cite** section → the **How it's cited** tab (inc 248: moved here from
-   METHODS; the Cite section is now tabs [Suggest | Citation concentration | How it's cited]). It has an **[How it's cited | How
+1. Select a DOI'd paper → open **Work → Meta-Reference** → the **How it's cited** subsection (the last of 3 stacked
+   subsections, below Citation concentration — no tab-switching). It has an **[How it's cited | How
    it cites its sources]** toggle: **Incoming** (`direction=citations`, SP1 — how others cite this paper) and
    **Outgoing** (`direction=references`, SP2 — how this paper cites its own sources). Confirm the intro + button
    label adapt to the selected direction, and switching the toggle resets to the idle (pre-run) state.

@@ -1,86 +1,6 @@
 // Settings modal (inc 46) — the app-wide preferences surface. Appearance → Dark mode (theme + onTheme); Axes →
 // hide-uncertain-by-default (hideUncertainDefault + onHideUncertainDefault). Controlled by App; toggles persist
 // to localStorage. Reuses the .axis-modal overlay pattern.
-// My Publications profile + refresh (inc 78). Set your name/variants/ORCID; "Refresh my papers" resolves
-// via OpenAlex and (re)builds the pinned axis. Calls onRefreshed() so the axes panel reloads.
-function MyPubsSettings({ onRefreshed }) {
-  const [name, setName] = useState("");
-  const [variants, setVariants] = useState("");  // newline-separated published-name variants
-  const [orcid, setOrcid] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [refresh, setRefresh] = useState({ status: "idle" });
-
-  useEffect(() => {
-    api("/my-publications/profile").then(r => {
-      if (!r.ok) return;
-      const p = r.data;
-      setName(p.display_name || "");
-      setVariants((p.name_variants || []).join("\n"));
-      setOrcid(p.orcid || "");
-    });
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    await apiPut("/my-publications/profile", {
-      display_name: name.trim() || null,
-      name_variants: variants.split("\n").map(s => s.trim()).filter(Boolean),
-      orcid: orcid.trim() || null,
-    });
-    setSaving(false);
-  };
-
-  const runRefresh = async () => {
-    await save();  // persist the latest edits first
-    setRefresh({ status: "running" });
-    const poll = (jobId) => api(`/my-publications/refresh/${jobId}`).then(r => {
-      if (!r.ok) { setRefresh({ status: "error", error: r.error }); return; }
-      const d = r.data;
-      if (d.status === "done") { setRefresh({ status: "done", summary: d.summary }); if (onRefreshed) onRefreshed(); }
-      else if (d.status === "error") setRefresh({ status: "error", error: d.detail || "Refresh failed." });
-      else setTimeout(() => poll(jobId), 1500);
-    });
-    const r = await apiPost("/my-publications/refresh", {});
-    if (!r.ok) { setRefresh({ status: "error", error: r.error }); return; }
-    poll(r.data.job_id);
-  };
-
-  const s = refresh.summary;
-  const summaryText = !s ? "" :
-    s.status === "ok" ? `Found ${s.confirmed || 0} confirmed + ${s.candidates || 0} candidate${(s.candidates || 0) === 1 ? "" : "s"} (of ${s.indexed_works || 0} indexed works; ${s.in_library || 0} in your library).` :
-    s.status === "no-identity" ? "Add your name or ORCID first." :
-    s.status === "no-match" ? `No OpenAlex author found for ${s.name || "that identity"} — check the name / ORCID.` :
-    "Done.";
-
-  return (
-    <>
-      <p className="eyebrow">My Publications</p>
-      <div className="settings-field">
-        <label className="settings-field-label">Your name</label>
-        <input className="settings-input" placeholder="e.g. Ada Lovelace" value={name} onChange={e => setName(e.target.value)} />
-      </div>
-      <div className="settings-field">
-        <label className="settings-field-label">Other published names (one per line)</label>
-        <textarea className="settings-input" rows={2} placeholder={"A. Lovelace\nAugusta Ada King"} value={variants} onChange={e => setVariants(e.target.value)} />
-      </div>
-      <div className="settings-field">
-        <label className="settings-field-label">ORCID (recommended — gives an exact match)</label>
-        <input className="settings-input" placeholder="0000-0002-1825-0097" value={orcid} onChange={e => setOrcid(e.target.value)} />
-      </div>
-      <div className="settings-actions">
-        <button className="btn btn-ghost" disabled={saving} onClick={save}>{saving ? "Saving…" : "Save"}</button>
-        <button className="btn btn-primary" disabled={refresh.status === "running" || (!name.trim() && !orcid.trim())} onClick={runRefresh}>
-          {refresh.status === "running" ? "Gathering…" : "Refresh my papers"}
-        </button>
-      </div>
-      {refresh.status === "running" && <ProgressBar label="Resolving via OpenAlex…" />}
-      {refresh.status === "error" && <div className="settings-note settings-note-err">Refresh failed: {refresh.error}</div>}
-      {refresh.status === "done" && <div className="settings-note">{summaryText}</div>}
-      <div className="settings-sub">Resolved via OpenAlex (public metadata — not the Gemini gate); never uses an LLM.</div>
-    </>
-  );
-}
-
 // AI features — the unified LLM provider roster (`AiSettings`) lives in js/35b_providers.jsx (inc 256). It
 // hoists across the shared IIFE, so SettingsModal below references it directly.
 
@@ -98,16 +18,15 @@ function LocalMaintenanceSettings() {
     <>
       <p className="eyebrow">Local maintenance</p>
       <div className="settings-field">
-        <label className="settings-field-label">Synthesis cache
-          <span className="settings-sub">
-            Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.
-          </span>
-        </label>
-        <div className="settings-keyrow">
+        <div className="settings-row settings-maintenance-action">
+          <span className="settings-field-label">Synthesis cache</span>
           <button className="btn btn-ghost" disabled={busy} onClick={repairSummaryCache}>
             {busy ? "Scanning…" : "Repair synthesis cache"}
           </button>
         </div>
+        <span className="settings-sub">
+          Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.
+        </span>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
     </>
@@ -119,29 +38,22 @@ function LocalMaintenanceSettings() {
 // secret (it is sent to those services as the polite-pool contact, exactly as the env var was) → GET /settings
 // returns it, and it is stored in the local file (not the keychain).
 function MetadataSettings() {
-  const [status, setStatus] = useState(null);
   const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  useEffect(() => { api("/settings").then(r => { if (r.ok) { setStatus(r.data); setEmail(r.data.contact_email || ""); } }); }, []);
+  useEffect(() => { api("/settings").then(r => { if (r.ok) setEmail(r.data.contact_email || ""); }); }, []);
   const save = async () => {
     setBusy(true); setMsg("");
     const r = await apiPut("/settings", { set_contact_email: true, contact_email: email.trim() });
     setBusy(false);
-    if (r.ok) { setStatus(r.data); setEmail(r.data.contact_email || ""); setMsg(email.trim() ? "Saved." : "Cleared."); }
+    if (r.ok) { setEmail(r.data.contact_email || ""); setMsg(email.trim() ? "Saved." : "Cleared."); }
     else setMsg("Couldn't save: " + (r.error || "error"));
   };
-  const fromEnv = status && status.contact_email_source === "env";
   return (
     <>
       <p className="eyebrow">Metadata access</p>
       <div className="settings-field">
-        <label className="settings-field-label">Contact email
-          <span className="settings-sub">
-            Sent as the polite-pool contact for public metadata services (Crossref, OpenAlex, Retraction Watch) so they can reach you about heavy use. Setting it here enables the <b>Retraction Watch database</b> download (Methods → Data consistency). Not an AI feature — no library text is sent.
-            {fromEnv ? " Currently set by the CALLOSUM_CROSSREF_MAILTO environment variable." : ""}
-          </span>
-        </label>
+        <label className="settings-field-label">Contact email (Enables the Retraction Watch database.)</label>
         <div className="settings-keyrow">
           <input className="settings-input" type="email" autoComplete="off" placeholder="you@example.com"
             value={email} onChange={e => setEmail(e.target.value)} />
@@ -180,26 +92,20 @@ function AcquisitionSettings() {
     if (r.ok) { setBase(r.data.openurl_resolver_base || ""); setMsg(base.trim() ? "Saved." : "Cleared."); }
     else setMsg("Couldn't save — must be an http(s) URL.");
   };
-  const addLineage = async () => {
-    setMsg("");
-    const r = await apiPost("/library/import", { content: JSON.stringify([OPENURL_CSL]), format: "csl-json" });
-    setMsg(r.ok ? "Added the OpenURL paper to your library." : "Couldn't add: " + (r.error || "error"));
-  };
   return (
     <>
       <p className="eyebrow">Library access</p>
       <div className="settings-field">
-        <label className="settings-field-label">Institutional link resolver (OpenURL)
-          <span className="settings-sub">
-            Your library's link-resolver base URL (from its “off-campus access” / “get full text” help page). When no open-access copy is found, callosum builds an <b>OpenURL</b> and opens <b>this resolver in your browser</b> — you sign in as usual and download; callosum never fetches the paper or handles your login. Optional; the free open-access route stays the default. Not a secret.
-          </span>
-        </label>
-        <div className="settings-keyrow">
+        <div className="settings-openurl-row">
+          <label className="settings-field-label">Institutional link resolver (OpenURL)</label>
           <input className="settings-input" type="url" autoComplete="off" placeholder="https://your-library.example.edu/openurl"
             value={base} onChange={e => setBase(e.target.value)} />
           <button className="btn btn-ghost" disabled={busy} onClick={save}>{busy ? "Saving…" : "Save"}</button>
         </div>
-        <div className="settings-sub">Uses the NISO OpenURL standard (Van de Sompel &amp; Beit-Arie, 2001). <button className="btn-link" onClick={addLineage}>＋ add to library</button></div>
+        <span className="settings-sub">
+          Your library's link-resolver base URL (from its “off-campus access” / “get full text” help page). When no open-access copy is found, callosum builds an <b>OpenURL</b> and opens <b>this resolver in your browser</b> — you sign in as usual and download; callosum never fetches the paper or handles your login. Optional; the free open-access route stays the default. Not a secret.
+        </span>
+        <div className="settings-sub">Uses the NISO OpenURL standard (Van de Sompel &amp; Beit-Arie, 2001). <MethodCreditButton items={[OPENURL_CSL]} /></div>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
     </>
@@ -219,18 +125,20 @@ function PublishersSettings() {
   const bId = status ? status.publisher_breadth : null;
   return (
     <>
-      <p className="eyebrow">Where to submit</p>
-      <div className="settings-field">
-        <label className="settings-field-label">Open-science weighting
-          <span className="settings-sub">How much a journal's openness moves the ranking in Discover → Journals. Neither on nor off is a neutral default — you choose. Stored locally, never transmitted.</span>
-        </label>
-        <PubSegmented options={PUB_WEIGHTS} value={wId} onChange={setW} ariaLabel="Open-science weighting" />
-      </div>
-      <div className="settings-field">
-        <label className="settings-field-label">Result breadth
-          <span className="settings-sub">How many candidate journals to shortlist.</span>
-        </label>
-        <PubSegmented options={PUB_BREADTHS} value={bId} onChange={setB} ariaLabel="Result breadth" />
+      <p className="eyebrow">Discover: Journals</p>
+      <div className="settings-publisher-controls">
+        <div className="settings-field">
+          <label className="settings-field-label">Open-science weighting
+            <span className="settings-sub">How much a journal's openness moves the ranking in Discover → Journals. Neither on nor off is a neutral default — you choose. Stored locally, never transmitted.</span>
+          </label>
+          <PubSegmented options={PUB_WEIGHTS} value={wId} onChange={setW} ariaLabel="Open-science weighting" />
+        </div>
+        <div className="settings-field">
+          <label className="settings-field-label">Result breadth
+            <span className="settings-sub">How many candidate journals to shortlist.</span>
+          </label>
+          <PubSegmented options={PUB_BREADTHS} value={bId} onChange={setB} ariaLabel="Result breadth" />
+        </div>
       </div>
     </>
   );
@@ -248,16 +156,9 @@ function LibreOfficeSettings() {
   return (
     <>
       <p className="eyebrow">LibreOffice plugin</p>
-      <div className="settings-field">
-        <label className="settings-field-label">Cite while you write in LibreOffice Writer
-          <span className="settings-sub">
-            Installs the Callosum extension — a <b>Callosum</b> menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it.
-          </span>
-        </label>
-        <div className="settings-keyrow">
-          <button className="btn btn-ghost" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install plugin"}</button>
-          <button className="btn-link" onClick={() => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt")}>Download .oxt</button>
-        </div>
+      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={install}>{busy ? "Installing…" : "Install plugin"}</button>
+      <div className="settings-sub">
+        Installs the Callosum extension — a <b>Callosum</b> menu + toolbar in Writer (Add citation, Suggest, Refresh, Style, Flatten). Click Install, confirm in LibreOffice's Extension Manager, then restart Writer. The app must be running for the plugin to reach it. <button className="btn-link" onClick={() => downloadAsset("/integrations/libreoffice/plugin.oxt", "callosum.oxt")}>Download .oxt.</button>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
     </>
@@ -279,16 +180,9 @@ function WordSettings() {
   return (
     <>
       <p className="eyebrow">Microsoft Word add-in (desktop)</p>
-      <div className="settings-field">
-        <label className="settings-field-label">Cite while you write in Word
-          <span className="settings-sub">
-            A task pane in <b>desktop</b> Word (Windows/Mac) that searches your library and inserts citations — everything stays on your machine. One-time setup: <b>1)</b> trust a local certificate, run <code>npx office-addin-dev-certs install</code>; <b>2)</b> run Callosum over HTTPS, <code>python tools/run_https.py</code>, then open <code>https://localhost:8443</code>; <b>3)</b> download the manifest below and sideload it in Word (see the adapter README). Not supported in Word-on-the-web.
-          </span>
-        </label>
-        <div className="settings-keyrow">
-          <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml")}>Download manifest</button>
-          <button className="btn btn-ghost" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open add-in folder"}</button>
-        </div>
+      <button className="btn btn-ghost settings-integration-action" disabled={busy} onClick={openFolder}>{busy ? "Opening…" : "Open add-in folder"}</button>
+      <div className="settings-sub">
+        A task pane in <b>desktop</b> Word (Windows/Mac) that searches your library and inserts citations — everything stays on your machine. One-time setup: <b>1)</b> trust a local certificate, run <code>npx office-addin-dev-certs install</code>; <b>2)</b> run Callosum over HTTPS, <code>python tools/run_https.py</code>, then open <code>https://localhost:8443</code>; <b>3)</b> download the manifest and sideload it in Word (see the adapter README). Not supported in Word-on-the-web. <button className="btn-link" onClick={() => downloadAsset("/integrations/word/manifest.xml", "callosum-word-manifest.xml")}>Download manifest.</button>
       </div>
       {msg && <div className="settings-note">{msg}</div>}
     </>
@@ -335,16 +229,15 @@ function RemoteAccessSettings() {
 
   return (
     <>
-      <p className="eyebrow">Remote access (Google Docs)</p>
-      <div className="settings-row">
-        <span className="settings-label">Allow citing from Google Docs
-          <span className="settings-sub">
-            <b>Off by default.</b> When on, your library is reachable through a tunnel you run (the next setup step) — protected by an access token only you hold. This is the opt-in that lets cited-paper metadata leave your machine; local use is unaffected.
-          </span>
-        </span>
+      <p className="eyebrow">Google Docs (Remote access)</p>
+      <div className="settings-row settings-integration-toggle">
+        <span className="settings-field-label settings-integration-control-title">Allow citing from Google Docs</span>
         <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
           aria-label="Allow remote access" disabled={busy} onClick={on ? disable : enable}><span className="settings-knob" /></button>
       </div>
+      <span className="settings-sub">
+        <b>Off by default.</b> When on, your library is reachable through a tunnel you run (the next setup step) — protected by an access token only you hold. This is the opt-in that lets cited-paper metadata leave your machine; local use is unaffected.
+      </span>
       {on &&
         <div className="settings-keyrow">
           <button className="btn btn-ghost" disabled={busy} onClick={regenerate}>Regenerate token</button>
@@ -391,19 +284,17 @@ function AgentSettings() {
 
   return (
     <>
-      <p className="eyebrow">AI agent (MCP writes)</p>
-      <div className="settings-row">
-        <span className="settings-label">Let an AI agent edit your library
-          <span className="settings-sub">
-            <b>Off by default.</b> When on, an MCP agent (e.g. Claude Desktop, via the callosum MCP server) can tag papers, add them to axes, save verified references, and add notes — each marked <b>ai-agent</b> and reversible below. It can't delete or overwrite anything. Restart your agent host after enabling so the write tools appear.
-          </span>
-        </span>
+      <div className="settings-row settings-ai-control">
+        <span className="eyebrow settings-ai-control-title">Let an AI agent edit your library</span>
         <button type="button" className={"settings-switch" + (on ? " on" : "")} role="switch" aria-checked={on}
           aria-label="Allow agent writes" disabled={busy} onClick={toggle}><span className="settings-knob" /></button>
+        <span className="settings-sub">
+          <b>Off by default.</b> When on, an MCP agent (e.g. Claude Desktop, via the callosum MCP server) can tag papers, add them to axes, save verified references, and add notes — each marked <b>ai-agent</b> and reversible below. It can't delete or overwrite anything. Restart your agent host after enabling so the write tools appear.
+        </span>
       </div>
-      {msg && <div className="settings-note">{msg}</div>}
+      {msg && <div className="settings-note settings-ai-agent-details">{msg}</div>}
       {writes.length > 0 &&
-        <div className="settings-field">
+        <div className="settings-field settings-ai-agent-details">
           <label className="settings-field-label">Agent activity
             {pending.length > 0 &&
               <button type="button" className="btn-link" onClick={revertAll}>Revert all ({pending.length})</button>}
@@ -453,16 +344,16 @@ function AccountSettings() {
     <>
       <p className="eyebrow">Account</p>
       <div className="settings-field">
-        <label className="settings-field-label">Optional account — sign in
+        <label className="settings-field-label">Account sign in (Optional.)
           <span className="settings-sub">
-            Callosum works fully offline with <b>no account</b>. Signing in verifies your identity (<b>ORCID, Google, or email</b> — you pick on the next page); signing in with <b>ORCID</b> also pre-fills <b>My Publications</b> with your authoritative author record. <b>Identity only</b> — your library, PDFs, and notes never leave your machine.
+            Callosum works fully offline with no account. Requires an <b>ORCID iD</b> — signing in verifies your identity and enables cross-device sync. <b>Identity only</b> — your library, PDFs, and notes never leave your machine.
           </span>
         </label>
         {signedIn
-          ? <>
+          ? <div className="settings-account-row">
+              <button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign out"}</button>
               <div className="settings-note">Signed in{acct.display_name ? " as " + acct.display_name : (acct.email ? " as " + acct.email : "")}{acct.orcid ? " · ORCID " + acct.orcid : ""}{acct.is_superuser ? " · superuser" : ""}.</div>
-              <div className="settings-keyrow"><button className="btn btn-ghost" disabled={busy} onClick={signOut}>{busy ? "Signing out…" : "Sign out"}</button></div>
-            </>
+            </div>
           : acct && acct.configured
             ? <div className="settings-keyrow"><button className="btn btn-primary" disabled={busy} onClick={signIn}>{busy ? "Starting…" : "Sign in"}</button></div>
             : <div className="settings-sub">Sign-in isn't set up on this Callosum yet — the account service is configured by whoever runs this instance.</div>}
@@ -472,83 +363,93 @@ function AccountSettings() {
   );
 }
 
+function SettingsCard({ title, children }) {
+  return (
+    <section className="settings-card">
+      <h2 className="settings-card-title">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 // inc 280 (stage 3): the Settings center view (the menu-bar "Settings" utility workspace) — formerly a modal.
-function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, autoScanWatched, onAutoScanWatched }) {
+function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed }) {
   const dark = theme === "dark";
   return (
     <div className="workspace-view scroll settings-view">
-        <p className="eyebrow">Appearance</p>
-        <div className="settings-row">
-          <span className="settings-label">Dark mode</span>
-          <button
-            type="button"
-            className={"settings-switch" + (dark ? " on" : "")}
-            role="switch" aria-checked={dark} aria-label="Dark mode"
-            onClick={() => onTheme(dark ? "light" : "dark")}
-          ><span className="settings-knob" /></button>
-        </div>
+      <div className="settings-grid">
+        <SettingsCard title="Account & sync">
+          <div className="settings-sections-grid">
+            <div className="settings-section">
+              <AccountSettings />
+              <div className="settings-subsection">
+                <p className="eyebrow">My Publications</p>
+                <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
+              </div>
+              <div className="settings-subsection"><MetadataSettings /></div>
+            </div>
+            <div className="settings-section">
+              <SyncSettings />
+              <div className="settings-subsection">
+                <p className="eyebrow">Appearance</p>
+                <div className="settings-row">
+                  <span className="settings-sub">Dark mode</span>
+                  <button
+                    type="button"
+                    className={"settings-switch" + (dark ? " on" : "")}
+                    role="switch" aria-checked={dark} aria-label="Dark mode"
+                    onClick={() => onTheme(dark ? "light" : "dark")}
+                  ><span className="settings-knob" /></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </SettingsCard>
 
-        <AiSettings />
+        <SettingsCard title="AI features">
+          <AiSettings agentSettings={<AgentSettings />} />
+        </SettingsCard>
 
-        <LocalMaintenanceSettings />
+        <SettingsCard title="Library behavior">
+          <div className="settings-sections-grid">
+            <div className="settings-section settings-section-wide">
+              <div className="settings-axis-controls">
+                <div className="settings-row settings-axis-control">
+                  <span className="eyebrow settings-axis-title">Hide uncertain papers by default</span>
+                  <button
+                    type="button"
+                    className={"settings-switch" + (hideUncertainDefault ? " on" : "")}
+                    role="switch" aria-checked={!!hideUncertainDefault} aria-label="Hide uncertain axis papers by default"
+                    onClick={() => onHideUncertainDefault(!hideUncertainDefault)}
+                  ><span className="settings-knob" /></button>
+                  <span className="settings-sub">New axis cards start in the assigned/manual-only view (the 👁 toggle).</span>
+                </div>
+                <div className="settings-row settings-axis-control">
+                  <span className="eyebrow settings-axis-title">Default axis cutoff</span>
+                  <span className="settings-cutoff">
+                    <input type="range" min="0.2" max="0.6" step="0.01" value={axisCutoffDefault}
+                      onChange={e => onAxisCutoffDefault(Number(e.target.value))} aria-label="Default axis cutoff" />
+                    <span className="settings-cutoff-val">{Number(axisCutoffDefault).toFixed(2)}</span>
+                  </span>
+                  <span className="settings-sub">The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.</span>
+                </div>
+              </div>
+            </div>
+            <div className="settings-section"><AcquisitionSettings /></div>
+            <div className="settings-section"><LocalMaintenanceSettings /></div>
+            <div className="settings-section settings-section-wide"><PublishersSettings /></div>
+          </div>
+        </SettingsCard>
 
-        <p className="eyebrow">Axes</p>
-        <div className="settings-row">
-          <span className="settings-label">Hide uncertain papers by default
-            <span className="settings-sub">New axis cards start in the assigned/manual-only view (the 👁 toggle).</span>
-          </span>
-          <button
-            type="button"
-            className={"settings-switch" + (hideUncertainDefault ? " on" : "")}
-            role="switch" aria-checked={!!hideUncertainDefault} aria-label="Hide uncertain axis papers by default"
-            onClick={() => onHideUncertainDefault(!hideUncertainDefault)}
-          ><span className="settings-knob" /></button>
-        </div>
-        <div className="settings-row">
-          <span className="settings-label">Default axis cutoff
-            <span className="settings-sub">The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.</span>
-          </span>
-          <span className="settings-cutoff">
-            <input type="range" min="0.2" max="0.6" step="0.01" value={axisCutoffDefault}
-              onChange={e => onAxisCutoffDefault(Number(e.target.value))} aria-label="Default axis cutoff" />
-            <span className="settings-cutoff-val">{Number(axisCutoffDefault).toFixed(2)}</span>
-          </span>
-        </div>
+        <SettingsCard title="Integrations">
+          <div className="settings-sections-grid settings-sections-grid-3">
+            <div className="settings-section"><LibreOfficeSettings /></div>
+            <div className="settings-section"><WordSettings /></div>
+            <div className="settings-section"><RemoteAccessSettings /></div>
+          </div>
+        </SettingsCard>
 
-        <p className="eyebrow">Library</p>
-        <div className="settings-row">
-          <span className="settings-label">Auto-scan watched folders on launch
-            <span className="settings-sub">Re-scan the folders you've added (under + Add → Watched folders) each time the app starts, to pick up new PDFs.</span>
-          </span>
-          <button
-            type="button"
-            className={"settings-switch" + (autoScanWatched ? " on" : "")}
-            role="switch" aria-checked={!!autoScanWatched} aria-label="Auto-scan watched folders on launch"
-            onClick={() => onAutoScanWatched(!autoScanWatched)}
-          ><span className="settings-knob" /></button>
-        </div>
-
-        <MetadataSettings />
-
-        <AcquisitionSettings />
-
-        <PublishersSettings />
-
-        <LibreOfficeSettings />
-
-        <WordSettings />
-
-        <RemoteAccessSettings />
-
-        <AgentSettings />
-
-        <AccountSettings />
-
-        <SyncSettings />
-
-        <MyPubsSettings onRefreshed={onMyPubsRefreshed} />
-
-        <div className="axis-modal-note">More settings will live here — this is just the start.</div>
+      </div>
     </div>
   );
 }

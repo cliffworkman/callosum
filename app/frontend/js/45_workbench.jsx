@@ -1,7 +1,9 @@
-// The "Extract" center-tab — the meta-analysis extraction workspace (workbench SP2a-1, inc 253).
-// Assemble a dataset from your library: a project (template) -> rows (one effect, optionally linked to a paper) ->
-// provenance-anchored cells -> convert each row via the SP1 converter -> export a metafor/JASP-ready CSV + a
-// provenance audit. Extract/structure/convert/export only — it never pools/models (that's metafor/JASP/RevMan).
+// Work → "Meta-Analyze" (workbench SP2a-1, inc 253; relocated from its own "Extract" workspace in the Work/Extract
+// reorg). Assemble a dataset from your library: a project (template) -> rows (one effect, optionally linked to a
+// paper) -> provenance-anchored cells -> convert each row via the SP1 converter -> export a metafor/JASP-ready CSV +
+// a provenance audit. Extract/structure/convert/export only — it never pools/models (that's metafor/JASP/RevMan).
+// The single-study Effect-Size converter (08i_methods_effectsize.jsx) renders as a subsection at the end of this
+// pane's own JSX (both branches below) rather than as its own tab.
 const WB_DESIGNS = [
   { key: "two_group_continuous", label: "Two-group continuous (means + SDs → Hedges' g)" },
   { key: "binary_2x2", label: "Binary 2×2 (→ log OR / RR / risk difference)" },
@@ -197,7 +199,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   if (!project) {
     return (
       <div className="wb-pane">
-        <div className="wb-intro">Assemble a meta-analysis dataset from your library, anchor each value to its source, and convert + export it. It <b>extracts and converts one study at a time</b> — pooling, heterogeneity, and forest plots belong to your synthesis tool (metafor / JASP / RevMan).</div>
+        <div className="wb-intro">Assemble a meta-analysis dataset from your library, anchor each value to its source, and convert + export it. It <b>extracts and converts one study at a time</b>.</div>
         {err && <div className="axis-err">{err}</div>}
         <div className="wb-newproj">
           <input className="wb-in" placeholder="New project name…" value={newName}
@@ -217,6 +219,10 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
             </li>
           ))}
         </ul>
+        <div className="settings-subsection">
+          <p className="eyebrow">Effect-size calculator</p>
+          <EffectSizeSection />
+        </div>
       </div>
     );
   }
@@ -344,6 +350,10 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
             </div>
           </div>
         </div>}
+      <div className="settings-subsection">
+        <p className="eyebrow">Effect-size calculator</p>
+        <EffectSizeSection />
+      </div>
     </div>
   );
 }

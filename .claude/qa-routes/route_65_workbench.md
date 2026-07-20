@@ -1,12 +1,14 @@
 <!-- qa-coverage
-api: /workbench*
-fe: 45_workbench.jsx, 46_workbench_propose.jsx
+api: /workbench*, /methods/effect-size
+fe: 45_workbench.jsx, 46_workbench_propose.jsx, 08i_methods_effectsize.jsx
 -->
 
-# ROUTE 65 - Extraction workspace (meta-analysis workbench SP2a-1 + SP2b dataset loop + assisted-extraction funnel)
+# ROUTE 65 - Work -> Meta-Analyze (meta-analysis workbench SP2a-1 + SP2b dataset loop + assisted-extraction funnel)
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust the "Extract" workspace — assemble a project (template) -> rows (one effect each, optionally linked
+**Goal:** Exhaust **Work -> Meta-Analyze** (formerly its own "Extract" workspace, folded into Work in a later reorg,
+with the standalone "Effect-Size" tab folded further in as this pane's own subsection) — assemble a project
+(template) -> rows (one effect each, optionally linked
 to a paper) -> provenance-anchored cells -> **Convert all** the rows via the SP1 converter (the dataset loop) with an
 honest **"k of N converted"** readout -> export the accumulated dataset **stat-package-ready** (generic CSV, a
 **metafor** yi/vi table, a **RevMan** raw-data table) + a provenance audit. It **extracts / structures / converts /
@@ -93,15 +95,17 @@ in QA. Register listeners before navigation.
 
 ## Steps
 
-1. Open the **Extract** center-tab. Confirm the intro (converts one study; hands off to metafor/JASP/RevMan) + the
-   New-project form (name + a design picker) + any existing projects.
+1. Open **Work -> Meta-Analyze**. Confirm the intro ends cleanly after "...one study at a time." (no trailing
+   "pooling, heterogeneity..." clause) + the New-project form (name + a design picker) + any existing projects.
+   Scroll down and confirm an **Effect-size calculator** subsection renders below (the former standalone
+   "Effect-Size" tab) — present on the picker view too, not just inside an open project.
 2. Create a project (name + **two-group continuous**) -> the project view: the header (editable name, protocol note),
    the template columns (N/Mean/SD ×2), the empty grid, **+ Add row / + Add paper**, and the export row
    (**Convert all** + a "k of N converted" readout once rows exist; **Export: CSV / metafor / RevMan / provenance**).
 3. **+ Add paper** -> search the library -> pick a paper -> a row appears linked to it (its title opens the PDF).
 4. **Select-in-PDF capture (SP2a-2).** On one cell, click the **📎 anchor** -> the hub popover offers **◎ Select the
    value in the PDF** + manual page/quote. Click **Select** -> the paper opens with an amber "select the value…"
-   banner. Select a reported number in the page -> the app returns to **Extract** and the cell is filled with the
+   banner. Select a reported number in the page -> the app returns to **Work -> Meta-Analyze** and the cell is filled with the
    **verbatim selected text** (confirm it's editable — overwrite it, it takes) and the 📎 turns solid. Re-open the
    hub -> **Open at anchor →** -> the PDF opens and draws an **exact highlight rectangle** on that passage. Cancel the
    banner mid-capture -> nothing is written, the arm clears.
@@ -132,6 +136,12 @@ in QA. Register listeners before navigation.
    provenance export), **edit** one's number then accept (-> stored anchor drops to region, no exact box), **reject**
    one (-> gone, nothing written). Then **turn AI off** and confirm **Draft from PDF** is disabled with an honest
    tooltip and a forced propose returns 403 with **0 genai-host requests**.
+13. **Effect-size calculator subsection.** Scroll to it (present in both the project picker and inside an open
+   project). Pick a family (e.g. **SMD -> Hedges' g**, method **group means + SDs**), fill the fields, **Convert**
+   -> a result renders (metric = value, variance/SE, 95% CI, the derivation path, any caveats) + a **copy value +
+   variance** action + a credit block. Confirm its own intro states it converts **one study** and **never pools or
+   models** — same posture as the rest of this pane, and it shares no state with the Workbench grid above it
+   (switching projects above doesn't reset or affect it).
 
 ## Pass criteria
 

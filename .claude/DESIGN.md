@@ -81,6 +81,23 @@ The dark palette values live in `styles.css` `:root[data-theme="dark"]` (warm-da
 - **Panel/card:** `--panel` bg, `1px var(--line)` border, `var(--radius)`. Inset/sidebar surfaces use
   `--panel-2`. Modals: `--panel`, `1px var(--line-2)`, radius 12px, shadow `0 14px 48px rgba(0,0,0,.32)`,
   over a `rgba(20,16,12,.42)` overlay.
+- **Settings groups (`.settings-card`):** the canonical panel/card recipe above, arranged as one full-width
+  stack. Related subsections share an unframed two- or three-column `.settings-sections-grid` inside the card
+  (never cards inside cards) and collapse to one column on mobile. The provider roster is the inset-card exception:
+  four always-open built-ins in an equal-size 2×2 desktop grid; custom providers continue in two-column,
+  natural-height rows below; mobile uses one column with natural heights. Peer AI permission controls use one
+  unframed three-column `.settings-ai-controls` row and stack on mobile; each description spans through its toggle
+  column. The two Axes defaults likewise share a full-width two-column row, with each feature name using the standard
+  eyebrow treatment and each description below its heading/control row. Library access and Local maintenance form
+  the next row; Discover: Journals spans both columns
+  and divides its two preferences between them. Watched-folder launch/focus scanning is standard behavior, not a
+  user-facing preference. Repeated identity values such as published-name variants reuse
+  the established removable `.tag-chip` recipe. Credit-the-lineage actions, including the OpenURL source in Library
+  access, use `MethodCreditButton` so DOI presence, import progress, completion state, and read-only behavior agree.
+  Metadata access belongs in the account column below identity/publication metadata, not in Library behavior.
+  Provider copy spans the card content width and names the endpoint for built-in and custom providers; the active
+  provider's model and connection-test controls share a row. Integration columns put their primary full-width action
+  immediately below the eyebrow, followed by explanatory copy with inline secondary download links.
 - **Focus ring (inputs):** `outline: 2px solid var(--accent-soft); border-color: var(--accent);` — applied
   consistently on `.axis-input`, `.searchbar input`, `.synth-input`. **This is the canonical focus state.**
 
@@ -298,6 +315,9 @@ Ranked; "legit" = a context difference worth keeping.
    real visual difference (fused pill vs. standalone pill). **Proposal (opportunistic):** if a third fused-control
    chip ever appears, extract a shared `.chip`/`.chip.on` base and let `.term-chip` + `.credit-role-label` add only
    their corner/border deltas. Not worth a refactor for two sites.
+9. **Settings group cards — RESOLVED (2026-07-20).** The settings redesign needed a named grouping wrapper, but
+   not a new surface language: `.settings-card` uses the canonical panel/card tokens exactly, while its subsection
+   grids remain unframed. The pattern and its responsive/provider-grid rules are documented in §2 above.
 
 ---
 

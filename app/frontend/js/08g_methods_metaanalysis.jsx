@@ -244,13 +244,10 @@ function MetaSection({ ctx }) {
   );
 }
 
-// inc 280 (stage 2): METHODS → the Extract workspace as "Meta-Analysis". The {methodsOpen: active ? "meta" : null}
-// adapter makes MetaSection's existing `ctx.methodsOpen === "meta"` active-check resolve to WorkspacePane's `active`
-// 2nd render arg — so MetaSection is unchanged. Reads ctx.selectedPaper + ctx.onOpenPaper (both in workspaceCtx).
-registerWorkspaceTab(
-  { id: "extract" },
-  {
-    id: "meta", label: "Meta-Analysis", order: 30, hideInReadOnly: true,
-    render: (ctx, active) => <MetaSection ctx={{ ...ctx, methodsOpen: active ? "meta" : null }} />,
-  },
-);
+// Was Extract → "Meta-Analysis" (inc 280 stage 2) until the Work/Extract reorg folded Extract into Work; now lives
+// in the METHODS accordion alongside its 5 siblings (statcheck/grim/bayes/lmm/transparency), between the LMM
+// auditor (order 33) and transparency (order 36) — order 35 per route_62_methods_metaanalysis.md.
+registerPaneSection({
+  id: "meta", label: "Meta-analysis reporting", paneId: "methods", order: 35, hideInReadOnly: true,
+  render: (ctx) => <MetaSection ctx={ctx} />,
+});

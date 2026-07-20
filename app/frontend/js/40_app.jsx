@@ -7,12 +7,11 @@ function App() {
   const [settingsNonce, setSettingsNonce] = useState(0);  // inc 280: bumped on LEAVING the Settings workspace → panes re-read egress state (inc 148)
   const [authLocked, setAuthLocked] = useState(false);  // inc 254: a 401 (Remote access on, no valid token) → AccessLockOverlay
 
-  // theme + axis/scan prefs + side-panel layout + accordion-open + Reading mode (all in 04_layout.jsx).
+  // theme + axis prefs + side-panel layout + accordion-open + Reading mode (all in 04_layout.jsx).
   const {
     theme, setTheme,
     hideUncertainDefault, setHideUncertainDefault,
     axisCutoffDefault, setAxisCutoffDefault,
-    autoScanWatched, setAutoScanWatched,
     leftW, setLeftW, rightW, setRightW, leftOpen, setLeftOpen, rightOpen, setRightOpen,
     theoryOpen, setTheoryOpen, methodsOpen, setMethodsOpen,
     readingMode, toggleReading,
@@ -29,7 +28,6 @@ function App() {
   // library-list navigation (filter/focus, via gotoLibrary) also switches to the Library workspace.
   const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
   const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
-  const [citeTabRequest, setCiteTabRequest] = useState(null);
   const selectWorkspace = useCallback((id) => {
     // leaving Settings re-reads egress state in the panes (inc 148), the old modal-close behavior.
     setActiveWorkspace(prev => { if (prev === "settings" && id !== "settings") setSettingsNonce(n => n + 1); return id; });
@@ -43,9 +41,6 @@ function App() {
   }, [mobile, selectWorkspace, setMobilePane]);
   const requestWorkspaceTab = useCallback((wsId, tabId) => {
     setWorkspaceTabRequest(prev => ({ wsId, tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
-  }, []);
-  const requestCiteTab = useCallback((tabId) => {
-    setCiteTabRequest(prev => ({ tabId, nonce: (prev ? prev.nonce : 0) + 1 }));
   }, []);
   // Bumped after a synthesis highlight is saved, so an already-open PdfViewer refetches its annotations (PdfViewer).
   const [annoRefresh, setAnnoRefresh] = useState(0);
@@ -83,7 +78,7 @@ function App() {
     selected, setSelected, setActiveTab: gotoLibrary,
     cancelFocus: () => cancelFocusRef.current(),
     setLeftOpen, setTheoryOpen, setMethodsOpen, setSettingsOpen: () => {}, onOpenSynthesis: openSynthesisWorkspace,
-    setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), autoScanWatched, readOnly, healthLoaded,
+    setTagRefresh, setAxisRefresh: (fn) => setAxisRefreshRef.current(fn), readOnly, healthLoaded,
   });
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
@@ -123,15 +118,17 @@ function App() {
     if (mobile) { setMobilePane("library"); setCitationReturn(false); }  // pull the reader region into view
   }, [mobile, setMobilePane, selectWorkspace]);
 
-  // inc 280: the Extract "select-in-PDF" capture (formerly in LibraryFrame) lives here now that Extract + the Library
-  // PDF tabs are different workspaces. Arming opens the paper UNDER Library (openPdf → selectWorkspace("library"));
-  // applying the anchor switches back to Extract so the grid can consume the result.
+  // inc 280: the Workbench "select-in-PDF" capture (formerly in LibraryFrame) lives here now that Work + the
+  // Library PDF tabs are different workspaces. Arming opens the paper UNDER Library (openPdf →
+  // selectWorkspace("library")); applying the anchor switches back to Work (Meta-Analyze) so the grid can
+  // consume the result. (Workbench itself lived under its own "extract" workspace until that was folded into
+  // "work".)
   const [capture, setCapture] = useState(null);
   const armCapture = useCallback((t) => {
     setCapture({ paperId: t.paperId, projectId: t.projectId, rowId: t.rowId, fieldKey: t.fieldKey, fieldLabel: t.fieldLabel });
     openPdf(t.paper, t.page ? { id: `wbcap:${t.rowId}:${t.fieldKey}`, paperId: t.paperId, page: t.page, precision: null } : undefined);
   }, [openPdf]);
-  const captureAnchor = useCallback((result) => { setCapture(c => (c ? { ...c, result } : c)); selectWorkspace("extract"); }, [selectWorkspace]);
+  const captureAnchor = useCallback((result) => { setCapture(c => (c ? { ...c, result } : c)); selectWorkspace("work"); }, [selectWorkspace]);
   const clearCapture = useCallback(() => setCapture(null), []);
 
   const openCitation = useCallback((citation) => {
@@ -151,11 +148,10 @@ function App() {
   const openReferenceWarnings = useCallback((paper) => {
     if (!paper || paper.id == null) return;
     setSelected(paper.id);
-    requestWorkspaceTab("work", "cite");
-    requestCiteTab("meta-references");
+    requestWorkspaceTab("work", "meta-reference");
     selectWorkspace("work");
     if (mobile) setMobilePane("library");
-  }, [mobile, requestWorkspaceTab, requestCiteTab, selectWorkspace, setMobilePane]);
+  }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
   const openTextHealth = useCallback((context = null) => {
     setTextHealthContext(context || null);
     setTextHealthOpen(true);
@@ -268,7 +264,7 @@ function App() {
   };
 
   // inc 280: props the menu-bar workspace sub-tabs' render(ctx, active) closures need (Discover: Search/Feed via
-  // onDiscoverSaved; Extract: Workbench via the capture trio + onOpenPdf).
+  // onDiscoverSaved; Work → Meta-Analyze: Workbench via the capture trio + onOpenPdf).
   const workspaceCtx = {
     ...paneCtx,
     onDiscoverSaved: () => setLibRefresh(n => n + 1),
@@ -276,9 +272,9 @@ function App() {
     onOpenGaps: () => setGapsOpen(true),
     onOpenOverlooked: () => setOverlookedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
-    selectedPaper: selected,  // Work/Discover/Extract tabs read the app-level selection
+    selectedPaper: selected,  // Work/Discover tabs read the app-level selection
     selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab,
-    workspaceTabRequest, citeTabRequest,
+    workspaceTabRequest,
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };
 
@@ -288,8 +284,8 @@ function App() {
     <Sidebar conn={conn} ctx={paneCtx} theoryOpen={theoryOpen} onTheoryOpen={setTheoryOpen} />
   );
   // inc 280: the center pane = the active menu-bar workspace. All workspaces stay mounted (hidden) so in-progress
-  // state (a running search, the Extract grid) survives switching. Library + My Publications are shell-rendered here (their
-  // bodies are bespoke); Discover + Extract render their registered sub-tabs via WorkspacePane.
+  // state (a running search, the Workbench grid) survives switching. Library + My Publications are shell-rendered
+  // here (their bodies are bespoke); Discover + Work render their registered sub-tabs via WorkspacePane.
   const centerEl = (
     <div className="workspace-frame">
       {/* inc 301: hide the menu bar in read mode (the focused reader); the reader's own Reading toggle exits it. */}
@@ -332,17 +328,13 @@ function App() {
       <div className="workspace-slot" style={{ display: activeWorkspace === "work" ? "flex" : "none" }}>
         <WorkspacePane ws={getWorkspace("work")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "work"} />
       </div>
-      <div className="workspace-slot" style={{ display: activeWorkspace === "extract" ? "flex" : "none" }}>
-        <WorkspacePane ws={getWorkspace("extract")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "extract"} />
-      </div>
       {/* Help + Settings (utility workspaces) lazy-mount — heavier + rarely open, and settings should re-read fresh. */}
       {activeWorkspace === "help" &&
         <div className="workspace-slot" style={{ display: "flex" }}><HelpView /></div>}
       {activeWorkspace === "settings" &&
         <div className="workspace-slot" style={{ display: "flex" }}>
           <SettingsView theme={theme} onTheme={setTheme} hideUncertainDefault={hideUncertainDefault} onHideUncertainDefault={setHideUncertainDefault}
-            axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)}
-            autoScanWatched={autoScanWatched} onAutoScanWatched={setAutoScanWatched} />
+            axisCutoffDefault={axisCutoffDefault} onAxisCutoffDefault={setAxisCutoffDefault} onMyPubsRefreshed={() => setAxisRefresh(n => n + 1)} />
         </div>}
     </div>
   );

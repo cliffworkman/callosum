@@ -113,7 +113,7 @@ function ProviderModelPicker({ p, activeModel, busy, onActivate }) {
   if (models.length > 0) {
     const value = models.includes(activeModel) ? activeModel : models[0];
     return (
-      <div className="settings-field">
+      <div className="settings-field provider-model-field">
         <label className="settings-field-label">Model</label>
         <select className="settings-input" value={value} disabled={busy} onChange={e => onActivate(p.id, e.target.value)}>
           {models.map(m => <option key={m} value={m}>{m}</option>)}
@@ -122,7 +122,7 @@ function ProviderModelPicker({ p, activeModel, busy, onActivate }) {
     );
   }
   return (
-    <div className="settings-field">
+    <div className="settings-field provider-model-field">
       <label className="settings-field-label">Model
         <span className="settings-sub">The model name your endpoint serves (e.g. <code>llama3.1</code>).</span>
       </label>
@@ -134,11 +134,10 @@ function ProviderModelPicker({ p, activeModel, busy, onActivate }) {
   );
 }
 
-// One provider in the roster — a collapsible card (open by default when active). Builtins expose only their key
-// (+ Local its loopback endpoint); custom providers add an "Edit" mode over {name, base_url, wire_format, models}.
+// One provider in the roster. Builtins expose only their key (+ Local its loopback endpoint); custom providers add
+// an "Edit" mode over {name, base_url, wire_format, models}.
 function ProviderRow({ p, active, activeModel, status, busy, testing, test, wireFormats, egressOn,
   onActivate, onSaveKey, onSaveUrl, onTest, onUpdate, onDelete }) {
-  const [open, setOpen] = useState(active);
   const [keyInput, setKeyInput] = useState("");
   const [urlInput, setUrlInput] = useState(p.base_url || "");
   const [editing, setEditing] = useState(false);
@@ -147,6 +146,7 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
   const isLocal = p.id === "local";
   const isLoopback = !isLocal && isLoopbackUrl(p.base_url);  // a custom provider pointed at a loopback address
   const isCloud = !isLocal && !isLoopback;  // sends library text off-machine on generate (gemini's base is the SDK)
+  const endpointUrl = p.id === "gemini" ? "https://generativelanguage.googleapis.com" : p.base_url;
   const needsConsent = active && isCloud && !egressOn;  // fully configured but blocked by the egress toggle
   const keyUrl = AI_KEY_URLS[p.id];
   const keySet = p.key_set;
@@ -168,11 +168,10 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
   return (
     <div className={"provider-card" + (active ? " is-active" : "")}>
       <div className="provider-card-head">
-        <button className="provider-toggle" onClick={() => setOpen(!open)} aria-expanded={open}>
-          <span className="provider-caret">{open ? "▾" : "▸"}</span>
+        <div className="provider-identity">
           <span className="provider-name">{p.name}</span>
           <span className="provider-badge">{WIRE_LABELS[p.wire_format] || p.wire_format}</span>
-        </button>
+        </div>
         <span className="provider-actions">
           {active
             ? <span className="provider-active">Active</span>
@@ -181,15 +180,17 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
         </span>
       </div>
 
-      {open &&
-        <div className="provider-body">
+      <div className="provider-body">
           {needsConsent && !editing &&
             <div className="provider-egress-warn">⚠ AI features are off — Callosum won't contact <b>{p.name}</b> until you turn on <b>Allow AI features</b> below.</div>}
+          {!editing && endpointUrl &&
+            <div className="settings-sub provider-endpoint">
+              Sends to <code>{endpointUrl}</code> — your library text goes there when you generate a summary.
+              {isLoopbackUrl(endpointUrl) ? <> This is a loopback address — <b>nothing leaves your machine</b>.</> : null}
+            </div>}
           {isLocal ? (
             <div className="settings-field">
-              <label className="settings-field-label">Local endpoint (OpenAI-compatible)
-                <span className="settings-sub">e.g. Ollama / LM Studio at <code>http://127.0.0.1:11434</code>. Must be a loopback address — <b>nothing leaves your machine</b>, so no data-egress consent is needed.</span>
-              </label>
+              <label className="settings-field-label">Local endpoint (OpenAI-compatible)</label>
               <div className="settings-keyrow">
                 <input className="settings-input" placeholder="http://127.0.0.1:11434" value={urlInput} onChange={e => setUrlInput(e.target.value)} />
                 <button className="btn btn-ghost" disabled={busy || !urlInput.trim()} onClick={() => onSaveUrl(urlInput)}>{busy ? "Saving…" : "Save"}</button>
@@ -205,8 +206,6 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
             </>
           ) : (
             <>
-              {isCloud && p.base_url && <div className="settings-sub provider-endpoint">Sends to <code>{p.base_url}</code> — your library text goes there when you generate a summary.</div>}
-              {!p.builtin && isLoopback && <div className="settings-sub provider-endpoint">Loopback address — <b>nothing leaves your machine</b>, so no data-egress consent is needed.</div>}
               <div className="settings-field">
                 <label className="settings-field-label">API key
                   <span className="settings-sub">
@@ -229,19 +228,20 @@ function ProviderRow({ p, active, activeModel, status, busy, testing, test, wire
             </>
           )}
 
-          {active && !editing && <ProviderModelPicker p={p} activeModel={activeModel} busy={busy} onActivate={onActivate} />}
-
-          {active && !editing && (isLocal ? !!(status && status.local_base_url) : keySet) &&
-            <div className="settings-keytest">
-              <button className="btn btn-ghost" disabled={testing} onClick={onTest}>{testing ? "Testing…" : (isLocal ? "Test connection" : "Test key")}</button>
-              {test && <span className={"settings-keytest-result " + (test.ok ? "ok" : "err")}>{test.detail}</span>}
+          {active && !editing &&
+            <div className="provider-model-test-row">
+              <ProviderModelPicker p={p} activeModel={activeModel} busy={busy} onActivate={onActivate} />
+              {(isLocal ? !!(status && status.local_base_url) : keySet) &&
+                <button className="btn btn-ghost" disabled={testing} onClick={onTest}>{testing ? "Testing…" : (isLocal ? "Test connection" : "Test key")}</button>}
             </div>}
-        </div>}
+          {active && !editing && test &&
+            <div className={"settings-keytest-result " + (test.ok ? "ok" : "err")}>{test.detail}</div>}
+      </div>
     </div>
   );
 }
 
-function AiSettings() {
+function AiSettings({ agentSettings }) {
   const [roster, setRoster] = useState(null);  // GET /settings/providers
   const [status, setStatus] = useState(null);  // GET /settings (egress/help/key_storage/sources)
   const [busy, setBusy] = useState(false);
@@ -320,7 +320,6 @@ function AiSettings() {
 
   return (
     <>
-      <p className="eyebrow">AI features</p>
       <div className="provider-list">
         {providers.map(p => (
           <ProviderRow key={p.id} p={p} active={p.id === activeId} activeModel={activeModel} status={status}
@@ -331,31 +330,34 @@ function AiSettings() {
       </div>
       {adding
         ? <AddProviderForm busy={busy} wireFormats={wireFormats} onCancel={() => setAdding(false)} onCreate={createProvider} />
-        : <button className="btn provider-add-btn" disabled={busy} onClick={() => setAdding(true)}>+ Add provider</button>}
+        : <div className="provider-list-footer">
+            <div className="settings-ai-note">Whichever provider you choose, every summary sentence is still <b>verified locally</b> against your PDFs — your model choice affects draft quality + coverage, never which citations are accepted.</div>
+            <button className="btn provider-add-btn" disabled={busy} onClick={() => setAdding(true)}>+ Add provider</button>
+          </div>}
 
-      <div className="settings-row">
-        <span className="settings-label">Allow AI features (sends text to the active provider)
+      <div className="settings-ai-controls">
+        <div className="settings-row settings-ai-control">
+          <span className="eyebrow settings-ai-control-title">Allow AI features (sends text to the active provider)</span>
+          <button type="button" className={"settings-switch" + (egressOn ? " on" : "")}
+            role="switch" aria-checked={egressOn} aria-label="Allow AI features"
+            onClick={toggleEgress}><span className="settings-knob" /></button>
           <span className="settings-sub">
             Off by default. When on, generating a summary sends the relevant library text to your active cloud provider; every sentence is still verified locally against your PDFs. A loopback local provider needs no consent — nothing leaves your machine.
             {status && status.egress_source === "env" ? " Currently set by the CALLOSUM_ALLOW_DATA_EGRESS environment variable." : ""}
           </span>
-        </span>
-        <button type="button" className={"settings-switch" + (egressOn ? " on" : "")}
-          role="switch" aria-checked={egressOn} aria-label="Allow AI features"
-          onClick={toggleEgress}><span className="settings-knob" /></button>
-      </div>
-      <div className="settings-row">
-        <span className="settings-label">AI help assistant
+        </div>
+        <div className="settings-row settings-ai-control">
+          <span className="eyebrow settings-ai-control-title">AI help assistant</span>
+          <button type="button" className={"settings-switch" + (helpOn ? " on" : "")}
+            role="switch" aria-checked={helpOn} aria-label="AI help assistant"
+            onClick={toggleHelp}><span className="settings-knob" /></button>
           <span className="settings-sub">
             Answers questions about using Callosum (the “Ask…” box in Help). Its <b>own</b> switch — it sends only your question + the public help docs, never your library, so it works with any provider and is independent of the egress toggle above.
             {status && status.help_source === "env" ? " Currently set by the CALLOSUM_HELP_ASSISTANT_ENABLED environment variable." : ""}
           </span>
-        </span>
-        <button type="button" className={"settings-switch" + (helpOn ? " on" : "")}
-          role="switch" aria-checked={helpOn} aria-label="AI help assistant"
-          onClick={toggleHelp}><span className="settings-knob" /></button>
+        </div>
+        {agentSettings}
       </div>
-      <div className="settings-ai-note">Whichever provider you choose, every summary sentence is still <b>verified locally</b> against your PDFs — your model choice affects draft quality + coverage, never which citations are accepted.</div>
       {msg && <div className="settings-note">{msg}</div>}
     </>
   );

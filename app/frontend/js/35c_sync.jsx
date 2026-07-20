@@ -162,12 +162,6 @@ function SyncSettings() {
   return (
     <>
       <p className="eyebrow">Cross-device sync</p>
-      <div className="settings-sub">
-        Optional, end-to-end encrypted sync of your papers, tags, axes, notes, and highlights across devices, via a
-        sync server. <b>PDFs stay local</b> (never synced); embeddings and other derived data are rebuilt on each
-        device, not transmitted. Off by default.
-      </div>
-
       {conflictCount > 0 &&
         <div className="settings-note">
           <button className="btn-link" onClick={() => setReviewing(true)}>
@@ -214,11 +208,26 @@ function SyncSettings() {
         <div className="settings-sub">2. <b>Sign in</b> (see Account, below) to continue setting up sync.</div>}
 
       {step3 &&
+        <div className="settings-field settings-sync-enable">
+          <div className="settings-row">
+            <label className="settings-field-label">Enable sync
+              <span className="settings-sub">
+                Off by default. When on, your papers/tags/axes/notes/highlights sync as opaque, end-to-end-encrypted
+                data to the server below.
+              </span>
+            </label>
+            <button type="button" className={"settings-switch" + (status.enabled ? " on" : "")} role="switch"
+              aria-checked={status.enabled} aria-label="Enable sync" disabled={busy || !serverUrl.trim()}
+              onClick={toggleEnabled}><span className="settings-knob" /></button>
+          </div>
+        </div>}
+
+      {step3 &&
         <div className="settings-field">
-          <label className="settings-field-label">2. Sync server URL
+          <label className="settings-field-label">Sync server URL
             <span className="settings-sub">
-              Where your encrypted data is stored — only opaque ciphertext ever reaches it; it never sees your
-              passphrase, key, or plaintext.
+              Where your encrypted data is stored — only opaque ciphertext ever reaches it. <b>PDFs stay local</b>{" "}
+              (never synced); the server never sees your passphrase, key, or plaintext.
             </span>
           </label>
           <div className="settings-keyrow">
@@ -228,24 +237,9 @@ function SyncSettings() {
           </div>
         </div>}
 
-      {step3 &&
-        <div className="settings-row">
-          <span className="settings-label">3. Enable sync
-            <span className="settings-sub">
-              Off by default. When on, your papers/tags/axes/notes/highlights sync as opaque, end-to-end-encrypted
-              data to the server above.
-            </span>
-          </span>
-          <button type="button" className={"settings-switch" + (status.enabled ? " on" : "")} role="switch"
-            aria-checked={status.enabled} aria-label="Enable sync" disabled={busy || !serverUrl.trim()}
-            onClick={toggleEnabled}><span className="settings-knob" /></button>
-        </div>}
-
       {status.enabled &&
         <div className="settings-field">
-          <label className="settings-field-label">Run sync now
-            <span className="settings-sub">Re-enter your passphrase each time — it's never remembered between runs.</span>
-          </label>
+          <label className="settings-field-label">Run sync now (Re-enter your passphrase each time — it's never remembered between runs.)</label>
           <div className="settings-keyrow">
             <input className="settings-input" type="password" autoComplete="off" placeholder="Passphrase"
               value={runPassphrase} onChange={e => setRunPassphrase(e.target.value)} />

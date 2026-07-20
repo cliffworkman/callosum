@@ -64,31 +64,52 @@ def test_workspace_menubar_structure_present():
     # The registry + menu bar + workspace pane are wired (inc 280).
     assert "function registerWorkspace(" in raw and "function registerWorkspaceTab(" in raw
     assert "function MenuBar(" in raw and "function WorkspacePane(" in raw
-    # The core workspaces are registered in menu order, with Library default.
+    # The core workspaces are registered in menu order, with Library default. Extract no longer exists (folded
+    # into Work in the Work/Extract reorg).
     for wid in (
         'id: "profile"',
         'id: "library"',
         'id: "synthesis"',
         'id: "discover"',
         'id: "work"',
-        'id: "extract"',
     ):
         assert wid in raw, wid
+    assert 'id: "extract"' not in raw
     assert 'id: "profile", label: "My Publications", order: 10' in raw
     # Discover holds Feed+Search+Journals+Funding.
-    # Work holds Cite+CRediT; Extract holds Workbench+Effect-Size+Meta-Analysis.
+    # Work holds Cite+Meta-Reference+CRediT+Meta-Analyze (Meta-Analyze = the relocated Workbench, with Effect-Size
+    # folded in as its own subsection rather than a separate tab).
     assert 'id: "feed", label: "Feed", order: 10' in raw
-    assert 'id: "search", label: "Search", order: 20' in raw and 'id: "workbench"' in raw
-    assert 'id: "journals"' in raw and 'id: "funding"' in raw and 'id: "effectsize"' in raw
-    assert 'label: "Effect-Size"' in raw and 'label: "Meta-Analysis"' in raw and 'label: "CRediT statement"' in raw
-    assert "function CiteWorkspacePane(" in raw and "function registerCiteTab(" in raw
-    assert 'id: "suggest", label: "Suggest", order: 10' in raw
-    assert 'id: "meta-references", label: "Meta Reference List", order: 15' in raw
-    assert 'id: "citation-equity", label: "Citation concentration", order: 20' in raw
-    assert 'id: "citation-context", label: "How it\'s cited", order: 30' in raw
+    assert 'id: "search", label: "Search", order: 20' in raw and 'id: "meta-analyze"' in raw
+    assert 'id: "journals"' in raw and 'id: "funding"' in raw
+    assert 'id: "cite", label: "Cite", order: 10' in raw
+    assert 'id: "meta-reference", label: "Meta-Reference", order: 20' in raw
+    assert 'id: "credit", label: "CRediT", order: 30' in raw
+    assert 'id: "meta-analyze", label: "Meta-Analyze", order: 40' in raw
+    # The old nested Cite tab-strip (CITE_TABS/registerCiteTab/CiteWorkspacePane) is gone; Suggest, Meta Reference
+    # List, Citation concentration, and How it's cited are no longer independently tab-registered.
+    assert "function CiteWorkspacePane(" not in raw and "function registerCiteTab(" not in raw
+    assert "const CITE_TABS" not in raw and "function citeTabs(" not in raw
+    assert 'id: "suggest", label: "Suggest", order: 10' not in raw
+    assert 'id: "meta-references", label: "Meta Reference List", order: 15' not in raw
+    assert 'id: "citation-equity", label: "Citation concentration", order: 20' not in raw
+    assert 'id: "citation-context", label: "How it\'s cited", order: 30' not in raw
+    # Effect-Size no longer self-registers as an "extract" tab; it's called directly from WorkbenchPane.
+    assert 'id: "effectsize", label: "Effect-Size"' not in raw
+    assert "function EffectSizeSection()" in raw and "<EffectSizeSection />" in raw
+    # Meta-Analysis no longer lives under Work/Extract; it moved into the METHODS accordion as a pane section.
+    assert "function MetaSection(" in raw
+    assert 'id: "meta", label: "Meta-Analysis", order: 30' not in raw
+    # The new Meta-Reference wrapper stacks its 3 tools as subsections, not tabs.
+    assert "function MetaReferencePane(" in raw
+    assert "<MetaReferenceList ctx={ctx} />" in raw and "<CitationEquitySection ctx={ctx} />" in raw
+    assert "<CitationContextSection ctx={ctx} />" in raw
+    assert 'label: "CRediT statement"' not in raw
     # The relocated sections no longer register as THEORY/METHODS pane sections.
     assert 'id: "publishers"' not in raw and 'id: "funding-discovery"' not in raw
-    assert 'label: "Effect-size converter"' not in raw and 'label: "Meta-analysis reporting"' not in raw
+    assert 'label: "Effect-size converter"' not in raw
+    # Meta-Analysis IS a METHODS pane section now (registerPaneSection, not a Work/Extract tab).
+    assert 'id: "meta", label: "Meta-analysis reporting", paneId: "methods", order: 35' in raw
     assert 'id: "synthesis", label: "Synthesis", paneId: "theory"' not in raw
     assert 'id: "cite", label: "Cite", tabLabel: "Suggest", paneId: "theory"' not in raw
     assert 'id: "meta-references", label: "Meta Reference List", paneId: "theory"' not in raw
@@ -97,6 +118,7 @@ def test_workspace_menubar_structure_present():
     assert "menubar-nav" in raw and '"callosum.workspace"' in raw
     assert 'activeWorkspace === "library"' in raw and 'activeWorkspace === "profile"' in raw
     assert 'activeWorkspace === "synthesis"' in raw and 'activeWorkspace === "work"' in raw
+    assert 'activeWorkspace === "extract"' not in raw and 'selectWorkspace("extract")' not in raw
     assert "function MenuBar({ active, onActivate, readOnly, mobile })" in raw
     assert 'className="menubar menubar-mobile"' in raw
     assert 'id="mobile-workspace-select"' in raw
@@ -126,7 +148,7 @@ def test_workspace_menubar_structure_present():
     assert "function WorkspacesWhatsNewHint(" in raw
     assert "New layout:" in raw and "Synthesize" in raw and "Meta Reference List" in raw and "CRediT" in raw
     assert "Discover → Search" in raw and "Wanted" in raw and "Gaps" in raw and "Overlooked" in raw
-    assert "Effect-Size" in raw and "Meta-Analysis" in raw and "Work" in raw
+    assert "Meta-Analyze" in raw and "Work" in raw
     assert '_saveLayout(WORKSPACES_WHATSNEW_KEY, "1")' in raw
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
     assert (
@@ -235,10 +257,20 @@ def test_method_credit_button_checks_and_imports_only_missing_sources():
     assert "state.importedAll ? [] : missingCreditItems(allItems, state.present)" in raw
     assert 'apiPost("/library/import", { content: JSON.stringify(missing), format: "csl-json" })' in raw
     assert raw.count("<MethodCreditButton items=") >= 12
+    assert "<MethodCreditButton items={[OPENURL_CSL]} />" in raw
     assert "<MethodCreditButton items={CITATION_EQUITY_CSL} />" in raw
     assert "<MethodCreditButton items={LMM_CSL} />" in raw
     assert "<MethodCreditButton items={META_CSL} />" in raw
     assert "<MethodCreditButton items={[CREDIT_TENZING_CSL, CREDIT_TAXONOMY_CSL]} />" in raw
+
+
+def test_watched_folder_rescan_is_standard_behavior_not_a_setting():
+    raw = assemble_jsx()
+    assert "autoScanWatched" not in raw
+    assert "callosum.autoScanWatched" not in raw
+    assert "Auto-scan watched folders on launch" not in raw
+    assert 'apiPost("/library/watched/rescan", {})' in raw
+    assert 'window.addEventListener("focus", onFocus)' in raw
 
 
 def test_stale_discover_placeholder_is_removed_from_theory_accordion():
@@ -252,8 +284,12 @@ def test_stale_discover_placeholder_is_removed_from_theory_accordion():
 
 def test_meta_reference_list_sits_before_journal_search_with_accessible_review_controls():
     raw = assemble_jsx()
-    assert 'id: "meta-references", label: "Meta Reference List", order: 15' in raw
-    assert 'aria-label="Cite tools"' in raw and "callosum.citetab" in raw
+    # Meta Reference List is now a MetaReferencePane subsection (Work -> Meta-Reference), not its own registered
+    # cite-tab — the old nested Cite tab-strip (aria-label="Cite tools", the "callosum.citetab" persistence key)
+    # is gone entirely along with CiteWorkspacePane.
+    assert 'id: "meta-reference", label: "Meta-Reference", order: 20' in raw
+    assert "function MetaReferenceList(" in raw and "<MetaReferenceList ctx={ctx} />" in raw
+    assert 'aria-label="Cite tools"' not in raw and "callosum.citetab" not in raw
     # inc 280: "Where to submit" relocated out of THEORY to the Discover workspace as the Journals tab.
     assert 'id: "publishers", label: "Where to submit", paneId: "theory"' not in raw
     assert 'id: "journals", label: "Journals"' in raw
@@ -272,8 +308,10 @@ def test_meta_reference_list_sits_before_journal_search_with_accessible_review_c
     assert "Reference checks: <b>{libraryReferenceFilter.label}</b>" in raw
     assert 'aria-label="Open Meta Reference List for this paper"' in raw
     assert "onOpenReferenceWarnings && onOpenReferenceWarnings(p)" in raw
-    assert 'requestWorkspaceTab("work", "cite")' in raw
-    assert 'requestCiteTab("meta-references")' in raw
+    # The ref-signal badge's click-through targets the real "meta-reference" workspace tab now (not the deleted
+    # CiteWorkspacePane's citeTabRequest/"meta-references" cite-tab system).
+    assert 'requestWorkspaceTab("work", "meta-reference")' in raw
+    assert "requestCiteTab" not in raw and "citeTabRequest" not in raw
     assert "onOpenReferenceWarnings: openReferenceWarnings" in raw
 
 
@@ -584,7 +622,8 @@ def test_qa_20260719_mobile_batch_and_pdf_404_fix():
     assert ".app.mobile .cite-pane { padding: 0 14px" in css
     # the workspace "what moved" hint gets a shorter mobile-specific copy (was 4 lines / 82px on a phone)
     assert "function WorkspacesWhatsNewHint({ readOnly, mobile })" in raw
-    assert "tools moved into <b>Discover</b>, <b>Work</b>, and <b>Extract</b>" in raw
+    assert "tools moved into <b>Discover</b> and <b>Work</b>" in raw
+    assert "<b>Extract</b>" not in raw
     # a paper opened with a known attachment_count of 0 skips the doomed /pdf fetch entirely (no 404, no
     # console error) instead of relying on the 404 being handled gracefully after the fact
     assert "const hasPdf = paper.attachment_count == null ? null : paper.attachment_count > 0;" in raw

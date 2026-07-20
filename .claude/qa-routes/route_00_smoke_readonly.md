@@ -56,8 +56,9 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
    (`callosum.theoryOpen`) and the active Axes-section tab persists (`callosum.panetab.axes`).
 5. **Details/Methods accordion — right pane** (`25_detail.jsx` + the METHODS modules): the right pane is an
    accordion with section headers **Details · Data consistency (GRIM) · Statistics check · Bayesian statistics ·
-   Mixed-model reporting · Transparency signals** (plus further checks below the fold — Meta-analysis reporting,
-   Overlooked, Cite, CRediT statement — not exercised here, just confirm the pane scrolls to reach them). **Details**
+   Mixed-model reporting · Transparency signals** (plus further checks below the fold — not exercised here, just
+   confirm the pane scrolls to reach them; Cite/CRediT/Meta-Reference/Meta-Analyze live under the Work workspace,
+   not this accordion). **Details**
    is open by default. On load the **top library paper is auto-selected** (inc 138), so Details shows its editable
    fields right away (not the empty hint); selecting a different paper updates it. The **"Select a paper to see its
    details"** hint shows only when nothing is selected (e.g. an empty library). Click **Data consistency (GRIM)** →

@@ -9,6 +9,72 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-20 inc 313 — rewrote every stale "Extract"/"Work → Cite → …"/"CRediT statement"
+reference across the corpus (menu bar description, mobile Workspace dropdown, meta-analysis auditor location,
+effect-size converter location, the extraction-workspace section header, citation-concentration/how-it's-cited/
+meta-reference-list locations, the CRediT tab name, the citation-suggestion tab name) to match the Work/Extract
+reorg + the Meta-Analysis→METHODS move below. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-20 — Increment 313: the Work/Extract reorg, Meta-Analysis returns to METHODS, sub-tab-bar CSS fixes
+- **Files:** `app/frontend/js/04b_workspaces.jsx`, `37_cite.jsx`, `37b_meta_reference.jsx` (new),
+  `08j_reference_integrity.jsx`, `08b_methods_citation_equity.jsx`, `08c_methods_citation_context.jsx`,
+  `38_credit.jsx`, `45_workbench.jsx`, `08i_methods_effectsize.jsx`, `08g_methods_metaanalysis.jsx`,
+  `30c_frame.jsx`, `40_app.jsx`, `35_settings.jsx`, `app/frontend/styles.css`, `app/backend/help/help_content.md`,
+  `tests/test_frontend_assembly.py`, `callosum-app.html`, `.claude/qa-routes/route_{00,42,51,53,62,65,66,68,73}_*.md`,
+  `.claude/docs/increment-notes/INCREMENT-313-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** folded the "Extract" workspace into "Work" (now Cite / Meta-Reference / CRediT / Meta-Analyze — Cite
+  drops its inner nested-tab strip, Meta-Reference stacks 3 previously-nested tools as subsections, CRediT is
+  renamed, Meta-Analyze is the relocated Workbench with Effect-Size folded in as a subsection). Fixed 2 real
+  navigation regressions the sweep caught (a stale `selectWorkspace("extract")` in the Workbench capture round-trip,
+  and the ref-signal-badge handler still targeting the deleted nested-Cite-tab system) plus a stray "Extract" in a
+  banner string. Mid-session, moved the Meta-Analysis reporting auditor (left intentionally staged/unregistered by
+  the reorg) into the METHODS accordion alongside its statcheck/GRIM/Bayes/LMM/transparency siblings, closing out
+  the follow-up the user asked to finish in the same session rather than leave for later. Fixed the sub-tab-bar CSS
+  (workspace buttons vertically centered + uniform height; the Discover selected-paper/open-PDF cue keeps Library's
+  exact flush-bottom tab treatment; a fixed 40px bar height everywhere) after a multi-round diagnosis. Also this
+  session: fixed `AccountSettings` copy to clarify ORCID is required, and made the Help modal's TOC sidebar
+  independently scrollable. Brought the help corpus's Work/Extract references fully current (see the sync marker
+  above).
+- **Why:** two workspaces had drifted into an unclear split, with citation-integrity tools buried three levels deep
+  as nested tabs-within-a-tab; the user wanted one coherent "producing science" workspace and asked to finish the
+  Meta-Analysis relocation in the same pass once its absence surfaced mid-verification.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-313-NOTES.md` for the full
+  before/after structure and the Playwright verification script.
+
+## 2026-07-20 — Settings workspace visual hierarchy
+- **Files:** `app/frontend/js/03_library.jsx`, `app/frontend/js/04_layout.jsx`, `app/frontend/js/35_settings.jsx`,
+  `app/frontend/js/35a_mypubs.jsx`, `app/frontend/js/35b_providers.jsx`, `app/frontend/js/35c_sync.jsx`,
+  `app/frontend/js/40_app.jsx`, `app/frontend/styles.css`, `tests/test_frontend_assembly.py`, `callosum-app.html`,
+  `.claude/DESIGN.md`.
+- **What:** replaced the flat Settings scroll with four canonical panel/card groups (Account & sync, AI features,
+  Library behavior, Integrations), using unframed responsive subsection grids inside related groups. My Publications
+  now fills the account column, followed by Metadata access; Cross-device sync sits above Appearance in the opposite
+  column; and AI agent access sits inside AI features.
+  The four built-in AI providers are always open in an equal-size 2×2 desktop grid and a natural-height mobile stack.
+  The AI egress, help-assistant, and agent-access controls share one three-column desktop row; the ORCID input and
+  its Save/Refresh actions share one line; and the signed-in identity sits opposite Sign out on one account row.
+  Published-name variants use an add field plus wrapping removable tag chips; add/remove persists immediately.
+  Removed the stale "More settings will live here" placeholder, normalized the sync-step field hierarchy, and paired
+  the provider verification note with a right-aligned Add provider action. Custom provider cards continue in
+  natural-height two-column rows below the fixed 2×2 built-ins. Enable sync now precedes the unnumbered Sync server
+  URL field. Removed the misleading watched-folder auto-scan preference: launch/focus rescans are now part of the
+  standard library behavior, still protected by the existing read-only, health, in-flight, and throttle guards.
+  The two remaining Axes defaults share one full-width row. The OpenURL lineage citation now uses the same DOI-aware
+  add/check/completed-state control as method citations elsewhere in Callosum. Library access precedes Local
+  maintenance on one row, while Discover: Journals spans the card with its weighting and breadth controls in columns.
+  Metadata access moved below the ORCID form with concise Retraction Watch copy; the redundant sync introduction was
+  removed; the two Axes setting names now use the same section-heading treatment as Library access and Local
+  maintenance; account sign-in copy now uses "(Optional.)"; and the Google Docs integration heading now reads
+  "Google Docs (Remote access)." Provider descriptions now use the full card width, active-provider model and test
+  controls share one row (including custom providers), every provider shows its actual destination endpoint, and the
+  synthesis-cache repair action sits opposite its label. AI permission names now use the feature-eyebrow treatment;
+  journal preference controls share a baseline; Sync fields use consistent spacing; and the OpenURL label/input/save
+  share one row. Integration columns now place full-width actions directly under their headings, keep download links
+  inline in the explanatory text, and align the Google Docs label/toggle using the standard field-label recipe in a
+  row matching the other integration actions' height.
+- **Why:** make the mature settings surface scannable, use the full center workspace, present the provider roster as
+  one deliberate set, and avoid controls whose apparent behavior diverges from the application's actual behavior.
+- **Revert:** restore `.claude/backups/20260720_settings_redesign_pre.zip`, then rebuild the frontend.
+
 ## 2026-07-20 — Increment 312: the account platform goes live (Authentik + sync_server on juno) + three real bugs fixed
 - **Files:** `app/backend/api/auth/oidc.py`, `sync_server/auth.py`, `app/backend/sync/transport.py`,
   `app/backend/sync/engine.py`, `app/backend/api/routers/sync.py`, `tests/test_sync_endpoints.py`

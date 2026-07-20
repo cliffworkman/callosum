@@ -1,14 +1,15 @@
 // Workspaces (the menu bar) — a SECOND navigation dimension above the THEORY/METHODS side accordions. Where the
 // accordions are *lenses on the current paper* (05_panes.jsx), a workspace is *what you're doing right now*:
-// My Publications | Library | Synthesize | Discover | Work | Extract (primary) + Help | Settings (right-aligned utilities). Sections-are-data,
-// exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single `render` (My Publications,
-// Help, Settings) OR >=2 sub-tabs (Discover: Feed|Search|Journals|Funding; Work: Cite|CRediT; Extract: Workbench|Effect-Size|Meta).
+// My Publications | Library | Synthesize | Discover | Work (primary) + Help | Settings (right-aligned utilities).
+// Sections-are-data, exactly like 05_panes.jsx: a workspace self-registers with an order; it holds EITHER a single
+// `render` (My Publications, Help, Settings) OR >=2 sub-tabs (Discover: Feed|Search|Journals|Funding; Work:
+// Cite|Meta-Reference|CRediT|Meta-Analyze — citing, reference-list analysis, credit statements, and meta-analysis
+// prep, the "producing science" workspace; Extract folded into it in the same reorg that retired CITE_TABS below).
 // Library is registered as a shell-rendered workspace (no registered tabs) because its content — the library list +
 // the dynamic open-PDF tabs — is bespoke and owned by 40_app. Render closures resolve their components by hoist
 // (the 05_panes `details`→`DetailContent` precedent), so a workspace defined here can reference a component from a
 // later chunk. See DESIGN.md §5.
 const WORKSPACES = [];
-const CITE_TABS = [];
 
 function _ensureWs(id) {
   let w = WORKSPACES.find(x => x.id === id);
@@ -34,13 +35,6 @@ function registerWorkspaceTab(host, tab) {
   if (!w.defined) { w.label = host.label; w.order = host.order || 0; if (host.hideInReadOnly != null) w.hideInReadOnly = !!host.hideInReadOnly; if (host.utility != null) w.utility = !!host.utility; }
   _addWsTab(w, tab);
 }
-function registerCiteTab(tab) {
-  if (!CITE_TABS.some(t => t.id === tab.id)) CITE_TABS.push(tab);
-}
-function citeTabs(readOnly) {
-  return [...CITE_TABS].filter(t => !(readOnly && t.hideInReadOnly)).sort((a, b) => (a.order || 0) - (b.order || 0));
-}
-
 function _wsHiddenReadOnly(w) {
   // Hidden on a read-only companion if the workspace is flagged, or it has registered tabs and EVERY one is hidden.
   // A shell-rendered workspace (0 registered tabs, e.g. Library/My Publications) shows unless explicitly hideInReadOnly.
@@ -166,7 +160,6 @@ registerWorkspace({ id: "profile", label: "My Publications", order: 10 });
 registerWorkspace({ id: "library", label: "Library", order: 20 });
 registerWorkspace({ id: "discover", label: "Discover", order: 40 });
 registerWorkspace({ id: "work", label: "Work", order: 50 });
-registerWorkspace({ id: "extract", label: "Extract", order: 60 });
 
 registerWorkspaceTab({ id: "discover" }, {
   id: "feed", label: "Feed", order: 10, hideInReadOnly: true,
@@ -177,8 +170,8 @@ registerWorkspaceTab({ id: "discover" }, {
   render: (ctx, active) => <DiscoverPane onSaved={ctx.onDiscoverSaved} active={active}
     onOpenWanted={ctx.onOpenWanted} onOpenGaps={ctx.onOpenGaps} onOpenOverlooked={ctx.onOpenOverlooked} />,
 });
-registerWorkspaceTab({ id: "extract" }, {
-  id: "workbench", label: "Workbench", order: 10, hideInReadOnly: true,
+registerWorkspaceTab({ id: "work" }, {
+  id: "meta-analyze", label: "Meta-Analyze", order: 40, hideInReadOnly: true,
   render: (ctx, active) => <WorkbenchPane active={active} onOpenPdf={ctx.onOpenPdf}
     capture={ctx.capture} onArmCapture={ctx.onArmCapture} onCaptureApplied={ctx.onCaptureApplied} />,
 });

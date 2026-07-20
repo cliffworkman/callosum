@@ -68,12 +68,6 @@ function useUiPrefs() {
     setAxisCutoffDefaultState(v);
     _saveLayout("callosum.axisCutoffDefault", v);
   }, []);
-  const [autoScanWatched, setAutoScanWatchedState] = useState(() => _loadLayout("callosum.autoScanWatched", "1") === "1");  // inc-98: re-scan watched folders on launch
-  const setAutoScanWatched = useCallback((on) => {
-    setAutoScanWatchedState(on);
-    _saveLayout("callosum.autoScanWatched", on ? "1" : "0");
-  }, []);
-
   // side-panel layout (persisted): widths + collapsed state.
   const [leftW, setLeftW] = useState(() => Math.max(LEFT_MIN, Number(_loadLayout("callosum.leftW", LEFT_MIN)) || LEFT_MIN));
   const [rightW, setRightW] = useState(() => Math.max(RIGHT_MIN, Number(_loadLayout("callosum.rightW", RIGHT_MIN)) || RIGHT_MIN));
@@ -111,7 +105,6 @@ function useUiPrefs() {
     theme, setTheme,
     hideUncertainDefault, setHideUncertainDefault,
     axisCutoffDefault, setAxisCutoffDefault,
-    autoScanWatched, setAutoScanWatched,
     leftW, setLeftW, rightW, setRightW, leftOpen, setLeftOpen, rightOpen, setRightOpen,
     theoryOpen, setTheoryOpen, methodsOpen, setMethodsOpen,
     readingMode, toggleReading,

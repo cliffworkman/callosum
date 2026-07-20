@@ -314,6 +314,33 @@
   .help-body strong { color: var(--ink); }
   .help-body code { font-family: var(--mono); font-size: 11.5px; background: var(--panel-2); border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 4px; }
   .help-body a { color: var(--accent); }
+  /* Settings groups reuse the canonical panel/card recipe; nested grids use the wide workspace without nesting cards. */
+  .settings-view { width: 100%; max-width: 1400px; box-sizing: border-box; margin: 0 auto; }
+  .settings-grid { display: grid; gap: 14px; }
+  .settings-card { min-width: 0; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+  .settings-card-title { margin: 0 0 12px; color: var(--ink); font-size: 14px; font-weight: 600; }
+  .settings-card > .settings-row, .settings-card > .settings-field { max-width: 720px; }
+  .settings-sections-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; }
+  .settings-sections-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .settings-section { min-width: 0; padding-top: 12px; border-top: 1px solid var(--line); }
+  .settings-section-wide { grid-column: 1 / -1; }
+  .settings-axis-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .settings-axis-controls > .settings-axis-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .settings-axis-control > .settings-axis-title { margin: 0; }
+  .settings-axis-control > .settings-sub { grid-column: 1 / -1; max-width: none; }
+  .settings-publisher-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+  .settings-publisher-controls > .settings-field { display: flex; flex-direction: column; }
+  .settings-publisher-controls .tags-srcfilter { margin-top: auto; }
+  .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .settings-section .settings-sub { max-width: none; }
+  .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
+  .settings-ai-controls > .settings-row { align-items: flex-start; padding-top: 12px; border-top: 1px solid var(--line); }
+  .settings-ai-controls > .settings-ai-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+  .settings-ai-control > .settings-ai-control-title { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+  .settings-ai-control > .settings-sub { grid-column: 1 / -1; }
+  .settings-ai-controls .settings-label { min-width: 0; overflow-wrap: anywhere; }
+  .settings-ai-controls .settings-sub { max-width: none; }
+  .settings-ai-agent-details { grid-column: 1 / -1; }
   .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 6px 2px 10px; }
   .settings-label { font-size: 13px; color: var(--ink); }
   .settings-sub { display: block; font-size: 11px; color: var(--ink-3); margin-top: 3px; max-width: 300px; font-weight: 400; }
@@ -330,6 +357,22 @@
   .settings-actions { display: flex; gap: 8px; margin: 8px 0 4px; }
   .settings-keyrow { display: flex; gap: 8px; align-items: center; }  /* BYOK key input + Save/Clear (inc 146) */
   .settings-keyrow .settings-input { flex: 1; }
+  .settings-orcid-row .settings-input { min-width: 0; }
+  .settings-orcid-row .btn { flex: none; }
+  .settings-account-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .settings-account-row .settings-note { margin-left: auto; text-align: right; }
+  .settings-openurl-row { display: grid; grid-template-columns: max-content minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+  .settings-openurl-row .settings-field-label { margin: 0; }
+  .settings-sync-enable { margin-bottom: 0; }
+  .settings-sync-enable > .settings-row { padding-bottom: 0; }
+  .settings-name-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+  .settings-name-tags .tag-chip-name { cursor: default; }
+  .settings-name-tags .tag-chip-name:hover { text-decoration: none; }
+  .settings-maintenance-action { padding: 0; }
+  .settings-maintenance-action .settings-field-label { margin: 0; }
+  .settings-integration-action { display: block; width: 100%; margin-top: 8px; }
+  .settings-integration-toggle { align-items: center; min-height: 30px; padding: 0; }
+  .settings-integration-control-title { margin: 0; }
   .settings-keytest { display: flex; gap: 8px; align-items: center; margin-top: 6px; }  /* Test key (inc 147) */
   .settings-keytest-result { font-size: 11.5px; }
   .settings-keytest-result.ok { color: var(--verified); }
@@ -339,23 +382,31 @@
   .settings-note { font-size: 11.5px; color: var(--ink-2); margin: 4px 0; }
   .settings-note-err { color: var(--flag-ink); }
   /* Unified LLM provider roster (inc 256) — one editable list: the 4 presets + custom {name,base_url,wire_format,models}. Tokens only. */
-  .provider-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
-  .provider-card { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 8px 10px; }
+  .provider-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, 1fr); grid-auto-rows: auto; align-items: stretch; gap: 8px; margin: 8px 0; }
+  .provider-card { min-width: 0; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2); padding: 8px 10px; }
+  .provider-list > .provider-card { height: 100%; }
   .provider-card.is-active { border-color: var(--accent); }
   .provider-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .provider-toggle { flex: 1; min-width: 0; display: flex; align-items: center; gap: 7px; background: none; border: 0; padding: 2px 0; cursor: pointer; text-align: left; color: var(--ink); }
+  .provider-identity { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 2px 7px; }
   .provider-caret { flex: 0 0 auto; width: 10px; font-size: 10px; color: var(--ink-3); }
   .provider-name { font-weight: 600; font-size: 13px; color: var(--ink); }
   .provider-badge { flex: 0 0 auto; font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--line); color: var(--ink-2); white-space: nowrap; }
   .provider-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; }
   .provider-active { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; padding: 2px 7px; border-radius: var(--radius-pill); background: var(--accent-soft); color: var(--accent); }
   .provider-body { margin-top: 6px; }
+  .provider-card .settings-sub { max-width: none; }
   .provider-endpoint { margin-bottom: 4px; }
   /* Active provider is a cloud endpoint but AI features are off — an amber status nudge (DESIGN §4: --flag), not red. */
   .provider-egress-warn { font-size: 11.5px; color: var(--flag-ink); background: var(--flag-soft); border: 1px solid var(--flag-line); border-radius: var(--radius-sm); padding: 6px 9px; margin: 0 0 8px; }
   .provider-models { display: flex; flex-direction: column; gap: 6px; }
+  .provider-model-test-row { display: flex; align-items: flex-end; gap: 8px; }
+  .provider-model-field { flex: 1; min-width: 0; margin-bottom: 0; }
+  .provider-model-test-row > .btn { flex: none; }
+  .provider-list-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .provider-list-footer .settings-ai-note { flex: 1; min-width: 0; margin: 0; padding: 0; border-top: 0; }
   /* "+ Add provider" — a green add affordance (DESIGN §2: add/create buttons are --verified). */
-  .provider-add-btn { border: 1px solid var(--verified); background: var(--bg); color: var(--verified); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; }
+  .provider-add-btn { flex: none; margin-left: auto; border: 1px solid var(--verified); background: var(--bg); color: var(--verified); border-radius: var(--radius); padding: 6px 12px; font-size: 12px; }
   .provider-add-btn:not(:disabled):hover { background: var(--verified-soft); }
   .provider-add-btn:disabled { opacity: .4; cursor: default; }
   .transparency-queues { margin-top: 5px; line-height: 1.7; }   /* inc 251: the 7 review-queue links (not detected — go look, never a verdict) */
@@ -1519,8 +1570,14 @@
   }
   .workspace-slot { flex: 1 1 auto; min-height: 0; flex-direction: column; }  /* inline display:flex when active */
   .workspace-pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-  .workspace-tabs { flex: 0 0 auto; padding: 8px 10px 0; background: var(--panel-2); border-bottom: 1px solid var(--line); }
-  .workspace-paper-cue { flex: 0 1 auto; margin-right: 8px; margin-bottom: 6px; }
+  /* Two roles share this bar: plain sub-nav BUTTONS (centered, uniform height) and — Discover only — a real
+     file-TAB (the open/selected-paper cue), styled and sized identically to Library's .frame-tab and flush with
+     the bar's bottom edge, exactly like Library's own .frame-tabs strip. */
+  .workspace-tabs { flex: 0 0 auto; margin: 0; padding: 8px 10px; background: var(--panel-2); border-bottom: 1px solid var(--line); }  /* margin:0 cancels the inherited .tags-srcfilter top margin (flush under the menu bar); symmetric 8px/8px padding centers the row AND matches Library's .frame-tabs bar height (40px) when only buttons are present */
+  .workspace-tabs:has(.workspace-paper-cue) { padding: 0 10px; align-items: flex-end; min-height: 40px; }  /* min-height (not padding-top) reserves the tab's headroom, so buttons' align-self:center below measures against the FULL bar height, not a padding-shrunk sub-region; the tab still sits flush at the bottom via align-items:flex-end — box-sizing:border-box here means min-height is the full bar height, matching Library's .frame-tabs 40px directly */
+  .workspace-tabs:has(.workspace-paper-cue) .tags-srcfilter-btn { align-self: center; }  /* buttons still center themselves within that row's height — only the tab is bottom-anchored */
+  .workspace-tabs .tags-srcfilter-btn { display: flex; align-items: center; justify-content: center; line-height: 15px; }  /* explicit line-height so bold (.on) and regular text compute the same line-box instead of each font-weight's own "normal" metric */
+  .workspace-paper-cue { flex: 0 1 auto; margin-right: 8px; }  /* the old margin-bottom inflated the flex row's cross-axis height beyond Library's own .frame-tabs sizing */
   /* active → flex-column (fills); inactive stays display:none via the higher-specificity .pane-tab:not(.active). */
   .workspace-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; overflow-y: auto; }
 
@@ -1530,7 +1587,17 @@
   /* Help now flows in the center (not a fixed-height modal): the toc + content scroll with the whole view. */
   .workspace-view .help-layout { flex: initial; overflow: visible; }
   .workspace-view .help-content { overflow: visible; }
-  .workspace-view .help-toc { position: sticky; top: 0; align-self: start; }
+  .workspace-view .help-toc { position: sticky; top: 0; align-self: start; max-height: 100vh; overflow-y: auto; }
+  .app.mobile .settings-view { max-width: none; padding: 14px; }
+  .app.mobile .settings-card { padding: 12px; }
+  .app.mobile .settings-sections-grid, .app.mobile .settings-sections-grid-3, .app.mobile .provider-list { grid-template-columns: 1fr; }
+  .app.mobile .settings-axis-controls { grid-template-columns: 1fr; }
+  .app.mobile .settings-publisher-controls { grid-template-columns: 1fr; }
+  .app.mobile .settings-openurl-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .app.mobile .settings-openurl-row .settings-field-label { grid-column: 1 / -1; }
+  .app.mobile .settings-ai-controls { grid-template-columns: 1fr; }
+  .app.mobile .provider-list-footer { align-items: flex-start; flex-direction: column; }
+  .app.mobile .provider-list { grid-template-rows: none; grid-auto-rows: auto; }
 
   /* ---- tabbed library frame (Library workspace body) ---- */
   .lib-frame {

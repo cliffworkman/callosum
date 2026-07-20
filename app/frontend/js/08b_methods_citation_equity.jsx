@@ -254,8 +254,4 @@ function CitationEquitySection({ ctx }) {
   );
 }
 
-// inc 287: moved with Cite from the THEORY pane to Work → Cite.
-registerCiteTab({
-  id: "citation-equity", label: "Citation concentration", order: 20, hideInReadOnly: true,
-  render: (ctx) => <CitationEquitySection ctx={ctx} />,
-});
+// Rendered directly by MetaReferencePane (37b_meta_reference.jsx) as a Work → Meta-Reference subsection.

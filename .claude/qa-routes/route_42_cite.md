@@ -8,8 +8,9 @@ fe: 37_cite.jsx
 **Tier:** 1 local-stateful
 **Goal:** Exercise the in-app Cite pane — paste a draft sentence, get ranked library suggestions with stance +
 evidence, and confirm the honesty invariants (region-not-exact, stance-with-quote, candidates-not-verdicts,
-local/no-egress). **inc 248:** Cite is the FIRST **tab** ("Suggest") of a tabbed THEORY "Cite" section — the strip
-also carries **Citation concentration** (route_51) + **How it's cited** (route_53); this route covers the Suggest tab.
+local/no-egress). Cite is now **Work → Cite**'s entire content (no nested tab strip) — the paper-specific
+citation-integrity audits that used to sit alongside it moved to **Work → Meta-Reference** as stacked subsections
+(**Citation concentration**, route_51; **How it's cited**, route_53); this route covers Work → Cite (Suggest) only.
 
 ## Environment
 
@@ -39,8 +40,8 @@ The seeded `social-perception`/facial papers give a real semantic match for the 
 
 ## Steps
 
-1. Open the THEORY accordion -> **Cite** section. Confirm the textarea + Suggest button render with the "local,
-   no egress" status hint.
+1. Open **Work → Cite**. Confirm the textarea + Suggest button render directly (no inner tab strip) with the
+   "local, no egress" status hint.
 2. Paste a sentence related to a seeded paper (e.g. about facial anomalies / social perception) -> Suggest
    (`POST /citations/suggest`). Confirm a ranked list renders, each card showing title · author/year, a stance
    pill (supports/contrasts/mentions, or "stance n/a"), a `match NN` pill, and the verbatim quote.

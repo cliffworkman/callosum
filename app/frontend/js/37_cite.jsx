@@ -241,40 +241,9 @@ function CitePane({ ctx }) {
   );
 }
 
-function CiteWorkspacePane({ ctx }) {
-  const readOnly = !!(ctx && ctx.readOnly);
-  const tabs = citeTabs(readOnly);
-  const [activeTab, setActiveTab] = useState(() => _loadLayout("callosum.citetab", tabs[0] ? tabs[0].id : null));
-  const setTab = (id) => { setActiveTab(id); _saveLayout("callosum.citetab", id); };
-  const request = ctx && ctx.citeTabRequest ? ctx.citeTabRequest : null;
-  useEffect(() => {
-    if (request && tabs.some(t => t.id === request.tabId)) setTab(request.tabId);
-  }, [request ? request.nonce : null]);
-  if (tabs.length === 0) return null;
-  const at = tabs.some(t => t.id === activeTab) ? activeTab : tabs[0].id;
-  return (
-    <div className="cite-workspace">
-      <div className="tags-srcfilter pane-tabs" role="tablist" aria-label="Cite tools">
-        {tabs.map(t => (
-          <button key={t.id} role="tab" aria-selected={t.id === at}
-            className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}
-            onClick={() => setTab(t.id)}>{t.label}</button>
-        ))}
-      </div>
-      {tabs.map(t => (
-        <div key={t.id} className={"pane-tab" + (t.id === at ? " active" : "")}>{t.render(ctx)}</div>
-      ))}
-    </div>
-  );
-}
-
-// inc 287: Work → Cite owns the citation-authoring tabs. Suggest remains available read-only; the paper-specific
-// audits hide per tab on read-only companions.
-registerCiteTab({
-  id: "suggest", label: "Suggest", order: 10,
-  render: (ctx) => <CitePane ctx={ctx} />,
-});
+// inc 287 (reorg): Work → Cite is now just the Suggest tool directly — the paper-specific citation-integrity
+// audits that used to live as nested tabs alongside it moved to Work → Meta-Reference (37b_meta_reference.jsx).
 registerWorkspaceTab(
   { id: "work", label: "Work", order: 50 },
-  { id: "cite", label: "Cite", order: 10, render: (ctx) => <CiteWorkspacePane ctx={ctx} /> },
+  { id: "cite", label: "Cite", order: 10, render: (ctx) => <CitePane ctx={ctx} /> },
 );

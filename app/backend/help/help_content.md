@@ -18,13 +18,13 @@ Start by:
 ## Finding your way around
 Callosum has three panes, plus a **menu bar** across the top of the center pane that switches **workspaces** (what you're doing right now):
 
-- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask + Critique), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), **Work** (Cite + CRediT statement), and **Extract** (the meta-analysis workspace: Workbench · Effect-Size · Meta-Analysis). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
+- **Menu bar (top of the center pane):** switch between **My Publications** (your publications + impact), **Library** (your collection + open PDFs), **Synthesize** (Ask + Critique), **Discover** (Feed, Search, Wanted, Gaps, Overlooked, Journals, Funding), and **Work** (Cite, Meta-Reference, CRediT, Meta-Analyze — citing, reference-list analysis, credit statements, and meta-analysis dataset prep). **Help** and **Settings** sit at the right of the menu bar and open as full-width views.
 - **Left pane:** an **accordion** with **Axes** (plus a **Tags** tab — your labels alongside your conceptual lenses), the reading queue, and review/findings sections — click a section header to open it (one at a time).
 - **Right pane:** a **Details** accordion — the editable bibliographic info for the paper you've selected (a hint until you select one).
 
 The three panes stay put; only the center changes as you switch workspaces. On a phone-width screen, the center pane uses a compact **Workspace** dropdown instead of the full desktop tab strip. The side panels resize with the vertical grips and collapse with the chevron next to each. Within a side pane the open section is remembered between sessions, and in-progress workspace tasks stay mounted while you switch away.
 
-Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesize / Discover / Work / Extract and they're tucked away until you come back.
+Under **Library**, the workspace has a **Library** tab (your list), a temporary tab for the selected-but-unopened paper, and one tab per open PDF. Click the temporary selected-paper tab to open the PDF; once open, it becomes a normal PDF tab. Open PDF tabs can be dragged to reorder them, and switching workspaces keeps those PDFs mounted so you don't re-open a document each time. Open papers live under Library; switch to My Publications / Synthesize / Discover / Work and they're tucked away until you come back.
 
 In **Discover → Journals** and **Discover → Funding**, the selected paper appears before the Discover sub-tabs using that same tab language: dashed accent if it is selected but not open, and the normal open-PDF tab style if it is already open. Click the cue to open or return to the reader for that paper.
 
@@ -105,7 +105,7 @@ Everything stays on your machine — the file is read in your browser and merged
 <!-- section: reading-on-your-phone -->
 ## Reading on your phone (mobile)
 
-callosum's window is **responsive** — open it on a phone-width screen and the three-pane layout collapses to a single column with a bottom nav (**Library · Panels · Details**). In the Library region, use the compact **Workspace** dropdown to switch between Library, Synthesize, Discover, Work, Extract, Help, and Settings without side-scrolling a desktop menu. You browse and search the library, open a paper (its metadata, abstract, and the PDF, rendered by your phone's own viewer), and read its verified syntheses. On a wider screen the usual desktop layout returns.
+callosum's window is **responsive** — open it on a phone-width screen and the three-pane layout collapses to a single column with a bottom nav (**Library · Panels · Details**). In the Library region, use the compact **Workspace** dropdown to switch between Library, Synthesize, Discover, Work, Help, and Settings without side-scrolling a desktop menu. You browse and search the library, open a paper (its metadata, abstract, and the PDF, rendered by your phone's own viewer), and read its verified syntheses. On a wider screen the usual desktop layout returns.
 
 To reach it from your phone you use a **cloudflared tunnel** (the same outbound-only bridge the Google Docs add-on uses), configured **read-only**. Read-only is a deployment: you run a second callosum instance for the tunnel with **`CALLOSUM_READ_ONLY=1`** (which makes the server reject *every* change — scan, edit, tag, delete — with a 403) and Remote access on (so an access token gates all access). Your desktop instance stays fully editable; the phone reads the same library. The full runbook is `adapters/mobile/README.md`. You can't accidentally change anything from your phone.
 
@@ -289,11 +289,11 @@ Notes:
 
 <!-- section: suggesting-citations -->
 ## Suggesting citations for a draft sentence
-The **Work → Cite → Suggest** tab helps you find which papers to consider citing for a sentence you're writing. By default it searches **your library** only and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. That default path runs entirely on your machine (no AI is sent off-device).
+The **Work → Cite** tab helps you find which papers to consider citing for a sentence you're writing. By default it searches **your library** only and tells you whether each candidate **supports**, **contrasts**, or merely **mentions** your claim. That default path runs entirely on your machine (no AI is sent off-device).
 
 To use it:
 
-- Open **Work → Cite → Suggest**, paste a sentence from your draft into the box, and click **Suggest**.
+- Open **Work → Cite**, paste a sentence from your draft into the box, and click **Suggest**.
 - Callosum ranks your library by how closely each paper's text matches your sentence and shows a card per paper with:
   - a **stance** pill — **supports** (green), **contrasts** (amber), or **mentions** (grey) — read from a local language model over the matched passage. If the model can't be loaded, the card says "stance unavailable" rather than guessing.
   - a **match** score (relevance to your sentence — a ranking aid, **not** a correctness claim).
@@ -841,7 +841,7 @@ Read it as a prompt, not a report card:
 ## Auditing meta-analysis reporting
 A **meta-analysis** pools results across studies, and the reader needs to see the choices behind the pooled number. The meta-analysis reporting auditor reads a *published* meta-analysis's extracted text and flags whether it *reports* seven such things — it never pools, models heterogeneity, re-computes an effect size, or does bias inference (that's metafor / JASP / RevMan territory). It's local, deterministic, and uses no AI.
 
-In the **Extract** workspace (menu bar), open **Meta-Analysis** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+In the **METHODS** pane, open **Meta-analysis reporting** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
 
 - **Effect-size metric** — the index the study effects were converted to (Hedges' g, log odds ratio, Fisher's z, …) — Borenstein et al. 2009; Viechtbauer 2010 (*metafor*).
 - **Model (fixed vs random-effects)** — and the between-study variance estimator (DerSimonian-Laird, REML, Hartung-Knapp) — DerSimonian & Laird 1986; IntHout et al. 2014.
@@ -886,7 +886,7 @@ Read it as a prompt, not a report card:
 ## Converting effect sizes
 When you're preparing a meta-analysis, studies report their results in different currencies — some give group means and SDs, some a *t* or *F*, some a 2×2 table, some a correlation. The **Effect-Size converter** turns *one study's* reported statistics into a common metric you can pool downstream, and shows its work.
 
-In the **Extract** workspace (menu bar), open **Effect-Size** and pick a family:
+In **Work → Meta-Analyze**, scroll to the **Effect-size calculator** subsection and pick a family:
 
 - **SMD → Hedges' g** — from group means + SDs + Ns, or from a *t* + group Ns, or a two-group one-way *F*.
 - **SD derivation** — recover a standard deviation from an SE, a 95% CI, or an IQR (each derivation is recorded, because *how* you got the SD is a decision worth auditing).
@@ -899,8 +899,8 @@ Every result shows the metric + its **variance** + a **95% CI**, the step-by-ste
 It **converts one study at a time — it never pools studies, models heterogeneity (I²/τ²), meta-regresses, or does publication-bias inference.** Those are your synthesis tool's job (metafor, JASP, RevMan); Callosum hands off the converted dataset with its provenance.
 
 <!-- section: extraction-workspace -->
-## Extracting a meta-analysis dataset (the Extract workspace)
-The **Extract** tab (in the center pane, alongside Library and Discover) is where you assemble a meta-analysis dataset from your library and keep every number tied to its source.
+## Extracting a meta-analysis dataset (Work → Meta-Analyze)
+The **Meta-Analyze** tab (under **Work** in the menu bar, alongside Cite, Meta-Reference, and CRediT) is where you assemble a meta-analysis dataset from your library and keep every number tied to its source.
 
 - **Create a project** and pick a **design** (two-group continuous, binary 2×2, or correlation). The design seeds the columns the effect-size converter needs; you can add your own **moderator/notes columns** with **+ col**.
 - **Add rows** — one row per effect/comparison. **+ Add paper** links a row to a library paper (a paper can appear in several rows, one per outcome); **+ Add row** makes an unlinked row.
@@ -1029,7 +1029,7 @@ Read the two together: relevant **and** under-cited for its year = *possibly* ov
 
 <!-- section: citation-equity -->
 ## Checking citation concentration
-The **Work → Cite → Citation concentration** tab, with a paper selected, describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open the tab, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
+The **Citation concentration** subsection of **Work → Meta-Reference**, with a paper selected, describes the **structural shape** of a paper's reference list — how much it leans on a few sources or on established power — and it's deliberately a *mirror, not a report card*. Select a paper, open Meta-Reference, and click **Run audit**; it resolves the paper's references via OpenAlex (public metadata — only the DOIs leave your machine; not the AI/Gemini setting) and shows four descriptive signals, each next to a sample of the paper's **field** (its OpenAlex topic):
 
 - **Self-citation** — how many references include an author of the paper (King et al. 2017).
 - **Reliance on highly-cited work** — how much the list leans on already-famous papers, against the field (the Matthew effect; Merton 1968 / Perc 2014).
@@ -1042,7 +1042,7 @@ Every signal shows its **basis** (expand to see the exact references / venues / 
 
 <!-- section: citation-context -->
 ## Seeing how a paper is cited (and how it cites)
-The **Work → Cite → How it's cited** tab, with a DOI'd paper selected, has a two-way toggle:
+The **How it's cited** subsection of **Work → Meta-Reference**, with a DOI'd paper selected, has a two-way toggle:
 - **How it's cited** — how the *later literature* responded to this paper: do subsequent papers **support** it, **contrast** it, or just **mention** it?
 - **How it cites its sources** — how *this paper* uses each of its own references: does it support, contrast, or mention each cited work?
 
@@ -1052,13 +1052,13 @@ You get a **count** breakdown (N supporting · M contrasting · K mentioning) an
 
 <!-- section: meta-reference-list -->
 ## Checking reference signals
-The **Work → Cite → Meta Reference List** tab is a pre-flight reference check for the selected paper. It surfaces only three negative signals: **Could not verify**, **Known retraction signal**, and **Previously flagged in your library**. These are prompts to inspect evidence, never a verdict on the paper or on the citation.
+The **Meta Reference List** subsection of **Work → Meta-Reference** is a pre-flight reference check for the selected paper. It surfaces only three negative signals: **Could not verify**, **Known retraction signal**, and **Previously flagged in your library**. These are prompts to inspect evidence, never a verdict on the paper or on the citation.
 
 Click **Check references** to fetch the paper's linked reference list from Semantic Scholar using the paper DOI; if that linked list is unavailable, Callosum falls back to OpenAlex's referenced-work records for the same DOI. The run shows determinate progress while it works, then records when the paper was last checked. It also exposes **Source coverage for last run** so you can see which sources succeeded, returned no records, were not searched, or failed. One source failure does not erase results from another source; use **Retry reference check** when coverage is partial or failed.
 
 For library triage, select multiple papers in the Library and use **check refs** in the bulk bar. This runs the same Meta Reference List checker for each selected paper that has a DOI, skips selected papers without a DOI, refreshes the paper warning badges, and then filters the Library to papers with active reference signals so you can review them immediately. The filter is clearable. It does not run automatically on import and does not create a background watcher.
 
-When a paper card shows a **ref signal** badge, click it to select that paper and open **Work → Cite → Meta Reference List** directly. The badge is only a jump to the evidence surface; the count means active unreviewed or confirmed-concern reference signals, not a paper-quality verdict.
+When a paper card shows a **ref signal** badge, click it to select that paper and open **Work → Meta-Reference** directly, scrolled to the Meta Reference List subsection. The badge is only a jump to the evidence surface; the count means active unreviewed or confirmed-concern reference signals, not a paper-quality verdict.
 
 Callosum then resolves cited works through the existing metadata sources where possible. A search miss is shown cautiously as **Could not verify with available sources**; it is not a claim that the work is absent from the literature. Retraction signals are shown separately and more strongly, with their source evidence. Local propagation means the same referenced entity has an active signal elsewhere in your own library.
 
@@ -1108,7 +1108,7 @@ Recent Journals searches are also stored in this browser only. Use **Recent jour
 
 <!-- section: credit-statement -->
 ## Building a CRediT contribution statement
-When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **Work → CRediT statement** tab builds one for you.
+When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **Work → CRediT** tab builds one for you.
 
 It is an **authoring aid, not a verifier.** Callosum formats the contributions **you assert** — it never infers, scores, or judges who did what. You are the source of truth; there's no confidence number and no verdict.
 

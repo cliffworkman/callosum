@@ -134,8 +134,4 @@ function CitationContextSection({ ctx }) {
   return <div className="cite-equity-section"><CitationContextPaper paperId={ctx.selectedPaper} /></div>;
 }
 
-// inc 287: moved with Cite from the THEORY pane to Work → Cite.
-registerCiteTab({
-  id: "citation-context", label: "How it's cited", order: 30, hideInReadOnly: true,
-  render: (ctx) => <CitationContextSection ctx={ctx} />,
-});
+// Rendered directly by MetaReferencePane (37b_meta_reference.jsx) as a Work → Meta-Reference subsection.

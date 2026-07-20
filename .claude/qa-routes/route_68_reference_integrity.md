@@ -6,7 +6,7 @@ fe: 08j_reference_integrity.jsx, 10b_libmenus.jsx, 10_pdf_layer.jsx
 # ROUTE 68 - Meta Reference List (reference-integrity signals)
 
 **Tier:** 2 local-stateful + public metadata egress
-**Goal:** Exercise the Theory-pane Meta Reference List and prove it stays a narrow reference-signal surface:
+**Goal:** Exercise the Meta Reference List subsection of **Work -> Meta-Reference** and prove it stays a narrow reference-signal surface:
 detectors remain distinct, review state is per citation instance, stale dismissals reopen on materially new signals,
 and clearing signals never promotes a paper into a positive state.
 
@@ -41,7 +41,8 @@ appears in the retraction registry fixture. Register listeners before navigation
 
 ## Steps
 
-1. Select a DOI'd paper. Open **Theory -> Meta Reference List**. Confirm it appears above **Where to submit**.
+1. Select a DOI'd paper. Open **Work -> Meta-Reference**. Confirm the **Meta Reference List** subsection appears
+   first (above Citation concentration and How it's cited, on the same scrollable panel).
 2. Click **Check references** (`POST /papers/{id}/reference-integrity/run`, poll `GET /reference-integrity/run/{job}`).
    Confirm the poll response and UI show determinate progress, then rows show cited reference, signal type, reason,
    evidence source, review state, and optional context hint.
@@ -67,8 +68,9 @@ appears in the retraction registry fixture. Register listeners before navigation
    DOI papers get the same per-paper Meta Reference List results, and paper-card warning badges refresh afterward.
    Confirm the Library switches to a clearable **Reference checks** filter containing papers with active reference
    signals.
-14. Click a paper-card **ref signal** badge. Confirm the paper is selected, the Theory pane opens to **Meta Reference List**,
-    and the badge text/tooltips frame the count as active signals rather than a paper-quality verdict.
+14. Click a paper-card **ref signal** badge. Confirm the paper is selected, **Work -> Meta-Reference** opens scrolled
+    to the **Meta Reference List** subsection, and the badge text/tooltips frame the count as active signals rather
+    than a paper-quality verdict.
 
 ## Pass Criteria
 

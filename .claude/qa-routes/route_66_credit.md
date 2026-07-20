@@ -3,7 +3,7 @@ api: /credit/statement, /credit/pending
 fe: 38_credit.jsx
 -->
 
-# ROUTE 66 - Theory: CRediT contribution-statement builder (CRediTer)
+# ROUTE 66 - Work -> CRediT: contribution-statement builder (CRediTer)
 
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the CRediT contribution-statement builder while preserving the load-bearing **build-never-infer**
@@ -15,8 +15,8 @@ who did what — the human is the source of truth. Local, deterministic, no AI, 
 ## Environment
 
 Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET** (the builder is local/no-LLM — assert no
-genai-host request regardless). Register listeners before navigation. The **CRediT statement** section lives in the
-**THEORY** pane (authoring cluster: axes -> synthesis -> cite -> Where to submit -> **CRediT statement** -> Review).
+genai-host request regardless). Register listeners before navigation. The section lives at **Work -> CRediT**
+(renamed from "CRediT statement" in the Work/Extract reorg; unchanged internally).
 
 ## Standing assertions
 
@@ -44,7 +44,7 @@ genai-host request regardless). Register listeners before navigation. The **CRed
 
 ## Steps
 
-1. Open the **THEORY** pane -> **CRediT statement** section. Confirm the "formats the contributions **you assert** —
+1. Open **Work -> CRediT**. Confirm the "formats the contributions **you assert** —
    does not verify who did what; you are the source of truth" intro + the NISO CRediT link.
 2. With a paper selected, click **⤵ pull authors from this paper** -> the paper's author names seed the grid
    (non-destructive; `GET /papers/{id}`). Confirm no roles are pre-assigned (build-never-infer).

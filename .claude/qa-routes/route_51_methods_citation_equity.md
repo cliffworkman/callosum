@@ -51,8 +51,8 @@ listeners before navigation.
 
 ## Steps
 
-1. Select a paper -> open THEORY -> the **Cite** section -> the **Citation concentration** tab (inc 248: moved here
-   from METHODS; the Cite section is now tabs [Suggest | Citation concentration | How it's cited]).
+1. Select a paper -> open **Work -> Meta-Reference** -> the **Citation concentration** subsection (stacked between
+   Meta Reference List and How it's cited on one scrollable panel — no tab-switching).
    Confirm the descriptive intro frames it as concentration ("does it lean on your own work, famous work, a few
    venues, a few elite institutions?") and states it "never looks at who the cited authors are — only what is cited."
 2. Click **Run audit** (`POST /methods/citation-equity/run` — the path keeps the historical slug); poll

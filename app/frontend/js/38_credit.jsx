@@ -204,5 +204,5 @@ function CreditSection({ ctx }) {
 
 registerWorkspaceTab(
   { id: "work", label: "Work", order: 50 },
-  { id: "credit", label: "CRediT statement", order: 20, hideInReadOnly: true, render: (ctx) => <CreditSection ctx={ctx} /> },
+  { id: "credit", label: "CRediT", order: 30, hideInReadOnly: true, render: (ctx) => <CreditSection ctx={ctx} /> },
 );
