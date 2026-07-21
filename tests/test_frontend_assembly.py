@@ -799,6 +799,36 @@ def test_qa_retriage_20260702_batch_undismiss_and_scan_recovery_fixes():
     assert 'job = JSON.parse(localStorage.getItem(SCAN_JOB_KEY) || "null");' in raw
 
 
+def test_retraction_watch_cadence_auto_refresh_is_opt_in_and_staleness_gated():
+    """Backlog #31: an automatic cadence refresh for the Retraction Watch mirror, following the established
+    client-driven/opt-in/staleness-gated pattern (Feed's own auto-refresh precedent, 30e_feed.jsx) rather than a
+    backend scheduler (none exists). Default off; the Settings checkbox and 03_library.jsx's launch/focus trigger
+    are decoupled via one shared localStorage key, not prop/ctx threading."""
+    raw = assemble_jsx()
+    # 03_library.jsx: the trigger reads the same key the Settings checkbox writes, gates on read-only + healthLoaded
+    # + an in-flight ref, checks GET .../database first and only proceeds to the full re-check batch when stale
+    # (or never downloaded). A 1-hour attempt throttle is a safety net alongside the 30-day staleness gate: a
+    # mirror that can never become fresh (e.g. no contact email set, so every refresh attempt fails) would
+    # otherwise re-run the full per-paper check batch on every single window focus, indefinitely.
+    assert "const triggerRetractionAutoRefresh = useCallback(() => {" in raw
+    assert 'localStorage.getItem("callosum.retractionAutoRefresh") === "1"' in raw
+    assert "if (Date.now() - lastRetractionAttempt.current < 3600000) return;" in raw
+    assert 'api("/methods/retraction/database").then(r => {' in raw
+    assert "if (ageDays != null && ageDays <= 30) { retractionRefreshInFlight.current = false; return; }" in raw
+    assert 'apiPost("/methods/retraction/run", {}).then(rr => {' in raw
+    # fired alongside the existing watched-folder rescan on launch + window focus, not a separate effect
+    assert "triggerWatchedRescan();  // on launch\n    triggerRetractionAutoRefresh();" in raw
+    assert "onFocus = () => { triggerWatchedRescan(); triggerRetractionAutoRefresh(); };" in raw
+    # on completion it refreshes the header chip, same as the manual "Retractions ↻" button's onDone
+    assert (
+        'if (rp.data.status === "done") { retractionRefreshInFlight.current = false; refreshRetractionChip(); }' in raw
+    )
+    # 35_settings.jsx: the opt-in checkbox, default off, writing the same key
+    assert 'localStorage.getItem("callosum.retractionAutoRefresh") === "1"; } catch (e) { return false; }' in raw
+    assert '"callosum.retractionAutoRefresh", next ? "1" : "0"' in raw
+    assert "Auto-refresh when stale (checked on launch)" in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

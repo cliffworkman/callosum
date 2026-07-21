@@ -181,7 +181,7 @@ function FeedPane({ onSaved, active, embedded }) {
             ))}
           </div>
           <div className="feed-controls-right">
-            <label className="feed-autorefresh" title="When you open the Feed and a source is stale (>6h), refresh it automatically">
+            <label className="auto-refresh-toggle" title="When you open the Feed and a source is stale (>6h), refresh it automatically">
               <input type="checkbox" checked={autoRefresh} onChange={toggleAuto} /> Auto-refresh on open
             </label>
             {unread ? <button className="btn btn-link" onClick={markAllRead}>Mark all read</button> : null}

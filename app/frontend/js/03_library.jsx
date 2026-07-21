@@ -310,12 +310,48 @@ function useLibrary(opts) {
       poll(r.data.job_id);
     });
   }, [readOnly, healthLoaded, setTagRefresh]);
+
+  // --- Retraction Watch mirror: opt-in cadence auto-refresh on launch + focus (backlog #31) ---
+  // Client-driven, staleness-gated pull (no backend scheduler exists) — mirrors triggerWatchedRescan's shape above
+  // and Feed's opt-in/staleness-gated auto-refresh precedent (30e_feed.jsx). Default off; the Settings checkbox
+  // (35_settings.jsx) reads/writes the same localStorage key, decoupled — no prop/ctx threading needed.
+  const retractionRefreshInFlight = useRef(false);
+  const lastRetractionAttempt = useRef(0);
+  const triggerRetractionAutoRefresh = useCallback(() => {
+    if (!healthLoaded || readOnly || retractionRefreshInFlight.current) return;
+    let optedIn = false;
+    try { optedIn = localStorage.getItem("callosum.retractionAutoRefresh") === "1"; } catch (e) { /* ignore */ }
+    if (!optedIn) return;
+    // Safety-net throttle (≤1/hour) alongside the 30-day staleness gate: without it, a mirror that can never
+    // become fresh (e.g. no contact email set, so every refresh attempt fails) would re-run the full per-paper
+    // check batch — real Crossref/OpenAlex calls per paper — on every single window focus, indefinitely.
+    if (Date.now() - lastRetractionAttempt.current < 3600000) return;
+    lastRetractionAttempt.current = Date.now();
+    retractionRefreshInFlight.current = true;
+    api("/methods/retraction/database").then(r => {
+      const retrievedAt = r.ok ? r.data.retrieved_at : null;
+      const ageDays = retrievedAt ? Math.floor((Date.now() - new Date(retrievedAt).getTime()) / 86400000) : null;
+      if (ageDays != null && ageDays <= 30) { retractionRefreshInFlight.current = false; return; }  // fresh enough
+      apiPost("/methods/retraction/run", {}).then(rr => {
+        if (!rr.ok) { retractionRefreshInFlight.current = false; return; }
+        const poll = (jobId) => api(`/methods/retraction/run/${jobId}`).then(rp => {
+          if (!rp.ok) { retractionRefreshInFlight.current = false; return; }
+          if (rp.data.status === "done") { retractionRefreshInFlight.current = false; refreshRetractionChip(); }
+          else if (rp.data.status === "error") retractionRefreshInFlight.current = false;
+          else setTimeout(() => poll(jobId), 2000);
+        });
+        poll(rr.data.job_id);
+      });
+    });
+  }, [readOnly, healthLoaded, refreshRetractionChip]);
+
   useEffect(() => {
     triggerWatchedRescan();  // on launch
-    const onFocus = () => triggerWatchedRescan();
+    triggerRetractionAutoRefresh();
+    const onFocus = () => { triggerWatchedRescan(); triggerRetractionAutoRefresh(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [triggerWatchedRescan]);
+  }, [triggerWatchedRescan, triggerRetractionAutoRefresh]);
 
   // --- debounce search ---
   useEffect(() => {

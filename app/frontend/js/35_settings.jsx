@@ -38,6 +38,20 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
   const ageDays = db && db.retrieved_at ? Math.floor((Date.now() - new Date(db.retrieved_at).getTime()) / 86400000) : null;
   const stale = ageDays != null && ageDays > 30;
 
+  // Opt-in cadence auto-refresh (backlog #31): default off, decoupled via localStorage — 03_library.jsx's
+  // triggerRetractionAutoRefresh reads the same key on launch/focus. Mirrors Feed's own opt-in auto-refresh
+  // toggle (30e_feed.jsx) — visible + inspectable, never a silent standing timer (Principles gate, rule #9).
+  const [autoRefresh, setAutoRefresh] = useState(() => {
+    try { return localStorage.getItem("callosum.retractionAutoRefresh") === "1"; } catch (e) { return false; }
+  });
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(v => {
+      const next = !v;
+      try { localStorage.setItem("callosum.retractionAutoRefresh", next ? "1" : "0"); } catch (e) { /* ignore */ }
+      return next;
+    });
+  };
+
   return (
     <>
       <p className="eyebrow">Local maintenance</p>
@@ -58,6 +72,9 @@ function LocalMaintenanceSettings({ onRetractionRan }) {
             : "Not downloaded — refresh to enable the richest source"}
           {stale && ` · ${ageDays} days old — refresh recommended`}
         </div>
+        <label className="auto-refresh-toggle" title="When enabled, refreshes the mirror and re-checks your library automatically on launch (and when you switch back to Callosum) if the mirror is more than 30 days old.">
+          <input type="checkbox" checked={autoRefresh} onChange={toggleAutoRefresh} /> Auto-refresh when stale (checked on launch)
+        </label>
       </div>
       {dbRun.status === "error" && <div className="settings-note settings-note-err">{dbRun.error}</div>}
       <div className="settings-field">

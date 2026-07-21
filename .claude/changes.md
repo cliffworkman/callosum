@@ -9,6 +9,31 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-21 inc 318 — updated the "Checking for retractions" section's Retraction Watch
+database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
+launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
+un-synced corpus change. -->
+## 2026-07-21 — Increment 318: automatic cadence refresh for the Retraction Watch DB mirror (backlog #31)
+- **Files:** `app/frontend/js/{03_library,30e_feed,35_settings}.jsx`, `app/frontend/styles.css`,
+  `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`,
+  `.claude/qa-routes/route_74_retraction_watch.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`,
+  `.claude/docs/increment-notes/INCREMENT-318-NOTES.md`.
+- **What:** an opt-in, staleness-gated automatic refresh of the Retraction Watch mirror — default-off checkbox
+  in Settings → Local Maintenance; when on, fires the same full re-check batch the existing "Retractions ↻"
+  library-header button uses, on launch/focus, only once the mirror is >30 days old or never downloaded.
+  Follows the same client-driven pull pattern already established for the Literature Feed's own auto-refresh
+  (no backend scheduler exists, and none was introduced). Live verification against a QA fixture with no
+  contact email configured surfaced a real gap — a mirror that can never become fresh would otherwise re-run the
+  batch on every window focus indefinitely — fixed with a 1-hour attempt throttle as a safety net alongside the
+  30-day staleness gate. Renamed Feed's `.feed-autorefresh` CSS class to the shared `.auto-refresh-toggle` now
+  that a second feature uses the same recipe.
+- **Why:** backlog #31's remaining slice — the 30-day staleness nudge (v1) was passive text nobody would act on
+  unless they happened to have Settings open; this makes staying current the default behavior for anyone who
+  opts in.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-318-NOTES.md` for the full
+  design rationale (including the Principles-gate framing for why this is opt-in, not a silent timer) and the
+  live Playwright verification of the full trigger/throttle/persistence behavior.
+
 ## 2026-07-21 — Increment 317: QA re-triage batch (routes 24/27/30/32)
 - **Files:** `app/frontend/js/{19_duplicates,27_scan}.jsx`, `tests/test_frontend_assembly.py`, `callosum-app.html`,
   `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`, `.claude/docs/increment-notes/INCREMENT-317-NOTES.md`.

@@ -1,6 +1,6 @@
 <!-- qa-coverage
-api: /methods/retraction/database, /methods/retraction/database/refresh, /methods/retraction/database/refresh/{job_id}
-fe: 35_settings.jsx, 08x_methods_critical.jsx
+api: /methods/retraction/database, /methods/retraction/database/refresh, /methods/retraction/database/refresh/{job_id}, /methods/retraction/run, /methods/retraction/run/{job_id}
+fe: 35_settings.jsx, 08x_methods_critical.jsx, 03_library.jsx
 -->
 
 # ROUTE 74 — Retraction Watch DB (the bulk third source)
@@ -8,9 +8,10 @@ fe: 35_settings.jsx, 08x_methods_critical.jsx
 **Tier:** 1 local-stateful
 **Goal:** Exhaust the Retraction Watch database surface — now **Settings → Local maintenance** (moved from the
 retired left-pane Review accordion, 2026-07-20; the library-wide check itself lives as a Library-header button,
-route 39) — the as-of line, the Refresh-database action, and the fact that the RW source (the richest:
-reason/date/notice) feeds the producer's merge, surfaced via **Synthesize → Critique**'s Tier-1 backbone — while
-preserving the retraction honesty invariants. Public bulk CC0 metadata; **never** the Gemini gate.
+route 39) — the as-of line, the Refresh-database action, the **opt-in cadence auto-refresh** (backlog #31,
+2026-07-21), and the fact that the RW source (the richest: reason/date/notice) feeds the producer's merge,
+surfaced via **Synthesize → Critique**'s Tier-1 backbone — while preserving the retraction honesty invariants.
+Public bulk CC0 metadata; **never** the Gemini gate.
 
 ## Environment
 
@@ -49,6 +50,10 @@ RetractionWatchClient(fetcher=lambda url, **k: FAKE_CSV, mailto="x@y.z")` on the
 - **No accusation / FACT not candidate / reinstatements not flagged.** RW only adds coverage + richer detail
   (reason/date/notice) to the SP1 producer; it never introduces an author signal, and a **Reinstatement** is
   never surfaced as a finding.
+- **Cadence auto-refresh is opt-in and visible, never a silent standing timer.** Default OFF
+  (`callosum.retractionAutoRefresh` unset/`"0"`); with it unchecked, no automatic
+  `POST /methods/retraction/run` fires on launch/focus regardless of mirror age. A checked-but-fresh mirror
+  (≤30 days) also does not auto-fire — only checked + stale (or never-downloaded) does.
 
 ## Adversarial checklist
 
@@ -72,7 +77,17 @@ RetractionWatchClient(fetcher=lambda url, **k: FAKE_CSV, mailto="x@y.z")` on the
 4. (Real-download check — the user's, optional, not automated:) with a mailto set, Refresh → the count + a
    known-retracted library DOI flags. This verifies the live URL + CSV schema (the one thing the hermetic tests
    assume).
-5. Adversarial: Refresh with no mailto → clear error; mobile viewport has no overflow.
+5. **Cadence auto-refresh (backlog #31).** In Settings → Local maintenance, confirm the **"Auto-refresh when
+   stale (checked on launch)"** checkbox beside the as-of line, unchecked by default; reload and confirm it stays
+   unchecked (no accidental persistence). Check it, reload — confirm it persists checked. With the mirror
+   never-downloaded (or hand-seeded with an old `retrieved_at`, e.g. via the offline seed helper above with a
+   >30-day-old timestamp) and the checkbox on, reload/refocus the app and confirm (via the network log)
+   `GET /methods/retraction/database` fires, then `POST /methods/retraction/run` (an injected fake client per the
+   Environment note), completing with 0 console errors and the header **"⚠ Retracted · N"** chip updating if a
+   newly-flagged paper resulted. Uncheck the box, reload/refocus, and confirm neither request fires. Re-seed the
+   mirror fresh (`retrieved_at` < 30 days old), check the box, reload/refocus, and confirm the `GET` fires but the
+   `POST` does **not** (fresh enough — no unnecessary re-check batch).
+6. Adversarial: Refresh with no mailto → clear error; mobile viewport has no overflow.
 
 ## Pass criteria
 
@@ -80,6 +95,8 @@ RetractionWatchClient(fetcher=lambda url, **k: FAKE_CSV, mailto="x@y.z")` on the
   maintenance.
 - The RW source contributes the richest detail to a flagged paper's Critique signal row; reinstatements never
   flagged.
+- The cadence auto-refresh checkbox defaults off, persists across reload, and only fires the full re-check batch
+  when both opted-in and the mirror is stale (>30 days) or never downloaded — never when off, never when fresh.
 - 0 console/page errors; **0 genai-host requests**.
 - Fail-closed on mailto-absent; mobile viewport has no overflow.
 

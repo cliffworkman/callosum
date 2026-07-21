@@ -80,9 +80,16 @@
   `INCREMENT-317-NOTES.md`. **Left as a documented, non-urgent loose end:** the console-error-budget QA-POLICY
   assertion could be refined to exclude expected-adversarial 4xx/5xx noise, so future QA runs stop re-manufacturing
   the same 3 non-bugs.
-- **#31 remaining slice:** an automatic **cadence** refresh of the Retraction Watch DB mirror (manual + a
-  staleness nudge is v1); folding the statcheck signal chip into the unified findings facet (coexist is the
-  deliberate v1 choice — revisit only if it starts reading as redundant).
+- ✅ **#31 cadence auto-refresh — CLOSED inc 318.** An opt-in, staleness-gated automatic refresh of the
+  Retraction Watch mirror, following the client-driven pull pattern already established for Feed's own
+  auto-refresh (no backend scheduler exists, and none was introduced). Default off (Settings → Local
+  Maintenance checkbox); when on, fires the full re-check batch (`POST /methods/retraction/run` — mirror
+  refresh + re-check every paper) on launch/focus once the mirror is >30 days old or never downloaded, gated by
+  a 1-hour attempt throttle found necessary during live verification (without it, a mirror that can never
+  become fresh — e.g. no contact email set — would re-run the batch on every window focus indefinitely). See
+  `INCREMENT-318-NOTES.md`. **Remaining #31 sub-item, still a deliberate v1 non-goal:** folding the statcheck
+  signal chip into the unified findings facet (coexist on purpose — revisit only if it starts reading as
+  redundant).
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
 

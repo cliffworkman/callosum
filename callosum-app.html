@@ -1799,7 +1799,9 @@
   .feed-sub-x:hover { color: var(--flag-ink); }
   .feed-controls { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 6px; }
   .feed-controls-right { display: flex; align-items: center; gap: 12px; }
-  .feed-autorefresh { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11px; color: var(--ink-3); cursor: pointer; }
+  /* Shared by any opt-in "auto-refresh when stale" checkbox (Feed, backlog #31's Retraction Watch cadence, …) —
+     renamed from .feed-autorefresh (2026-07-21) when a second feature adopted the same recipe. */
+  .auto-refresh-toggle { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 11px; color: var(--ink-3); cursor: pointer; }
   .feed-row-top { display: flex; align-items: baseline; gap: 7px; }
   .feed-unread-dot { flex: none; width: 7px; height: 7px; border-radius: var(--radius-pill); background: var(--accent); margin-top: 5px; }
   .feed-item.read .discover-title { color: var(--ink-2); font-weight: 400; }
@@ -3465,12 +3467,56 @@
         poll(r.data.job_id);
       });
     }, [readOnly, healthLoaded, setTagRefresh]);
+    const retractionRefreshInFlight = useRef(false);
+    const lastRetractionAttempt = useRef(0);
+    const triggerRetractionAutoRefresh = useCallback(() => {
+      if (!healthLoaded || readOnly || retractionRefreshInFlight.current) return;
+      let optedIn = false;
+      try {
+        optedIn = localStorage.getItem("callosum.retractionAutoRefresh") === "1";
+      } catch (e) {
+      }
+      if (!optedIn) return;
+      if (Date.now() - lastRetractionAttempt.current < 36e5) return;
+      lastRetractionAttempt.current = Date.now();
+      retractionRefreshInFlight.current = true;
+      api("/methods/retraction/database").then((r) => {
+        const retrievedAt = r.ok ? r.data.retrieved_at : null;
+        const ageDays = retrievedAt ? Math.floor((Date.now() - new Date(retrievedAt).getTime()) / 864e5) : null;
+        if (ageDays != null && ageDays <= 30) {
+          retractionRefreshInFlight.current = false;
+          return;
+        }
+        apiPost("/methods/retraction/run", {}).then((rr) => {
+          if (!rr.ok) {
+            retractionRefreshInFlight.current = false;
+            return;
+          }
+          const poll = (jobId) => api(`/methods/retraction/run/${jobId}`).then((rp) => {
+            if (!rp.ok) {
+              retractionRefreshInFlight.current = false;
+              return;
+            }
+            if (rp.data.status === "done") {
+              retractionRefreshInFlight.current = false;
+              refreshRetractionChip();
+            } else if (rp.data.status === "error") retractionRefreshInFlight.current = false;
+            else setTimeout(() => poll(jobId), 2e3);
+          });
+          poll(rr.data.job_id);
+        });
+      });
+    }, [readOnly, healthLoaded, refreshRetractionChip]);
     useEffect(() => {
       triggerWatchedRescan();
-      const onFocus = () => triggerWatchedRescan();
+      triggerRetractionAutoRefresh();
+      const onFocus = () => {
+        triggerWatchedRescan();
+        triggerRetractionAutoRefresh();
+      };
       window.addEventListener("focus", onFocus);
       return () => window.removeEventListener("focus", onFocus);
-    }, [triggerWatchedRescan]);
+    }, [triggerWatchedRescan, triggerRetractionAutoRefresh]);
     useEffect(() => {
       const t = setTimeout(() => {
         setDebounced(query);
@@ -12370,7 +12416,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           }
         }
       }
-    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, (selKind === "journal" ? libJournals.map((j) => j.journal) : (sourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !cat.trim() }, "Follow"), selKind === "journal" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setSuggestOpen(true), title: "Journals already in your library" }, "Suggest") : null, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: refresh, disabled: refreshing || !subs.length }, refreshing ? "Refreshing\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), /* @__PURE__ */ React.createElement("div", { className: "feed-controls-right" }, /* @__PURE__ */ React.createElement("label", { className: "feed-autorefresh", title: "When you open the Feed and a source is stale (>6h), refresh it automatically" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAuto }), " Auto-refresh on open"), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null))), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title)), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("datalist", { id: "feed-source-suggestions" }, (selKind === "journal" ? libJournals.map((j) => j.journal) : (sourceMeta.find((m) => m.kind === selKind) || {}).suggestions || []).map((c) => /* @__PURE__ */ React.createElement("option", { key: c, value: c }))), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: follow, disabled: !cat.trim() }, "Follow"), selKind === "journal" ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", onClick: () => setSuggestOpen(true), title: "Journals already in your library" }, "Suggest") : null, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", onClick: refresh, disabled: refreshing || !subs.length }, refreshing ? "Refreshing\u2026" : "Refresh")), /* @__PURE__ */ React.createElement("div", { className: "feed-controls" }, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, ["all", "unread", "starred"].map((f) => /* @__PURE__ */ React.createElement("button", { key: f, className: "tags-srcfilter-btn" + (filter === f ? " on" : ""), onClick: () => setFilter(f) }, f === "all" ? "All" : f === "unread" ? `Unread${unread ? ` (${unread})` : ""}` : "Starred"))), /* @__PURE__ */ React.createElement("div", { className: "feed-controls-right" }, /* @__PURE__ */ React.createElement("label", { className: "auto-refresh-toggle", title: "When you open the Feed and a source is stale (>6h), refresh it automatically" }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAuto }), " Auto-refresh on open"), unread ? /* @__PURE__ */ React.createElement("button", { className: "btn btn-link", onClick: markAllRead }, "Mark all read") : null))), /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, !subs.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "Your feed is empty. Follow a bioRxiv category above, then Refresh to pull recent preprints.") : !items.length ? /* @__PURE__ */ React.createElement("div", { className: "discover-empty" }, "No items", filter !== "all" ? ` (${filter})` : "", ". Refresh to poll your followed sources.") : null, items.map((it) => /* @__PURE__ */ React.createElement("div", { key: it.id, className: "discover-item feed-item" + (it.is_read ? " read" : ""), onClick: () => setRead(it, true) }, /* @__PURE__ */ React.createElement("div", { className: "feed-row-top" }, !it.is_read ? /* @__PURE__ */ React.createElement("span", { className: "feed-unread-dot", title: "Unread" }) : null, /* @__PURE__ */ React.createElement("div", { className: "discover-title" }, it.title)), /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, it.authors && it.authors.length ? /* @__PURE__ */ React.createElement("span", { className: "paper-authors" }, it.authors.slice(0, 3).join("; "), it.authors.length > 3 ? " et al." : "") : null, it.posted_date ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.posted_date) : it.year ? /* @__PURE__ */ React.createElement("span", { className: "mono" }, it.year) : null, it.journal ? /* @__PURE__ */ React.createElement("span", { className: "paper-venue" }, it.journal) : null), /* @__PURE__ */ React.createElement("div", { className: "discover-foot" }, /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "feed-star" + (it.is_starred ? " on" : ""),
@@ -13088,7 +13134,24 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     };
     const ageDays = db && db.retrieved_at ? Math.floor((Date.now() - new Date(db.retrieved_at).getTime()) / 864e5) : null;
     const stale = ageDays != null && ageDays > 30;
-    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Local maintenance"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Retraction Watch database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: dbRun.status === "running", onClick: refreshDb }, dbRun.status === "running" ? "Downloading\u2026" : "Refresh database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The local mirror of the Retraction Watch database (Crossref-hosted, CC0) \u2014 the richest source (reason/date/notice) the library's retraction check can draw on."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (stale ? " settings-note-err" : "") }, db && db.count > 0 ? `${db.count.toLocaleString()} records${db.retrieved_at ? " \xB7 as of " + db.retrieved_at.slice(0, 10) : ""}` : "Not downloaded \u2014 refresh to enable the richest source", stale && ` \xB7 ${ageDays} days old \u2014 refresh recommended`)), dbRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, dbRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Synthesis cache"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: repairSummaryCache }, busy ? "Scanning\u2026" : "Repair synthesis cache")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
+    const [autoRefresh, setAutoRefresh] = useState(() => {
+      try {
+        return localStorage.getItem("callosum.retractionAutoRefresh") === "1";
+      } catch (e) {
+        return false;
+      }
+    });
+    const toggleAutoRefresh = () => {
+      setAutoRefresh((v) => {
+        const next = !v;
+        try {
+          localStorage.setItem("callosum.retractionAutoRefresh", next ? "1" : "0");
+        } catch (e) {
+        }
+        return next;
+      });
+    };
+    return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Local maintenance"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Retraction Watch database"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: dbRun.status === "running", onClick: refreshDb }, dbRun.status === "running" ? "Downloading\u2026" : "Refresh database")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The local mirror of the Retraction Watch database (Crossref-hosted, CC0) \u2014 the richest source (reason/date/notice) the library's retraction check can draw on."), /* @__PURE__ */ React.createElement("div", { className: "settings-note" + (stale ? " settings-note-err" : "") }, db && db.count > 0 ? `${db.count.toLocaleString()} records${db.retrieved_at ? " \xB7 as of " + db.retrieved_at.slice(0, 10) : ""}` : "Not downloaded \u2014 refresh to enable the richest source", stale && ` \xB7 ${ageDays} days old \u2014 refresh recommended`), /* @__PURE__ */ React.createElement("label", { className: "auto-refresh-toggle", title: "When enabled, refreshes the mirror and re-checks your library automatically on launch (and when you switch back to Callosum) if the mirror is more than 30 days old." }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: autoRefresh, onChange: toggleAutoRefresh }), " Auto-refresh when stale (checked on launch)")), dbRun.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, dbRun.error), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("div", { className: "settings-row settings-maintenance-action" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Synthesis cache"), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: repairSummaryCache }, busy ? "Scanning\u2026" : "Repair synthesis cache")), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Scans cached AI draft summaries and removes only malformed cache rows. Saved syntheses, verified citations, chunks, and evidence records are not changed.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
   function MetadataSettings() {
     const [email, setEmail] = useState("");
