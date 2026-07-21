@@ -925,6 +925,106 @@ def flatten_interactive(doc) -> None:
     _msgbox(f"Flattened {n} citation(s) to static text. Live updating is now off for this document.")
 
 
+def _default_submission_copy_name(doc) -> str:
+    url = doc.getURL()
+    if url:
+        path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+        base_name = os.path.splitext(os.path.basename(path))[0]
+        if base_name:
+            return f"{base_name}-submission-copy.odt"
+    return "submission-copy.odt"
+
+
+def _submission_copy_url(doc, filename: str) -> str:
+    """A file:// URL for `filename` — next to the current document if it's already saved, else the user's
+    home directory (P0 phase 8). Purely a local Save-As-style path choice; the filename is the user's own input
+    on their own machine (the same trust boundary LibreOffice's native Save As already has), not untrusted
+    external input, so no path-traversal handling applies here."""
+    import uno
+
+    doc_url = doc.getURL()
+    if doc_url:
+        directory_url = doc_url.rsplit("/", 1)[0]
+        return f"{directory_url}/{urllib.parse.quote(filename)}"
+    return uno.systemPathToFileUrl(os.path.join(os.path.expanduser("~"), filename))
+
+
+def verify_flatten_integrity(before_text: str, after_text: str, doc) -> bool:
+    """The post-flatten integrity check (P0 phase 8, backlog #33/#34): `flatten` only ever removes invisible
+    mark/bookmark structure and re-inserts the SAME rendered text — the document's plain-text content must be
+    byte-identical before and after, and zero CALLOSUM marks may remain."""
+    if before_text != after_text:
+        return False
+    return not any(decode_mark_name(n) is not None for n in doc.getReferenceMarks().getElementNames())
+
+
+def prepare_submission_copy(doc, filename: str) -> tuple[int, str]:
+    """Flatten into a SEPARATE saved copy, never the live document (P0 phase 8) — the safe replacement for a
+    bare, immediate `flatten()`. Sequence: group the flatten as one undo step, verify nothing but the invisible
+    field/bookmark structure changed (`verify_flatten_integrity`), save the flattened result to `filename`, then
+    undo the flatten in the live document so it is never actually left mutated — the copy on disk is the
+    reversible artifact, the same role a merge_operations snapshot or a soft-delete husk plays elsewhere in this
+    codebase, adapted to a document that isn't a database row.
+
+    Known v1 limitation: always saves ODF (`writer8`) — LibreOffice's per-format filter names are numerous and
+    format-specific enough that guessing the right one for every possible original document type without being
+    able to verify each is worse than shipping one honestly-documented, verified format.
+
+    Returns (flattened_count, save_url). Raises on integrity failure or a save error — the live document is
+    always restored (via undo) before either is raised.
+    """
+    text = doc.getText()
+    before_text = text.getString()
+    undo = doc.getUndoManager()
+    undo.enterUndoContext("Prepare submission copy")
+    count = flatten(doc)
+    undo.leaveUndoContext()
+    after_text = text.getString()
+    if not verify_flatten_integrity(before_text, after_text, doc):
+        undo.undo()
+        raise RuntimeError(
+            "the flatten did not verify cleanly (visible text changed, or a live citation mark remained) — "
+            "your document was not changed"
+        )
+    save_url = _submission_copy_url(doc, filename)
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+    except Exception:
+        undo.undo()
+        raise
+    undo.undo()  # restore the live document — it was never actually left flattened
+    return count, save_url
+
+
+def prepare_submission_copy_interactive(doc) -> None:
+    citation_count = len(scan_citations_in_order(doc))
+    has_bib = doc.getBookmarks().hasByName(BIB_BOOKMARK) and doc.getBookmarks().hasByName(BIB_BOOKMARK_END)
+    if citation_count == 0 and not has_bib:
+        _msgbox("No live citations or bibliography to flatten in this document.")
+        return
+    prompt = (
+        f"This document has {citation_count} live citation(s)"
+        + (" and a bibliography" if has_bib else "")
+        + ". This saves a SEPARATE copy with citations converted to static text — your open document is never "
+        "changed. Save the copy as (in the same folder, or your home folder if unsaved):"
+    )
+    filename = _input_box(doc, "Prepare submission copy", prompt, _default_submission_copy_name(doc))
+    if not filename or not filename.strip():
+        return
+    try:
+        count, save_url = prepare_submission_copy(doc, filename.strip())
+    except Exception as exc:
+        _msgbox(f"Could not prepare the submission copy: {exc}\n\nYour open document was not changed.")
+        return
+    _msgbox(
+        f"Saved a submission copy with {count} citation(s) flattened.\n\nYour open document is unchanged.\n{save_url}"
+    )
+
+
 def delete_citation_interactive(doc, base: str) -> None:
     field = mark_at_cursor(doc)
     if field is None:
@@ -1030,6 +1130,7 @@ _ACTIONS = {
     "refresh": refresh,
     "setStyle": set_style_interactive,
     "flatten": lambda doc, base: flatten_interactive(doc),
+    "prepareSubmissionCopy": lambda doc, base: prepare_submission_copy_interactive(doc),
     "insertStatement": insert_statement,
     "setServerUrl": lambda doc, base: set_server_url_interactive(doc),
     "deleteCitation": delete_citation_interactive,
@@ -1119,6 +1220,10 @@ def CallosumToggleBibAuto(*_args):
     _macro("toggleBibAuto")
 
 
+def CallosumPrepareSubmissionCopy(*_args):
+    _macro("prepareSubmissionCopy")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -1135,4 +1240,5 @@ g_exportedScripts = (
     CallosumOpenInCallosum,
     CallosumInsertBibliographyHere,
     CallosumToggleBibAuto,
+    CallosumPrepareSubmissionCopy,
 )

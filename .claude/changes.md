@@ -13,6 +13,19 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 326: LibreOffice adapter rework, Phase 8 (safe flatten)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `.claude/docs/increment-notes/INCREMENT-326-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** a new "Prepare submission copy…" action — the safe alternative to a bare, immediate flatten. Saves
+  a separate copy with citations converted to static text (verified byte-identical text + zero remaining marks
+  before saving), then always undoes the flatten in the open document, so it is never actually left mutated.
+  The existing "Flatten to static text" stays available as the advanced, in-place option. Known v1 limitation:
+  always saves ODF, regardless of the original document's format.
+- **Why:** the next slice of backlog #33/#34's P0 rework — the roadmap's own "a second deliberate choice"
+  framing, but made even safer by defaulting to copy-always rather than a checkbox that could be unchecked.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-326-NOTES.md`, including a
+  real XML bug caught by the well-formedness check (a bare `--` inside an XML comment) before it shipped.
+
 ## 2026-07-21 — Increment 325: LibreOffice adapter rework, Phase 7 (bounded bibliography)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
   `adapters/libreoffice/oxt/Addons.xcu`, `.claude/docs/increment-notes/INCREMENT-325-NOTES.md`, `.claude/CLAUDE.md`.

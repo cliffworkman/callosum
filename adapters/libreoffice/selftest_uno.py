@@ -568,6 +568,47 @@ def spike_toggle_bib_auto(ctx, base, p1, p2):
     log("spike (phase 7): OK — bibliography stayed frozen while auto-rebuild was off; citations kept updating")
 
 
+def spike_prepare_submission_copy(ctx, base, p1):
+    """P0 phase 8: `prepare_submission_copy` must NEVER leave the live, open document flattened — it saves a
+    separate copy, then undoes the flatten in place. Confirms the SAVED copy has zero live citation marks (the
+    rendered text present as plain static text) while the OPEN document still has its live mark AND identical
+    visible text afterward."""
+    log("spike (phase 8): prepare_submission_copy never mutates the live document")
+    import uuid
+
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Intro sentence.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    live_before = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(live_before) == 1, f"expected 1 live mark before prepare_submission_copy, found {len(live_before)}")
+    body_before = text.getString()
+
+    filename = f"callosum_selftest_submission_copy_{uuid.uuid4().hex[:8]}.odt"
+    count, save_url = cc.prepare_submission_copy(doc, filename)
+    check(count == 1, f"expected 1 citation flattened, found {count}")
+
+    live_after = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(
+        len(live_after) == 1,
+        f"the OPEN document lost its live mark(s) — it should be untouched, found {len(live_after)}",
+    )
+    body_after = text.getString()
+    check(body_after == body_before, "the OPEN document's text changed — it should be byte-identical to before")
+
+    saved_doc = load_doc(ctx, save_url)
+    saved_marks = [n for n in saved_doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(saved_marks) == 0, f"the SAVED copy should have zero live marks (flattened), found {len(saved_marks)}")
+    saved_body = saved_doc.getText().getString()
+    check(saved_body == body_before, "the SAVED copy's visible text should match the original")
+    log(f"spike (phase 8): OK — saved copy at {save_url!r} is flattened; the open document is untouched")
+
+    try:
+        os.remove(uno.fileUrlToSystemPath(save_url))
+    except Exception:
+        pass
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -700,6 +741,9 @@ def main():
         spike_bounded_bibliography_preserves_trailing_text(ctx, base, p1)
         spike_insert_bibliography_here(ctx, base, p1)
         spike_toggle_bib_auto(ctx, base, p1, p2)
+
+        # 11) P0 phase 8 (backlog #33/#34): safe flatten — the live document must never end up mutated.
+        spike_prepare_submission_copy(ctx, base, p1)
 
         print("SELFTEST OK", flush=True)
         return 0

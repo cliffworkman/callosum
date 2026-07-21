@@ -97,6 +97,14 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P0 phase 8 (backlog #33/#34): the recommended, safe replacement for a bare Flatten. Always
+               saves a separate copy; never mutates the open document. -->
+          <node oor:name="m06p" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?prepareSubmissionCopy</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Prepare submission copy…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m06a" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>private:separator</value></prop>
           </node>
