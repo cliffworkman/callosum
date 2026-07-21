@@ -96,8 +96,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    body scrolls vertically without moving the Discover sub-tab strip.
 3. **Synthesize** → confirm sub-tabs **Ask · Critique**. In **Ask**, ask a small query or use Library selection
    **summarize**; confirm the workspace opens to Ask and the history/result state stays mounted when switching away
-   and back. In **Critique**, select a processed paper and confirm the single-paper critical-read surface auto-runs
-   there, not in the METHODS accordion.
+   and back; confirm **Ask** does not show the selected-paper cue. In **Critique**, with a paper selected but not
+   open, confirm the dashed selected-paper cue appears before **Ask · Critique** (matching Discover/Meta-Reference);
+   select a processed paper and confirm the single-paper critical-read surface lives there, not in the METHODS
+   accordion, and that Tier 1 is **user-triggered** — a "Run critical read" button, not an auto-run on open.
 4. **Work** → confirm four sub-tabs, in order: **Cite · Meta-Reference · CRediT · Meta-Analyze**.
    - **Cite** renders the Suggest tool directly (no inner tab strip — the nested Cite pane-tabs were removed in
      the reorg).
@@ -160,9 +162,10 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   results.
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Selected-but-unopened papers show the pinned selected-paper tab; clicking it opens the PDF; open PDF tabs nest under
-  Library, reorder by drag, and persist. Discover → Journals/Funding and Work → Meta-Reference reuse that selected/open
-  paper cue before their sub-tabs and click through to the reader; every other sub-tab (Feed/Search, Cite/CRediT/
-  Meta-Analyze) does not show it. The active workspace persists across reload; read-only hides the write
+  Library, reorder by drag, and persist. Discover → Journals/Funding, Work → Meta-Reference, and Synthesize →
+  Critique reuse that selected/open paper cue before their sub-tabs and click through to the reader; every other
+  sub-tab (Feed/Search, Ask, Cite/CRediT/Meta-Analyze) does not show it. The active workspace persists across
+  reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Work → Meta-Analyze capture round-trips.
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and
   does not return after workspace switching.

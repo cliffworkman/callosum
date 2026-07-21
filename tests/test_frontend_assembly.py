@@ -213,9 +213,9 @@ def test_discover_and_meta_reference_show_selected_paper_tab_cue():
     raw = assemble_jsx()
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
     assert "function WorkspacePaperCue({ ctx, activeTab })" in raw
-    # The cue's tab whitelist is the single source of truth (2026-07-20) -- Work -> Meta-Reference joined
-    # Discover -> Journals/Funding; the old workspace-id gate at the WorkspacePane call site is gone.
-    assert '!["journals", "funding", "meta-reference"].includes(activeTab)' in raw
+    # The cue's tab whitelist is the single source of truth (2026-07-20) -- Work -> Meta-Reference and Synthesize
+    # -> Critique joined Discover -> Journals/Funding; the old workspace-id gate at the WorkspacePane call site is gone.
+    assert '!["journals", "funding", "meta-reference", "critique"].includes(activeTab)' in raw
     assert "const openTab = ctx.selectedOpenPaperTab || null" in raw
     assert 'className="frame-tab active workspace-paper-cue"' in raw
     assert 'className="frame-tab frame-tab-selected workspace-paper-cue"' in raw
@@ -433,13 +433,20 @@ def test_synthesis_failure_recovery_actions_are_wired():
 def test_single_paper_critical_read_lives_in_synthesize_critique():
     raw = assemble_jsx()
     assert 'id: "critique", label: "Critique", order: 20, hideInReadOnly: true' in raw
-    assert "render: (ctx, active) => <CriticalReadSection ctx={ctx} active={active} />" in raw
+    assert "render: (ctx) => <CriticalReadSection ctx={ctx} />" in raw
     assert (
-        "<CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} "
+        "<CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} "
         "onFindingsChanged={ctx.onFindingsChanged} />"
     ) in raw
     assert 'ctx.methodsOpen === "critical_read"' not in raw
     assert 'registerPaneSection({\n  id: "critical_read"' not in raw
+    # Tier 1 is user-triggered (2026-07-20) -- no auto-run effect keyed off an `active` visibility flag.
+    assert "function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged })" in raw
+    assert 'if (active && meta && meta.hasText && t1.status === "idle") runT1();' not in raw
+    assert (
+        'meta && meta.hasText && t1.status === "idle" &&\n        <button className="btn btn-primary" onClick={runT1}'
+    ) in raw
+    assert "Run critical read" in raw
 
 
 def test_pdf_text_health_controls_are_present_and_local_only_worded():

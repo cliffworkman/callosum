@@ -3864,7 +3864,7 @@
     return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
   }
   function WorkspacePaperCue({ ctx, activeTab }) {
-    if (!ctx || !["journals", "funding", "meta-reference"].includes(activeTab)) return null;
+    if (!ctx || !["journals", "funding", "meta-reference", "critique"].includes(activeTab)) return null;
     const openTab = ctx.selectedOpenPaperTab || null;
     const selectedTab = ctx.selectedPaperTab || null;
     if (openTab) {
@@ -6847,7 +6847,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function CriticalCandidate({ c, onAccept, onReject }) {
     return /* @__PURE__ */ React.createElement("div", { className: "cr-candidate" + (c.status === "accepted" ? " cr-accepted" : "") }, /* @__PURE__ */ React.createElement("div", { className: "bayes-check-note" }, c.concern), /* @__PURE__ */ React.createElement("div", { className: "cr-quote" }, "\u201C", c.anchor_quote, "\u201D"), c.confidence != null && /* @__PURE__ */ React.createElement("div", { className: "lmm-basis" }, "stance: ", c.stance || "\u2014", " \xB7 confidence ", Math.round(c.confidence * 100), "%"), c.status === "accepted" ? /* @__PURE__ */ React.createElement("span", { className: "cite-status verified" }, "\u2713 accepted") : /* @__PURE__ */ React.createElement("div", { className: "cr-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onAccept }, "Accept"), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onReject }, "Reject")));
   }
-  function CriticalReadPaper({ paperId, onOpenPaper, active, onFindingsChanged }) {
+  function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
     const [meta, setMeta] = useState(null);
     const [t1, setT1] = useState({ status: "idle" });
     const [aiReady, setAiReady] = useState(false);
@@ -6910,9 +6910,6 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         poll(r.data.job_id);
       });
     };
-    useEffect(() => {
-      if (active && meta && meta.hasText && t1.status === "idle") runT1();
-    }, [active, meta]);
     const generate = async () => {
       setGen("generating");
       const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, {});
@@ -6931,7 +6928,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     };
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to read it critically.");
     const shown = (cands || []).filter((c) => c.status !== "rejected");
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "What a skeptical reader should check before citing \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". The facts below are gathered from local method checks + the rest of your corpus; the AI suggestions are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score, and the critique is of the work, never the authors."), meta && !meta.hasText && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the critical read needs the paper\u2019s text."), t1.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026" }), t1.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", t1.error), t1.status === "done" && t1.backbone && /* @__PURE__ */ React.createElement(ScrutinyBackboneView, { backbone: t1.backbone, onOpen: open }), findingCands.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-findings" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Needs your review"), findingCands.map((f) => /* @__PURE__ */ React.createElement(FindingCard, { key: f.id, finding: f, onReviewed: onFindingReviewed, onOpenPaper }))), /* @__PURE__ */ React.createElement("div", { className: "cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI-suggested critiques (candidates)"), !aiReady ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested critiques \u2014 the facts above need no AI.") : /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "What a skeptical reader should check before citing \u2014 a ", /* @__PURE__ */ React.createElement("b", null, "signal, not a verdict"), ". The facts below are gathered from local method checks + the rest of your corpus; the AI suggestions are ", /* @__PURE__ */ React.createElement("b", null, "candidates you confirm"), ". Never a score, and the critique is of the work, never the authors."), meta && !meta.hasText && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the critical read needs the paper\u2019s text."), meta && meta.hasText && t1.status === "idle" && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn btn-primary",
+        onClick: runT1,
+        title: "Compose this paper's method-check flags + any corpus-contested claims \u2014 local, no AI"
+      },
+      "Run critical read"
+    ), t1.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Assembling the scrutiny surface\u2026" }), t1.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t assemble: ", t1.error), t1.status === "done" && t1.backbone && /* @__PURE__ */ React.createElement(ScrutinyBackboneView, { backbone: t1.backbone, onOpen: open }), findingCands.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "cr-findings" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Needs your review"), findingCands.map((f) => /* @__PURE__ */ React.createElement(FindingCard, { key: f.id, finding: f, onReviewed: onFindingReviewed, onOpenPaper }))), /* @__PURE__ */ React.createElement("div", { className: "cr-tier2" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "AI-suggested critiques (candidates)"), !aiReady ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Enable AI features in Settings for AI-suggested critiques \u2014 the facts above need no AI.") : /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "btn-link",
@@ -6942,15 +6947,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       gen === "generating" ? "Suggesting\u2026" : "Suggest critiques (AI)"
     ), gen === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn\u2019t suggest critiques \u2014 is AI enabled with a key (Settings)?"), shown.map((c) => /* @__PURE__ */ React.createElement(CriticalCandidate, { key: c.id, c, onAccept: () => act(c.id, "accept"), onReject: () => act(c.id, "reject") }))));
   }
-  function CriticalReadSection({ ctx, active }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A ", /* @__PURE__ */ React.createElement("b", null, "critical read"), ": what to check before you cite \u2014 the paper\u2019s method-check flags, claims the rest of your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a verdict or a score."), /* @__PURE__ */ React.createElement(CriticalReadPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active, onFindingsChanged: ctx.onFindingsChanged }));
+  function CriticalReadSection({ ctx }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section ws-pad" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "A ", /* @__PURE__ */ React.createElement("b", null, "critical read"), ": what to check before you cite \u2014 the paper\u2019s method-check flags, claims the rest of your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a verdict or a score."), /* @__PURE__ */ React.createElement(CriticalReadPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, onFindingsChanged: ctx.onFindingsChanged }));
   }
   registerWorkspaceTab({ id: "synthesis" }, {
     id: "critique",
     label: "Critique",
     order: 20,
     hideInReadOnly: true,
-    render: (ctx, active) => /* @__PURE__ */ React.createElement(CriticalReadSection, { ctx, active })
+    render: (ctx) => /* @__PURE__ */ React.createElement(CriticalReadSection, { ctx })
   });
   function _crSetKinds(aggregate) {
     const seen = [];

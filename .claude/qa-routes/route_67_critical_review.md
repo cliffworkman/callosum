@@ -1,17 +1,19 @@
 <!-- qa-coverage
 api: /papers/{paper_id}/critical-read*, /critical-read/*, /papers/{paper_id}/findings, /findings/{finding_id}/review, /findings/overview
-fe: 08x_methods_critical.jsx
+fe: 08x_methods_critical.jsx, 04b_workspaces.jsx
 -->
 
 # ROUTE 67 - Critical read (scrutiny surface: Tier-1 facts + the findings queue + Tier-2 AI candidates)
 
 **Tier:** 2 local-stateful + egress-gated
-**Goal:** Exercise the single-paper **Synthesize → Critique** tab — the deterministic Tier-1 backbone (async job,
-which already includes the paper's retraction/statcheck/transparency status facts), the reviewable
-**findings CANDIDATE queue** (e.g. a statcheck batch's flagged inconsistencies — absorbed here 2026-07-20 from
-the retired left-pane "Review" accordion), and the opt-in, egress-gated Tier-2 AI critique candidates
-(accept/reject) — and prove it stays a **signal, never a verdict**: no score, the three item kinds stay visually
-and functionally distinct, no author accusation, egress honored.
+**Goal:** Exercise the single-paper **Synthesize → Critique** tab — the selected-paper/open-PDF cue before its
+sub-tabs (2026-07-20, shared with Discover → Journals/Funding and Work → Meta-Reference), the deterministic,
+**user-triggered** (2026-07-20 — no longer auto-runs) Tier-1 backbone (async job, which already includes the
+paper's retraction/statcheck/transparency status facts), the reviewable **findings CANDIDATE queue** (e.g. a
+statcheck batch's flagged inconsistencies — absorbed here 2026-07-20 from the retired left-pane "Review"
+accordion), and the opt-in, egress-gated Tier-2 AI critique candidates (accept/reject) — and prove it stays a
+**signal, never a verdict**: no score, the three item kinds stay visually and functionally distinct, no author
+accusation, egress honored.
 
 ## Environment
 
@@ -36,11 +38,17 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 - **Egress gate (invariant #3).** With egress unset: the Tier-2 "Suggest critiques (AI)" control is hidden (or its
   POST returns an honest 422), and **zero** requests reach a `generativelanguage`/Gemini/genai host. Tier 1 still
   works fully. Any genai-host request with egress off is **Critical**.
+- **Tier 1 is user-triggered, not auto-run (2026-07-20).** Opening Critique on a paper with text must NOT by
+  itself fire `POST /papers/{id}/critical-read` — a **"Run critical read"** button must be clicked first. An
+  automatic Tier-1 POST on mount/paper-switch, with no prior click, is **High**.
 
 ## Adversarial checklist
 
 - deep-link / direct call with a non-existent paper id / job id / candidate id → 404, not a crash
 - double-click the run + generate buttons; navigate away mid-job and return
+- switch away from Critique and back mid-Tier-1-run → the run continues / its result still lands (no re-trigger,
+  no orphaned poll); switching to a **different** paper resets Tier 1 back to idle (button reappears, no stale
+  backbone from the previous paper)
 - egress off → force `POST …/candidates/generate` → honest 422, no candidates created, no genai host hit
 - click a findings-candidate's **Accepted…** then **save** with an empty reason → rejected (save disabled), no crash
 - double-click a findings-candidate review button; rapid-click → at most one review applied, no console error
@@ -49,35 +57,45 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 
 ## Steps
 
-1. Select a paper with a processed PDF. Open **Synthesize → Critique**. Confirm the Tier-1 job runs
-   (`POST /papers/{id}/critical-read` → poll `GET /critical-read/{job_id}`) and the backbone renders: method-check
-   flags + any corpus-contested claims, each with its grounding (the contesting passage + page) and confidence.
-2. Confirm a paper with nothing flagged shows an **honest** "nothing surfaced by these checks — not a clean bill of
+1. With a paper selected but not open, confirm **Critique** shows the same dashed selected-paper cue as Discover →
+   Journals/Funding and Work → Meta-Reference before the Synthesize sub-tab strip (Ask does not show it); click it
+   → the PDF opens and the cue switches to the normal open-PDF tab styling.
+2. Select a paper with a processed PDF. Open **Synthesize → Critique**. Confirm Tier 1 is **user-triggered**
+   (2026-07-20 — no longer auto-runs on open): a **"Run critical read"** primary button appears; nothing runs
+   until clicked. Click it → confirm the job runs (`POST /papers/{id}/critical-read` → poll
+   `GET /critical-read/{job_id}`) and the backbone renders: method-check flags + any corpus-contested claims,
+   each with its grounding (the contesting passage + page) and confidence.
+3. Confirm a paper with nothing flagged shows an **honest** "nothing surfaced by these checks — not a clean bill of
    health" message, never "clean"/"good".
-3. Navigate to a paper without text → the honest "process a PDF first" message, not an error.
-4. **Egress OFF (default):** confirm the Tier-2 control is hidden (an explicit "enable AI in Settings" note) and no
+4. Navigate to a paper without text → the honest "process a PDF first" message, not an error, and no "Run critical
+   read" button (there is nothing to run it on).
+5. **Egress OFF (default):** confirm the Tier-2 control is hidden (an explicit "enable AI in Settings" note) and no
    genai host is contacted. Directly `POST /papers/{id}/critical-read/candidates/generate` → **422** honest refusal.
-5. **Egress ON (fake/loopback provider):** click **Suggest critiques (AI)** (`POST …/candidates/generate`). Confirm
+6. **Egress ON (fake/loopback provider):** click **Suggest critiques (AI)** (`POST …/candidates/generate`). Confirm
    each returned candidate quotes the paper verbatim (`GET …/critical-read/candidates`), is marked a **candidate**,
    and carries a stance + confidence. An ungrounded model draft must NOT appear (dropped by the #13 bar).
-6. **Accept** a candidate (`POST /critical-read/candidates/{id}/accept`) → it persists as accepted (survives reload).
+7. **Accept** a candidate (`POST /critical-read/candidates/{id}/accept`) → it persists as accepted (survives reload).
    **Reject** another (`.../reject`) → it disappears and is never re-proposed on a re-generate.
-7. **The findings queue.** Run a statcheck batch (METHODS → Statistics check → "Check all papers") on a paper with
+8. **The findings queue.** Run a statcheck batch (METHODS → Statistics check → "Check all papers") on a paper with
    an inconsistency, or seed a `kind:"candidate"` row via `upsert_findings` directly (`_TEMPLATE.md`-style fixture).
    Reopen **Synthesize → Critique** for that paper → a **"Needs your review"** block renders below the Tier-1
-   backbone with a `FindingCard` per candidate (its `show in paper · p.N` anchor opens at **region** precision — no
-   fabricated exact highlight). Confirm the paper-card library badge ("N to review", `GET /findings/overview`)
-   reflects the unreviewed count beforehand.
-8. Click **Confirmed** (`POST /findings/{id}/review`). The card flips to reviewed ("✓ confirmed") and the library
+   backbone (this block is independent of whether Tier 1 has been run — it appears regardless) with a
+   `FindingCard` per candidate (its `show in paper · p.N` anchor opens at **region** precision — no fabricated
+   exact highlight). Confirm the paper-card library badge ("N to review", `GET /findings/overview`) reflects the
+   unreviewed count beforehand.
+9. Click **Confirmed** (`POST /findings/{id}/review`). The card flips to reviewed ("✓ confirmed") and the library
    "N to review" badge **drops live** (no manual refresh). Reload → the review **persists**.
-9. Click **Accepted…** on another candidate, type a reason, **save** → persists with the reason shown. Click
-   **Noted** on a third → persists. A paper with no findings candidates shows no "Needs your review" block at all
-   (silent, matching the Tier-2 candidates list's own empty convention — no empty-state clutter).
-10. Adversarial: unknown paper/job/candidate/finding ids → 404; an unknown review `state` → 422; empty-reason
+10. Click **Accepted…** on another candidate, type a reason, **save** → persists with the reason shown. Click
+    **Noted** on a third → persists. A paper with no findings candidates shows no "Needs your review" block at all
+    (silent, matching the Tier-2 candidates list's own empty convention — no empty-state clutter).
+11. Adversarial: unknown paper/job/candidate/finding ids → 404; an unknown review `state` → 422; empty-reason
     Accepted is not saveable; confirm messaging, not a crash.
 
 ## Pass criteria
 
+- The selected-paper/open-PDF cue renders before Critique's sub-tabs (Ask does not show it) and behaves
+  identically to the same cue on Discover → Journals/Funding and Work → Meta-Reference.
+- Tier 1 never auto-runs — a paper with text shows a "Run critical read" button, and the job starts only on click.
 - Tier 1 (job + backbone), the findings queue (Confirmed/Accepted[+reason]/Noted), and Tier 2 (generate +
   accept/reject) are all complete and replayable, and visually/functionally distinct from each other.
 - 0 console/page errors; 0 genai-host requests with egress off; Tier-2 gated (control hidden + 422 when off).

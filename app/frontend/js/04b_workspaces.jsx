@@ -90,7 +90,7 @@ function MenuBar({ active, onActivate, readOnly, mobile }) {
 }
 
 function WorkspacePaperCue({ ctx, activeTab }) {
-  if (!ctx || !["journals", "funding", "meta-reference"].includes(activeTab)) return null;
+  if (!ctx || !["journals", "funding", "meta-reference", "critique"].includes(activeTab)) return null;
   const openTab = ctx.selectedOpenPaperTab || null;
   const selectedTab = ctx.selectedPaperTab || null;
   if (openTab) {

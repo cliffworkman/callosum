@@ -1,8 +1,9 @@
 // 08x_methods_critical.jsx — Critical read (backlog #12): a grounded SCRUTINY SURFACE (signal, never a verdict).
-// Tier 1 (deterministic/local, auto-runs): compose the paper's method-check flags + claims the rest of your corpus
-// contests. Tier 2 (opt-in, egress-gated): the LLM proposes critique CANDIDATES through the #13 verbatim bar; the
-// human accepts/rejects. Facts (Tier 1) and candidates (Tier 2) are visually + epistemically distinct (amber =
-// candidate). No composite score anywhere; the critique is of claims + methods, never of the authors.
+// Tier 1 (deterministic/local, user-triggered via "Run critical read"): compose the paper's method-check flags +
+// claims the rest of your corpus contests. Tier 2 (opt-in, egress-gated): the LLM proposes critique CANDIDATES
+// through the #13 verbatim bar; the human accepts/rejects. Facts (Tier 1) and candidates (Tier 2) are visually +
+// epistemically distinct (amber = candidate). No composite score anywhere; the critique is of claims + methods,
+// never of the authors.
 //
 // The left-pane "Review" accordion (formerly 08_methods_findings.jsx) retired here: its FACTs were already a
 // subset of Tier 1's method_signals (both read paper_findings via the backend's _stored_method_signals /
@@ -106,7 +107,7 @@ function CriticalCandidate({ c, onAccept, onReject }) {
   );
 }
 
-function CriticalReadPaper({ paperId, onOpenPaper, active, onFindingsChanged }) {
+function CriticalReadPaper({ paperId, onOpenPaper, onFindingsChanged }) {
   const [meta, setMeta] = useState(null);            // { title, hasText } | null
   const [t1, setT1] = useState({ status: "idle" });  // Tier-1 backbone job: idle|running|done|error
   const [aiReady, setAiReady] = useState(false);
@@ -150,11 +151,6 @@ function CriticalReadPaper({ paperId, onOpenPaper, active, onFindingsChanged }) 
       poll(r.data.job_id);
     });
   };
-  useEffect(() => {
-    if (active && meta && meta.hasText && t1.status === "idle") runT1();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, meta]);
-
   const generate = async () => {
     setGen("generating");
     const r = await apiPost(`/papers/${paperId}/critical-read/candidates/generate`, {});
@@ -181,6 +177,11 @@ function CriticalReadPaper({ paperId, onOpenPaper, active, onFindingsChanged }) 
       </div>
       {meta && !meta.hasText &&
         <span className="tag-suggest-empty">Process a PDF first — the critical read needs the paper’s text.</span>}
+      {meta && meta.hasText && t1.status === "idle" &&
+        <button className="btn btn-primary" onClick={runT1}
+          title="Compose this paper's method-check flags + any corpus-contested claims — local, no AI">
+          Run critical read
+        </button>}
       {t1.status === "running" && <ProgressBar label="Assembling the scrutiny surface…" />}
       {t1.status === "error" && <div className="axis-err">Couldn’t assemble: {t1.error}</div>}
       {t1.status === "done" && t1.backbone && <ScrutinyBackboneView backbone={t1.backbone} onOpen={open} />}
@@ -206,7 +207,7 @@ function CriticalReadPaper({ paperId, onOpenPaper, active, onFindingsChanged }) 
   );
 }
 
-function CriticalReadSection({ ctx, active }) {
+function CriticalReadSection({ ctx }) {
   return (
     <div className="statcheck-section ws-pad">
       <div className="settings-sub">
@@ -214,12 +215,12 @@ function CriticalReadSection({ ctx, active }) {
         your corpus contests, and (opt-in) AI-suggested critique candidates you confirm. A reading aid, never a
         verdict or a score.
       </div>
-      <CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} onFindingsChanged={ctx.onFindingsChanged} />
+      <CriticalReadPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} onFindingsChanged={ctx.onFindingsChanged} />
     </div>
   );
 }
 
 registerWorkspaceTab({ id: "synthesis" }, {
   id: "critique", label: "Critique", order: 20, hideInReadOnly: true,
-  render: (ctx, active) => <CriticalReadSection ctx={ctx} active={active} />,
+  render: (ctx) => <CriticalReadSection ctx={ctx} />,
 });
