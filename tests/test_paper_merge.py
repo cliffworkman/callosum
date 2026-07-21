@@ -280,6 +280,64 @@ def test_endpoint_merge_happy_path(temp_db_url: str) -> None:
     assert client.get(f"/papers/{survivor}").json()["doi"] == "10.123/published"
 
 
+def test_endpoint_merge_survivor_serves_each_pdf_by_attachment_id(temp_db_url: str, tmp_path: Path) -> None:
+    # #5: the actual scenario the per-attachment-serving backlog item exists for — a merge survivor ends up with
+    # 2 PDF attachments, and each must be individually openable via ?attachment_id, not just always the primary.
+    preprint_path = tmp_path / "preprint.pdf"
+    preprint_bytes = b"%PDF-1.4\npreprint copy\n%%EOF\n"
+    preprint_path.write_bytes(preprint_bytes)
+    published_path = tmp_path / "published.pdf"
+    published_bytes = b"%PDF-1.4\npublished copy\n%%EOF\n"
+    published_path.write_bytes(published_bytes)
+
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        survivor, merged = _seed_preprint_and_published(conn)
+        survivor_att = create_attachment(
+            conn,
+            paper_id=survivor,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(preprint_path),
+            resolved_path=str(preprint_path),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+        merged_att = create_attachment(
+            conn,
+            paper_id=merged,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(published_path),
+            resolved_path=str(published_path),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    r = client.post(
+        "/papers/merge",
+        json={
+            "survivor_id": survivor,
+            "merged_ids": [merged],
+            "metadata": {"doi": "10.123/published"},
+            "primary_attachment_id": survivor_att,
+        },
+    )
+    assert r.status_code == 200, r.text
+
+    preprint_resp = client.get(f"/papers/{survivor}/pdf", params={"attachment_id": survivor_att})
+    published_resp = client.get(f"/papers/{survivor}/pdf", params={"attachment_id": merged_att})
+    assert preprint_resp.content == preprint_bytes
+    assert published_resp.content == published_bytes
+    # Omitting attachment_id falls back to whichever is "primary" — the one chosen above.
+    default_resp = client.get(f"/papers/{survivor}/pdf")
+    assert default_resp.content == preprint_bytes
+
+
 def test_endpoint_422_on_self_merge(temp_db_url: str) -> None:
     engine = make_engine(temp_db_url)
     with engine.begin() as conn:

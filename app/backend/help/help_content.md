@@ -238,7 +238,8 @@ Fields auto-save when you leave them. For authors, enter one author per line. Fo
 
 The **More** section holds any extra bibliographic fields (for example ones a DOI lookup filled in beyond the core set), and lets you **add your own**: type a field name (letters, digits, `-`/`_`) and a value, then **+ add**. Fields that have their own editor above (title, DOI, …) are reserved and can't be re-added there.
 
-The **Files** area lists available attachments. Click a file to open the paper's PDF.
+The **Files** area lists available attachments. Click a file to open *that specific* PDF — useful after a merge
+(see Duplicates & merge) leaves a paper with more than one, e.g. a preprint alongside the published copy.
 
 If a local PDF already has extracted text, Details also shows **Reprocess PDF text**. Use it after Callosum learns a
 better extraction pattern or when an older import is missing newer text metadata such as section labels. It re-reads

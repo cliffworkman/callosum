@@ -2821,7 +2821,9 @@
       precision: citation.coordinate_precision || null,
       bboxJson: citation.bbox_json || null,
       status: citation.status,
-      quote: citation.quote || ""
+      quote: citation.quote || "",
+      attachmentId: citation.attachment_id ?? null
+      // #5: open the exact attachment this citation's text came from
     };
   }
   function methodEvidenceTarget(paperId, paperTitle, evidence, key) {
@@ -10324,7 +10326,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         key: a.id,
         className: "detail-file",
         title: "Open this PDF",
-        onClick: () => onOpenPaper && onOpenPaper({ id: p.id, title: p.title })
+        onClick: () => {
+          const isPdf = a.content_type === "application/pdf" || (a.attachment_type || "").toLowerCase() === "pdf";
+          const target = isPdf ? { id: "file:" + a.id, paperId: p.id, attachmentId: a.id } : void 0;
+          onOpenPaper && onOpenPaper({ id: p.id, title: p.title }, target);
+        }
       },
       /* @__PURE__ */ React.createElement("span", { className: "src-tag" }, a.filename || "file"),
       a.role ? /* @__PURE__ */ React.createElement("span", { className: "detail-file-role" }, a.role) : null,
@@ -11335,7 +11341,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         }
         let res;
         try {
-          res = await fetch(API_BASE + `/papers/${paperId}/pdf`, { headers: { "Accept": "application/pdf" } });
+          res = await fetch(API_BASE + `/papers/${paperId}/pdf` + (target?.attachmentId != null ? `?attachment_id=${target.attachmentId}` : ""), { headers: { "Accept": "application/pdf" } });
         } catch (e) {
           if (!cancelled) setState({ status: "error", error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
           return;
@@ -11367,7 +11373,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       return () => {
         cancelled = true;
       };
-    }, [paperId]);
+    }, [paperId, target?.attachmentId]);
     useEffect(() => {
       let cancelled = false;
       setAnnotations([]);

@@ -27,12 +27,14 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.job_store import JobStore
+from app.backend.api.routers.paper_files import _is_pdf_attachment
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
 from app.backend.llm.cache import CachedSummaryGenerator
 from app.backend.llm.egress import EgressGatedSummaryGenerator
 from app.backend.persistence.repository import delete_summary, get_summary, list_summaries
 from app.backend.persistence.schema import (
+    attachments,
     chunks,
     citation_mappings,
     evidence_quotes,
@@ -78,6 +80,7 @@ class SummaryCitationResponse(BaseModel):
     status: str
     coordinate_precision: str | None = None
     bbox_json: Any | None = None
+    attachment_id: int | None = None  # #5: only set when the underlying attachment is a PDF (never docx/html/etc.)
 
 
 class SummarySentenceResponse(BaseModel):
@@ -462,12 +465,17 @@ def _summary_citation_rows(conn: Connection, sentence_id: int) -> list[Any]:
                 evidence_quotes.c.support_confidence,
                 chunks.c.paper_id,
                 chunks.c.section,
+                chunks.c.attachment_id,
+                attachments.c.content_type.label("attachment_content_type"),
+                attachments.c.attachment_type,
                 papers.c.title.label("paper_title"),
             )
             .select_from(
                 citation_mappings.join(evidence_quotes, evidence_quotes.c.citation_mapping_id == citation_mappings.c.id)
                 .join(chunks, chunks.c.id == evidence_quotes.c.chunk_id)
                 .join(papers, papers.c.id == chunks.c.paper_id)
+                # inner join is safe: chunks.attachment_id is a non-nullable FK (every chunk has one)
+                .join(attachments, attachments.c.id == chunks.c.attachment_id)
             )
             .where(citation_mappings.c.summary_sentence_id == sentence_id)
             .order_by(citation_mappings.c.id)
@@ -478,6 +486,13 @@ def _summary_citation_rows(conn: Connection, sentence_id: int) -> list[Any]:
 def _summary_citation_response(row: Any) -> SummaryCitationResponse:
     bbox_json = row["bbox_json"]
     chunk_id = row["evidence_chunk_id"] or row["mapping_chunk_id"]
+    # #5: only surface attachment_id when it's a real PDF — a citation whose text came from a non-PDF
+    # supplementary-text attachment (docx/html/jats-xml, role="supplementary-text") must keep degrading to the
+    # paper's primary PDF (today's honest null-precision fallback), not 404 as "no local PDF" for a paper that
+    # actually has one.
+    is_pdf = _is_pdf_attachment(
+        {"content_type": row["attachment_content_type"], "attachment_type": row["attachment_type"]}
+    )
     return SummaryCitationResponse(
         mapping_id=row["mapping_id"],
         evidence_quote_id=row["evidence_quote_id"],
@@ -494,6 +509,7 @@ def _summary_citation_response(row: Any) -> SummaryCitationResponse:
         status=row["status"],
         coordinate_precision=_coordinate_precision_from_bbox(bbox_json),
         bbox_json=bbox_json,
+        attachment_id=row["attachment_id"] if is_pdf else None,
     )
 
 

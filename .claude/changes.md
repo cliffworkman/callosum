@@ -9,10 +9,30 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-21 inc 315 — updated the statcheck/GRIM/Bayesian/mixed-model/meta-analysis/
-transparency help sections' METHODS-pane navigation instructions for the Details/Data/Statistics/Checklists
-regroup ("Statistics check" -> "Statistics", "Data consistency (GRIM)" -> "Data", and the 4 reporting auditors'
-"open X" -> "open Checklists -> X"). Nothing above this line has an un-synced corpus change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-21 inc 316 — updated the "Editing paper details" section's Files-area description:
+clicking a file now opens THAT specific PDF (was generically "the paper's PDF"), with a pointer to Duplicates &
+merge for why a paper can have more than one. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-21 — Increment 316: per-attachment PDF serving (backlog #5 complete)
+- **Files:** `app/backend/api/routers/{paper_files,summaries}.py`, `app/frontend/js/{00_lib,25_detail,
+  30_viewer}.jsx`, `app/backend/help/help_content.md`, `tests/{api_helpers,test_papers,test_paper_merge,
+  test_summaries}.py`, `callosum-app.html`, `.claude/qa-routes/route_{24_duplicates,32_viewer_annotations}.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`, `.claude/docs/increment-notes/INCREMENT-316-NOTES.md`.
+- **What:** `GET /papers/{paper_id}/pdf` gained an optional `?attachment_id=` so a caller can open a *specific*
+  attachment instead of always the paper's primary — the case that matters is a merge survivor (#17) left with
+  2+ PDFs. The Details pane's "Files" list (which already rendered one button per attachment) now wires each
+  click to its own file. Found and fixed a related coordinate-honesty gap in the same pass: a citation's evidence
+  always traces to a specific attachment (`chunks.attachment_id`, non-nullable) but that was never surfaced to
+  the frontend, so a citation from a *non-primary* attachment always opened the *primary* one — risking an exact
+  bbox highlight landing on the wrong document (two PDF renderings of "the same paper" don't share page geometry).
+  Fixed by threading `attachment_id` through `SummaryCitationResponse`, gated so it's only ever populated for a
+  real PDF attachment (a citation from a non-PDF "supplementary-text" attachment — DOCX/HTML/JATS-XML — still
+  degrades to today's honest primary-PDF fallback, not a false "no local PDF" 404).
+- **Why:** backlog item #5's remainder — Files always opened the primary PDF regardless of which button was
+  clicked; the citation-attachment gap was surfaced by investigating this exact plumbing, not a separate ask.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-316-NOTES.md` for the full
+  before/after + the live Playwright verification (a real merge survivor with 2 distinguishable local PDFs,
+  each Files button confirmed via the network log to fetch its own attachment).
+
 ## 2026-07-21 — Increment 315: METHODS pane regroup — Details / Data / Statistics / Checklists
 - **Files:** `app/frontend/js/{05_panes,06_methods_statcheck,07_methods_grim,08d_methods_bayes,
   08f_methods_lmm,08g_methods_metaanalysis,08h_methods_transparency,09_placeholders}.jsx`,

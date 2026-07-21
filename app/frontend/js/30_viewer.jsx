@@ -74,7 +74,8 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       }
       let res;
       try {
-        res = await fetch(API_BASE + `/papers/${paperId}/pdf`, { headers: { "Accept": "application/pdf" } });
+        // #5: an explicit attachmentId (a Files-list click, or a citation from a non-primary post-merge attachment) opens that specific file instead of the paper's primary.
+        res = await fetch(API_BASE + `/papers/${paperId}/pdf` + (target?.attachmentId != null ? `?attachment_id=${target.attachmentId}` : ""), { headers: { "Accept": "application/pdf" } });
       } catch (e) {
         if (!cancelled) setState({ status: "error", error: `Could not reach the ${API_LABEL}. Is uvicorn running?` });
         return;
@@ -96,7 +97,7 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
       }
     })();
     return () => { cancelled = true; };
-  }, [paperId]);
+  }, [paperId, target?.attachmentId]);
 
   // Load this paper's user highlights once per paper. Reset any transient UI.
   useEffect(() => {

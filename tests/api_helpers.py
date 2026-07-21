@@ -414,6 +414,8 @@ def _seed_summarization_library(db_url: str) -> dict[str, int]:
         "facial_paper_id": facial_paper_id,
         "unrelated_paper_id": unrelated_paper_id,
         "facial_chunk_id": facial_chunk_id,
+        "facial_attachment_id": facial_attachment_id,
+        "unrelated_attachment_id": unrelated_attachment_id,
         "cluster_node_id": cluster_node_id,
     }
 

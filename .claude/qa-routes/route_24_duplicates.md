@@ -50,6 +50,10 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    (`POST /papers/merge`). Verify the survivor keeps **both PDFs** + every link/tag, a "Merged from…" note appears
    in its Details, and the merged-away copy leaves **both** the live library (`GET /papers` excludes it) **and** the
    plain Trash list (`GET /papers?deleted=true` excludes it — it is merged-away, not naively-restorable trash).
+   **Per-attachment serving (#5):** in the survivor's Details → Files list, confirm **both** PDF buttons are present
+   and click each — before this backlog item every Files button opened the same (primary) PDF regardless of which
+   was clicked; confirm each one now opens *its own* distinct document (`GET /papers/{id}/pdf?attachment_id=`),
+   not just "a PDF opens." The non-primary file's button is the concrete regression guard for this whole feature.
 8. **Merge from the library bulk bar:** select ≥2 papers → **merge** → same dialog/flow.
 9. **Un-merge (#16)** (`25_detail.jsx`): on the survivor's Details, confirm the "Merged from … — Un-merge" banner
    is present (`GET /papers/{id}/merge-origin` returns the copies' titles). Click **Un-merge** (`POST

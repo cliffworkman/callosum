@@ -437,6 +437,7 @@ function citationTarget(citation) {
     bboxJson: citation.bbox_json || null,
     status: citation.status,
     quote: citation.quote || "",
+    attachmentId: citation.attachment_id ?? null,  // #5: open the exact attachment this citation's text came from
   };
 }
 

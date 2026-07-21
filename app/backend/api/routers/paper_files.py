@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy import Connection
 
@@ -22,13 +22,29 @@ router = APIRouter()
 
 
 @router.get("/papers/{paper_id}/pdf", response_model=None)
-def paper_pdf(paper_id: int, conn: Connection = Depends(get_connection)) -> FileResponse:
-    # Path is resolved ONLY from the attachment row keyed by the integer
-    # paper_id — never from anything the client supplies. A single DB lookup.
+def paper_pdf(
+    paper_id: int,
+    attachment_id: int | None = Query(default=None),  # #5: open a specific (non-primary) attachment, e.g. post-merge
+    conn: Connection = Depends(get_connection),
+) -> FileResponse:
+    # Path is resolved ONLY from an attachment row keyed by the integer
+    # paper_id — never from anything else the client supplies. A single DB lookup.
     attachment_rows = get_attachments_for_paper(conn, paper_id)
-    path = _local_attachment_path(_select_primary_pdf_attachment(attachment_rows))
-    if path is None:
-        raise HTTPException(status_code=404, detail="PDF not available locally for this paper")
+    if attachment_id is not None:
+        # Scoping the match to this paper's own rows makes it ownership-safe by construction: an attachment_id
+        # belonging to a different paper (or a stale/nonexistent one) simply isn't found — no cross-paper leak.
+        chosen = next((row for row in attachment_rows if row["id"] == attachment_id), None)
+        if chosen is None:
+            raise HTTPException(status_code=404, detail="Attachment not found for this paper")
+        if not _is_pdf_attachment(chosen):
+            raise HTTPException(status_code=404, detail="This attachment is not a PDF")
+        path = _local_attachment_path(chosen)
+        if path is None:
+            raise HTTPException(status_code=404, detail="PDF not available locally for this attachment")
+    else:
+        path = _local_attachment_path(_select_primary_pdf_attachment(attachment_rows))
+        if path is None:
+            raise HTTPException(status_code=404, detail="PDF not available locally for this paper")
     return FileResponse(
         path,
         media_type="application/pdf",

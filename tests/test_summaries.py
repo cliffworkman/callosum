@@ -356,7 +356,66 @@ def test_summary_readback_matches_completed_job_result_shape(temp_db_url: str) -
         "status",
         "coordinate_precision",
         "bbox_json",
+        "attachment_id",
     }
+    # #5: a citation carries the exact (PDF) attachment its evidence came from, not just the paper.
+    assert citation["attachment_id"] == seeded["facial_attachment_id"]
+
+
+def test_summary_citation_attachment_id_is_none_for_non_pdf_supplementary_text(temp_db_url: str) -> None:
+    # #5: a citation whose text came from a non-PDF supplementary-text attachment (docx/html/jats-xml) must NOT
+    # carry that attachment's id -- chunks.attachment_id is non-null regardless of attachment type, but surfacing
+    # a non-PDF id would make the reader 404 as "not a PDF" instead of today's honest fallback (open the paper's
+    # primary PDF, scroll to the placeholder page 1, no highlight -- the accepted null-precision behavior).
+    seeded = _seed_summarization_library(temp_db_url)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        docx_attachment_id = create_attachment(
+            conn,
+            paper_id=seeded["facial_paper_id"],
+            storage_mode="linked",
+            availability="available",
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            attachment_type="docx",
+            role="supplementary-text",
+        )
+        docx_chunk_id = create_chunk(
+            conn,
+            paper_id=seeded["facial_paper_id"],
+            attachment_id=docx_attachment_id,
+            text="A supplementary passage from the docx copy.",
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="document-text-offsets",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version="docx-chunk-v1",
+            source_attachment_checksum="docx-checksum",
+            bbox_json=[],
+        )
+    engine.dispose()
+    generator = FakeSummaryGenerator(
+        sentences=[
+            CandidateSummarySentence(
+                text="A supplementary passage from the docx copy.",
+                citations=[
+                    CandidateCitation(
+                        chunk_id=docx_chunk_id,
+                        quote="A supplementary passage from the docx copy.",
+                    )
+                ],
+            )
+        ]
+    )
+    client = TestClient(_summarization_app(temp_db_url, generator=generator))
+
+    started = client.post("/summarize", json={"scope_type": "query", "query": "facial"}).json()
+    completed = client.get(f"/summarize/{started['job_id']}").json()
+
+    citation = completed["sentences"][0]["citations"][0]
+    assert citation["chunk_id"] == docx_chunk_id
+    assert citation["attachment_id"] is None
 
 
 def test_summary_readback_preserves_flagged_hallucination_guard(temp_db_url: str) -> None:

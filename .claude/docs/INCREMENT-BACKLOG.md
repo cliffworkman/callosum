@@ -56,9 +56,14 @@
   same author/org as the existing `httpx`/`starlette`; audited PASS). Along the way found this dev environment's
   installed fastapi/starlette had never actually been bumped to inc 305's pinned versions — synced via
   `pip install -r requirements-dev.txt`, which is what let the warning reproduce at all.
-- **Per-attachment PDF serving** (#5 remainder — the multi-URL half of #5 shipped inc 214). Files currently opens
-  the *primary* PDF; serving a chosen attachment wants a design pass (touches the duplicate-merge multi-PDF
-  records from #17, itself shipped, so the blocker is design-only now, not a missing prerequisite).
+- ✅ **Per-attachment PDF serving — CLOSED inc 316 (#5 complete).** `GET /papers/{paper_id}/pdf?attachment_id=`
+  opens a specific attachment (the merge-survivor multi-PDF case); the Details "Files" list wires each button to
+  its own attachment; a citation now opens the exact (PDF) attachment its evidence came from rather than always
+  the primary — a real coordinate-honesty gap found and fixed in the same pass (a non-PDF supplementary-text
+  attachment's citations still degrade to the primary, gated via `_is_pdf_attachment`, never surfaced as a
+  broken 404). See `INCREMENT-316-NOTES.md`. **Remaining, filed as a follow-up, not urgent:** the same
+  attachment-awareness for methods-evidence targets (statcheck/GRIM/Bayes/LMM/meta-analysis/transparency/
+  reference-integrity) and `37_cite.jsx`'s citation object — same latent risk class, safe-by-omission today.
 - **QA runs 20260702/03 — remaining re-triage.** The write-lock + input-cap + fixture Criticals were fixed
   separately (see the SQLite breadcrumb below); three Medium/Low UX findings closed (inc 282/283/297). The
   remaining Medium/Low from routes 24/27/30/32 are **held for re-triage against the post-fix fixture** — several

@@ -365,7 +365,13 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
           <div className="detail-files-list">
             {p.attachments.map((a) => (
               <button key={a.id} className="detail-file" title="Open this PDF"
-                onClick={() => onOpenPaper && onOpenPaper({ id: p.id, title: p.title })}>
+                onClick={() => {
+                  // #5: open THIS attachment (matters once a merge leaves a paper with 2+ PDFs) — no page/precision,
+                  // so applyPdfCitationTarget just selects the file without attempting to scroll/highlight.
+                  const isPdf = a.content_type === "application/pdf" || (a.attachment_type || "").toLowerCase() === "pdf";
+                  const target = isPdf ? { id: "file:" + a.id, paperId: p.id, attachmentId: a.id } : undefined;
+                  onOpenPaper && onOpenPaper({ id: p.id, title: p.title }, target);
+                }}>
                 <span className="src-tag">{a.filename || "file"}</span>
                 {a.role ? <span className="detail-file-role">{a.role}</span> : null}
                 {a.oa_color ? <span className={"oa-chip " + (a.oa_bronze_unstable ? "oa-bronze" : "oa-durable")}

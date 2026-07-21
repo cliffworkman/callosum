@@ -519,6 +519,170 @@ def test_paper_pdf_404_when_file_missing_on_disk(temp_db_url: str, tmp_path: Pat
     assert response.json() == {"detail": "PDF not available locally for this paper"}
 
 
+def test_paper_pdf_attachment_id_serves_the_chosen_non_primary_attachment(temp_db_url: str, tmp_path: Path) -> None:
+    # #5: post-merge, a paper can carry 2+ PDF attachments; ?attachment_id lets a caller open a specific one
+    # instead of always the primary.
+    primary_path = tmp_path / "primary.pdf"
+    primary_path.write_bytes(b"%PDF-1.4\nprimary\n%%EOF\n")
+    other_path = tmp_path / "other.pdf"
+    other_bytes = b"%PDF-1.4\nnon-primary\n%%EOF\n"
+    other_path.write_bytes(other_bytes)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(
+            conn,
+            title="Paper With Two PDFs",
+            csl_json={"type": "article-journal", "title": "Paper With Two PDFs"},
+            processing_tier="fully-chunked",
+        )
+        create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(primary_path),
+            resolved_path=str(primary_path),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+        other_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(other_path),
+            resolved_path=str(other_path),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role=None,
+        )
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    response = client.get(f"/papers/{paper_id}/pdf", params={"attachment_id": other_id})
+
+    assert response.status_code == 200
+    assert response.content == other_bytes
+
+
+def test_paper_pdf_attachment_id_404s_for_another_papers_attachment(temp_db_url: str, tmp_path: Path) -> None:
+    pdf_path = tmp_path / "elsewhere.pdf"
+    pdf_path.write_bytes(b"%PDF-1.4\n%%EOF\n")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        other_paper_id = create_paper(
+            conn,
+            title="A Different Paper",
+            csl_json={"type": "article-journal", "title": "A Different Paper"},
+            processing_tier="fully-chunked",
+        )
+        foreign_attachment_id = create_attachment(
+            conn,
+            paper_id=other_paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(pdf_path),
+            resolved_path=str(pdf_path),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+        paper_id = create_paper(
+            conn,
+            title="This Paper",
+            csl_json={"type": "article-journal", "title": "This Paper"},
+            processing_tier="metadata-only",
+        )
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    response = client.get(f"/papers/{paper_id}/pdf", params={"attachment_id": foreign_attachment_id})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Attachment not found for this paper"}
+
+
+def test_paper_pdf_attachment_id_404s_for_nonexistent_id(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(
+            conn,
+            title="No Such Attachment",
+            csl_json={"type": "article-journal", "title": "No Such Attachment"},
+            processing_tier="metadata-only",
+        )
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    response = client.get(f"/papers/{paper_id}/pdf", params={"attachment_id": 999999})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Attachment not found for this paper"}
+
+
+def test_paper_pdf_attachment_id_404s_for_a_non_pdf_attachment(temp_db_url: str, tmp_path: Path) -> None:
+    docx_path = tmp_path / "supplement.docx"
+    docx_path.write_bytes(b"not a pdf")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(
+            conn,
+            title="Paper With A Non-PDF Attachment",
+            csl_json={"type": "article-journal", "title": "Paper With A Non-PDF Attachment"},
+            processing_tier="metadata-only",
+        )
+        docx_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(docx_path),
+            resolved_path=str(docx_path),
+            content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            attachment_type="docx",
+            role="supplementary-text",
+        )
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    response = client.get(f"/papers/{paper_id}/pdf", params={"attachment_id": docx_id})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "This attachment is not a PDF"}
+
+
+def test_paper_pdf_attachment_id_404s_when_chosen_attachment_unavailable_on_disk(
+    temp_db_url: str, tmp_path: Path
+) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        paper_id = create_paper(
+            conn,
+            title="Paper With A Missing Chosen Attachment",
+            csl_json={"type": "article-journal", "title": "Paper With A Missing Chosen Attachment"},
+            processing_tier="metadata-only",
+        )
+        missing_id = create_attachment(
+            conn,
+            paper_id=paper_id,
+            storage_mode="linked",
+            availability="available",
+            original_path=str(tmp_path / "gone.pdf"),
+            resolved_path=str(tmp_path / "gone.pdf"),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role=None,
+        )
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    response = client.get(f"/papers/{paper_id}/pdf", params={"attachment_id": missing_id})
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "PDF not available locally for this attachment"}
+
+
 def test_paper_detail_cleans_jats_abstract_without_mutating_stored_value(temp_db_url: str) -> None:
     raw = (
         "<jats:title>Abstract</jats:title><jats:p>Resting‐state connectivity in MCI. "
