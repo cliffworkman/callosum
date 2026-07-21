@@ -101,10 +101,15 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 4. **Work** → confirm four sub-tabs, in order: **Cite · Meta-Reference · CRediT · Meta-Analyze**.
    - **Cite** renders the Suggest tool directly (no inner tab strip — the nested Cite pane-tabs were removed in
      the reorg).
-   - **Meta-Reference** shows all 3 former nested tools — Meta Reference List, Citation concentration, How it's
-     cited — stacked as subsections on one scrollable panel (a heading + a divider between each, no
-     tab-switching). With a selected paper, click a Library **ref signal** badge and confirm it jumps directly to
-     **Work → Meta-Reference** and scrolls to the Meta Reference List subsection.
+   - **Meta-Reference** shows **5** stacked subsections on one scrollable panel (a heading + a divider between
+     each, no tab-switching): Meta Reference List, Citation concentration, Overlooked work, How it's cited, and
+     How it cites its sources — the last two were one toggle-switched subsection before 2026-07-20 and are now
+     independently fetchable (running one doesn't reset the other). With a selected paper, click a Library
+     **ref signal** badge and confirm it jumps directly to **Work → Meta-Reference** and scrolls to the Meta
+     Reference List subsection. With a paper selected but not open, confirm **Meta-Reference** (and only
+     Meta-Reference — not Cite/CRediT/Meta-Analyze) shows the same dashed selected-paper cue as Discover →
+     Journals/Funding before the Work sub-tab strip; click it and confirm it opens the PDF, after which the cue
+     switches to the normal open-PDF tab styling (route_73 §2's Discover-cue behavior, now shared).
    - **CRediT** (renamed from "CRediT statement") — unchanged internally; confirm the By-author/By-role toggle
      still works.
    - **Meta-Analyze** is the relocated Workbench. Confirm the intro sentence now ends cleanly after "...one study
@@ -155,8 +160,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   results.
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Selected-but-unopened papers show the pinned selected-paper tab; clicking it opens the PDF; open PDF tabs nest under
-  Library, reorder by drag, and persist. Discover → Journals/Funding reuse that selected/open paper cue before their
-  sub-tabs and click through to the reader. The active workspace persists across reload; read-only hides the write
+  Library, reorder by drag, and persist. Discover → Journals/Funding and Work → Meta-Reference reuse that selected/open
+  paper cue before their sub-tabs and click through to the reader; every other sub-tab (Feed/Search, Cite/CRediT/
+  Meta-Analyze) does not show it. The active workspace persists across reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Work → Meta-Analyze capture round-trips.
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and
   does not return after workspace switching.

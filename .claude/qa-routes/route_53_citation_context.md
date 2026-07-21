@@ -43,28 +43,33 @@ regardless. Register listeners before navigation.
 
 ## Steps
 
-1. Select a DOI'd paper → open **Work → Meta-Reference** → the **How it's cited** subsection (the last of 3 stacked
-   subsections, below Citation concentration — no tab-switching). It has an **[How it's cited | How
-   it cites its sources]** toggle: **Incoming** (`direction=citations`, SP1 — how others cite this paper) and
-   **Outgoing** (`direction=references`, SP2 — how this paper cites its own sources). Confirm the intro + button
-   label adapt to the selected direction, and switching the toggle resets to the idle (pre-run) state.
-2. On **Incoming**, click **Fetch citations** (`POST /papers/citation-context/run {direction:"citations"}`); on
-   **Outgoing**, click **Fetch references** (`{direction:"references"}`). Poll (`GET .../run/{job_id}`) with the
-   `ProgressBar`. Confirm **no genai-host request** in either direction.
-3. Confirm the **breakdown as counts** (N supporting · M contrasting · K mentioning) — **not** a single score — and
-   the coverage line ("classified M of N citations …").
+1. Select a DOI'd paper → open **Work → Meta-Reference** → confirm **"How it's cited"** (`direction="citations"`,
+   incoming — how others cite this paper) and **"How it cites its sources"** (`direction="references"`, outgoing
+   — how this paper cites its own sources) are two **separate, always-visible** stacked subsections (the 4th and
+   5th of Meta-Reference's 5), each with its own intro + fetch button — no toggle switches between them anymore
+   (retired 2026-07-20; each direction is now its own `CitationContextSection` instance with its own fetch state).
+2. In **"How it's cited"**, click **Fetch citations** (`POST /papers/citation-context/run {direction:"citations"}`);
+   in **"How it cites its sources"**, independently click **Fetch references** (`{direction:"references"}`). Poll
+   (`GET .../run/{job_id}`) with the `ProgressBar` in each. Confirm running one does **not** reset or clear the
+   other's results — both can show completed results **simultaneously**. Confirm **no genai-host request** from
+   either.
+3. In each subsection, confirm the **breakdown as counts** (N supporting · M contrasting · K mentioning) — **not**
+   a single score — and the coverage line ("classified M of N citations …").
 4. Confirm each citing item shows a **stance pill** (support/contrast/mention, the `.cite-stance` colors) + a
    **confidence** + the **citing paper** (title · authors · year, a link) + the **citing sentence** (the evidence) +
    an optional "influential" marker.
-5. Confirm the **credit** block (scite — Nicholson et al. 2021; Semantic Scholar as the data source) with a working
-   **＋ add to library** (idempotent).
-6. Adversarial: no-DOI paper → 422 / can't-fetch message; a fake job id → 404; a no-citations paper → honest empty;
-   mobile viewport → no overflow.
+5. Confirm each subsection's own **credit** block (scite — Nicholson et al. 2021; Semantic Scholar as the data
+   source) with a working **＋ add to library** (idempotent — shared credit state, so accepting in one subsection
+   is reflected in the other's button state too).
+6. Adversarial: no-DOI paper → 422 / can't-fetch message in **both** subsections independently; a fake job id →
+   404; a no-citations paper → honest empty in the affected direction only; mobile viewport → no overflow.
 
 ## Pass criteria
 
-- The run completes; the panel shows the **counts breakdown** + coverage + a list of citing sentences, each with a
-  stance pill + confidence + the citing paper + credit.
+- Both directions are independently runnable, always-visible subsections — running one never resets or hides the
+  other's results.
+- Each run completes; its subsection shows the **counts breakdown** + coverage + a list of citing sentences, each
+  with a stance pill + confidence + the citing paper + credit.
 - **0 console/page errors; 0 genai-host requests** (local classification; only the DOI → Semantic Scholar).
 - **No composite score / rank / verdict / accusation**; every stance carries its citing sentence.
 - 404 (no paper) / 422 (no DOI) / 404 (unknown job) honored; no-citations → honest empty; mobile → no overflow.

@@ -420,11 +420,15 @@ close button, not draggable, and clicking it calls the normal PDF-open path. Ope
 themselves only; drag-over uses the same dashed `--accent` + `--accent-soft` invite. When the selected paper already
 has an open PDF tab, the selected-paper tab is hidden.
 
-**Discover selected-paper cue (inc 291).** Discover → Journals and Discover → Funding show the selected/open paper
-context before the Discover sub-tabs by reusing the Library tab vocabulary: selected-but-not-open uses
-`.frame-tab.frame-tab-selected`; selected-and-open uses `.frame-tab.active`. This cue is a bridge back to the reader
-(open the selected PDF or return to its open reader tab), not a new Discover sub-tab style. Feed and Search do not
-show the cue; Feed stays focused on followed-source triage, and Search stays focused on corpus search.
+**Selected-paper cue (inc 291; extended 2026-07-20).** Discover → Journals/Funding and Work → Meta-Reference show
+the selected/open paper context before their workspace's sub-tabs by reusing the Library tab vocabulary:
+selected-but-not-open uses `.frame-tab.frame-tab-selected`; selected-and-open uses `.frame-tab.active`. This cue is
+a bridge back to the reader (open the selected PDF or return to its open reader tab), not a new sub-tab style. It's
+gated by `WorkspacePaperCue`'s own tab-id whitelist (`04b_workspaces.jsx`), not by workspace id — any tab whose
+tools operate on the selected paper can opt in by joining that list. Feed/Search and Work's other tabs
+(Cite/CRediT/Meta-Analyze) do not show it: Feed stays focused on followed-source triage, Search on corpus search,
+and Cite/CRediT/Meta-Analyze work from a draft sentence, an asserted author roster, or a multi-paper dataset
+rather than "the selected paper" as their primary subject.
 
 **Discover recent-query recall (inc 299).** Discover → Search and Discover → Journals keep small browser-local
 recent lists in `localStorage`. Recall controls re-run the stored input with fresh provider results; they do not

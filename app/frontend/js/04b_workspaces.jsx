@@ -90,7 +90,7 @@ function MenuBar({ active, onActivate, readOnly, mobile }) {
 }
 
 function WorkspacePaperCue({ ctx, activeTab }) {
-  if (!ctx || activeTab !== "journals" && activeTab !== "funding") return null;
+  if (!ctx || !["journals", "funding", "meta-reference"].includes(activeTab)) return null;
   const openTab = ctx.selectedOpenPaperTab || null;
   const selectedTab = ctx.selectedPaperTab || null;
   if (openTab) {
@@ -136,7 +136,7 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
     <div className="workspace-pane">
       {tabs.length > 1 &&
         <div className="tags-srcfilter workspace-tabs" role="tablist">
-          {ws.id === "discover" && <WorkspacePaperCue ctx={ctx} activeTab={at} />}
+          <WorkspacePaperCue ctx={ctx} activeTab={at} />
           {tabs.map(t => (
             <button key={t.id} role="tab" aria-selected={t.id === at}
               className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}

@@ -100,10 +100,18 @@ def test_workspace_menubar_structure_present():
     # Meta-Analysis no longer lives under Work/Extract; it moved into the METHODS accordion as a pane section.
     assert "function MetaSection(" in raw
     assert 'id: "meta", label: "Meta-Analysis", order: 30' not in raw
-    # The new Meta-Reference wrapper stacks its 3 tools as subsections, not tabs.
+    # The new Meta-Reference wrapper stacks its tools as 5 subsections, not tabs: Meta Reference List, Citation
+    # concentration (which itself contains Overlooked work), and citation-context's two directions -- each now an
+    # independent, always-visible CitationContextSection instance (no more internal toggle).
     assert "function MetaReferencePane(" in raw
     assert "<MetaReferenceList ctx={ctx} />" in raw and "<CitationEquitySection ctx={ctx} />" in raw
-    assert "<CitationContextSection ctx={ctx} />" in raw
+    assert '<CitationContextSection ctx={ctx} direction="citations" />' in raw
+    assert '<CitationContextSection ctx={ctx} direction="references" />' in raw
+    assert "function CitationContextPaper({ paperId, direction })" in raw
+    assert "function CitationContextSection({ ctx, direction })" in raw
+    assert "citec-toggle" not in raw and "const switchDir" not in raw
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert ".citec-toggle" not in css
     assert 'label: "CRediT statement"' not in raw
     # The relocated sections no longer register as THEORY/METHODS pane sections.
     assert 'id: "publishers"' not in raw and 'id: "funding-discovery"' not in raw
@@ -201,17 +209,20 @@ def test_library_selected_paper_tab_and_pdf_reorder_present():
     assert ".frame-tab.dragover" in css
 
 
-def test_discover_journals_funding_show_selected_paper_tab_cue():
+def test_discover_and_meta_reference_show_selected_paper_tab_cue():
     raw = assemble_jsx()
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
     assert "function WorkspacePaperCue({ ctx, activeTab })" in raw
-    assert 'activeTab !== "journals" && activeTab !== "funding"' in raw
+    # The cue's tab whitelist is the single source of truth (2026-07-20) -- Work -> Meta-Reference joined
+    # Discover -> Journals/Funding; the old workspace-id gate at the WorkspacePane call site is gone.
+    assert '!["journals", "funding", "meta-reference"].includes(activeTab)' in raw
     assert "const openTab = ctx.selectedOpenPaperTab || null" in raw
     assert 'className="frame-tab active workspace-paper-cue"' in raw
     assert 'className="frame-tab frame-tab-selected workspace-paper-cue"' in raw
     assert "ctx.onActivatePaperTab(openTab.key)" in raw
     assert "ctx.onOpenPdf({ id: selectedTab.id, title: selectedTab.title })" in raw
-    assert 'ws.id === "discover" && <WorkspacePaperCue ctx={ctx} activeTab={at} />' in raw
+    assert "<WorkspacePaperCue ctx={ctx} activeTab={at} />" in raw
+    assert 'ws.id === "discover" &&' not in raw
     assert "const selectedOpenPaperTab = selected == null ? null" in raw
     assert "selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab" in raw
     assert ".workspace-paper-cue" in css

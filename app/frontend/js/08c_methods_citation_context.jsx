@@ -54,7 +54,7 @@ function CitationContextItem({ it }) {
   );
 }
 
-function CitationContextPaper({ paperId }) {
+function CitationContextPaper({ paperId, direction }) {
   const [meta, setMeta] = useState(null);
   const [state, setState] = useState({ status: "idle" });
   useEffect(() => {
@@ -64,15 +64,13 @@ function CitationContextPaper({ paperId }) {
     api(`/papers/${paperId}`).then(r => { if (live && r.ok) setMeta({ title: r.data.title, hasDoi: !!r.data.doi }); });
     return () => { live = false; };
   }, [paperId]);
-  const [dir, setDir] = useState("citations"); // citations = incoming (how OTHERS cite this); references = outgoing
-  const D = dir === "references"
+  const D = direction === "references"
     ? { noun: "references", verb: "Fetch references",
         intro: <>How <b>{meta ? meta.title : "this paper"}</b> cites its own sources — does it <b>support</b>, <b>contrast</b>, or just <b>mention</b> each? A labeled signal to read, never a verdict.</>,
         empty: "Semantic Scholar has no reference data for this paper." }
     : { noun: "citations", verb: "Fetch citations",
         intro: <>How the later literature has responded to <b>{meta ? meta.title : "this paper"}</b> — do later papers <b>support</b>, <b>contrast</b>, or just <b>mention</b> it? A labeled signal to read, never a verdict.</>,
         empty: "Semantic Scholar has no recorded citations for this paper yet." };
-  const switchDir = (d) => { if (d !== dir) { setDir(d); setState({ status: "idle" }); } };
   const run = async () => {
     setState({ status: "running", progress: null });
     const poll = (jid) => api(`/papers/citation-context/run/${jid}`).then(r => {
@@ -82,7 +80,7 @@ function CitationContextPaper({ paperId }) {
       else if (d.status === "error") setState({ status: "error", error: d.detail || "Failed." });
       else { setState({ status: "running", progress: d.progress }); setTimeout(() => poll(jid), 1500); }
     });
-    const r = await apiPost("/papers/citation-context/run", { paper_id: paperId, direction: dir });
+    const r = await apiPost("/papers/citation-context/run", { paper_id: paperId, direction });
     if (!r.ok) { setState({ status: "error", error: r.error }); return; }
     poll(r.data.job_id);
   };
@@ -90,12 +88,6 @@ function CitationContextPaper({ paperId }) {
   const rep = state.report;
   return (
     <div className="cite-equity">
-      <div className="citec-toggle">
-        <button className={"citec-toggle-btn" + (dir === "citations" ? " on" : "")} onClick={() => switchDir("citations")}
-          title="How other papers cite THIS one">How it's cited</button>
-        <button className={"citec-toggle-btn" + (dir === "references" ? " on" : "")} onClick={() => switchDir("references")}
-          title="How this paper cites ITS OWN sources">How it cites its sources</button>
-      </div>
       <div className="cite-equity-intro">{D.intro}</div>
       {meta && !meta.hasDoi &&
         <div className="tag-suggest-empty">This paper has no DOI, so Semantic Scholar can't look up its citation graph. Add one under Identifiers in the Detail pane to enable it.</div>}
@@ -130,8 +122,8 @@ function CitationContextPaper({ paperId }) {
   );
 }
 
-function CitationContextSection({ ctx }) {
-  return <div className="cite-equity-section"><CitationContextPaper paperId={ctx.selectedPaper} /></div>;
+function CitationContextSection({ ctx, direction }) {
+  return <div className="cite-equity-section"><CitationContextPaper paperId={ctx.selectedPaper} direction={direction} /></div>;
 }
 
 // Rendered directly by MetaReferencePane (37b_meta_reference.jsx) as a Work → Meta-Reference subsection.
