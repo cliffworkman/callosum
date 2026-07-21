@@ -314,6 +314,53 @@ def spike_transactional_refresh_rollback(ctx, base, p1, p2):
     log("spike (phase 2): OK — a mid-loop failure rolled back to the exact pre-refresh state (no mixed document)")
 
 
+def spike_mark_at_cursor(ctx, base, p1, p2):
+    """P0 phase 4: `mark_at_cursor` is the first "which ONE existing citation is the user pointing at" lookup —
+    every prior action either inserted new or operated over all marks. Confirms, against real UNO, that moving
+    the VIEW cursor inside citation #2 of 3 correctly resolves to citation #2 (not #1 or #3), and that a cursor
+    positioned in plain body text (on no citation at all) correctly resolves to None."""
+    log("spike (phase 4): mark_at_cursor resolves the citation under the view cursor")
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    text.createTextCursorByRange(text.getStart()).setString("Body start. A XXX0. B XXX1. C XXX2. Body end.\n")
+    rnds = []
+    for i, pid in enumerate((p1, p2, p1)):
+        rng = find_range(f"XXX{i}")
+        check(rng is not None, f"anchor XXX{i} not found")
+        rnds.append(cc.insert_citation(doc, pid, base, cursor=text.createTextCursorByRange(rng)))
+
+    controller = doc.getCurrentController()
+    view_cursor = controller.getViewCursor()
+
+    # Move the view cursor INTO citation #2's own rendered range (its anchor's own text, not just near it).
+    marks = doc.getReferenceMarks()
+    second_mark = next(
+        m
+        for m in [marks.getByName(n) for n in marks.getElementNames()]
+        if cc.decode_mark_name(m.Name) and cc.decode_mark_name(m.Name)["rnd"] == rnds[1]
+    )
+    view_cursor.gotoRange(second_mark.getAnchor().getStart(), False)
+    found = cc.mark_at_cursor(doc)
+    check(found is not None, "mark_at_cursor found nothing with the cursor inside citation #2")
+    check(
+        found["citationID"] == rnds[1],
+        f"mark_at_cursor resolved citationID {found['citationID']!r}, expected {rnds[1]!r} (citation #2)",
+    )
+    log(f"spike (phase 4): cursor inside citation #2 correctly resolved to citationID={found['citationID']!r}")
+
+    # Move the view cursor to plain body text (the very start of the document) — no citation there.
+    view_cursor.gotoRange(text.getStart(), False)
+    none_found = cc.mark_at_cursor(doc)
+    check(none_found is None, f"mark_at_cursor should have found nothing in plain body text, got {none_found!r}")
+    log("spike (phase 4): OK — cursor in plain body text correctly resolved to None")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -433,6 +480,9 @@ def main():
 
         # 7) P0 phase 2 (backlog #33/#34): transactional refresh — a real fault-injection proof, not assumed.
         spike_transactional_refresh_rollback(ctx, base, p1, p2)
+
+        # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
+        spike_mark_at_cursor(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

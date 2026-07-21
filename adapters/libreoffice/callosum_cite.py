@@ -406,6 +406,34 @@ def scan_citations_in_order(doc) -> list[dict]:
     return order_by_comparator(fields, _compare)
 
 
+def mark_at_cursor(doc) -> dict | None:
+    """Find the citation whose ReferenceMark anchor contains the current view-cursor position (the start of the
+    current selection, or the collapsed caret) — the shared primitive Edit Citation / Delete Citation / merge /
+    split all need (P0 phase 4, backlog #33/#34) to resolve "which EXISTING citation is this action about."
+    Every action before this one either inserts a brand-new mark or operates over ALL marks; this is the first
+    "which ONE mark is the user pointing at" lookup.
+
+    Returns the same shape a `scan_citations_in_order` field has (``{"citationID", "items", "_mark"}``), so a
+    caller can treat "the mark at the cursor" and "a mark from the full scan" identically. Returns None if the
+    cursor isn't inside any recognized citation mark (including a foreign/malformed one, or one from an
+    unsupported future schema version — `scan_citations_in_order` already excludes both, so reusing it here
+    means this function never needs its own decode/skip logic to drift out of sync with that one).
+    """
+    text = doc.getText()
+    try:
+        cursor_range = doc.getCurrentController().getViewCursor().getStart()
+    except Exception:
+        return None
+    for field in scan_citations_in_order(doc):
+        anchor = field["_mark"].getAnchor()
+        if (
+            text.compareRegionStarts(anchor.getStart(), cursor_range) >= 0
+            and text.compareRegionStarts(cursor_range, anchor.getEnd()) >= 0
+        ):
+            return field
+    return None
+
+
 def refresh(doc, base: str = DEFAULT_BASE) -> dict:
     """The live-field loop: scan → render-document → write back in-text + bibliography. Returns the response.
 

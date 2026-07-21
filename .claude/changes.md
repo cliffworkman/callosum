@@ -13,6 +13,19 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 323: LibreOffice adapter rework, Phase 4 (find the mark at the cursor)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno}.py`,
+  `.claude/docs/increment-notes/INCREMENT-323-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** a new `mark_at_cursor(doc)` — the shared primitive Edit Citation, Delete Citation, and merge/split
+  will all need to resolve "which EXISTING citation is the user pointing at." Every prior action either inserted
+  new or operated over all marks; this reuses `scan_citations_in_order`'s decode/filter logic and adds a
+  cursor-containment check via `compareRegionStarts`. Verified with a new real-UNO spike (not pytest-fakeable —
+  it touches the view cursor + region comparison directly): moving the cursor into citation #2 of 3 correctly
+  resolves to citation #2, and a cursor in plain body text correctly resolves to `None`.
+- **Why:** the next slice of backlog #33/#34's P0 rework — a small, self-contained lookup that Phases 5/6 both
+  depend on, built once rather than duplicated per-action.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-323-NOTES.md`.
+
 ## 2026-07-21 — Increment 322: LibreOffice adapter rework, Phase 3 (backend cite-property passthrough)
 - **Files:** `app/backend/citations/citeproc_runner.js`, `app/backend/api/routers/citations.py`,
   `tests/test_citations.py`, `.claude/docs/increment-notes/INCREMENT-322-NOTES.md`, `.claude/CLAUDE.md`.
