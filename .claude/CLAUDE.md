@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 327** (see Increment workflow) with **1333 pytest tests
+It is currently at **Increment 328** (see Increment workflow) with **1333 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -396,7 +396,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 327). Each increment of real work
+callosum is built in **numbered increments** (currently at 328). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 
@@ -438,7 +438,16 @@ No change is "done" without verification appropriate to the surface it touches.
    the honesty contract. There is **no browser-automation dependency in the repo**; the
    Playwright MCP is session-level and optional. If you can't run a visual check, say so and
    flag it as a follow-up — don't claim a UI change is done on a static read alone.
-4. **API/backend changes:** hit the endpoint, confirm status + response shape; for DB-writing
+4. **Word-processor adapter changes (`adapters/libreoffice/`, and its Word/Google-Docs siblings):** real UNO
+   mutation logic is **never faked in pytest** — only pure/decidable logic (encode/decode, ordering, request
+   shape) gets pytest coverage, via small duck-typed fakes where a real collection is simple enough to fake
+   faithfully (e.g. `_snapshot_marks`, `diagnose_document`'s tests). Everything that touches a real `doc` object
+   is verified by `adapters/libreoffice/selftest_uno.py`, run via `python adapters/libreoffice/run_roundtrip.py`
+   (a real headless LibreOffice + a real callosum server against a seeded temp DB) — run this for any change
+   under `adapters/libreoffice/`. This also runs in CI (`.github/workflows/libreoffice-adapter.yml`, inc
+   327-adjacent), path-scoped and **non-blocking** (a real headless-UNO session has observed transient startup
+   flakiness even locally) — lean on it for visibility, but a local run is still the fast feedback loop.
+5. **API/backend changes:** hit the endpoint, confirm status + response shape; for DB-writing
    paths, query before/after and confirm the delta.
 
 ---

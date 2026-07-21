@@ -10,8 +10,9 @@ holds the two papers whose ids you pass:
     soffice --headless --norestore --accept="socket,host=localhost,port=2002;urp;"
     "C:\\Program Files\\LibreOffice\\program\\python.exe" selftest_uno.py http://127.0.0.1:8080 <id1> <id2> 2002
 
-(`.local/lo_roundtrip/run_roundtrip.py` automates this — seed a temp callosum, start the server + a headless
-soffice, run this, tear down.)
+(`adapters/libreoffice/run_roundtrip.py` automates this — seed a temp callosum, start the server + a headless
+soffice, run this, tear down. Also runs in CI, path-scoped and non-blocking — see
+`.github/workflows/libreoffice-adapter.yml`.)
 
 Prints "SELFTEST OK" and exits 0 on success; prints the failed assertion and exits 1 otherwise.
 """

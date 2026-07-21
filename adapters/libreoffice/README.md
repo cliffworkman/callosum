@@ -105,6 +105,14 @@ order**, POSTs the ordered set to callosum's `POST /citations/render-document`, 
 result back. All formatting happens in callosum's bundled citeproc engine, so the output is identical to the in-app
 "Cite as…" and to the future Word/Google-Docs adapters.
 
+## Testing
+Real UNO mutation logic (inserting/editing marks, the bibliography rebuild, flatten, …) isn't meaningfully
+fakeable, so it's proven against a real headless LibreOffice + a real callosum server instead of pytest:
+`python adapters/libreoffice/run_roundtrip.py` (seeds a temp library, starts both, runs `selftest_uno.py`, tears
+down). This also runs in CI (`.github/workflows/libreoffice-adapter.yml`), scoped to changes under this
+directory and deliberately non-blocking — a real headless-UNO session has observed transient startup flakiness
+even in local runs, so it reports status visibly without gating merges.
+
 ## Credit
 The live-field design — embedding the citation's CSL-JSON in the field and re-rendering the ordered set — follows
 the **Zotero `CSL_CITATION` field convention** (reused as a *pattern*, not code). callosum's citation rendering is

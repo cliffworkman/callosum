@@ -1,0 +1,60 @@
+name: LibreOffice adapter
+
+# Real-UNO regression coverage for the LibreOffice cite-while-you-write adapter (backlog #33/#34 test-hardening
+# pass, inc 327-adjacent). Path-scoped (only runs when the adapter or the citation-rendering backend it rides
+# actually changes) and deliberately NON-BLOCKING (continue-on-error): a real headless-LibreOffice UNO session
+# has observed transient startup flakiness even locally, and this job installs a heavy apt dependency, so it
+# reports status visibly without gating merges the way the main `ci.yml` pytest/lint gate does.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "adapters/libreoffice/**"
+      - "app/backend/citations/**"
+      - "app/backend/api/routers/citations.py"
+      - "app/frontend/js/40_app.jsx"
+      - ".github/workflows/libreoffice-adapter.yml"
+  pull_request:
+    paths:
+      - "adapters/libreoffice/**"
+      - "app/backend/citations/**"
+      - "app/backend/api/routers/citations.py"
+      - "app/frontend/js/40_app.jsx"
+      - ".github/workflows/libreoffice-adapter.yml"
+  workflow_dispatch: {}
+
+jobs:
+  real-uno-roundtrip:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          npm ci
+      - name: Install LibreOffice + the system-Python UNO bridge
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libreoffice python3-uno
+      # Retries once — mirrors the "just retry" handling of the transient headless-soffice startup flake
+      # observed even in local dev; continue-on-error means neither attempt failing blocks this job or the PR.
+      - name: Real-UNO adapter round-trip
+        id: roundtrip
+        continue-on-error: true
+        run: |
+          python adapters/libreoffice/run_roundtrip.py || python adapters/libreoffice/run_roundtrip.py
+      - name: Surface the result (informational only — never fails the job)
+        run: |
+          if [ "${{ steps.roundtrip.outcome }}" != "success" ]; then
+            echo "::warning::LibreOffice adapter real-UNO round-trip failed (both attempts) — see the step above. This job is informational and does not block merges."
+          fi

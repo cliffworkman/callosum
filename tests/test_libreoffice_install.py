@@ -2,7 +2,7 @@
 
 The OS file-opener is monkeypatched so no real process/GUI launches in tests; the real Extension-Manager open is
 the user's manual check. The full extension (install + dispatcher) is verified through real LibreOffice by
-`.local/lo_roundtrip/run_roundtrip.py`.
+`adapters/libreoffice/run_roundtrip.py` (also runs in CI — see `.github/workflows/libreoffice-adapter.yml`).
 """
 
 from __future__ import annotations

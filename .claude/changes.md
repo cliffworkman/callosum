@@ -13,6 +13,21 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 328: LibreOffice adapter rework, Phase 10 (test-hardening, closes #33/#34's P0 batch)
+- **Files:** `adapters/libreoffice/run_roundtrip.py` (new, promoted from gitignored `.local/`),
+  `.github/workflows/libreoffice-adapter.yml` (new), `adapters/libreoffice/{selftest_uno,README}.py/.md`,
+  `tests/test_libreoffice_{install,oxt}.py`, `.claude/docs/increment-notes/INCREMENT-328-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** promoted the manual, gitignored real-UNO test orchestrator into a committed, cross-platform script
+  (Windows for local dev, Linux for CI) + a new path-scoped, non-blocking GitHub Actions workflow — closing a
+  real structural gap (the adapters sat entirely outside the QA surface-map gate, zero CI enforcement). Also
+  fixed a stale 180s selftest timeout (no longer had headroom after Phase 8/9) and cleared a month-stale,
+  gitignored `ci.yml.tmp.*` artifact found in passing.
+- **Why:** the user asked for this as an explicit final phase after Phase 9, prompted directly by a structural
+  blind spot named in this session's earlier strategic readiness review.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-328-NOTES.md`. Note: the new
+  CI workflow's Linux path is reasoned-through but unverified on a real GitHub Actions runner (no way to execute
+  one from this environment) — flagged explicitly in the increment notes, not silently assumed correct.
+
 ## 2026-07-21 — Increment 327: LibreOffice adapter rework, Phase 9 (document diagnostics)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
   `adapters/libreoffice/oxt/Addons.xcu`, `tests/test_libreoffice_adapter.py`,

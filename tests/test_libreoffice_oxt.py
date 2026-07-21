@@ -2,7 +2,8 @@
 
 `build_oxt` just zips the source, and the server-URL config is pure file I/O, so both load + run under plain
 CPython. The actual install + the menu/toolbar dispatcher resolving are verified through real LibreOffice by
-`.local/lo_roundtrip/run_roundtrip.py` (unopkg add + the dispatcher check in selftest_uno.py).
+`adapters/libreoffice/run_roundtrip.py` (unopkg add + the dispatcher check in selftest_uno.py; also runs in
+CI — see `.github/workflows/libreoffice-adapter.yml`).
 """
 
 from __future__ import annotations
