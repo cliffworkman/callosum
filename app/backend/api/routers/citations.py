@@ -15,7 +15,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection
@@ -53,9 +53,64 @@ class RenderCitationsRequest(BaseModel):
     locale: str = DEFAULT_LOCALE
 
 
+# CSL's fixed locator-label vocabulary (CSL 1.0.2 term list — confirmed against the bundled locale XML; no
+# "timestamp" or generic "other" exists). A `label` outside this set is rejected with a clean 422 rather than
+# silently reaching citeproc-js, which would just render it oddly rather than erroring.
+CSL_LOCATOR_LABELS = frozenset(
+    {
+        "book",
+        "chapter",
+        "column",
+        "figure",
+        "folio",
+        "issue",
+        "line",
+        "note",
+        "opus",
+        "page",
+        "paragraph",
+        "part",
+        "scene",
+        "section",
+        "sub-verbo",
+        "supplement",
+        "table",
+        "verse",
+        "volume",
+    }
+)
+
+
+class CitationItem(BaseModel):
+    """One item inside a citation cluster (inc TBD, P0 phase 3 — backlog #33/#34): the CSL-JSON bibliographic
+    fields (title/author/issued/…) pass through untouched via ``extra="allow"``; the fields below are
+    per-*occurrence* citeproc-cite properties (never written into the paper's own library record) — named after
+    citeproc-js's own ``citationItems`` vocabulary so there is no translation layer between what the LibreOffice
+    adapter's mark payload stores (P0 phase 1) and what actually reaches citeproc (P0 phase 3's
+    ``citeproc_runner.js`` change). ``suppress_author``/``author_only`` use hyphenated wire aliases to match
+    citeproc's own property names; a caller must use the hyphenated form (no ``populate_by_name`` — one wire
+    shape, not two)."""
+
+    model_config = ConfigDict(extra="allow")
+
+    locator: str | None = Field(default=None, max_length=200)
+    label: str | None = Field(default=None)
+    prefix: str | None = Field(default=None, max_length=300)
+    suffix: str | None = Field(default=None, max_length=300)
+    suppress_author: bool = Field(default=False, alias="suppress-author")
+    author_only: bool = Field(default=False, alias="author-only")
+
+    @field_validator("label")
+    @classmethod
+    def _validate_label(cls, v: str | None) -> str | None:
+        if v is not None and v not in CSL_LOCATOR_LABELS:
+            raise ValueError(f"unknown locator label {v!r}; must be one of {sorted(CSL_LOCATOR_LABELS)}")
+        return v
+
+
 class CitationCluster(BaseModel):
     citationID: str | None = None
-    items: list[dict[str, Any]] = Field(min_length=1, max_length=MAX_ITEMS_PER_CLUSTER)
+    items: list[CitationItem] = Field(min_length=1, max_length=MAX_ITEMS_PER_CLUSTER)
 
 
 class RenderDocumentRequest(BaseModel):
@@ -95,7 +150,9 @@ def render_citations(payload: RenderCitationsRequest, conn: Connection = Depends
 def render_citation_document(payload: RenderDocumentRequest) -> dict[str, Any]:
     if payload.style not in STYLE_IDS:
         raise HTTPException(status_code=422, detail="Unknown citation style")
-    clusters = [c.model_dump() for c in payload.citations]
+    # by_alias=True: CitationItem's suppress_author/author_only dump as the hyphenated citeproc-cite property
+    # names (P0 phase 3) — the wire shape render_document()/citeproc_runner.js expect, not the Python attribute.
+    clusters = [c.model_dump(by_alias=True) for c in payload.citations]
     try:
         return render_document(clusters, style=payload.style, locale=payload.locale)
     except CitationEngineUnavailable as exc:

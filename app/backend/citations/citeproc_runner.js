@@ -7,10 +7,12 @@
 //    stdin  : { "items": [ <CSL-JSON item with `id`>, ... ], "style": "apa", "locale": "en-US", "order": [id,...] }
 //    stdout : { "items": [ { "id", "inText", "reference" }, ... ], "bibliography": [ "<entry>", ... ] }
 //
-//  Document mode (inc 107) — POSITION-AWARE rendering of a document's ordered citation clusters (numeric
-//  renumbering, author-date disambiguation) via citeproc's rebuildProcessorState; the word-processor adapter spine:
+//  Document mode (inc 107; per-occurrence cite properties inc TBD/P0-phase-3) — POSITION-AWARE rendering of a
+//  document's ordered citation clusters (numeric renumbering, author-date disambiguation) via citeproc's
+//  rebuildProcessorState; the word-processor adapter spine:
 //    stdin  : { "mode": "document", "style", "locale",
-//               "citations": [ { "citationID", "items": [ <CSL-JSON item with `id`>, ... ] }, ... ] }   // doc order
+//               "citations": [ { "citationID", "items": [ <CSL-JSON item with `id`, plus optional
+//                 locator/label/prefix/suffix/"suppress-author"/"author-only">, ... ] }, ... ] }   // doc order
 //    stdout : { "citations": [ { "citationID", "html" }, ... ], "bibliography": [ "<entry>", ... ] }
 //
 //  On failure either mode writes { "error": "<message>" } to stdout and exits non-zero.
@@ -33,6 +35,22 @@ try {
 
 const STYLES_DIR = path.join(__dirname, "csl", "styles");
 const LOCALES_DIR = path.join(__dirname, "csl", "locales");
+
+// P0 phase 3 (backlog #33/#34): forward an item's per-occurrence citeproc-cite properties — locator/label/
+// prefix/suffix/suppress-author/author-only — onto its citationItems entry, alongside `id`. These are real
+// citeproc-js citationItems properties (confirmed in the engine source), separate from the CSL-JSON bibliographic
+// record itself (registered separately via retrieveItem/itemsById above). Keys are copied only when actually set
+// (`!= null`) rather than assigned `undefined` — a JS object literal with an `undefined`-valued key is still an
+// enumerable own property, which could confuse citeproc's own presence checks on these fields.
+function buildCitationItem(it) {
+  const out = { id: String(it.id) };
+  ["locator", "label", "prefix", "suffix"].forEach(function (k) {
+    if (it[k] != null) out[k] = it[k];
+  });
+  if (it["suppress-author"]) out["suppress-author"] = true;
+  if (it["author-only"]) out["author-only"] = true;
+  return out;
+}
 
 function main() {
   let req;
@@ -91,7 +109,7 @@ function main() {
     const clusters = (Array.isArray(req.citations) ? req.citations : []).map(function (c, i) {
       return {
         citationID: String(c.citationID || "c" + i),
-        citationItems: (Array.isArray(c.items) ? c.items : []).map(function (it) { return { id: String(it.id) }; }),
+        citationItems: (Array.isArray(c.items) ? c.items : []).map(buildCitationItem),
         properties: { noteIndex: 0 },
       };
     });

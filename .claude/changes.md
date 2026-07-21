@@ -13,6 +13,20 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 322: LibreOffice adapter rework, Phase 3 (backend cite-property passthrough)
+- **Files:** `app/backend/citations/citeproc_runner.js`, `app/backend/api/routers/citations.py`,
+  `tests/test_citations.py`, `.claude/docs/increment-notes/INCREMENT-322-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** locator/label/prefix/suffix/suppress-author/author-only — already carried by every mark's payload
+  since Phase 1, but previously discarded at the exact chokepoint where `citeproc_runner.js` built a
+  `citationItems` entry as bare `{ id }` — now actually reach citeproc-js. A new typed `CitationItem` Pydantic
+  model replaces the bare-dict `CitationCluster.items`, with length-capped locator/prefix/suffix and `label`
+  validated against CSL's real, fixed locator vocabulary (422 on garbage rather than a silent no-op).
+- **Why:** the next slice of backlog #33/#34's P0 rework — the payload had these fields since Phase 1, but they
+  were inert until the backend actually forwarded them.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-322-NOTES.md`, including two
+  rendering-behavior assumptions (prefix/suffix wrap inside the cite's own parens; `author-only` is a bare name,
+  not a full narrative form) corrected against real citeproc-js output while writing the tests.
+
 ## 2026-07-21 — Increment 321: LibreOffice adapter rework, Phase 2 (transactional refresh)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno}.py`, `tests/test_libreoffice_adapter.py`,
   `.claude/docs/increment-notes/INCREMENT-321-NOTES.md`, `.claude/CLAUDE.md`.

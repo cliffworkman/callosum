@@ -180,3 +180,81 @@ def test_render_document_validation(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     bad = client.post("/citations/render-document", json={"style": "not-a-style", "citations": [_cluster("A", "a")]})
     assert bad.status_code == 422
+
+
+# ── per-occurrence cite properties (P0 phase 3, backlog #33/#34): locator/prefix/suffix/suppress-author/
+# author-only actually reach citeproc-js, via CitationItem → citeproc_runner.js's buildCitationItem ──────────
+
+
+def test_render_document_locator_and_label(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    item = {**_DOC_ITEMS["a"], "locator": "12", "label": "page"}
+    r = client.post(
+        "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
+    )
+    assert r.status_code == 200, r.text
+    text = r.json()["citations"][0]["text"]
+    assert "12" in text  # the locator value renders somewhere in the in-text citation
+    assert text != "(Vaswani, 2017)"  # differs from the no-locator baseline
+
+
+def test_render_document_prefix_suffix(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    item = {**_DOC_ITEMS["a"], "prefix": "see ", "suffix": " (emphasis added)"}
+    r = client.post(
+        "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
+    )
+    assert r.status_code == 200, r.text
+    text = r.json()["citations"][0]["text"]
+    # citeproc wraps prefix/suffix INSIDE the citation's own parenthetical group, around the cite itself —
+    # "(see Vaswani, 2017 (emphasis added))" — not appended outside the parens.
+    assert text == "(see Vaswani, 2017 (emphasis added))"
+
+
+def test_render_document_suppress_author(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    baseline = client.post(
+        "/citations/render-document",
+        json={"style": "apa", "citations": [{"citationID": "A", "items": [_DOC_ITEMS["a"]]}]},
+    ).json()["citations"][0]["text"]
+    item = {**_DOC_ITEMS["a"], "suppress-author": True}
+    r = client.post(
+        "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
+    )
+    assert r.status_code == 200, r.text
+    text = r.json()["citations"][0]["text"]
+    assert "Vaswani" not in text  # author suppressed
+    assert text != baseline
+
+
+def test_render_document_author_only(temp_db_url: str) -> None:
+    """citeproc's "author-only" renders JUST the author name, dropping the date entirely — the building block
+    for a manual narrative construction ("As Vaswani showed... (2017)"), paired with a companion suppress-author
+    cite for the date elsewhere. It is not itself a full "Vaswani (2017)" narrative form."""
+    client = TestClient(create_app(db_url=temp_db_url))
+    item = {**_DOC_ITEMS["a"], "author-only": True}
+    r = client.post(
+        "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
+    )
+    assert r.status_code == 200, r.text
+    text = r.json()["citations"][0]["text"]
+    assert text == "Vaswani"  # no parens, no year — author name only
+    assert "2017" not in text
+
+
+def test_citation_item_rejects_unknown_locator_label(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    item = {**_DOC_ITEMS["a"], "locator": "1", "label": "timestamp"}  # not a real CSL locator label
+    r = client.post(
+        "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
+    )
+    assert r.status_code == 422
+
+
+def test_citation_item_locator_length_capped(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    item = {**_DOC_ITEMS["a"], "locator": "x" * 201}
+    r = client.post(
+        "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
+    )
+    assert r.status_code == 422
