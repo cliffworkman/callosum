@@ -64,10 +64,22 @@
   broken 404). See `INCREMENT-316-NOTES.md`. **Remaining, filed as a follow-up, not urgent:** the same
   attachment-awareness for methods-evidence targets (statcheck/GRIM/Bayes/LMM/meta-analysis/transparency/
   reference-integrity) and `37_cite.jsx`'s citation object — same latent risk class, safe-by-omission today.
-- **QA runs 20260702/03 — remaining re-triage.** The write-lock + input-cap + fixture Criticals were fixed
-  separately (see the SQLite breadcrumb below); three Medium/Low UX findings closed (inc 282/283/297). The
-  remaining Medium/Low from routes 24/27/30/32 are **held for re-triage against the post-fix fixture** — several
-  read as downstream of since-fixed fixture pollution, so don't file them as fresh findings without re-confirming.
+- ✅ **QA runs 20260702/03 remaining re-triage — CLOSED inc 317.** Every Critical/High/Medium/Low from routes
+  24/27/30/32 re-verified live against a fresh fixture, not assumed. Route 30's Critical (PATCH/tag/cite 500s) +
+  its downstream Highs/Mediums — **confirmed fixed** (the SQLite write-lock arc, incs 272–281). The 3
+  console-error-budget Mediums (routes 24/27/30) — **not bugs**: Chromium's own network-layer logging for
+  intentionally-triggered 4xx/5xx during adversarial checks, not an app `console.error()` (the fetch wrapper only
+  ever calls `console.warn`). Route 27's "Import doesn't accept PDF" — **by design**, documented in the help
+  corpus. Route 27's "outside-path scan accepted" — **already a known, accepted local-app tradeoff** (CLAUDE.md's
+  security baseline). Route 32's "no exact-precision citation reachable" — **a QA-fixture limitation**, not an
+  app bug (the seed doesn't pre-bake a verified citation; not deterministically seedable without faking the whole
+  synthesis pipeline). **Two real, still-open bugs found + fixed:** `DuplicatesModal`'s un-dismiss didn't
+  refresh the candidate list in-place (only a full modal close/reopen recovered it — narrower than the original
+  "stays absent even after a fresh scan" framing); `ScanModal` lost mid-scan progress visibility across a modal
+  close/reopen (no data loss — the job always completed server-side — just lost UI feedback). See
+  `INCREMENT-317-NOTES.md`. **Left as a documented, non-urgent loose end:** the console-error-budget QA-POLICY
+  assertion could be refined to exclude expected-adversarial 4xx/5xx noise, so future QA runs stop re-manufacturing
+  the same 3 non-bugs.
 - **#31 remaining slice:** an automatic **cadence** refresh of the Retraction Watch DB mirror (manual + a
   staleness nudge is v1); folding the statcheck signal chip into the unified findings facet (coexist is the
   deliberate v1 choice — revisit only if it starts reading as redundant).

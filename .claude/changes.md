@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-21 — Increment 317: QA re-triage batch (routes 24/27/30/32)
+- **Files:** `app/frontend/js/{19_duplicates,27_scan}.jsx`, `tests/test_frontend_assembly.py`, `callosum-app.html`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`, `.claude/docs/increment-notes/INCREMENT-317-NOTES.md`.
+- **What:** re-verified every Critical/High/Medium/Low finding from the 2026-07-03 QA run (routes 24/27/30/32)
+  live against a fresh fixture instead of assuming staleness. Route 30's Critical (500s on PATCH/tag/cite
+  endpoints) + its downstream Highs/Mediums were confirmed already fixed (the SQLite write-lock arc, incs
+  272–281). Three "console-error budget" Mediums across routes 24/27/30 were confirmed to be Chromium's own
+  network-layer logging for intentionally-triggered 4xx/5xx during adversarial checks, not app bugs. Two
+  findings were confirmed by-design/already-tracked (route 27's PDF-import scope, its outside-path scan
+  tradeoff) and one a QA-fixture limitation (route 32's unreachable exact-precision citation). Found and fixed
+  two real, still-open bugs: `DuplicatesModal`'s un-dismiss never re-triggered the duplicate scan (only a full
+  modal close/reopen recovered the pair); `ScanModal` lost mid-scan progress visibility across a modal
+  close/reopen (the job always completed correctly server-side — no data loss, just no UI feedback).
+- **Why:** this item sat in the backlog specifically because several 2026-07-03 findings were suspected to be
+  downstream of the (now-closed) write-lock saga — the backlog explicitly asked for re-confirmation before
+  treating any of them as fresh, actionable bugs.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-317-NOTES.md` for the full
+  finding-by-finding disposition + the live Playwright verification of both fixes.
+
 <!-- HELP-DOCS-SYNCED 2026-07-21 inc 316 — updated the "Editing paper details" section's Files-area description:
 clicking a file now opens THAT specific PDF (was generically "the paper's PDF"), with a pointer to Duplicates &
 merge for why a paper can have more than one. Nothing above this line has an un-synced corpus change. -->

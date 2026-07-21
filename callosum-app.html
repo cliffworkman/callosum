@@ -9250,18 +9250,22 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [dismissed, setDismissed] = useState(() => /* @__PURE__ */ new Set());
     const [dismissedPairs, setDismissedPairs] = useState([]);
     const [showDismissed, setShowDismissed] = useState(false);
+    const liveRef = useRef(true);
+    useEffect(() => () => {
+      liveRef.current = false;
+    }, []);
     const refreshDismissed = () => api("/papers/duplicates/dismissed").then((r) => {
       if (r.ok) setDismissedPairs(r.data.pairs || []);
     });
     useEffect(() => {
       refreshDismissed();
     }, []);
-    useEffect(() => {
-      let live = true;
-      let timer = null;
+    const runScan = useCallback(() => {
+      setState({ status: "loading", groups: [] });
+      setDismissed(/* @__PURE__ */ new Set());
       const poll = (jobId) => {
         api(`/papers/duplicates/${jobId}`).then((r) => {
-          if (!live) return;
+          if (!liveRef.current) return;
           if (!r.ok) {
             setState({ status: "error", error: r.error, groups: [] });
             return;
@@ -9269,22 +9273,21 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           const d = r.data;
           if (d.status === "done") setState({ status: "ready", groups: d.groups || [] });
           else if (d.status === "error") setState({ status: "error", error: d.detail || "Scan failed.", groups: [] });
-          else timer = setTimeout(() => poll(jobId), 1200);
+          else setTimeout(() => poll(jobId), 1200);
         });
       };
       apiPost("/papers/duplicates", {}).then((r) => {
-        if (!live) return;
+        if (!liveRef.current) return;
         if (!r.ok) {
           setState({ status: "error", error: r.error, groups: [] });
           return;
         }
         poll(r.data.job_id);
       });
-      return () => {
-        live = false;
-        if (timer) clearTimeout(timer);
-      };
     }, []);
+    useEffect(() => {
+      runScan();
+    }, [runScan]);
     useEffect(() => {
       if (!mergedIds || !mergedIds.length || state.status !== "ready") return;
       const idset = new Set(mergedIds.map(Number));
@@ -9314,7 +9317,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         className: "axis-link",
         title: "Flag this pair as a possible duplicate again",
         onClick: () => apiPost("/papers/duplicates/undismiss", { paper_ids: [pair.low.id, pair.high.id] }).then((r) => {
-          if (r.ok) refreshDismissed();
+          if (r.ok) {
+            refreshDismissed();
+            runScan();
+          }
         })
       },
       "un-dismiss"
@@ -11024,6 +11030,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       ), flag === "no_chunks" && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => openDetailsForOcr(item) }, "details for OCR"))), group.length > 80 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Showing first 80 of ", group.length, "."));
     }), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions" }, /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: onClose }, "Close"))));
   }
+  const SCAN_JOB_KEY = "callosum.scanJob";
   function ScanModal({ onClose, onScanned, onShowUnsorted }) {
     const [folder, setFolder] = useState(() => {
       try {
@@ -11040,25 +11047,46 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     useEffect(() => {
       loadWatched();
     }, []);
+    const _clearScanJob = () => {
+      try {
+        localStorage.removeItem(SCAN_JOB_KEY);
+      } catch (e) {
+      }
+    };
     const poll = (url, failMsg) => {
       const tick = (jobId) => api(`${url}/${jobId}`).then((r) => {
         if (!r.ok) {
           setScan({ status: "error", error: r.error });
+          _clearScanJob();
           return;
         }
         const d = r.data;
         if (d.status === "done") {
           setScan({ status: "done", summary: d.summary });
+          _clearScanJob();
           loadWatched();
           if (onScanned) onScanned();
-        } else if (d.status === "error") setScan({ status: "error", error: d.detail || failMsg });
-        else {
+        } else if (d.status === "error") {
+          setScan({ status: "error", error: d.detail || failMsg });
+          _clearScanJob();
+        } else {
           setScan({ status: "running", progress: d.progress });
           setTimeout(() => tick(jobId), 1500);
         }
       });
       return tick;
     };
+    useEffect(() => {
+      let job = null;
+      try {
+        job = JSON.parse(localStorage.getItem(SCAN_JOB_KEY) || "null");
+      } catch (e) {
+      }
+      if (job && job.url && job.jobId) {
+        setScan({ status: "running" });
+        poll(job.url, "Scan failed.")(job.jobId);
+      }
+    }, []);
     const run = () => {
       const path = folder.trim();
       if (!path) return;
@@ -11072,6 +11100,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
           setScan({ status: "error", error: r.error });
           return;
         }
+        try {
+          localStorage.setItem(SCAN_JOB_KEY, JSON.stringify({ url: "/library/scan", jobId: r.data.job_id }));
+        } catch (e) {
+        }
         poll("/library/scan", "Scan failed.")(r.data.job_id);
       });
     };
@@ -11081,6 +11113,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         if (!r.ok) {
           setScan({ status: "error", error: r.error });
           return;
+        }
+        try {
+          localStorage.setItem(SCAN_JOB_KEY, JSON.stringify({ url: "/library/watched/rescan", jobId: r.data.job_id }));
+        } catch (e) {
         }
         poll("/library/watched/rescan", "Re-scan failed.")(r.data.job_id);
       });

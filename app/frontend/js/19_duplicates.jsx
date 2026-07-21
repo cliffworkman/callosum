@@ -50,31 +50,38 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, 
   const [dismissed, setDismissed] = useState(() => new Set());  // session-only hide for the current scan
   const [dismissedPairs, setDismissedPairs] = useState([]);     // persisted dismissals, for un-dismiss (inc 67)
   const [showDismissed, setShowDismissed] = useState(false);
+  const liveRef = useRef(true);
+  useEffect(() => () => { liveRef.current = false; }, []);
   const refreshDismissed = () =>
     api("/papers/duplicates/dismissed").then(r => { if (r.ok) setDismissedPairs(r.data.pairs || []); });
 
   useEffect(() => { refreshDismissed(); }, []);
 
-  useEffect(() => {
-    let live = true;
-    let timer = null;
+  // Kicks off a fresh scan + polls it to completion. Callable on mount AND after a successful un-dismiss, so a
+  // re-flagged pair reappears in the list without the user closing + reopening the modal (QA re-triage, 2026-07-21:
+  // un-dismiss previously only refreshed the "previously dismissed" list, leaving `state.groups` — fixed at
+  // mount-time — stale for the rest of the session).
+  const runScan = useCallback(() => {
+    setState({ status: "loading", groups: [] });
+    setDismissed(new Set());  // group indices are scan-specific; a stale session-hide Set would misapply here
     const poll = (jobId) => {
       api(`/papers/duplicates/${jobId}`).then(r => {
-        if (!live) return;
+        if (!liveRef.current) return;
         if (!r.ok) { setState({ status: "error", error: r.error, groups: [] }); return; }
         const d = r.data;
         if (d.status === "done") setState({ status: "ready", groups: d.groups || [] });
         else if (d.status === "error") setState({ status: "error", error: d.detail || "Scan failed.", groups: [] });
-        else timer = setTimeout(() => poll(jobId), 1200);
+        else setTimeout(() => poll(jobId), 1200);
       });
     };
     apiPost("/papers/duplicates", {}).then(r => {
-      if (!live) return;
+      if (!liveRef.current) return;
       if (!r.ok) { setState({ status: "error", error: r.error, groups: [] }); return; }
       poll(r.data.job_id);
     });
-    return () => { live = false; if (timer) clearTimeout(timer); };
   }, []);
+
+  useEffect(() => { runScan(); }, [runScan]);
 
   // inc 301: once a merge completes, drop that group's card (reuse the session `dismissed` hide). `mergedIds` is the
   // just-merged group's paper ids (from 40_app); find the matching group and hide it, then clear the signal.
@@ -124,7 +131,7 @@ function DuplicatesModal({ onClose, onOpenPaper, onChanged, onMerge, mergedIds, 
                 </span>
                 <button className="axis-link" title="Flag this pair as a possible duplicate again"
                   onClick={() => apiPost("/papers/duplicates/undismiss", { paper_ids: [pair.low.id, pair.high.id] })
-                    .then(r => { if (r.ok) refreshDismissed(); })}>un-dismiss</button>
+                    .then(r => { if (r.ok) { refreshDismissed(); runScan(); } })}>un-dismiss</button>
               </div>
             ))}
           </div>}

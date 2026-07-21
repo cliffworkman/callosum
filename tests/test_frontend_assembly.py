@@ -777,6 +777,28 @@ def test_review_accordion_retired_into_critique():
     assert ".fact-mark.retraction" not in css
 
 
+def test_qa_retriage_20260702_batch_undismiss_and_scan_recovery_fixes():
+    """QA re-triage (2026-07-21) against the post-write-lock-fix fixture confirmed the Critical/High findings from
+    the 20260703_073208 run (routes 24/27/30/32) were either already fixed (route 30's 500s, via the SQLite
+    write-lock arc), not real bugs (route 27's PDF-import expectation and the outside-path scan tradeoff are both
+    by design; the console-error findings across routes 24/27/30 are Chromium's own network-layer logging for
+    intentionally-triggered 4xx/5xx during adversarial checks, not app errors), or a QA-harness fixture limitation
+    (route 32's unreachable exact-precision citation). Two real, still-open bugs were found + fixed here."""
+    raw = assemble_jsx()
+    # Route 24: un-dismissing a pair previously only refreshed the "previously dismissed" list, leaving the main
+    # scan's `state.groups` stale until the whole modal was closed + reopened. `runScan` is now a reusable
+    # function called both on mount and after a successful undismiss.
+    assert "const runScan = useCallback(() => {" in raw
+    assert 'onClick={() => apiPost("/papers/duplicates/undismiss"' in raw
+    assert "if (r.ok) { refreshDismissed(); runScan(); }" in raw
+    # Route 27: a running scan's {url, jobId} is now persisted so closing + reopening the Watched-folders modal
+    # resumes polling instead of silently forgetting an in-flight job (the job itself always completed correctly
+    # server-side; only the UI's visibility into it was lost).
+    assert 'const SCAN_JOB_KEY = "callosum.scanJob";' in raw
+    assert "const _clearScanJob = () => { try { localStorage.removeItem(SCAN_JOB_KEY); }" in raw
+    assert 'job = JSON.parse(localStorage.getItem(SCAN_JOB_KEY) || "null");' in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

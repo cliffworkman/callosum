@@ -3,6 +3,8 @@
 // **watches** it — watched folders are re-scanned automatically on launch (Settings toggle) + via "Re-scan all",
 // so new PDFs appear without re-adding. Clones the poll lifecycle of the other async-job modals.
 
+const SCAN_JOB_KEY = "callosum.scanJob";  // { url, jobId } for whichever scan is currently in flight, if any
+
 function ScanModal({ onClose, onScanned, onShowUnsorted }) {
   const [folder, setFolder] = useState(() => {
     try { return localStorage.getItem("callosum.scanFolder") || ""; } catch (e) { return ""; }
@@ -12,16 +14,29 @@ function ScanModal({ onClose, onScanned, onShowUnsorted }) {
   const loadWatched = () => api("/library/watched").then(r => { if (r.ok) setWatched(r.data); });
   useEffect(() => { loadWatched(); }, []);
 
+  // QA re-triage, 2026-07-21: a running scan's {url, jobId} is persisted so closing + reopening this modal (the
+  // job keeps running server-side regardless) resumes polling instead of silently forgetting it happened.
+  const _clearScanJob = () => { try { localStorage.removeItem(SCAN_JOB_KEY); } catch (e) { /* ignore */ } };
+
   const poll = (url, failMsg) => {
     const tick = (jobId) => api(`${url}/${jobId}`).then(r => {
-      if (!r.ok) { setScan({ status: "error", error: r.error }); return; }
+      if (!r.ok) { setScan({ status: "error", error: r.error }); _clearScanJob(); return; }
       const d = r.data;
-      if (d.status === "done") { setScan({ status: "done", summary: d.summary }); loadWatched(); if (onScanned) onScanned(); }
-      else if (d.status === "error") setScan({ status: "error", error: d.detail || failMsg });
+      if (d.status === "done") { setScan({ status: "done", summary: d.summary }); _clearScanJob(); loadWatched(); if (onScanned) onScanned(); }
+      else if (d.status === "error") { setScan({ status: "error", error: d.detail || failMsg }); _clearScanJob(); }
       else { setScan({ status: "running", progress: d.progress }); setTimeout(() => tick(jobId), 1500); }
     });
     return tick;
   };
+
+  useEffect(() => {
+    let job = null;
+    try { job = JSON.parse(localStorage.getItem(SCAN_JOB_KEY) || "null"); } catch (e) { /* ignore */ }
+    if (job && job.url && job.jobId) {
+      setScan({ status: "running" });
+      poll(job.url, "Scan failed.")(job.jobId);
+    }
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps -- mount-only resume check
 
   const run = () => {
     const path = folder.trim();
@@ -30,6 +45,7 @@ function ScanModal({ onClose, onScanned, onShowUnsorted }) {
     setScan({ status: "running" });
     apiPost("/library/scan", { folder: path }).then(r => {
       if (!r.ok) { setScan({ status: "error", error: r.error }); return; }
+      try { localStorage.setItem(SCAN_JOB_KEY, JSON.stringify({ url: "/library/scan", jobId: r.data.job_id })); } catch (e) { /* ignore */ }
       poll("/library/scan", "Scan failed.")(r.data.job_id);
     });
   };
@@ -38,6 +54,7 @@ function ScanModal({ onClose, onScanned, onShowUnsorted }) {
     setScan({ status: "running" });
     apiPost("/library/watched/rescan", {}).then(r => {
       if (!r.ok) { setScan({ status: "error", error: r.error }); return; }
+      try { localStorage.setItem(SCAN_JOB_KEY, JSON.stringify({ url: "/library/watched/rescan", jobId: r.data.job_id })); } catch (e) { /* ignore */ }
       poll("/library/watched/rescan", "Re-scan failed.")(r.data.job_id);
     });
   };
