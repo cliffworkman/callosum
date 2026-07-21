@@ -55,16 +55,16 @@ All of `_TEMPLATE.md` → Standing assertions, especially **console budget = 0**
    state ok, or the seeded retraction/statcheck facts if present). Reload and confirm the open section **persists**
    (`callosum.theoryOpen`) and the active Axes-section tab persists (`callosum.panetab.axes`).
 5. **Details/Methods accordion — right pane** (`25_detail.jsx` + the METHODS modules): the right pane is an
-   accordion with section headers **Details · Data consistency (GRIM) · Statistics check · Bayesian statistics ·
-   Mixed-model reporting · Transparency signals** (plus further checks below the fold — not exercised here, just
-   confirm the pane scrolls to reach them; Cite/CRediT/Meta-Reference/Meta-Analyze live under the Work workspace,
-   not this accordion). **Details**
+   accordion with section headers **Details · Data · Statistics · Checklists** (Cite/CRediT/Meta-Reference/
+   Meta-Analyze live under the Work workspace, not this accordion). **Details**
    is open by default. On load the **top library paper is auto-selected** (inc 138), so Details shows its editable
    fields right away (not the empty hint); selecting a different paper updates it. The **"Select a paper to see its
-   details"** hint shows only when nothing is selected (e.g. an empty library). Click **Data consistency (GRIM)** →
-   Details collapses and the GRIM panel renders (mount-but-hide — Details' state is preserved). (Per-check
+   details"** hint shows only when nothing is selected (e.g. an empty library). Click **Data** →
+   Details collapses and the GRIM panel renders (mount-but-hide — Details' state is preserved). Click **Checklists** →
+   confirm a 2×2 tab grid renders (**Transparency signals / Mixed-model reporting / Bayesian statistics /
+   Meta-analysis reporting**, in that reading order) and each tab switches without a console error. (Per-check
    scoring/merge/suggest and the METHODS auditors' own findings are exercised in their own routes; here just confirm
-   each header opens its section with no console error.) Reload and confirm the open right-pane section persists
+   each header/tab opens with no console error.) Reload and confirm the open right-pane section persists
    (`callosum.methodsOpen`).
 6. **Settings** (`35_settings.jsx`): open the gear. Confirm theme toggle, default-axis-cutoff slider,
    hide-uncertain toggle, watched-folder auto-rescan toggle, help-assistant section all render. Toggle dark

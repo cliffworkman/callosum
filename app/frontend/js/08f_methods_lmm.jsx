@@ -207,18 +207,23 @@ function LmmCredit() {
   );
 }
 
-function LmmSection({ ctx }) {
+function LmmSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Audit a paper's <b>mixed-model reporting</b> — does it report the random-effects structure, df/inference method, convergence, estimation (REML/ML), ICC, R², and (for longitudinal designs with dropout) a missing-data sensitivity analysis? Local, no AI. It flags what's not reported, with a grounded recommendation — never a verdict.</div>
       <p className="eyebrow">This paper</p>
-      <LmmPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "lmm"} />
+      <LmmPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
       <LmmCredit />
     </div>
   );
 }
 
-registerPaneSection({
-  id: "lmm", label: "Mixed-model reporting", paneId: "methods", order: 33, hideInReadOnly: true,
-  render: (ctx) => <LmmSection ctx={ctx} />,
-});
+// Part of the Checklists 2x2-grid tab group (order 20 -> top-right) — see 08h_methods_transparency.jsx for the
+// registerPaneTab/active-prop rationale shared by all four checklist tools.
+registerPaneTab(
+  { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
+  {
+    id: "lmm", label: "Mixed-model reporting", order: 20, hideInReadOnly: true,
+    render: (ctx, active) => <LmmSection ctx={ctx} active={active} />,
+  },
+);

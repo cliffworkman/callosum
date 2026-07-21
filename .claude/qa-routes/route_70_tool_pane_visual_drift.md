@@ -35,10 +35,15 @@ console/pageerror/request listeners before navigation. Use desktop `1366x900` an
 2. Walk every visible THEORY accordion header in `.pane-sidebar`: click it, assert `aria-expanded="true"`, assert all
    headers remain visible, assert no horizontal overflow in the sidebar/open body, and take a screenshot for any visual
    anomaly.
-3. Walk every visible METHODS accordion header in `.pane-detail` with the same assertions.
+3. Walk every visible METHODS accordion header in `.pane-detail` with the same assertions. When **Checklists**
+   opens, additionally confirm its 4 tabs (Transparency signals / Mixed-model reporting / Bayesian statistics /
+   Meta-analysis reporting) render as a **2×2 grid** (`.pane-tabs-checklists`), in that reading order, with no
+   overflow and no overlapping tab-button text; click each tab and confirm the others stay mounted-but-hidden
+   (switching away and back preserves any in-progress state, per the `render(ctx, isVisible)` contract).
 4. Resize/reload at `375x812`. Confirm no horizontal overflow in the Library view.
 5. Open the mobile **Panels** region. Walk visible THEORY headers with the same assertions.
-6. Open the mobile **Details** region. Walk visible METHODS headers with the same assertions.
+6. Open the mobile **Details** region. Walk visible METHODS headers with the same assertions, including confirming
+   **Checklists**' tab grid collapses to a single column (`.app.mobile .pane-tabs-checklists`) with no overflow.
 7. Compare visually against DESIGN.md: any raw-feeling color accent, one-off button recipe, over-large heading, nested
    decorative card, clipped text, or overlap is a **Visual** finding unless it blocks use, in which case escalate.
 

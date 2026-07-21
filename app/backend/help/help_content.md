@@ -744,7 +744,7 @@ Gotchas:
 
 <!-- section: checking-statistics -->
 ## Checking statistics (statcheck)
-In the **METHODS** pane (the right-hand panel), open the **Statistics check** section; under **This paper** — with a paper selected — there's a **Check statistics** button. It scans the paper's extracted text for inline APA-style statistical tests — `t(28) = 2.10, p = .04`, `F(2, 45) = 3.1, p < .05`, `r(30) = .42, p = .01`, `χ²(1) = 5.2, p = .02`, `z = 2.1, p = .03` — **recomputes** the p-value from the reported test statistic and degrees of freedom, and shows where the reported and recomputed values disagree. It's the statcheck method: a "spellchecker for statistics."
+In the **METHODS** pane (the right-hand panel), open the **Statistics** section; under **This paper** — with a paper selected — there's a **Check statistics** button. It scans the paper's extracted text for inline APA-style statistical tests — `t(28) = 2.10, p = .04`, `F(2, 45) = 3.1, p < .05`, `r(30) = .42, p = .01`, `χ²(1) = 5.2, p = .02`, `z = 2.1, p = .03` — **recomputes** the p-value from the reported test statistic and degrees of freedom, and shows where the reported and recomputed values disagree. It's the statcheck method: a "spellchecker for statistics."
 
 This runs **entirely on your machine** — pure computation over the already-extracted text, no AI and no network. Each result shows the **verbatim matched text**, nearby extracted-text context with the matched statistic highlighted, and its **recomputed p**, with a status pill: **consistent** (green), **inconsistent** (amber — the values disagree), or **decision error** (amber — the disagreement flips significance at p = .05). A count summary reads "N checked · M inconsistent · K decision errors" — these are plain counts, never a hidden "reproducibility score." Click any result to open the PDF source. When Callosum can locally locate the exact statistic in the PDF on the expected page, it draws an exact passage highlight; otherwise it opens the page at region precision.
 
@@ -758,7 +758,7 @@ Evidence snippets show their source precision before you click: **exact highligh
 
 Many method panels include a small source-credit line. Its **＋ add missing to library** button checks DOI-backed sources first, imports only the sources not already in your library, and changes to **✓ added to library** when the full credited set is present.
 
-**Across your whole library:** in the same **METHODS → Statistics check** section, under **Whole library**, click **Check all papers**. Callosum runs statcheck over every paper and reports "N papers with statistics checked · M with inconsistencies." If any are flagged, a **⚠ N flagged** chip also appears in the Library header as a shortcut. Either click that chip or **Show flagged papers** in the section to filter the Library to just them (a banner appears; **clear** to return) — then open any one to see its specific tests. This is a **list to review, not a ranking**: papers aren't scored or ordered by inconsistency, and the same caveats apply (usually innocent; inline-APA only; absence isn't a clean bill). Re-run the check after editing papers to refresh it.
+**Across your whole library:** in the same **METHODS → Statistics** section, under **Whole library**, click **Check all papers**. Callosum runs statcheck over every paper and reports "N papers with statistics checked · M with inconsistencies." If any are flagged, a **⚠ N flagged** chip also appears in the Library header as a shortcut. Either click that chip or **Show flagged papers** in the section to filter the Library to just them (a banner appears; **clear** to return) — then open any one to see its specific tests. This is a **list to review, not a ranking**: papers aren't scored or ordered by inconsistency, and the same caveats apply (usually innocent; inline-APA only; absence isn't a clean bill). Re-run the check after editing papers to refresh it.
 
 <!-- section: p-curve -->
 ## p-curve: evidential value across a set of papers
@@ -781,7 +781,7 @@ Read it as a prompt to think, not a judgment:
 ## Data consistency (GRIM / GRIMMER)
 GRIM (Brown & Heathers, 2017) and GRIMMER (Anaya 2016 / Allard 2018) check whether a reported **mean** (and **SD**) of **integer-scale** data — counts, or Likert-type items — is mathematically *possible* for the stated sample size. A mean of N integers must equal a whole number divided by N, so at a given decimal precision only certain means can occur; GRIMMER extends the same logic to the standard deviation.
 
-It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data consistency (GRIM)**, then type a value you're reading — the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure) — and click **Check**. You get:
+It's an **assisted calculator**, not a scanner: in the **METHODS** pane, open **Data**, then type a value you're reading — the **mean** (and optionally **SD**), **N**, and **items** (the number of scale items averaged per score; leave 1 for a single integer measure) — and click **Check**. You get:
 
 - **GRIM:** consistent, or **impossible** with the **nearest possible** means shown (so you can see how far off it is).
 - **GRIMMER** (when you enter an SD): consistent or impossible, for single- or multi-item scales (set **items**).
@@ -797,7 +797,7 @@ Read it as a prompt, not a judgment:
 ## Checking Bayes factors (the Bayesian auditor)
 The Bayesian auditor is the Bayesian sibling of statcheck. For a paper that reports **default Bayes factors** inline — for a t-test (e.g. “t(19) = 2.53, BF₁₀ = 3.4”) or a Pearson correlation (e.g. “r(58) = .42, BF₁₀ = 37”) — it recomputes the **default Bayes factor** (the JZS t-test BF of Rouder et al. 2009, or the default correlation BF of Ly et al. 2016 — the closed forms JASP and the *BayesFactor* R package use) from the reported statistic and *df*, and flags where the reported value doesn't reproduce. It's local, deterministic, and uses no AI — nothing leaves your machine.
 
-In the **METHODS** pane, open **Bayesian statistics** with a paper selected. It reads the paper's extracted text and recomputes each inline t-test or correlation Bayes factor, showing the **reported** value, the **recomputed** value, and whether it **reproduces** or **couldn't reproduce**.
+In the **METHODS** pane, open **Checklists → Bayesian statistics** with a paper selected. It reads the paper's extracted text and recomputes each inline t-test or correlation Bayes factor, showing the **reported** value, the **recomputed** value, and whether it **reproduces** or **couldn't reproduce**.
 
 Read it honestly — it's a signal, not a verdict:
 
@@ -819,7 +819,7 @@ Read the checklist as a prompt, not a report card:
 ## Auditing mixed-model reporting
 Papers that fit a **linear mixed model** (a mixed-effects / multilevel model — `lmer`, `nlme`, and the like) rely on choices a careful reader needs to see. The LMM-reporting auditor reads a paper's extracted text and flags whether it *reports* seven such things — it never runs a model, an imputation, or a sensitivity analysis, and never touches raw data. It's local, deterministic, and uses no AI.
 
-In the **METHODS** pane, open **Mixed-model reporting** with a paper selected. If the paper detectably uses a mixed model it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+In the **METHODS** pane, open **Checklists → Mixed-model reporting** with a paper selected. If the paper detectably uses a mixed model it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
 
 - **Random-effects structure** — which grouping factors carry random intercepts/slopes (Barr et al. 2013; Matuschek et al. 2017).
 - **Degrees-of-freedom / inference method** — Satterthwaite, Kenward-Roger, Wald, or a likelihood-ratio test (Luke 2017).
@@ -841,7 +841,7 @@ Read it as a prompt, not a report card:
 ## Auditing meta-analysis reporting
 A **meta-analysis** pools results across studies, and the reader needs to see the choices behind the pooled number. The meta-analysis reporting auditor reads a *published* meta-analysis's extracted text and flags whether it *reports* seven such things — it never pools, models heterogeneity, re-computes an effect size, or does bias inference (that's metafor / JASP / RevMan territory). It's local, deterministic, and uses no AI.
 
-In the **METHODS** pane, open **Meta-analysis reporting** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
+In the **METHODS** pane, open **Checklists → Meta-analysis reporting** with a paper selected. If the paper detectably reports a meta-analysis it shows a **Reporting checklist**; each check is **present**, **not found**, or **n/a**:
 
 - **Effect-size metric** — the index the study effects were converted to (Hedges' g, log odds ratio, Fisher's z, …) — Borenstein et al. 2009; Viechtbauer 2010 (*metafor*).
 - **Model (fixed vs random-effects)** — and the between-study variance estimator (DerSimonian-Laird, REML, Hartung-Knapp) — DerSimonian & Laird 1986; IntHout et al. 2014.
@@ -863,7 +863,7 @@ Read it as a prompt, not a report card:
 ## Auditing transparency signals
 Before relying on a paper it helps to see what it *discloses* — where its data and code live, whether it declares conflicts and funding, and whether a trial or review was registered. The transparency-signals auditor reads a paper's extracted text and detects whether it *reports* seven open-science artifacts. It's local, rule-based (derived from the published **ODDPub** and **rtransparent** tools), and uses no AI.
 
-In the **METHODS** pane, open **Transparency signals** with a paper selected. The section shows **Open-science disclosures**; each check is **detected**, **not detected**, or **n/a**:
+In the **METHODS** pane, open **Checklists → Transparency signals** with a paper selected. The section shows **Open-science disclosures**; each check is **detected**, **not detected**, or **n/a**:
 
 - **Data availability** — a data-availability statement and/or a repository link (OSF, Zenodo, Dryad, figshare) — ODDPub (Riedel et al. 2020).
 - **Code / software availability** — an analysis-code statement and/or a repository (GitHub, GitLab, Code Ocean) — ODDPub.

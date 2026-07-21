@@ -208,20 +208,27 @@ const TRANSPARENCY_QUEUES = [
   { key: "transparency-upon-request", label: "available upon request" },
 ];
 
-function TransparencySection({ ctx }) {
+function TransparencySection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Detect a paper's <b>open-science disclosures</b> — does it state where the data &amp; code live, declare conflicts of interest &amp; funding, and (for a trial/review) report a registration or preregistration? Local, no AI, rule-based. It surfaces what's <i>reported</i>, with the matched sentence — never a transparency score, and “not detected” never means the artifact is absent.</div>
       <p className="eyebrow">Whole library</p>
       <TransparencyLibrary onReview={ctx.onShowTransparencyReview} onRan={ctx.onTransparencyRan} />
       <p className="eyebrow">This paper</p>
-      <TransparencyPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "transparency"} />
+      <TransparencyPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
       <TransparencyCredit />
     </div>
   );
 }
 
-registerPaneSection({
-  id: "transparency", label: "Transparency signals", paneId: "methods", order: 36, hideInReadOnly: true,
-  render: (ctx) => <TransparencySection ctx={ctx} />,
-});
+// Part of the Checklists 2x2-grid tab group (order 10 -> top-left) — 05_panes.jsx's registerPaneTab find-or-creates
+// the "checklists" host regardless of which of its 4 sibling files loads first, as long as they agree on its
+// metadata (label/paneId/order). `active` now arrives as a real prop (section open AND this tab selected) rather
+// than derived from ctx.methodsOpen, which only ever reflected the open SECTION id, not the active tab within it.
+registerPaneTab(
+  { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
+  {
+    id: "transparency", label: "Transparency signals", order: 10, hideInReadOnly: true,
+    render: (ctx, active) => <TransparencySection ctx={ctx} active={active} />,
+  },
+);

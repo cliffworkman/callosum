@@ -389,7 +389,8 @@ The current center workspace map is:
 The internal pane ids `theory` and `methods` remain implementation vocabulary for the left and right side panes. They
 are **not** a reason to place new broad features in side accordions. The left side pane holds compact
 literature-context lenses such as Axes, Tags, and Reading queue. The right side pane holds compact
-paper-evaluation lenses such as Details, GRIM, Statistics check, transparency, and related methods checks. Single-paper
+paper-evaluation lenses: Details, Data, Statistics, and a Checklists group (transparency, mixed-model,
+Bayesian, and meta-analysis reporting audits). Single-paper
 Critical Read lives in **Synthesize → Critique** because it is a wide scrutiny workflow, not a compact side lens — the
 left pane's former "Review" accordion (FACT-vs-CANDIDATE findings review) retired into Critique's Tier-1 backbone for
 the same reason (2026-07-20): its FACTs were already a subset of what Critique surfaces, and only its reviewable
@@ -448,9 +449,12 @@ open sections persist as `callosum.theoryOpen` / `callosum.methodsOpen`.
 **Side-pane ordering.** The left side pane is for compact selected-paper literature lenses: Axes and Tags are grouped
 together because they are conceptual labeling lenses; Queue stays as a paper-context surface. The
 right side pane is for *evaluating how a paper was studied*, ordered by cognitive task: Details (`order: 10`) → Data
-consistency / GRIM (`order: 20`, raw data check before analysis check) → Statistics check (`order: 30`, statcheck and
-related tests) → other methods checks. Future statistical checks become tabs inside
-**Statistics check**, not sibling sections. Future paper-evaluation modules follow the right-pane order; future
+(`order: 20`, GRIM/GRIMMER — raw data check before analysis check) → Statistics (`order: 30`, statcheck and related
+tests) → **Checklists** (`order: 40` — a single section grouping the reporting-completeness audits: Transparency,
+Mixed-model, Bayesian, and Meta-analysis, as 4 tabs rather than 4 sibling sections, since they share one cognitive
+task — "does this paper report what a careful reader needs" — and differ only in *which* method). Future statistical
+checks become tabs inside **Statistics**, not sibling sections; a future reporting-completeness audit becomes a
+5th Checklists tab, not a new top-level section. Future paper-evaluation modules follow the right-pane order; future
 literature-understanding lenses follow the left-pane order. Larger corpus synthesis and writing/citation authoring
 belong in center workspaces.
 
@@ -466,6 +470,13 @@ a section or workspace is hidden only when it is explicitly `hideInReadOnly` or 
 Section-definer and workspace-definer metadata is authoritative regardless of chunk-load order, so a tab-adding chunk
 that loads first only seeds a placeholder. Note the esbuild gotcha: a registered-but-unreferenced component can be
 dead-code-eliminated from the build until a consumer references it, so wire the consumer in the same change.
+`PaneAccordion`'s tab strip carries a per-section `pane-tabs-<sectionId>` class hook (e.g. `.pane-tabs-checklists`)
+so one multi-tab section can opt into a bespoke layout (the Checklists 2×2 grid) with a CSS rule only — no change
+to `05_panes.jsx`'s render logic. Every tab/section `render(ctx, isVisible)` also receives whether it is actually
+the open section *and* the active tab (mirrors `WorkspacePane`'s existing `render(ctx, active)` contract) — a
+tab-owning component that gates its own per-paper auto-run must use this `isVisible` prop, not re-derive it from
+`ctx.methodsOpen`/`ctx.theoryOpen` (those reflect the open *section* id, which stops matching a tab's own id once
+several tools share one section, as the 4 Checklists tools do).
 
 **Accordion pane layout (inc 248) — headers always visible.** The two accordion panes (`.pane-sidebar`,
 `.pane-detail`) are `display:flex; flex-direction:column; overflow:hidden`; they do not scroll as whole panes. The

@@ -1,4 +1,5 @@
-// inc 122: the "Statistics check" METHODS section — the first real module on the inc-121 pane registry.
+// inc 122: the "Statistics" METHODS section (labeled "Statistics check" until the 2026-07-21 pane regroup) —
+// the first real module on the inc-121 pane registry.
 // Consolidates statcheck's two surfaces, moved out of Settings (StatcheckSettings) and the Details pane
 // (StatcheckRow): a library-wide batch run + a per-paper check. Local, deterministic, NO AI (no egress).
 // Counts are a list to review, never a rank or verdict (Principles #2/#7 + the no-accusation A-A boundary).
@@ -194,6 +195,6 @@ function StatcheckSection({ ctx }) {
 }
 
 registerPaneSection({
-  id: "statcheck", label: "Statistics check", paneId: "methods", order: 30, hideInReadOnly: true,
+  id: "statcheck", label: "Statistics", paneId: "methods", order: 30, hideInReadOnly: true,
   render: (ctx) => <StatcheckSection ctx={ctx} />,
 });

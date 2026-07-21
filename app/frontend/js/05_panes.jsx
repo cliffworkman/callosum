@@ -4,9 +4,14 @@
 // synthesis survives a section switch. Pane labels are deliberately "soft" (section headers only) for now; the
 // paneId ("theory"|"methods") is the internal architecture + the eventual rename. See DESIGN.md (placement rubric).
 //
-// inc 139: a section can hold MULTIPLE TABS (like-with-like submenus) — e.g. AXES = [Axes | Tags]. A section with
-// one tab renders it directly (no strip); with >=2 it shows a segmented tab strip + the active tab (the inactive
-// tabs stay mounted-but-hidden, like sections, so their in-progress state survives a tab switch). DESIGN.md §5.
+// inc 139: a section can hold MULTIPLE TABS (like-with-like submenus) — e.g. AXES = [Axes | Tags], or the 2x2-grid
+// Checklists = [Transparency | Mixed-model | Bayesian | Meta-analysis]. A section with one tab renders it directly
+// (no strip); with >=2 it shows a segmented tab strip + the active tab (the inactive tabs stay mounted-but-hidden,
+// like sections, so their in-progress state survives a tab switch). Every render(ctx, isVisible) also receives
+// whether ITS section is open AND it is the active tab — a tab-owning component can no longer assume its own id
+// equals the open section's id (2026-07-21, needed once Checklists made that assumption false for the first time).
+// The tab strip's className carries a per-section "pane-tabs-<id>" hook so one section (e.g. Checklists) can opt
+// into a bespoke layout (CSS-only) without changing this render logic again. DESIGN.md §5.
 const PANE_SECTIONS = [];
 function _ensureSection(id) {
   let s = PANE_SECTIONS.find(x => x.id === id);
@@ -85,7 +90,7 @@ function PaneAccordion({ paneId, ctx, openId, onOpen }) {
             <div className="acc-body">
               {tabs.length > 1 ? (
                 <React.Fragment>
-                  <div className="tags-srcfilter pane-tabs" role="tablist">
+                  <div className={"tags-srcfilter pane-tabs pane-tabs-" + s.id} role="tablist">
                     {tabs.map(t => (
                       <button key={t.id} role="tab" aria-selected={t.id === at}
                         className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}
@@ -93,12 +98,16 @@ function PaneAccordion({ paneId, ctx, openId, onOpen }) {
                     ))}
                   </div>
                   {/* tabs mount-but-hide too (.pane-tab:not(.active){display:none}) so an open axis / running
-                      action survives switching tab and back */}
+                      action survives switching tab and back. render(ctx, isVisible) mirrors WorkspacePane's own
+                      render(ctx, active) contract — a section being open is not enough; the tab within it must
+                      also be the selected one (inc: the Checklists 2x2-grid tab group, 2026-07-21). */}
                   {tabs.map(t => (
-                    <div key={t.id} className={"pane-tab" + (t.id === at ? " active" : "")}>{t.render(ctx)}</div>
+                    <div key={t.id} className={"pane-tab" + (t.id === at ? " active" : "")}>
+                      {t.render(ctx, s.id === active && t.id === at)}
+                    </div>
                   ))}
                 </React.Fragment>
-              ) : tabs[0].render(ctx)}
+              ) : tabs[0].render(ctx, s.id === active)}
             </div>
           </section>
         );

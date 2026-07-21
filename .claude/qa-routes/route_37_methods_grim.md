@@ -33,8 +33,9 @@ genai-host request regardless). Register listeners before navigation.
 
 ## Steps
 
-1. Open the **METHODS** pane -> **Data consistency (GRIM)** section. Confirm the form (mean, SD, N, items) + the
-   integer-scale intro.
+1. Open the **METHODS** pane -> **Data** section (relabeled from "Data consistency (GRIM)" 2026-07-21 when the
+   pane was regrouped into Details/Data/Statistics/Checklists; same section id/content). Confirm the form (mean,
+   SD, N, items) + the integer-scale intro.
 2. Enter an impossible mean (e.g. mean **3.48**, N **20**) -> **Check** (`POST /methods/grim`). Confirm GRIM
    **impossible** + **nearest possible 3.45 / 3.50** + the non-accusatory caveat.
 3. Enter a consistent mean + SD (e.g. **5.23 / 2.55 / 31**) -> GRIM **consistent** and GRIMMER **consistent**.

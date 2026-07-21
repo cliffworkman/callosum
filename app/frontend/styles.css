@@ -210,6 +210,12 @@
      recipe; inactive tabs stay mounted-but-hidden so their in-progress state survives a tab switch (DESIGN.md §5). */
   .pane-tabs { margin: 2px 0 8px; }
   .pane-tab:not(.active) { display: none; }
+  /* 2026-07-21: the Checklists section's 4 tabs (Transparency/Mixed-model/Bayesian/Meta-analysis) read as a 2x2
+     grid rather than a wrapping chip strip — the pane-tabs-<id> hook lets one section opt into this without
+     touching 05_panes.jsx's render logic (mirrors .settings-sections-grid's 2-column pattern). Compound selector
+     (not a bare .pane-tabs-checklists) so its specificity beats .tags-srcfilter's `display: flex` regardless of
+     the two rules' source order. */
+  .pane-tabs.pane-tabs-checklists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }
   /* inc 163: honest "Coming soon" roadmap stubs (planned THEORY/METHODS sections + tabs); inert, clearly labeled */
   .coming-soon { padding: 6px 2px 10px; }
   .coming-soon-badge { display: inline-block; font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); background: var(--accent-soft); border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 8px; }
@@ -1589,6 +1595,7 @@
   .app.mobile .settings-view { max-width: none; padding: 14px; }
   .app.mobile .settings-card { padding: 12px; }
   .app.mobile .settings-sections-grid, .app.mobile .settings-sections-grid-3, .app.mobile .provider-list { grid-template-columns: 1fr; }
+  .app.mobile .pane-tabs-checklists { grid-template-columns: 1fr; }
   .app.mobile .settings-axis-controls { grid-template-columns: 1fr; }
   .app.mobile .settings-publisher-controls { grid-template-columns: 1fr; }
   .app.mobile .settings-openurl-row { grid-template-columns: minmax(0, 1fr) auto; }

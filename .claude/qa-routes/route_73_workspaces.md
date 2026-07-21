@@ -138,8 +138,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
     the red **⚠ Retracted · N** chip updates, and a retracted paper shows a **RETRACTED** badge on its card and Details
     pane. Open **Synthesize → Critique** for that paper and confirm the source/date/notice evidence is still visible
     (a Tier-1 signal row + notice link) and worded as a signal, not a verdict.
-10. Open several lineage surfaces: Methods → Statistics check, Methods → Bayesian statistics, Work → CRediT, Work →
-    Meta-Analyze (Effect-size calculator subsection), and Discover → Search → Overlooked. Confirm their
+10. Open several lineage surfaces: Methods → Statistics, Methods → Checklists → Bayesian statistics, Work → CRediT,
+    Work → Meta-Analyze (Effect-size calculator subsection), and Discover → Search → Overlooked. Confirm their
     `.method-credit` buttons use the common **＋ add missing to library** label before import, flip to
     **✓ added to library** when their DOI-backed sources are present, and for multi-source credits do not re-import
     sources already in the library.

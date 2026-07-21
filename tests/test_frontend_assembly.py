@@ -116,8 +116,9 @@ def test_workspace_menubar_structure_present():
     # The relocated sections no longer register as THEORY/METHODS pane sections.
     assert 'id: "publishers"' not in raw and 'id: "funding-discovery"' not in raw
     assert 'label: "Effect-size converter"' not in raw
-    # Meta-Analysis IS a METHODS pane section now (registerPaneSection, not a Work/Extract tab).
-    assert 'id: "meta", label: "Meta-analysis reporting", paneId: "methods", order: 35' in raw
+    # Meta-Analysis IS a METHODS pane tab now (registerPaneTab against the "checklists" host, not a Work/Extract tab
+    # and no longer its own top-level section -- folded into Checklists in the 2026-07-21 pane regroup).
+    assert 'id: "meta", label: "Meta-analysis reporting", order: 40, hideInReadOnly: true' in raw
     assert 'id: "synthesis", label: "Synthesis", paneId: "theory"' not in raw
     assert 'id: "cite", label: "Cite", tabLabel: "Suggest", paneId: "theory"' not in raw
     assert 'id: "meta-references", label: "Meta Reference List", paneId: "theory"' not in raw
@@ -560,6 +561,56 @@ def test_methods_auditors_use_shared_evidence_source_targets():
     assert "exact highlight" in raw and "page only" in raw and "no source page" in raw
     assert raw.count("hasSourcePage={") >= 7
     assert raw.count("<EvidenceTrail detector=") >= 6
+
+
+def test_methods_pane_regrouped_details_data_statistics_checklists():
+    """2026-07-21: the METHODS accordion collapsed from 7 top-level sections to 4 -- Details/Data/Statistics
+    unchanged in place, and Transparency/Mixed-model/Bayesian/Meta-analysis folded into one "Checklists" section
+    as a 2x2 grid of tabs (registerPaneTab against a shared host), rather than 4 sibling sections."""
+    raw = assemble_jsx()
+    # Data + Statistics were relabeled (same ids/order, GRIM/statcheck internals untouched).
+    assert 'id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true' in raw
+    assert 'label: "Data consistency (GRIM)"' not in raw
+    assert 'id: "statcheck", label: "Statistics", paneId: "methods", order: 30, hideInReadOnly: true' in raw
+    assert 'label: "Statistics check"' not in raw
+    # The 4 checklist tools no longer self-register as standalone sections...
+    assert 'registerPaneSection({\n  id: "bayes"' not in raw
+    assert 'registerPaneSection({\n  id: "lmm"' not in raw
+    assert 'registerPaneSection({\n  id: "transparency"' not in raw
+    # ...they register as tabs on one shared "checklists" host, ordered for the 2x2 grid (transparency top-left,
+    # lmm top-right, bayes bottom-left, meta bottom-right).
+    assert raw.count('{ id: "checklists", label: "Checklists", paneId: "methods", order: 40 }') == 4
+    assert 'id: "transparency", label: "Transparency signals", order: 10, hideInReadOnly: true' in raw
+    assert 'id: "lmm", label: "Mixed-model reporting", order: 20, hideInReadOnly: true' in raw
+    assert 'id: "bayes", label: "Bayesian statistics", order: 30, hideInReadOnly: true' in raw
+    assert 'id: "meta", label: "Meta-analysis reporting", order: 40, hideInReadOnly: true' in raw
+    # Each section's render signature now takes `active` as a real prop (not re-derived from ctx.methodsOpen).
+    assert "function TransparencySection({ ctx, active })" in raw
+    assert "function BayesSection({ ctx, active })" in raw
+    assert "function LmmSection({ ctx, active })" in raw
+    assert "function MetaSection({ ctx, active })" in raw
+    for stale in (
+        'ctx.methodsOpen === "transparency"',
+        'ctx.methodsOpen === "bayes"',
+        'ctx.methodsOpen === "lmm"',
+        'ctx.methodsOpen === "meta"',
+    ):
+        assert stale not in raw
+    assert raw.count("render: (ctx, active) => <TransparencySection ctx={ctx} active={active} />") == 1
+    assert raw.count("render: (ctx, active) => <BayesSection ctx={ctx} active={active} />") == 1
+    assert raw.count("render: (ctx, active) => <LmmSection ctx={ctx} active={active} />") == 1
+    assert raw.count("render: (ctx, active) => <MetaSection ctx={ctx} active={active} />") == 1
+    # PaneAccordion threads a real isVisible bool into every tab/section render (WorkspacePane's own
+    # render(ctx, active) contract, mirrored here so a merged section's tab can tell whether it's the open one).
+    assert "t.render(ctx, s.id === active && t.id === at)" in raw
+    assert "tabs[0].render(ctx, s.id === active)" in raw
+    assert 'className={"tags-srcfilter pane-tabs pane-tabs-" + s.id}' in raw
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+    assert (
+        ".pane-tabs.pane-tabs-checklists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; }"
+        in css
+    )
+    assert ".app.mobile .pane-tabs-checklists { grid-template-columns: 1fr; }" in css
 
 
 def test_set_critical_review_modal_shipped():

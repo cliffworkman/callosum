@@ -49,11 +49,15 @@ genai-host request regardless). Register listeners before navigation.
 
 ## Steps
 
-1. Open the **METHODS** pane -> **Meta-analysis reporting** section (order 35, among the real tools). Confirm the
-   intro (audit reporting; local/no-AI; "flags what's not reported ... never a verdict, and it never pools or
-   re-computes").
-2. Select a paper whose text reports a meta-analysis. The section auto-runs `GET /papers/{id}/meta-analysis` (or click
-   **Audit reporting**). Confirm the **Reporting checklist** renders per-check rows.
+1. Open the **METHODS** pane -> **Checklists** section -> the **Meta-analysis reporting** tab (one of a 2×2 tab
+   grid: Transparency / Mixed-model / Bayesian / Meta-analysis — regrouped 2026-07-21 from its own top-level
+   section, order 40, bottom-right). Confirm the intro (audit reporting; local/no-AI; "flags what's not reported
+   ... never a verdict, and it never pools or re-computes").
+2. Select a paper whose text reports a meta-analysis. The tab auto-runs `GET /papers/{id}/meta-analysis` (or click
+   **Audit reporting**) **only while it is the selected tab** (`active` now arrives as a real `render(ctx,
+   isVisible)` prop from `PaneAccordion`, not derived from `ctx.methodsOpen === "meta"` — switching to another
+   Checklists tab and back must not re-trigger a spurious run). Confirm the **Reporting checklist** renders
+   per-check rows.
 3. Confirm a `present` row shows `✓ present` + the always-on explainer + the in-context `basis`, and (when found) an
    evidence snippet; a `not-found` row shows the muted status + a grounded recommendation worded "not detected in the
    extracted text — check the paper".

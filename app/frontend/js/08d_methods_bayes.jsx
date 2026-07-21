@@ -201,18 +201,23 @@ function BayesCredit() {
   );
 }
 
-function BayesSection({ ctx }) {
+function BayesSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Recompute a paper's reported <b>default Bayes factors</b> for inline t-test and correlation results — the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF₁₀ doesn't reproduce under the standard default prior; usually a different prior, not an error — a prompt to look, never a verdict.</div>
       <p className="eyebrow">This paper</p>
-      <BayesPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "bayes"} />
+      <BayesPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
       <BayesCredit />
     </div>
   );
 }
 
-registerPaneSection({
-  id: "bayes", label: "Bayesian statistics", paneId: "methods", order: 32, hideInReadOnly: true,
-  render: (ctx) => <BayesSection ctx={ctx} />,
-});
+// Part of the Checklists 2x2-grid tab group (order 30 -> bottom-left) — see 08h_methods_transparency.jsx for the
+// registerPaneTab/active-prop rationale shared by all four checklist tools.
+registerPaneTab(
+  { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
+  {
+    id: "bayes", label: "Bayesian statistics", order: 30, hideInReadOnly: true,
+    render: (ctx, active) => <BayesSection ctx={ctx} active={active} />,
+  },
+);

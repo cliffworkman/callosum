@@ -9,6 +9,33 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-21 inc 315 — updated the statcheck/GRIM/Bayesian/mixed-model/meta-analysis/
+transparency help sections' METHODS-pane navigation instructions for the Details/Data/Statistics/Checklists
+regroup ("Statistics check" -> "Statistics", "Data consistency (GRIM)" -> "Data", and the 4 reporting auditors'
+"open X" -> "open Checklists -> X"). Nothing above this line has an un-synced corpus change. -->
+## 2026-07-21 — Increment 315: METHODS pane regroup — Details / Data / Statistics / Checklists
+- **Files:** `app/frontend/js/{05_panes,06_methods_statcheck,07_methods_grim,08d_methods_bayes,
+  08f_methods_lmm,08g_methods_metaanalysis,08h_methods_transparency,09_placeholders}.jsx`,
+  `app/frontend/styles.css`, `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`,
+  `callosum-app.html`, `.claude/qa-routes/route_{00_smoke_readonly,33_methods_statcheck,37_methods_grim,
+  59_methods_bayes,61_methods_lmm,62_methods_metaanalysis,63_methods_transparency,
+  70_tool_pane_visual_drift,73_workspaces}.md`, `.claude/DESIGN.md`, `.claude/CLAUDE.md`,
+  `.claude/docs/increment-notes/INCREMENT-315-NOTES.md`.
+- **What:** collapsed the METHODS accordion from 7 top-level sections to 4: Details (unchanged), Data (renamed
+  from "Data consistency (GRIM)"), Statistics (renamed from "Statistics check"), and a new Checklists section
+  folding the 4 reporting-completeness auditors (Transparency, Mixed-model, Bayesian, Meta-analysis) into one
+  2×2 tab grid. Caught and fixed, before writing code, a real bug the merge would have introduced: each of the
+  4 auditors gated its own auto-run on `ctx.methodsOpen === "<own-id>"`, which would permanently read
+  `"checklists"` once merged — fixed by extending `PaneAccordion` to thread a real `render(ctx, isVisible)`
+  bool (mirroring `WorkspacePane`'s existing contract) instead of each tool re-deriving visibility itself.
+  Also caught live via Playwright (not a static read): the new grid CSS was silently overridden by
+  `.tags-srcfilter`'s `display:flex` (equal specificity, later in source order) until raised to a compound
+  selector.
+- **Why:** the user asked for the METHODS panel reorganized this way — Details/Data/Statistics unchanged in
+  place, and the 4 reporting checklists grouped as a 2×2 grid rather than 4 separate top-level sections.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-315-NOTES.md` for the full
+  before/after + the Playwright verification (desktop 2×2 grid, mobile 1-column collapse, per-tab auto-run).
+
 <!-- HELP-DOCS-SYNCED 2026-07-20 inc 314 — rewrote the "Reviewing findings" + "Checking for retractions" sections
 (and the Metadata-access cross-reference) for the retired Review accordion: findings now live in Synthesize →
 Critique ("What the checks surfaced" facts + a "Needs your review" candidate queue), and the Retraction Watch

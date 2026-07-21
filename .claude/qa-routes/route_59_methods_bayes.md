@@ -48,11 +48,15 @@ genai-host request regardless). Register listeners before navigation.
 
 ## Steps
 
-1. Open the **METHODS** pane -> **Bayesian statistics** section. Confirm the intro (default-Bayes-factor recompute,
-   local/no-AI, "a prompt to look, never a verdict").
-2. Select a paper whose text has an inline `t(df) = …, BF10 = …`. The section auto-runs `GET /papers/{id}/bayes`
-   (or click **Check Bayes factors**). Confirm the counts line ("N checked · M couldn't reproduce under the default
-   prior") + per-BF rows.
+1. Open the **METHODS** pane -> **Checklists** section -> the **Bayesian statistics** tab (one of a 2×2 tab grid:
+   Transparency / Mixed-model / Bayesian / Meta-analysis — regrouped 2026-07-21 from its own top-level section).
+   Confirm the intro (default-Bayes-factor recompute, local/no-AI, "a prompt to look, never a verdict").
+2. Select a paper whose text has an inline `t(df) = …, BF10 = …`. The tab auto-runs `GET /papers/{id}/bayes` (or
+   click **Check Bayes factors**) **only while it is the selected tab** (`active` now arrives as a real
+   `render(ctx, isVisible)` prop from `PaneAccordion`, not derived from `ctx.methodsOpen === "bayes"` — switching to
+   another Checklists tab and back must not re-trigger a spurious run, and switching to this tab for the first time
+   with a paper already selected must trigger it). Confirm the counts line ("N checked · M couldn't reproduce under
+   the default prior") + per-BF rows.
 3. Confirm a **reproduces** row shows `reported BF₁₀ = …` + `recomputed … (paired|two-sample|correlation)` + a green
    pill; a **couldn't reproduce** row shows the amber pill + the recomputed candidate(s). A **correlation** `r(df)`
    BF has a single recomputed value (`(correlation)`), no paired/two-sample fork.

@@ -61,13 +61,16 @@ genai-host request regardless). Register listeners before navigation.
 
 ## Steps
 
-1. Open the **METHODS** pane -> **Transparency signals** section (order 36, among the real tools). Confirm the intro
-   (detect open-science disclosures; local/no-AI; "surfaces what's reported ... never a transparency score, and
-   'not detected' never means the artifact is absent").
-2. Select a paper whose text has an open-science footer (data/code links, COI, funding, (pre)registration). The section
-   auto-runs `GET /papers/{id}/transparency` (or click **Check disclosures**). Confirm the **Open-science disclosures**
-   checklist renders 7 rows + a factual tally line ("N disclosed · M not detected · K not applicable · 7 checks" —
-   explicitly not a score).
+1. Open the **METHODS** pane -> **Checklists** section -> the **Transparency signals** tab (one of a 2×2 tab grid:
+   Transparency / Mixed-model / Bayesian / Meta-analysis — regrouped 2026-07-21 from its own top-level section,
+   order 10, top-left). Confirm the intro (detect open-science disclosures; local/no-AI; "surfaces what's reported
+   ... never a transparency score, and 'not detected' never means the artifact is absent").
+2. Select a paper whose text has an open-science footer (data/code links, COI, funding, (pre)registration). The tab
+   auto-runs `GET /papers/{id}/transparency` (or click **Check disclosures**) **only while it is the selected tab**
+   (`active` now arrives as a real `render(ctx, isVisible)` prop from `PaneAccordion`, not derived from
+   `ctx.methodsOpen === "transparency"` — switching to another Checklists tab and back must not re-trigger a
+   spurious run). Confirm the **Open-science disclosures** checklist renders 7 rows + a factual tally line ("N
+   disclosed · M not detected · K not applicable · 7 checks" — explicitly not a score).
 3. Confirm a `present` row shows `✓ detected` + the always-on explainer + the in-context `basis`, and (when found) an
    evidence snippet; a `not-found` row shows the muted status + a note worded "not detected in the extracted text —
    check the paper" (never "missing"/"absent"/an accusation).

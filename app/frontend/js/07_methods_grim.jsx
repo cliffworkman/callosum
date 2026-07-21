@@ -69,4 +69,4 @@ function GrimSection() {
   );
 }
 
-registerPaneSection({ id: "grim", label: "Data consistency (GRIM)", paneId: "methods", order: 20, hideInReadOnly: true, render: () => <GrimSection /> });
+registerPaneSection({ id: "grim", label: "Data", paneId: "methods", order: 20, hideInReadOnly: true, render: () => <GrimSection /> });

@@ -233,21 +233,24 @@ function MetaCredit() {
   );
 }
 
-function MetaSection({ ctx }) {
+function MetaSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Audit a published <b>meta-analysis's reporting</b> — does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search &amp; selection? Local, no AI. It flags what's not reported, with a grounded recommendation — never a verdict, and it never pools or re-computes.</div>
       <p className="eyebrow">This paper</p>
-      <MetaPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={ctx.methodsOpen === "meta"} />
+      <MetaPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
       <MetaCredit />
     </div>
   );
 }
 
-// Was Extract → "Meta-Analysis" (inc 280 stage 2) until the Work/Extract reorg folded Extract into Work; now lives
-// in the METHODS accordion alongside its 5 siblings (statcheck/grim/bayes/lmm/transparency), between the LMM
-// auditor (order 33) and transparency (order 36) — order 35 per route_62_methods_metaanalysis.md.
-registerPaneSection({
-  id: "meta", label: "Meta-analysis reporting", paneId: "methods", order: 35, hideInReadOnly: true,
-  render: (ctx) => <MetaSection ctx={ctx} />,
-});
+// Was Extract → "Meta-Analysis" (inc 280 stage 2) until the Work/Extract reorg folded Extract into Work; now part
+// of the Checklists 2x2-grid tab group (order 40 -> bottom-right), alongside its 3 siblings (bayes/lmm/transparency)
+// — see 08h_methods_transparency.jsx for the registerPaneTab/active-prop rationale they all share.
+registerPaneTab(
+  { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
+  {
+    id: "meta", label: "Meta-analysis reporting", order: 40, hideInReadOnly: true,
+    render: (ctx, active) => <MetaSection ctx={ctx} active={active} />,
+  },
+);

@@ -30,11 +30,13 @@ function ComingSoon({ title, body, builds }) {
 // (08b_methods_citation_equity.jsx, order 35, among the real tools); per the inc-163 convention a stub is dropped
 // in the increment its feature lands. (The SP2 topical "overlooked work" remediation is the remaining backlog #25.)
 
-// ── METHODS: a subsection TAB on the shipped Statistics-check section (DESIGN.md §5: more stat checks become
+// ── METHODS: a subsection TAB on the shipped Statistics section (DESIGN.md §5: more stat checks become
 // tabs, not new sections). registerPaneTab find-or-creates by id, so this appends to the inc-122 statcheck
-// section without touching 06_methods_statcheck.jsx; the section then shows a [Statistics check | More checks] strip.
+// section without touching 06_methods_statcheck.jsx; the section then shows a [Statistics | More checks] strip.
+// (This call's own host label is inert — 06_methods_statcheck.jsx's registerPaneSection always loads first and
+// already marks the section `defined`, so its label is what actually wins; kept in sync here to avoid confusion.)
 registerPaneTab(
-  { id: "statcheck", label: "Statistics check", paneId: "methods", order: 30 },
+  { id: "statcheck", label: "Statistics", paneId: "methods", order: 30 },
   {
     id: "statcheck-more", label: "More checks", order: 20,
     render: () => <ComingSoon
