@@ -13,6 +13,19 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 325: LibreOffice adapter rework, Phase 7 (bounded bibliography)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `.claude/docs/increment-notes/INCREMENT-325-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** replaces the single start-only bibliography bookmark with a **bookmark pair** (start + end) — a
+  rebuild now clears + rewrites exactly `[start, end]`, never `text.getEnd()`, closing the ORIGINAL verified
+  data-loss finding that started this whole rework. Also adds "Insert bibliography here" (move it to the
+  cursor) and a toggle to pause automatic bibliography rebuilding while citations keep updating normally.
+- **Why:** this is the actual fix for the bug that was verified against shipped code at the start of backlog
+  #33/#34 — everything before this phase was infrastructure (schema, transactional refresh, backend passthrough,
+  cursor resolution) needed to build it safely.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-325-NOTES.md`, including a
+  real-UNO spike reproducing the original bug live and then confirming it's fixed.
+
 ## 2026-07-21 — Increment 324: LibreOffice adapter rework, Phase 6 (delete / merge / split / open-in-callosum)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
   `adapters/libreoffice/oxt/Addons.xcu`, `app/frontend/js/40_app.jsx`, `tests/test_frontend_assembly.py`,

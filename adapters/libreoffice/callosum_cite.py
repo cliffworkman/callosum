@@ -35,7 +35,12 @@ import webbrowser
 
 # ── constants ──────────────────────────────────────────────────────────────────────────────────────────
 MARK_PREFIX = "CALLOSUM_CITATION"  # ReferenceMark name prefix → identifies our live fields
-BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the start of the managed bibliography block
+BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the START of the managed bibliography block
+# The END of the managed range (P0 phase 7, backlog #33/#34) — a bookmark PAIR bounds the block so a rebuild
+# never touches text.getEnd(), replacing the old "bookmark to document end" design that could silently destroy
+# any user text placed after the bibliography.
+BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
+PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
 # Mark-payload schema version (inc TBD, P0 phase 1 of the LibreOffice-adapter rework — backlog #33/#34). v1 is the
 # original shape (no "v" key, always exactly one item, no per-instance fields) and is still read losslessly; v2
 # adds optional per-occurrence citeproc-cite properties (locator/label/prefix/suffix/suppress-author/author-only)
@@ -322,6 +327,24 @@ def _set_pref(doc, style: str, locale: str) -> None:
             props.addProperty(name, REMOVABLE, value)
 
 
+def bib_auto_enabled(doc) -> bool:
+    """Whether the bibliography auto-rebuilds on refresh (P0 phase 7). Default True — only an explicit "0"
+    (set via `set_bib_auto`) pauses it, so a fresh/never-touched document keeps today's behavior unchanged."""
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    return _user_prop(props, PREF_BIB_AUTO) != "0"
+
+
+def set_bib_auto(doc, enabled: bool) -> None:
+    from com.sun.star.beans.PropertyAttribute import REMOVABLE
+
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    value = "1" if enabled else "0"
+    if props.getPropertySetInfo().hasPropertyByName(PREF_BIB_AUTO):
+        props.setPropertyValue(PREF_BIB_AUTO, value)
+    else:
+        props.addProperty(PREF_BIB_AUTO, REMOVABLE, value)
+
+
 def _insertion_cursor(doc):
     """A text cursor at the current insertion point (view cursor), else the document end."""
     text = doc.getText()
@@ -435,7 +458,7 @@ def mark_at_cursor(doc) -> dict | None:
     return None
 
 
-def refresh(doc, base: str = DEFAULT_BASE) -> dict:
+def refresh(doc, base: str = DEFAULT_BASE, bib_cursor=None) -> dict:
     """The live-field loop: scan → render-document → write back in-text + bibliography. Returns the response.
 
     The write-back (per-mark text replace + bibliography rebuild) is wrapped in an UndoManager-grouped
@@ -444,11 +467,16 @@ def refresh(doc, base: str = DEFAULT_BASE) -> dict:
     pre-mutation snapshot, so the document never ends up mixed (some marks updated, the bibliography stale or
     missing). The render HTTP call itself already happens safely-ordered *before* any mutation begins — a
     network failure there was always a no-op — this only adds a rollback for failures during the mutation itself.
+
+    `bib_cursor`, if given, moves (or creates) the bibliography at that position instead of its existing location
+    — "Insert bibliography here" (P0 phase 7). An explicit `bib_cursor` request always writes, even when
+    automatic rebuilding is otherwise paused (`bib_auto_enabled(doc)` is False) — pausing the passive
+    every-refresh rebuild shouldn't silently swallow a deliberate "put it here" action.
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
     if not fields:
-        _transactional_apply(doc, [], [])
+        _transactional_apply(doc, [], [], bib_cursor=bib_cursor)
         return {"citations": [], "bibliography_text": ""}
     response = render_document(base, build_render_request(fields, style, locale))
     rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
@@ -457,7 +485,7 @@ def refresh(doc, base: str = DEFAULT_BASE) -> dict:
     plan = [
         (field["_mark"].Name, rendered[field["citationID"]]) for field in fields if rendered.get(field["citationID"])
     ]
-    _transactional_apply(doc, plan, response.get("bibliography_text", "").splitlines())
+    _transactional_apply(doc, plan, response.get("bibliography_text", "").splitlines(), bib_cursor=bib_cursor)
     return response
 
 
@@ -471,7 +499,7 @@ def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
     return {name: marks.getByName(name).getAnchor().getString() for name in names if marks.hasByName(name)}
 
 
-def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str]) -> None:
+def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str], bib_cursor=None) -> None:
     """Apply the per-mark write-back + bibliography rebuild as one UndoManager-grouped unit (P0 phase 2).
 
     On success: the whole group commits as one entry on the document's own Undo stack (a user's Ctrl+Z after a
@@ -481,6 +509,10 @@ def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str
     fully restore the prior state (an UndoManager failure, not just a mutation failure), that is surfaced as its
     own distinct error rather than silently re-raising the original one, since it means the document may now be
     in a state neither the caller nor the user expected.
+
+    The bibliography rebuild is skipped when `bib_auto_enabled(doc)` is False (P0 phase 7) UNLESS `bib_cursor`
+    is given — an explicit "put it here" request always writes, even while passive every-refresh rebuilding is
+    paused; citations still update either way, the bibliography just stays frozen otherwise.
     """
     names = [name for name, _ in plan]
     before = _snapshot_marks(doc, names)
@@ -490,7 +522,8 @@ def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str
         for name, text_out in plan:
             mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
             _replace_mark_text(doc, mark, text_out)
-        _write_bibliography(doc, bib_entries)
+        if bib_cursor is not None or bib_auto_enabled(doc):
+            _write_bibliography(doc, bib_entries, cursor=bib_cursor)
     except Exception as exc:
         undo.leaveUndoContext()
         undo.undo()
@@ -523,39 +556,58 @@ def _replace_mark_text(doc, mark, new_text: str) -> None:
     text.insertTextContent(cursor, fresh, True)  # absorb=True → re-wrap the new text
 
 
-def _write_bibliography(doc, entries: list[str]) -> None:
-    """(Re)build the managed bibliography block: everything from the `CALLOSUM_BIBLIOGRAPHY` bookmark to the
-    document end. Cleared + rewritten each refresh; an empty `entries` clears it.
+def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
+    """(Re)build the BOUNDED managed bibliography block — a `BIB_BOOKMARK` (start) / `BIB_BOOKMARK_END` (end)
+    bookmark PAIR delimits the exact managed range (P0 phase 7, backlog #33/#34). Clearing + rebuilding NEVER
+    touches `text.getEnd()` — the verified data-loss fix for the old "bookmark to document end" design: any
+    text a user placed after the bibliography now survives untouched.
 
-    The clear deletes the old block (and the bookmark inside it), so we keep working with the SAME cursor — never
-    re-read the now-stale bookmark anchor — then drop a fresh bookmark at that spot.
+    A `TextSection` was prototyped first (Phase 0) and found NOT to bound a rebuild safely (its own rebuild
+    destroyed text outside the section) — a bookmark PAIR is the fallback this phase actually ships. Placing the
+    END bookmark only AFTER the new content is written (never both bookmarks at the same collapsed position
+    up front) sidesteps any "which side does a zero-width bookmark stick to" ambiguity — there's nothing to
+    stick to yet when each bookmark is placed.
+
+    `cursor`, if given, is where to (re)build the bibliography (P0 phase 7's "insert at cursor" / "move");
+    otherwise the block rebuilds in place at its own existing bookmarks, or at the document end for a brand-new
+    bibliography (unchanged first-run behavior).
     """
     text = doc.getText()
     bookmarks = doc.getBookmarks()
-    if bookmarks.hasByName(BIB_BOOKMARK):
+    has_start = bookmarks.hasByName(BIB_BOOKMARK)
+    has_end = bookmarks.hasByName(BIB_BOOKMARK_END)
+    if cursor is not None:
+        if has_start:
+            text.removeTextContent(bookmarks.getByName(BIB_BOOKMARK))
+        if doc.getBookmarks().hasByName(BIB_BOOKMARK_END):
+            text.removeTextContent(doc.getBookmarks().getByName(BIB_BOOKMARK_END))
+    elif has_start and has_end:
         start = bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart()
+        end = bookmarks.getByName(BIB_BOOKMARK_END).getAnchor().getEnd()
         cursor = text.createTextCursorByRange(start)
-        cursor.gotoEnd(True)  # select bookmark-start … document-end
-        cursor.setString("")  # deletes the old bib block + its bookmark; cursor now collapsed at that spot
+        cursor.gotoRange(end, True)  # select exactly [start, end] — bounded, never extends past the end bookmark
+        cursor.setString("")  # deletes only the managed block + both bookmarks
+    elif has_start:
+        # A damaged/legacy document (a start bookmark survived without its end) — rebuild fresh at the start
+        # bookmark's own position rather than guessing where "the end" might be. A user-facing repair/diagnostics
+        # command (Phase 9) reports this state explicitly; this is just the safe fallback so it never crashes.
+        start = bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart()
+        text.removeTextContent(bookmarks.getByName(BIB_BOOKMARK))
+        cursor = text.createTextCursorByRange(start)
     else:
         cursor = text.createTextCursorByRange(text.getEnd())
         if _has_text(text):
             text.insertControlCharacter(cursor, _PARAGRAH_BREAK(), False)
-    _place_bib_bookmark(doc, cursor)  # fresh bookmark at the (now-empty) bibliography location
-    if not entries:
-        return
-    text.insertString(cursor, BIB_HEADING + "\n", False)
-    text.insertString(cursor, "\n".join(entries) + "\n", False)
 
-
-def _place_bib_bookmark(doc, cursor) -> None:
-    text = doc.getText()
-    bookmarks = doc.getBookmarks()
-    if bookmarks.hasByName(BIB_BOOKMARK):
-        text.removeTextContent(bookmarks.getByName(BIB_BOOKMARK))
-    mark = doc.createInstance("com.sun.star.text.Bookmark")
-    mark.Name = BIB_BOOKMARK
-    text.insertTextContent(cursor, mark, False)  # zero-width insert at the cursor; cursor stays put
+    start_mark = doc.createInstance("com.sun.star.text.Bookmark")
+    start_mark.Name = BIB_BOOKMARK
+    text.insertTextContent(cursor, start_mark, False)  # zero-width; cursor stays put
+    if entries:
+        text.insertString(cursor, BIB_HEADING + "\n", False)
+        text.insertString(cursor, "\n".join(entries) + "\n", False)
+    end_mark = doc.createInstance("com.sun.star.text.Bookmark")
+    end_mark.Name = BIB_BOOKMARK_END
+    text.insertTextContent(cursor, end_mark, False)  # placed AFTER the content — no bookmark-gravity ambiguity
 
 
 def _has_text(text) -> bool:
@@ -578,7 +630,7 @@ def set_style(doc, style: str, locale: str, base: str = DEFAULT_BASE) -> None:
 
 
 def flatten(doc) -> int:
-    """Convert live fields → static text: remove every CALLOSUM ReferenceMark + the bibliography bookmark.
+    """Convert live fields → static text: remove every CALLOSUM ReferenceMark + the bibliography bookmark pair.
 
     The rendered text stays in place; only the live-field wrappers are removed. One-way. Returns the count
     of citation marks removed.
@@ -595,8 +647,9 @@ def flatten(doc) -> int:
         text.removeTextContent(mark)
         cursor.setString(rendered)  # re-insert the rendered citation as static text (mark is gone)
     bookmarks = doc.getBookmarks()
-    if bookmarks.hasByName(BIB_BOOKMARK):
-        text.removeTextContent(bookmarks.getByName(BIB_BOOKMARK))  # zero-width bookmark only; bib text stays
+    for bookmark_name in (BIB_BOOKMARK, BIB_BOOKMARK_END):  # P0 phase 7: now a start/end PAIR, not just a start
+        if bookmarks.hasByName(bookmark_name):
+            text.removeTextContent(bookmarks.getByName(bookmark_name))  # zero-width bookmark only; bib text stays
     return len(names)
 
 
@@ -919,6 +972,26 @@ def split_citation_interactive(doc, base: str) -> None:
     refresh(doc, base)
 
 
+def insert_bibliography_here_interactive(doc, base: str) -> None:
+    """Move (or, if none exists yet, create) the bibliography at the cursor (P0 phase 7)."""
+    refresh(doc, base, bib_cursor=_insertion_cursor(doc))
+
+
+def toggle_bib_auto_interactive(doc, base: str) -> None:
+    """Flip whether the bibliography auto-rebuilds on refresh (P0 phase 7) — citations still update either way;
+    this only pauses/resumes the bibliography block itself."""
+    enabled = not bib_auto_enabled(doc)
+    set_bib_auto(doc, enabled)
+    _msgbox(
+        f"Automatic bibliography rebuilding is now {'ON' if enabled else 'OFF'}."
+        + (
+            ""
+            if enabled
+            else " Citations still update on refresh; the bibliography stays as-is until you turn this back on."
+        )
+    )
+
+
 def insert_statement(doc, base: str) -> None:
     """Insert the CRediT contribution statement the user built + staged in the callosum web UI at the cursor.
 
@@ -964,6 +1037,8 @@ _ACTIONS = {
     "mergeWithPrevious": merge_with_previous_interactive,
     "splitCitation": split_citation_interactive,
     "openInCallosum": open_in_callosum,
+    "insertBibliographyHere": insert_bibliography_here_interactive,
+    "toggleBibAuto": toggle_bib_auto_interactive,
 }
 
 
@@ -1036,6 +1111,14 @@ def CallosumOpenInCallosum(*_args):
     _macro("openInCallosum")
 
 
+def CallosumInsertBibliographyHere(*_args):
+    _macro("insertBibliographyHere")
+
+
+def CallosumToggleBibAuto(*_args):
+    _macro("toggleBibAuto")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -1050,4 +1133,6 @@ g_exportedScripts = (
     CallosumMergeWithPrevious,
     CallosumSplitCitation,
     CallosumOpenInCallosum,
+    CallosumInsertBibliographyHere,
+    CallosumToggleBibAuto,
 )

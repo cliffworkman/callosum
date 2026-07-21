@@ -473,6 +473,101 @@ def spike_open_in_callosum(ctx, base, p1):
     log(f"spike (phase 6): OK — opened {captured['url']!r}")
 
 
+def spike_bounded_bibliography_preserves_trailing_text(ctx, base, p1):
+    """P0 phase 7: the verified data-loss bug, reproduced live and then confirmed FIXED. The old design deleted
+    from the bibliography bookmark to the literal document end on every refresh; the new bookmark-PAIR design
+    must never touch anything past its own end bookmark."""
+    log("spike (phase 7): bounded bibliography preserves text placed after it")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Body text.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    # A bibliography now exists (from insert_citation's own refresh). Type NEW user text after it -- the
+    # historically dangerous sequence.
+    text.insertString(text.createTextCursorByRange(text.getEnd()), "User's own trailing paragraph.\n", False)
+    cc.refresh(doc, base)  # the second refresh is what used to destroy the trailing text
+    body = text.getString()
+    check("User's own trailing paragraph." in body, "trailing user text was destroyed by a bibliography rebuild!")
+    check(cc.BIB_HEADING in body, "bibliography heading missing")
+    log("spike (phase 7): OK — trailing user text survived a bibliography rebuild")
+
+
+def spike_insert_bibliography_here(ctx, base, p1):
+    """P0 phase 7: "Insert bibliography here" moves the bibliography to the cursor position, removing it from
+    its old location — confirmed the new location precedes the surrounding text and nothing else was destroyed."""
+    log("spike (phase 7): insert bibliography here (move)")
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    text.createTextCursorByRange(text.getStart()).setString("Intro. MOVE_HERE more text.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    check(cc.BIB_HEADING in text.getString(), "bibliography not created by the initial refresh")
+
+    marker = find_range("MOVE_HERE")
+    check(marker is not None, "MOVE_HERE anchor not found")
+    controller = doc.getCurrentController()
+    view_cursor = controller.getViewCursor()
+    view_cursor.gotoRange(marker.getStart(), False)
+    cc.insert_bibliography_here_interactive(doc, base)
+
+    body = text.getString()
+    check(cc.BIB_HEADING in body, "bibliography missing after the move")
+    check("more text." in body, "surrounding text was destroyed by the move")
+    check(
+        body.index(cc.BIB_HEADING) < body.index("more text."),
+        "bibliography did not actually move to the cursor position",
+    )
+    log("spike (phase 7): OK — bibliography moved to the cursor position, surrounding text intact")
+
+
+def spike_toggle_bib_auto(ctx, base, p1, p2):
+    """P0 phase 7: turning off automatic bibliography rebuilding freezes the bibliography block while citations
+    still update on refresh — confirmed the bibliography heading count never grows past 1 while off, and that
+    citation marks DO still accumulate (proving refresh itself keeps running, only the bib write is skipped).
+
+    `toggle_bib_auto_interactive` always shows a confirmation message box (unlike most other interactive
+    actions, which only message-box on a failure/edge case) — the real `.oxt` dispatcher sets `cc._DISPATCH_CTX`
+    before calling it (`callosum_addon.py`); this spike calls it directly, so it must set the same thing itself.
+    """
+    log("spike (phase 7): toggle bibliography auto-rebuild")
+    cc._DISPATCH_CTX = ctx
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    text.createTextCursorByRange(text.getStart()).setString("A XXX0 and B XXX1.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
+    check(cc.bib_auto_enabled(doc), "bibliography auto-rebuild should default to enabled")
+    check(text.getString().count(cc.BIB_HEADING) == 1, "expected exactly 1 bibliography heading after the first cite")
+
+    cc.toggle_bib_auto_interactive(doc, base)
+    check(not cc.bib_auto_enabled(doc), "toggle did not disable bib auto")
+
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("XXX1")))
+    body = text.getString()
+    check(
+        body.count(cc.BIB_HEADING) == 1,
+        f"expected the bibliography heading count to stay at 1 while auto-rebuild is off, found {body.count(cc.BIB_HEADING)}",
+    )
+    marks = cc.scan_citations_in_order(doc)
+    check(len(marks) == 2, f"expected 2 citation marks (citations still update), found {len(marks)}")
+
+    cc.toggle_bib_auto_interactive(doc, base)
+    check(cc.bib_auto_enabled(doc), "toggle did not re-enable bib auto")
+    cc.refresh(doc, base)
+    check(cc.BIB_HEADING in text.getString(), "bibliography missing after re-enabling + a refresh")
+    log("spike (phase 7): OK — bibliography stayed frozen while auto-rebuild was off; citations kept updating")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -600,6 +695,11 @@ def main():
         spike_delete_citation(ctx, base, p1, p2)
         spike_merge_and_split_citations(ctx, base, p1, p2)
         spike_open_in_callosum(ctx, base, p1)
+
+        # 10) P0 phase 7 (backlog #33/#34): bounded bibliography, insert-at-cursor/move, auto-rebuild toggle.
+        spike_bounded_bibliography_preserves_trailing_text(ctx, base, p1)
+        spike_insert_bibliography_here(ctx, base, p1)
+        spike_toggle_bib_auto(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

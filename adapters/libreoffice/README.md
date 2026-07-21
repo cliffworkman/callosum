@@ -71,14 +71,22 @@ message if it isn't):
 11. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
     grouped citation, opens the **first** work only for now.
 
+**Bibliography controls:**
+12. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
+    the "move" action: invoking it again elsewhere moves the block there.
+13. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+    normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
+    document where rebuilding the reference list on every edit is unwanted friction.
+
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumInsertStatement`, `CallosumInsertCitation` (by id),
 `CallosumSetServerUrl`, `CallosumDeleteCitation`, `CallosumMergeWithNext`, `CallosumMergeWithPrevious`,
-`CallosumSplitCitation`, `CallosumOpenInCallosum` — are also runnable from the Python macro dialog if you
-installed by hand.)
+`CallosumSplitCitation`, `CallosumOpenInCallosum`, `CallosumInsertBibliographyHere`, `CallosumToggleBibAuto` —
+are also runnable from the Python macro dialog if you installed by hand.)
 
-The bibliography is a managed block at the **end** of the document (under a "References" heading); it is rebuilt on
-every refresh. Keep your citations above it.
+The bibliography is a **bounded** managed block (a start/end bookmark pair) — a refresh only ever rebuilds
+what's between those two bookmarks, so any of your own text placed after the bibliography is always preserved.
+It still defaults to the document end on first use; move it anywhere with **Insert bibliography here**.
 
 ## How it works (for the curious)
 Each citation is a Writer **ReferenceMark** whose name carries the cited work's CSL-JSON payload (base64-encoded);
