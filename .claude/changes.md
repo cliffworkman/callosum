@@ -13,6 +13,22 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 324: LibreOffice adapter rework, Phase 6 (delete / merge / split / open-in-callosum)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `app/frontend/js/40_app.jsx`, `tests/test_frontend_assembly.py`,
+  `.claude/security-audits/2026-06-21_libreoffice-adapter.md`,
+  `.claude/docs/increment-notes/INCREMENT-324-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** the first real user-facing actions built on `mark_at_cursor` (Phase 4): **Delete citation** (removes
+  both the field and its rendered text), **Merge with next/previous citation** + **Split citation** (the
+  buildable-without-a-composer slice of "true grouped citations"), and **Open in callosum** (a new
+  `?open_paper=<id>` browser deep link, read by a new frontend mount effect riding the existing `openPdf`
+  chokepoint). All four degrade honestly with a message box when the cursor isn't on a recognized citation.
+  Verified with real-UNO fault-injection-style spikes, all passing on the first run.
+- **Why:** the next slice of backlog #33/#34's P0 rework — Edit Citation itself and "revert manual overrides"
+  both need the composer (Phase 5) to mean anything, so this phase scoped to what's buildable without one.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-324-NOTES.md` and the new
+  security-audit addendum covering the cumulative P0 phases 1-6 surface.
+
 ## 2026-07-21 — Increment 323: LibreOffice adapter rework, Phase 4 (find the mark at the cursor)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno}.py`,
   `.claude/docs/increment-notes/INCREMENT-323-NOTES.md`, `.claude/CLAUDE.md`.

@@ -881,6 +881,19 @@ def test_paper_card_scrolls_and_flashes_when_selected():
     assert ".paper.flash { animation: cardflash 1.2s ease; }" in css
 
 
+def test_open_paper_deep_link():
+    """P0 phase 6 (backlog #33/#34): a `?open_paper=<id>` URL param opens that paper's PDF tab on load -- the
+    LibreOffice adapter's "Open in Callosum" action launches exactly this URL. One-shot: the param is stripped
+    from the address bar right after use so a page refresh doesn't reopen it."""
+    raw = assemble_jsx()
+    assert 'const raw = params.get("open_paper");' in raw
+    assert "const paperId = parseInt(raw, 10);" in raw
+    assert "if (!Number.isFinite(paperId)) return;" in raw
+    assert "openPdf({ id: paperId });" in raw
+    assert 'params.delete("open_paper");' in raw
+    assert "window.history.replaceState(null," in raw
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

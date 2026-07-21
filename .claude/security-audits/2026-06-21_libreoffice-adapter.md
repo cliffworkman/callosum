@@ -90,3 +90,70 @@ flow. **Same posture as inc 108 — no new server surface** (the endpoint was au
 
 **Addendum result: PASS** — same local-only, plain-text, defensive, no-egress, no-new-dependency posture; the only
 new data flow (document text → local server) is the feature's purpose and stays on 127.0.0.1.
+
+---
+
+## Addendum — P0 phases 1–6 (backlog #33/#34, 2026-07-21): schema, transactional refresh, cite-property
+## passthrough, mark_at_cursor, delete/merge/split/open-in-callosum
+
+**Trigger:** cumulative — phases 1–4 were each individually small enough not to trigger the gate on their own
+merits (recorded as such in their increment notes); phase 6 (delete/merge/split/open-in-callosum + a new
+frontend deep-link) crosses "a net-new feature spanning 3+ files / ~300+ LOC" on its own, so this addendum
+covers the whole P0-so-far surface in one place rather than fragmenting across many tiny notes.
+
+- **Phase 1 (versioned mark-payload schema):** purely additive + backward-compatible — a `"v"` key in the
+  existing base64-JSON payload, defaulted for old marks, explicitly inert (never guessed at) for an unrecognized
+  future version. No new external surface; still the same defensive `decode_mark_name` (any parse failure → the
+  mark is skipped, never fatal) the original audit already covers.
+- **Phase 2 (transactional refresh):** `_transactional_apply` wraps the existing, already-audited write-back
+  loop in `doc.getUndoManager()` grouping. No new external surface, no new input boundary — a reliability
+  mechanism over the same local UNO mutation the original audit reviewed. Verified against real UNO with a
+  fault-injection spike (a mid-loop failure rolls the whole document back to its exact pre-refresh state).
+- **Phase 3 (backend cite-property passthrough):** the one backend-adjacent change here — `CitationCluster.items`
+  gained a typed `CitationItem` model (`app/backend/api/routers/citations.py`) with `locator`/`prefix`/`suffix`
+  length-capped (200/300/300 chars — rule #4, free text from an eventual composer needs a boundary) and `label`
+  validated against CSL's real, fixed locator vocabulary (a clean 422 on garbage, not a silent no-op reaching
+  citeproc-js). This **tightens** validation on an existing endpoint; it does not loosen it, add a new endpoint,
+  or add egress. `citeproc_runner.js`'s new `buildCitationItem` only ever reads recognized keys off items already
+  passed through the existing (audited) request pipeline.
+- **Phase 4 (`mark_at_cursor`):** a read-only positional lookup over the existing, already-decoded citation scan.
+  No new external surface, no new input boundary.
+- **Phase 6 (delete / merge / split / open-in-callosum) — the new surfaces this addendum actually needs to review:**
+  - **Delete/merge/split** are local UNO document mutations only — no network, no file I/O, no new dependency.
+    Threat review is about correctness (not leaking/destroying the wrong content), verified with real-UNO spikes:
+    deleting a citation removes exactly that citation's mark + text and leaves surrounding body text byte-intact;
+    merging combines exactly the two targeted citations' item sets; splitting reverses a merge losslessly. All
+    three degrade honestly (a message box, no mutation) when the cursor isn't on a recognized citation.
+  - **`open_in_callosum` (`webbrowser.open`) — a new "launch an external process" surface.** The URL is built
+    from two parts only: the already-configured, user-owned local server `base` (no user input reaches this —
+    it's the same `base` every other adapter call already uses) and a `paper_id` extracted from the citation's
+    own CSL item id and validated with `.isdigit()` before use — a non-numeric/malformed id is refused with a
+    message box, never reaches `webbrowser.open`. No shell is invoked (`webbrowser.open` dispatches to the OS's
+    URL handler, e.g. `os.startfile`/`open`/`xdg-open` under the hood on the respective platforms) and no
+    arbitrary scheme/host is reachable — this is the same class of surface as the already-audited
+    `2026-06-27_libreoffice-install.md` (`os.startfile`/`open`/`xdg-open` against a fixed path), applied here to a
+    fixed local HTTP(S) base instead of a fixed file path.
+  - **The new frontend deep-link** (`app/frontend/js/40_app.jsx`'s `?open_paper=<id>` mount effect): the param is
+    parsed with `parseInt` + `Number.isFinite` before use; an absent/invalid value is a silent no-op (no crash,
+    no error surfaced). A valid id is passed to the existing `openPdf({id})` path — the exact same "open this
+    paper" chokepoint every citation-jump/Files-list/axis-open action already uses; a non-existent id degrades
+    exactly as it already does for any other caller of `openPdf` (pre-existing behavior, not a new failure mode).
+    The param is stripped from the address bar via `history.replaceState` immediately after use, so it never
+    persists across a refresh or gets bookmarked/shared with a stale value. No backend query is built from this
+    value directly — any downstream fetch (the PDF itself) goes through the existing, already-parameterized
+    `GET /papers/{id}` family.
+
+## Negative-path checks (phase 6, concrete)
+- Cursor not on any citation → delete/merge/split/open-in-callosum each show an honest message box; no mutation.
+- Only one item in a citation → split refuses with a message box ("nothing to split"), no mutation.
+- No adjacent citation in the requested merge direction → refuses with a message box, no mutation.
+- A malformed/non-numeric extracted item id → `open_in_callosum` refuses with a message box; `webbrowser.open`
+  is never called.
+- `?open_paper=abc` (non-numeric) or absent → the frontend effect is a no-op; no console error
+  (`test_open_paper_deep_link`, frontend assembly suite).
+
+## Result
+**Security Audit: PASS** — phases 1–4 are internal/reliability mechanisms over an already-audited surface with
+no new external reach; phase 6's two new touchpoints (`webbrowser.open`, the frontend deep-link) both build a
+URL/id from validated, non-injectable inputs and mirror already-audited patterns in this codebase. No new
+egress, no new endpoint, no new dependency, no secrets, no file-path-from-input.

@@ -14866,6 +14866,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       const tab = tabs.find((t) => t.key === activeTab);
       if (tab && tab.paperId != null) setSelected(tab.paperId);
     }, [activeTab, tabs]);
+    useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("open_paper");
+      if (!raw) return;
+      const paperId = parseInt(raw, 10);
+      if (!Number.isFinite(paperId)) return;
+      openPdf({ id: paperId });
+      params.delete("open_paper");
+      const qs = params.toString();
+      window.history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
+    }, [openPdf]);
     const [capture, setCapture] = useState(null);
     const armCapture = useCallback((t) => {
       setCapture({ paperId: t.paperId, projectId: t.projectId, rowId: t.rowId, fieldKey: t.fieldKey, fieldLabel: t.fieldLabel });

@@ -59,9 +59,23 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    ReferenceMark, unaffected by refresh/flatten). If nothing is staged, the macro tells you to build one first.
 7. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
 
+**Acting on an existing citation** — place the cursor **inside** the citation first (all four show an honest
+message if it isn't):
+8. **Delete citation** — removes the citation entirely, both the field and its rendered text.
+9. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
+   single grouped citation, e.g. two separate `(Smith, 2020)` `(Jones, 2021)` become one
+   `(Smith, 2020; Jones, 2021)`. Any text between the two originals (a comma, "and", …) is left in place — there's
+   no composer yet to know what to do with it.
+10. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
+    by `"; "`.
+11. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
+    grouped citation, opens the **first** work only for now.
+
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumInsertStatement`, `CallosumInsertCitation` (by id),
-`CallosumSetServerUrl` — are also runnable from the Python macro dialog if you installed by hand.)
+`CallosumSetServerUrl`, `CallosumDeleteCitation`, `CallosumMergeWithNext`, `CallosumMergeWithPrevious`,
+`CallosumSplitCitation`, `CallosumOpenInCallosum` — are also runnable from the Python macro dialog if you
+installed by hand.)
 
 The bibliography is a managed block at the **end** of the document (under a "References" heading); it is rebuilt on
 every refresh. Keep your citations above it.
@@ -79,9 +93,11 @@ the **Zotero `CSL_CITATION` field convention** (reused as a *pattern*, not code)
 built on **citeproc-js** and the **CSL** project; see the project's `THIRD-PARTY-NOTICES.md`.
 
 ## Limitations (v1)
-Insert is by paper id, or by relevance via **Suggest** (a name/title search picker comes later); Suggest covers
-papers **already in your library** (finding relevant papers you don't yet have is the next stage), shows a
-truncated quote per row (read the full evidence in callosum's in-app **Cite** panel), and inserts a single work;
-single work per citation (no grouped cites or page-locators yet); the bibliography lives at the document end;
+Insert is by paper id, by relevance via **Suggest**, or by library search via **Add citation…** (a name/title
+search picker); Suggest covers papers **already in your library** (finding relevant papers you don't yet have is
+the next stage) and shows a truncated quote per row (read the full evidence in callosum's in-app **Cite** panel).
+Every *insert* still adds a single work at a time — **Merge**/**Split** let you combine or separate citations
+after the fact, but there's no composer yet to build a multi-work citation, add a page locator/prefix/suffix, or
+suppress the author/date in one step (that's the next phase); the bibliography lives at the document end;
 in-text styles only (footnote/note styles later); no Track-Changes-corruption handling. Word (Office.js) and
 Google Docs are the next two adapters.

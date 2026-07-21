@@ -31,6 +31,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
+import webbrowser
 
 # ── constants ──────────────────────────────────────────────────────────────────────────────────────────
 MARK_PREFIX = "CALLOSUM_CITATION"  # ReferenceMark name prefix → identifies our live fields
@@ -599,6 +600,94 @@ def flatten(doc) -> int:
     return len(names)
 
 
+def delete_citation(doc, field: dict) -> None:
+    """Delete a citation entirely — both the live field AND its rendered text (P0 phase 6, backlog #33/#34).
+    Unlike `flatten` (which keeps the rendered text as static), nothing survives. Caller should `refresh()`
+    afterward so the bibliography drops any now-unused entry.
+
+    `cursor.setString("")` runs unconditionally after `removeTextContent` regardless of whether the mark's text
+    already vanished with it — `flatten`'s own comment and this file's other rewrap helpers describe that as
+    happening sometimes and not other times depending on the exact call shape, so clearing explicitly is the
+    one path that is correct either way.
+    """
+    text = doc.getText()
+    mark = field["_mark"]
+    cursor = text.createTextCursorByRange(mark.getAnchor())
+    text.removeTextContent(mark)
+    cursor.setString("")
+
+
+def _rewrap_mark_payload(doc, mark, payload: dict, rnd: str) -> None:
+    """Replace `mark` with a fresh mark (new rnd + payload) wrapping a transient PLACEHOLDER at the same
+    position — used when a citation's ITEM SET changes (merge/split), as opposed to `_replace_mark_text` (same
+    payload, new rendered text). Caller must `refresh()` afterward to render real text into the placeholder."""
+    text = doc.getText()
+    cursor = text.createTextCursorByRange(mark.getAnchor())
+    text.removeTextContent(mark)
+    cursor.setString(PLACEHOLDER)
+    fresh = doc.createInstance("com.sun.star.text.ReferenceMark")
+    fresh.Name = encode_mark_name(payload, rnd)
+    text.insertTextContent(cursor, fresh, True)
+
+
+def merge_citations(doc, earlier: dict, later: dict) -> None:
+    """Combine two citations into one grouped citation at `earlier`'s position (P0 phase 6) — e.g. two separate
+    (Smith, 2020) (Jones, 2021) become one (Smith, 2020; Jones, 2021). `later` MUST be the field that comes
+    AFTER `earlier` in document order — deleting it first leaves `earlier`'s own anchor range untouched. Caller
+    should `refresh()` afterward.
+
+    Known v1 limitation: any text/punctuation BETWEEN the two original citations (e.g. ", " or " and ") is left
+    in place, not cleaned up — there's no composer yet (Phase 5) to know what the user wants done with it.
+    """
+    delete_citation(doc, later)
+    combined_items = earlier["items"] + later["items"]
+    fresh_mark = doc.getReferenceMarks().getByName(earlier["_mark"].Name)  # re-fetch: the collection mutated
+    _rewrap_mark_payload(doc, fresh_mark, {"items": combined_items}, _new_rnd(doc))
+
+
+def split_citation(doc, field: dict) -> None:
+    """Split one grouped citation (multiple items) back into that many single-item citations, in the same item
+    order, separated by "; " (P0 phase 6). Caller should `refresh()` afterward.
+
+    Known v1 limitation: a fixed separator is used — there's no composer yet (Phase 5) to let the user choose.
+    """
+    text = doc.getText()
+    mark = field["_mark"]
+    cursor = text.createTextCursorByRange(mark.getAnchor())
+    text.removeTextContent(mark)
+    cursor.setString("")
+    cursor.collapseToEnd()
+    for i, item in enumerate(field["items"]):
+        if i > 0:
+            text.insertString(cursor, "; ", False)
+            cursor.collapseToEnd()
+        cursor.setString(PLACEHOLDER)
+        fresh = doc.createInstance("com.sun.star.text.ReferenceMark")
+        fresh.Name = encode_mark_name({"items": [item]}, _new_rnd(doc))
+        text.insertTextContent(cursor, fresh, True)
+        cursor.collapseToEnd()
+
+
+def open_in_callosum(doc, base: str) -> None:
+    """Open the cited work's paper in the callosum web app for the citation at the cursor (P0 phase 6) — a
+    plain browser deep link, `{base}/?open_paper=<id>` (read by the frontend's own mount effect). Local-only:
+    the base is the user's own configured callosum server.
+
+    Known v1 limitation: for a grouped (multi-item) citation, only the FIRST item's paper opens — there's no
+    composer yet (Phase 5) to let the user pick a specific one among several.
+    """
+    field = mark_at_cursor(doc)
+    if field is None:
+        _msgbox("Place your cursor inside a citation to open it in callosum.")
+        return
+    item_id = str((field["items"][0] or {}).get("id") or "")
+    paper_id = item_id[len("callosum-") :] if item_id.startswith("callosum-") else ""
+    if not paper_id.isdigit():
+        _msgbox("Could not determine which paper this citation refers to.")
+        return
+    webbrowser.open(f"{base}/?open_paper={paper_id}")
+
+
 def _new_rnd(doc) -> str:
     """A document-unique short tag for a new mark (counter over existing marks; deterministic, no RNG)."""
     existing = {decode_mark_name(n)["rnd"] for n in doc.getReferenceMarks().getElementNames() if decode_mark_name(n)}
@@ -783,6 +872,53 @@ def flatten_interactive(doc) -> None:
     _msgbox(f"Flattened {n} citation(s) to static text. Live updating is now off for this document.")
 
 
+def delete_citation_interactive(doc, base: str) -> None:
+    field = mark_at_cursor(doc)
+    if field is None:
+        _msgbox("Place your cursor inside a citation to delete it.")
+        return
+    delete_citation(doc, field)
+    refresh(doc, base)
+
+
+def _merge_adjacent_interactive(doc, base: str, direction: str) -> None:
+    current = mark_at_cursor(doc)
+    if current is None:
+        _msgbox("Place your cursor inside a citation to merge it.")
+        return
+    fields = scan_citations_in_order(doc)
+    idx = next((i for i, f in enumerate(fields) if f["_mark"].Name == current["_mark"].Name), None)
+    if idx is None:
+        return
+    other_idx = idx + 1 if direction == "next" else idx - 1
+    if other_idx < 0 or other_idx >= len(fields):
+        _msgbox(f"No {direction} citation to merge with.")
+        return
+    earlier, later = (fields[idx], fields[other_idx]) if direction == "next" else (fields[other_idx], fields[idx])
+    merge_citations(doc, earlier, later)
+    refresh(doc, base)
+
+
+def merge_with_next_interactive(doc, base: str) -> None:
+    _merge_adjacent_interactive(doc, base, "next")
+
+
+def merge_with_previous_interactive(doc, base: str) -> None:
+    _merge_adjacent_interactive(doc, base, "previous")
+
+
+def split_citation_interactive(doc, base: str) -> None:
+    field = mark_at_cursor(doc)
+    if field is None:
+        _msgbox("Place your cursor inside a citation to split it.")
+        return
+    if len(field["items"]) < 2:
+        _msgbox("This citation has only one source — nothing to split.")
+        return
+    split_citation(doc, field)
+    refresh(doc, base)
+
+
 def insert_statement(doc, base: str) -> None:
     """Insert the CRediT contribution statement the user built + staged in the callosum web UI at the cursor.
 
@@ -812,6 +948,8 @@ def set_server_url_interactive(doc) -> None:
 # Action registry — the single source of truth for what each Callosum command does. Keyed by the action name the
 # .oxt Addons.xcu menu/toolbar dispatches (`service:com.callosum.cite.Dispatcher?<action>`). Each value takes
 # (doc, base); flatten/setServerUrl ignore base. `add_citation_by_search` (search-to-cite) is added in SP2.
+# deleteCitation/mergeWithNext/mergeWithPrevious/splitCitation/openInCallosum are P0 phase 6 (backlog #33/#34) —
+# all resolve "which existing citation" via mark_at_cursor (phase 4).
 _ACTIONS = {
     "addCitation": add_citation_by_search,
     "insert": insert_citation_interactive,
@@ -821,6 +959,11 @@ _ACTIONS = {
     "flatten": lambda doc, base: flatten_interactive(doc),
     "insertStatement": insert_statement,
     "setServerUrl": lambda doc, base: set_server_url_interactive(doc),
+    "deleteCitation": delete_citation_interactive,
+    "mergeWithNext": merge_with_next_interactive,
+    "mergeWithPrevious": merge_with_previous_interactive,
+    "splitCitation": split_citation_interactive,
+    "openInCallosum": open_in_callosum,
 }
 
 
@@ -873,6 +1016,26 @@ def CallosumSetServerUrl(*_args):
     _macro("setServerUrl")
 
 
+def CallosumDeleteCitation(*_args):
+    _macro("deleteCitation")
+
+
+def CallosumMergeWithNext(*_args):
+    _macro("mergeWithNext")
+
+
+def CallosumMergeWithPrevious(*_args):
+    _macro("mergeWithPrevious")
+
+
+def CallosumSplitCitation(*_args):
+    _macro("splitCitation")
+
+
+def CallosumOpenInCallosum(*_args):
+    _macro("openInCallosum")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -882,4 +1045,9 @@ g_exportedScripts = (
     CallosumFlatten,
     CallosumInsertStatement,
     CallosumSetServerUrl,
+    CallosumDeleteCitation,
+    CallosumMergeWithNext,
+    CallosumMergeWithPrevious,
+    CallosumSplitCitation,
+    CallosumOpenInCallosum,
 )

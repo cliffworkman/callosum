@@ -30,6 +30,39 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- Acting on the EXISTING citation at the cursor (P0 phase 6, backlog #33/#34) — all resolve
+               "which citation" via mark_at_cursor (phase 4); each shows an honest message if the cursor isn't
+               inside a citation. -->
+          <node oor:name="m02a" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?deleteCitation</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Delete citation</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m02b" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?mergeWithNext</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Merge with next citation</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m02c" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?mergeWithPrevious</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Merge with previous citation</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m02d" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?splitCitation</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Split citation</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m02e" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?openInCallosum</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Open in callosum</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m03" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>private:separator</value></prop>
           </node>

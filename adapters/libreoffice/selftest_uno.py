@@ -361,6 +361,118 @@ def spike_mark_at_cursor(ctx, base, p1, p2):
     log("spike (phase 4): OK — cursor in plain body text correctly resolved to None")
 
 
+def spike_delete_citation(ctx, base, p1, p2):
+    """P0 phase 6: `delete_citation` must remove BOTH the mark and its rendered text (unlike `flatten`, which
+    keeps the text) — confirmed against real UNO rather than assumed, since `flatten`'s own comment and
+    `_replace_mark_text`'s describe `removeTextContent`'s effect on wrapped text inconsistently; `delete_citation`
+    is written to be correct either way, and this proves it. Surrounding body text must survive untouched."""
+    log("spike (phase 6): delete_citation removes both the mark and its rendered text")
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    text.createTextCursorByRange(text.getStart()).setString("Before XXX0 middle XXX1 after.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("XXX1")))
+    before = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(before) == 2, f"expected 2 marks before delete, found {len(before)}")
+
+    target = next(f for f in cc.scan_citations_in_order(doc) if f["items"][0].get("id") == f"callosum-{p1}")
+    rendered_p1 = target["_mark"].getAnchor().getString()
+    controller = doc.getCurrentController()
+    view_cursor = controller.getViewCursor()
+    view_cursor.gotoRange(target["_mark"].getAnchor().getStart(), False)
+    cc.delete_citation_interactive(doc, base)
+
+    after = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(after) == 1, f"expected 1 mark after delete, found {len(after)}")
+    remaining = cc.scan_citations_in_order(doc)[0]
+    check(
+        remaining["items"][0].get("id") == f"callosum-{p2}",
+        f"the wrong citation survived the delete: {remaining['items'][0].get('id')!r}",
+    )
+    body = text.getString()
+    check(rendered_p1 not in body, f"deleted citation's rendered text {rendered_p1!r} still present in the body")
+    check("Before" in body and "middle" in body and "after" in body, "surrounding body text was destroyed")
+    log("spike (phase 6): OK — delete_citation removed both the mark and its text; body text intact")
+
+
+def spike_merge_and_split_citations(ctx, base, p1, p2):
+    """P0 phase 6: merge_with_next combines two adjacent single-item citations into one grouped citation;
+    split_citation reverses it back into that many single-item citations. Confirmed against real UNO —
+    both the item sets AND the resulting mark counts, not just that no exception was raised."""
+    log("spike (phase 6): merge_with_next + split_citation round-trip")
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    text.createTextCursorByRange(text.getStart()).setString("See XXX0 and XXX1 for details.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("XXX1")))
+    check(
+        len([n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]) == 2,
+        "expected 2 marks before merge",
+    )
+
+    controller = doc.getCurrentController()
+    view_cursor = controller.getViewCursor()
+    first_field = cc.scan_citations_in_order(doc)[0]
+    view_cursor.gotoRange(first_field["_mark"].getAnchor().getStart(), False)
+    cc.merge_with_next_interactive(doc, base)
+
+    after_merge = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(after_merge) == 1, f"expected 1 grouped mark after merge, found {len(after_merge)}")
+    merged = cc.scan_citations_in_order(doc)[0]
+    check(len(merged["items"]) == 2, f"expected 2 items in the merged citation, found {len(merged['items'])}")
+    merged_ids = {it.get("id") for it in merged["items"]}
+    check(merged_ids == {f"callosum-{p1}", f"callosum-{p2}"}, f"merged citation has wrong items: {merged_ids}")
+    log(f"spike (phase 6): merge OK — one grouped citation with items {merged_ids}")
+
+    view_cursor.gotoRange(merged["_mark"].getAnchor().getStart(), False)
+    cc.split_citation_interactive(doc, base)
+    after_split = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(after_split) == 2, f"expected 2 marks after split, found {len(after_split)}")
+    split_fields = cc.scan_citations_in_order(doc)
+    check(all(len(f["items"]) == 1 for f in split_fields), "split citations should each have exactly 1 item")
+    split_ids = {f["items"][0].get("id") for f in split_fields}
+    check(split_ids == {f"callosum-{p1}", f"callosum-{p2}"}, f"split citations have wrong items: {split_ids}")
+    log(f"spike (phase 6): split OK — {len(split_fields)} single-item citations with ids {split_ids}")
+
+
+def spike_open_in_callosum(ctx, base, p1):
+    """P0 phase 6: open_in_callosum resolves the citation at the cursor and opens `{base}/?open_paper=<id>` —
+    monkeypatches `webbrowser.open` to capture the URL instead of actually launching a browser during the test."""
+    log("spike (phase 6): open_in_callosum resolves the correct paper id + URL")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("A citation here.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    marks = doc.getReferenceMarks()
+    mark = next(marks.getByName(n) for n in marks.getElementNames() if cc.decode_mark_name(n))
+    controller = doc.getCurrentController()
+    view_cursor = controller.getViewCursor()
+    view_cursor.gotoRange(mark.getAnchor().getStart(), False)
+
+    captured = {}
+    original_open = cc.webbrowser.open
+    cc.webbrowser.open = lambda url: captured.update(url=url)
+    try:
+        cc.open_in_callosum(doc, base)
+    finally:
+        cc.webbrowser.open = original_open
+    check("url" in captured, "open_in_callosum did not call webbrowser.open")
+    check(captured["url"] == f"{base}/?open_paper={p1}", f"unexpected URL: {captured['url']!r}")
+    log(f"spike (phase 6): OK — opened {captured['url']!r}")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -483,6 +595,11 @@ def main():
 
         # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
         spike_mark_at_cursor(ctx, base, p1, p2)
+
+        # 9) P0 phase 6 (backlog #33/#34): delete / merge / split / open-in-callosum, all riding mark_at_cursor.
+        spike_delete_citation(ctx, base, p1, p2)
+        spike_merge_and_split_citations(ctx, base, p1, p2)
+        spike_open_in_callosum(ctx, base, p1)
 
         print("SELFTEST OK", flush=True)
         return 0

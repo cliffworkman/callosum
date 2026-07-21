@@ -129,6 +129,21 @@ function App() {
     if (tab && tab.paperId != null) setSelected(tab.paperId);
   }, [activeTab, tabs]);
 
+  // A URL deep link ("?open_paper=<id>") opens that paper's PDF tab on load -- the LibreOffice adapter's
+  // "Open in Callosum" action (P0 phase 6, backlog #33/#34) launches exactly this URL against the local server.
+  // One-shot: the param is stripped from the address bar right after use so a page refresh doesn't reopen it.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get("open_paper");
+    if (!raw) return;
+    const paperId = parseInt(raw, 10);
+    if (!Number.isFinite(paperId)) return;
+    openPdf({ id: paperId });
+    params.delete("open_paper");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? "?" + qs : ""));
+  }, [openPdf]);
+
   // inc 280: the Workbench "select-in-PDF" capture (formerly in LibraryFrame) lives here now that Work + the
   // Library PDF tabs are different workspaces. Arming opens the paper UNDER Library (openPdf →
   // selectWorkspace("library")); applying the anchor switches back to Work (Meta-Analyze) so the grid can
