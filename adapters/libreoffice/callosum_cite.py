@@ -407,11 +407,19 @@ def scan_citations_in_order(doc) -> list[dict]:
 
 
 def refresh(doc, base: str = DEFAULT_BASE) -> dict:
-    """The live-field loop: scan → render-document → write back in-text + bibliography. Returns the response."""
+    """The live-field loop: scan → render-document → write back in-text + bibliography. Returns the response.
+
+    The write-back (per-mark text replace + bibliography rebuild) is wrapped in an UndoManager-grouped
+    transaction (P0 phase 2, backlog #33/#34): if a UNO failure hits partway through — e.g. a concurrent edit
+    invalidating a mark's range — the whole group is undone in a single call and verified against a
+    pre-mutation snapshot, so the document never ends up mixed (some marks updated, the bibliography stale or
+    missing). The render HTTP call itself already happens safely-ordered *before* any mutation begins — a
+    network failure there was always a no-op — this only adds a rollback for failures during the mutation itself.
+    """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
     if not fields:
-        _write_bibliography(doc, [])
+        _transactional_apply(doc, [], [])
         return {"citations": [], "bibliography_text": ""}
     response = render_document(base, build_render_request(fields, style, locale))
     rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
@@ -420,11 +428,52 @@ def refresh(doc, base: str = DEFAULT_BASE) -> dict:
     plan = [
         (field["_mark"].Name, rendered[field["citationID"]]) for field in fields if rendered.get(field["citationID"])
     ]
-    for name, text_out in plan:
-        mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
-        _replace_mark_text(doc, mark, text_out)
-    _write_bibliography(doc, response.get("bibliography_text", "").splitlines())
+    _transactional_apply(doc, plan, response.get("bibliography_text", "").splitlines())
     return response
+
+
+def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
+    """Each named mark's CURRENT anchor text, keyed by name. Used only as the post-rollback verification oracle
+    (never the rollback mechanism itself — that's the UndoManager): after an undo(), every name here must map
+    back to the same text, proving the rollback actually restored the pre-mutation state rather than merely
+    reverting *something*. A name no longer present after undo (e.g. a mark that was never touched because the
+    failure hit before it) is simply absent from both snapshots and compares equal."""
+    marks = doc.getReferenceMarks()
+    return {name: marks.getByName(name).getAnchor().getString() for name in names if marks.hasByName(name)}
+
+
+def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str]) -> None:
+    """Apply the per-mark write-back + bibliography rebuild as one UndoManager-grouped unit (P0 phase 2).
+
+    On success: the whole group commits as one entry on the document's own Undo stack (a user's Ctrl+Z after a
+    refresh reverts the *whole* refresh in one step, not citation-by-citation). On any exception partway
+    through: the group is closed, `undo()` reverts it in a single call, and the result is checked against a
+    pre-mutation snapshot — the roadmap's own "verify expected marks still exist" step. If the rollback didn't
+    fully restore the prior state (an UndoManager failure, not just a mutation failure), that is surfaced as its
+    own distinct error rather than silently re-raising the original one, since it means the document may now be
+    in a state neither the caller nor the user expected.
+    """
+    names = [name for name, _ in plan]
+    before = _snapshot_marks(doc, names)
+    undo = doc.getUndoManager()
+    undo.enterUndoContext("Callosum refresh")
+    try:
+        for name, text_out in plan:
+            mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
+            _replace_mark_text(doc, mark, text_out)
+        _write_bibliography(doc, bib_entries)
+    except Exception as exc:
+        undo.leaveUndoContext()
+        undo.undo()
+        after = _snapshot_marks(doc, names)
+        if after != before:
+            raise RuntimeError(
+                "callosum refresh failed partway through, and the automatic rollback did not fully restore the "
+                "document. Please review it carefully (or close without saving and reopen)."
+            ) from exc
+        raise
+    else:
+        undo.leaveUndoContext()
 
 
 def _replace_mark_text(doc, mark, new_text: str) -> None:

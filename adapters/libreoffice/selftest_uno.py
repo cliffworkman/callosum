@@ -254,6 +254,66 @@ def spike_bounded_bibliography(ctx):
         log(f"spike 4/4 FINDING: TextSection approach failed with {exc!r} — evaluate the Bookmark fallback for Phase 7")
 
 
+def spike_transactional_refresh_rollback(ctx, base, p1, p2):
+    """P0 phase 2: refresh()'s write-back loop is now wrapped in an UndoManager-grouped transaction
+    (`_transactional_apply`) — a failure partway through must roll the WHOLE document back to its exact
+    pre-refresh state, not leave some marks updated and others not. Injects a REAL failure (a module-level patch
+    of `_replace_mark_text` that raises on its 2nd call) against a real UNO doc with 3 already-rendered
+    citations, mid-restyle, and confirms every mark's text is back to its pre-refresh state afterward — the
+    roadmap's own "verify expected marks still exist" step, proven against real UNO, not assumed."""
+    log("spike (phase 2): transactional refresh rollback on a mid-loop failure")
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    text.createTextCursorByRange(text.getStart()).setString("A XXX0. B XXX1. C XXX2.\n")
+    for i, pid in enumerate((p1, p2, p1)):
+        rng = find_range(f"XXX{i}")
+        check(rng is not None, f"anchor XXX{i} not found")
+        cc.insert_citation(doc, pid, base, cursor=text.createTextCursorByRange(rng))
+    cc.set_style(doc, "ieee", "en-US", base)  # a known-good, successfully-rendered baseline to roll back to
+
+    def snapshot():
+        return {
+            nm: doc.getReferenceMarks().getByName(nm).getAnchor().getString()
+            for nm in doc.getReferenceMarks().getElementNames()
+            if cc.decode_mark_name(nm)
+        }
+
+    before = snapshot()
+    check(len(before) == 3, f"expected 3 marks before the fault injection, found {len(before)}")
+
+    original = cc._replace_mark_text
+    calls = {"n": 0}
+
+    def flaky(doc_, mark, new_text):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("injected failure for the phase-2 rollback spike")
+        return original(doc_, mark, new_text)
+
+    cc._replace_mark_text = flaky
+    try:
+        raised = None
+        try:
+            cc.set_style(doc, "apa", "en-US", base)  # a real, different render — restyle mid-loop, then fail
+        except Exception as exc:
+            raised = exc
+        check(raised is not None, "expected the injected failure to propagate out of set_style/refresh")
+        log(f"spike (phase 2): injected failure propagated as expected: {raised!r}")
+    finally:
+        cc._replace_mark_text = original
+
+    after = snapshot()
+    log(f"spike (phase 2): before={before} after={after}")
+    check(after == before, f"rollback did not restore the pre-refresh state: {after} != {before}")
+    log("spike (phase 2): OK — a mid-loop failure rolled back to the exact pre-refresh state (no mixed document)")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -370,6 +430,9 @@ def main():
         spike_undo_manager(ctx)
         spike_copy_paste_duplicate_name(ctx, base, p1)
         spike_bounded_bibliography(ctx)
+
+        # 7) P0 phase 2 (backlog #33/#34): transactional refresh — a real fault-injection proof, not assumed.
+        spike_transactional_refresh_rollback(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

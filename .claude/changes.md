@@ -13,6 +13,21 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 321: LibreOffice adapter rework, Phase 2 (transactional refresh)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno}.py`, `tests/test_libreoffice_adapter.py`,
+  `.claude/docs/increment-notes/INCREMENT-321-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** `refresh()`'s write-back (the per-mark text replace + bibliography rebuild) now runs inside an
+  `XUndoManager`-grouped transaction. On success, a refresh is one undoable step for the user; on any failure
+  partway through, the whole group is reverted in one call and checked against a pre-mutation snapshot, so a
+  partial UNO failure never leaves the document with some citations updated and others (or the bibliography)
+  stale. Proved with a real fault-injection spike against headless LibreOffice, not just asserted: a monkeypatch
+  forces a failure on the 2nd of 3 write-backs mid-restyle, and the whole document — including the one mark that
+  had already been rewritten — rolls back to its exact pre-refresh state.
+- **Why:** the next slice of backlog #33/#34's P0 rework, building directly on Phase 0's confirmation that
+  `XUndoManager` behaves as needed in this LibreOffice version — this is the first real exercise of it under an
+  actual partial failure, not just the simple happy path.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-321-NOTES.md`.
+
 ## 2026-07-21 — Increment 320: LibreOffice adapter rework, Phase 0 (spike) + Phase 1 (versioned schema)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno}.py`, `tests/test_libreoffice_adapter.py`,
   `.claude/docs/increment-notes/INCREMENT-320-NOTES.md`, `.claude/CLAUDE.md`.

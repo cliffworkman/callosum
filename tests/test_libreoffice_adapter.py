@@ -133,6 +133,55 @@ def test_normalize_item_fills_only_missing_keys() -> None:
     assert out["author-only"] is False and out["custom_override"] is None
 
 
+# ── inc TBD (P0 phase 2, backlog #33/#34): the transactional-refresh verification oracle ────────────────────
+# `_transactional_apply` itself (the UndoManager-grouped mutation + rollback) needs a real UNO `doc` to mean
+# anything -- it's exercised by a fault-injection spike in `selftest_uno.py`, not faked here (this codebase's
+# established split: real-doc mutation logic is only ever real-UNO-tested, never mocked). `_snapshot_marks` is
+# the one piece of that mechanism simple enough to fake faithfully -- two duck-typed method calls, no risk of
+# the fake diverging from real UNO semantics.
+
+
+class _FakeAnchor:
+    def __init__(self, text: str) -> None:
+        self._text = text
+
+    def getString(self) -> str:
+        return self._text
+
+
+class _FakeMark:
+    def __init__(self, text: str) -> None:
+        self._anchor = _FakeAnchor(text)
+
+    def getAnchor(self) -> _FakeAnchor:
+        return self._anchor
+
+
+class _FakeMarks:
+    def __init__(self, marks: dict) -> None:
+        self._marks = marks
+
+    def hasByName(self, name: str) -> bool:
+        return name in self._marks
+
+    def getByName(self, name: str) -> _FakeMark:
+        return self._marks[name]
+
+
+class _FakeDoc:
+    def __init__(self, marks: dict) -> None:
+        self._marks = _FakeMarks(marks)
+
+    def getReferenceMarks(self) -> _FakeMarks:
+        return self._marks
+
+
+def test_snapshot_marks_reads_current_anchor_text() -> None:
+    doc = _FakeDoc({"m1": _FakeMark("Smith, 2020"), "m2": _FakeMark("[1]")})
+    assert cc._snapshot_marks(doc, ["m1", "m2"]) == {"m1": "Smith, 2020", "m2": "[1]"}
+    assert cc._snapshot_marks(doc, ["m1", "missing"]) == {"m1": "Smith, 2020"}  # an absent name is silently skipped
+
+
 def test_stamp_item_id_is_stable_and_nondestructive() -> None:
     record = {"title": "X", "type": "article-journal"}
     stamped = cc.stamp_item_id(record, 42)
