@@ -35,6 +35,24 @@ import urllib.request
 # ── constants ──────────────────────────────────────────────────────────────────────────────────────────
 MARK_PREFIX = "CALLOSUM_CITATION"  # ReferenceMark name prefix → identifies our live fields
 BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the start of the managed bibliography block
+# Mark-payload schema version (inc TBD, P0 phase 1 of the LibreOffice-adapter rework — backlog #33/#34). v1 is the
+# original shape (no "v" key, always exactly one item, no per-instance fields) and is still read losslessly; v2
+# adds optional per-occurrence citeproc-cite properties (locator/label/prefix/suffix/suppress-author/author-only)
+# to each item, alongside the item's own CSL-JSON fields — never written into the paper's own library record.
+SCHEMA_VERSION = 2
+SUPPORTED_VERSIONS = {1, 2}
+# Per-item keys `_normalize_item` guarantees are present on every decoded item, defaulted when absent. Named after
+# citeproc-js's own citationItems properties (not the roadmap's parallel vocabulary) so there is zero translation
+# layer between what a mark stores and what the backend/citeproc actually consumes.
+_ITEM_DEFAULTS = {
+    "locator": None,
+    "label": None,
+    "prefix": None,
+    "suffix": None,
+    "suppress-author": False,
+    "author-only": False,
+    "custom_override": None,  # adapter-side only; never sent to the backend (see build_render_request)
+}
 PREF_STYLE = "CallosumStyle"  # document user-property: chosen CSL style id
 PREF_LOCALE = "CallosumLocale"  # document user-property: chosen locale
 DEFAULT_STYLE = "apa"
@@ -85,13 +103,31 @@ def encode_mark_name(payload: dict, rnd: str) -> str:
 
     base64 keeps the JSON's braces/quotes/spaces out of the mark name (which must be a stable, simple token).
     `rnd` makes the name unique within the document (ReferenceMark names must be unique).
+
+    Always stamps the current ``SCHEMA_VERSION`` — so every mark any code rewrites from here forward (a normal
+    refresh, an insert, anything later) silently upgrades to the current schema; no explicit document migration
+    is ever needed. A caller's own ``"v"`` key (if any) is overwritten, not merged — this function is the single
+    place that decides what version is being written.
     """
-    blob = base64.b64encode(json.dumps(payload, ensure_ascii=False).encode("utf-8")).decode("ascii")
+    stamped = {**payload, "v": SCHEMA_VERSION}
+    blob = base64.b64encode(json.dumps(stamped, ensure_ascii=False).encode("utf-8")).decode("ascii")
     return f"{MARK_PREFIX} {blob} {rnd}"
 
 
+def _normalize_item(it: dict) -> dict:
+    """Fill in the v2 per-occurrence keys a decoded item is missing, defaulted (see ``_ITEM_DEFAULTS``). Pure —
+    no UNO. Lets every caller (refresh, scan, a future composer) see one consistent item shape regardless of
+    whether the mark that produced it was written as v1 (none of these keys present) or v2 (some/all present)."""
+    out = dict(it)
+    for key, default in _ITEM_DEFAULTS.items():
+        out.setdefault(key, default)
+    return out
+
+
 def decode_mark_name(name: str) -> dict | None:
-    """Inverse of :func:`encode_mark_name`. Returns ``{"rnd", "items"}`` or None if not ours / malformed.
+    """Inverse of :func:`encode_mark_name`. Returns ``{"rnd", "v", "items", "sort"}`` or None if not ours /
+    malformed. ``items`` is None (with ``"unsupported": True``) for a schema version we don't recognize — ours,
+    but from a future adapter version; never guessed at, never treated as foreign.
 
     Defensive: any parse failure → None (a corrupt or foreign mark is skipped, never fatal).
     """
@@ -108,7 +144,10 @@ def decode_mark_name(name: str) -> dict | None:
     items = payload.get("items") if isinstance(payload, dict) else None
     if not isinstance(items, list) or not items:
         return None
-    return {"rnd": rnd, "items": items}
+    v = payload.get("v", 1)  # absent "v" key == the original (v1) shape
+    if v not in SUPPORTED_VERSIONS:
+        return {"rnd": rnd, "v": v, "items": None, "unsupported": True}
+    return {"rnd": rnd, "v": v, "items": [_normalize_item(it) for it in items], "sort": payload.get("sort", "auto")}
 
 
 def stamp_item_id(record: dict, paper_id: int | str) -> dict:
@@ -357,8 +396,8 @@ def scan_citations_in_order(doc) -> list[dict]:
     fields = []
     for mark in _our_marks(doc):
         decoded = decode_mark_name(mark.Name)
-        if decoded is None:
-            continue
+        if decoded is None or decoded.get("unsupported"):
+            continue  # ours but a schema version this adapter doesn't understand — leave untouched, never guess
         fields.append({"citationID": decoded["rnd"], "items": decoded["items"], "_mark": mark})
 
     def _compare(a, b) -> int:

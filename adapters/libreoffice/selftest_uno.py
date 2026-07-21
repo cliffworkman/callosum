@@ -61,6 +61,23 @@ def new_writer(ctx):
     return desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, (hidden,))
 
 
+def load_doc(ctx, url):
+    """Load an existing document from a URL (vs. new_writer's blank-factory create) — used by the Phase-0
+    save/reopen spike to get a genuinely fresh doc object backed by the saved file, not the original in-memory one."""
+    from com.sun.star.beans import PropertyValue
+
+    smgr = ctx.ServiceManager
+    desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
+    hidden = PropertyValue()
+    hidden.Name, hidden.Value = "Hidden", True
+    return desktop.loadComponentFromURL(url, "_blank", 0, (hidden,))
+
+
+def dispatch_uno(ctx, frame, url):
+    helper = ctx.ServiceManager.createInstanceWithContext("com.sun.star.frame.DispatchHelper", ctx)
+    helper.executeDispatch(frame, url, "", 0, ())
+
+
 def rendered_by_paper(doc):
     out = {}
     for f in cc.scan_citations_in_order(doc):
@@ -79,6 +96,162 @@ def check(cond, msg):
 
 def log(msg):
     print(f"[selftest] {msg}", flush=True)
+
+
+def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25):
+    """P0 phase-0 spike #1: insert N citations (redundant full-CSL-record embedding is the roadmap's own
+    architectural concern) in one document, save to a real .odt, load it back as a FRESH doc object, and confirm
+    every mark still decodes losslessly. Reports actual name-length numbers rather than assuming a scale is fine.
+
+    IMPORTANT: citations are placed at N pre-existing anchors laid down BEFORE any refresh has run — never at
+    "document end" repeatedly. An earlier version of this spike inserted at `text.getEnd()` on each iteration and
+    accidentally reproduced the verified bibliography data-loss bug live: `insert_citation`'s own auto-refresh
+    appends the bibliography at doc-end on its first run, so a *second* "insert at the end" call lands its new
+    citation inside the bibliography's future-deletion zone — the very next refresh's
+    `cursor.gotoEnd(True); cursor.setString("")` then silently destroyed every citation after the first. Only 1
+    of 25 marks survived. This is exactly the hazard `_write_bibliography` was already known to have, now
+    reproduced through a completely ordinary "cite, cite again" sequence, not a contrived edge case — a real
+    finding for Phase 7, not a test bug. The anchor-based approach below avoids it (matching how the existing
+    AAA/BBB round-trip test above already sidesteps it) so this spike measures what it set out to measure."""
+    import tempfile
+
+    log(f"spike 1/4: mark-size/scale — inserting {n} citations")
+    doc = new_writer(ctx)
+    text = doc.getText()
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    anchors = "\n".join(f"Anchor{i} XXX{i}" for i in range(n))
+    text.createTextCursorByRange(text.getStart()).setString(f"Stress test paragraph.\n{anchors}\n")
+    for i in range(n):
+        pid = p1 if i % 2 == 0 else p2
+        rng = find_range(f"XXX{i}")
+        check(rng is not None, f"anchor XXX{i} not found before citation insert")
+        cc.insert_citation(doc, pid, base, cursor=text.createTextCursorByRange(rng))
+    before = sorted(nm for nm in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm))
+    lengths = [len(nm) for nm in before]
+    log(f"spike 1/4: inserted {len(before)} marks; name length min={min(lengths)} max={max(lengths)} chars")
+    check(len(before) == n, f"expected {n} marks, found {len(before)}")
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    try:
+        save_url = uno.systemPathToFileUrl(save_path)
+        from com.sun.star.beans import PropertyValue
+
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+        reopened = load_doc(ctx, save_url)
+        after = sorted(nm for nm in reopened.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm))
+        check(len(after) == n, f"after save/reopen: expected {n} marks, found {len(after)}")
+        items_before = {nm: cc.decode_mark_name(nm)["items"] for nm in before}
+        items_after = {nm: cc.decode_mark_name(nm)["items"] for nm in after}
+        check(items_before == items_after, "mark payload changed after a save/reopen round-trip")
+        log(
+            f"spike 1/4: OK — {n} marks (max name length {max(lengths)} chars) round-trip losslessly through save/reopen"
+        )
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+
+
+def spike_undo_manager(ctx):
+    """P0 phase-0 spike #2: XUndoManager has ZERO prior usage anywhere in this codebase — confirm
+    enterUndoContext/leaveUndoContext/undo() actually groups + reverts a multi-step mutation in one call, since
+    Phase 2 (transactional refresh) and Phase 8 (safe flatten) both depend on this behaving as documented."""
+    log("spike 2/4: XUndoManager enter/leave/undo")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Before mutation.\n")
+    original = text.getString()
+    undo_mgr = doc.getUndoManager()
+    undo_mgr.enterUndoContext("spike test")
+    text.createTextCursorByRange(text.getEnd()).setString("Extra text added by the mutation.\n")
+    undo_mgr.leaveUndoContext()
+    mutated = text.getString()
+    check(mutated != original, "the grouped mutation didn't actually change the document")
+    undo_mgr.undo()
+    restored = text.getString()
+    check(restored == original, f"undo() did not restore the pre-mutation state: {restored!r} != {original!r}")
+    log("spike 2/4: OK — enterUndoContext/leaveUndoContext/undo() reverts a grouped mutation in one call")
+
+
+def spike_copy_paste_duplicate_name(ctx, base, p1):
+    """P0 phase-0 spike #3: copy/paste a CALLOSUM_CITATION-named ReferenceMark within the same document and
+    observe what Writer actually does to the name. This is a genuine open question, not a prediction — the
+    outcome is LOGGED as a finding (for Phase 9's diagnostics design), never asserted to be a specific answer."""
+    log("spike 3/4: copy/paste duplicate-name behavior")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Copy paste test.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    before = [nm for nm in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm)]
+    check(len(before) == 1, f"expected exactly one mark before the copy/paste spike, found {len(before)}")
+    mark = doc.getReferenceMarks().getByName(before[0])
+    try:
+        controller = doc.getCurrentController()
+        controller.select(mark.getAnchor())
+        frame = controller.getFrame()
+        dispatch_uno(ctx, frame, ".uno:Copy")
+        text.insertString(text.createTextCursorByRange(text.getEnd()), "\n", False)
+        controller.select(text.createTextCursorByRange(text.getEnd()))
+        dispatch_uno(ctx, frame, ".uno:Paste")
+        after = [nm for nm in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(nm)]
+        log(f"spike 3/4: before={before!r} after={after!r}")
+        if len(after) == 1:
+            log("spike 3/4 FINDING: paste did NOT duplicate the mark (Writer refused/dropped the name collision)")
+        elif len(after) == 2 and after[0] == after[1]:
+            log("spike 3/4 FINDING: paste DUPLICATED the exact mark name — a real collision risk for Phase 9")
+        elif len(after) == 2:
+            log("spike 3/4 FINDING: paste created a SECOND mark with a DIFFERENT auto-renamed name")
+        else:
+            log(f"spike 3/4 FINDING: unexpected mark count after copy/paste: {len(after)}")
+    except Exception as exc:
+        log(f"spike 3/4 FINDING: copy/paste dispatch raised {exc!r} — needs manual GUI investigation for Phase 9")
+
+
+def spike_bounded_bibliography(ctx):
+    """P0 phase-0 spike #4: prototype a bounded managed range for the future bibliography rewrite (Phase 7) —
+    a TextSection wrapping the whole heading+entries block, rebuilt via ITS OWN anchor range rather than
+    "bookmark-start to document-end". Proves (or disproves) that a rebuild-in-place preserves user text placed
+    after the block — the exact fix the verified data-loss hazard needs."""
+    log("spike 4/4: TextSection-bounded bibliography rebuild")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Body text before the bibliography.\n")
+    try:
+        section_cursor = text.createTextCursorByRange(text.getEnd())
+        section = doc.createInstance("com.sun.star.text.TextSection")
+        section.Name = "CALLOSUM_BIBLIOGRAPHY_SECTION_SPIKE"
+        text.insertTextContent(section_cursor, section, False)
+        section_range_text = section.getAnchor().getText()
+        inner = section_range_text.createTextCursorByRange(section.getAnchor().getEnd())
+        section_range_text.insertString(inner, "References\nEntry one\nEntry two\n", False)
+        text.insertString(
+            text.createTextCursorByRange(text.getEnd()), "User text placed after the bibliography.\n", False
+        )
+
+        sections = doc.getTextSections()
+        check(sections.hasByName(section.Name), "TextSection not found by name after insert")
+        sec = sections.getByName(section.Name)
+        sec_cursor = text.createTextCursorByRange(sec.getAnchor())
+        sec_cursor.setString("References\nRebuilt entry.\n")  # simulate a refresh rebuilding the block in place
+
+        after_text = text.getString()
+        check(
+            "User text placed after the bibliography." in after_text,
+            "TextSection rebuild destroyed text OUTSIDE the section — the bounded-range approach failed!",
+        )
+        check("Rebuilt entry." in after_text, "TextSection rebuild did not apply")
+        log("spike 4/4: OK — TextSection rebuild-in-place preserved trailing user text. RECOMMENDED for Phase 7.")
+    except Exception as exc:
+        log(f"spike 4/4 FINDING: TextSection approach failed with {exc!r} — evaluate the Bookmark fallback for Phase 7")
 
 
 def main():
@@ -189,6 +362,14 @@ def main():
         check(disp is not None, "the .oxt dispatcher service did not resolve — extension not installed/registered?")
         check(hasattr(disp, "trigger"), "the .oxt dispatcher does not expose trigger() (XJobExecutor)")
         log("dispatcher OK")
+
+        # 6) P0 phase-0 spike (backlog #33/#34): empirically de-risk open questions for the rework's later
+        # phases, before committing further engineering on top of assumed answers. Findings are LOGGED, not all
+        # hard-asserted — some outcomes (e.g. copy/paste behavior) are genuinely open questions, not predictions.
+        spike_mark_size_and_reopen(ctx, base, p1, p2)
+        spike_undo_manager(ctx)
+        spike_copy_paste_duplicate_name(ctx, base, p1)
+        spike_bounded_bibliography(ctx)
 
         print("SELFTEST OK", flush=True)
         return 0

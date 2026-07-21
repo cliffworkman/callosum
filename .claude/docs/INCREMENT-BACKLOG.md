@@ -192,12 +192,29 @@ the Principles + A-A gates before build.)*
   explainable reason — never ranked by citation count; trips the audit + Principles gates as a new external
   fetch). **Stage-4 — section-scoping** (constrain candidates to a manuscript section; needs GROBID + the
   plugin). This is the highest-value unbuilt novel capability in the backlog.
-- **#33/#34 Citation & bibliography engine + plugins — deferred adapter polish.** Grouped cites/locators/prefixes,
-  note-style footnote management, fetch-on-demand long-tail CSL styles (consent-gated), Vancouver + more bundled
-  styles, rich-clipboard (italics) copy, a shared subprocess timeout. **#43** (a true Google Workspace Marketplace
-  one-click install) is its own project (GCP project, OAuth verification, a public privacy policy, Google app
-  review) — likely overkill for a local-first single-user tool; build only if a one-click install becomes worth
-  the ongoing maintenance cost.
+- **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase [in progress].**
+  Superseded by the much richer competitor-informed roadmap now at
+  `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` (+ its
+  `…competitivereview.md` companion), folded in 2026-07-21. **Active now — P0 correctness/safety batch:**
+  (1) a **bounded managed bibliography range** replacing the current bookmark-to-document-end scan
+  (`_write_bibliography` in `adapters/libreoffice/callosum_cite.py` currently does
+  `cursor.gotoEnd(True); cursor.setString("")` from the bookmark to the document's literal end — a **verified,
+  real data-loss hazard**: any text a user places after the bibliography is silently destroyed on refresh, today
+  prevented only by a README convention, not an enforced boundary); (2) a **safe flatten** ("Prepare submission
+  copy" — explicit irreversible-action warning, save-as-copy default, citation/bibliography counts, post-op
+  integrity check) replacing today's execute-then-report `flatten()`; (3) a unified live-search citation
+  composer + true grouped citations + a versioned citation-instance metadata schema (locator/prefix/suffix/
+  suppress-author stored *per occurrence*, never into the paper's own CSL) + edit/delete citation; (4)
+  transactional refresh + a document-diagnostics/repair command. **Then P1 parity** (real CSL style manager,
+  note/footnote styles, bibliography editing controls, a "citations in this document" panel, refresh/performance
+  controls, portability, journal abbreviations, keyboard/accessibility — this is where the previously-listed
+  grouped cites/locators/note-styles/style-fetch/rich-clipboard/subprocess-timeout items now live, superseded by
+  the fuller roadmap) **and P2 leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage
+  audit, pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science
+  statement insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test
+  plan. **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
+  verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
+  tool; build only if a one-click install becomes worth the ongoing maintenance cost.
 - **#35 My Publications — Layer 4.** Grounded prospection: citation gaps, emerging citing-topics, candidate
   collaborators (LLM narration over graph data only). Not started.
 - **#36 Meta-analysis — the assisted-extraction funnel's next escalations.** The consumer-side reporting auditor,

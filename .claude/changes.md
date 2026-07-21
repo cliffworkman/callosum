@@ -13,6 +13,24 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 320: LibreOffice adapter rework, Phase 0 (spike) + Phase 1 (versioned schema)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno}.py`, `tests/test_libreoffice_adapter.py`,
+  `.claude/docs/increment-notes/INCREMENT-320-NOTES.md`, `.claude/CLAUDE.md`.
+- **What:** the first two slices of the P0 rework of the shipped LibreOffice citation adapter (backlog #33/#34,
+  per the newly-filed `chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md`). Phase 1: a versioned
+  ReferenceMark payload schema (`SCHEMA_VERSION = 2`) with backward-compatible decode of every mark written
+  before this increment, and an explicit inert-but-present handling of any future unsupported version — no user
+  action ever needed. Phase 0: four empirical spikes against a real headless LibreOffice (mark-size/scale +
+  save/reopen fidelity: PASS; `XUndoManager` grouping/revert: CONFIRMED WORKING; within-document copy/paste of a
+  citation mark: Writer refuses the name collision; a `TextSection`-bounded bibliography prototype: FAILED,
+  redirecting Phase 7 toward a `Bookmark`-pair approach instead).
+- **Why:** the roadmap graduated from a quick fix to a real multi-increment program once the bibliography
+  data-loss claim was verified against shipped code; these two phases are the foundational, bounded, verifiable
+  first slices every later phase depends on.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-320-NOTES.md` for the full
+  design, including the live reproduction of the bibliography bug via an ordinary "cite, cite again" sequence
+  during the spike itself (not a contrived edge case).
+
 ## 2026-07-21 — Increment 319: scroll-to-reveal the selected paper in the library list
 - **Files:** `app/backend/api/routers/{papers,paper_models}.py`, `app/backend/persistence/{repository,
   paper_query_repo}.py`, `app/frontend/js/{03_library,10d_papercard,40_app,04b_workspaces}.jsx`,
