@@ -13,6 +13,21 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 327: LibreOffice adapter rework, Phase 9 (document diagnostics)
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `tests/test_libreoffice_adapter.py`,
+  `.claude/docs/increment-notes/INCREMENT-327-NOTES.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/CLAUDE.md`.
+- **What:** a read-only "Document diagnostics…" action — reports malformed citation marks, citations from an
+  unsupported future schema version, citation-id collisions, citations whose source paper is no longer in the
+  library, and whether the bibliography bookmark pair is damaged or just not built yet. Never mutates the
+  document. Along the way, found and fixed a real pre-existing bug: `fetch_csl` assumed a missing paper makes
+  `/papers/export` return 200 + an empty list, but the endpoint actually 422s — the orphan-detection spike
+  caught this on its first real-UNO run (no pytest mock would have). Also queued backlog #45 (swap the "Ada
+  Lovelace" Settings placeholder for "Karen Spärck Jones") per Cliff's request — cheap, whenever convenient.
+- **Why:** the last of the smaller phases in the P0 LibreOffice-adapter rework (backlog #33/#34), closing states
+  the adapter could already describe or safely fix internally but never surfaced to the user.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-327-NOTES.md`.
+
 ## 2026-07-21 — README: real screenshot + fixed stale sync claim, ahead of a presentation
 - **Files:** `README.md`, `www/` (newly committed — `index.html`, `showcase.html`, `shots/*.png`).
 - **What:** a pre-presentation readiness pass surfaced that a finished marketing site (a landing page +

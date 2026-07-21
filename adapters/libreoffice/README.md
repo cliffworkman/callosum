@@ -81,13 +81,18 @@ message if it isn't):
 14. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
+15. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+    written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
+    source paper is no longer in your library, and whether the bibliography block is damaged or just not built
+    yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
+    that a plain Refresh safely rebuilds it).
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumDeleteCitation`, `CallosumMergeWithNext`,
 `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
-`CallosumInsertBibliographyHere`, `CallosumToggleBibAuto` — are also runnable from the Python macro dialog if
-you installed by hand.)
+`CallosumInsertBibliographyHere`, `CallosumToggleBibAuto`, `CallosumDiagnostics` — are also runnable from the
+Python macro dialog if you installed by hand.)
 
 The bibliography is a **bounded** managed block (a start/end bookmark pair) — a refresh only ever rebuilds
 what's between those two bookmarks, so any of your own text placed after the bibliography is always preserved.

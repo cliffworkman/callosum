@@ -29,6 +29,7 @@ import base64
 import functools
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 import webbrowser
@@ -235,8 +236,19 @@ def _post_json(url: str, body: dict, timeout: int = HTTP_TIMEOUT):
 
 
 def fetch_csl(base: str, paper_id: int | str) -> dict:
-    """Fetch a library paper's canonical CSL-JSON via the inc-70 export endpoint; returns one CSL record."""
-    rows = _post_json(f"{base}/papers/export", {"paper_ids": [int(paper_id)], "format": "csl-json"})
+    """Fetch a library paper's canonical CSL-JSON via the inc-70 export endpoint; returns one CSL record.
+
+    Raises ``ValueError`` if the paper doesn't exist. The endpoint 422s on an all-missing/trashed result
+    rather than returning 200 with an empty list (`routers/papers.py::export_citations`) — confirmed
+    empirically by the phase-9 diagnostics spike, which found this function's own former "empty rows" check
+    was dead code: a genuinely missing paper always raises `HTTPError` first, never reaches it.
+    """
+    try:
+        rows = _post_json(f"{base}/papers/export", {"paper_ids": [int(paper_id)], "format": "csl-json"})
+    except urllib.error.HTTPError as exc:
+        if exc.code == 422:  # this endpoint's only 422 is "no existing (non-trashed) papers to export"
+            raise ValueError(f"No paper with id {paper_id} in the library.") from exc
+        raise
     if not isinstance(rows, list) or not rows:
         raise ValueError(f"No paper with id {paper_id} in the library.")
     return rows[0]
@@ -1118,6 +1130,106 @@ def set_server_url_interactive(doc) -> None:
     _msgbox(f"callosum server URL set to {get_server_url()}.")
 
 
+def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
+    """Read-only health check across every recognized citation mark + the bibliography bookmarks (P0 phase 9,
+    backlog #33/#34 — the last of the smaller phases). Every state it reports is one this adapter already knows
+    how to describe or safely fix (a damaged bibliography self-heals on the next `refresh()`/"Insert bibliography
+    here" — see `_write_bibliography`'s own damaged-document branch); this just surfaces it instead of the user
+    discovering it by accident.
+
+    Never mutates the document. Makes at most one `fetch_csl` HTTP call per distinct cited paper id (cached), to
+    check whether its source paper is still in the library — reusing the same helper `insert_citation` already
+    trusts to raise `ValueError` on a missing paper, rather than parsing `/papers/export`'s batched shape anew.
+    Any OTHER exception (e.g. the server being unreachable) is deliberately NOT caught here — it propagates like
+    every other action in this file, rather than being misreported as "these citations are orphaned."
+
+    Returns ``{"malformed": [name, ...], "unsupported_version": [rnd, ...], "duplicate_ids": [rnd, ...],
+    "orphaned": [paper_id, ...], "bibliography": "ok" | "damaged" | "not_built" | "n/a"}``.
+    """
+    malformed = []
+    unsupported = []
+    rnd_seen: dict[str, int] = {}
+    ids_checked: dict[str, bool] = {}
+    orphaned = []
+    for name in doc.getReferenceMarks().getElementNames():
+        if not (isinstance(name, str) and name.startswith(MARK_PREFIX + " ")):
+            continue  # not one of ours — irrelevant to this diagnostic
+        decoded = decode_mark_name(name)
+        if decoded is None:
+            malformed.append(name)
+            continue
+        if decoded.get("unsupported"):
+            unsupported.append(decoded["rnd"])
+            continue
+        rnd_seen[decoded["rnd"]] = rnd_seen.get(decoded["rnd"], 0) + 1
+        for item in decoded["items"]:
+            item_id = str(item.get("id") or "")
+            paper_id = item_id[len("callosum-") :] if item_id.startswith("callosum-") else ""
+            if not paper_id.isdigit() or paper_id in ids_checked:
+                continue
+            try:
+                fetch_csl(base, paper_id)
+                ids_checked[paper_id] = True
+            except ValueError:
+                ids_checked[paper_id] = False
+                orphaned.append(paper_id)
+    duplicate_ids = [rnd for rnd, count in rnd_seen.items() if count > 1]
+
+    bookmarks = doc.getBookmarks()
+    has_start, has_end = bookmarks.hasByName(BIB_BOOKMARK), bookmarks.hasByName(BIB_BOOKMARK_END)
+    if has_start and has_end:
+        bib_state = "ok"
+    elif has_start or has_end:
+        bib_state = "damaged"
+    elif rnd_seen:
+        bib_state = "not_built"
+    else:
+        bib_state = "n/a"
+
+    return {
+        "malformed": malformed,
+        "unsupported_version": unsupported,
+        "duplicate_ids": duplicate_ids,
+        "orphaned": orphaned,
+        "bibliography": bib_state,
+    }
+
+
+def document_diagnostics_interactive(doc, base: str) -> None:
+    report = diagnose_document(doc, base)
+    lines = []
+    if report["malformed"]:
+        lines.append(
+            f"{len(report['malformed'])} malformed citation field(s) — corrupted beyond repair; "
+            "delete and re-insert them."
+        )
+    if report["unsupported_version"]:
+        lines.append(
+            f"{len(report['unsupported_version'])} citation(s) were written by a newer callosum than this "
+            "plugin understands — left untouched; update the plugin to edit them."
+        )
+    if report["duplicate_ids"]:
+        lines.append(
+            f"{len(report['duplicate_ids'])} citation ID collision(s) — a refresh may render them "
+            "identically; delete and re-insert one of each pair."
+        )
+    if report["orphaned"]:
+        lines.append(
+            f"{len(report['orphaned'])} citation(s) reference a paper no longer in your library — they still "
+            "render from their saved snapshot, but won't reflect future edits and 'Open in callosum' won't "
+            "find them."
+        )
+    if report["bibliography"] == "damaged":
+        lines.append(
+            "The bibliography block is damaged (a start or end marker is missing) — hit Refresh to safely rebuild it."
+        )
+    elif report["bibliography"] == "not_built":
+        lines.append(
+            "You have live citations but no bibliography yet — Refresh or 'Insert bibliography here' to build one."
+        )
+    _msgbox("\n\n".join(lines) if lines else "No issues found.", title="callosum — document diagnostics")
+
+
 # Action registry — the single source of truth for what each Callosum command does. Keyed by the action name the
 # .oxt Addons.xcu menu/toolbar dispatches (`service:com.callosum.cite.Dispatcher?<action>`). Each value takes
 # (doc, base); flatten/setServerUrl ignore base. `add_citation_by_search` (search-to-cite) is added in SP2.
@@ -1140,6 +1252,7 @@ _ACTIONS = {
     "openInCallosum": open_in_callosum,
     "insertBibliographyHere": insert_bibliography_here_interactive,
     "toggleBibAuto": toggle_bib_auto_interactive,
+    "diagnostics": document_diagnostics_interactive,
 }
 
 
@@ -1224,6 +1337,10 @@ def CallosumPrepareSubmissionCopy(*_args):
     _macro("prepareSubmissionCopy")
 
 
+def CallosumDiagnostics(*_args):
+    _macro("diagnostics")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -1241,4 +1358,5 @@ g_exportedScripts = (
     CallosumInsertBibliographyHere,
     CallosumToggleBibAuto,
     CallosumPrepareSubmissionCopy,
+    CallosumDiagnostics,
 )

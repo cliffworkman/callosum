@@ -125,6 +125,14 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P0 phase 9 (backlog #33/#34, the last of the smaller phases): a read-only health report across
+               every recognized citation + the bibliography bookmarks. Never mutates the document. -->
+          <node oor:name="m09" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?diagnostics</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Document diagnostics…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
         </node>
       </node>
     </node>

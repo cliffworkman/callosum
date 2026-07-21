@@ -609,6 +609,93 @@ def spike_prepare_submission_copy(ctx, base, p1):
         pass
 
 
+def spike_document_diagnostics(ctx, base, p1, p2):
+    """P0 phase 9 (the last of the smaller phases, backlog #33/#34): `diagnose_document` is read-only, so this
+    spike constructs each unhealthy state directly rather than waiting for it to occur naturally — a truly
+    malformed mark, a schema version this adapter has never shipped, and a bibliography bookmark pair damaged
+    down to one side can't happen through this adapter's own normal use at all; they exist to prove the
+    diagnostic notices corruption from OUTSIDE its own control (a hand-edited document, a future adapter
+    version, manual bookmark deletion via Writer's own UI) — exactly the scenario this command exists for."""
+    import base64
+    import json
+
+    log("spike (phase 9): a normal, healthy document reports no findings")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("A clean citation.\n")
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    report = cc.diagnose_document(doc, base)
+    check(
+        not any([report["malformed"], report["unsupported_version"], report["duplicate_ids"], report["orphaned"]]),
+        f"a clean document reported findings: {report}",
+    )
+    check(report["bibliography"] == "ok", f"clean doc bibliography state was {report['bibliography']!r}")
+    log("spike (phase 9): OK — a normal, healthy document reports no findings")
+
+    log("spike (phase 9): malformed / unsupported-version / duplicate-id / orphaned marks are all detected")
+    doc2 = new_writer(ctx)
+    text2 = doc2.getText()
+    text2.createTextCursorByRange(text2.getStart()).setString("Body text.\n")
+
+    def plant(name: str) -> None:
+        c = text2.createTextCursorByRange(text2.getEnd())
+        c.setString(cc.PLACEHOLDER)
+        mark = doc2.createInstance("com.sun.star.text.ReferenceMark")
+        mark.Name = name
+        text2.insertTextContent(c, mark, True)
+
+    bad_name = "CALLOSUM_CITATION !!!notbase64!!! zzz"
+    plant(bad_name)
+
+    future_blob = base64.b64encode(json.dumps({"v": 99, "items": [{"id": "callosum-1"}]}).encode()).decode()
+    plant(f"CALLOSUM_CITATION {future_blob} futurernd")
+
+    # Two marks sharing the same rnd ("dup1") but different payloads — a real ReferenceMark NAME is unique (the
+    # base64 blob differs), but nothing enforces the embedded rnd's uniqueness beyond `_new_rnd`'s own counter,
+    # so a hand-crafted or corrupted document could still collide.
+    for pid in (p1, p2):
+        blob = base64.b64encode(json.dumps({"items": [{"id": f"callosum-{pid}"}]}).encode()).decode()
+        plant(f"CALLOSUM_CITATION {blob} dup1")
+
+    orphan_blob = base64.b64encode(json.dumps({"items": [{"id": "callosum-999999"}]}).encode()).decode()
+    plant(f"CALLOSUM_CITATION {orphan_blob} orphan1")
+
+    report2 = cc.diagnose_document(doc2, base)
+    check(report2["malformed"] == [bad_name], f"expected malformed=[{bad_name!r}], got {report2['malformed']}")
+    check(
+        report2["unsupported_version"] == ["futurernd"],
+        f"expected unsupported_version=['futurernd'], got {report2['unsupported_version']}",
+    )
+    check(report2["duplicate_ids"] == ["dup1"], f"expected duplicate_ids=['dup1'], got {report2['duplicate_ids']}")
+    check(report2["orphaned"] == ["999999"], f"expected orphaned=['999999'], got {report2['orphaned']}")
+    log(f"spike (phase 9): OK — detected malformed/unsupported/duplicate/orphaned: {report2}")
+
+    log("spike (phase 9): a damaged bibliography (missing end bookmark) is detected")
+    doc3 = new_writer(ctx)
+    text3 = doc3.getText()
+    text3.createTextCursorByRange(text3.getStart()).setString("Body.\n")
+    cc.insert_citation(doc3, p1, base, cursor=text3.createTextCursorByRange(text3.getEnd()))
+    check(
+        doc3.getBookmarks().hasByName(cc.BIB_BOOKMARK) and doc3.getBookmarks().hasByName(cc.BIB_BOOKMARK_END),
+        "expected a healthy bookmark pair after the first refresh",
+    )
+    text3.removeTextContent(doc3.getBookmarks().getByName(cc.BIB_BOOKMARK_END))  # simulate manual/foreign damage
+    report3 = cc.diagnose_document(doc3, base)
+    check(report3["bibliography"] == "damaged", f"expected 'damaged', got {report3['bibliography']!r}")
+    log("spike (phase 9): OK — a start-without-end bibliography is reported as damaged")
+
+    log("spike (phase 9): citations with no bibliography built yet are reported as not_built")
+    doc4 = new_writer(ctx)
+    cc.set_bib_auto(doc4, False)  # disable BEFORE the first-ever refresh, so no bookmark pair gets created at all
+    text4 = doc4.getText()
+    text4.createTextCursorByRange(text4.getStart()).setString("Body.\n")
+    cc.insert_citation(doc4, p1, base, cursor=text4.createTextCursorByRange(text4.getEnd()))
+    check(not doc4.getBookmarks().hasByName(cc.BIB_BOOKMARK), "a bibliography bookmark should not exist yet")
+    report4 = cc.diagnose_document(doc4, base)
+    check(report4["bibliography"] == "not_built", f"expected 'not_built', got {report4['bibliography']!r}")
+    log("spike (phase 9): OK — citations without a bibliography yet are reported as not_built")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -744,6 +831,9 @@ def main():
 
         # 11) P0 phase 8 (backlog #33/#34): safe flatten — the live document must never end up mutated.
         spike_prepare_submission_copy(ctx, base, p1)
+
+        # 12) P0 phase 9 (backlog #33/#34, the last of the smaller phases): read-only document diagnostics.
+        spike_document_diagnostics(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

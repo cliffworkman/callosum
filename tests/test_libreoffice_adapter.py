@@ -8,6 +8,8 @@ not collected here). The adapter module imports no `uno` at top level, so it loa
 
 from __future__ import annotations
 
+import pytest
+
 from adapters.libreoffice import callosum_cite as cc
 
 
@@ -262,8 +264,154 @@ def test_fetch_suggestions_posts_and_returns_list(monkeypatch) -> None:
     assert captured["body"] == {"text": "a draft sentence", "top_k": 4, "evaluate": True}
 
 
+def test_fetch_csl_translates_422_to_value_error(monkeypatch) -> None:
+    """The export endpoint 422s on an all-missing/trashed result rather than returning 200 + []
+    (`routers/papers.py::export_citations`) -- found empirically by the phase-9 diagnostics spike, which
+    showed fetch_csl's own "empty rows" check was unreachable dead code for this exact case."""
+    import urllib.error
+
+    def raise_422(url, body, timeout=20):
+        raise urllib.error.HTTPError(url, 422, "Unprocessable Entity", {}, None)
+
+    monkeypatch.setattr(cc, "_post_json", raise_422)
+    with pytest.raises(ValueError, match="No paper with id 999999"):
+        cc.fetch_csl("http://127.0.0.1:8080", 999999)
+
+
+def test_fetch_csl_does_not_swallow_other_http_errors(monkeypatch) -> None:
+    import urllib.error
+
+    def raise_500(url, body, timeout=20):
+        raise urllib.error.HTTPError(url, 500, "Internal Server Error", {}, None)
+
+    monkeypatch.setattr(cc, "_post_json", raise_500)
+    with pytest.raises(urllib.error.HTTPError):
+        cc.fetch_csl("http://127.0.0.1:8080", 1)
+
+
 def test_fetch_suggestions_defensive_on_bad_shape(monkeypatch) -> None:
     monkeypatch.setattr(cc, "_post_json", lambda *a, **k: {"oops": 1})
     assert cc.fetch_suggestions("http://x", "s") == []
     monkeypatch.setattr(cc, "_post_json", lambda *a, **k: ["not", "a", "dict"])
     assert cc.fetch_suggestions("http://x", "s") == []
+
+
+# ── inc TBD (P0 phase 9, backlog #33/#34): document diagnostics ─────────────────────────────────────────────
+# `diagnose_document` reads two simple UNO collections (getReferenceMarks/getBookmarks) and makes an HTTP call
+# per distinct cited paper id -- simple + faithfully fakeable, like `_snapshot_marks` above (real mutation stays
+# real-UNO-only; this is read-only inspection).
+
+
+class _FakeMarksCollection:
+    def __init__(self, names: list[str]) -> None:
+        self._names = names
+
+    def getElementNames(self) -> list[str]:
+        return self._names
+
+
+class _FakeBookmarks:
+    def __init__(self, names) -> None:
+        self._names = set(names)
+
+    def hasByName(self, name: str) -> bool:
+        return name in self._names
+
+
+class _FakeDiagDoc:
+    def __init__(self, mark_names: list[str], bookmark_names=()) -> None:
+        self._marks = _FakeMarksCollection(mark_names)
+        self._bookmarks = _FakeBookmarks(bookmark_names)
+
+    def getReferenceMarks(self) -> _FakeMarksCollection:
+        return self._marks
+
+    def getBookmarks(self) -> _FakeBookmarks:
+        return self._bookmarks
+
+
+def _ok_mark(paper_id: str, rnd: str) -> str:
+    return cc.encode_mark_name({"items": [{"id": f"callosum-{paper_id}"}]}, rnd)
+
+
+def test_diagnose_document_clean_document_reports_nothing(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"id": f"callosum-{pid}"})
+    doc = _FakeDiagDoc([_ok_mark("1", "c1")], bookmark_names={cc.BIB_BOOKMARK, cc.BIB_BOOKMARK_END})
+    report = cc.diagnose_document(doc, "http://127.0.0.1:8080")
+    assert report == {
+        "malformed": [],
+        "unsupported_version": [],
+        "duplicate_ids": [],
+        "orphaned": [],
+        "bibliography": "ok",
+    }
+
+
+def test_diagnose_document_ignores_marks_from_other_tools(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {})
+    doc = _FakeDiagDoc(["ZOTERO_ITEM CSL_CITATION {}"])
+    report = cc.diagnose_document(doc, "http://x")
+    assert report["malformed"] == []  # not ours -- irrelevant to this diagnostic, not a defect to report
+
+
+def test_diagnose_document_detects_malformed() -> None:
+    bad_name = "CALLOSUM_CITATION !!!notbase64!!! c1"
+    doc = _FakeDiagDoc([bad_name])
+    report = cc.diagnose_document(doc, "http://x")
+    assert report["malformed"] == [bad_name]
+
+
+def test_diagnose_document_detects_unsupported_version() -> None:
+    name = _raw_mark({"v": 99, "items": [{"id": "callosum-1"}]}, rnd="c9")
+    doc = _FakeDiagDoc([name])
+    report = cc.diagnose_document(doc, "http://x")
+    assert report["unsupported_version"] == ["c9"]
+    assert report["orphaned"] == []  # never guessed at -- no fetch_csl call for an unsupported mark's items
+
+
+def test_diagnose_document_detects_duplicate_ids(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {})
+    # two distinct marks (different payload -> different mark name) sharing the same rnd -- a real UNO
+    # ReferenceMark name is unique, but the embedded "rnd" citationID is a separate value we don't enforce.
+    doc = _FakeDiagDoc([_ok_mark("1", "c1"), _ok_mark("2", "c1")])
+    report = cc.diagnose_document(doc, "http://x")
+    assert report["duplicate_ids"] == ["c1"]
+
+
+def test_diagnose_document_detects_orphaned_and_caches_per_paper(monkeypatch) -> None:
+    calls = []
+
+    def fake_fetch(base, pid):
+        calls.append(pid)
+        raise ValueError(f"No paper with id {pid} in the library.")
+
+    monkeypatch.setattr(cc, "fetch_csl", fake_fetch)
+    # the same missing paper cited twice must only trigger one fetch_csl call
+    doc = _FakeDiagDoc([_ok_mark("404", "c1"), _ok_mark("404", "c2")])
+    report = cc.diagnose_document(doc, "http://x")
+    assert report["orphaned"] == ["404"]
+    assert calls == ["404"]
+
+
+def test_diagnose_document_connectivity_errors_are_not_reported_as_orphaned(monkeypatch) -> None:
+    def fake_fetch(base, pid):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(cc, "fetch_csl", fake_fetch)
+    doc = _FakeDiagDoc([_ok_mark("1", "c1")])
+    with pytest.raises(OSError):
+        cc.diagnose_document(doc, "http://x")
+
+
+def test_diagnose_document_bibliography_states(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {})
+    ok = cc.diagnose_document(_FakeDiagDoc([_ok_mark("1", "c1")], {cc.BIB_BOOKMARK, cc.BIB_BOOKMARK_END}), "http://x")
+    assert ok["bibliography"] == "ok"
+    damaged_no_end = cc.diagnose_document(_FakeDiagDoc([_ok_mark("1", "c1")], {cc.BIB_BOOKMARK}), "http://x")
+    assert damaged_no_end["bibliography"] == "damaged"
+    damaged_no_start = cc.diagnose_document(_FakeDiagDoc([_ok_mark("1", "c1")], {cc.BIB_BOOKMARK_END}), "http://x")
+    assert damaged_no_start["bibliography"] == "damaged"
+    not_built = cc.diagnose_document(_FakeDiagDoc([_ok_mark("1", "c1")]), "http://x")
+    assert not_built["bibliography"] == "not_built"
+    no_citations = cc.diagnose_document(_FakeDiagDoc([]), "http://x")
+    assert no_citations["bibliography"] == "n/a"
