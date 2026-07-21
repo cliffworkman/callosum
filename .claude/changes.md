@@ -13,6 +13,18 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — README: real screenshot + fixed stale sync claim, ahead of a presentation
+- **Files:** `README.md`, `www/` (newly committed — `index.html`, `showcase.html`, `shots/*.png`).
+- **What:** a pre-presentation readiness pass surfaced that a finished marketing site (a landing page +
+  a 51-screenshot tour) already existed on disk but was uncommitted and unlinked. Committed it, replaced the
+  README's long-standing `<!-- TODO(maintainer): add a screenshot -->` placeholder with the real
+  `synthesis.png` shot + links to the tour/project page, and corrected the Security note's claim that
+  cross-device sync "does not exist yet" — it shipped (incs 197-202, UI 310-311) and has been live in
+  production since inc 312.
+- **Why:** a strategic release-readiness review (not a coding increment) ahead of the maintainer presenting
+  callosum at a meeting; both were cheap, concrete, high-leverage fixes identified by that review.
+- **Revert:** `git log` this commit.
+
 ## 2026-07-21 — Increment 326: LibreOffice adapter rework, Phase 8 (safe flatten)
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.md/.py`,
   `adapters/libreoffice/oxt/Addons.xcu`, `.claude/docs/increment-notes/INCREMENT-326-NOTES.md`, `.claude/CLAUDE.md`.

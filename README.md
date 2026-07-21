@@ -16,7 +16,9 @@ turn on an AI feature.
 > **Status:** a working MVP, under active development and pre-1.0. It's used daily by its author and backed by a
 > large test suite, but it's single-user-focused and the surface is still moving. Expect rough edges.
 
-<!-- TODO(maintainer): add a screenshot of the synthesis + verified-citation view here. -->
+![Verified synthesis: every sentence checked back against its source, with quote, page, and confidence](www/shots/synthesis.png)
+
+*See more of the app: [a full screenshot tour](www/showcase.html) · [the project page](www/index.html).*
 
 ## What it does today
 
@@ -139,8 +141,9 @@ There is also an **optional account** (Settings → Account → *Sign in with OR
 identity-only** — signing in verifies who you are (and pre-fills *My Publications*), but sends **no** library text,
 PDFs, or notes anywhere; the app works fully offline with no account. (It activates only on an instance where the
 account service has been configured — see [`ops/accounts-authentik-setup.md`](ops/accounts-authentik-setup.md).)
-Cross-device sync — the only thing that *would* move library data off-machine — is a separate, future,
-explicitly-consented step that does not exist yet.
+**Cross-device sync** — the only other thing that can move library data off-machine — is a separate,
+opt-in, **end-to-end encrypted** feature (Settings → Sync): the server only ever stores opaque ciphertext,
+never your data or its decryption key, and it stays off until you enable and configure it.
 
 ## Development
 
