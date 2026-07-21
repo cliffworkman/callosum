@@ -1125,6 +1125,8 @@
   }
   .paper:hover { background: var(--hover); }
   .paper.sel { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+  @keyframes cardflash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+  .paper.flash { animation: cardflash 1.2s ease; }  /* inc 319: scrolled-to-reveal, not a warning -- accent, not flag */
   .paper-title {
     font-family: var(--serif); font-size: 15px; line-height: 1.32;
     color: var(--ink); margin: 0 0 4px; font-weight: 500;

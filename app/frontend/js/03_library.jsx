@@ -359,19 +359,42 @@ function useLibrary(opts) {
     return () => clearTimeout(t);
   }, [query]);
 
+  // --- shared query-string builders ---
+  // inc 319: `buildFilterQs` (the full normal-view contract, incl. axis/tag/trash/needs_review/signal) is used
+  // both by the main fetch below and the reveal-selected-paper effect, so they can never drift apart — both need
+  // to ask the backend the exact same "what does the current view look like" question. `addCommonParams` is the
+  // subset the local-filter (Text-Health/Reference) page-walk also needs, deliberately WITHOUT axis/tag/trash/
+  // needs_review/signal (those don't compose with a local filter today) — factored out once so the two call
+  // sites can't silently drift on the params they do share.
+  const addCommonParams = useCallback((qs) => {
+    if (debounced.trim()) qs.set("q", debounced.trim());
+    if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
+    if (libraryItemType) qs.set("item_type", libraryItemType);
+    if (libraryReading.read) qs.set("read_status", libraryReading.read);  // inc-221: read/priority facet
+    if (libraryReading.priority) qs.set("priority", libraryReading.priority);
+    if (libraryMissingPdf) qs.set("missing_pdf", "true");  // inc-301: papers with no local PDF
+    if (librarySort !== "added") qs.set("sort", librarySort);
+  }, [debounced, librarySearchField, libraryItemType, libraryReading, libraryMissingPdf, librarySort]);
+
+  const buildFilterQs = useCallback(() => {
+    const qs = new URLSearchParams();
+    addCommonParams(qs);
+    if (trashView) qs.set("deleted", "true");
+    if (libraryAxisFilter) {
+      qs.set("axis_id", libraryAxisFilter.id);
+      if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");  // A10: match the card view
+    }
+    if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
+    if (libraryNeedsReview) qs.set("needs_review", "true");
+    if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");  // inc-133: the to-review view
+    else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+    return qs;
+  }, [addCommonParams, trashView, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter]);
+
   // --- load papers (page + filter) ---
   useEffect(() => {
     let live = true;
     setListState(s => ({ ...s, status: "loading" }));
-    const addSharedParams = (qs) => {
-      if (debounced.trim()) qs.set("q", debounced.trim());
-      if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
-      if (libraryItemType) qs.set("item_type", libraryItemType);
-      if (libraryReading.read) qs.set("read_status", libraryReading.read);  // inc-221: read/priority facet
-      if (libraryReading.priority) qs.set("priority", libraryReading.priority);
-      if (libraryMissingPdf) qs.set("missing_pdf", "true");  // inc-301: papers with no local PDF
-      if (librarySort !== "added") qs.set("sort", librarySort);
-    };
     const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
     if (localPaperFilter) {
       const wanted = new Set(localPaperFilter.paperIds || []);
@@ -379,7 +402,7 @@ function useLibrary(opts) {
         const all = [];
         for (let offset = 0; live; offset += PAGE_SIZE) {
           const qs = new URLSearchParams({ limit: PAGE_SIZE, offset });
-          addSharedParams(qs);
+          addCommonParams(qs);
           const r = await api(`/papers?${qs.toString()}`);
           if (!live) return;
           if (!r.ok) {
@@ -394,17 +417,9 @@ function useLibrary(opts) {
       })();
       return () => { live = false; };
     }
-    const qs = new URLSearchParams({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
-    addSharedParams(qs);
-    if (trashView) qs.set("deleted", "true");
-    if (libraryAxisFilter) {
-      qs.set("axis_id", libraryAxisFilter.id);
-      if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");  // A10: match the card view
-    }
-    if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
-    if (libraryNeedsReview) qs.set("needs_review", "true");
-    if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");  // inc-133: the to-review view
-    else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+    const qs = buildFilterQs();
+    qs.set("limit", PAGE_SIZE);
+    qs.set("offset", page * PAGE_SIZE);
     api(`/papers?${qs.toString()}`).then(r => {
       if (!live) return;
       if (r.ok) {
@@ -417,7 +432,29 @@ function useLibrary(opts) {
       else setListState({ status: "error", error: r.error, authRequired: r.authRequired, papers: [] });  // inc 254: 401 → honest lockout copy
     });
     return () => { live = false; };
-  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected]);
+  }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected, buildFilterQs, addCommonParams]);
+
+  // --- reveal the selected paper in the library list (inc 319) ---
+  // Keyed ONLY on `selected` -- a filter changing on its own must never trigger a jump, only `selected` changing
+  // does (this effect body is a fresh closure each render, so it still reads current filter values whenever it
+  // does fire). If the paper is already on the loaded page, PaperCard's own isSelected-keyed effect scrolls to it
+  // directly -- nothing to do here. Local-only filters (Text-Health/Reference) are v1-out-of-scope: rare,
+  // modal-triggered secondary views computed by walking pages client-side, not worth replicating a rank-lookup
+  // for. A 404 (doesn't match the active filter) is a silent no-op -- the filter is never cleared/overridden to
+  // force a reveal, per the user's explicit requirement.
+  useEffect(() => {
+    if (selected == null) return;
+    if (listState.papers.some(p => p.id === selected)) return;  // already on the loaded page
+    if (libraryTextHealthFilter || libraryReferenceFilter) return;
+    const qs = buildFilterQs();
+    api(`/papers/${selected}/position?${qs.toString()}`).then(r => {
+      if (r.ok && r.data && r.data.index != null) {
+        const target = Math.floor(r.data.index / PAGE_SIZE);
+        setPage(p => (p === target ? p : target));
+      }
+      // 404 / not-ok → doesn't match the active filter: do nothing.
+    });
+  }, [selected]);
 
   // inc-91: distinct item types present in the library (for the Type filter dropdown)
   useEffect(() => {

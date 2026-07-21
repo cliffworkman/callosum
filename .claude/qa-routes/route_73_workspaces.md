@@ -33,10 +33,11 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   not draggable.
 - **Library owns open PDFs.** Opening a PDF lands a sub-tab under **Library** and selects the Library workspace; the
   PDF tab is hidden (not closed) while Discover/Work/My Publications is active, and reappears on return.
-- **Discover carries selected-paper context where it matters.** Discover sub-tabs appear in the order
-  **Feed · Search · Journals · Funding**. In Discover → Journals/Funding, the selected paper is
-  shown before the Discover sub-tabs using the Library tab visual language: dashed selected-paper styling when not
-  open, normal open-PDF tab styling when already open. Search stays just Search/Wanted/Gaps/Overlooked.
+- **Every workspace sub-tab carries the selected-paper cue (2026-07-21: unified, no longer a per-tab
+  whitelist).** Discover sub-tabs appear in the order **Feed · Search · Journals · Funding**; in every one of
+  them, the selected paper is shown before the Discover sub-tabs using the Library tab visual language: dashed
+  selected-paper styling when not open, normal open-PDF tab styling when already open. Search still separately
+  shows its own Wanted/Gaps/Overlooked controls.
 - **Retractions are registry signals with evidence.** The Library header includes **Retractions ↻** before
   **Text Health**. Running it refreshes the Retraction Watch mirror when available, falls back to the existing mirror
   when unavailable, and surfaces retracted papers as noninteractive **RETRACTED** badges on cards/details plus the
@@ -58,8 +59,8 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
 - Rapidly switch My Publications→Library→Synthesize→Discover→Work→Help→Settings and back; confirm no flicker/stuck state, no console
   errors, and each center swaps while the side panes hold.
 - Select a paper but do not open it → the selected-paper tab appears after **Library**; click it → the PDF opens and
-  the selected-paper tab disappears. With a selected-but-unopened paper, switch to Discover → Journals/Funding and
-  confirm the same dashed cue appears before the Discover sub-tabs.
+  the selected-paper tab disappears. With a selected-but-unopened paper, switch to any Discover or Work sub-tab
+  (e.g. Feed, or Cite) and confirm the same dashed cue appears before the sub-tab strip.
 - Open 2+ PDFs, drag their PDF tabs to reorder them, switch to Discover, switch back to Library → both PDF tabs still
   there in the chosen order; in Journals/Funding the selected-open paper cue uses the normal open-PDF tab style and
   clicking it returns to the Library reader tab. Close one → falls back to the Library list, not a blank pane.
@@ -87,20 +88,26 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
    **Recent searches**, and confirm it re-runs; **Clear ×** empties the active Search query/results and **Clear
    history** removes the local recall list. Confirm **Feed** does not appear below the Search results area.
    Select a paper first, then open **Journals** / **Funding** → they show the paper-mode (vs the paste/manual mode
-   when nothing is selected). With the selected paper not yet open, confirm **Journals** and **Funding** show the
-   dashed selected-paper cue before **Feed · Search · Journals · Funding**; click it and confirm it opens the PDF. Return to
-   Discover → Journals/Funding with that paper open and confirm the cue now uses the normal open-PDF tab styling and
-   clicks back to the reader. In **Journals**, run a selected-paper search and a pasted abstract+subject search, then
+   when nothing is selected). With the selected paper not yet open, confirm **every** Discover sub-tab (Feed,
+   Search, Journals, Funding — 2026-07-21: no longer just Journals/Funding) shows the dashed selected-paper cue
+   before **Feed · Search · Journals · Funding**; click it and confirm it opens the PDF. Return to
+   Discover with that paper open and confirm the cue now uses the normal open-PDF tab styling and
+   clicks back to the reader on any sub-tab. In **Journals**, run a selected-paper search and a pasted abstract+subject search, then
    recall both from **Recent journal searches** and confirm each re-runs its stored input shape; **Clear history**
-   removes that local list. Confirm **Search** does not show this cue. With enough content to overflow, confirm each
+   removes that local list. With enough content to overflow, confirm each
    body scrolls vertically without moving the Discover sub-tab strip.
 3. **Synthesize** → confirm sub-tabs **Ask · Critique**. In **Ask**, ask a small query or use Library selection
    **summarize**; confirm the workspace opens to Ask and the history/result state stays mounted when switching away
-   and back; confirm **Ask** does not show the selected-paper cue. In **Critique**, with a paper selected but not
-   open, confirm the dashed selected-paper cue appears before **Ask · Critique** (matching Discover/Meta-Reference);
+   and back; with a paper selected but not open, confirm **Ask** now shows the dashed selected-paper cue before
+   **Ask · Critique** too (2026-07-21: added for consistency with every other workspace tab). In **Critique**,
+   with a paper selected but not open, confirm the same dashed selected-paper cue appears before **Ask · Critique**;
    select a processed paper and confirm the single-paper critical-read surface lives there, not in the METHODS
    accordion, and that Tier 1 is **user-triggered** — a "Run critical read" button, not an auto-run on open.
-4. **Work** → confirm four sub-tabs, in order: **Cite · Meta-Reference · CRediT · Meta-Analyze**.
+4. **Work** → confirm four sub-tabs, in order: **Cite · Meta-Reference · CRediT · Meta-Analyze**. With a paper
+   selected but not open, confirm **every** Work sub-tab (Cite, Meta-Reference, CRediT, Meta-Analyze —
+   2026-07-21: no longer just Meta-Reference) shows the same dashed selected-paper cue before the Work sub-tab
+   strip; click it and confirm it opens the PDF, after which the cue switches to the normal open-PDF tab styling
+   on every sub-tab (route_73 §2's Discover-cue behavior, now shared everywhere).
    - **Cite** renders the Suggest tool directly (no inner tab strip — the nested Cite pane-tabs were removed in
      the reorg).
    - **Meta-Reference** shows **5** stacked subsections on one scrollable panel (a heading + a divider between
@@ -108,10 +115,7 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
      How it cites its sources — the last two were one toggle-switched subsection before 2026-07-20 and are now
      independently fetchable (running one doesn't reset the other). With a selected paper, click a Library
      **ref signal** badge and confirm it jumps directly to **Work → Meta-Reference** and scrolls to the Meta
-     Reference List subsection. With a paper selected but not open, confirm **Meta-Reference** (and only
-     Meta-Reference — not Cite/CRediT/Meta-Analyze) shows the same dashed selected-paper cue as Discover →
-     Journals/Funding before the Work sub-tab strip; click it and confirm it opens the PDF, after which the cue
-     switches to the normal open-PDF tab styling (route_73 §2's Discover-cue behavior, now shared).
+     Reference List subsection.
    - **CRediT** (renamed from "CRediT statement") — unchanged internally; confirm the By-author/By-role toggle
      still works.
    - **Meta-Analyze** is the relocated Workbench. Confirm the intro sentence now ends cleanly after "...one study
@@ -162,9 +166,9 @@ navigation. Run once read-write; note the read-only companion behavior (write-on
   results.
 - Help + Settings render as center views; the sidebar header shows only the brand.
 - Selected-but-unopened papers show the pinned selected-paper tab; clicking it opens the PDF; open PDF tabs nest under
-  Library, reorder by drag, and persist. Discover → Journals/Funding, Work → Meta-Reference, and Synthesize →
-  Critique reuse that selected/open paper cue before their sub-tabs and click through to the reader; every other
-  sub-tab (Feed/Search, Ask, Cite/CRediT/Meta-Analyze) does not show it. The active workspace persists across
+  Library, reorder by drag, and persist. Every Synthesize/Discover/Work sub-tab (2026-07-21: unified across all
+  of them, no longer a per-tab whitelist) reuses that selected/open paper cue before its sub-tab strip and clicks
+  through to the reader. The active workspace persists across
   reload; read-only hides the write
   workspaces and the moved-tools hint. The cross-workspace Work → Meta-Analyze capture round-trips.
 - The moved-tools hint appears once on read-write Library, dismisses cleanly, persists dismissal across reload, and

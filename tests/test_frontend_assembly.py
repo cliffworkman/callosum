@@ -210,19 +210,22 @@ def test_library_selected_paper_tab_and_pdf_reorder_present():
     assert ".frame-tab.dragover" in css
 
 
-def test_discover_and_meta_reference_show_selected_paper_tab_cue():
+def test_every_workspace_tab_shows_selected_paper_tab_cue():
     raw = assemble_jsx()
     css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
-    assert "function WorkspacePaperCue({ ctx, activeTab })" in raw
-    # The cue's tab whitelist is the single source of truth (2026-07-20) -- Work -> Meta-Reference and Synthesize
-    # -> Critique joined Discover -> Journals/Funding; the old workspace-id gate at the WorkspacePane call site is gone.
-    assert '!["journals", "funding", "meta-reference", "critique"].includes(activeTab)' in raw
+    assert "function WorkspacePaperCue({ ctx })" in raw
+    # 2026-07-21: the per-tab whitelist (journals/funding/meta-reference/critique) was removed rather than grown
+    # to a 10-item no-op list -- Ask/Feed/Search/Cite/CRediT/Meta-Analyze were added for visual consistency,
+    # which meant the whitelist covered every registered workspace tab. Now shown unconditionally whenever ctx
+    # exists (WorkspacePane only renders it when tabs.length > 1, i.e. every tab-based workspace).
+    assert "if (!ctx) return null;" in raw
+    assert '["journals", "funding", "meta-reference", "critique"].includes(activeTab)' not in raw
     assert "const openTab = ctx.selectedOpenPaperTab || null" in raw
     assert 'className="frame-tab active workspace-paper-cue"' in raw
     assert 'className="frame-tab frame-tab-selected workspace-paper-cue"' in raw
     assert "ctx.onActivatePaperTab(openTab.key)" in raw
     assert "ctx.onOpenPdf({ id: selectedTab.id, title: selectedTab.title })" in raw
-    assert "<WorkspacePaperCue ctx={ctx} activeTab={at} />" in raw
+    assert "<WorkspacePaperCue ctx={ctx} />" in raw
     assert 'ws.id === "discover" &&' not in raw
     assert "const selectedOpenPaperTab = selected == null ? null" in raw
     assert "selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab" in raw
@@ -827,6 +830,55 @@ def test_retraction_watch_cadence_auto_refresh_is_opt_in_and_staleness_gated():
     assert 'localStorage.getItem("callosum.retractionAutoRefresh") === "1"; } catch (e) { return false; }' in raw
     assert '"callosum.retractionAutoRefresh", next ? "1" : "0"' in raw
     assert "Auto-refresh when stale (checked on launch)" in raw
+
+
+def test_selected_paper_stays_in_sync_with_the_focused_pdf_tab():
+    """Small UX fix (2026-07-21): opening or switching to any PDF tab must keep the library-visible "selected"
+    paper (Details pane, row highlight) in one-to-one correspondence with it. Previously `openPdf` never called
+    `setSelected`, so opening a paper via a citation, the Files list, or any other non-library-row path left the
+    Details pane / row highlight showing a stale paper. Fixed with a single effect derived from `activeTab`
+    (covers every path that focuses a PDF tab -- opening a new one, clicking an already-open tab, the
+    selected-paper cue's activatePaperTab -- rather than patching each call site)."""
+    raw = assemble_jsx()
+    assert 'useEffect(() => {\n    if (activeTab === "library") return;' in raw
+    assert "const tab = tabs.find(t => t.key === activeTab);" in raw
+    assert "if (tab && tab.paperId != null) setSelected(tab.paperId);" in raw
+    assert "}, [activeTab, tabs]);" in raw
+
+
+def test_library_reveals_selected_paper_via_position_endpoint():
+    """inc 319: whenever `selected` changes, the library should auto-locate + scroll to that paper -- but only
+    within whatever filter is currently active, and never by clearing/overriding it. `buildFilterQs` is shared
+    between the main fetch and this reveal effect so they can never ask the backend two different questions; a
+    404 from GET /papers/{id}/position (doesn't match the active filter) is a silent no-op, never a filter
+    override. The two LOCAL-only filters (Text-Health/Reference) are deliberately out of scope for the
+    cross-page jump (rare, modal-triggered secondary views)."""
+    raw = assemble_jsx()
+    assert "const buildFilterQs = useCallback(() => {" in raw
+    assert 'if (trashView) qs.set("deleted", "true");' in raw
+    assert "useEffect(() => {\n    if (selected == null) return;" in raw
+    assert "if (listState.papers.some(p => p.id === selected)) return;" in raw
+    assert "if (libraryTextHealthFilter || libraryReferenceFilter) return;" in raw
+    assert "api(`/papers/${selected}/position?${qs.toString()}`).then(r => {" in raw
+    assert "const target = Math.floor(r.data.index / PAGE_SIZE);" in raw
+    assert "setPage(p => (p === target ? p : target));" in raw
+    assert "}, [selected]);" in raw
+
+
+def test_paper_card_scrolls_and_flashes_when_selected():
+    """inc 319: the scroll-into-view + flash for a newly-revealed selected paper lives on PaperCard itself (not
+    centrally in PaperList/10_pdf_layer.jsx, which sits at 589/600 lines) -- it's the one place guaranteed to
+    exist in the DOM exactly when its paper is part of the current page, so it self-reveals via its own
+    isSelected-keyed effect whether it was already on-screen or just mounted after a page jump."""
+    raw = assemble_jsx()
+    assert "const cardRef = useRef(null);" in raw
+    assert "if (!isSelected || !cardRef.current) return;" in raw
+    assert 'cardRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });' in raw
+    assert 'cardRef.current.classList.add("flash");' in raw
+    assert "}, [isSelected]);" in raw
+    assert "data-paper-id={p.id}" in raw
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    assert ".paper.flash { animation: cardflash 1.2s ease; }" in css
 
 
 def test_built_artifact_is_in_sync():

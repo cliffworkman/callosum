@@ -13,6 +13,28 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-21 — Increment 319: scroll-to-reveal the selected paper in the library list
+- **Files:** `app/backend/api/routers/{papers,paper_models}.py`, `app/backend/persistence/{repository,
+  paper_query_repo}.py`, `app/frontend/js/{03_library,10d_papercard,40_app,04b_workspaces}.jsx`,
+  `app/frontend/styles.css`, `tests/{test_papers,test_frontend_assembly}.py`, `callosum-app.html`,
+  `.claude/qa-routes/{route_40_papers_crud_trash,route_67_critical_review,route_73_workspaces}.md`,
+  `.claude/security-audits/2026-07-21_paper-position.md`, `.claude/DESIGN.md`, `.claude/CLAUDE.md`,
+  `.claude/docs/increment-notes/INCREMENT-319-NOTES.md`.
+- **What:** three linked fixes so the library's `selected` paper always corresponds to what the user is actually
+  looking at: (1) the selected/open-paper cue now renders on every workspace tab, not a 4-tab whitelist; (2) a
+  single `activeTab`-keyed effect keeps `selected` in sync with whichever PDF tab is focused, however it was
+  opened; (3) a new `GET /papers/{paper_id}/position` endpoint + a library effect that jumps to the selected
+  paper's page and scrolls/flashes its card into view — but only when it matches the currently active filter; a
+  non-match is a silent no-op, never a filter override. `list_papers`'s filter-building was extracted into a
+  shared `_paper_filter_clauses` helper (reused by the new rank query) and the whole listing/filter/sort/rank
+  cluster moved from `repository.py` (back at the 600-line cap) into the existing `paper_query_repo.py`.
+- **Why:** opening a paper from a citation, the Files list, or an axis panel previously left the Details pane and
+  library row highlight showing a stale paper, with no way to find the newly-selected one in a long or filtered
+  list — a real navigation gap the user surfaced through iterative use.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-319-NOTES.md` for the full design
+  (incl. the v1 scope decision to exclude the two local-only Text-Health/Reference filters from the cross-page
+  jump) and `.claude/security-audits/2026-07-21_paper-position.md` for the new endpoint's threat review.
+
 ## 2026-07-21 — Increment 318: automatic cadence refresh for the Retraction Watch DB mirror (backlog #31)
 - **Files:** `app/frontend/js/{03_library,30e_feed,35_settings}.jsx`, `app/frontend/styles.css`,
   `app/backend/help/help_content.md`, `tests/test_frontend_assembly.py`, `callosum-app.html`,

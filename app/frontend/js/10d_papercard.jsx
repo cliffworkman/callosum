@@ -51,8 +51,22 @@ function PaperCopyButton({ paperId }) {
 function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
   const unresolved = needsMetadata(p);
   const retracted = p.retraction_status === "retracted";
+  const cardRef = useRef(null);
+  // inc 319: scroll + flash this card into view whenever it becomes the selected paper -- covers both a card
+  // already on-screen whose isSelected flips true, and a card that mounts fresh already selected (after the
+  // library's reveal effect in 03_library.jsx jumps to its page). Lives here (not centrally in PaperList) since
+  // PaperCard is the one place guaranteed to exist in the DOM exactly when its paper is part of the current page.
+  useEffect(() => {
+    if (!isSelected || !cardRef.current) return;
+    cardRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    cardRef.current.classList.add("flash");
+    const t = setTimeout(() => cardRef.current && cardRef.current.classList.remove("flash"), 1200);
+    return () => clearTimeout(t);
+  }, [isSelected]);
   return (
     <div
+      ref={cardRef}
+      data-paper-id={p.id}
       className={"paper" + (isSelected ? " sel" : "")}
       onClick={() => onSelect && onSelect(p.id)}
       onDoubleClick={() => onOpen && onOpen(p)}  // inc-98: always open; .paper has user-select:none (copy from Details)

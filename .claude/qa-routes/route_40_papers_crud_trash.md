@@ -1,12 +1,12 @@
 <!-- qa-coverage
-api: GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, PATCH /papers/{paper_id}, POST /papers/{paper_id}/re-resolve, DELETE /papers/{paper_id}, POST /papers/{paper_id}/restore, DELETE /papers/{paper_id}/permanent, POST /papers/trash/empty, POST /papers/export
-fe: 10_pdf_layer.jsx, 25_detail.jsx
+api: GET /papers, GET /papers/item-types, GET /papers/{paper_id}, GET /papers/{paper_id}/chunks, GET /papers/{paper_id}/position, PATCH /papers/{paper_id}, POST /papers/{paper_id}/re-resolve, DELETE /papers/{paper_id}, POST /papers/{paper_id}/restore, DELETE /papers/{paper_id}/permanent, POST /papers/trash/empty, POST /papers/export
+fe: 10_pdf_layer.jsx, 10d_papercard.jsx, 03_library.jsx, 25_detail.jsx
 -->
 
 # ROUTE 40 - Papers CRUD and trash lifecycle
 
 **Tier:** 1 local-stateful
-**Goal:** Exhaust paper listing, detail reads, edits, soft delete, restore, permanent delete, empty trash, and export on the disposable fixture DB.
+**Goal:** Exhaust paper listing, detail reads, edits, soft delete, restore, permanent delete, empty trash, and export on the disposable fixture DB. Also covers the library's "reveal the selected paper" scroll (`GET /papers/{paper_id}/position`, inc 319) — the position endpoint must never leak more than an honest match/no-match, and the UI must never clear or relax an active filter to force a reveal.
 
 ## Environment
 
@@ -39,6 +39,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 7. Restore it (`POST /papers/{paper_id}/restore`). Confirm it returns to the library.
 8. Soft-delete again, then permanent-delete (`DELETE /papers/{paper_id}/permanent`). Confirm direct detail links handle 404/deleted state cleanly.
 9. Soft-delete multiple disposable papers and empty trash (`POST /papers/trash/empty`). Confirm count and UI state update.
+10. **Reveal the selected paper (inc 319).** With no filter active, open a paper several pages deep (e.g. via a
+    citation or an axis card) — confirm the library jumps to its page and the card scrolls + flashes into view
+    (`GET /papers/{paper_id}/position` returns its index; no filter is touched). Apply a filter/search that
+    **excludes** the paper you then select from elsewhere — confirm the endpoint 404s and the UI does **nothing**
+    (no page change, filter/search stays exactly as set, no console error). Then select a *different* paper the
+    active filter **does** include but that's on another page — confirm it jumps within the filtered view (the
+    filter is never cleared to do this). Directly call `GET /papers/{id}/position` for a non-existent paper id →
+    404, not a crash.
 
 ## Pass criteria
 
@@ -46,6 +54,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - 0 console/page errors and 0 genai-host requests.
 - Deleted/permanently deleted deep links fail cleanly.
 - Mobile viewport has no horizontal overflow.
+- The selected-paper reveal jumps to the correct page + flashes the card when the paper matches the active
+  filter, and is a silent no-op (filter/page untouched) when it doesn't — never clears/overrides the filter.
 
 ## Deposit
 

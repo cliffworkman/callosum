@@ -118,6 +118,17 @@ function App() {
     if (mobile) { setMobilePane("library"); setCitationReturn(false); }  // pull the reader region into view
   }, [mobile, setMobilePane, selectWorkspace]);
 
+  // Keep the library-visible "selected" paper (Details pane, row highlight) in one-to-one correspondence with
+  // whichever PDF tab is actually focused — a single derivation from `activeTab` covers every path that can
+  // bring a PDF tab into focus (opening a new one via openPdf, clicking an already-open tab via onActivate,
+  // the selected-paper cue's activatePaperTab, …) without patching each call site separately. Returning to the
+  // plain "library" tab is a no-op here; the existing click-to-select behavior keeps governing `selected` there.
+  useEffect(() => {
+    if (activeTab === "library") return;
+    const tab = tabs.find(t => t.key === activeTab);
+    if (tab && tab.paperId != null) setSelected(tab.paperId);
+  }, [activeTab, tabs]);
+
   // inc 280: the Workbench "select-in-PDF" capture (formerly in LibraryFrame) lives here now that Work + the
   // Library PDF tabs are different workspaces. Arming opens the paper UNDER Library (openPdf →
   // selectWorkspace("library")); applying the anchor switches back to Work (Meta-Analyze) so the grid can

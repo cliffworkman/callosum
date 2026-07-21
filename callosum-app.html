@@ -1149,6 +1149,8 @@
   }
   .paper:hover { background: var(--hover); }
   .paper.sel { background: var(--sel); box-shadow: inset 3px 0 0 var(--accent); }
+  @keyframes cardflash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+  .paper.flash { animation: cardflash 1.2s ease; }  /* inc 319: scrolled-to-reveal, not a warning -- accent, not flag */
   .paper-title {
     font-family: var(--serif); font-size: 15px; line-height: 1.32;
     color: var(--ink); margin: 0 0 4px; font-weight: 500;
@@ -3524,18 +3526,32 @@
       }, 280);
       return () => clearTimeout(t);
     }, [query]);
+    const addCommonParams = useCallback((qs) => {
+      if (debounced.trim()) qs.set("q", debounced.trim());
+      if (debounced.trim() && librarySearchField !== "all") qs.set("search_field", librarySearchField);
+      if (libraryItemType) qs.set("item_type", libraryItemType);
+      if (libraryReading.read) qs.set("read_status", libraryReading.read);
+      if (libraryReading.priority) qs.set("priority", libraryReading.priority);
+      if (libraryMissingPdf) qs.set("missing_pdf", "true");
+      if (librarySort !== "added") qs.set("sort", librarySort);
+    }, [debounced, librarySearchField, libraryItemType, libraryReading, libraryMissingPdf, librarySort]);
+    const buildFilterQs = useCallback(() => {
+      const qs = new URLSearchParams();
+      addCommonParams(qs);
+      if (trashView) qs.set("deleted", "true");
+      if (libraryAxisFilter) {
+        qs.set("axis_id", libraryAxisFilter.id);
+        if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");
+      }
+      if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
+      if (libraryNeedsReview) qs.set("needs_review", "true");
+      if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");
+      else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+      return qs;
+    }, [addCommonParams, trashView, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter]);
     useEffect(() => {
       let live = true;
       setListState((s) => ({ ...s, status: "loading" }));
-      const addSharedParams = (qs2) => {
-        if (debounced.trim()) qs2.set("q", debounced.trim());
-        if (debounced.trim() && librarySearchField !== "all") qs2.set("search_field", librarySearchField);
-        if (libraryItemType) qs2.set("item_type", libraryItemType);
-        if (libraryReading.read) qs2.set("read_status", libraryReading.read);
-        if (libraryReading.priority) qs2.set("priority", libraryReading.priority);
-        if (libraryMissingPdf) qs2.set("missing_pdf", "true");
-        if (librarySort !== "added") qs2.set("sort", librarySort);
-      };
       const localPaperFilter = libraryTextHealthFilter || libraryReferenceFilter;
       if (localPaperFilter) {
         const wanted = new Set(localPaperFilter.paperIds || []);
@@ -3543,7 +3559,7 @@
           const all = [];
           for (let offset = 0; live; offset += PAGE_SIZE) {
             const qs2 = new URLSearchParams({ limit: PAGE_SIZE, offset });
-            addSharedParams(qs2);
+            addCommonParams(qs2);
             const r = await api(`/papers?${qs2.toString()}`);
             if (!live) return;
             if (!r.ok) {
@@ -3560,17 +3576,9 @@
           live = false;
         };
       }
-      const qs = new URLSearchParams({ limit: PAGE_SIZE, offset: page * PAGE_SIZE });
-      addSharedParams(qs);
-      if (trashView) qs.set("deleted", "true");
-      if (libraryAxisFilter) {
-        qs.set("axis_id", libraryAxisFilter.id);
-        if (libraryAxisFilter.hideUncertain) qs.set("axis_hide_uncertain", "true");
-      }
-      if (libraryTagFilter) qs.set("tag_id", libraryTagFilter.id);
-      if (libraryNeedsReview) qs.set("needs_review", "true");
-      if (librarySignalFilter === "needs-review") qs.set("finding", "needs-review");
-      else if (librarySignalFilter) qs.set("signal", librarySignalFilter);
+      const qs = buildFilterQs();
+      qs.set("limit", PAGE_SIZE);
+      qs.set("offset", page * PAGE_SIZE);
       api(`/papers?${qs.toString()}`).then((r) => {
         if (!live) return;
         if (r.ok) {
@@ -3584,7 +3592,19 @@
       return () => {
         live = false;
       };
-    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected]);
+    }, [page, debounced, librarySearchField, libraryItemType, trashView, libRefresh, libraryAxisFilter, libraryTagFilter, libraryNeedsReview, librarySignalFilter, libraryTextHealthFilter, libraryReferenceFilter, libraryReading, libraryMissingPdf, librarySort, findingsRefresh, setSelected, buildFilterQs, addCommonParams]);
+    useEffect(() => {
+      if (selected == null) return;
+      if (listState.papers.some((p) => p.id === selected)) return;
+      if (libraryTextHealthFilter || libraryReferenceFilter) return;
+      const qs = buildFilterQs();
+      api(`/papers/${selected}/position?${qs.toString()}`).then((r) => {
+        if (r.ok && r.data && r.data.index != null) {
+          const target = Math.floor(r.data.index / PAGE_SIZE);
+          setPage((p) => p === target ? p : target);
+        }
+      });
+    }, [selected]);
     useEffect(() => {
       api("/papers/item-types").then((r) => {
         if (r.ok) setItemTypes(r.data);
@@ -3918,8 +3938,8 @@
     );
     return /* @__PURE__ */ React.createElement("div", { className: "menubar" }, /* @__PURE__ */ React.createElement("nav", { className: "menubar-nav", role: "tablist", "aria-label": "Workspaces" }, primary.map(item)), /* @__PURE__ */ React.createElement("div", { className: "menubar-utils" }, utils.map(item)));
   }
-  function WorkspacePaperCue({ ctx, activeTab }) {
-    if (!ctx || !["journals", "funding", "meta-reference", "critique"].includes(activeTab)) return null;
+  function WorkspacePaperCue({ ctx }) {
+    if (!ctx) return null;
     const openTab = ctx.selectedOpenPaperTab || null;
     const selectedTab = ctx.selectedPaperTab || null;
     if (openTab) {
@@ -3959,7 +3979,7 @@
     }, [requested ? requested.nonce : null, ws.id]);
     if (tabs.length === 0) return null;
     const at = tabs.some((t) => t.id === activeTab) ? activeTab : tabs[0].id;
-    return /* @__PURE__ */ React.createElement("div", { className: "workspace-pane" }, tabs.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter workspace-tabs", role: "tablist" }, /* @__PURE__ */ React.createElement(WorkspacePaperCue, { ctx, activeTab: at }), tabs.map((t) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "workspace-pane" }, tabs.length > 1 && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter workspace-tabs", role: "tablist" }, /* @__PURE__ */ React.createElement(WorkspacePaperCue, { ctx }), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "button",
       {
         key: t.id,
@@ -8021,9 +8041,19 @@ ${(p.abstract || "").trim().toLowerCase()}`;
   function PaperCard({ paper: p, selecting, isSelected, onSelect, onOpen, checked, onToggleCheck, findings, referenceWarnings, onOpenReferenceWarnings, footExtra, citeInfo, readOnly, onReadingChanged }) {
     const unresolved = needsMetadata(p);
     const retracted = p.retraction_status === "retracted";
+    const cardRef = useRef(null);
+    useEffect(() => {
+      if (!isSelected || !cardRef.current) return;
+      cardRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      cardRef.current.classList.add("flash");
+      const t = setTimeout(() => cardRef.current && cardRef.current.classList.remove("flash"), 1200);
+      return () => clearTimeout(t);
+    }, [isSelected]);
     return /* @__PURE__ */ React.createElement(
       "div",
       {
+        ref: cardRef,
+        "data-paper-id": p.id,
         className: "paper" + (isSelected ? " sel" : ""),
         onClick: () => onSelect && onSelect(p.id),
         onDoubleClick: () => onOpen && onOpen(p),
@@ -14831,6 +14861,11 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setCitationReturn(false);
       }
     }, [mobile, setMobilePane, selectWorkspace]);
+    useEffect(() => {
+      if (activeTab === "library") return;
+      const tab = tabs.find((t) => t.key === activeTab);
+      if (tab && tab.paperId != null) setSelected(tab.paperId);
+    }, [activeTab, tabs]);
     const [capture, setCapture] = useState(null);
     const armCapture = useCallback((t) => {
       setCapture({ paperId: t.paperId, projectId: t.projectId, rowId: t.rowId, fieldKey: t.fieldKey, fieldLabel: t.fieldLabel });

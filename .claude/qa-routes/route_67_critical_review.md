@@ -57,9 +57,9 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 
 ## Steps
 
-1. With a paper selected but not open, confirm **Critique** shows the same dashed selected-paper cue as Discover →
-   Journals/Funding and Work → Meta-Reference before the Synthesize sub-tab strip (Ask does not show it); click it
-   → the PDF opens and the cue switches to the normal open-PDF tab styling.
+1. With a paper selected but not open, confirm **Critique** shows the same dashed selected-paper cue as every
+   other workspace tab (2026-07-21: shown unconditionally, no longer a per-tab whitelist) before the Synthesize
+   sub-tab strip; click it → the PDF opens and the cue switches to the normal open-PDF tab styling.
 2. Select a paper with a processed PDF. Open **Synthesize → Critique**. Confirm Tier 1 is **user-triggered**
    (2026-07-20 — no longer auto-runs on open): a **"Run critical read"** primary button appears; nothing runs
    until clicked. Click it → confirm the job runs (`POST /papers/{id}/critical-read` → poll
@@ -93,8 +93,7 @@ egress enabled + a fake/loopback provider. Register listeners before navigation.
 
 ## Pass criteria
 
-- The selected-paper/open-PDF cue renders before Critique's sub-tabs (Ask does not show it) and behaves
-  identically to the same cue on Discover → Journals/Funding and Work → Meta-Reference.
+- The selected-paper/open-PDF cue renders before Critique's sub-tabs, identically to every other workspace tab.
 - Tier 1 never auto-runs — a paper with text shows a "Run critical read" button, and the job starts only on click.
 - Tier 1 (job + backbone), the findings queue (Confirmed/Accepted[+reason]/Noted), and Tier 2 (generate +
   accept/reject) are all complete and replayable, and visually/functionally distinct from each other.

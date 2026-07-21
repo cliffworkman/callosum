@@ -89,6 +89,52 @@ def test_papers_list_axis_filter(temp_db_url: str) -> None:
     assert client.get("/papers", params={"axis_id": axis_id}).json() == []
 
 
+def test_paper_position_matches_list_order(temp_db_url: str) -> None:
+    # inc 319: GET /papers/{id}/position drives the library's "reveal the selected paper" scroll — its index
+    # must always agree with what GET /papers itself would return for the identical params.
+    seeded = _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+    facial_id = seeded["facial_paper_id"]
+    signal_id = seeded["signal_paper_id"]
+
+    # default sort ("added" = id asc) — position must equal the id's index in GET /papers's own ordering
+    added_order = [p["id"] for p in client.get("/papers").json()]
+    for pid in (facial_id, signal_id):
+        assert client.get(f"/papers/{pid}/position").json() == {"index": added_order.index(pid)}
+
+    # a different sort ("recent" = id desc) reorders the set — position must track it, not just the default
+    recent_order = [p["id"] for p in client.get("/papers", params={"sort": "recent"}).json()]
+    assert recent_order == list(reversed(added_order))
+    for pid in (facial_id, signal_id):
+        r = client.get(f"/papers/{pid}/position", params={"sort": "recent"})
+        assert r.json()["index"] == recent_order.index(pid)
+
+
+def test_paper_position_404_when_excluded_by_filter(temp_db_url: str) -> None:
+    # A paper that doesn't match the given filters is a 404, never a "closest match" — the frontend's signal to
+    # skip the reveal rather than clear/relax the caller's filter (the user's explicit requirement, inc 319).
+    seeded = _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+    axis_id = seeded["axis_id"]
+    facial_id = seeded["facial_paper_id"]
+    signal_id = seeded["signal_paper_id"]
+
+    # facial IS assigned to the axis → matches; signal is NOT → 404
+    assert client.get(f"/papers/{facial_id}/position", params={"axis_id": axis_id}).json() == {"index": 0}
+    assert client.get(f"/papers/{signal_id}/position", params={"axis_id": axis_id}).status_code == 404
+
+    # a trashed paper doesn't match the live-scope default, but does under deleted=true
+    client.delete(f"/papers/{facial_id}")
+    assert client.get(f"/papers/{facial_id}/position").status_code == 404
+    assert client.get(f"/papers/{facial_id}/position", params={"deleted": "true"}).json() == {"index": 0}
+
+
+def test_paper_position_unknown_paper_404(temp_db_url: str) -> None:
+    _seed_library(temp_db_url)
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/papers/999999/position").status_code == 404
+
+
 def test_papers_list_axis_hide_uncertain(temp_db_url: str) -> None:
     # A10: the axis_hide_uncertain filter must match the card's assigned-only view — assigned (confidence >=
     # the axis cutoff) + manual (NULL) shown, uncertain (confidence < cutoff) hidden. Shown == summarized.

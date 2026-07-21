@@ -21,6 +21,7 @@ from app.backend.api.routers.paper_models import (
     ItemTypeCount,
     PaperDetailResponse,
     PaperListItem,
+    PaperPositionResponse,
     PaperTagRef,
     PaperUpdateRequest,
     PaperUrlRef,
@@ -41,6 +42,7 @@ from app.backend.persistence.repository import (
     get_chunks_for_paper,
     get_paper,
     get_paper_counts,
+    get_paper_rank,
     get_papers_for_export,
     list_item_types,
     list_papers,
@@ -60,52 +62,94 @@ from app.backend.persistence.tags_repo import get_tags_for_paper
 router = APIRouter()
 
 
+class PaperFilterParams:
+    """The library's full filter+sort contract, as a FastAPI dependency (inc 319) — shared by `papers_index`
+    (`GET /papers`) and `paper_position` (`GET /papers/{id}/position`) so the two can never drift apart. FastAPI
+    flattens a `Depends()` sub-dependency's fields into the same query string as inline params, so this is a pure
+    internal refactor: `GET /papers`'s wire contract is unchanged."""
+
+    def __init__(
+        self,
+        q: str | None = Query(
+            default=None, max_length=500
+        ),  # rule #4: cap length so `%<q>%` can't exceed SQLite's SQLITE_MAX_LIKE_PATTERN_LENGTH (50000) → 500
+        search_field: str = Query(default="all"),  # all / title / author / journal (allowlisted in repo)
+        deleted: bool = Query(default=False),  # true → the Trash listing (soft-deleted papers)
+        axis_id: int | None = Query(default=None),  # filter the listing to the papers assigned to this axis
+        axis_hide_uncertain: bool = Query(default=False),  # with axis_id: match the card's assigned-only view (A10)
+        tag_id: int | None = Query(default=None),  # filter the listing to the papers carrying this tag
+        item_type: str | None = Query(default=None),  # filter to a single CSL item type (bound; see list_item_types)
+        needs_review: bool = Query(default=False),  # the "Unsorted" view: scaffold / Crossref-unresolved / no source
+        signal: str | None = Query(
+            default=None
+        ),  # filter to a Methods-producer signal (allowlisted in repo), e.g. statcheck
+        finding: str | None = Query(default=None),  # the "to review" queue: unreviewed candidate findings
+        read_status: str | None = Query(default=None),  # inc 220: "read" / "unread" filter
+        priority: str | None = Query(default=None),  # inc 220: filter to a priority level (allowlisted in repo)
+        missing_pdf: bool = Query(
+            default=False
+        ),  # inc 301: only papers with no local PDF (mirrors Text-Health no_local_pdf)
+        sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted)
+    ) -> None:
+        self.q = q
+        self.search_field = search_field
+        self.deleted = deleted
+        self.axis_id = axis_id
+        self.axis_hide_uncertain = axis_hide_uncertain
+        self.tag_id = tag_id
+        self.item_type = item_type
+        self.needs_review = needs_review
+        self.signal = signal
+        self.finding = finding
+        self.read_status = read_status
+        self.priority = priority
+        self.missing_pdf = missing_pdf
+        self.sort = sort
+
+    def as_kwargs(self) -> dict[str, Any]:
+        return {
+            "q": self.q,
+            "search_field": self.search_field,
+            "only_deleted": self.deleted,
+            "axis_id": self.axis_id,
+            "axis_hide_uncertain": self.axis_hide_uncertain,
+            "tag_id": self.tag_id,
+            "item_type": self.item_type,
+            "needs_review": self.needs_review,
+            "signal": self.signal,
+            "finding": self.finding,
+            "read_status": self.read_status,
+            "priority": self.priority,
+            "missing_pdf": self.missing_pdf,
+            "sort": self.sort,
+        }
+
+
 @router.get("/papers", response_model=list[PaperListItem])
 def papers_index(
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
-    q: str | None = Query(
-        default=None, max_length=500
-    ),  # rule #4: cap length so `%<q>%` can't exceed SQLite's SQLITE_MAX_LIKE_PATTERN_LENGTH (50000) → 500
-    search_field: str = Query(default="all"),  # search scope: all / title / author / journal (allowlisted in repo)
-    deleted: bool = Query(default=False),  # true → the Trash listing (soft-deleted papers)
-    axis_id: int | None = Query(default=None),  # filter the listing to the papers assigned to this axis
-    axis_hide_uncertain: bool = Query(default=False),  # with axis_id: match the card's assigned-only view (A10)
-    tag_id: int | None = Query(default=None),  # filter the listing to the papers carrying this tag
-    item_type: str | None = Query(default=None),  # filter to a single CSL item type (bound; see list_item_types)
-    needs_review: bool = Query(default=False),  # the "Unsorted" view: scaffold / Crossref-unresolved / no source
-    signal: str | None = Query(
-        default=None
-    ),  # filter to a Methods-producer signal (allowlisted in repo), e.g. statcheck
-    finding: str | None = Query(default=None),  # the "to review" queue: papers with unreviewed candidate findings
-    read_status: str | None = Query(default=None),  # inc 220: "read" / "unread" filter
-    priority: str | None = Query(default=None),  # inc 220: filter to a priority level (allowlisted in repo)
-    missing_pdf: bool = Query(
-        default=False
-    ),  # inc 301: only papers with no local PDF (mirrors Text-Health no_local_pdf)
-    sort: str = Query(default="added"),  # library ordering; unknown keys fall back to "added" (allowlisted in repo)
+    filters: PaperFilterParams = Depends(),
     conn: Connection = Depends(get_connection),
 ) -> list[PaperListItem]:
-    rows = list_papers(
-        conn,
-        limit=limit,
-        offset=offset,
-        q=q,
-        search_field=search_field,
-        only_deleted=deleted,
-        axis_id=axis_id,
-        axis_hide_uncertain=axis_hide_uncertain,
-        tag_id=tag_id,
-        item_type=item_type,
-        needs_review=needs_review,
-        signal=signal,
-        finding=finding,
-        read_status=read_status,
-        priority=priority,
-        missing_pdf=missing_pdf,
-        sort=sort,
-    )
+    rows = list_papers(conn, limit=limit, offset=offset, **filters.as_kwargs())
     return [_paper_list_item(row) for row in rows]
+
+
+@router.get("/papers/{paper_id}/position", response_model=PaperPositionResponse)
+def paper_position(
+    paper_id: int,
+    filters: PaperFilterParams = Depends(),
+    conn: Connection = Depends(get_connection),
+) -> PaperPositionResponse:
+    """0-based rank of `paper_id` within the exact filtered+sorted set `GET /papers` would return for the same
+    params (inc 319) — drives the library's "reveal the selected paper" scroll. 404 means the paper doesn't match
+    these filters (deleted/trashed mismatch, or excluded by a facet); the frontend takes that as "skip the
+    reveal," never as license to relax the filter itself."""
+    index = get_paper_rank(conn, paper_id, **filters.as_kwargs())
+    if index is None:
+        raise HTTPException(status_code=404, detail="paper not found under the given filters")
+    return PaperPositionResponse(index=index)
 
 
 @router.get("/papers/item-types", response_model=list[ItemTypeCount])

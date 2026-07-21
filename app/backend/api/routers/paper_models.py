@@ -158,6 +158,10 @@ class ItemTypeCount(BaseModel):
     count: int
 
 
+class PaperPositionResponse(BaseModel):
+    index: int  # 0-based rank within the exact filtered+sorted set GET /papers would return for the same params
+
+
 class EmptyTrashResponse(BaseModel):
     purged: int
 

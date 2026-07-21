@@ -89,8 +89,12 @@ function MenuBar({ active, onActivate, readOnly, mobile }) {
   );
 }
 
-function WorkspacePaperCue({ ctx, activeTab }) {
-  if (!ctx || !["journals", "funding", "meta-reference", "critique"].includes(activeTab)) return null;
+function WorkspacePaperCue({ ctx }) {
+  // 2026-07-21: shown before every multi-tab workspace's sub-tab strip (WorkspacePane only calls this when
+  // tabs.length > 1) — was a 4-tab whitelist (journals/funding/meta-reference/critique); with Ask/Feed/Search/
+  // Cite/CRediT/Meta-Analyze added for visual consistency it covered every registered tab, so the per-tab gate
+  // was removed rather than grown to a 10-item no-op list.
+  if (!ctx) return null;
   const openTab = ctx.selectedOpenPaperTab || null;
   const selectedTab = ctx.selectedPaperTab || null;
   if (openTab) {
@@ -136,7 +140,7 @@ function WorkspacePane({ ws, ctx, readOnly, wsActive }) {
     <div className="workspace-pane">
       {tabs.length > 1 &&
         <div className="tags-srcfilter workspace-tabs" role="tablist">
-          <WorkspacePaperCue ctx={ctx} activeTab={at} />
+          <WorkspacePaperCue ctx={ctx} />
           {tabs.map(t => (
             <button key={t.id} role="tab" aria-selected={t.id === at}
               className={"tags-srcfilter-btn" + (t.id === at ? " on" : "")}
