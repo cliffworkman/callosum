@@ -45,13 +45,10 @@ line-budget hook is clean.
    no-op; 4 of 7 bundled CSL styles define their own `<citation><sort>` that silently overrides manual item
    order within a grouped citation, so any composer "preview" MUST be a real round-trip through
    `POST /citations/render-document`, never a client-side simulation).
-2. **The CI workflow's Linux path is unverified on a real runner.** `.github/workflows/libreoffice-adapter.yml`
-   was written carefully (Ubuntu's `libreoffice`/`python3-uno` apt packages, the system-python UNO bridge
-   location, `pgrep`/`kill` process management) but there was no way to execute a GitHub-hosted runner from
-   this session's environment. **The first time this workflow actually fires on a real PR/push touching
-   `adapters/libreoffice/**`, check its Actions run** — it may need tweaks (Xvfb if some UNO call turns out to
-   need a display; longer `wait_http`/`wait_port` timeouts if a cold runner is slower than local dev; the exact
-   `python3-uno` package name if Ubuntu's runner image differs from expectations).
+2. ~~The CI workflow's Linux path is unverified on a real runner~~ — **now verified**: the push that landed
+   Phase 10 touched `adapters/libreoffice/**` itself, which triggered a real run
+   (https://github.com/cliffworkman/callosum/actions/runs/29864362756) — `SELFTEST OK` on the first attempt, no
+   retry needed, ~4m20s total. No Xvfb/timeout tweaks turned out to be necessary. Nothing left to check here.
 
 ## Pre-presentation checklist (the readiness review's near-term findings)
 **Already done this session:** the `www/` commit + README screenshot/stale-claim fixes (see above).
