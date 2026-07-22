@@ -1,7 +1,7 @@
 # The sync-server's OWN dependencies (a separate deployable). The local callosum app does NOT depend on these — it
 # only adds an httpx client transport. Pin exact versions at deploy time; floors below.
 fastapi>=0.110
-uvicorn[standard]>=0.29
+uvicorn[standard]>=0.51.0
 sqlalchemy>=2.0
 psycopg[binary]>=3.1   # the Postgres driver (prod); tests run on SQLite via stdlib sqlite3 — psycopg not needed there
 PyJWT[crypto]>=2.8     # Authentik access-token (JWKS) verification
