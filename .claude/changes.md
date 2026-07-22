@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-22 — Backlog #20: branch protection (required status checks)
+
+- **Files:** none in-repo — a GitHub repository-settings change via the API (`.claude/docs/increment-notes/
+  INCREMENT-342-NOTES.md` records it).
+- **What:** added a `required_status_checks` rule (`lint-and-test` + `e2e-smoke`,
+  `strict_required_status_checks_policy: true`) to the pre-existing "Callosum Rules" ruleset
+  (`PUT /repos/cliffworkman/callosum/rulesets/18586133` — note `PUT`, not `PATCH`, which 404s). Presented
+  Cliff three options (status-checks-only / that plus a required PR / hold off); he chose status-checks-only.
+- **Why:** closes the last open piece of backlog #20 now that all three CI gates are green. Cliff's admin
+  role already bypasses every rule on this ruleset "always", so his own direct-push-to-main workflow is
+  completely unaffected — this only binds a future non-admin contributor or a low-privilege token to green CI
+  before their commit can land.
+- **Revert:** `PUT` the ruleset back to its prior `rules` array (recorded in the increment notes and in this
+  session's `gh api` output) to remove the `required_status_checks` entry.
+
 ## 2026-07-22 — Backlog #20 remainder: uv, pre-commit framework, CI gates one at a time, staged-harnesses registry
 
 - **Files:** `pyproject.toml`, `uv.lock` (new), `.gitignore`, `requirements-dev.txt`, `.pre-commit-config.yaml`

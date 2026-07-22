@@ -161,10 +161,11 @@
   against a temp DB; `pip-audit` blocking on `requirements.txt` + report-only on `requirements-dev.txt`;
   Dependabot enabled for `uv`/`npm`/`github-actions`); the `.claude/staged-harnesses/REGISTRY.md` for 7 dormant
   judgment-call checks (Pyright, tach, coverage gate, Hypothesis, embedding-drift, performance monitoring,
-  bandit), each with an explicit activation trigger. **Remaining, not yet applied:** branch protection — a
-  proposal is ready (the repo already has an active ruleset predating this session; the gap is a
-  required-status-checks addition) but needs Cliff's explicit sign-off on the exact ruleset before the GitHub
-  API is called, per the standing rule below.
+  bandit), each with an explicit activation trigger. **Branch protection also closed 2026-07-22:** Cliff chose
+  the status-checks-only option (of three presented); added `required_status_checks` (`lint-and-test` +
+  `e2e-smoke`) to the pre-existing "Callosum Rules" ruleset via the GitHub API — his admin bypass keeps his own
+  direct-push workflow unchanged; a PR-required rule stays deferred until a second contributor is active. **#20
+  is now fully closed.**
 - **#21 Packaging & distribution (post-V1).** [exploratory] A Tauri desktop shell (`app/desktop-shell/`
   placeholder); an OS keychain for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; desktop
   distribution + GROBID service ops (when Track C Stage-4 section-scoping lands — SP2/Stage-3 shipped inc

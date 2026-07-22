@@ -89,17 +89,23 @@ follow-up action.
   2026-07-22 addendum (pip-audit wired into CI; the one accepted dev-only finding documented) — **PASS**.
 
 ## Backlog
-**#20 remainder mostly closed**: uv adoption, the pre-commit framework migration, all three named CI gates
-(alembic, pip-audit, Dependabot), and the staged-harnesses registry are done. **Branch protection is the one
-piece intentionally left open** — see Next.
+**#20 fully closed**: uv adoption, the pre-commit framework migration, all three named CI gates (alembic,
+pip-audit, Dependabot), the staged-harnesses registry, and branch protection (with Cliff's explicit sign-off
+on the exact ruleset — see below) are all done.
+
+## Branch protection — applied, with Cliff's sign-off
+The repo already had an active ruleset ("Callosum Rules", set up 2026-07-06/08 outside any Claude Code
+session, discovered mid-increment while investigating a `git push` message) enforcing
+`deletion`/`non_fast_forward` (force-push already blocked), `code_scanning` (CodeQL), `code_quality`, and
+`copilot_code_review` — with Cliff's admin role bypassing all of it always. Presented Cliff three options
+(status-checks-only / status-checks-plus-required-PR / hold off); he chose **status-checks-only**. Added a
+`required_status_checks` rule (`lint-and-test` + `e2e-smoke`, `strict_required_status_checks_policy: true`) to
+the existing ruleset via `PUT /repos/cliffworkman/callosum/rulesets/18586133` (note: this endpoint is `PUT`,
+not `PATCH` — the latter 404s despite `gh api`'s docs suggesting otherwise). Everything else on the ruleset
+(deletion/force-push/CodeQL/code-quality/Copilot-review, both bypass actors) carried over unchanged; Cliff's
+admin bypass means this changes nothing about his own direct-push workflow — it only binds a future
+non-admin contributor or low-privilege token to green CI before a merge/direct-update lands. A PR-required
+rule + a real approval count stay explicitly deferred until a second contributor is actually active.
 
 ## Next
-Branch protection needs a human decision, not a silent apply: the repo already has an active ruleset
-("Callosum Rules", set up 2026-07-06/08 outside any Claude Code session, discovered mid-increment while
-investigating a `git push` message) enforcing `deletion`/`non_fast_forward` (force-push already blocked),
-`code_scanning` (CodeQL), `code_quality`, and `copilot_code_review` — with Cliff's admin role bypassing all of
-it always. The classic "branch protection" ask (require PR before merge, require status checks, require one
-review once a second contributor is active) is **not yet present**. The next step is presenting the exact
-ruleset addition to Cliff (required status checks referencing the now-green `lint-and-test`/`e2e-smoke` jobs,
-optionally a PR-required rule that Cliff's own bypass keeps inert for his current direct-push workflow) for
-explicit sign-off before calling the GitHub API — never applied without that review.
+All four planned CI-gate commits plus branch protection are done. Nothing left open in backlog #20.
