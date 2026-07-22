@@ -61,6 +61,64 @@ def test_all_forms_detected():
     assert {r.test_type for r in rep.results} == {"F", "r", "chi2", "z"}
 
 
+# ── backlog #27: the reported test statistic can be a BOUND ("<"/">"), not just an exact "=" value — e.g.
+# "F(1,44) < 1, p > .05", a common way to report a clearly-null result without an exact F. Reference p-values
+# below were computed directly (scipy.stats), not guessed: F(1,44) at F=1 → p≈0.3228 (one-sided, matching
+# recompute_p's F convention); t(28) at t=1 (two-tailed) → p≈0.3259; t(28) at t=3 (two-tailed) → p≈0.00562.
+
+
+def test_stat_bound_less_than_consistent_with_nonsignificant_p():
+    # true F is SOMEWHERE below 1, so true p is ABOVE p(F=1)≈.323 — comfortably consistent with "p > .05"
+    # for every possible true value, not just some of them (the strongest, least-ambiguous case).
+    rep = run_statcheck([_chunk("There was no effect, F(1, 44) < 1, p > .05, overall.")])
+    assert rep.checked == 1
+    r = rep.results[0]
+    assert r.test_type == "F" and r.consistency == "consistent"
+    assert abs(r.computed_p - 0.3228) < 0.001  # the p-value AT the reported bound (F=1), not a point estimate
+
+
+def test_stat_bound_less_than_inconsistent_with_small_p():
+    # true |t| is SOMEWHERE below 1 → true p is ABOVE p(t=1)≈.326 (two-tailed) or ≈.163 (one-tailed fallback) —
+    # "p < .01" is impossible for ANY value consistent with "t(28) < 1", not just improbable.
+    rep = run_statcheck([_chunk("t(28) < 1, p < .01")])
+    assert rep.checked == 1
+    assert rep.results[0].consistency == "inconsistent"
+
+
+def test_stat_bound_less_than_ambiguous_not_flagged():
+    # t_crit(.05, df=28) ≈ 2.048, which is BELOW the reported bound of 3 — so some values of |t| in (0, 3) would
+    # give p <= .05 and others (e.g. |t|=1, p≈.326) would give p > .05. The reported "p > .05" is NOT provably
+    # wrong (a valid true value exists that satisfies it), so this must NOT be flagged, even though it also
+    # isn't provably right for every value in the range — the same "does a valid value exist" standard the
+    # existing "=" path already applies.
+    rep = run_statcheck([_chunk("t(28) < 3, p > .05")])
+    assert rep.checked == 1
+    assert rep.results[0].consistency == "consistent"
+
+
+def test_stat_bound_greater_than_consistent():
+    # true |t| is SOMEWHERE above 3 → true p is BELOW p(t=3)≈.0056 — consistent with a reported "p < .01".
+    rep = run_statcheck([_chunk("t(28) > 3, p < .01")])
+    assert rep.checked == 1
+    assert rep.results[0].consistency == "consistent"
+
+
+def test_stat_bound_never_produces_decision_error():
+    # a bound never yields a point estimate, so it must never be classified as a "decision-error" (that
+    # classification requires comparing an exact recomputed significance against the reported one) — even for
+    # an input that's clearly a wrong/contradictory pairing, the correct classification is "inconsistent".
+    rep = run_statcheck([_chunk("t(28) < 1, p = .001")])
+    assert rep.checked == 1
+    assert rep.results[0].consistency == "inconsistent"
+    assert rep.decision_errors == 0
+
+
+def test_stat_equals_still_works_unchanged():
+    # the "=" path (the dominant, pre-existing case) must be completely unaffected by the new comparator group.
+    rep = run_statcheck([_chunk("t(28) = 2.10, p = .04")])
+    assert rep.results[0].test_type == "t" and rep.results[0].consistency == "consistent"
+
+
 def test_no_statistics_text():
     rep = run_statcheck([_chunk("Prose about treatment and weighting, with no inline statistics at all.")])
     assert rep.checked == 0 and rep.results == []

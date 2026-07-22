@@ -192,8 +192,10 @@ the Principles + A-A gates before build.)*
   trusted anchor (R BayesFactor / a validated Rouder-2012 quadrature) turns up.
 - **#25 Citation concentration — a real *field* self-citation baseline.** Needs per-field-paper reference
   fetches — a cost/design call. *(Overlaps #37's citation-credit-concentration remediation.)*
-- **#27 statcheck — more test forms.** Test-stat `<`/`>` comparisons, results reported in tables — a
-  regex-extension increment, low effort whenever picked up.
+- ✅ **#27 statcheck — more test forms — PARTIALLY CLOSED 2026-07-22.** Test-stat `<`/`>` comparisons (e.g.
+  `F(1,44) < 1, p > .05`) now handled — a p-value-interval consistency check reusing the existing "does a valid
+  value exist" philosophy, never a false flag on an ambiguous case. **Still open:** results reported in tables
+  — a structurally different problem (table-aware extraction), not a regex extension.
 - **#29 Gap-finder — followed-authors as a source.** Blocked on a "followed authors" concept that doesn't exist
   yet; also external-search discovery beyond the library (overlaps #30/Track C).
 - ✅ **#30 Highlight-to-suggest/evaluate (Track C), SP1 + SP2/Stage-3 — CLOSED, corrected 2026-07-22.** This

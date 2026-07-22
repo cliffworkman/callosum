@@ -13,6 +13,25 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-22 — Backlog #27: statcheck reads test statistics reported as a bound, not just "="
+- **Files:** `app/backend/methods/statcheck.py`, `tests/test_statcheck.py`, `app/backend/help/help_content.md`.
+- **What:** the test-statistic comparator is no longer required to be "=" — statcheck now also reads APA
+  reports like `F(1, 44) < 1, p > .05` (a common way to report a clearly-null result without an exact F). A
+  new `_classify_stat_bound` handles the inequality case: the reported bound implies a p-value INTERVAL (p is
+  monotonically decreasing in |stat|), and consistency reuses the existing `_p_consistent` "does at least one
+  valid true value exist" check — never a false "inconsistent" flag on an ambiguous case, and never a
+  "decision-error" classification (that needs a point estimate this input doesn't have). Verified against
+  exact scipy-computed reference p-values, not guessed. Help corpus updated with a short, honest description of
+  the new coverage + its ambiguous-case handling. "Results reported in tables" (the other half of backlog #27)
+  remains out of scope — a structurally different problem (table-aware extraction, not a regex extension).
+- **Why:** backlog #27, "more statcheck test forms" — picked up as a small, self-contained item while working
+  through the backlog generally.
+- **Revert:** `git log` this commit. **Note, not synced this pass:** the help corpus's "Citing in LibreOffice
+  Writer" section is now substantially stale relative to this session's LibreOffice adapter work (the
+  composer, beyond-library suggest, Edit Citation, diagnostics — none of it reflected there yet) — flagged as
+  its own follow-up rather than folded into this narrower fix; the `HELP-DOCS-SYNCED` marker is deliberately
+  NOT moved forward, since that section is still genuinely un-synced below it.
+
 ## 2026-07-22 — Backlog #45: Settings name-example placeholder, Ada Lovelace → Karen Spärck Jones
 - **Files:** `app/frontend/js/35a_mypubs.jsx`, `callosum-app.html` (rebuilt).
 - **What:** the My Publications "Your name" / "Other published names" input placeholders now read "e.g. Karen

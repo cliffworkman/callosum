@@ -26,19 +26,26 @@ from scipy.stats import t as t_dist
 ALPHA = 0.05
 MAX_RESULTS = 500  # bound the work on an untrusted/huge text (rule #4)
 
-# A number: "2.10", ".04", "45", "-2.1". Test-statistic comparator is required to be "=" (the dominant APA form;
-# the rare "t(28) < 2.1" is out of v1 scope). The p comparator may be <, >, =, ≤, ≥.
+# A number: "2.10", ".04", "45", "-2.1". Backlog #27: the test-statistic comparator is no longer required to be
+# "=" -- APA reporting sometimes gives an inequality instead of an exact value (e.g. "F(1,44) < 1, p > .05",
+# a common way to report a clearly-null result without an exact F). The p comparator may be <, >, =, ≤, ≥.
 _NUM = r"-?\d*\.?\d+"
 _P = r"([<>=≤≥])\s*(\d*\.?\d+)"
+_STAT_COMP = r"([<>=≤≥])"
 _PATTERNS: list[tuple[str, re.Pattern]] = [
-    ("t", re.compile(rf"(?<![A-Za-z])t\s*\(\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*({_NUM})\s*,\s*p\s*{_P}")),
-    ("F", re.compile(rf"(?<![A-Za-z])F\s*\(\s*(\d+)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*=\s*({_NUM})\s*,\s*p\s*{_P}")),
-    ("r", re.compile(rf"(?<![A-Za-z])r\s*\(\s*(\d+)\s*\)\s*=\s*({_NUM})\s*,\s*p\s*{_P}")),
+    ("t", re.compile(rf"(?<![A-Za-z])t\s*\(\s*(\d+(?:\.\d+)?)\s*\)\s*{_STAT_COMP}\s*({_NUM})\s*,\s*p\s*{_P}")),
+    (
+        "F",
+        re.compile(rf"(?<![A-Za-z])F\s*\(\s*(\d+)\s*,\s*(\d+(?:\.\d+)?)\s*\)\s*{_STAT_COMP}\s*({_NUM})\s*,\s*p\s*{_P}"),
+    ),
+    ("r", re.compile(rf"(?<![A-Za-z])r\s*\(\s*(\d+)\s*\)\s*{_STAT_COMP}\s*({_NUM})\s*,\s*p\s*{_P}")),
     (
         "chi2",
-        re.compile(rf"(?:χ²|χ2|chi2|X²|X2)\s*\(\s*(\d+)\s*(?:,\s*[Nn]\s*=\s*\d+\s*)?\)\s*=\s*({_NUM})\s*,\s*p\s*{_P}"),
+        re.compile(
+            rf"(?:χ²|χ2|chi2|X²|X2)\s*\(\s*(\d+)\s*(?:,\s*[Nn]\s*=\s*\d+\s*)?\)\s*{_STAT_COMP}\s*({_NUM})\s*,\s*p\s*{_P}"
+        ),
     ),
-    ("z", re.compile(rf"(?<![A-Za-z])z\s*=\s*({_NUM})\s*,\s*p\s*{_P}")),
+    ("z", re.compile(rf"(?<![A-Za-z])z\s*{_STAT_COMP}\s*({_NUM})\s*,\s*p\s*{_P}")),
 ]
 
 
@@ -148,9 +155,11 @@ def _p_consistent(p_comp: str, p_value: float, p_decimals: int, p_lo: float, p_h
     return True
 
 
-def _classify(test_type, stat, stat_dec, p_comp, p_value, p_dec, df1, df2) -> tuple[str, float] | None:
+def _classify(test_type, stat, stat_dec, stat_comp, p_comp, p_value, p_dec, df1, df2) -> tuple[str, float] | None:
     """Return (consistency, computed_p_point) or None if the stat can't be recomputed."""
     a = abs(stat)
+    if stat_comp != "=":
+        return _classify_stat_bound(test_type, a, stat_comp, p_comp, p_value, p_dec, df1, df2)
     half = 0.5 * (10**-stat_dec) if stat_dec > 0 else 0.5
     lo, hi = max(0.0, a - half), a + half
     p_point = recompute_p(test_type, a, df1, df2)
@@ -170,6 +179,26 @@ def _classify(test_type, stat, stat_dec, p_comp, p_value, p_dec, df1, df2) -> tu
     return "inconsistent", p_point
 
 
+def _classify_stat_bound(test_type, a, stat_comp, p_comp, p_value, p_dec, df1, df2) -> tuple[str, float] | None:
+    """Backlog #27: the reported test statistic is itself a BOUND, not an exact value (e.g. "F(1,44) < 1,
+    p > .05" — a common way to report a clearly-null result). There is no single recomputable point, only the
+    p-value AT the boundary, which bounds the range of true p values the unreported exact statistic could
+    produce (p is monotonically decreasing in |stat| for every test type here): "<" means the true |stat| is
+    smaller, so the true p is LARGER than p(bound) — the interval (p(bound), 1]; ">" means the reverse — the
+    interval [0, p(bound)). Consistency reuses `_p_consistent`'s own "does at least one valid true p exist
+    consistent with the reported claim" philosophy (the same existence check the "=" path already applies via
+    its rounding interval) — never `decision-error` here, since that needs a point estimate this input doesn't
+    have, and never a false "inconsistent" flag merely because the reported bound doesn't pin down an exact p."""
+    p_at_bound = recompute_p(test_type, a, df1, df2)
+    if p_at_bound is None:
+        return None
+    p_lo, p_hi = (p_at_bound, 1.0) if stat_comp == "<" else (0.0, p_at_bound)
+    consistent = _p_consistent(p_comp, p_value, p_dec, p_lo, p_hi)
+    if not consistent and test_type in ("t", "r", "z"):  # try the one-tailed reading before flagging
+        consistent = _p_consistent(p_comp, p_value, p_dec, p_lo / 2, p_hi / 2)
+    return ("consistent" if consistent else "inconsistent"), p_at_bound
+
+
 def _scan_text(
     text: str,
     page: int | None,
@@ -185,15 +214,15 @@ def _scan_text(
             if len(out) >= MAX_RESULTS:
                 return
             groups = list(m.groups())
-            # groups layout: [df1, (df2 for F), stat, p_comp, p_value]
+            # groups layout: [df1, (df2 for F), stat_comp, stat, p_comp, p_value]
             if test_type == "F":
-                df1, df2, stat_s, p_comp, p_value_s = groups
+                df1, df2, stat_comp, stat_s, p_comp, p_value_s = groups
                 df2_f: float | None = float(df2)
             elif test_type == "z":
                 df1, df2_f = 0.0, None
-                stat_s, p_comp, p_value_s = groups
+                stat_comp, stat_s, p_comp, p_value_s = groups
             else:
-                df1, stat_s, p_comp, p_value_s = groups
+                df1, stat_comp, stat_s, p_comp, p_value_s = groups
                 df2_f = None
             try:
                 stat = _to_float(stat_s)
@@ -203,9 +232,10 @@ def _scan_text(
                 continue
             if test_type != "z" and df1_f <= 0:
                 continue
+            stat_comp = _normalize_comparator(stat_comp)
             p_comp = _normalize_comparator(p_comp)
             classified = _classify(
-                test_type, stat, _decimals(stat_s), p_comp, p_value, _decimals(p_value_s), df1_f, df2_f
+                test_type, stat, _decimals(stat_s), stat_comp, p_comp, p_value, _decimals(p_value_s), df1_f, df2_f
             )
             if classified is None:
                 continue

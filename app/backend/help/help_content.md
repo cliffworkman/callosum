@@ -751,7 +751,7 @@ This runs **entirely on your machine** — pure computation over the already-ext
 
 Read it as a **prompt to look, never a verdict**:
 
-- An inconsistency is usually innocent — a typo, rounding, a one-tailed test, or an adjusted value. It is **not** an accusation of error or misconduct. The recomputation already accounts for the statistic's rounding and tries the one-tailed reading, so correctly-reported results are not flagged.
+- An inconsistency is usually innocent — a typo, rounding, a one-tailed test, or an adjusted value. It is **not** an accusation of error or misconduct. The recomputation already accounts for the statistic's rounding and tries the one-tailed reading, so correctly-reported results are not flagged. It also reads test statistics reported as a bound rather than an exact value — `F(1, 44) < 1, p > .05`, a common way to report a clearly-null result — and only flags one as inconsistent when **no** value consistent with the reported bound could produce the reported p; an ambiguous case (where some values would and some wouldn't) is left unflagged rather than guessed at.
 - It reads only **inline APA-format** tests — it cannot see statistics in tables, Bayesian reporting, or confidence-interval-only reporting. **A clean result is not a clean bill** — it means nothing was surfaced by this specific check.
 - It needs the paper's **extracted text**, so it's available once a PDF has been processed (the button explains this otherwise). PDF-to-text conversion can garble symbols like `<`/`>`/`=`, which is why the exact matched text is always shown — so you can see an artifact for what it is.
 
