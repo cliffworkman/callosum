@@ -9,6 +9,34 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-22 — Backlog #20 remainder: uv, pre-commit framework, CI gates one at a time, staged-harnesses registry
+
+- **Files:** `pyproject.toml`, `uv.lock` (new), `.gitignore`, `requirements-dev.txt`, `.pre-commit-config.yaml`
+  (new, replaces `tools/git-hooks/pre-commit`, deleted), `.github/workflows/ci.yml`,
+  `.github/workflows/libreoffice-adapter.yml` (setup-node bump only), `.github/dependabot.yml` (new),
+  `alembic.ini`, `alembic/env.py`, `tests/test_migrations.py` (new),
+  `.claude/security-audits/2026-06-20_pre-github-fullsweep.md` (addendum),
+  `.claude/staged-harnesses/` (new, 8 files), `.claude/CLAUDE.md`, `CONTRIBUTING.md`.
+- **What:** four commits, each pushed and confirmed green on GitHub Actions before the next landed — (1) uv
+  adoption (`pyproject.toml` normalized + `[dependency-groups].dev` + committed `uv.lock`; CI installs via
+  `uv sync --locked`) + migrated the hand-rolled git hook to the standard pre-commit framework (ruff +
+  600-line budget + whitespace/EOF/large-file hygiene), including a one-time whitespace/EOF sweep across 31
+  files; (2) a new CI gate — `alembic upgrade head` + `alembic check` against a fresh temp DB, catching both
+  broken migrations and model/migration drift (required excluding the FTS5 `chunks_fts*` tables from the
+  drift check — they have no SQLAlchemy `Table` equivalent by design); (3) a new CI gate — `pip-audit` blocking
+  on `requirements.txt` (clean), report-only on `requirements-dev.txt` (one accepted dev-only finding: pytest
+  8.4.2/PYSEC-2026-1845) — plus Dependabot enabled for uv/npm/github-actions; (4) the `.claude/staged-harnesses/`
+  registry — 7 dormant fitness-function drafts (Pyright, tach, coverage gate, Hypothesis, embedding-drift,
+  performance monitoring, bandit) each with an explicit activation trigger, per the harness-hardening plan's
+  two-bucket split.
+- **Why:** next in Cliff's 12-item backlog decision queue; executes
+  `.claude/docs/future-tracks/opus4.8_future-tracks_harnesshardening.md` (backlog #20) Phases 1-4. Branch
+  protection (that plan's Phase 5) is deliberately NOT applied yet — the exact ruleset gets shown to Cliff for
+  sign-off first (a repo-wide, security-relevant GitHub setting, not a local file change).
+- **Revert:** `git revert` the six commits `f0182af`→`703a407` (`f0182af` uv/pre-commit, `fa6fa77` a
+  setup-uv version-pin fix, `6d00a12` the alembic gate, `57041be` a YAML-quoting fix, `2e5f09f` pip-audit +
+  Dependabot, `703a407` the staged-harnesses registry); each was independently verified green in sequence.
+
 ## 2026-07-22 — Backlog #15: sync_server hardening (rate limiting, retention, backup runbook)
 
 - **Files:** `sync_server/rate_limit.py` (new), `sync_server/schema.py`, `sync_server/store.py`,
