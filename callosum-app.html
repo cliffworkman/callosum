@@ -1103,6 +1103,7 @@
   .trash-toggle.retraction-chip, .trash-toggle.retraction-chip:hover { color: var(--danger); font-weight: 600; }   /* retracted — a registry FACT, red (inc 131) */
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
   .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* Open Data detected — a checkable signal with evidence, never an openness score/verdict */
+  .trash-toggle.lmm-chip, .trash-toggle.lmm-chip:hover { color: var(--flag); font-weight: 600; }   /* LMM reporting gap — a completeness signal, amber like statcheck (backlog #23) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -3077,6 +3078,7 @@
     const [statcheckFlagged, setStatcheckFlagged] = useState(0);
     const [retractionFlagged, setRetractionFlagged] = useState(0);
     const [openDataDetected, setOpenDataDetected] = useState(0);
+    const [lmmFlagged, setLmmFlagged] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -3325,6 +3327,20 @@
       setActiveTab("library");
       setPage(0);
     }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const showLmmFlagged = useCallback(() => {
+      setLibrarySignalFilter("lmm-incomplete");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      setLibraryTextHealthFilter(null);
+      setLibraryReferenceFilter(null);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
     const showTextHealthFilter = useCallback((filter) => {
       const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
       if (!paperIds.length) return;
@@ -3369,6 +3385,11 @@
     const refreshTransparencyChip = useCallback(() => {
       api("/methods/transparency/summary").then((r) => {
         if (r.ok) setOpenDataDetected(r.data.data_detected || 0);
+      });
+    }, []);
+    const refreshLmmChip = useCallback(() => {
+      api("/methods/lmm/summary").then((r) => {
+        if (r.ok) setLmmFlagged(r.data.incomplete || 0);
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -3647,6 +3668,9 @@
     useEffect(() => {
       refreshTransparencyChip();
     }, [refreshTransparencyChip]);
+    useEffect(() => {
+      refreshLmmChip();
+    }, [refreshLmmChip]);
     const libraryBits = {
       state: listState,
       query,
@@ -3707,6 +3731,8 @@
       onShowRetractionFlagged: showRetractionFlagged,
       openDataDetected,
       onShowTransparencyReview: showTransparencyReview,
+      lmmFlagged,
+      onShowLmmFlagged: showLmmFlagged,
       findingsToReview,
       onShowFindingsToReview: showFindingsToReview,
       findingsByPaper,
@@ -3739,9 +3765,11 @@
       showStatcheckFlagged,
       showRetractionFlagged,
       showTransparencyReview,
+      showLmmFlagged,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
+      refreshLmmChip,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       showTextHealthFilter,
@@ -5165,7 +5193,33 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to audit its mixed-model reporting.");
     const hasText = meta ? meta.hasText : false;
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Audit this paper's mixed-model reporting \u2014 local, no AI", onClick: run }, "Audit reporting") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "auditing\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't audit: ", state.error), state.status === "done" && d && (!d.is_lmm ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper doesn't appear to use a linear mixed model \u2014 nothing to audit.") : /* @__PURE__ */ React.createElement(LmmChecklist, { checks: d.checks, onOpen: open })));
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Audit this paper's mixed-model reporting \u2014 local, no AI", onClick: run }, "Audit reporting") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "auditing\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't audit: ", state.error), state.status === "done" && d && (!d.is_lmm ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper doesn't appear to use a linear mixed model \u2014 nothing to audit.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(LmmChecklist, { checks: d.checks, onOpen: open }), /* @__PURE__ */ React.createElement(LmmCredit, null))));
+  }
+  function LmmLibrary({ onShowFlagged, onRan }) {
+    const [run, setRun] = useState({ status: "idle" });
+    const start = async () => {
+      setRun({ status: "running" });
+      const poll = (jobId) => api(`/methods/lmm/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRun({ status: "done", summary: d.summary });
+          if (onRan) onRan();
+        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Audit failed." });
+        else setTimeout(() => poll(jobId), 1500);
+      });
+      const r = await apiPost("/methods/lmm/run", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const s = run.summary;
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit mixed-model reporting completeness across your whole library \u2014 local, no AI. Papers with an incomplete checklist appear below, filterable from the library header."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Auditing\u2026" : "Audit all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Auditing mixed-model reporting\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Audit failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.total, " paper", s.total === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.detected), " detectably mixed-model", s.incomplete > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", "\xB7 ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, s.incomplete, " incomplete")), s.incomplete === 0 && s.detected > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 0 incomplete")));
   }
   function LmmChecklist({ checks, onOpen }) {
     if (!checks || !checks.length) return null;
@@ -5200,7 +5254,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " random-effects structure \u2014 Barr et al. (2013), Matuschek et al. (2017); df/inference \u2014 Luke (2017); convergence & estimation \u2014 Bates et al. (2015, ", /* @__PURE__ */ React.createElement("i", null, "lme4"), "); R\xB2 \u2014 Nakagawa & Schielzeth (2013); missing-data sensitivity \u2014 FDA ICH E9(R1), Troendle et al. (2025), Cro et al. (2020), Moreno-Betancur & Chavance (2016).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: LMM_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 it never runs a model, imputation, or sensitivity analysis. Surfaced via D. Lakens' automated-review catalog."));
   }
   function LmmSection({ ctx, active }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a paper's ", /* @__PURE__ */ React.createElement("b", null, "mixed-model reporting"), " \u2014 does it report the random-effects structure, df/inference method, convergence, estimation (REML/ML), ICC, R\xB2, and (for longitudinal designs with dropout) a missing-data sensitivity analysis? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(LmmPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }), /* @__PURE__ */ React.createElement(LmmCredit, null));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a paper's ", /* @__PURE__ */ React.createElement("b", null, "mixed-model reporting"), " \u2014 does it report the random-effects structure, df/inference method, convergence, estimation (REML/ML), ICC, R\xB2, and (for longitudinal designs with dropout) a missing-data sensitivity analysis? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(LmmLibrary, { onShowFlagged: ctx.onShowLmmFlagged, onRan: ctx.onLmmRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(LmmPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
   registerPaneTab(
     { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
@@ -7418,6 +7472,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onShowRetractionFlagged,
     openDataDetected,
     onShowTransparencyReview,
+    lmmFlagged,
+    onShowLmmFlagged,
     findingsToReview,
     onShowFindingsToReview,
     findingsByPaper,
@@ -7467,7 +7523,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const showRetractionChip = !trashView && retractionFlagged > 0 && librarySignalFilter !== "retraction-retracted";
     const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
     const showTransparencyChip = !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
+    const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -7494,6 +7551,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       "\u{1F50E} Open Data \xB7 ",
       openDataDetected
+    ), showLmmChip && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle lmm-chip",
+        onClick: onShowLmmFlagged,
+        title: "Papers detectably using a mixed model where the LMM reporting checklist found \u22651 item not detected in the text \u2014 a completeness gap to inspect, never a verdict on the modelling"
+      },
+      "\u{1F517} LMM \xB7 ",
+      lmmFlagged
     )), showFindingsChip && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -14853,10 +14919,12 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       showStatcheckFlagged,
       showRetractionFlagged,
       showTransparencyReview,
+      showLmmFlagged,
       showTextHealthFilter,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
+      refreshLmmChip,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       pcurvePapers,
@@ -15057,6 +15125,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       onShowTransparencyReview: showTransparencyReview,
       onTransparencyRan: refreshTransparencyChip,
       // inc 251
+      onShowLmmFlagged: showLmmFlagged,
+      onLmmRan: refreshLmmChip,
+      // backlog #23 F1
       onFindingsChanged: () => setFindingsRefresh((n) => n + 1),
       onReferenceWarningsChanged: () => setReferenceWarningsRefresh((n) => n + 1),
       onOpenTextHealth: openTextHealth,

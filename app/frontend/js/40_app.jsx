@@ -83,7 +83,7 @@ function App() {
   const {
     libraryBits, setLibRefresh, pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh, setReferenceWarningsRefresh,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showTextHealthFilter, refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, setFindingsRefresh, setReferenceWarningsRefresh,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   } = lib;
@@ -282,6 +282,7 @@ function App() {
     onShowStatcheckFlagged: showStatcheckFlagged, onStatcheckRan: refreshStatcheckChip,
     onShowRetractionFlagged: showRetractionFlagged, onRetractionRan: refreshRetractionChip,
     onShowTransparencyReview: showTransparencyReview, onTransparencyRan: refreshTransparencyChip,  // inc 251
+    onShowLmmFlagged: showLmmFlagged, onLmmRan: refreshLmmChip,  // backlog #23 F1
     onFindingsChanged: () => setFindingsRefresh(n => n + 1),
     onReferenceWarningsChanged: () => setReferenceWarningsRefresh(n => n + 1),
     onOpenTextHealth: openTextHealth,

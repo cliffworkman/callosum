@@ -33,6 +33,7 @@ function useLibrary(opts) {
   const [statcheckFlagged, setStatcheckFlagged] = useState(0);  // inc-100: # papers the last statcheck run flagged → header chip
   const [retractionFlagged, setRetractionFlagged] = useState(0);  // inc-131: # papers a registry records retracted → header chip
   const [openDataDetected, setOpenDataDetected] = useState(0);  // # papers where open-data disclosure was detected → signal chip
+  const [lmmFlagged, setLmmFlagged] = useState(0);  // backlog #23 (F1): # papers with an incomplete LMM reporting checklist → header chip
   const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
     try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
   });
@@ -196,6 +197,12 @@ function useLibrary(opts) {
     setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
+  // backlog #23 (F1): jump to the library's "incomplete LMM reporting" queue — mirrors showRetractionFlagged.
+  const showLmmFlagged = useCallback(() => {
+    setLibrarySignalFilter("lmm-incomplete");
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
+  }, [cancelFocus, setSettingsOpen, setActiveTab]);
   const showTextHealthFilter = useCallback((filter) => {
     const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
     if (!paperIds.length) return;
@@ -218,6 +225,9 @@ function useLibrary(opts) {
   }, []);
   const refreshTransparencyChip = useCallback(() => {
     api("/methods/transparency/summary").then(r => { if (r.ok) setOpenDataDetected(r.data.data_detected || 0); });
+  }, []);
+  const refreshLmmChip = useCallback(() => {
+    api("/methods/lmm/summary").then(r => { if (r.ok) setLmmFlagged(r.data.incomplete || 0); });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -472,6 +482,7 @@ function useLibrary(opts) {
   useEffect(() => { refreshStatcheckChip(); }, [refreshStatcheckChip]);
   useEffect(() => { refreshRetractionChip(); }, [refreshRetractionChip]);
   useEffect(() => { refreshTransparencyChip(); }, [refreshTransparencyChip]);
+  useEffect(() => { refreshLmmChip(); }, [refreshLmmChip]);
 
   // The LibraryFrame prop bundle (minus the focus + selected props App still owns + spreads in).
   const libraryBits = {
@@ -495,6 +506,7 @@ function useLibrary(opts) {
     statcheckFlagged, onShowStatcheckFlagged: showStatcheckFlagged,
     retractionFlagged, onShowRetractionFlagged: showRetractionFlagged,
     openDataDetected, onShowTransparencyReview: showTransparencyReview,
+    lmmFlagged, onShowLmmFlagged: showLmmFlagged,
     findingsToReview, onShowFindingsToReview: showFindingsToReview,
     findingsByPaper, referenceWarningsByPaper,
     onToggleTrash: toggleTrash, onRestore: restorePaper,
@@ -508,8 +520,8 @@ function useLibrary(opts) {
     libraryBits, setLibRefresh,
     pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview,
-    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged,
+    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   };

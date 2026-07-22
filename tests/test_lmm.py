@@ -14,9 +14,11 @@ from dataclasses import dataclass
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.methods.lmm import audit_lmm
+from app.backend.methods.lmm import apply_lmm, audit_lmm
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import create_paper
+from app.backend.persistence.signals_repo import count_lmm_flagged, get_lmm_summary
 
 
 @dataclass
@@ -141,3 +143,151 @@ def test_endpoint_no_chunks_is_honest_empty(temp_db_url):
     assert r.status_code == 200
     body = r.json()
     assert body["is_lmm"] is False and body["checks"] == []
+
+
+# --- backlog #23: apply_lmm (F4 persistence) + the F1 batch/chip -------------
+
+
+def test_apply_lmm_incomplete_stores_signal_and_candidate(temp_db_url):
+    rep = _audit("We fit a mixed-effects model of reaction time with random intercepts for subject.")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_lmm(conn, pid, rep)
+        summary = get_lmm_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+        flagged = count_lmm_flagged(conn)
+    engine.dispose()
+    assert summary["status"] == "incomplete"
+    assert len(findings["candidates"]) == 1
+    assert "df_method" in findings["candidates"][0]["payload"]["missing"]
+    assert flagged == 1
+
+
+def test_apply_lmm_complete_stores_signal_no_candidate(temp_db_url):
+    rep = _audit(
+        "A linear mixed model with (1 | subject), fit by REML; Satterthwaite df; converged. "
+        "Marginal and conditional R2 were computed following Nakagawa."
+    )
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_lmm(conn, pid, rep)
+        summary = get_lmm_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+    engine.dispose()
+    assert summary["status"] == "complete"
+    assert findings["candidates"] == []
+
+
+def test_apply_lmm_not_lmm_stores_nothing(temp_db_url):
+    rep = audit_lmm([_Chunk("We ran an ordinary least-squares regression of y on x.")])
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_lmm(conn, pid, rep)
+        summary = get_lmm_summary(conn, pid)
+    engine.dispose()
+    assert summary is None
+
+
+def test_apply_lmm_un_gates_clears_a_prior_signal(temp_db_url):
+    # A paper previously detected as LMM (e.g. from richer extracted text) that re-extracts to non-LMM must not
+    # keep a stale signal row around.
+    flagged_rep = _audit("We fit a mixed-effects model of reaction time with random intercepts for subject.")
+    clean_rep = audit_lmm([_Chunk("We ran an ordinary least-squares regression of y on x.")])
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_lmm(conn, pid, flagged_rep)
+        assert get_lmm_summary(conn, pid) is not None
+        apply_lmm(conn, pid, clean_rep)
+        summary = get_lmm_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+    engine.dispose()
+    assert summary is None
+    assert findings["candidates"] == []
+
+
+def test_apply_lmm_reapply_is_idempotent(temp_db_url):
+    rep = _audit("We fit a mixed-effects model of reaction time with random intercepts for subject.")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_lmm(conn, pid, rep)
+        apply_lmm(conn, pid, rep)
+        findings = get_paper_findings(conn, pid)
+        flagged = count_lmm_flagged(conn)
+    engine.dispose()
+    assert len(findings["candidates"]) == 1
+    assert flagged == 1
+
+
+def test_endpoint_persists_signal_on_ad_hoc_view(temp_db_url):
+    # F4: simply viewing a paper's LMM panel (the ad-hoc GET) persists — no batch run required first.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        _seed_chunks(conn, pid, "We fit a mixed-effects model of reaction time with random intercepts for subject.")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    with make_engine(temp_db_url).connect() as conn:
+        assert get_lmm_summary(conn, pid) is None  # never viewed yet
+
+    r = client.get(f"/papers/{pid}/lmm")
+    assert r.status_code == 200 and r.json()["is_lmm"] is True
+
+    with make_engine(temp_db_url).connect() as conn:
+        assert get_lmm_summary(conn, pid)["status"] == "incomplete"
+    assert client.get(f"/papers/{pid}/findings").json()["candidates"]
+
+
+def test_batch_run_summary_and_library_filter(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="A", csl_json={"title": "A"})
+        _seed_chunks(conn, a, "We fit a mixed-effects model of reaction time with random intercepts for subject.")
+        b = create_paper(conn, title="B", csl_json={"title": "B"})
+        _seed_chunks(conn, b, "We ran an ordinary least-squares regression of y on x.")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    run = client.post("/methods/lmm/run")
+    assert run.status_code == 202
+    done = client.get(f"/methods/lmm/run/{run.json()['job_id']}").json()
+    assert done["status"] == "done"
+    assert done["summary"]["total"] == 2 and done["summary"]["detected"] == 1 and done["summary"]["incomplete"] == 1
+
+    assert client.get("/methods/lmm/summary").json()["incomplete"] == 1
+    ids = [p["id"] for p in client.get("/papers?signal=lmm-incomplete").json()]
+    assert a in ids and b not in ids
+
+
+def _seed_chunks(conn, paper_id, *texts):
+    from app.backend.persistence.repository import create_attachment, create_chunk
+
+    checksum = f"lmm-test-{paper_id}"
+    aid = create_attachment(
+        conn,
+        paper_id=paper_id,
+        storage_mode="linked",
+        availability="available",
+        content_type="application/pdf",
+        checksum=checksum,
+    )
+    for text in texts:
+        create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=aid,
+            text=text,
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version=f"cv-{checksum}",
+            source_attachment_checksum=checksum,
+        )

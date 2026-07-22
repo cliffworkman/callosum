@@ -13,6 +13,11 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 
+from sqlalchemy import Connection
+
+from app.backend.persistence.findings_repo import upsert_findings
+from app.backend.persistence.signals_repo import store_lmm
+
 
 @dataclass(frozen=True)
 class LmmCheck:
@@ -290,3 +295,32 @@ def audit_lmm(chunks: list) -> LmmReport:
             )
 
     return LmmReport(is_lmm=True, checks=checks)
+
+
+def apply_lmm(conn: Connection, paper_id: int, report: LmmReport) -> None:
+    """Persist a paper's LMM audit (backlog #23, F1/F4): the #23-signal status (`signals_repo.store_lmm`) always,
+    and — only when the checklist is incomplete — a review-queue CANDIDATE (never a fact: a reporting gap is a
+    prompt to look, not an established claim). One shared function, callable from both the ad-hoc per-paper view
+    (`GET /papers/{id}/lmm`) and the library-wide batch, so both paths persist identically (the `apply_retraction`
+    precedent)."""
+    incomplete = [c.key for c in report.checks if c.status == "not-found"]
+    store_lmm(conn, paper_id, is_lmm=report.is_lmm, incomplete_keys=incomplete)
+    if report.is_lmm and incomplete:
+        n = len(incomplete)
+        upsert_findings(
+            conn,
+            paper_id,
+            "lmm",
+            [
+                {
+                    "kind": "candidate",
+                    "tier": "primary",
+                    "payload": {
+                        "desc": f"{n} LMM reporting item{'s' if n != 1 else ''} not detected in the text — review",
+                        "missing": incomplete,
+                    },
+                }
+            ],
+        )
+    else:
+        upsert_findings(conn, paper_id, "lmm", [])

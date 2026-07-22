@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from sqlalchemy import Connection, RowMapping, func, insert, select
+from sqlalchemy import Connection, RowMapping, delete, func, insert, select
 
 from app.backend.persistence.schema import open_science_signals
 
@@ -154,6 +154,61 @@ def get_retraction_status(conn: Connection, paper_id: int) -> RowMapping | None:
                 open_science_signals.c.paper_id == paper_id,
                 open_science_signals.c.signal_type == RETRACTION_SIGNAL,
                 open_science_signals.c.source == RETRACTION_SOURCE,
+            )
+        )
+        .mappings()
+        .first()
+    )
+
+
+LMM_SIGNAL = "lmm"
+LMM_SOURCE = "lmm"
+
+
+def store_lmm(conn: Connection, paper_id: int, *, is_lmm: bool, incomplete_keys: list[str]) -> None:
+    """Upsert a paper's LMM-reporting-completeness status (backlog #23). `status='incomplete'` when ≥1 check is
+    `not-found`, else `'complete'`. When `is_lmm` is False (not detectably a mixed-model paper), no row is worth
+    keeping — DELETE any prior one instead (a non-mixed-model paper isn't a "not-applicable" fact worth persisting
+    library-wide; this also keeps re-extraction/un-gating honest if a paper's detected genre ever changes)."""
+    if not is_lmm:
+        conn.execute(
+            delete(open_science_signals).where(
+                open_science_signals.c.paper_id == paper_id, open_science_signals.c.signal_type == LMM_SIGNAL
+            )
+        )
+        return
+    conn.execute(
+        insert(open_science_signals)
+        .prefix_with("OR REPLACE")
+        .values(
+            paper_id=paper_id,
+            signal_type=LMM_SIGNAL,
+            source=LMM_SOURCE,
+            status="incomplete" if incomplete_keys else "complete",
+            evidence_snippet=json.dumps({"missing": list(incomplete_keys)}) if incomplete_keys else None,
+        )
+    )
+
+
+def count_lmm_flagged(conn: Connection) -> int:
+    """How many papers have an incomplete LMM-reporting checklist — drives the library 'N incomplete' chip."""
+    total = conn.execute(
+        select(func.count())
+        .select_from(open_science_signals)
+        .where(open_science_signals.c.signal_type == LMM_SIGNAL, open_science_signals.c.status == "incomplete")
+    ).scalar()
+    return int(total or 0)
+
+
+def get_lmm_summary(conn: Connection, paper_id: int) -> RowMapping | None:
+    """The stored LMM status row for a paper, or None if it's never been persisted (not a mixed-model paper, or
+    never viewed/batch-checked)."""
+    return (
+        conn.execute(
+            select(open_science_signals).where(
+                open_science_signals.c.paper_id == paper_id,
+                open_science_signals.c.signal_type == LMM_SIGNAL,
+                open_science_signals.c.source == LMM_SOURCE,
             )
         )
         .mappings()

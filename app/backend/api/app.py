@@ -162,6 +162,7 @@ def create_app(
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
     api.state.pcurve_jobs = JobStore()  # inc 126: collection-level p-curve over a selection
     api.state.retraction_jobs = JobStore()  # inc 131: library-wide retraction batch
+    api.state.lmm_jobs = JobStore()  # backlog #23 F1: library-wide LMM reporting-completeness batch
     api.state.retraction_checkers = DEFAULT_RETRACTION_CHECKERS  # inc 131: per-source checkers (overridable in tests)
     api.state.transparency_jobs = JobStore()  # inc 251: library-wide transparency-signals batch (#44)
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download

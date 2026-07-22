@@ -9,9 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-22 inc 335 — reviewed the entries below back to the prior (inc 334) marker.
-Added one bullet to "Checking for retractions" describing the new sidebar Tags-tab discovery path (backlog
-#19). Nothing above this line has an un-synced corpus change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 336 — reviewed the entries below back to the prior (inc 335) marker.
+Added a "Whole library" paragraph to "Auditing mixed-model reporting" for the new batch button + chip, and
+noted the credit block now only shows once a paper is confirmed mixed-model (backlog #23, LMM only so far).
+Nothing above this line has an un-synced corpus change. -->
+## 2026-07-22 — Backlog #23 (1/3): LMM auditor — F1 chip + F4 persistence + F2 footer fix
+
+- **Files:** `app/backend/persistence/signals_repo.py`, `app/backend/methods/lmm.py`,
+  `app/backend/api/routers/lmm.py`, `app/backend/persistence/paper_query_repo.py`, `app/backend/api/app.py`,
+  `app/frontend/js/03_library.jsx`, `app/frontend/js/40_app.jsx`, `app/frontend/js/10_pdf_layer.jsx`,
+  `app/frontend/js/08f_methods_lmm.jsx`, `app/frontend/styles.css`, `tests/test_lmm.py`,
+  `.claude/security-audits/2026-07-22_cross-method-auditor-consolidation.md`,
+  `.claude/qa-routes/route_61_methods_lmm.md`, `app/backend/help/help_content.md`.
+- **What:** the LMM auditor gets a library-wide batch + header chip (F1), persists a candidate finding as a side
+  effect of the existing ad-hoc per-paper view (F4), and no longer shows its credit footer before confirming
+  the paper is actually a mixed-model paper (F2).
+- **Why:** Cliff's choice to build backlog #23 in full, one checker at a time; LMM first to prove the pattern
+  before repeating it for meta-analysis and Bayesian.
+- **Revert:** `git revert` this commit.
+
 ## 2026-07-22 — Backlog #19: tags ↔ findings/system-facts (retraction-surfacing)
 
 - **Files:** `app/backend/methods/retraction.py`, `app/backend/persistence/tags_repo.py`,

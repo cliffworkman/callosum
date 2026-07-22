@@ -193,7 +193,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                     libraryTextHealthFilter, onClearTextHealthFilter,
                     libraryReferenceFilter, onClearReferenceFilter,
                     statcheckFlagged, onShowStatcheckFlagged, retractionFlagged, onShowRetractionFlagged,
-                    openDataDetected, onShowTransparencyReview,
+                    openDataDetected, onShowTransparencyReview, lmmFlagged, onShowLmmFlagged,
                     findingsToReview, onShowFindingsToReview, findingsByPaper, referenceWarningsByPaper,
                     onToggleTrash, onRestore, onPurge, onEmptyTrash, onFindDuplicates, onOpenScan, onOpenImport, onOpenImportBundle, onExportBundle,
                     onCitationsRefreshed, onEnriched, onRetractionRan, onOpenTextHealth, onOpenReferenceWarnings,
@@ -231,6 +231,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
   const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
   const showTransparencyChip =
     !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
+  const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
   return (
     <div className="pane-list-body">
       <div className="pane-head">
@@ -239,7 +240,7 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
           {!readOnly && <span className="lib-head-actions">
             {!trashView && <AddMenu onScan={onOpenScan} onImport={onOpenImport} onImportBundle={onOpenImportBundle} onExportBundle={onExportBundle} />}
             {!trashView && <SavedSearchMenu searches={savedSearches} onApply={onApplySavedSearch} onSave={onSaveSearch} onDelete={onDeleteSavedSearch} />}
-            {(showStatcheckChip || showRetractionChip || showTransparencyChip) &&
+            {(showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip) &&
               <span className="lib-chip-group lib-chip-signals" title="Check signals — a check detected something concrete on these papers">
                 {showStatcheckChip &&
                   <button className="trash-toggle statcheck-chip" onClick={onShowStatcheckFlagged}
@@ -250,6 +251,9 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
                 {showTransparencyChip &&
                   <button className="trash-toggle transparency-chip" onClick={() => onShowTransparencyReview("transparency-data-detected")}
                     title="Papers where the transparency auditor detected an open-data disclosure in the text — opens the evidence-bearing signal list, not a score or verdict">🔎 Open Data · {openDataDetected}</button>}
+                {showLmmChip &&
+                  <button className="trash-toggle lmm-chip" onClick={onShowLmmFlagged}
+                    title="Papers detectably using a mixed model where the LMM reporting checklist found ≥1 item not detected in the text — a completeness gap to inspect, never a verdict on the modelling">🔗 LMM · {lmmFlagged}</button>}
               </span>}
             {showFindingsChip &&
               <span className="lib-chip-group lib-chip-queue" title="Your review queue — things for you to go look at; clears as you review">

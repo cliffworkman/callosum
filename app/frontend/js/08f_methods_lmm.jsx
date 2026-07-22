@@ -154,7 +154,46 @@ function LmmPaper({ paperId, onOpenPaper, active }) {
       {state.status === "error" && <div className="axis-err">Couldn't audit: {state.error}</div>}
       {state.status === "done" && d && (!d.is_lmm
         ? <div className="tag-suggest-empty">This paper doesn't appear to use a linear mixed model — nothing to audit.</div>
-        : <LmmChecklist checks={d.checks} onOpen={open} />)}
+        : <React.Fragment><LmmChecklist checks={d.checks} onOpen={open} /><LmmCredit /></React.Fragment>)}
+    </div>
+  );
+}
+
+// backlog #23 (F1): whole-library batch — mirrors TransparencyLibrary (08h). Persists a per-paper #23 signal via
+// the shared apply_lmm (methods/lmm.py), so the header chip + GET /papers?signal=lmm-incomplete stay current even
+// for papers nobody has opened this panel for yet.
+function LmmLibrary({ onShowFlagged, onRan }) {
+  const [run, setRun] = useState({ status: "idle" });
+  const start = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/lmm/run/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setRun({ status: "done", summary: d.summary }); if (onRan) onRan(); }
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Audit failed." });
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    const r = await apiPost("/methods/lmm/run", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const s = run.summary;
+  return (
+    <div className="statcheck-lib">
+      <div className="settings-sub">Audit mixed-model reporting completeness across your whole library — local, no AI. Papers with an incomplete checklist appear below, filterable from the library header.</div>
+      <div className="settings-actions">
+        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+          {run.status === "running" ? "Auditing…" : "Audit all papers"}
+        </button>
+      </div>
+      {run.status === "running" && <ProgressBar label="Auditing mixed-model reporting…" />}
+      {run.status === "error" && <div className="settings-note settings-note-err">Audit failed: {run.error}</div>}
+      {run.status === "done" && s &&
+        <div className="settings-note">
+          {s.total} paper{s.total === 1 ? "" : "s"} checked · <b>{s.detected}</b> detectably mixed-model
+          {s.incomplete > 0 && onShowFlagged && <React.Fragment>{" "}· <button className="btn-link" onClick={onShowFlagged}>{s.incomplete} incomplete</button></React.Fragment>}
+          {s.incomplete === 0 && s.detected > 0 && <React.Fragment> · 0 incomplete</React.Fragment>}
+        </div>}
     </div>
   );
 }
@@ -211,9 +250,10 @@ function LmmSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Audit a paper's <b>mixed-model reporting</b> — does it report the random-effects structure, df/inference method, convergence, estimation (REML/ML), ICC, R², and (for longitudinal designs with dropout) a missing-data sensitivity analysis? Local, no AI. It flags what's not reported, with a grounded recommendation — never a verdict.</div>
+      <p className="eyebrow">Whole library</p>
+      <LmmLibrary onShowFlagged={ctx.onShowLmmFlagged} onRan={ctx.onLmmRan} />
       <p className="eyebrow">This paper</p>
       <LmmPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
-      <LmmCredit />
     </div>
   );
 }

@@ -65,6 +65,9 @@ SIGNAL_FILTERS = {
     # upon_request has no "not detected" meaning (its absence is the norm) -- the review signal is its PRESENCE
     # ("data/code offered only upon request", a weaker-openness prompt to review), not an accusation.
     "transparency-upon-request": ("transparency", "upon_request", "detected"),
+    # backlog #23 (F1): a detected mixed-model paper missing ≥1 reporting item — a completeness gap, never a
+    # verdict on the modelling itself.
+    "lmm-incomplete": ("lmm", None, "incomplete"),
 }
 
 # Findings review-queue filters (inc 133). `finding` value -> the paper_findings.review_state to match. A *work

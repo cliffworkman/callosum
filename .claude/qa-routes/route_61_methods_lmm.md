@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /papers/{paper_id}/lmm
+api: /papers/{paper_id}/lmm, /methods/lmm/run, /methods/lmm/run/{job_id}, /methods/lmm/summary
 fe: 08f_methods_lmm.jsx
 -->
 
@@ -36,6 +36,13 @@ genai-host request regardless). Register listeners before navigation.
   fabricated exact highlight.
 - **Credit-the-lineage.** Each check names its source in-context (`basis`); the panel offers the methods sources to
   the library via a working **＋ add methods sources to library**.
+- **Credit suppression (backlog #23 F2, Critical if violated).** The **Methods:** credit block must render ONLY
+  after a paper is confirmed `is_lmm:true` — never while loading, never for a non-LMM paper, never before the
+  auditor has run. Crediting a method that was never invoked on this paper is itself dishonest.
+- **Library-wide chip is additive, not a new verdict (backlog #23 F1).** The header **🔗 LMM · N** chip counts
+  papers with an *incomplete* reporting checklist — a completeness gap, never a judgment on the modelling
+  itself. Clicking it filters the library (`GET /papers?signal=lmm-incomplete`) exactly like the existing
+  statcheck/retraction chips; it must NOT replace or hide those.
 
 ## Adversarial checklist
 
@@ -68,6 +75,17 @@ genai-host request regardless). Register listeners before navigation.
    Moreno-Betancur) + a working **＋ add methods sources to library**.
 8. Adversarial: a metadata-only paper -> "Process a PDF first"; a non-LMM paper -> "doesn't appear to use a linear
    mixed model"; 999999 -> 404-class.
+9. **Whole-library batch (backlog #23 F1).** Above "This paper", confirm a **"Whole library"** section with an
+   **Audit all papers** button. Click it -> a progress bar, then a summary ("N papers checked · M detectably
+   mixed-model · K incomplete"). If K > 0, click the **"K incomplete"** link -> the library filters to those
+   papers (same banner/clear affordance as the retraction/statcheck filters) and the header **🔗 LMM · K** chip
+   now shows the same count.
+10. **Credit suppression (F2).** Select a non-LMM paper -> confirm NO "Methods:" credit block renders (only the
+   "doesn't appear to use a linear mixed model" message). Select an LMM paper -> confirm the credit block renders
+   only once the checklist itself has rendered (not before/during loading).
+11. **Persist-on-view (F4).** After viewing an incomplete LMM paper's panel (step 2-3), open **Synthesize ->
+   Critique** for the same paper and confirm an "LMM reporting" candidate finding is listed — persisted from the
+   ad-hoc view alone, no batch run required.
 
 ## Pass criteria
 
@@ -77,6 +95,9 @@ genai-host request regardless). Register listeners before navigation.
 - No verdict/score/rank/accusation; ICC + missing-data are precondition-scoped (n/a when not applicable);
   "not found" ≠ "missing".
 - No-chunks / non-LMM / unknown-id fail closed honestly; mobile viewport has no horizontal overflow.
+- The whole-library batch completes, the chip count matches the batch summary's `incomplete`, and the chip's
+  filter click shows the same papers; the credit block never renders before `is_lmm` is confirmed true; an
+  ad-hoc per-paper view alone (no batch) is enough to seed a Critique candidate.
 
 ## Deposit
 
