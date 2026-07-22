@@ -1,4 +1,4 @@
-"""callosum — LibreOffice citation composer (Phase 5a, backlog #33/#34).
+"""callosum — LibreOffice citation composer (Phase 5a/5b, backlog #33/#34).
 
 The live-search, multi-item citation-building dialog that replaces the original one-shot search+single-select
 flow (`callosum_cite.py`'s old `add_citation_by_search`). Building this needed the FIRST UNO event-listener
@@ -7,6 +7,10 @@ implementations in this codebase beyond the .oxt dispatcher itself (see `spike_l
 `XTextListener.textChanged`, and that a synchronous local search-and-refresh from inside the callback has no
 observed reentrancy problem — the local search round-trip took ~26ms in that spike, fast enough that no async
 debounce timer was needed for a "live" feel).
+
+Phase 5b adds per-item options (locator/label/prefix/suffix/suppress-author/author-only) via a small "Options…"
+sub-dialog on the currently-selected assembly item — the backend/schema (`CitationItem`, Phases 1/3) already
+accept all of this; this is purely the composer exposing it.
 
 Kept in its own module (not `callosum_cite.py`, already 1300+ lines) since dialog CONSTRUCTION is a distinct
 concern from the action logic every other function in that file implements.
@@ -28,9 +32,145 @@ import callosum_cite as cc  # noqa: E402  (after sys.path injection, matching se
 PREVIEW_MAX = 400  # cap the rendered-preview text length shown in the dialog
 
 
+def _item_overrides(item: dict) -> dict:
+    """The per-occurrence fields on an assembly item, ready to merge into `insert_citation_items`' payload."""
+    return {k: item[k] for k in cc._ITEM_DEFAULTS if k != "custom_override" and item.get(k) not in (None, False)}
+
+
+def _format_assembly_row(item: dict) -> str:
+    """The base search-result row, plus a compact `[...]` summary of any active per-occurrence override, so the
+    user can see at a glance which assembled items carry one without opening Options."""
+    tags = []
+    if item.get("locator"):
+        tags.append(f"{item.get('label') or 'loc.'} {item['locator']}")
+    if item.get("prefix"):
+        tags.append(f'prefix "{item["prefix"]}"')
+    if item.get("suffix"):
+        tags.append(f'suffix "{item["suffix"]}"')
+    if item.get("suppress-author"):
+        tags.append("no author")
+    if item.get("author-only"):
+        tags.append("author only")
+    return f"{item['row']}  [{', '.join(tags)}]" if tags else item["row"]
+
+
+def _edit_item_options(ctx, item: dict) -> dict | None:
+    """A small modal dialog editing ONE assembly item's per-occurrence fields in place. Returns the updated
+    item dict on OK, or None on Cancel (caller should leave the item unchanged)."""
+    import unohelper
+    from com.sun.star.awt import XItemListener
+
+    smgr = ctx.ServiceManager
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 320, 216, "Citation options"
+
+    def _label(name, x, y, w, h, text):
+        lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+        lbl.PositionX, lbl.PositionY, lbl.Width, lbl.Height, lbl.Label = x, y, w, h, text
+        dm.insertByName(name, lbl)
+
+    _label("subtitle", 6, 6, 308, 12, item["row"][:70])
+
+    _label("label_lbl", 6, 24, 90, 12, "Locator label:")
+    label_box = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    label_box.PositionX, label_box.PositionY, label_box.Width, label_box.Height = 100, 22, 120, 60
+    label_box.Dropdown = True
+    label_options = ("(none)", *cc.CSL_LOCATOR_LABELS)
+    label_box.StringItemList = label_options
+    dm.insertByName("label", label_box)
+
+    _label("locator_lbl", 6, 44, 90, 12, "Locator value:")
+    locator_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
+    locator_edit.PositionX, locator_edit.PositionY, locator_edit.Width, locator_edit.Height = 100, 42, 214, 14
+    locator_edit.Text = item.get("locator") or ""
+    dm.insertByName("locator", locator_edit)
+
+    _label("prefix_lbl", 6, 64, 90, 12, "Prefix:")
+    prefix_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
+    prefix_edit.PositionX, prefix_edit.PositionY, prefix_edit.Width, prefix_edit.Height = 100, 62, 214, 14
+    prefix_edit.Text = item.get("prefix") or ""
+    dm.insertByName("prefix", prefix_edit)
+
+    _label("suffix_lbl", 6, 84, 90, 12, "Suffix:")
+    suffix_edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
+    suffix_edit.PositionX, suffix_edit.PositionY, suffix_edit.Width, suffix_edit.Height = 100, 82, 214, 14
+    suffix_edit.Text = item.get("suffix") or ""
+    dm.insertByName("suffix", suffix_edit)
+
+    suppress_box = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
+    suppress_box.PositionX, suppress_box.PositionY, suppress_box.Width, suppress_box.Height = 6, 104, 150, 14
+    suppress_box.Label, suppress_box.State = "Suppress author", (1 if item.get("suppress-author") else 0)
+    dm.insertByName("suppress_author", suppress_box)
+
+    author_only_box = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
+    author_only_box.PositionX, author_only_box.PositionY, author_only_box.Width, author_only_box.Height = (
+        160,
+        104,
+        150,
+        14,
+    )
+    author_only_box.Label, author_only_box.State = "Author only", (1 if item.get("author-only") else 0)
+    dm.insertByName("author_only", author_only_box)
+
+    ok_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    ok_btn.PositionX, ok_btn.PositionY, ok_btn.Width, ok_btn.Height = 154, 190, 74, 18
+    ok_btn.Label, ok_btn.PushButtonType = "OK", 1
+    dm.insertByName("ok", ok_btn)
+
+    cancel_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 234, 190, 80, 18
+    cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
+    dm.insertByName("cancel", cancel_btn)
+
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+
+    label_ctrl = dialog.getControl("label")
+    current_label = item.get("label")
+    label_ctrl.selectItemPos(label_options.index(current_label) if current_label in label_options else 0, True)
+
+    suppress_ctrl = dialog.getControl("suppress_author")
+    author_only_ctrl = dialog.getControl("author_only")
+
+    class _MutexListener(unohelper.Base, XItemListener):
+        """Suppress-author and author-only are contradictory CSL concepts (omit vs. show-only the author) —
+        checking one unchecks the other rather than letting both be set at once with undefined effect."""
+
+        def __init__(self, this_box, other_box):
+            self._this, self._other = this_box, other_box
+
+        def itemStateChanged(self, event):
+            if self._this.getState() == 1:
+                self._other.setState(0)
+
+        def disposing(self, event):
+            pass
+
+    suppress_ctrl.addItemListener(_MutexListener(suppress_ctrl, author_only_ctrl))
+    author_only_ctrl.addItemListener(_MutexListener(author_only_ctrl, suppress_ctrl))
+
+    result = dialog.execute()  # 1 == OK
+    updated = None
+    if result == 1:
+        chosen_label = label_options[label_ctrl.getSelectedItemPos()]
+        updated = dict(item)
+        updated["label"] = None if chosen_label == "(none)" else chosen_label
+        updated["locator"] = dialog.getControl("locator").getModel().Text.strip() or None
+        updated["prefix"] = dialog.getControl("prefix").getModel().Text.strip() or None
+        updated["suffix"] = dialog.getControl("suffix").getModel().Text.strip() or None
+        updated["suppress-author"] = suppress_ctrl.getState() == 1
+        updated["author-only"] = author_only_ctrl.getState() == 1
+    dialog.dispose()
+    return updated
+
+
 def run_composer_dialog(doc, base: str) -> list | None:
-    """Show the composer: live search + a persistent multi-item assembly + a real rendered preview. Returns the
-    assembled paper ids (in the order added) if the user clicked Insert with at least one item, else None."""
+    """Show the composer: live search + a persistent multi-item assembly (each item optionally carrying a
+    locator/prefix/suffix/suppress-author override, via "Options…") + a real rendered preview. Returns the
+    assembled items (``[{"paper_id": ..., **any set overrides}, ...]``, in add-order) if the user clicked
+    Insert with at least one item, else None."""
     import unohelper
     from com.sun.star.awt import XActionListener, XTextListener
 
@@ -88,18 +228,28 @@ def run_composer_dialog(doc, base: str) -> list | None:
     dm.insertByName("results", results)
 
     add_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
-    add_btn.PositionX, add_btn.PositionY, add_btn.Width, add_btn.Height, add_btn.Label = 6, 118, 110, 16, "Add →"
+    add_btn.PositionX, add_btn.PositionY, add_btn.Width, add_btn.Height, add_btn.Label = 6, 118, 88, 16, "Add →"
     dm.insertByName("add", add_btn)
 
     remove_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     remove_btn.PositionX, remove_btn.PositionY, remove_btn.Width, remove_btn.Height, remove_btn.Label = (
-        122,
+        98,
         118,
-        110,
+        88,
         16,
         "← Remove",
     )
     dm.insertByName("remove", remove_btn)
+
+    options_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    options_btn.PositionX, options_btn.PositionY, options_btn.Width, options_btn.Height, options_btn.Label = (
+        190,
+        118,
+        90,
+        16,
+        "Options…",
+    )
+    dm.insertByName("options", options_btn)
 
     _label("assembly_lbl", 6, 138, 300, 12, "Citing (0):")
     assembly = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
@@ -133,9 +283,14 @@ def run_composer_dialog(doc, base: str) -> list | None:
     preview_ctrl = dialog.getControl("preview")
     assembly_lbl_ctrl = dialog.getControl("assembly_lbl")
 
-    # state["assembly"]: ordered list of (paper_id, display_row, stamped_csl_record) — the record is fetched
-    # once on Add and reused for every preview render, never re-fetched.
+    # state["assembly"]: ordered list of item dicts — {"paper_id", "row", "record" (stamped CSL, fetched once
+    # on Add, never re-fetched), plus the per-occurrence keys from cc._ITEM_DEFAULTS (locator/label/prefix/
+    # suffix/suppress-author/author-only), defaulted to None/False until "Options…" sets them.
     state = {"hits": [], "assembly": []}
+
+    def _refresh_assembly_listbox():
+        assembly_ctrl.getModel().StringItemList = tuple(_format_assembly_row(it) for it in state["assembly"])
+        assembly_lbl_ctrl.getModel().Label = f"Citing ({len(state['assembly'])}):"
 
     def do_search():
         q = query_ctrl.getModel().Text
@@ -144,10 +299,14 @@ def run_composer_dialog(doc, base: str) -> list | None:
         results_ctrl.getModel().StringItemList = tuple(cc.build_search_rows(hits))
 
     def refresh_preview():
-        records = [rec for _pid, _row, rec in state["assembly"]]
-        if not records:
+        if not state["assembly"]:
             preview_ctrl.getModel().Text = ""
             return
+        records = []
+        for it in state["assembly"]:
+            record = dict(it["record"])
+            record.update(_item_overrides(it))
+            records.append(record)
         style, locale = cc._get_pref(doc)
         req = cc.build_render_request([{"citationID": "preview", "items": records}], style, locale)
         try:
@@ -164,13 +323,14 @@ def run_composer_dialog(doc, base: str) -> list | None:
             return
         hit = state["hits"][pos]
         paper_id = hit["id"]
-        if any(pid == paper_id for pid, _row, _rec in state["assembly"]):
+        if any(it["paper_id"] == paper_id for it in state["assembly"]):
             return  # already added -- no duplicate items in one citation
         record = cc.stamp_item_id(cc.fetch_csl(base, paper_id), paper_id)
         row = cc.build_search_rows([hit])[0]
-        state["assembly"].append((paper_id, row, record))
-        assembly_ctrl.getModel().StringItemList = tuple(r for _p, r, _rec in state["assembly"])
-        assembly_lbl_ctrl.getModel().Label = f"Citing ({len(state['assembly'])}):"
+        item = {"paper_id": paper_id, "row": row, "record": record, **cc._ITEM_DEFAULTS}
+        del item["custom_override"]  # adapter-internal only; never surfaced or sent from the composer
+        state["assembly"].append(item)
+        _refresh_assembly_listbox()
         refresh_preview()
 
     def do_remove():
@@ -178,15 +338,25 @@ def run_composer_dialog(doc, base: str) -> list | None:
         if pos is None or pos < 0 or pos >= len(state["assembly"]):
             return
         state["assembly"].pop(pos)
-        assembly_ctrl.getModel().StringItemList = tuple(r for _p, r, _rec in state["assembly"])
-        assembly_lbl_ctrl.getModel().Label = f"Citing ({len(state['assembly'])}):"
+        _refresh_assembly_listbox()
         refresh_preview()
+
+    def do_options():
+        pos = assembly_ctrl.getSelectedItemPos()
+        if pos is None or pos < 0 or pos >= len(state["assembly"]):
+            return
+        updated = _edit_item_options(ctx, state["assembly"][pos])
+        if updated is not None:
+            state["assembly"][pos] = updated
+            _refresh_assembly_listbox()
+            refresh_preview()
 
     query_ctrl.addTextListener(_TextChangeListener(do_search))
     dialog.getControl("add").addActionListener(_ActionListener(do_add))
     dialog.getControl("remove").addActionListener(_ActionListener(do_remove))
+    dialog.getControl("options").addActionListener(_ActionListener(do_options))
 
     result = dialog.execute()  # 1 == Insert (PushButtonType), 0/2 == Cancel
-    paper_ids = [pid for pid, _row, _rec in state["assembly"]] if result == 1 else []
+    items = [{"paper_id": it["paper_id"], **_item_overrides(it)} for it in state["assembly"]] if result == 1 else []
     dialog.dispose()
-    return paper_ids or None
+    return items or None

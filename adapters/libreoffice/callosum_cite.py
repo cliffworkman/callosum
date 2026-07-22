@@ -60,6 +60,31 @@ _ITEM_DEFAULTS = {
     "author-only": False,
     "custom_override": None,  # adapter-side only; never sent to the backend (see build_render_request)
 }
+# The exact CSL locator-label vocabulary the backend validates against (P0 phase 5b, backlog #33/#34) — MUST
+# match `CSL_LOCATOR_LABELS` in `app/backend/api/routers/citations.py` exactly. Duplicated rather than imported:
+# this adapter runs under LibreOffice's own bundled Python, a separate process/environment with no access to
+# the backend's Python package — this is a fixed CSL-spec vocabulary, not something that drifts independently.
+CSL_LOCATOR_LABELS = (
+    "book",
+    "chapter",
+    "column",
+    "figure",
+    "folio",
+    "issue",
+    "line",
+    "note",
+    "opus",
+    "page",
+    "paragraph",
+    "part",
+    "scene",
+    "section",
+    "sub-verbo",
+    "supplement",
+    "table",
+    "verse",
+    "volume",
+)
 PREF_STYLE = "CallosumStyle"  # document user-property: chosen CSL style id
 PREF_LOCALE = "CallosumLocale"  # document user-property: chosen locale
 DEFAULT_STYLE = "apa"
@@ -397,17 +422,25 @@ def current_query_text(doc) -> str:
     return str(para.getString() or "").strip()
 
 
-def insert_citation_items(doc, paper_ids: list, base: str = DEFAULT_BASE, cursor=None) -> str:
+def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, cursor=None) -> str:
     """Insert a live citation ReferenceMark wrapping ONE OR MORE works at the cursor, then re-render the
-    document (Phase 5a, backlog #33/#34 — generalizes the original single-item `insert_citation`, now a thin
-    wrapper over this). `paper_ids` order becomes the citation's initial item order — subject to whatever the
-    chosen CSL style's own `<citation><sort>` does at render time regardless (4 of the 7 bundled styles define
-    one; confirmed in Phase 3 that a composer preview must always be a real round-trip, never simulated, for
-    exactly this reason).
+    document (Phase 5a/5b, backlog #33/#34 — generalizes the original single-item `insert_citation`, now a thin
+    wrapper over this). Each `items` entry is ``{"paper_id": ..., **optional per-occurrence overrides}`` —
+    locator/label/prefix/suffix/suppress-author/author-only (Phase 5b); any key besides `paper_id` that's
+    omitted defaults via `_normalize_item`, exactly like a decoded v1 mark's items would. Item order becomes
+    the citation's initial order — subject to whatever the chosen CSL style's own `<citation><sort>` does at
+    render time regardless (4 of the 7 bundled styles define one; confirmed in Phase 3 that a composer preview
+    must always be a real round-trip, never simulated, for exactly this reason).
 
     Returns the new mark's `rnd` tag. (UNO; the macro entry point / composer supplies the dialog + current doc.)
     """
-    records = [stamp_item_id(fetch_csl(base, pid), pid) for pid in paper_ids]
+    records = []
+    for it in items:
+        paper_id = it["paper_id"]
+        record = stamp_item_id(fetch_csl(base, paper_id), paper_id)
+        overrides = {k: v for k, v in it.items() if k != "paper_id"}
+        record.update(_normalize_item(overrides))
+        records.append(record)
     rnd = _new_rnd(doc)
     payload = {"items": records}
     text = doc.getText()
@@ -422,9 +455,9 @@ def insert_citation_items(doc, paper_ids: list, base: str = DEFAULT_BASE, cursor
 
 
 def insert_citation(doc, paper_id, base: str = DEFAULT_BASE, cursor=None) -> str:
-    """Insert a live citation ReferenceMark for a SINGLE paper_id — a thin wrapper over
-    `insert_citation_items` (the common case; every existing caller keeps working unchanged)."""
-    return insert_citation_items(doc, [paper_id], base, cursor)
+    """Insert a live citation ReferenceMark for a SINGLE paper_id, no per-occurrence overrides — a thin wrapper
+    over `insert_citation_items` (the common case; every existing caller keeps working unchanged)."""
+    return insert_citation_items(doc, [{"paper_id": paper_id}], base, cursor)
 
 
 def _our_marks(doc) -> list:
@@ -908,19 +941,20 @@ def suggest_and_insert(doc, base: str = DEFAULT_BASE) -> str | None:
 
 
 def add_citation_by_search(doc, base: str) -> str | None:
-    """Add a citation via the live-search composer (Phase 5a, backlog #33/#34): search-as-you-type, assemble one
-    or more sources with a real rendered preview, then insert as one (possibly grouped) citation. Replaces the
-    original one-shot search+single-select flow. Returns the mark rnd, or None if nothing was assembled/inserted."""
+    """Add a citation via the live-search composer (Phase 5a/5b, backlog #33/#34): search-as-you-type, assemble
+    one or more sources (each optionally carrying a locator/prefix/suffix/suppress-author override) with a real
+    rendered preview, then insert as one (possibly grouped) citation. Replaces the original one-shot
+    search+single-select flow. Returns the mark rnd, or None if nothing was assembled/inserted."""
     import os
     import sys
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import composer
 
-    paper_ids = composer.run_composer_dialog(doc, base)
-    if not paper_ids:
+    items = composer.run_composer_dialog(doc, base)
+    if not items:
         return None
-    return insert_citation_items(doc, paper_ids, base, cursor=_insertion_cursor(doc))
+    return insert_citation_items(doc, items, base, cursor=_insertion_cursor(doc))
 
 
 # ── interactive flows (the prompt+act bodies; shared by the macro entry points AND the .oxt dispatcher) ─────

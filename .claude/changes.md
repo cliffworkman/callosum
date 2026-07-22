@@ -13,6 +13,19 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-22 — Increment 330: LibreOffice adapter rework, Phase 5b (per-item locator/prefix/suffix)
+- **Files:** `adapters/libreoffice/{callosum_cite,composer,selftest_uno,README}.py/.md`,
+  `.claude/docs/increment-notes/INCREMENT-330-NOTES.md`.
+- **What:** the composer's assembled items can now carry a per-occurrence locator (the exact 19-value CSL
+  label vocabulary), prefix, suffix, suppress-author, or author-only — via a new "Options…" sub-dialog, with
+  suppress-author/author-only kept mutually exclusive in the UI. `insert_citation_items`'s signature changed
+  from bare paper ids to item dicts to carry these. A real-UNO spike confirmed all five overrides reach actual
+  citeproc-js output correctly (e.g. suppress-author → `'(2017)'`, author-only → `'Vaswani & Shazeer'`).
+- **Why:** the backend/schema have supported all of this since Phases 1/3; this was purely wiring the composer
+  UI to what already existed server-side — the next slice of the deferred Phase 5 composer work.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-330-NOTES.md`. Note: like
+  Phase 5a, the composer + its new Options dialog haven't been driven by a real human in real Writer yet.
+
 ## 2026-07-22 — Increment 329: LibreOffice adapter rework, Phase 5a (the composer)
 - **Files:** `adapters/libreoffice/composer.py` (new), `adapters/libreoffice/{callosum_cite,selftest_uno,README}.py/.md`,
   `.claude/docs/increment-notes/INCREMENT-329-NOTES.md`.

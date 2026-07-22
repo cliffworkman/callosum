@@ -693,17 +693,20 @@ def spike_live_search_listener(ctx, base):
 
 
 def spike_insert_citation_items(ctx, base, p1, p2):
-    """Phase 5a (backlog #33/#34): `insert_citation_items` generalizes `insert_citation` to accept multiple
-    paper ids in ONE mark (the composer's insert path) — confirms exactly one mark is created (not two), its
-    item list has both papers in the given order, the rendered text reflects both sources, and that the
-    original single-item `insert_citation` (now a thin wrapper) still behaves identically to before (a
-    regression check on every existing caller: suggest, add-by-search's old path, insert-by-id)."""
+    """Phase 5a/5b (backlog #33/#34): `insert_citation_items` generalizes `insert_citation` to accept multiple
+    papers (each optionally carrying a per-occurrence override) in ONE mark (the composer's insert path) —
+    confirms exactly one mark is created (not two), its item list has both papers in the given order, the
+    rendered text reflects both sources, and that the original single-item `insert_citation` (now a thin
+    wrapper) still behaves identically to before (a regression check on every existing caller: suggest,
+    add-by-search's old path, insert-by-id)."""
     log("spike (phase 5a): insert_citation_items — a single mark with multiple items")
     doc = new_writer(ctx)
     text = doc.getText()
     text.createTextCursorByRange(text.getStart()).setString("See the following.\n")
     cc.set_style(doc, "apa", "en-US", base)
-    rnd = cc.insert_citation_items(doc, [p1, p2], base, cursor=text.createTextCursorByRange(text.getEnd()))
+    rnd = cc.insert_citation_items(
+        doc, [{"paper_id": p1}, {"paper_id": p2}], base, cursor=text.createTextCursorByRange(text.getEnd())
+    )
 
     marks = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
     check(len(marks) == 1, f"expected exactly 1 mark for a grouped insert, found {len(marks)}")
@@ -728,6 +731,54 @@ def spike_insert_citation_items(ctx, base, p1, p2):
     check(len(solo) == 1 and len(solo[0]["items"]) == 1, f"expected 1 mark with 1 item, got {solo}")
     check(solo[0]["items"][0].get("id") == f"callosum-{p1}", "single-item insert_citation regressed")
     log("spike (phase 5a): OK — insert_citation (single-item) still behaves identically")
+
+
+def spike_per_item_citation_overrides(ctx, base, p1):
+    """Phase 5b (backlog #33/#34): the composer's "Options…" per-item fields (locator/label/prefix/suffix/
+    suppress-author/author-only) actually reach the render through `insert_citation_items` — confirmed against
+    real citeproc-js output, not assumed. Reuses the Phase-3 findings already verified in `tests/test_citations.py`
+    (prefix/suffix wrap INSIDE the parenthetical; author-only is a bare name, no year/parens) as the expected
+    shape, now proven through this adapter's own insert path rather than only the backend's own test suite."""
+    log("spike (phase 5b): per-item locator/prefix/suffix/suppress-author reach the real render")
+
+    def fresh_doc_with(overrides: dict) -> str:
+        doc = new_writer(ctx)
+        text = doc.getText()
+        text.createTextCursorByRange(text.getStart()).setString("Body.\n")
+        cc.set_style(doc, "apa", "en-US", base)
+        cc.insert_citation_items(
+            doc, [{"paper_id": p1, **overrides}], base, cursor=text.createTextCursorByRange(text.getEnd())
+        )
+        return cc.scan_citations_in_order(doc)[0]["_mark"].getAnchor().getString()
+
+    locator_rendered = fresh_doc_with({"label": "page", "locator": "12"})
+    check("12" in locator_rendered, f"expected the locator '12' to appear in the render, got {locator_rendered!r}")
+    log(f"spike (phase 5b): OK — locator reached the render: {locator_rendered!r}")
+
+    prefix_rendered = fresh_doc_with({"prefix": "see "})
+    check("see " in prefix_rendered, f"expected the prefix 'see ' to appear in the render, got {prefix_rendered!r}")
+    log(f"spike (phase 5b): OK — prefix reached the render: {prefix_rendered!r}")
+
+    suffix_rendered = fresh_doc_with({"suffix": " (emphasis added)"})
+    check(
+        "emphasis added" in suffix_rendered,
+        f"expected the suffix to appear in the render, got {suffix_rendered!r}",
+    )
+    log(f"spike (phase 5b): OK — suffix reached the render: {suffix_rendered!r}")
+
+    suppressed_rendered = fresh_doc_with({"suppress-author": True})
+    check(
+        "Vaswani" not in suppressed_rendered,
+        f"expected the author to be suppressed, got {suppressed_rendered!r}",
+    )
+    log(f"spike (phase 5b): OK — suppress-author reached the render: {suppressed_rendered!r}")
+
+    author_only_rendered = fresh_doc_with({"author-only": True})
+    check(
+        "Vaswani" in author_only_rendered and "2017" not in author_only_rendered,
+        f"expected a bare author name with no year, got {author_only_rendered!r}",
+    )
+    log(f"spike (phase 5b): OK — author-only reached the render: {author_only_rendered!r}")
 
 
 def spike_document_diagnostics(ctx, base, p1, p2):
@@ -961,6 +1012,9 @@ def main():
 
         # 14) Phase 5a (backlog #33/#34): the composer's insert-side backend, bypassing the (blocking) dialog.
         spike_insert_citation_items(ctx, base, p1, p2)
+
+        # 15) Phase 5b (backlog #33/#34): per-item locator/prefix/suffix/suppress-author reach the real render.
+        spike_per_item_citation_overrides(ctx, base, p1)
 
         print("SELFTEST OK", flush=True)
         return 0

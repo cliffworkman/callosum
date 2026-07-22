@@ -42,6 +42,9 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
 1. **Add citation…** — the composer: **search your library live as you type** (author / title / year), **add one
    or more** results to the citation you're building, see a **real rendered preview** as you go, then click
    **Insert**. Building `(Smith, 2020; Jones, 2021)` from scratch is one composer session, not an insert-then-merge.
+   Select an assembled item and click **Options…** to set a **locator** (page/chapter/section/… — the fixed CSL
+   vocabulary), a **prefix**/**suffix** (e.g. "see …"), or **suppress the author**/show **author only** — each is
+   per-occurrence (this citation only; your library record is never touched), and the preview updates live.
 2. **Suggest citation** — **select (highlight)** the sentence you're writing (or place the cursor in it): callosum
    ranks **your library** by relevance to that sentence and shows a pick-list — each row gives the paper's **stance**
    (supports / contrasts / mentions the claim), a **match** score, and a **quote** preview (the evidence). Pick one
@@ -121,11 +124,11 @@ built on **citeproc-js** and the **CSL** project; see the project's `THIRD-PARTY
 
 ## Limitations (v1)
 Insert is by paper id, by relevance via **Suggest**, or by the live-search **Add citation…** composer (which now
-builds true multi-work citations from scratch); Suggest covers papers **already in your library** (finding
-relevant papers you don't yet have is a future stage) and shows a truncated quote per row (read the full
-evidence in callosum's in-app **Cite** panel). The composer doesn't yet expose a page locator/prefix/suffix, or
-suppress-author/date, per item (that's the next phase — the backend/schema already support these; only the UI
-doesn't yet); **Edit Citation** (reopening the composer on an existing citation) is also not built yet — use
-**Merge**/**Split**/**Delete** to adjust an existing one instead. **Prepare submission copy…** always saves ODF
-(`.odt`) for now, regardless of your document's original format; in-text styles only (footnote/note styles
+builds true multi-work citations from scratch, with per-item locator/prefix/suffix/suppress-author via
+**Options…**); Suggest covers papers **already in your library** (finding relevant papers you don't yet have is
+a future stage) and shows a truncated quote per row (read the full evidence in callosum's in-app **Cite**
+panel). There's no "suppress date" option — CSL/citeproc-js has no equivalent mechanism. **Edit Citation**
+(reopening the composer on an existing citation, or "revert manual overrides"/"restore style sort") is not built
+yet — use **Merge**/**Split**/**Delete** to adjust an existing one instead. **Prepare submission copy…** always
+saves ODF (`.odt`) for now, regardless of your document's original format; in-text styles only (footnote/note styles
 later); no Track-Changes-corruption handling. Word (Office.js) and Google Docs are the next two adapters.
