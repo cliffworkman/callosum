@@ -9,6 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-22 — Backlog #15: sync_server hardening (rate limiting, retention, backup runbook)
+
+- **Files:** `sync_server/rate_limit.py` (new), `sync_server/schema.py`, `sync_server/store.py`,
+  `sync_server/app.py`, `sync_server/prune_tombstones.py` (new), `sync_server/OPERATIONS.md` (new),
+  `sync_server/README.md`, `tests/test_sync_server.py`,
+  `.claude/security-audits/2026-06-29_sync-server.md` (addendum).
+- **What:** per-user (OIDC `sub`-keyed) rate limiting on both `/sync/records` routes; a 90-day tombstone
+  retention policy via a standalone CLI script for cron, not an in-process scheduler; a backup/restore runbook
+  that's explicit about what a sync-server backup does and doesn't protect (opaque sync state, never a user's
+  plaintext library). A per-user storage quota and a general migration tool stay explicitly out of scope.
+- **Why:** Cliff's choice from the 12-item decision queue ("build the hardening code"); closes 3 of the 4
+  pre-public-deploy follow-ons the original 2026-06-29 sync-server audit recorded. The live juno deploy stays
+  entirely his own infra — untouched by this change.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED 2026-07-22 inc 340 — permanent-delete help now states that Callosum-managed attachment
 files are removed while externally linked files remain on disk. Nothing above this line has an un-synced corpus
 change. -->

@@ -10,8 +10,9 @@ user's current high seq (the next cursor). Bound params throughout (rule #3); th
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import Connection, insert, select, update
+from sqlalchemy import Connection, delete, insert, select, update
 
 from sync_server.schema import sync_cursor, sync_records
 
@@ -59,6 +60,7 @@ def push(conn: Connection, user_id: str, records: list[Record]) -> int:
             deleted=1 if r.deleted else 0,
             ciphertext=None if r.deleted else r.ciphertext,
             seq=seq,
+            updated_at=datetime.now(timezone.utc),
         )
         if existing is None:
             conn.execute(
@@ -76,6 +78,25 @@ def push(conn: Connection, user_id: str, records: list[Record]) -> int:
             )
     _set_seq(conn, user_id, seq)
     return seq
+
+
+def prune_tombstones(conn: Connection, *, older_than_days: int = 90) -> int:
+    """Delete tombstone rows (`deleted=1`) older than `older_than_days`, across ALL users. Returns the count
+    removed. Runs in the caller's transaction.
+
+    Backlog #15 (retention). A tombstone can never be superseded by a newer version arriving later (its whole
+    point is "this record is gone"), so once every device has learned about it, keeping it forever serves no
+    purpose. Correctness trade-off (documented, not hidden — see `sync_server/OPERATIONS.md`): a device that
+    hasn't synced in longer than `older_than_days` and still holds a stale local copy of a since-deleted record
+    could "resurrect" it by pushing an update after its tombstone has been pruned, since the server has no way
+    to confirm every device has actually pulled a given tombstone before removing it (there is no per-device
+    read-cursor, only the per-user write high-water mark in `sync_cursor`). 90 days is the chosen default for a
+    personal/small-team sync tool; tune via `older_than_days` (wired to `CALLOSUM_SYNC_RETENTION_DAYS`) if a
+    different trade-off is wanted.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=older_than_days)
+    result = conn.execute(delete(sync_records).where(sync_records.c.deleted == 1, sync_records.c.updated_at < cutoff))
+    return result.rowcount
 
 
 def pull(conn: Connection, user_id: str, since: int) -> tuple[list[Record], int]:

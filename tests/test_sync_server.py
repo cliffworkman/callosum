@@ -24,7 +24,10 @@ from app.backend.sync.engine import run_sync
 from app.backend.sync.transport import HttpSyncTransport, SyncServerError
 from sync_server.app import create_server
 from sync_server.auth import Identity, InvalidToken
+from sync_server.rate_limit import RateLimiter
+from sync_server.schema import ensure_updated_at_column, sync_records
 from sync_server.schema import metadata as server_metadata
+from sync_server.store import prune_tombstones
 
 
 class FakeVerifier:
@@ -36,10 +39,10 @@ class FakeVerifier:
         return Identity(sub=token[2:])
 
 
-def _server() -> TestClient:
+def _server(*, rate_limiter: RateLimiter | None = None) -> TestClient:
     engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
     server_metadata.create_all(engine)
-    return TestClient(create_server(engine, FakeVerifier()))
+    return TestClient(create_server(engine, FakeVerifier(), rate_limiter=rate_limiter))
 
 
 def _push(client: TestClient, token: str, records: list[dict]):
@@ -117,6 +120,132 @@ def test_unconfigured_server_refuses() -> None:
     assert c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"}).status_code == 503
 
 
+# --- backlog #15: per-user rate limiting ---
+
+
+def test_rate_limit_is_per_user_not_global() -> None:
+    # A tiny limit (2 requests) so the test doesn't need real time to elapse.
+    c = _server(rate_limiter=RateLimiter(max_requests=2, window=60.0))
+    assert c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"}).status_code == 200
+    assert c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"}).status_code == 200
+    limited = c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"})
+    assert limited.status_code == 429
+    assert int(limited.headers["Retry-After"]) >= 0
+    # bob's own bucket is untouched by alice's traffic
+    assert c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:bob"}).status_code == 200
+
+
+def test_rate_limit_applies_to_push_too() -> None:
+    c = _server(rate_limiter=RateLimiter(max_requests=1, window=60.0))
+    assert _push(c, "u:alice", [_blob()]).status_code == 200
+    second = _push(c, "u:alice", [_blob(record_id="b")])
+    assert second.status_code == 429
+
+
+def test_generous_default_limit_does_not_throttle_normal_use() -> None:
+    # The module's actual default (60/60s) shouldn't trip on a handful of ordinary requests.
+    c = _server()
+    for _ in range(10):
+        assert c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"}).status_code == 200
+
+
+# --- backlog #15: tombstone retention ---
+
+
+def _insert_raw_tombstone(engine, *, user_id: str, record_id: str, updated_at) -> None:
+    from sqlalchemy import insert
+
+    with engine.begin() as conn:
+        conn.execute(
+            insert(sync_records).values(
+                user_id=user_id,
+                collection="papers",
+                record_id=record_id,
+                version=1,
+                deleted=1,
+                ciphertext=None,
+                seq=1,
+                updated_at=updated_at,
+            )
+        )
+
+
+def test_prune_tombstones_removes_only_old_ones() -> None:
+    from datetime import datetime, timedelta, timezone
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    server_metadata.create_all(engine)
+    now = datetime.now(timezone.utc)
+    _insert_raw_tombstone(engine, user_id="alice", record_id="old", updated_at=now - timedelta(days=100))
+    _insert_raw_tombstone(engine, user_id="alice", record_id="recent", updated_at=now - timedelta(days=10))
+
+    with engine.begin() as conn:
+        removed = prune_tombstones(conn, older_than_days=90)
+    assert removed == 1
+
+    with engine.connect() as conn:
+        remaining = {row[0] for row in conn.execute(select(sync_records.c.record_id))}
+    assert remaining == {"recent"}
+
+
+def test_prune_tombstones_never_touches_live_records() -> None:
+    c = _server()
+    _push(c, "u:alice", [_blob(record_id="alive", ciphertext="KEEP")])  # not a tombstone, no matter how old
+    engine = c.app.state.engine
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import update
+
+    with engine.begin() as conn:
+        conn.execute(
+            update(sync_records)
+            .where(sync_records.c.record_id == "alive")
+            .values(updated_at=datetime.now(timezone.utc) - timedelta(days=9999))
+        )
+        removed = prune_tombstones(conn, older_than_days=90)
+    assert removed == 0
+    got = c.get("/sync/records?since=0", headers={"Authorization": "Bearer u:alice"}).json()
+    assert got["records"][0]["ciphertext"] == "KEEP"
+
+
+def test_prune_tombstones_skips_rows_with_no_recorded_age() -> None:
+    # A pre-migration row (updated_at still NULL) is never assumed old enough to prune — fails toward
+    # preservation, matching the documented "never guess" posture.
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    server_metadata.create_all(engine)
+    _insert_raw_tombstone(engine, user_id="alice", record_id="ancient-unknown-age", updated_at=None)
+    with engine.begin() as conn:
+        removed = prune_tombstones(conn, older_than_days=90)
+    assert removed == 0
+
+
+def test_ensure_updated_at_column_is_idempotent() -> None:
+    import sqlalchemy as sa
+
+    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    # Build the table WITHOUT updated_at, simulating an already-deployed pre-#15 table.
+    legacy = sa.MetaData()
+    sa.Table(
+        "sync_records",
+        legacy,
+        sa.Column("user_id", sa.String(length=255), nullable=False),
+        sa.Column("collection", sa.String(length=60), nullable=False),
+        sa.Column("record_id", sa.String(length=200), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=False),
+        sa.Column("deleted", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column("ciphertext", sa.Text()),
+        sa.Column("seq", sa.BigInteger(), nullable=False),
+        sa.PrimaryKeyConstraint("user_id", "collection", "record_id", name="pk_sync_records"),
+    )
+    legacy.create_all(engine)
+
+    ensure_updated_at_column(engine)  # should add it
+    ensure_updated_at_column(engine)  # calling again must be a safe no-op, not an error
+
+    inspector = sa.inspect(engine)
+    assert "updated_at" in {c["name"] for c in inspector.get_columns("sync_records")}
+
+
 # --- end-to-end: two devices converge through the real HTTP transport → server → store ---
 
 
@@ -173,3 +302,32 @@ def test_transport_fails_closed_on_error() -> None:
     transport = HttpSyncTransport(base_url="", token="bad", client=c)  # 401 from the server
     with pytest.raises(SyncServerError):
         transport.pull(0)
+
+
+# --- backlog #15: the prune_tombstones CLI script ---
+
+
+def test_prune_cli_dry_run_and_real_run(tmp_path: Path, monkeypatch, capsys) -> None:
+    from datetime import datetime, timedelta, timezone
+
+    from sync_server import prune_tombstones as cli
+
+    db_path = tmp_path / "cli-sync.sqlite"
+    engine = create_engine(f"sqlite:///{db_path.as_posix()}")
+    server_metadata.create_all(engine)
+    _insert_raw_tombstone(
+        engine, user_id="alice", record_id="old", updated_at=datetime.now(timezone.utc) - timedelta(days=200)
+    )
+    engine.dispose()
+
+    monkeypatch.setenv("CALLOSUM_SYNC_DB_URL", f"sqlite:///{db_path.as_posix()}")
+
+    assert cli.main(["--dry-run"]) == 0
+    assert "1 tombstone" in capsys.readouterr().out
+
+    assert cli.main([]) == 0
+    assert "removed 1 tombstone" in capsys.readouterr().out
+
+    # a second real run finds nothing left to remove
+    assert cli.main([]) == 0
+    assert "removed 0 tombstone" in capsys.readouterr().out

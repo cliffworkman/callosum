@@ -16,11 +16,20 @@ from pydantic import BaseModel, Field
 from sqlalchemy import create_engine
 
 from sync_server.auth import Identity, InvalidToken, TokenVerifier, verifier_from_env
-from sync_server.schema import metadata
+from sync_server.rate_limit import RateLimiter
+from sync_server.schema import ensure_updated_at_column, metadata
 from sync_server.store import Record, pull, push
 
 MAX_RECORDS_PER_PUSH = 1000
 MAX_CIPHERTEXT_LEN = 2_000_000  # ~2 MB — these are small metadata records, not files
+
+# backlog #15: per-user rate limiting. Generous defaults for a personal/small-team self-host (a device polling
+# during active use), tunable via env without a code change. Keyed by ident.sub (see rate_limit.py) — a user's
+# requests across every device they sync share one bucket, since the token carries no per-device claim.
+RATE_LIMIT_WINDOW_SECONDS = float(os.getenv("CALLOSUM_SYNC_RATE_LIMIT_WINDOW_SECONDS", "60"))
+RATE_LIMIT_MAX_REQUESTS = int(os.getenv("CALLOSUM_SYNC_RATE_LIMIT_MAX", "60"))
+# backlog #15: retention. See store.prune_tombstones's docstring for the resurrection trade-off this trades off.
+RETENTION_DAYS = int(os.getenv("CALLOSUM_SYNC_RETENTION_DAYS", "90"))
 
 
 class RecordModel(BaseModel):
@@ -57,15 +66,27 @@ def _identity(request: Request) -> Identity:
         raise HTTPException(status_code=401, detail="invalid token") from exc
 
 
-def create_server(engine, verifier: TokenVerifier | None) -> FastAPI:
+def create_server(engine, verifier: TokenVerifier | None, *, rate_limiter: RateLimiter | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        metadata.create_all(engine)  # v1: create-on-start; a prod migration is a follow-on
+        metadata.create_all(engine)  # v1: create-on-start; a general prod migration TOOL is a separate follow-on
+        ensure_updated_at_column(engine)  # one-time defensive ALTER for an already-deployed table (backlog #15)
         yield
 
     app = FastAPI(title="callosum sync-server", lifespan=lifespan)
     app.state.engine = engine
     app.state.verifier = verifier
+    app.state.rate_limiter = rate_limiter or RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECONDS)
+
+    def _rate_limited(request: Request, ident: Identity = Depends(_identity)) -> Identity:
+        limiter: RateLimiter = request.app.state.rate_limiter
+        if not limiter.allow(ident.sub):
+            raise HTTPException(
+                status_code=429,
+                detail="rate limit exceeded",
+                headers={"Retry-After": str(limiter.retry_after(ident.sub))},
+            )
+        return ident
 
     @app.get("/health")
     def health() -> dict:
@@ -73,14 +94,14 @@ def create_server(engine, verifier: TokenVerifier | None) -> FastAPI:
 
     @app.get("/sync/records", response_model=PullResponse)
     def get_records(
-        request: Request, since: int = Query(0, ge=0), ident: Identity = Depends(_identity)
+        request: Request, since: int = Query(0, ge=0), ident: Identity = Depends(_rate_limited)
     ) -> PullResponse:
         with request.app.state.engine.begin() as conn:
             records, seq = pull(conn, ident.sub, since)
         return PullResponse(records=[_to_model(r) for r in records], seq=seq)
 
     @app.post("/sync/records", response_model=PushResponse)
-    def post_records(request: Request, body: PushRequest, ident: Identity = Depends(_identity)) -> PushResponse:
+    def post_records(request: Request, body: PushRequest, ident: Identity = Depends(_rate_limited)) -> PushResponse:
         records = [_to_record(r) for r in body.records]
         with request.app.state.engine.begin() as conn:
             seq = push(conn, ident.sub, records)

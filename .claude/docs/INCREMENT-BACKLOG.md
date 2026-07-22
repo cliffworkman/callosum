@@ -131,10 +131,15 @@
   surfaced: `/sync/run`'s wrong-passphrase 401 was firing the unrelated remote-access lockout overlay, now 422;
   an unhandled SQLite lock collision was a raw 500, now a clean 503), and the conflict-review panel. Browser-
   verified end-to-end with Playwright. See `INCREMENT-310/311-NOTES.md`.
-  **Still yours, not code:** the **live deploy** of `sync_server/` on Postgres + wiring the Authentik audience
-  [non-code, your infra]; pre-public **server hardening** (per-user rate-limiting, retention, a backup runbook, a
-  migration tool) [security]; and **SP4 sharing** (= B2 collaboration, live-shared-library layer) [gated, its own
-  design] — the only genuinely open threads left in #15.
+  **Server hardening (per-user rate-limiting, retention, a backup runbook) — CLOSED inc 341 (2026-07-22).**
+  `sync_server/rate_limit.py` (a standalone per-`sub` sliding-window limiter, 429 + `Retry-After`), `store.py::
+  prune_tombstones` (a 90-day tombstone grace period, run via `python -m sync_server.prune_tombstones` on your
+  own cron — not an in-process scheduler), and `sync_server/OPERATIONS.md` (backup/restore + the retention
+  trade-off, stated plainly). Audit addendum PASS. **Still yours, not code:** the **live deploy** of
+  `sync_server/` on Postgres + wiring the Authentik audience [non-code, your infra]; a per-user storage **quota**
+  and a real **migration tool** (both explicitly out of this pass's scope — see `sync_server/README.md`'s "Not
+  yet"); and **SP4 sharing** (= B2 collaboration, live-shared-library layer) [gated, its own design] — the only
+  genuinely open threads left in #15.
 - **Superuser *capabilities* — what the flag gates.** [decision] The flag shipped inc 195 (a verified-ORCID
   allowlist → an `is_superuser` indicator) but **no capability is wired to it yet** — a design decision for when a
   concrete superuser-only capability is wanted.

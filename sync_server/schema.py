@@ -24,6 +24,10 @@ sync_records = sa.Table(
     sa.Column("deleted", sa.Integer(), nullable=False, server_default="0"),
     sa.Column("ciphertext", sa.Text()),  # NULL for a tombstone
     sa.Column("seq", sa.BigInteger(), nullable=False),
+    # backlog #15 (retention): stamped on every push (insert or update) — used to age out old tombstones. Nullable
+    # since an existing prod row (pre-migration) won't have one until its next push; see `ensure_updated_at_column`
+    # for the one-time, idempotent ALTER TABLE that adds this column to an already-deployed table.
+    sa.Column("updated_at", sa.DateTime(timezone=True)),
     sa.PrimaryKeyConstraint("user_id", "collection", "record_id", name="pk_sync_records"),
     sa.Index("ix_sync_records_user_seq", "user_id", "seq"),
 )
@@ -35,3 +39,23 @@ sync_cursor = sa.Table(
     sa.Column("user_id", sa.String(length=255), primary_key=True),
     sa.Column("seq", sa.BigInteger(), nullable=False, server_default="0"),
 )
+
+
+def ensure_updated_at_column(engine: sa.Engine) -> None:
+    """One-time, idempotent defensive ALTER for the `updated_at` column added in backlog #15.
+
+    This is deliberately NOT a general migration tool (that remains its own separate, un-scoped follow-on —
+    see `sync_server/README.md`'s "Not yet" section) — it exists only because `metadata.create_all()` (the
+    lifespan's existing v1 "create-on-start" approach) never alters an already-existing table, so an
+    already-deployed `sync_records` table would silently lack this column forever without one targeted,
+    dialect-portable ALTER. Safe to call every startup: checks via `Inspector` first, so a fresh (or
+    already-migrated) table is a no-op.
+    """
+    inspector = sa.inspect(engine)
+    if "sync_records" not in inspector.get_table_names():
+        return  # create_all will create it WITH the column — nothing to add
+    columns = {c["name"] for c in inspector.get_columns("sync_records")}
+    if "updated_at" in columns:
+        return
+    with engine.begin() as conn:
+        conn.execute(sa.text("ALTER TABLE sync_records ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE"))

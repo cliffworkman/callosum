@@ -34,8 +34,20 @@ export CALLOSUM_SYNC_OIDC_AUDIENCE="<the callosum client_id registered in Authen
 uvicorn sync_server.app:app --host 0.0.0.0 --port 8770   # behind TLS in production
 ```
 
-Tables are created on startup (v1; a migration is a follow-on). Unset OIDC env → the server refuses every request
-(default-closed). Without `CALLOSUM_SYNC_DB_URL` it falls back to a local `sqlite:///sync-server.sqlite` (dev only).
+Tables are created on startup (v1; a general migration TOOL is still a follow-on — see "Not yet" below). A single
+targeted, idempotent `ALTER TABLE` also runs on startup to add the backlog-#15 `updated_at` column to an
+already-deployed table (see `schema.ensure_updated_at_column`) — this is not that general tool, just a one-time
+self-heal for this specific release. Unset OIDC env → the server refuses every request (default-closed). Without
+`CALLOSUM_SYNC_DB_URL` it falls back to a local `sqlite:///sync-server.sqlite` (dev only).
+
+**Rate limiting (backlog #15):** per-user (keyed by OIDC `sub`), a sliding window — `429` + `Retry-After` past the
+limit. Tune via `CALLOSUM_SYNC_RATE_LIMIT_MAX` (default 60 requests) / `CALLOSUM_SYNC_RATE_LIMIT_WINDOW_SECONDS`
+(default 60).
+
+**Retention (backlog #15):** tombstones (deleted-record markers) older than `CALLOSUM_SYNC_RETENTION_DAYS`
+(default 90) are eligible for removal via `python -m sync_server.prune_tombstones` — **not** auto-scheduled inside
+this process; run it from your own cron/systemd timer. See `OPERATIONS.md` for the trade-off this makes and the
+cron entry, and `store.prune_tombstones`'s docstring for the mechanics.
 
 ## Authentik setup
 
@@ -43,7 +55,18 @@ Register the callosum client so its **access token** carries an audience this se
 (`CALLOSUM_SYNC_OIDC_AUDIENCE`), then point clients at this server's URL (callosum: **Settings → Sync**). See
 `ops/accounts-authentik-setup.md`.
 
+## Backup & recovery
+
+See `OPERATIONS.md` — a Postgres `pg_dump`/restore runbook, plus what a sync-server backup actually protects (and,
+importantly, what it can't: the server never holds a DEK, so a backup here restores *sync state*, not anyone's
+plaintext library — the local app's own DB remains each user's actual source of truth).
+
 ## Not yet (pre-public hardening)
 
-Per-user rate-limiting, blob retention/quota, a backup runbook, and a real migration tool — deepened before any
-public multi-tenant deploy. This slice targets the maintainer's own self-host (a few accounts, a few devices each).
+**Done (backlog #15, this pass):** per-user rate-limiting, tombstone retention, a backup runbook (see above).
+
+**Still open:** a per-user storage **quota** (nothing caps how many live — non-tombstone — records or how much
+ciphertext one account can accumulate) and a **real migration tool** (today's schema changes are handled by
+`create_all` for new tables plus one-off targeted `ALTER`s like `ensure_updated_at_column` for existing ones — fine
+for the maintainer's own self-host, not a general solution). Both deepened before any public multi-tenant deploy.
+This slice targets the maintainer's own self-host (a few accounts, a few devices each).
