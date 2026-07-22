@@ -8,19 +8,38 @@ the presentation, and beyond it"). That review's findings are folded in below. T
 session hit its context limit — it's written for whoever picks up next (Codex or a fresh Claude Code session)
 with **zero assumed prior context**.
 
-**Repo state: everything below is committed and pushed to `origin/main`** (HEAD `6e397a4`). Increment 328,
-**1333 pytest passing, 1 skipped**. `pytest -n auto -q` and `ruff format/check` are clean; the pre-commit
-line-budget hook is clean.
+**UPDATE 2026-07-22:** Phase 5 (the composer) was picked back up after all — see the new "Phase 5a shipped"
+entry below. This section is left otherwise unedited from when it was written; treat the "Repo state"/HEAD
+line as superseded by the note below.
+
+**Repo state: everything below is committed and pushed to `origin/main`** (HEAD now `0cdf26d`, was `6e397a4`
+when this file was first written). Increment 329, **1333 pytest passing, 1 skipped**. `pytest -n auto -q` and
+`ruff format/check` are clean; the pre-commit line-budget hook is clean.
 
 ## What shipped this session (don't redo)
-- **LibreOffice adapter P0 rework, Phases 0–4 and 6–10, all done** (`adapters/libreoffice/`): versioned mark
-  schema, transactional refresh with rollback, backend citeproc passthrough (locator/prefix/suffix/suppress-
-  author/author-only), `mark_at_cursor`, delete/merge/split/open-in-callosum, a **bounded bibliography**
-  (closes the original verified data-loss bug — a bookmark PAIR, never `text.getEnd()`), safe flatten
-  ("Prepare submission copy"), read-only document diagnostics, and — as of Phase 10 — the real-UNO test
-  harness is now **committed + cross-platform + running in CI** (`adapters/libreoffice/run_roundtrip.py`,
-  `.github/workflows/libreoffice-adapter.yml`, path-scoped + non-blocking). Full detail:
-  `.claude/docs/increment-notes/INCREMENT-320-NOTES.md` through `INCREMENT-328-NOTES.md`.
+- **LibreOffice adapter P0 rework, Phases 0–4 and 6–10, all done**, plus **Phase 5a (the composer) also now
+  done** (`adapters/libreoffice/`): versioned mark schema, transactional refresh with rollback, backend citeproc
+  passthrough (locator/prefix/suffix/suppress-author/author-only), `mark_at_cursor`, delete/merge/split/
+  open-in-callosum, a **bounded bibliography** (closes the original verified data-loss bug — a bookmark PAIR,
+  never `text.getEnd()`), safe flatten ("Prepare submission copy"), read-only document diagnostics, the real-UNO
+  test harness **committed + cross-platform + running in CI** (`adapters/libreoffice/run_roundtrip.py`,
+  `.github/workflows/libreoffice-adapter.yml`, path-scoped + non-blocking — **verified live**, a real run
+  passed on the first attempt: https://github.com/cliffworkman/callosum/actions/runs/29864362756), and — new —
+  **a live-search citation composer** (`adapters/libreoffice/composer.py`) replacing the old one-shot
+  search+single-select "Add citation…" flow: search-as-you-type, a multi-item assembly area, a real rendered
+  preview, Insert. New backend `insert_citation_items` generalizes `insert_citation` to wrap multiple papers in
+  one mark. This required this codebase's first UNO event-listener beyond the `.oxt` dispatcher itself — a
+  real-UNO spike confirmed a programmatic `setText()` reliably fires `XTextListener.textChanged` and a
+  synchronous local search-refresh has no reentrancy problem (~26–37ms), so no debounce timer was needed. Full
+  detail: `.claude/docs/increment-notes/INCREMENT-320-NOTES.md` through `INCREMENT-329-NOTES.md`.
+- **Still open from the original Phase 5 spec — this is the new "what remains" for the composer**: per-item
+  **locator/prefix/suffix/suppress-author/date fields in the composer UI** (5b — the backend/schema already
+  support all of this, from Phases 1/3; only the UI doesn't expose it yet), and **Edit Citation** (5c —
+  reopening the composer pre-populated from an existing citation via `mark_at_cursor`, plus "revert manual
+  overrides" and "restore style-defined sort"). Also: **the composer has never been driven by a real human in
+  real Writer** — real keyboard-typing responsiveness and the Add/Remove/Insert flow need a manual check before
+  this is "done" from an end-user's perspective (the same category of gap every dialog in this adapter has
+  always had — there's no browser-automation equivalent for LibreOffice dialogs).
 - **Pre-presentation README/asset fixes**: committed a previously-uncommitted, finished marketing site
   (`www/index.html`, `www/showcase.html`, 51 screenshots) and wired one shot + a link into the root `README.md`,
   replacing its long-stale screenshot TODO; fixed a factually-wrong claim in the README's Security note that
@@ -31,21 +50,19 @@ line-budget hook is clean.
   work underlies the retrieval/term-weighting this project leans on). Cheap — do this one first if picking
   something small to warm up on.
 
-## What's NOT done — the two biggest open threads
-1. **Phase 5 (the composer UI)** — the largest remaining piece of the LibreOffice P0 rework, **deliberately
-   deferred by Cliff** (he asked to hold it until after a context compaction, which has now happened). Locators,
-   prefixes/suffixes, suppress-author/date, and building a true multi-item grouped citation from scratch are
-   NOT reachable from any UI yet — only single default-shaped citations can be inserted today (merge/split let
-   you combine/separate *after* the fact, per Phase 6, but there's no composer). Backend/schema support for all
-   of this already landed in Phases 1–3 (`app/backend/api/routers/citations.py`'s `CitationItem` model,
-   `citeproc_runner.js`'s `buildCitationItem`) — this is purely the UI layer + the adapter-side dialog. **Read
-   `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md`** (item 5 in that
-   roadmap) before starting; also re-read this session's now-superseded increment notes for the confirmed
-   citeproc constraints recorded there (`suppress-date` has no citeproc-js equivalent — ships as an inert
-   no-op; 4 of 7 bundled CSL styles define their own `<citation><sort>` that silently overrides manual item
-   order within a grouped citation, so any composer "preview" MUST be a real round-trip through
-   `POST /citations/render-document`, never a client-side simulation).
-2. ~~The CI workflow's Linux path is unverified on a real runner~~ — **now verified**: the push that landed
+## What's NOT done — the open threads (updated 2026-07-22)
+1. ~~Phase 5 (the composer UI)~~ — **Phase 5a shipped** (see above). What's genuinely left of the original
+   Phase-5 scope: **5b** (per-item locator/label/prefix/suffix/suppress-author/author-only fields IN the
+   composer UI — the backend/`CitationItem` model from Phase 3 already accepts all of this over the wire; only
+   the dialog doesn't expose it yet) and **5c** (Edit Citation — reopen the same composer pre-populated from an
+   existing citation via `mark_at_cursor`, plus "revert manual overrides" and "restore style-defined sort").
+   Read `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` items 3-5 before
+   starting 5b/5c; the confirmed citeproc constraints from this rework still apply (`suppress-date` has no
+   citeproc-js equivalent — ships as an inert no-op; 4 of 7 bundled CSL styles silently override manual item
+   order — any preview/edit view MUST be a real round-trip through `POST /citations/render-document`, never
+   simulated). **Also still open**: the composer has never been driven by a real human in real Writer — do that
+   manual check before calling 5a fully done.
+2. ~~The CI workflow's Linux path is unverified on a real runner~~ — **verified**: the push that landed
    Phase 10 touched `adapters/libreoffice/**` itself, which triggered a real run
    (https://github.com/cliffworkman/callosum/actions/runs/29864362756) — `SELFTEST OK` on the first attempt, no
    retry needed, ~4m20s total. No Xvfb/timeout tweaks turned out to be necessary. Nothing left to check here.
