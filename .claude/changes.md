@@ -17,6 +17,18 @@ stale. Added one sentence to "Checking statistics (statcheck)" for the new test-
 (backlog #27). Everything else since inc 318 was either non-help-corpus-relevant (CI/test infra, the GitHub
 README, a Settings placeholder string) or already covered. Nothing above this line has an un-synced corpus
 change. -->
+## 2026-07-22 — README voice pass (backlog #11)
+- **Files:** `README.md`.
+- **What:** a style/voice rewrite of the opening (a first-person "why this exists" sentence before the thesis
+  statement), the Status callout, a few section asides, and the "Built with AI assistance" closer — all drafted
+  to a scratch file first, reviewed, and approved before applying. Also fixed one accuracy gap riding along:
+  "Cite from your word processor" now mentions the composer's search-as-you-type/locators/Edit-Citation
+  capabilities, which the old copy predated. Feature lists/Quickstart/config tables left structurally alone —
+  already dense/scannable in a way prose would only hurt.
+- **Why:** backlog #11 — explicitly Cliff's own voice/style call; he asked for a draft to react to instead of
+  writing it himself, reviewed it, and approved as-is.
+- **Revert:** `git log` this commit.
+
 ## 2026-07-22 — Relocate the working library DB out of the Dropbox-synced folder
 - **Files:** `run-callosum.ps1`; the persisted `CALLOSUM_DB_URL` User environment variable (not repo state).
 - **What:** the machine's real, 209-paper working library (`.local/validation-summarize/validation.sqlite`,

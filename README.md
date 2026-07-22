@@ -3,18 +3,20 @@
 [![CI](https://github.com/cliffworkman/callosum/actions/workflows/ci.yml/badge.svg)](https://github.com/cliffworkman/callosum/actions/workflows/ci.yml)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-**Callosum is a local-first, AI-assisted reference manager for scholarly PDFs.** Its thesis is simple and
-load-bearing: *an LLM summary is only trustworthy if every citation is independently verified against the source.*
-You import a library, Callosum extracts and chunks each PDF with page + bounding-box coordinates, embeds everything
-locally, lets you cluster papers along your own semantic axes, and generates citation-grounded summaries where
-**every sentence is checked back against the source and shown with its evidence** — the quote, the page, a
-confidence — so you see signal, never a verdict.
+I got tired of reading an AI-generated summary of a paper and having no fast way to check whether it actually
+said what the summary claimed. **Callosum is a local-first, AI-assisted reference manager built around that one
+complaint**: an LLM summary is only trustworthy if every citation is independently verified against the source
+— so it verifies. Import a library, and Callosum extracts and chunks each PDF with page + bounding-box
+coordinates, embeds everything locally, lets you cluster papers along your own semantic axes, and generates
+citation-grounded summaries where **every sentence is checked back against the source and shown with its
+evidence** — the quote, the page, a confidence. You get to see the signal. It never hands you a verdict.
 
-It runs on your machine. After import it works **offline**, and nothing leaves your computer unless you explicitly
-turn on an AI feature.
+It runs on your machine. After import it works **offline**, and nothing leaves your computer unless you
+explicitly turn on an AI feature.
 
-> **Status:** a working MVP, under active development and pre-1.0. It's used daily by its author and backed by a
-> large test suite, but it's single-user-focused and the surface is still moving. Expect rough edges.
+> **Status:** a working MVP, pre-1.0, and still visibly under construction. I use it every day for my own
+> research, and it's backed by a large test suite — but it's built for one user at a time (me, so far), and the
+> surface is still moving fast. You will find rough edges. Tell me about them.
 
 ![Verified synthesis: every sentence checked back against its source, with quote, page, and confidence](www/shots/synthesis.png)
 
@@ -34,7 +36,7 @@ turn on an AI feature.
 - In-browser PDF viewer (pdf.js) with zoom, fit-width / two-up, highlights + notes, a searchable/filterable Notes
   panel, next/prev-mark navigation, remembered scroll position, and a distraction-free reading mode.
 
-**Verified synthesis (the core)**
+**Verified synthesis (the whole point of this project)**
 - Citation-grounded summaries: generated sentences are re-checked **locally** (embedding similarity + NLI stance +
   verbatim quote) and shown verified / contrasted / **flagged**, each with its quote, page, and confidence. A
   citation's coordinates are labelled **exact / region / null** and never presented as more precise than they are.
@@ -44,7 +46,7 @@ turn on an AI feature.
 - **Word-processor adapters:** a LibreOffice Writer extension, a Microsoft Word add-in, and a Google Docs add-on —
   insert/refresh live citations, switch styles, and **suggest citations for a sentence** from your library.
 
-**Open-science & discovery signals** (descriptive, never accusatory; "a prompt to look, not a verdict")
+**Open-science & discovery signals** (descriptive, never accusatory — a prompt to look, not a verdict)
 - **statcheck** (recompute reported NHST p-values), **p-curve**, **GRIM/GRIMMER**, and **retraction** checks
   (Crossref / OpenAlex / a Retraction Watch mirror).
 - A **literature gap-finder** (works cited by / citing several of your papers), a **My Publications** impact
@@ -52,7 +54,8 @@ turn on an AI feature.
 
 **Selective, opt-in AI** — used for *generation only* (summaries, axis-term suggestions, a help assistant), **off
 by default**, multi-provider (Gemini / OpenAI / Anthropic / a local OpenAI-compatible endpoint). A loopback **local**
-model runs with **zero egress**. Verification is always local and never delegated to the LLM.
+model runs with **zero egress**. Verification is always local and never delegated to the LLM — the model doesn't
+get a vote on whether its own citations are correct.
 
 ## Quickstart
 
@@ -97,7 +100,8 @@ access** for the polite pool.
 
 ### Choosing a stable database location
 
-By default Callosum stores its library in a SQLite file under `.local/`. Two things are worth setting up early:
+By default Callosum stores its library in a SQLite file under `.local/`. Two things are worth setting up early —
+ask me how I know:
 
 - **Persist `CALLOSUM_DB_URL`** so *every* launch opens the same library. If you start `uvicorn` from a shell that
   hasn't set it, Callosum falls back to the default path — which can look like your library "reset" when you
@@ -126,8 +130,9 @@ project root, kept out of git) gives you a one-command start on any OS.
 ## Cite from your word processor
 
 Callosum can place live, formatted citations directly in **LibreOffice Writer**, **Microsoft Word** (desktop), and
-**Google Docs** — search your library, insert, refresh/renumber, switch styles, build the bibliography, and suggest
-citations for the sentence you're writing. See `adapters/`'s per-tool READMEs for setup.
+**Google Docs** — search your library live as you type, build multi-source citations with locators/prefixes/
+suffixes, edit an existing citation without starting over, and suggest citations for the sentence you're writing
+(optionally reaching beyond your library too). See `adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 
@@ -165,7 +170,8 @@ Callosum follows the commitments in [`.claude/PRINCIPLES.md`](.claude/PRINCIPLES
 evidence; signal, not verdict; facts are distinguished from candidates; the deterministic local substrate is the
 source of truth and the model only narrates it; inspectability over authority; local-first and provider-swappable;
 and — as a hard line — no paywall circumvention and no accusation of individuals. The README and the code should
-never claim more certainty than the evidence can show.
+never claim more certainty than the evidence can show. I'd rather ship a smaller feature that's honest about its
+limits than a bigger one that quietly oversells itself.
 
 ## Known limitations
 
@@ -177,9 +183,11 @@ never claim more certainty than the evidence can show.
 
 ## Built with AI assistance
 
-Callosum is developed with heavy AI-coding assistance (Claude Code), under a human-reviewed,
-test-and-verification-gated workflow. Its design commitments (above) are about *not* over-trusting AI output —
-including its own.
+Callosum — a tool whose entire premise is "don't trust AI output until it's checked" — is itself built with heavy
+AI-coding assistance (Claude Code). I don't think that's a contradiction, as long as it's handled honestly: every
+change runs through a human-reviewed, test-and-verification-gated workflow, and the same skepticism the app
+applies to a model's citations, I try to apply to a model's code. The design commitments above aren't just about
+what Callosum does to *your* papers — they're the standard I'm holding the build process to as well.
 
 ## Credit & license
 

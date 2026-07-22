@@ -130,12 +130,12 @@
 - **statcheck signal/work-state duality** (from #14 of the original close-out list): the "⚠ flagged" (signal) vs
   "📋 to review" (work-state) coexistence is intentional (inc 133) but still reads as two overlapping systems to
   a new user. Clarify or collapse — low urgency, a UX nuance not a bug.
-- **#11 README front-door — the maintainer's own remaining piece.** inc 178 shipped an accurate draft (feature
-  list, build step, privacy/security sections). Remaining: **the voice pass + a UI screenshot** (marked with a
-  `<!-- TODO(maintainer) -->` placeholder) — yours, not something Claude Code should draft.
-- **The `.local/` SQLite-inside-Dropbox note** (surfaced during the inc-45 watched-rescan work, still standing):
-  the `.local/` DBs living inside the synced Dropbox folder worsens lock contention and syncs a large binary
-  constantly. Relocating `.local/` out of Dropbox is the healthier fix — needs your call on where it goes.
+- ✅ **#11 README front-door — CLOSED 2026-07-22.** The screenshot landed with the `www/` commit; the voice
+  pass was drafted to a scratch file for Cliff to react to (his explicit preference in the moment), reviewed,
+  and applied as-is.
+- ✅ **The `.local/` SQLite-inside-Dropbox note — CLOSED 2026-07-22.** The working library DB (209 papers,
+  378MB) relocated to `C:\Users\cliff\callosum-data\library.sqlite`; `CALLOSUM_DB_URL` + `run-callosum.ps1`
+  updated; the old copy left in place, untouched, as a backup.
 
 ---
 
