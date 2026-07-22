@@ -5,6 +5,10 @@
 # The browser e2e smoke also needs the Chromium binary:  python -m playwright install chromium
 -r requirements.txt
 
+# pip-audit flags PYSEC-2026-1845 on pytest 8.4.2 (fixed 9.0.3) — ACCEPTED, dev-tool-only (never shipped, never
+# runs against untrusted input). Deferred rather than bumped blind: pytest 9 is a major version bump across a
+# 1396-test suite + pytest-xdist/testmon/playwright plugins, and deserves its own compatibility pass, not a
+# drive-by pin change here. Tracked in .claude/security-audits/2026-06-20_pre-github-fullsweep.md (addendum).
 pytest>=7.4,<9
 pytest-xdist>=3  # parallel test runner (`pytest -n auto`) — cuts the full-suite wall-clock ~3-4x (inc 300)
 pytest-testmon>=2  # change-based selection (`pytest --testmon`) — runs only tests whose covered code changed (inc 300)

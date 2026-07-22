@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # Python runtime + dev dependencies (pyproject.toml / uv.lock is the source of truth; requirements*.txt
+  # is a hand-synced pip fallback dependabot doesn't need to see separately).
+  - package-ecosystem: "uv"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Frontend build-time toolchain (esbuild; package-lock.json).
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # The GitHub Actions themselves (actions/checkout, astral-sh/setup-uv, …).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10

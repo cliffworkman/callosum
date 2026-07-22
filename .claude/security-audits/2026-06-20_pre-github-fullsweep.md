@@ -95,3 +95,25 @@ for the purpose of the initial publication; those remain the record for their in
 The standing pre-public-deployment requirements (authentication, rate-limiting, per-IP resource caps,
 hosted-context CORS re-review) remain as documented in CLAUDE.md and are **out of scope for source
 publication** (the app is not being hosted).
+
+## Addendum (2026-07-22) — backlog #20: pip-audit wired into CI
+
+Closes this audit's own follow-up #2 ("wire `pip-audit` into CI"). Re-ran `pip-audit` fresh a month later:
+
+- **`requirements.txt` (runtime/shipped deps): clean.** The previously-flagged `transformers 4.48.3` and
+  `urllib3 2.3.0` findings have self-resolved exactly as this audit anticipated — the version **ranges**
+  (`sentence-transformers>=3,<6`, etc.) already pull patched transitive versions on a fresh resolve. CI now
+  runs `pip-audit -r requirements.txt --strict` as a **blocking** gate (`.github/workflows/ci.yml`).
+- **`requirements-dev.txt` (dev/CI-only, never shipped): one open finding.** `pytest 8.4.2` →
+  **PYSEC-2026-1845** (fixed 9.0.3). **RISK ACCEPTED** — dev-tooling only, never runs against untrusted input
+  or ships to a user. Not bumped blind: pytest 9 is a major version change across a 1396-test suite plus
+  pytest-xdist/pytest-testmon/pytest-playwright, which deserves its own dedicated compatibility pass rather
+  than a drive-by pin change riding along with unrelated CI infra work. CI runs `pip-audit -r
+  requirements-dev.txt` **report-only** (`|| true`) so a *new* dev-tool finding still surfaces without
+  blocking on this known, accepted one. Documented at the point of use (`requirements-dev.txt` +
+  `pyproject.toml`'s `dev` dependency-group), not just here.
+- **Dependabot enabled** (`.github/dependabot.yml`): `uv` (Python), `npm` (frontend build toolchain), and
+  `github-actions` ecosystems, weekly — continuous signal alongside pip-audit's point-in-time CI check.
+
+**Security Audit: PASS** (addendum) — the runtime dependency surface is clean and now continuously gated; the
+one open dev-only finding is accepted, documented, and does not block merges.
