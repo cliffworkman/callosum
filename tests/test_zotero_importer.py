@@ -64,7 +64,8 @@ def test_zotero_importer_maps_metadata_attachments_chunks_and_is_idempotent(tmp_
             int(stored_attachment["id"]),
             "Stored Zotero PDF quote appears here.",
         )
-        tag_names = {row["name"] for row in conn.execute(select(tags)).mappings()}
+        tag_rows = list(conn.execute(select(tags)).mappings())
+        tag_names = {row["name"] for row in tag_rows}
         note_count = conn.execute(select(func.count()).select_from(notes)).scalar_one()
         collection_membership_count = conn.execute(select(func.count()).select_from(collection_papers)).scalar_one()
 
@@ -98,6 +99,9 @@ def test_zotero_importer_maps_metadata_attachments_chunks_and_is_idempotent(tmp_
     assert url_attachment["original_path"] == "https://example.test/zotero-link"
 
     assert tag_names == {"important", "review"}
+    # backlog #9: Zotero-imported tags carry the formal namespaced provenance, not the bare "zotero" value used
+    # for the paper/attachment/collection/note rows above.
+    assert all(row["import_source"] == "import:zotero" for row in tag_rows)
     assert note_count == 1
     assert collection_membership_count == 1
     assert file_sha256(source_db) == source_checksum_before

@@ -66,14 +66,29 @@ async function submitAccessRecovery(code) { return apiPost("/access/recover", { 
 
 // inc-100: tag provenance. A tag carries an import_source; imported author/index keywords are styled distinctly
 // from tags you added (aesthetic only — no extra labels), with the specific source shown in the tooltip.
+// inc-9 (backlog #9): import_source follows a formal `{namespace}:{origin}` contract (one bare exception,
+// "user") — see app/backend/persistence/tags_repo.py::TAG_SOURCE_NAMESPACES for the authoritative vocabulary.
 function tagIsImported(source) { return !!source && source !== "user"; }
 function tagSourceLabel(source) {
   if (!source || source === "user") return "Added by you";
   if (source === "keyword:crossref") return "Imported keyword — from Crossref subjects";
   if (source === "keyword:openalex") return "Imported keyword — from OpenAlex";
   if (source === "keyword:pubmed") return "Imported keyword — from PubMed (MeSH)";
-  if (source === "zotero") return "Imported from Zotero";
+  if (source === "import:zotero") return "Imported from Zotero";
+  if (source === "agent:mcp") return "Added by an MCP agent action";
   return "Imported keyword (" + source + ")";
+}
+// A short group-header label for the tags sidebar's group-by-source view (distinct from the tooltip sentence
+// above — this is a heading, not a description). Falls back to the raw source string for anything unrecognized
+// so a future/foreign producer still gets its own group instead of silently merging into another's.
+function tagSourceGroupLabel(source) {
+  if (!source || source === "user") return "Your tags";
+  if (source === "keyword:crossref") return "Crossref subjects";
+  if (source === "keyword:openalex") return "OpenAlex topics";
+  if (source === "keyword:pubmed") return "PubMed (MeSH)";
+  if (source === "import:zotero") return "Zotero import";
+  if (source === "agent:mcp") return "Agent-added";
+  return source;
 }
 const PAGE_SIZE = 50;
 

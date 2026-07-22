@@ -172,3 +172,15 @@ new work goes in the open backlog.
   tooltip + All/Yours/Keywords filter). The #3 diff-toast + lock-this-tag remainders are now autonomous-eligible.
 - [x] **statcheck finding (b) "Check statistics" entry on the paper — DECLINED.** Rely on the inc-141 flagged-chip
   → per-paper-check path; a Details/card entry re-clutters what inc-122 deliberately cleaned. ((e) remains open.)
+
+## Decision-pass closures (maintainer, 2026-07-22)
+- [x] **#9 Tag provenance vocabulary formalization** (inc 334) — Cliff chose the bigger scope ("formalize the
+  vocabulary too", not just UI grouping). `tags.import_source` now follows a documented `{namespace}:{origin}`
+  contract (`tags_repo.py::TAG_SOURCE_NAMESPACES`): bare `user` (sentinel), `import:{system}`, `keyword:{system}`
+  (already-conformant, unchanged), `agent:{system}`, and `system:{fact}` reserved for #19. The two pre-existing
+  bare values (`zotero`, `ai-agent`) were renamed to `import:zotero` / `agent:mcp` via a new tag-scoped constant
+  at each single call site (their *other*-table provenance columns — papers/attachments/collections/notes/
+  annotations — are untouched, a separate vocabulary) + an idempotent data migration (0047) for existing rows.
+  The sidebar Tags browser now groups by exact source with a header per group (new `js/10e_tagspanel.jsx`,
+  extracted from `10_pdf_layer.jsx` when grouping pushed it over the 600-line cap). The per-**link** per-paper-fact
+  half stays with #19, unchanged.

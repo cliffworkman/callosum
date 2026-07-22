@@ -17,7 +17,12 @@ The authoritative schema is `app/backend/persistence/schema.py`. This document s
 - `paper_external_identifiers`: provider/id pairs for a paper.
 - `attachments`: managed, linked, or URL attachments with availability, original/resolved paths, checksum, size, content type, source, attachment type, and role.
 - `collections` / `collection_papers`: imported or user grouping.
-- `tags` / `paper_tags`: global tag names with `tags.import_source` provenance. Implemented sources include `zotero`, `user`, and `keyword:crossref`; the future-track vocabulary reserves `system:{...}` for system facts.
+- `tags` / `paper_tags`: global tag names with `tags.import_source` provenance. Backlog #9 formalized this as a
+  `{namespace}:{origin}` contract (`app/backend/persistence/tags_repo.py::TAG_SOURCE_NAMESPACES`): the bare
+  sentinel `user` (human-typed, the sole exception), `import:{system}` (e.g. `import:zotero`), `keyword:{system}`
+  (e.g. `keyword:crossref` / `keyword:openalex` / `keyword:pubmed`), `agent:{system}` (e.g. `agent:mcp`), and
+  `system:{fact}` — RESERVED, not yet produced, for backlog #19's per-paper system-facts (e.g. retraction). A new
+  producer must pick an existing namespace or add one, never write a bare/ad-hoc string.
 - `notes`: imported notes attached to papers.
 
 ## PDF Text And Coordinates

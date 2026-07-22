@@ -144,61 +144,6 @@ function ProgressBar({ label, progress }) {
   );
 }
 
-// inc-96: a sidebar Tags browser — the whole tag vocabulary (each with its paper count), click to filter the
-// library (reuses the inc-71 tag filter). Read-only; refetches when `tagRefresh` bumps (a tag added/removed in
-// Details). Stacks below the Axes panel; the sidebar scrolls as one column. No panel when there are no tags.
-// inc 121: rendered inside the THEORY accordion (its "Tags" header + collapse is the accordion's now, so no
-// self-collapse). Always shown with an empty-state hint when there are no tags (discoverability — was return null).
-function TagsPanel({ onFilterToTag, tagRefresh }) {
-  const [tags, setTags] = useState(null);
-  const [filter, setFilter] = useState("");
-  const [src, setSrc] = useState("all");  // inc-105: all | mine | imported — filter by tag provenance (inc-73/100 source)
-  useEffect(() => { api("/tags").then(r => setTags(r.ok ? r.data : [])); }, [tagRefresh]);
-  if (tags == null) return null;  // still loading
-  const q = filter.trim().toLowerCase();
-  const hasImported = tags.some(t => tagIsImported(t.source));
-  const hasMine = tags.some(t => !tagIsImported(t.source));
-  const shown = tags.filter(t =>
-    (!q || t.name.toLowerCase().includes(q)) &&
-    (src === "all" || (src === "imported") === tagIsImported(t.source))
-  );
-  return (
-    <div className="tags-panel">
-      {tags.length > 8 &&
-        <input className="axis-filter" placeholder="Filter tags…" value={filter} onChange={e => setFilter(e.target.value)} spellCheck={false} />}
-      {tags.length > 0 && hasImported && hasMine &&
-        <div className="tags-srcfilter">
-          {[["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => (
-            <button key={k} className={"tags-srcfilter-btn" + (src === k ? " on" : "")}
-              title={k === "imported" ? "Show only imported author/index keywords" : k === "mine" ? "Show only tags you added" : "Show all tags"}
-              onClick={() => setSrc(k)}>{lbl}</button>
-          ))}
-        </div>}
-      <div className="tags-panel-list">
-        {tags.length === 0
-          ? <span className="tag-suggest-empty">No tags yet — add tags from a paper's Details pane.</span>
-          : shown.map(t => (
-              <button key={t.id} className={"tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : "")}
-                title={tagSourceLabel(t.source) + " · filter the library to “" + t.name + "”"}
-                onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>
-                <span className="tags-panel-name">
-                  {t.color && <span className={"tags-panel-dot tag-color-" + t.color} />}{t.name}</span>
-                <span className="tags-panel-count">{t.paper_count}</span>
-              </button>))}
-        {tags.length > 0 && shown.length === 0 && <span className="tag-suggest-empty">no matching tags</span>}
-      </div>
-    </div>
-  );
-}
-
-// inc 121 / inc 139: TAGS is the second tab of the AXES section (like-with-like — your labels alongside your
-// conceptual lenses), not its own accordion section. See 05_panes.jsx + DESIGN.md §5.
-registerPaneTab(
-  { id: "axes", label: "Axes", paneId: "theory", order: 10 },
-  { id: "tags-tab", label: "Tags", order: 20,
-    render: (ctx) => <TagsPanel onFilterToTag={ctx.onFilterToTag} tagRefresh={ctx.tagRefresh} /> },
-);
-
 // inc 121: the left pane = the brand/⚙/❓ header + the THEORY accordion (AXES / SYNTHESIS / TAGS), one open at a
 // time. Sections self-register (05_panes.jsx); App owns the open-section state + the shared ctx.
 function Sidebar({ conn, ctx, theoryOpen, onTheoryOpen }) {

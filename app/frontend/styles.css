@@ -463,6 +463,10 @@
   .tags-panel-item:hover { background: var(--hover); color: var(--accent); }
   .tags-panel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tags-panel-count { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); flex: none; }
+  /* Group-by-source headers (backlog #9) — shown only when the list spans more than one provenance; reuses the
+     established muted-eyebrow recipe (cf. .merge-eyebrow) rather than inventing a new token. */
+  .tags-panel-group + .tags-panel-group { margin-top: 8px; }
+  .tags-panel-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding: 2px 6px 3px; }
   .axis {
     border: 1px solid transparent; border-radius: var(--radius);
     padding: 9px 11px; cursor: pointer; margin-bottom: 2px;

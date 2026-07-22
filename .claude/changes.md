@@ -9,14 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-22 inc 333 — reviewed every entry back to the prior (inc 318) marker for
-help-corpus relevance. Rewrote "Citing in LibreOffice Writer" in full — it predated the whole Phase 0-10 +
-5a/5b/5c rework (composer w/ live search + Options + reorder + beyond-library, Edit Citation, delete/merge/
-split/open-in-callosum, bibliography controls, document diagnostics, Prepare submission copy) and was badly
-stale. Added one sentence to "Checking statistics (statcheck)" for the new test-stat-as-bound coverage
-(backlog #27). Everything else since inc 318 was either non-help-corpus-relevant (CI/test infra, the GitHub
-README, a Settings placeholder string) or already covered. Nothing above this line has an un-synced corpus
-change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 334 — reviewed the entries below back to the prior (inc 333) marker.
+Added one clause to "Tagging papers" describing the new group-by-source header in the sidebar Tags tab
+(backlog #9). The repo-furniture entry (#20: SECURITY.md/CITATION.cff/.env.example) is not user-facing
+app behavior, so no corpus change was needed for it. Nothing above this line has an un-synced corpus change. -->
+## 2026-07-22 — Backlog #9: tag provenance vocabulary formalization
+
+- **Files:** `app/backend/persistence/tags_repo.py`, `app/backend/importers/zotero.py`,
+  `app/backend/metadata/enrichment.py`, `app/backend/api/routers/agent.py`,
+  `alembic/versions/0047_tag_source_vocabulary.py`, `app/frontend/js/00_lib.jsx`,
+  `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/10e_tagspanel.jsx` (new), `app/frontend/styles.css`,
+  `tests/test_tags.py`, `tests/test_agent_writes.py`, `tests/test_zotero_importer.py`,
+  `app/backend/help/help_content.md`, `.claude/docs/data-contracts.md`, `.claude/docs/glossary.md`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
+- **What:** formalized `tags.import_source` as a `{namespace}:{origin}` contract (`user` sentinel +
+  `import`/`keyword`/`agent`/`system`-reserved namespaces), renamed the two non-conformant producers
+  (`zotero`→`import:zotero`, `ai-agent`→`agent:mcp`, tag-column only, via a data migration), and grouped the
+  sidebar Tags browser by exact source.
+- **Why:** Cliff's own choice from the 12-item decision queue ("formalize the vocabulary too"), and the
+  formal reservation of `system:{fact}` un-blocks #19 (tags ↔ retraction findings), next in the queue.
+- **Revert:** `git revert` this commit; the alembic migration is additive-only (data rename, no down-migration
+  by project convention — re-running `_RENAMES` in reverse would restore the bare values if ever needed).
+
 ## 2026-07-22 — Backlog #20: repo furniture (SECURITY.md, CITATION.cff, .env.example)
 - **Files:** `SECURITY.md` (new), `CITATION.cff` (new), `.env.example` (new), `CONTRIBUTING.md`.
 - **What:** three static, non-code additions, the first of #20's now-greenlit scope. `.env.example` documents

@@ -49,10 +49,16 @@
 - Trash: soft-delete state where `papers.deleted_at` is set.
 - Permanent delete: trashed-only deletion that removes app records, embeddings, and vector rows; it does not delete user PDF files.
 - Dismissed duplicate pair: canonical paper-id pair stored in `dismissed_duplicate_pairs` so duplicate scan no longer flags it.
-- Import source: provenance field used for records/tags/attachments/notes/annotations, such as `zotero`, `user`, or `keyword:crossref`.
+- Import source: provenance field used for records/attachments/notes/annotations (each table's own vocabulary,
+  e.g. `zotero`, `user`, `crossref`, `ai-agent`). **Tag** provenance (`tags.import_source`) is the one table with
+  a *formalized* vocabulary (backlog #9): a bare `user` sentinel plus `{namespace}:{origin}` values —
+  `import:zotero`, `keyword:crossref`/`keyword:openalex`/`keyword:pubmed`, `agent:mcp` — see
+  `app/backend/persistence/tags_repo.py::TAG_SOURCE_NAMESPACES`, the authoritative list.
 
 ## Future-Track Vocabulary
 
 - Findings subsystem: planned FACT-vs-candidate infrastructure for retractions, statcheck, transparency, and other inspectable signals.
-- System-facts tags: planned read-only/filterable facts such as `system:retraction` or transparency signals, visually distinct from user tags.
+- System-facts tags: the `system:{fact}` namespace is RESERVED in the tag vocabulary above but not yet produced
+  by any code path — backlog #19 will make the findings subsystem emit read-only, filterable tags under it
+  (e.g. `system:retraction`), visually distinct from user tags.
 - THEORY/METHODS panes: planned module-registry UI for inspectable literature-analysis modules.

@@ -40,6 +40,11 @@ from integrations.zotero.adapter import (
 )
 
 ZOTERO_IMPORT_SOURCE = "zotero"
+# Distinct from ZOTERO_IMPORT_SOURCE above: that bare value marks Zotero-origin papers/attachments/collections/
+# notes/annotations (five other tables' provenance columns, out of scope here). Tag provenance follows the
+# formal `{namespace}:{origin}` contract (backlog #9, `tags_repo.TAG_SOURCE_NAMESPACES`) — only this one column
+# gets the namespaced value.
+ZOTERO_TAG_SOURCE = "import:zotero"
 ZOTERO_TYPE_TO_CSL = {
     "journalArticle": "article-journal",
     "conferencePaper": "paper-conference",
@@ -327,7 +332,7 @@ def _upsert_tags(conn: Connection, paper_id: int, tag_names: tuple[str, ...]) ->
         existing = conn.execute(select(tags).where(tags.c.name == tag_name)).mappings().first()
         if existing is None:
             tag_id = conn.execute(
-                insert(tags).values(name=tag_name, import_source=ZOTERO_IMPORT_SOURCE)
+                insert(tags).values(name=tag_name, import_source=ZOTERO_TAG_SOURCE)
             ).inserted_primary_key[0]
         else:
             tag_id = existing["id"]

@@ -1,18 +1,24 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
+from alembic import command
+from alembic.config import Config
 from app.backend.api import create_app
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper, list_papers, soft_delete_paper
 from app.backend.persistence.schema import tags
 from app.backend.persistence.tags_repo import (
+    TAG_SOURCE_NAMESPACES,
     add_tag_to_paper,
     add_tags_to_paper,
     get_tags_for_paper,
     list_tags,
     remove_tag_from_paper,
+    tag_source_namespace,
 )
 
 
@@ -228,3 +234,68 @@ def test_set_tag_color_endpoint_and_responses(temp_db_url: str) -> None:
     # clear with null; unknown tag → 404
     assert client.post(f"/tags/{tid}/color", json={"color": None}).json()["color"] is None
     assert client.post("/tags/999999/color", json={"color": "blue"}).status_code == 404
+
+
+# --- backlog #9: tag provenance vocabulary formalization ---
+
+
+def test_tag_source_namespace_parses_the_formal_vocabulary() -> None:
+    assert tag_source_namespace(None) == "user"
+    assert tag_source_namespace("") == "user"
+    assert tag_source_namespace("user") == "user"
+    assert tag_source_namespace("import:zotero") == "import"
+    assert tag_source_namespace("keyword:crossref") == "keyword"
+    assert tag_source_namespace("keyword:openalex") == "keyword"
+    assert tag_source_namespace("keyword:pubmed") == "keyword"
+    assert tag_source_namespace("agent:mcp") == "agent"
+    assert tag_source_namespace("system:retraction") == "system"  # reserved for #19, not yet produced
+    assert tag_source_namespace("something-unrecognized") == "other"  # defensive fallback, never "user"
+    assert set(TAG_SOURCE_NAMESPACES) == {"user", "import", "keyword", "agent", "system"}
+
+
+def test_only_keyword_namespace_suppresses_on_removal(temp_db_url: str) -> None:
+    # inc 143 preserved exactly across the #9 rename: only `keyword:*` removals suppress re-add. A `import:*` or
+    # `agent:*` tag's removal must NOT suppress (unchanged behavior — this guards the rename didn't broaden it).
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        zrow = add_tag_to_paper(conn, pid, "z-tag", import_source="import:zotero")
+        arow = add_tag_to_paper(conn, pid, "a-tag", import_source="agent:mcp")
+        krow = add_tag_to_paper(conn, pid, "k-tag", import_source="keyword:crossref")
+
+        remove_tag_from_paper(conn, pid, int(zrow["id"]))
+        remove_tag_from_paper(conn, pid, int(arow["id"]))
+        remove_tag_from_paper(conn, pid, int(krow["id"]))
+
+        from app.backend.persistence.tags_repo import suppressed_tag_names
+
+        assert suppressed_tag_names(conn, pid) == {"k-tag"}
+    engine.dispose()
+
+
+def test_migration_0047_renames_legacy_bare_tag_sources(tmp_path: Path) -> None:
+    # A pre-#9 DB (any revision at/after 0044, when paper_tags.locked landed) could carry bare "zotero"/"ai-agent"
+    # tags.import_source values. 0047 must rename them in place without touching any other table's provenance.
+    db_url = f"sqlite:///{(tmp_path / 'pre-0047.sqlite').as_posix()}"
+    config = Config("alembic.ini")
+    config.set_main_option("sqlalchemy.url", db_url)
+    command.upgrade(config, "0046_overlooked_candidates")
+
+    engine = make_engine(db_url)
+    with engine.begin() as conn:
+        conn.execute(tags.insert().values(name="legacy-zotero-tag", import_source="zotero"))
+        conn.execute(tags.insert().values(name="legacy-agent-tag", import_source="ai-agent"))
+        conn.execute(tags.insert().values(name="legacy-user-tag", import_source="user"))
+    engine.dispose()
+
+    command.upgrade(config, "head")
+
+    engine = make_engine(db_url)
+    with engine.begin() as conn:
+        by_name = {
+            r["name"]: r["import_source"] for r in conn.execute(select(tags.c.name, tags.c.import_source)).mappings()
+        }
+    engine.dispose()
+    assert by_name["legacy-zotero-tag"] == "import:zotero"
+    assert by_name["legacy-agent-tag"] == "agent:mcp"
+    assert by_name["legacy-user-tag"] == "user"  # untouched

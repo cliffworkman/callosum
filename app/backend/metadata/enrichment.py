@@ -35,6 +35,10 @@ MERGED_SOURCE = "merged"
 # Provenance for anything an MCP agent wrote (B1 SP2). Kept OUT of the `_can_update_from_crossref` allowlist (a
 # batch enrich won't clobber it) AND makes agent-origin visible/filterable (the inc-100 tag-source styling).
 AI_AGENT_SOURCE = "ai-agent"
+# Distinct from AI_AGENT_SOURCE above: that bare value marks agent-origin papers/notes (two other tables'
+# provenance columns, out of scope here). Tag provenance follows the formal `{namespace}:{origin}` contract
+# (backlog #9, `tags_repo.TAG_SOURCE_NAMESPACES`) — only the tag-creation call site uses this namespaced value.
+AI_AGENT_TAG_SOURCE = "agent:mcp"
 # Provenance for a record force-re-fetched from a non-DOI identifier via OpenAlex (inc 226 — the PMID/arXiv 🔎).
 # IN the `_can_update_from_crossref` allowlist below, so it's treated as "resolved + updatable" like `crossref`,
 # not protected like a user edit.

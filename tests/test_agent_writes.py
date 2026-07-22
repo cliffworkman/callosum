@@ -70,7 +70,7 @@ def test_agent_add_tag_stamps_ai_agent_and_audits(temp_db_url: str) -> None:
     r = client.post(f"/agent/papers/{pid}/tags", json={"tag": "from-agent"})
     assert r.status_code == 200 and "write_id" in r.json()
     tags = client.get(f"/papers/{pid}").json()["tags"]
-    assert any(t["name"] == "from-agent" and t["source"] == "ai-agent" for t in tags)
+    assert any(t["name"] == "from-agent" and t["source"] == "agent:mcp" for t in tags)
     assert len(client.get("/agent/writes").json()) == 1
 
 

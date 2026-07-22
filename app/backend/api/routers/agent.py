@@ -1,7 +1,8 @@
 """Gated, audited, reversible WRITE endpoints for the MCP agent (B1 SP2).
 
 Every write here is **additive + reversible**, gated behind the `agent_writes_enabled` opt-in (403 when off),
-stamped `imported_source="ai-agent"`, and recorded in `agent_writes` for the Settings review/revert surface.
+stamped with agent provenance (`papers.imported_source="ai-agent"`; `tags.import_source="agent:mcp"` — the
+formal tag-vocabulary namespace, backlog #9), and recorded in `agent_writes` for the Settings review/revert surface.
 **No destructive route exists** — delete/overwrite/merge/scan stay human-only (the structural A4 guarantee, like
 SP1's read-only allowlist). The MCP write tools call only these endpoints.
 """
@@ -19,7 +20,7 @@ from app.backend import app_settings
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.clustering.axis_assignments import add_manual_assignment, remove_assignment
 from app.backend.clustering.my_publications import MY_PUBLICATIONS_KIND
-from app.backend.metadata.enrichment import AI_AGENT_SOURCE, _paper_values_from_csl
+from app.backend.metadata.enrichment import AI_AGENT_SOURCE, AI_AGENT_TAG_SOURCE, _paper_values_from_csl
 from app.backend.persistence.agent_repo import (
     delete_note,
     get_agent_write,
@@ -68,7 +69,7 @@ class TagBody(BaseModel):
 def agent_add_tag(paper_id: int, body: TagBody, engine: Engine = Depends(get_engine)) -> dict[str, Any]:
     def _do(conn: Connection) -> dict[str, Any]:
         _paper_or_404(conn, paper_id)
-        tag = add_tag_to_paper(conn, paper_id, body.tag, import_source=AI_AGENT_SOURCE)
+        tag = add_tag_to_paper(conn, paper_id, body.tag, import_source=AI_AGENT_TAG_SOURCE)
         write_id = record_agent_write(
             conn,
             action="tag",

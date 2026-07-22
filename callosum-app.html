@@ -487,6 +487,10 @@
   .tags-panel-item:hover { background: var(--hover); color: var(--accent); }
   .tags-panel-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tags-panel-count { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); flex: none; }
+  /* Group-by-source headers (backlog #9) — shown only when the list spans more than one provenance; reuses the
+     established muted-eyebrow recipe (cf. .merge-eyebrow) rather than inventing a new token. */
+  .tags-panel-group + .tags-panel-group { margin-top: 8px; }
+  .tags-panel-group-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding: 2px 6px 3px; }
   .axis {
     border: 1px solid transparent; border-radius: var(--radius);
     padding: 9px 11px; cursor: pointer; margin-bottom: 2px;
@@ -2506,8 +2510,18 @@
     if (source === "keyword:crossref") return "Imported keyword \u2014 from Crossref subjects";
     if (source === "keyword:openalex") return "Imported keyword \u2014 from OpenAlex";
     if (source === "keyword:pubmed") return "Imported keyword \u2014 from PubMed (MeSH)";
-    if (source === "zotero") return "Imported from Zotero";
+    if (source === "import:zotero") return "Imported from Zotero";
+    if (source === "agent:mcp") return "Added by an MCP agent action";
     return "Imported keyword (" + source + ")";
+  }
+  function tagSourceGroupLabel(source) {
+    if (!source || source === "user") return "Your tags";
+    if (source === "keyword:crossref") return "Crossref subjects";
+    if (source === "keyword:openalex") return "OpenAlex topics";
+    if (source === "keyword:pubmed") return "PubMed (MeSH)";
+    if (source === "import:zotero") return "Zotero import";
+    if (source === "agent:mcp") return "Agent-added";
+    return source;
   }
   const PAGE_SIZE = 50;
   async function api(path) {
@@ -7317,50 +7331,6 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       text ? /* @__PURE__ */ React.createElement("span", { className: "progress-label" }, text) : null
     );
   }
-  function TagsPanel({ onFilterToTag, tagRefresh }) {
-    const [tags, setTags] = useState(null);
-    const [filter, setFilter] = useState("");
-    const [src, setSrc] = useState("all");
-    useEffect(() => {
-      api("/tags").then((r) => setTags(r.ok ? r.data : []));
-    }, [tagRefresh]);
-    if (tags == null) return null;
-    const q = filter.trim().toLowerCase();
-    const hasImported = tags.some((t) => tagIsImported(t.source));
-    const hasMine = tags.some((t) => !tagIsImported(t.source));
-    const shown = tags.filter(
-      (t) => (!q || t.name.toLowerCase().includes(q)) && (src === "all" || src === "imported" === tagIsImported(t.source))
-    );
-    return /* @__PURE__ */ React.createElement("div", { className: "tags-panel" }, tags.length > 8 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter tags\u2026", value: filter, onChange: (e) => setFilter(e.target.value), spellCheck: false }), tags.length > 0 && hasImported && hasMine && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, [["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: k,
-        className: "tags-srcfilter-btn" + (src === k ? " on" : ""),
-        title: k === "imported" ? "Show only imported author/index keywords" : k === "mine" ? "Show only tags you added" : "Show all tags",
-        onClick: () => setSrc(k)
-      },
-      lbl
-    ))), /* @__PURE__ */ React.createElement("div", { className: "tags-panel-list" }, tags.length === 0 ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "No tags yet \u2014 add tags from a paper's Details pane.") : shown.map((t) => /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        key: t.id,
-        className: "tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : ""),
-        title: tagSourceLabel(t.source) + " \xB7 filter the library to \u201C" + t.name + "\u201D",
-        onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
-      },
-      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.color && /* @__PURE__ */ React.createElement("span", { className: "tags-panel-dot tag-color-" + t.color }), t.name),
-      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-count" }, t.paper_count)
-    )), tags.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no matching tags")));
-  }
-  registerPaneTab(
-    { id: "axes", label: "Axes", paneId: "theory", order: 10 },
-    {
-      id: "tags-tab",
-      label: "Tags",
-      order: 20,
-      render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
-    }
-  );
   function Sidebar({ conn, ctx, theoryOpen, onTheoryOpen }) {
     return /* @__PURE__ */ React.createElement("div", { className: "pane pane-sidebar" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "brand" }, /* @__PURE__ */ React.createElement("div", { className: "brand-logo" + (conn.state === "ok" ? " connected" : ""), role: "img", "aria-label": "Callosum", title: conn.state === "ok" ? "Connected" + (conn.version ? " (" + conn.version + ")" : "") : conn.state === "bad" ? "Disconnected" : "Connecting..." }), /* @__PURE__ */ React.createElement("h1", null, "Callosum"))), /* @__PURE__ */ React.createElement(PaneAccordion, { paneId: "theory", ctx, openId: theoryOpen, onOpen: onTheoryOpen }));
   }
@@ -8116,6 +8086,64 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       )), footExtra, !readOnly && /* @__PURE__ */ React.createElement(ReadPriorityControl, { paper: p, onChanged: onReadingChanged }), "  ")
     );
   }
+  function _groupTagsBySource(list) {
+    const bySource = /* @__PURE__ */ new Map();
+    for (const t of list) {
+      const key = t.source || "user";
+      if (!bySource.has(key)) bySource.set(key, []);
+      bySource.get(key).push(t);
+    }
+    if (bySource.size <= 1) return null;
+    const groups = [...bySource.entries()].map(([source, items]) => ({ source, label: tagSourceGroupLabel(source), items }));
+    groups.sort((a, b) => a.source === "user" ? -1 : b.source === "user" ? 1 : a.label.localeCompare(b.label));
+    return groups;
+  }
+  function TagsPanel({ onFilterToTag, tagRefresh }) {
+    const [tags, setTags] = useState(null);
+    const [filter, setFilter] = useState("");
+    const [src, setSrc] = useState("all");
+    useEffect(() => {
+      api("/tags").then((r) => setTags(r.ok ? r.data : []));
+    }, [tagRefresh]);
+    if (tags == null) return null;
+    const q = filter.trim().toLowerCase();
+    const hasImported = tags.some((t) => tagIsImported(t.source));
+    const hasMine = tags.some((t) => !tagIsImported(t.source));
+    const shown = tags.filter(
+      (t) => (!q || t.name.toLowerCase().includes(q)) && (src === "all" || src === "imported" === tagIsImported(t.source))
+    );
+    const groups = _groupTagsBySource(shown);
+    const tagButton = (t) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: t.id,
+        className: "tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : ""),
+        title: tagSourceLabel(t.source) + " \xB7 filter the library to \u201C" + t.name + "\u201D",
+        onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.color && /* @__PURE__ */ React.createElement("span", { className: "tags-panel-dot tag-color-" + t.color }), t.name),
+      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-count" }, t.paper_count)
+    );
+    return /* @__PURE__ */ React.createElement("div", { className: "tags-panel" }, tags.length > 8 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter tags\u2026", value: filter, onChange: (e) => setFilter(e.target.value), spellCheck: false }), tags.length > 0 && hasImported && hasMine && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, [["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: k,
+        className: "tags-srcfilter-btn" + (src === k ? " on" : ""),
+        title: k === "imported" ? "Show only imported author/index keywords" : k === "mine" ? "Show only tags you added" : "Show all tags",
+        onClick: () => setSrc(k)
+      },
+      lbl
+    ))), /* @__PURE__ */ React.createElement("div", { className: "tags-panel-list" }, tags.length === 0 ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "No tags yet \u2014 add tags from a paper's Details pane.") : groups ? groups.map((g) => /* @__PURE__ */ React.createElement("div", { className: "tags-panel-group", key: g.source }, /* @__PURE__ */ React.createElement("div", { className: "tags-panel-group-label" }, g.label, " \xB7 ", g.items.length), g.items.map(tagButton))) : shown.map(tagButton), tags.length > 0 && shown.length === 0 && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "no matching tags")));
+  }
+  registerPaneTab(
+    { id: "axes", label: "Axes", paneId: "theory", order: 10 },
+    {
+      id: "tags-tab",
+      label: "Tags",
+      order: 20,
+      render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
+    }
+  );
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");
     const [prose, setProse] = useState(initialDescription || "");

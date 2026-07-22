@@ -106,16 +106,19 @@
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
 
-- **#9 Tag provenance — remaining design-level parts.** Style-by-source + the All/Yours/Keywords filter already
-  shipped (inc 100/105). Still open: formalize the full vocabulary (`system:{retraction|transparency|…}`) and
-  **group tags by source** in the UI. *(A per-**link** provenance may also be needed for per-paper facts — a
-  global tag's `import_source` can't say "THIS paper is retracted"; likely belongs to the findings subsystem,
-  projected as read-only system-tags — see #19.)*
-- **#19 Tags ↔ findings / system-facts (retraction-surfacing).** [blocked + design] The findings subsystem emits
-  a retraction FACT + transparency tags; inc 292 made retraction **visible** (a badge + header refresh action),
-  but it's still not **filterable** the way tags are ("locate every RETRACTED paper"). Build directive when this
-  lands: extend tags/tag-filter, don't reinvent a separate facet surface; keep system-facts visually distinct +
-  non-editable. Worth a short design chat before building.
+- **#19 Tags ↔ findings / system-facts (retraction-surfacing).** [design settled — build next] The findings
+  subsystem emits a retraction FACT + transparency tags; inc 292 made retraction **visible** (a badge + header
+  refresh action), but it's still not **filterable** the way tags are ("locate every RETRACTED paper"). The
+  vocabulary half is done (inc 334, #9): `tags.import_source` now formally reserves `system:{fact}` for exactly
+  this (`tags_repo.py::TAG_SOURCE_NAMESPACES`) — no producer writes it yet. Build directive: extend the
+  library's facet/filter system with findings-derived facets (a `system:retraction` tag alongside real tags),
+  don't reinvent a separate facet surface; keep system-facts visually distinct + non-editable (no delete/color/
+  lock — those are user-tag affordances). The remaining open design question is per-**link** provenance: a
+  global tag's `import_source` is set once at creation and can't say "THIS paper is retracted" if the same tag
+  name is later linked to a non-retracted paper — likely means either a distinct tag *name* per fact-value
+  (`system:retraction:retracted`, workable since linkage is already per-paper via `paper_tags`) or real per-link
+  provenance on `paper_tags` (a schema change). Cliff chose "build a filter for this" — pick the naming-only
+  path unless a real per-link need surfaces.
 - **#23 cross-method auditor deferrals** (LMM/meta-analysis/statcheck/Bayesian siblings, from the inc-247/249
   experience passes): **(F1)** an on-paper "report card" chip (mirrors statcheck's inc-141 chip→section path) so
   a citer reaches any auto-detected-method panel without knowing it exists; **(F4)** let each audit persist as a

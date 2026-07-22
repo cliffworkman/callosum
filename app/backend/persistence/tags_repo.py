@@ -18,6 +18,32 @@ TAG_NAME_MAX = 100
 # key to a theme-aware token, so colors stay legible in light + dark. An allowlist (rule #3/#4); NULL = uncolored.
 TAG_COLORS = ("red", "orange", "amber", "green", "teal", "blue", "purple", "gray")
 
+# --- Tag provenance vocabulary (backlog #9 formalization) ---
+# `tags.import_source` is a free-text String(100) column, but every producer — present or future — writes a
+# value of the shape ``{namespace}:{origin}``, with exactly one bare exception: the literal ``"user"`` (a human
+# typed the tag; there is no origin to disambiguate, and it's the `add_tag_to_paper` default). Namespaces:
+#   user                — the sole bare value; a human-typed tag.
+#   import:{system}      — a tag carried over from a bulk reference-manager import (e.g. ``import:zotero``).
+#   keyword:{system}     — an auto-derived subject/topic keyword from a metadata source (e.g. ``keyword:crossref``,
+#                          ``keyword:openalex``, ``keyword:pubmed`` — inc 73/306).
+#   agent:{system}       — written by an autonomous agent action (e.g. ``agent:mcp`` — the MCP agent, B1 SP2).
+#   system:{fact}        — RESERVED for backlog #19 (read-only per-paper system-facts, e.g. a retraction flag).
+#                          No producer writes this today; reserved so #19's design doesn't collide with the above.
+# A new producer must pick an existing namespace or, if none fits, propose a new one here rather than writing a
+# bare/ad-hoc string — that's the "future producers must follow this" contract.
+TAG_SOURCE_NAMESPACES = ("user", "import", "keyword", "agent", "system")
+
+
+def tag_source_namespace(source: str | None) -> str:
+    """The formal namespace of a tag's `import_source`: `"user"` for the bare sentinel (or anything falsy), the
+    parsed prefix for a conformant `{namespace}:{origin}` value, or `"other"` for anything that doesn't conform
+    (defensive only — every in-tree producer conforms; this guards stray/legacy data, never silently reads it
+    as user-authored)."""
+    if not source or source == "user":
+        return "user"
+    namespace = source.split(":", 1)[0]
+    return namespace if namespace in TAG_SOURCE_NAMESPACES else "other"
+
 
 def suppress_paper_tag(conn: Connection, paper_id: int, name: str) -> None:
     """Remember that the user deleted this (imported keyword) tag from this paper (inc 143) — so a later
@@ -158,7 +184,7 @@ def remove_tag_from_paper(conn: Connection, paper_id: int, tag_id: int) -> bool:
     result = conn.execute(delete(paper_tags).where(paper_tags.c.paper_id == paper_id, paper_tags.c.tag_id == tag_id))
     if not result.rowcount:
         return False
-    if tag and str(tag["import_source"] or "").startswith("keyword:"):
+    if tag and tag_source_namespace(tag["import_source"]) == "keyword":
         suppress_paper_tag(conn, paper_id, str(tag["name"]))
     still_used = conn.execute(
         select(func.count()).select_from(paper_tags).where(paper_tags.c.tag_id == tag_id)
