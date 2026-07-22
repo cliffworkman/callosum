@@ -651,6 +651,7 @@ before large design changes:
 | `.claude/QA-POLICY.md` | **The QA contract — read before changing any end-user surface (rule #10): the fixture contract, the computed coverage gate (`tools/qa/build_surface_map.py`), the honesty-invariant assertions, the severity rubric, and the Codex-exec supervisor + watched-inbox loop. Add/extend a QA route in the same increment as a surface change.** |
 | `.claude/EXPERIENCE-PASS.md` | **The end-user experience pass — read before calling any user-facing change done (rule #11): the two questions (reception / intended-use, the latter bounded by the #9 + A-A vetoes), the persona-grounded experience-agent mechanism (dispatch a subagent in-character as a concrete user with a goal-in-the-moment), the extensible persona/scenario library (deadline citer / corpus builder / skeptical synthesizer), and the statcheck worked example. A reflective pause → a finding (fix-cheap or backlog). The 4th gate: DESIGN=looks, PRINCIPLES=honest, QA=works+covered, EXPERIENCE=serves the user.** |
 | `.claude/docs/future-tracks/` | The 7 longer-horizon track docs (statcheck/open-science, word-plugin, highlight-to-suggest/evaluate, full-text acquisition, my-publications, theory/methods, plugins, gapfinder, library Feed/Search). Referenced by `INCREMENT-BACKLOG.md`. |
+| `.claude/staged-harnesses/REGISTRY.md` | **Dormant fitness-function drafts (backlog #20 ratchet, session-kickoff #11): Pyright, tach, a coverage gate, Hypothesis property tests, an embedding-drift harness, performance monitoring, bandit — each drafted with its activation trigger, not wired in until the trigger fires.** |
 | `app/backend/help/help_content.md` | **The served help corpus (inc 59) — the source of truth for user-facing help.** Edit here (then it renders in the `?` modal). Keep current via the `HELP-DOCS-SYNCED` marker. |
 | `.claude/HELP.md` | Historical tip text (superseded by the served corpus above; kept as a dev note) |
 | `.claude/docs/INCREMENT-BACKLOG.md` | The running nearer-term to-do list — **open items only** (reference-manager-first). Shipped/closed items live in `INCREMENT-BACKLOG-DONE.md` (split 2026-06-20). |
@@ -710,7 +711,10 @@ When starting any non-trivial work:
    `security-audits/` stub for any security-class finding, then move the run to `.claude/qa-inbox/_processed/`.
    Do not act on a run silently — surface what you found and what you're fixing. The supervisor
    (`tools/qa/supervisor.py`) deposits these via headless Codex `exec` runs (the QA-POLICY loop, rule #10).
-11. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
+11. **Glance at `.claude/staged-harnesses/REGISTRY.md`.** Has any dormant harness's activation trigger fired
+   (a type-clean baseline, an outside contributor, a library crossing ~1-2k PDFs, an embedding-model change, a
+   public deployment)? Keep this a single glance, not a ritual.
+12. **When in doubt, ask.** This project is pre-release with one user — a 30-second confirmation
    is cheaper than a wrong turn.
 
 IF NEEDED, see ".\session-kickoff-log.md"
