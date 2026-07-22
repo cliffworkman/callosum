@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-22 — fix: LibreOffice .oxt missing composer.py ("No module named 'composer'")
+
+- **Files:** `tools/build_libreoffice_oxt.py`, `adapters/libreoffice/oxt/description.xml`,
+  `tests/test_libreoffice_oxt.py`.
+- **What:** `composer.py` (the Phase 5a citation composer, added earlier this session) was never added to the
+  `.oxt` build script's `ENTRIES` list, so every packaged install was missing it — `import composer` 404ed with
+  "No module named 'composer'" the moment **Add citation** or **Edit citation** actually opened the composer
+  dialog. Fixed the list, bumped the extension version `0.1.0` → `0.1.1` (so LibreOffice's Extension Manager
+  recognizes it as an update), and added a regression test (`test_every_local_sibling_import_is_packaged`) that
+  scans `callosum_cite.py` for local sibling imports and asserts each is actually bundled — this class of bug
+  can't recur silently now, regardless of which new adapter module gets added next.
+- **Why:** Cliff hit this live while actually using the LibreOffice adapter to add citations — a real,
+  blocking regression from earlier in the session, caught by dogfooding rather than any existing test (the
+  existing `test_build_oxt_has_expected_entries` had a stale hardcoded entry list that just matched the bug).
+- **Revert:** `git revert` this commit — but there's no reason to; this is a straightforward correctness fix.
+
 <!-- HELP-DOCS-SYNCED 2026-07-22 inc 338 — reviewed the entries below back to the prior (inc 337) marker.
 Added the same "Whole library" paragraph to "Checking Bayes factors" + noted the credit block now only shows
 once a paper is confirmed applicable (backlog #23, 3/3 — closed). Nothing above this line has an un-synced

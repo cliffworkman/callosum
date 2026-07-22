@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 from adapters.libreoffice import callosum_cite as cc
-from tools.build_libreoffice_oxt import build_oxt
+from tools.build_libreoffice_oxt import ADAPTER_DIR, build_oxt
 
 EXPECTED_ENTRIES = {
     "META-INF/manifest.xml",
@@ -21,6 +21,7 @@ EXPECTED_ENTRIES = {
     "Addons.xcu",
     "callosum_cite.py",
     "callosum_addon.py",
+    "composer.py",
 }
 
 
@@ -29,6 +30,26 @@ def test_build_oxt_has_expected_entries(tmp_path) -> None:
     assert oxt.exists()
     with zipfile.ZipFile(oxt) as z:
         assert set(z.namelist()) == EXPECTED_ENTRIES
+
+
+def test_every_local_sibling_import_is_packaged(tmp_path) -> None:
+    # Regression guard for the exact bug that shipped composer.py without adding it to ENTRIES: a packaged
+    # install (unlike the by-hand macro, which shares callosum_cite.py's own folder) then 404s at runtime with
+    # "No module named 'composer'" the first time that code path actually runs — invisible to every existing
+    # test because none of them zip-import the built .oxt the way LibreOffice does. Scan callosum_cite.py's own
+    # source for bare `import <name>` statements that name a real sibling .py file in the adapter dir, and assert
+    # each one is actually bundled — this fails the moment a NEW sibling module is imported but not packaged,
+    # without needing EXPECTED_ENTRIES (or this test) to be remembered and hand-updated again.
+    src = (ADAPTER_DIR / "callosum_cite.py").read_text(encoding="utf-8")
+    imported = set(re.findall(r"^\s*import (\w+)\s*$", src, re.MULTILINE))
+    sibling_modules = {name for name in imported if (ADAPTER_DIR / f"{name}.py").is_file()}
+    assert sibling_modules, "expected at least one local sibling import (e.g. composer) to check"
+
+    oxt = build_oxt(tmp_path / "callosum.oxt")
+    with zipfile.ZipFile(oxt) as z:
+        packaged = set(z.namelist())
+    missing = {f"{name}.py" for name in sibling_modules} - packaged
+    assert not missing, f"sibling module(s) imported by callosum_cite.py but not packaged in the .oxt: {missing}"
 
 
 def test_oxt_xml_well_formed_and_wires_the_dispatcher(tmp_path) -> None:
