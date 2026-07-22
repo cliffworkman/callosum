@@ -73,12 +73,12 @@ function MyPubsSettings({ onRefreshed }) {
     <>
       <div className="settings-field">
         <label className="settings-field-label">Your name</label>
-        <input className="settings-input" placeholder="e.g. Ada Lovelace" value={name} onChange={e => setName(e.target.value)} />
+        <input className="settings-input" placeholder="e.g. Karen Spärck Jones" value={name} onChange={e => setName(e.target.value)} />
       </div>
       <div className="settings-field">
         <label className="settings-field-label">Other published names</label>
         <div className="settings-keyrow">
-          <input className="settings-input" placeholder="e.g. A. Lovelace" value={variantDraft}
+          <input className="settings-input" placeholder="e.g. K. Spärck Jones" value={variantDraft}
             onChange={e => setVariantDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addVariant(e.currentTarget.value); } }} />
           <button type="button" className="btn btn-ghost" disabled={saving || !variantDraft.trim()} onClick={() => addVariant()}>Add</button>
         </div>

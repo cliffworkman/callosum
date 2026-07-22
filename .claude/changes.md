@@ -13,6 +13,16 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-22 — Backlog #45: Settings name-example placeholder, Ada Lovelace → Karen Spärck Jones
+- **Files:** `app/frontend/js/35a_mypubs.jsx`, `callosum-app.html` (rebuilt).
+- **What:** the My Publications "Your name" / "Other published names" input placeholders now read "e.g. Karen
+  Spärck Jones" / "e.g. K. Spärck Jones" instead of "e.g. Ada Lovelace" / "e.g. A. Lovelace".
+- **Why:** Cliff's request — a real non-ASCII ("ä") test case for these fields, and a credit-the-lineage nod:
+  Spärck Jones's TF-IDF work underlies the term-weighting/retrieval methods callosum's search leans on. (The
+  many unrelated "Ada Lovelace" test fixtures used as a generic stand-in author name across the test suite were
+  left untouched — out of scope; the ask was specifically the Settings UI example.)
+- **Revert:** `git log` this commit.
+
 ## 2026-07-22 — Increment 332: backlog #30 — LibreOffice beyond-library suggest + doc-drift fixes
 - **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.py/.md`, `tests/test_libreoffice_adapter.py`,
   `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/increment-notes/INCREMENT-332-NOTES.md`,

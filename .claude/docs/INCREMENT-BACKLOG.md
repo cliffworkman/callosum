@@ -99,11 +99,8 @@
   redundant).
 - **#28 remaining slice:** more Feed sources are a one-line `register()` each as they come up; a true background
   polling daemon is **deliberately not built** (pull-first design choice, not a gap).
-- **#45 My Publications example name — swap "Ada Lovelace" for "Karen Spärck Jones."** `app/frontend/js/35a_mypubs.jsx`
-  lines 76/81 use "e.g. Ada Lovelace" / "e.g. A. Lovelace" as the name-input placeholders. Cliff asked to swap in
-  Karen Spärck Jones (placeholders: "e.g. Karen Spärck Jones" / "e.g. K. Spärck Jones") — a real non-ASCII
-  (`ä`) test case for the name/alt-names fields, and a fitting credit-the-lineage nod: her TF-IDF work underlies
-  the term-weighting/retrieval methods callosum's search leans on. Cheap, whenever convenient.
+- ✅ **#45 My Publications example name — CLOSED 2026-07-22.** Swapped "e.g. Ada Lovelace"/"e.g. A. Lovelace" for
+  "e.g. Karen Spärck Jones"/"e.g. K. Spärck Jones" in the name/alt-names placeholders (`35a_mypubs.jsx`).
 
 ---
 
