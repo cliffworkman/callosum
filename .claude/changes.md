@@ -13,6 +13,27 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-22 — Increment 332: backlog #30 — LibreOffice beyond-library suggest + doc-drift fixes
+- **Files:** `adapters/libreoffice/{callosum_cite,selftest_uno,README}.py/.md`, `tests/test_libreoffice_adapter.py`,
+  `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/increment-notes/INCREMENT-332-NOTES.md`,
+  `.claude/qa-routes/route_42_cite.md`, `integrations/README.md`, `integrations/semantic-scholar/` (removed).
+- **What:** research before writing any code found backlog #30's framing ("the highest-value unbuilt
+  capability") was itself stale — `beyond_library.py`'s OpenAlex-graph + public-metadata suggest engine already
+  shipped inc 271/272, audited PASS, just never folded back into the backlog doc since it landed as one large
+  uncredited commit with no increment notes. Wired the ALREADY-shipped engine into the LibreOffice adapter's
+  Suggest macro (an opt-in checkbox, default off, matching the audited web consent model exactly; picking a
+  beyond-library result saves it via the same `/discovery/save` path the web "Add to library" button uses,
+  then cites it). Fixed the doc drift this surfaced: `INCREMENT-BACKLOG.md`'s #30 entry, a badly-stale
+  `integrations/README.md` (listed real adapters as "planned"), a dead duplicate `integrations/semantic-scholar/`
+  stub, and a QA route (`route_42_cite.md`) whose steps never actually exercised the beyond-library UI despite
+  the mechanical coverage gate already passing.
+- **Why:** the user chose to tackle #30, and the honest next step once its real state was understood was
+  closing the one genuine gap (LibreOffice wiring) plus the documentation debt, not building a duplicate feature.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-332-NOTES.md`. A real empirical
+  finding recorded there: a programmatic checkbox `setState()` does not fire `XItemListener.itemStateChanged`
+  in this LibreOffice version (standard UNO/AWT behavior, not a bug) — applies retroactively to the Phase
+  5b/5c Options dialog's mutex checkboxes too, folded into the standing composer manual-verification debt.
+
 ## 2026-07-22 — Increment 331: LibreOffice adapter rework, Phase 5c (Edit Citation) — closes backlog #33/#34
 - **Files:** `adapters/libreoffice/{callosum_cite,composer,selftest_uno,README}.py/.md`,
   `adapters/libreoffice/oxt/Addons.xcu`, `tests/test_libreoffice_composer.py` (new),

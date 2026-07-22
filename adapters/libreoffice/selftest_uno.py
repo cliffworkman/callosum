@@ -819,6 +819,143 @@ def spike_edit_citation(ctx, base, p1, p2):
     log("spike (phase 5c): OK — editing down to 1 item kept the same citation identity")
 
 
+def spike_beyond_library_checkbox_listener(ctx, base):
+    """Backlog #30 (Track C SP2/Stage-3): the Suggest dialog's opt-in "Also search beyond my library" checkbox
+    logic (its `itemStateChanged` callback) correctly triggers a live re-fetch that merges in beyond-library
+    rows. `cc._post_json` is monkeypatched to a deterministic FAKE `/citations/suggest` response rather than
+    hitting real external APIs (Crossref/PubMed/OpenAlex) — this offline-by-design harness must never depend on
+    live third-party network availability. Mirrors `spike_live_search_listener`'s established pattern (a
+    minimal standalone dialog, never calling `.execute()`, which would block on real user interaction).
+
+    FINDING (see inline comment below): unlike Phase 5a's `edit_ctrl.setText()` reliably firing `textChanged`,
+    a programmatic `checkbox.setState()` does NOT fire `XItemListener.itemStateChanged` in this LibreOffice
+    version — standard UNO/AWT behavior (it fires on a real user click, not a scripted mutation), not a bug.
+    There is no headless way to synthesize a real click, so this spike invokes the listener's own callback
+    directly (proving the callback LOGIC), rather than proving the click-to-callback wiring itself — which
+    remains a manual-verification-only question, same as every other dialog interaction in this file. This
+    applies retroactively to the already-shipped Phase 5b/5c Options dialog's suppress-author/author-only mutex
+    checkboxes too, which rely on the identical mechanism and were never spike-tested for exactly this reason."""
+    log("spike (backlog #30): beyond-library checkbox triggers a live re-fetch + merge")
+
+    calls = {"n": 0, "last_include_beyond": None}
+    original_post = cc._post_json
+
+    def fake_post(url, body, timeout=20):
+        calls["n"] += 1
+        calls["last_include_beyond"] = body.get("include_beyond_library")
+        beyond = (
+            [{"title": "Beyond-library paper", "authors": ["Someone"], "year": 2021, "reason": "matches"}]
+            if body.get("include_beyond_library")
+            else []
+        )
+        return {
+            "suggestions": [{"paper_id": 1, "title": "In-library paper", "match_score": 0.9}],
+            "beyond_library_suggestions": beyond,
+        }
+
+    cc._post_json = fake_post
+    try:
+        smgr = ctx.ServiceManager
+        dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+        dm.Width, dm.Height, dm.Title = 300, 150, "spike"
+        beyond_model = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
+        beyond_model.PositionX, beyond_model.PositionY, beyond_model.Width, beyond_model.Height = 6, 6, 280, 14
+        beyond_model.Label, beyond_model.State = "beyond", 0
+        dm.insertByName("beyond", beyond_model)
+        lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+        lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 24, 280, 100
+        dm.insertByName("list", lst)
+        dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+        dialog.setModel(dm)
+        toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+        dialog.createPeer(toolkit, None)
+
+        beyond_ctrl = dialog.getControl("beyond")
+        list_ctrl = dialog.getControl("list")
+        state = {"rows": []}
+
+        def refresh(include_beyond):
+            result = cc.fetch_suggestions(base, "a draft sentence", include_beyond_library=include_beyond)
+            parallel = [("library", s) for s in result["suggestions"]]
+            parallel += [("beyond", b) for b in result["beyond_library_suggestions"]]
+            rows = cc.build_suggest_rows(result["suggestions"]) + cc.build_beyond_suggest_rows(
+                result["beyond_library_suggestions"]
+            )
+            state["rows"] = parallel
+            list_ctrl.getModel().StringItemList = tuple(rows)
+
+        refresh(False)
+        check(calls["n"] == 1, f"expected exactly 1 fetch before any toggle, got {calls['n']}")
+        check(len(state["rows"]) == 1, f"expected 1 in-library row before toggle, got {len(state['rows'])}")
+
+        import unohelper
+        from com.sun.star.awt import XItemListener
+
+        class _Listener(unohelper.Base, XItemListener):
+            def itemStateChanged(self, event):
+                refresh(beyond_ctrl.getState() == 1)
+
+            def disposing(self, event):
+                pass
+
+        listener = _Listener()
+        beyond_ctrl.addItemListener(listener)
+        beyond_ctrl.setState(1)
+        # FINDING: unlike Phase 5a's edit_ctrl.setText() reliably firing textChanged, a programmatic setState()
+        # here does NOT fire itemStateChanged (confirmed: calls["n"] stays 1 after the line above alone). This
+        # matches standard UNO/AWT behavior -- itemStateChanged fires on a REAL user click, not a scripted state
+        # mutation -- and there is no headless way to synthesize a real click. So this spike verifies the actual
+        # callback LOGIC directly (does the closure merge rows correctly when it runs), invoking it exactly as
+        # the toolkit would on a real click, rather than the event-dispatch wiring itself -- whether a real
+        # click in real Writer fires it (which standard UNO/AWT behavior says it will) remains a manual-
+        # verification-only question, like every other dialog interaction in this file. This also applies
+        # retroactively to the Phase 5b/5c Options dialog's suppress-author/author-only mutex checkboxes,
+        # which rely on the identical mechanism and were never spike-tested for exactly this reason.
+        listener.itemStateChanged(None)
+        check(calls["n"] == 2, f"expected the simulated click to trigger a second fetch, got {calls['n']}")
+        check(calls["last_include_beyond"] is True, "expected include_beyond_library=True on the toggled fetch")
+        check(len(state["rows"]) == 2, f"expected 2 rows (1 library + 1 beyond) after toggle, got {len(state['rows'])}")
+        check(
+            state["rows"][0][0] == "library" and state["rows"][1][0] == "beyond",
+            f"expected [library, beyond] row kinds, got {[k for k, _ in state['rows']]}",
+        )
+        log(f"spike (backlog #30): OK — checkbox toggle fired {calls['n']} fetches, merged rows correctly")
+        dialog.dispose()
+    finally:
+        cc._post_json = original_post
+
+
+def spike_save_beyond_library_item_and_cite(ctx, base):
+    """Backlog #30: `save_beyond_library_item` + `insert_citation` end-to-end against the REAL local callosum
+    server (`/discovery/save` — no internet needed for a bare metadata-only save) — confirms a beyond-library
+    candidate can be added to the library and immediately cited in one flow, via the exact same write path the
+    web app's own "Add to library" button already uses (`/discovery/save`)."""
+    log("spike (backlog #30): save_beyond_library_item + insert_citation end-to-end")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("A fresh discovery.\n")
+
+    fake_item = {
+        "title": "Graph Attention Networks",
+        "doi": None,  # no DOI -- save_item must still succeed on a title-only save
+        "abstract": "We present graph attention networks (GATs)...",
+        "authors": ["Velickovic"],
+        "journal": "ICLR",
+        "year": 2018,
+        "url": None,
+    }
+    paper_id = cc.save_beyond_library_item(base, fake_item)
+    check(isinstance(paper_id, int) and paper_id > 0, f"expected a real new paper_id, got {paper_id!r}")
+
+    rnd = cc.insert_citation(doc, paper_id, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    field = cc.scan_citations_in_order(doc)[0]
+    check(field["citationID"] == rnd, "sanity: citationID should match insert_citation's own rnd")
+    check(field["items"][0].get("id") == f"callosum-{paper_id}", "the newly-saved paper's id should be cited")
+    rendered = field["_mark"].getAnchor().getString()
+    check("Velickovic" in rendered, f"expected the newly-saved author to appear in the render, got {rendered!r}")
+    log(f"spike (backlog #30): OK — beyond-library item saved as paper {paper_id}, cited, rendered as {rendered!r}")
+
+
 def spike_document_diagnostics(ctx, base, p1, p2):
     """P0 phase 9 (the last of the smaller phases, backlog #33/#34): `diagnose_document` is read-only, so this
     spike constructs each unhealthy state directly rather than waiting for it to occur naturally — a truly
@@ -977,7 +1114,9 @@ def main():
         # LibreOffice + a real server with an embedded library.
         log("suggest: fresh doc")
         doc2 = new_writer(ctx)
-        sugg = cc.fetch_suggestions(base, "attention mechanism transformer architecture")
+        # backlog #30: fetch_suggestions now returns {"suggestions", "beyond_library_suggestions"} (the latter
+        # only populated when include_beyond_library=True, which this in-library-only check doesn't request).
+        sugg = cc.fetch_suggestions(base, "attention mechanism transformer architecture")["suggestions"]
         log(f"suggestions = {[(s.get('paper_id'), (s.get('stance') or {}).get('label')) for s in sugg]}")
         check(len(sugg) >= 1, "no suggestions returned for the query")
         check(any(int(s["paper_id"]) in (int(p1), int(p2)) for s in sugg), "no seeded paper among suggestions")
@@ -1056,6 +1195,12 @@ def main():
 
         # 16) Phase 5c (backlog #33/#34): Edit Citation's backend -- same identity, new items, bypassing the dialog.
         spike_edit_citation(ctx, base, p1, p2)
+
+        # 17) Backlog #30: the Suggest dialog's beyond-library checkbox mechanism (network layer faked).
+        spike_beyond_library_checkbox_listener(ctx, base)
+
+        # 18) Backlog #30: save-then-cite a beyond-library candidate, against the real local server.
+        spike_save_beyond_library_item_and_cite(ctx, base)
 
         print("SELFTEST OK", flush=True)
         return 0

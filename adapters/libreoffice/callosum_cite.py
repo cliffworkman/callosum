@@ -245,6 +245,29 @@ def build_suggest_rows(suggestions: list[dict]) -> list[str]:
     return rows
 
 
+def build_beyond_suggest_rows(items: list[dict]) -> list[str]:
+    """One pick-list row per beyond-library suggestion (backlog #30): ``Author [et al.] Year — Title — why``.
+    Shows the candidate's `relationship_label` (e.g. "Cited by a locally relevant paper: …") when the backend
+    surfaced it via OpenAlex graph evidence, else its `reason` (a public-metadata-match sentence) — never a
+    bare score. Visually prefixed so these are never confused with an already-in-library suggestion. Pure (no
+    UNO); parallel to `items` (row index → item → the fields `save_beyond_library_item` needs)."""
+    rows = []
+    for it in items:
+        authors = it.get("authors") or []
+        who = authors[0] if authors else "—"
+        if len(authors) > 1:
+            who += " et al."
+        year = it.get("year") or "n.d."
+        title = (it.get("title") or "Untitled").strip()
+        if len(title) > SEARCH_TITLE_MAX:
+            title = title[:SEARCH_TITLE_MAX] + "…"
+        why = " ".join(str(it.get("relationship_label") or it.get("reason") or "public metadata match").split())
+        if len(why) > SUGGEST_QUOTE_MAX:
+            why = why[:SUGGEST_QUOTE_MAX].rstrip() + "…"
+        rows.append(f"[beyond library] {who} {year} — {title} — {why}")
+    return rows
+
+
 # ── HTTP (no UNO; stdlib only) ───────────────────────────────────────────────────────────────────────────
 
 
@@ -291,18 +314,62 @@ def list_style_ids(base: str) -> set[str]:
 SUGGEST_TIMEOUT = 90  # suggest does local ML work (embed + NLI); the first call loads the models — give it room
 
 
-def fetch_suggestions(base: str, text: str, top_k: int = 5) -> list[dict]:
-    """Citation suggestions for a draft sentence via the inc-156 endpoint; returns the suggestions list.
+def fetch_suggestions(
+    base: str, text: str, top_k: int = 5, include_beyond_library: bool = False, beyond_top_k: int = 5
+) -> dict:
+    """Citation suggestions for a draft sentence via the inc-156 endpoint, now wired to the already-shipped
+    beyond-library path (backlog #30 SP2/Stage-3, `app/backend/citations/beyond_library.py`, inc 271/272) — this
+    adapter previously never passed `include_beyond_library` at all. Returns ``{"suggestions": [...in-library],
+    "beyond_library_suggestions": [...]}`` — the latter is always ``[]`` unless `include_beyond_library` is
+    True, matching the SAME opt-in-each-time consent model the web Cite pane's "Also search beyond my library"
+    checkbox already established (`.claude/security-audits/2026-07-11_beyond-library-citation-suggest.md`):
+    this must never default to on, or silently persist as a standing setting.
 
-    Local-only (127.0.0.1); the engine ranks the library by relevance + evaluates each candidate's stance. The
-    first call loads the embedding + NLI models server-side, so it uses a longer timeout than render/export.
-    Defensive on shape — a malformed/empty response yields [].
+    Local-only when `include_beyond_library` is False (the default): the engine ranks the library by relevance
+    + evaluates each candidate's stance. When True, Callosum also sends the bounded draft sentence to public
+    metadata providers (Crossref/PubMed/OpenAlex) — metadata-provider egress, not the Gemini/LLM gate, but real
+    egress the user is explicitly opting into on this specific call.
+
+    The first call loads the embedding + NLI models server-side, so it uses a longer timeout than render/export.
+    Defensive on shape — a malformed/empty response yields empty lists for both.
     """
     data = _post_json(
-        f"{base}/citations/suggest", {"text": text, "top_k": top_k, "evaluate": True}, timeout=SUGGEST_TIMEOUT
+        f"{base}/citations/suggest",
+        {
+            "text": text,
+            "top_k": top_k,
+            "evaluate": True,
+            "include_beyond_library": include_beyond_library,
+            "beyond_top_k": beyond_top_k,
+        },
+        timeout=SUGGEST_TIMEOUT,
     )
-    suggestions = data.get("suggestions") if isinstance(data, dict) else None
-    return suggestions if isinstance(suggestions, list) else []
+    if not isinstance(data, dict):
+        return {"suggestions": [], "beyond_library_suggestions": []}
+    suggestions = data.get("suggestions")
+    beyond = data.get("beyond_library_suggestions")
+    return {
+        "suggestions": suggestions if isinstance(suggestions, list) else [],
+        "beyond_library_suggestions": beyond if isinstance(beyond, list) else [],
+    }
+
+
+def save_beyond_library_item(base: str, item: dict) -> int:
+    """Add a beyond-library suggestion to the library (backlog #30) via the existing `/discovery/save`
+    endpoint — the SAME write path the web Cite pane's "Add to library" button already uses: a metadata-only
+    record, no PDF fetch, deduped server-side (safe to call even if the item was already saved). Returns the
+    paper_id, ready to hand straight to `insert_citation`."""
+    payload = {
+        "title": item.get("title") or "Untitled",
+        "doi": item.get("doi"),
+        "abstract": item.get("abstract"),
+        "authors": item.get("authors") or [],
+        "journal": item.get("journal"),
+        "year": item.get("year"),
+        "url": item.get("url"),
+    }
+    result = _post_json(f"{base}/discovery/save", payload)
+    return int(result["paper_id"])
 
 
 SEARCH_TITLE_MAX = 90  # truncate the title in a pick-list row
@@ -888,50 +955,96 @@ def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
 _SUGGEST_CAVEAT = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
 
 
-def _suggest_listbox(
-    doc, rows: list[str], title: str = "Suggest citations", caveat: str = _SUGGEST_CAVEAT
-) -> int | None:
-    """A modal pick-list (mirrors _input_box, with a ListBox). Returns the chosen row index, or None if
-    cancelled / nothing selected. Shared by Suggest (stance + quote rows) and Add-citation (search rows);
-    the writer reads each row and picks — nothing auto-inserts."""
-    smgr = _component_ctx().ServiceManager
+def _suggest_dialog(doc, base: str, text: str) -> tuple[str, dict] | None:
+    """The Suggest-citation pick list, with an opt-in "Also search beyond my library" checkbox (backlog #30,
+    wiring the already-shipped `beyond_library.py` engine into this adapter for the first time). Unchecked by
+    default — matching the SAME explicit, opt-in-each-time consent model as the web Cite pane's own checkbox
+    (`.claude/security-audits/2026-07-11_beyond-library-citation-suggest.md`). In-library results load
+    immediately (local, fast); checking the box triggers a live re-fetch that also queries public metadata
+    providers, merging in beyond-library candidates — visually marked, each carrying its own reason/
+    relationship label instead of a quote+stance. The checkbox toggle is a synchronous fetch inside the UI
+    callback (the same mechanism `spike_live_search_listener` proved safe for the composer's search box), but
+    beyond-library search is a multi-provider external fan-out, so expect a noticeably longer pause than the
+    local-only path — a real UX characteristic to confirm in the still-owed manual verification pass, not a bug.
+
+    Returns ``(kind, item)`` for the picked row — `kind` is ``"library"`` (item is the in-library suggestion
+    dict) or ``"beyond"`` (item is the beyond-library suggestion dict, not yet in the library) — or None if
+    nothing was picked."""
+    import unohelper
+    from com.sun.star.awt import XItemListener
+
     ctx = _component_ctx()
+    smgr = ctx.ServiceManager
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
-    dm.Width, dm.Height, dm.Title = 320, 172, title
+    dm.Width, dm.Height, dm.Title = 360, 210, "Suggest citations"
+
     label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
-    label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 308, 22
-    label.Label = caveat
+    label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 348, 22
+    label.Label = _SUGGEST_CAVEAT
     label.MultiLine = True
     dm.insertByName("lbl", label)
+
     lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
-    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 32, 308, 110
+    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 32, 348, 108
     lst.Dropdown = False
     lst.MultiSelection = False
-    lst.StringItemList = tuple(rows)
     dm.insertByName("list", lst)
+
+    beyond_box = dm.createInstance("com.sun.star.awt.UnoControlCheckBoxModel")
+    beyond_box.PositionX, beyond_box.PositionY, beyond_box.Width, beyond_box.Height = 6, 144, 320, 14
+    beyond_box.Label, beyond_box.State = "Also search beyond my library", 0
+    dm.insertByName("beyond", beyond_box)
+
     ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
-    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 222, 150, 44, 16, "Insert", 1
+    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 262, 182, 44, 16, "Insert", 1
     dm.insertByName("ok", ok)
     cancel = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     cancel.PositionX, cancel.PositionY, cancel.Width, cancel.Height, cancel.Label, cancel.PushButtonType = (
-        270,
-        150,
+        310,
+        182,
         44,
         16,
         "Cancel",
         2,
     )
     dm.insertByName("cancel", cancel)
+
     dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
     dialog.setModel(dm)
     toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
     dialog.createPeer(toolkit, None)
-    result = dialog.execute()  # 1 == OK (Insert)
-    pos = dialog.getControl("list").getSelectedItemPos() if result == 1 else -1
+
+    list_ctrl = dialog.getControl("list")
+    beyond_ctrl = dialog.getControl("beyond")
+    state = {"rows": []}  # list of (kind, item), parallel to the listbox's current rows
+
+    def refresh(include_beyond: bool) -> None:
+        result = fetch_suggestions(base, text, include_beyond_library=include_beyond)
+        parallel = [("library", s) for s in result["suggestions"]]
+        parallel += [("beyond", b) for b in result["beyond_library_suggestions"]]
+        rows = build_suggest_rows(result["suggestions"]) + build_beyond_suggest_rows(
+            result["beyond_library_suggestions"]
+        )
+        state["rows"] = parallel
+        list_ctrl.getModel().StringItemList = tuple(rows)
+
+    refresh(False)  # in-library results load immediately; beyond-library is opt-in only
+
+    class _BeyondListener(unohelper.Base, XItemListener):
+        def itemStateChanged(self, event):
+            refresh(beyond_ctrl.getState() == 1)
+
+        def disposing(self, event):
+            pass
+
+    beyond_ctrl.addItemListener(_BeyondListener())
+
+    result_code = dialog.execute()  # 1 == Insert
+    pos = list_ctrl.getSelectedItemPos() if result_code == 1 else -1
     dialog.dispose()
-    if result != 1 or pos is None or pos < 0 or pos >= len(rows):
+    if result_code != 1 or pos is None or pos < 0 or pos >= len(state["rows"]):
         return None
-    return int(pos)
+    return state["rows"][pos]
 
 
 def _component_ctx():
@@ -956,24 +1069,26 @@ def _msgbox(message: str, title: str = "callosum") -> None:
 
 
 def suggest_and_insert(doc, base: str = DEFAULT_BASE) -> str | None:
-    """Suggest library papers to cite for the current sentence, let the user pick one, and insert it.
+    """Suggest papers to cite for the current sentence — from the library by default, or also beyond it via an
+    opt-in checkbox (backlog #30) — let the user pick one, and insert it.
 
-    Returns the new mark's `rnd` tag, or None if nothing was inserted (no text / no suggestions / cancelled).
-    The suggestion + stance signal is the backend's (inc 156); this only presents the evidence + inserts the
-    chosen cite via the existing insert_citation flow.
+    Returns the new mark's `rnd` tag, or None if nothing was inserted (no text / cancelled / nothing picked).
+    The suggestion + stance signal, and the beyond-library search + reasons, are all the backend's (inc 156,
+    271/272); this only presents the evidence and inserts the chosen cite. A beyond-library pick is added to
+    the library first (`save_beyond_library_item`, the same write path the web app's own "Add to library"
+    button uses), then cited — a real user might not have anything relevant in-library yet, so this no longer
+    short-circuits on an empty in-library list before the user gets a chance to opt into searching further.
     """
     text = current_query_text(doc)
     if not text:
         _msgbox("Select a sentence (or place the cursor in one) to suggest citations for.")
         return None
-    suggestions = fetch_suggestions(base, text)
-    if not suggestions:
-        _msgbox("No related papers in your library for that sentence.")
+    picked = _suggest_dialog(doc, base, text)
+    if picked is None:
         return None
-    idx = _suggest_listbox(doc, build_suggest_rows(suggestions))
-    if idx is None:
-        return None
-    return insert_citation(doc, suggestions[idx].get("paper_id"), base, cursor=_insertion_cursor_at_end(doc))
+    kind, item = picked
+    paper_id = save_beyond_library_item(base, item) if kind == "beyond" else item.get("paper_id")
+    return insert_citation(doc, paper_id, base, cursor=_insertion_cursor_at_end(doc))
 
 
 def add_citation_by_search(doc, base: str) -> str | None:

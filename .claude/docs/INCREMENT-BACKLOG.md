@@ -28,6 +28,13 @@
 > directly: no `SECURITY.md`/`CITATION.cff`/`.env.example`/`uv.lock`/`.pre-commit-config.yaml` exist yet, so **#20**
 > stays genuinely open as described.
 >
+> **Follow-up correction (2026-07-22):** **#30** was ALSO stale, missed by the 07-19 audit — its SP2/Stage-3
+> "beyond-library suggest" had shipped inc 271/272, landed as one large uncredited Codex commit with no
+> increment notes of its own, so it never got folded back into this file's status line. This is the same class
+> of drift the 07-19 pass found elsewhere (a shipped feature miscategorized as open) — a reminder that a
+> commit lacking its own `INCREMENT-NN-NOTES.md` is a real risk factor for this file going stale, not just an
+> aesthetic gap.
+>
 > **Guiding principle (Cliff's):** *reference manager first.* The verified-synthesis crown jewel only matters if
 > Callosum is a credible day-one replacement for Mendeley/Zotero — so table-stakes reference-manager UX stays
 > high priority; differentiators come after.
@@ -172,7 +179,8 @@
   under, so it needs your sign-off per gate.
 - **#21 Packaging & distribution (post-V1).** [exploratory] A Tauri desktop shell (`app/desktop-shell/`
   placeholder); an OS keychain for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; desktop
-  distribution + GROBID service ops (when Track C SP2 lands).
+  distribution + GROBID service ops (when Track C Stage-4 section-scoping lands — SP2/Stage-3 shipped inc
+  271/272 and doesn't need GROBID).
 
 ---
 
@@ -191,12 +199,25 @@ the Principles + A-A gates before build.)*
   regex-extension increment, low effort whenever picked up.
 - **#29 Gap-finder — followed-authors as a source.** Blocked on a "followed authors" concept that doesn't exist
   yet; also external-search discovery beyond the library (overlaps #30/Track C).
-- **#30 Highlight-to-suggest/evaluate (Track C) — the next big slice.** SP1a/SP1b/formatted-cite (in-library
-  suggest+evaluate, the LibreOffice macro, "Cite as…") are shipped. **NEXT:** **SP2/Stage-3 — beyond-library
-  suggest** (OpenAlex `related_works`/co-citation + Semantic Scholar recommendations, each candidate carrying an
-  explainable reason — never ranked by citation count; trips the audit + Principles gates as a new external
-  fetch). **Stage-4 — section-scoping** (constrain candidates to a manuscript section; needs GROBID + the
-  plugin). This is the highest-value unbuilt novel capability in the backlog.
+- ✅ **#30 Highlight-to-suggest/evaluate (Track C), SP1 + SP2/Stage-3 — CLOSED, corrected 2026-07-22.** This
+  entry was **stale** (this doc drifted per rule #6): SP2/Stage-3 "beyond-library suggest" was NOT unbuilt — it
+  shipped inc 271/272 (2026-07-14/15, landed as one large uncredited Codex commit that never got its own
+  increment notes, which is exactly why it fell out of this file's bookkeeping). `app/backend/citations/
+  beyond_library.py` already does OpenAlex `referenced_works`/`related_works`/citing-works graph expansion
+  anchored on the top in-library matches, plus Crossref/PubMed/OpenAlex keyword search — every candidate
+  carries `reason`/`relationship_kind`/`relationship_label`, never a bare/citation-count score. Wired into
+  `POST /citations/suggest` (`include_beyond_library`) and the web Cite pane (`37_cite.jsx`'s `BeyondSuggestionCard`
+  + "Also search beyond my library" checkbox); security-audited PASS
+  (`.claude/security-audits/2026-07-11_beyond-library-citation-suggest.md`). **Newly closed 2026-07-22:** the
+  LibreOffice adapter's "Suggest citations" macro never called this path at all (in-library-only) — it now has
+  the same opt-in checkbox + a save-then-cite flow for a picked beyond-library candidate (reusing
+  `/discovery/save`, the same write path the web "Add to library" button uses).
+  **Still genuinely open:** Semantic Scholar's *recommendations* endpoint (the client exists for citation-context
+  work, but nothing calls its recommendations API — a new external fetch, trips the audit gate); a persistent,
+  dismissible cache surface in the `gaps.py` style (what's shipped is a live, per-sentence, ephemeral flow — the
+  backlog's original "persistent... cache... dismiss" framing describes a structurally different design that
+  was never built); **Stage-4 section-scoping** (needs GROBID + the plugin). None of these is "the highest-value
+  unbuilt thing" anymore — that framing was the stale part.
 - **#33/#34 Citation & bibliography engine + plugins — the LibreOffice adapter's next phase [in progress].**
   Superseded by the much richer competitor-informed roadmap now at
   `.claude/docs/future-tracks/chatgpt5.6_future-tracks_wordprocessorpluginsroadmap.md` (+ its
@@ -330,8 +351,10 @@ which "pairs with #16").
   help-assistant toggle; OS-keychain storage
 - **Synthesis coverage readout + top_k + answerability** (153, #7) *(coverage beyond the 24/50-chunk cap
   remains — a real multi-pass/map-reduce change, its own design)*
-- **Track C SP1 (#30) — inc 156–159:** highlight-to-suggest/evaluate engine + Cite pane; LibreOffice Suggest
-  macro; formatted "Cite as…" *(SP2 beyond-library remains — see §4)*
+- **Track C SP1 + SP2 (#30) — inc 156–159, 271/272, and 2026-07-22:** highlight-to-suggest/evaluate engine +
+  Cite pane; LibreOffice Suggest macro; formatted "Cite as…"; beyond-library suggest (OpenAlex graph expansion +
+  public metadata search, explainable reasons, security-audited) wired into both the web Cite pane and (as of
+  2026-07-22) the LibreOffice adapter's Suggest macro too *(Stage-4 section-scoping remains — see §4)*
 - **Reading-workflow markers (Bella's ask) — inc 219–223:** reading queue (219); read/unread + priority markers
   + sort + filter facet (220/221); "By priority" unset-tier recency tiebreak (223). **Thread complete.**
 - **Word-processor adapters (#33/#34) — inc 106–108, 162–171, 193:** LibreOffice macro → one-click .oxt v2; Word

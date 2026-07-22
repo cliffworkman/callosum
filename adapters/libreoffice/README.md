@@ -49,7 +49,11 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    ranks **your library** by relevance to that sentence and shows a pick-list — each row gives the paper's **stance**
    (supports / contrasts / mentions the claim), a **match** score, and a **quote** preview (the evidence). Pick one
    and it inserts right after your sentence. Ranked by relevance, not citation count; nothing auto-inserts.
-   *(The first run loads the local relevance + stance models, so it can take a few seconds.)*
+   *(The first run loads the local relevance + stance models, so it can take a few seconds.)* Check **"Also
+   search beyond my library"** to also surface papers you don't have yet (via public metadata search + OpenAlex's
+   citation graph) — each carries its own reason (e.g. "cited by a locally relevant paper: …"), never a bare
+   score. This sends your sentence to public metadata providers (not an AI/Gemini call) — off by default, opt-in
+   each time you check it. Picking a beyond-library result adds it to your library first, then cites it.
 3. **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (run after edits, or
    after moving citations — numeric styles renumber by position).
 4. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,

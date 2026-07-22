@@ -250,18 +250,37 @@ def test_build_suggest_rows_match_fallbacks() -> None:
     assert "match ?" in cc.build_suggest_rows([{"paper_id": 1, "title": "T", "quote": "q", "match_score": "n/a"}])[0]
 
 
-def test_fetch_suggestions_posts_and_returns_list(monkeypatch) -> None:
+def test_fetch_suggestions_posts_and_returns_both_lists(monkeypatch) -> None:
     captured = {}
 
     def fake_post(url, body, timeout=20):
         captured["url"], captured["body"] = url, body
-        return {"suggestions": [{"paper_id": 3, "quote": "q"}]}
+        return {"suggestions": [{"paper_id": 3, "quote": "q"}], "beyond_library_suggestions": [{"title": "X"}]}
 
     monkeypatch.setattr(cc, "_post_json", fake_post)
     out = cc.fetch_suggestions("http://127.0.0.1:8080", "a draft sentence", top_k=4)
-    assert out == [{"paper_id": 3, "quote": "q"}]
+    assert out == {"suggestions": [{"paper_id": 3, "quote": "q"}], "beyond_library_suggestions": [{"title": "X"}]}
     assert captured["url"].endswith("/citations/suggest")
-    assert captured["body"] == {"text": "a draft sentence", "top_k": 4, "evaluate": True}
+    assert captured["body"] == {
+        "text": "a draft sentence",
+        "top_k": 4,
+        "evaluate": True,
+        "include_beyond_library": False,
+        "beyond_top_k": 5,
+    }
+
+
+def test_fetch_suggestions_include_beyond_library_flag_passes_through(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post(url, body, timeout=20):
+        captured["body"] = body
+        return {"suggestions": [], "beyond_library_suggestions": []}
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    cc.fetch_suggestions("http://x", "s", include_beyond_library=True, beyond_top_k=3)
+    assert captured["body"]["include_beyond_library"] is True
+    assert captured["body"]["beyond_top_k"] == 3
 
 
 def test_fetch_csl_translates_422_to_value_error(monkeypatch) -> None:
@@ -290,10 +309,83 @@ def test_fetch_csl_does_not_swallow_other_http_errors(monkeypatch) -> None:
 
 
 def test_fetch_suggestions_defensive_on_bad_shape(monkeypatch) -> None:
+    empty = {"suggestions": [], "beyond_library_suggestions": []}
     monkeypatch.setattr(cc, "_post_json", lambda *a, **k: {"oops": 1})
-    assert cc.fetch_suggestions("http://x", "s") == []
+    assert cc.fetch_suggestions("http://x", "s") == empty
     monkeypatch.setattr(cc, "_post_json", lambda *a, **k: ["not", "a", "dict"])
-    assert cc.fetch_suggestions("http://x", "s") == []
+    assert cc.fetch_suggestions("http://x", "s") == empty
+
+
+# ── backlog #30 (Track C SP2/Stage-3): beyond-library suggest, wired into the LibreOffice adapter ───────────
+
+
+def test_build_beyond_suggest_rows_prefers_relationship_label_over_reason() -> None:
+    rows = cc.build_beyond_suggest_rows(
+        [
+            {
+                "title": "Graph Attention Networks",
+                "authors": ["Velickovic"],
+                "year": 2018,
+                "relationship_label": "Cited by a locally relevant paper: Vaswani et al. 2017",
+                "reason": "Surfaced by openalex from title/abstract metadata; metadata term overlap 0.34.",
+            }
+        ]
+    )
+    assert len(rows) == 1
+    assert rows[0].startswith("[beyond library] Velickovic 2018 — Graph Attention Networks — ")
+    assert "Cited by a locally relevant paper" in rows[0]
+    assert "term overlap" not in rows[0]  # relationship_label wins when both are present
+
+
+def test_build_beyond_suggest_rows_falls_back_to_reason_then_generic() -> None:
+    reason_only = cc.build_beyond_suggest_rows([{"title": "X", "reason": "matches your search terms"}])
+    assert "matches your search terms" in reason_only[0]
+    generic = cc.build_beyond_suggest_rows([{"title": "X"}])
+    assert "public metadata match" in generic[0]
+
+
+def test_save_beyond_library_item_posts_expected_fields_and_returns_paper_id(monkeypatch) -> None:
+    captured = {}
+
+    def fake_post(url, body, timeout=20):
+        captured["url"], captured["body"] = url, body
+        return {"paper_id": 42, "created": True}
+
+    monkeypatch.setattr(cc, "_post_json", fake_post)
+    paper_id = cc.save_beyond_library_item(
+        "http://127.0.0.1:8080",
+        {
+            "title": "Graph Attention Networks",
+            "doi": "10.1/x",
+            "abstract": "We present...",
+            "authors": ["Velickovic"],
+            "journal": "ICLR",
+            "year": 2018,
+            "url": "https://example.org/gat",
+        },
+    )
+    assert paper_id == 42
+    assert captured["url"].endswith("/discovery/save")
+    assert captured["body"] == {
+        "title": "Graph Attention Networks",
+        "doi": "10.1/x",
+        "abstract": "We present...",
+        "authors": ["Velickovic"],
+        "journal": "ICLR",
+        "year": 2018,
+        "url": "https://example.org/gat",
+    }
+
+
+def test_save_beyond_library_item_defaults_missing_fields() -> None:
+    """paper_id is the only thing the caller actually needs back; title/authors get sane defaults so a
+    minimally-populated candidate (e.g. from a bare public-metadata search hit) never 422s on a missing field."""
+    import unittest.mock
+
+    with unittest.mock.patch.object(cc, "_post_json", return_value={"paper_id": 7}) as mock_post:
+        cc.save_beyond_library_item("http://x", {})
+    _, body = mock_post.call_args.args
+    assert body["title"] == "Untitled" and body["authors"] == []
 
 
 # ── inc TBD (P0 phase 9, backlog #33/#34): document diagnostics ─────────────────────────────────────────────
