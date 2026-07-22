@@ -17,6 +17,19 @@ stale. Added one sentence to "Checking statistics (statcheck)" for the new test-
 (backlog #27). Everything else since inc 318 was either non-help-corpus-relevant (CI/test infra, the GitHub
 README, a Settings placeholder string) or already covered. Nothing above this line has an un-synced corpus
 change. -->
+## 2026-07-22 — Backlog #20: repo furniture (SECURITY.md, CITATION.cff, .env.example)
+- **Files:** `SECURITY.md` (new), `CITATION.cff` (new), `.env.example` (new), `CONTRIBUTING.md`.
+- **What:** three static, non-code additions, the first of #20's now-greenlit scope. `.env.example` documents
+  every `CALLOSUM_*` and provider-key environment variable actually read by the codebase (grepped for
+  `os.environ`/`os.getenv` calls, not just the README's user-facing subset — includes the remote-access/OIDC/
+  superuser/OCR/HTTPS-port variables too), organized by concern. `SECURITY.md` is honest about there being no
+  dedicated private-reporting channel yet (a `TODO(maintainer)` marker, not an invented email) and names the
+  project's actual internal audit-gate discipline. `CITATION.cff` has no ORCID (flagged for Cliff to add, not
+  guessed). `CONTRIBUTING.md` gained a one-line pointer to `SECURITY.md`.
+- **Why:** backlog #20 (harness hardening) — Cliff greenlit the full scope; this is the safe, non-workflow-
+  changing slice, done first.
+- **Revert:** `git log` this commit.
+
 ## 2026-07-22 — README voice pass (backlog #11)
 - **Files:** `README.md`.
 - **What:** a style/voice rewrite of the opening (a first-person "why this exists" sentence before the thesis

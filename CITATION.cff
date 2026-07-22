@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use Callosum, please cite it as below."
+title: "Callosum: a local-first, AI-assisted reference manager for scholarly PDFs with verified citation grounding"
+authors:
+  - family-names: Workman
+    given-names: Cliff
+    # TODO(maintainer): add your ORCID here once you have one you want attached to this repo, e.g.:
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+date-released: "2026-07-22"
+repository-code: "https://github.com/cliffworkman/callosum"
+url: "https://github.com/cliffworkman/callosum"
+license: "AGPL-3.0-or-later"
+keywords:
+  - reference-manager
+  - citation-verification
+  - scholarly-pdf
+  - open-science
+  - local-first

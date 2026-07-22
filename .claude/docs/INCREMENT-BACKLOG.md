@@ -163,17 +163,20 @@
   action] `.gitignore` keeps all key material out of GitHub (verified via `git check-ignore`), so this is **not
   blocking** — but rotation is the only way to neutralize copies that exist in Dropbox version history / chat
   history outside git. Deferred by you.
-- **#20 Harness hardening.** [infra] Verified directly (2026-07-19): none of `SECURITY.md`, `CITATION.cff`,
-  `.env.example`, `CHANGELOG.md`, `uv.lock`, or `.pre-commit-config.yaml` exist yet, so this is genuinely open
-  (only the **line-budget gate ratchet step 1** shipped, inc 264 — `check_line_budget.py` + the pre-commit hook +
-  CI). Remaining: adopt **uv** (`uv.lock`); a **pre-commit** config (ruff, whitespace — the size-budget script
-  already runs there); CI gates added **one at a time** (`alembic check` + a temp-DB migration test, pip-audit +
-  Dependabot — Dependabot itself already appears active per the inc-305 CVE migration, but the CI-gate wiring
-  isn't confirmed); a `.claude/staged-harnesses/` + `REGISTRY.md` for dormant judgment-call checks (Pyright
-  strict, tach, coverage, Hypothesis, embedding-drift, bandit); branch protection once CI is green; and the repo
-  furniture (`SECURITY.md`, `.env.example`, `CITATION.cff`, `CHANGELOG.md`, SPDX `AGPL-3.0-or-later` headers).
-  Standing rule: ratchet one new blocking gate at a time; this changes the workflow Claude Code itself runs
-  under, so it needs your sign-off per gate.
+- **#20 Harness hardening.** [infra] Cliff greenlit the full scope 2026-07-22 (static files + pre-commit/uv +
+  branch protection, one at a time with sign-off per the standing rule below). **Closed 2026-07-22:** repo
+  furniture — `SECURITY.md` (honest threat-model note + a placeholder for a private contact, since none exists
+  yet), `CITATION.cff` (no ORCID — flagged as a maintainer TODO rather than invented), `.env.example` (every
+  `CALLOSUM_*`/provider-key env var grepped from the actual codebase, organized by concern). **Not done, not
+  asked for this pass:** `CHANGELOG.md` and SPDX file headers — narrower scope than what was actually
+  requested; add them separately if wanted. **Remaining, in progress:** adopt **uv** (`uv.lock`); a
+  **pre-commit** config (ruff, whitespace — the size-budget script already runs there); CI gates added **one at
+  a time** (`alembic check` + a temp-DB migration test, pip-audit + Dependabot — Dependabot itself already
+  appears active per the inc-305 CVE migration, but the CI-gate wiring isn't confirmed); a
+  `.claude/staged-harnesses/` + `REGISTRY.md` for dormant judgment-call checks (Pyright strict, tach, coverage,
+  Hypothesis, embedding-drift, bandit); branch protection once CI is green (the exact ruleset gets shown to
+  Cliff before applying). Standing rule: ratchet one new blocking gate at a time; this changes the workflow
+  Claude Code itself runs under, so it needs sign-off per gate.
 - **#21 Packaging & distribution (post-V1).** [exploratory] A Tauri desktop shell (`app/desktop-shell/`
   placeholder); an OS keychain for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; desktop
   distribution + GROBID service ops (when Track C Stage-4 section-scoping lands — SP2/Stage-3 shipped inc

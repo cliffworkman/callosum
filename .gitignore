@@ -13,6 +13,8 @@ __pycache__/
 # --- Secrets (NEVER commit) ---
 .env
 .env.*
+# ...except the committed template (backlog #20) — contains no real secrets, only variable names + comments.
+!.env.example
 # Any Gemini/Google key file, under any name we've used (GEMINI_API.txt, GEMINI_API_KEYS.md, …) anywhere.
 *GEMINI_API*
 *.key

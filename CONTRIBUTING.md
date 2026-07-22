@@ -48,6 +48,8 @@ location (and ideally keep it out of a cloud-synced folder) — see
 - Read [`.claude/DESIGN.md`](.claude/DESIGN.md) before any CSS / inline-style change.
 - **Security-sensitive changes** (a new endpoint, a new external fetch, a new ingestion/file-write path, auth,
   a new dependency, or a ~300+ LOC feature) trigger a security review — see the audit gate in CLAUDE.md.
+  Found an actual vulnerability rather than making a change? See [`SECURITY.md`](SECURITY.md) — please don't
+  open a public issue for anything sensitive.
 - Development proceeds in numbered **increments** with notes under `.claude/docs/increment-notes/`.
 
 ## License
