@@ -20,13 +20,22 @@ from app.backend.persistence.sqlite_retry import run_write
 from app.backend.persistence.tags_repo import (
     TAG_COLORS,
     add_tag_to_paper,
+    get_tag,
     get_tags_for_paper,
     is_paper_tag_locked,
     list_tags,
     remove_tag_from_paper,
     set_paper_tag_locked,
     set_tag_color,
+    tag_source_namespace,
 )
+
+_SYSTEM_TAG_DETAIL = "System-generated fact tags aren't user-editable"
+
+
+def _is_system_tag(row) -> bool:
+    return row is not None and tag_source_namespace(row["import_source"]) == "system"
+
 
 router = APIRouter()
 
@@ -90,7 +99,13 @@ def set_paper_tag_color(
     # inc 207: set (or clear, color=null) a tag's palette color. The value must be an allowlisted key (rule #4).
     if payload.color is not None and payload.color not in TAG_COLORS:
         raise HTTPException(status_code=422, detail=f"color must be one of {list(TAG_COLORS)} or null")
-    row = run_write(request.app.state.engine, lambda c: set_tag_color(c, tag_id, payload.color))
+
+    def op(c: Connection):
+        if _is_system_tag(get_tag(c, tag_id)):
+            raise HTTPException(status_code=409, detail=_SYSTEM_TAG_DETAIL)
+        return set_tag_color(c, tag_id, payload.color)
+
+    row = run_write(request.app.state.engine, op)
     if row is None:
         raise HTTPException(status_code=404, detail="Tag not found")
     count = next((t["paper_count"] for t in list_tags(conn) if int(t["id"]) == tag_id), 0)
@@ -119,9 +134,15 @@ def add_paper_tag(
             get_paper(c, paper_id)
         except NoResultFound:
             raise HTTPException(status_code=404, detail="Paper not found") from None
-        if not payload.name.strip():
+        clean = payload.name.strip()
+        if not clean:
             raise HTTPException(status_code=422, detail="Tag name cannot be blank")
-        return add_tag_to_paper(c, paper_id, payload.name)
+        if clean.lower().startswith("system:"):
+            # Backlog #19/#9: `system:` is a reserved provenance namespace for findings-subsystem fact tags
+            # (e.g. retraction) — a user-typed tag can't claim it, or a later fact producer's get-or-create-by-
+            # name would silently inherit this row's "user" provenance instead of its own.
+            raise HTTPException(status_code=422, detail='Tag names starting with "system:" are reserved')
+        return add_tag_to_paper(c, paper_id, clean)
 
     row = run_write(request.app.state.engine, op)
     return TagRef(
@@ -142,6 +163,8 @@ def set_paper_tag_lock(
             get_paper(c, paper_id)
         except NoResultFound:
             raise HTTPException(status_code=404, detail="Paper not found") from None
+        if _is_system_tag(get_tag(c, tag_id)):
+            raise HTTPException(status_code=409, detail=_SYSTEM_TAG_DETAIL)
         return set_paper_tag_locked(c, paper_id, tag_id, payload.locked)
 
     row = run_write(request.app.state.engine, op)
@@ -161,6 +184,8 @@ def remove_paper_tag(
     paper_id: int, tag_id: int, request: Request, conn: Connection = Depends(get_connection)
 ) -> Response:
     def op(c: Connection):
+        if _is_system_tag(get_tag(c, tag_id)):
+            raise HTTPException(status_code=409, detail=_SYSTEM_TAG_DETAIL)
         if is_paper_tag_locked(c, paper_id, tag_id):
             raise HTTPException(status_code=409, detail="Unlock this tag before removing it from this paper")
         return remove_tag_from_paper(c, paper_id, tag_id)

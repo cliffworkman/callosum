@@ -69,6 +69,9 @@ async function submitAccessRecovery(code) { return apiPost("/access/recover", { 
 // inc-9 (backlog #9): import_source follows a formal `{namespace}:{origin}` contract (one bare exception,
 // "user") — see app/backend/persistence/tags_repo.py::TAG_SOURCE_NAMESPACES for the authoritative vocabulary.
 function tagIsImported(source) { return !!source && source !== "user"; }
+// backlog #19: a `system:*`-sourced tag is a findings-subsystem FACT (e.g. retraction), not a label anyone
+// added — non-editable regardless of read-only/lock state (no color, no lock toggle, no remove).
+function tagIsSystemFact(source) { return !!source && source.split(":", 1)[0] === "system"; }
 function tagSourceLabel(source) {
   if (!source || source === "user") return "Added by you";
   if (source === "keyword:crossref") return "Imported keyword — from Crossref subjects";
@@ -76,6 +79,7 @@ function tagSourceLabel(source) {
   if (source === "keyword:pubmed") return "Imported keyword — from PubMed (MeSH)";
   if (source === "import:zotero") return "Imported from Zotero";
   if (source === "agent:mcp") return "Added by an MCP agent action";
+  if (source === "system:retraction") return "Automatically detected — a registry reports this paper as retracted";
   return "Imported keyword (" + source + ")";
 }
 // A short group-header label for the tags sidebar's group-by-source view (distinct from the tooltip sentence
@@ -88,7 +92,15 @@ function tagSourceGroupLabel(source) {
   if (source === "keyword:pubmed") return "PubMed (MeSH)";
   if (source === "import:zotero") return "Zotero import";
   if (source === "agent:mcp") return "Agent-added";
+  if (source === "system:retraction") return "System facts";
   return source;
+}
+// The visible chip text for a tag. Almost always the raw name — except a reserved `system:`-namespaced NAME
+// (kept unique/collision-safe on purpose, see routers/tags.py's reserved-prefix guard) gets a friendly display
+// override here instead, the same separation of "stored value" vs. "shown label" tagSourceLabel already does.
+function tagDisplayName(t) {
+  if (t && t.name === "system:retraction:retracted") return "Retracted";
+  return t ? t.name : "";
 }
 const PAGE_SIZE = 50;
 

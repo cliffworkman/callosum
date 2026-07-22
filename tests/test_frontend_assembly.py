@@ -349,7 +349,7 @@ def test_tag_lock_controls_are_per_paper_and_accessible():
     assert "apiPost(`/papers/${paperId}/tags/${tagId}/lock`, { locked })" in raw
     assert 'aria-label={t.locked ? "Unlock this tag on this paper" : "Lock this tag on this paper"}' in raw
     assert "aria-pressed={!!t.locked}" in raw
-    assert '!t.locked && <button className="tag-chip-x"' in raw
+    assert '!t.locked && !tagIsSystemFact(t.source) && <button className="tag-chip-x"' in raw
     assert ".tag-chip-lock" in css and ".tag-chip-lock.on" in css
 
 

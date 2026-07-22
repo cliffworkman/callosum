@@ -38,10 +38,10 @@ function TagsPanel({ onFilterToTag, tagRefresh }) {
   const groups = _groupTagsBySource(shown);
   const tagButton = (t) => (
     <button key={t.id} className={"tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : "")}
-      title={tagSourceLabel(t.source) + " · filter the library to “" + t.name + "”"}
-      onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>
+      title={tagSourceLabel(t.source) + " · filter the library to “" + tagDisplayName(t) + "”"}
+      onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: tagDisplayName(t) })}>
       <span className="tags-panel-name">
-        {t.color && <span className={"tags-panel-dot tag-color-" + t.color} />}{t.name}</span>
+        {t.color && <span className={"tags-panel-dot tag-color-" + t.color} />}{tagDisplayName(t)}</span>
       <span className="tags-panel-count">{t.paper_count}</span>
     </button>
   );

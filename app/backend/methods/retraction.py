@@ -26,12 +26,20 @@ from app.backend.persistence.findings_repo import upsert_findings
 from app.backend.persistence.repository import get_paper
 from app.backend.persistence.retraction_repo import lookup_retraction_record
 from app.backend.persistence.signals_repo import store_retraction_status
+from app.backend.persistence.tags_repo import add_tag_to_paper, remove_tag_from_paper_by_name
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
 
 FINDING_SOURCE = "retraction"  # the `paper_findings.source` for retraction FACTs
 STATUS_RANK = {"concern": 0, "correction": 1, "retracted": 2}
 _NATURE_BY_STATUS = {"retracted": "Retraction", "correction": "Correction", "concern": "Expression of Concern"}
+# Backlog #19: the same FACT also projects as a real, non-editable tag (`tags_repo.TAG_SOURCE_NAMESPACES`'s
+# reserved `system:` namespace) so it's reachable through the generic tag/tag-filter mechanism (the sidebar Tags
+# browser, GET /papers?tag_id=) rather than only the bespoke `signal=retraction-retracted` facet (which stays,
+# unchanged — this is additive discovery, not a replacement). Scoped to `status == "retracted"` only, matching
+# `signals_repo.count_retraction_flagged`'s existing definition of "flagged" (not correction/concern).
+RETRACTION_TAG_SOURCE = "system:retraction"
+RETRACTION_TAG_NAME = "system:retraction:retracted"
 
 
 @dataclass(frozen=True)
@@ -129,7 +137,9 @@ def detect_retraction(
 
 
 def apply_retraction(conn: Connection, paper_id: int, outcome: RetractionOutcome) -> None:
-    """Persist an outcome: the FACT when flagged (else supersede any prior FACT), and always the check-status row."""
+    """Persist an outcome: the FACT when flagged (else supersede any prior FACT), the check-status row, and the
+    #19 system-fact tag (retracted only — kept in lockstep so both the batch job and the on-import hook stay
+    covered from this one call site)."""
     checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     if outcome.merged is not None:
         merged = outcome.merged
@@ -145,6 +155,10 @@ def apply_retraction(conn: Connection, paper_id: int, outcome: RetractionOutcome
         store_retraction_status(
             conn, paper_id, status=outcome.status_kind, sources=outcome.sources_checked, checked_at=checked_at
         )
+    if outcome.merged is not None and outcome.merged.status == "retracted":
+        add_tag_to_paper(conn, paper_id, RETRACTION_TAG_NAME, import_source=RETRACTION_TAG_SOURCE)
+    else:
+        remove_tag_from_paper_by_name(conn, paper_id, RETRACTION_TAG_NAME)
 
 
 def auto_check_retractions(conn: Connection, paper_ids: list[int], *, checkers: list[RetractionChecker]) -> int:

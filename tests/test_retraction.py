@@ -6,6 +6,8 @@ from app.backend.acquisition.registry import PaperRef
 from app.backend.api import create_app
 from app.backend.metadata.enrich_sources import EnrichmentRegistry
 from app.backend.methods.retraction import (
+    RETRACTION_TAG_NAME,
+    RETRACTION_TAG_SOURCE,
     RETRACTION_WATCH_CHECKER,
     RetractionChecker,
     RetractionSignal,
@@ -21,6 +23,7 @@ from app.backend.persistence.signals_repo import (
     count_retraction_flagged,
     get_retraction_status,
 )
+from app.backend.persistence.tags_repo import get_tags_for_paper
 from integrations.crossref.adapter import CrossrefClient
 from integrations.openalex.adapter import OpenAlexClient
 from integrations.retraction_watch.adapter import RetractionWatchClient
@@ -177,6 +180,65 @@ def test_apply_unchecked_writes_unchecked_signal(temp_db_url):
         status = get_retraction_status(conn, pid)
     engine.dispose()
     assert findings["facts"] == [] and status["status"] == "unchecked"
+
+
+# ---- backlog #19: the system-fact tag stays in lockstep with the FACT/signal --------
+
+
+def test_apply_retracted_creates_the_system_fact_tag(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        flag = _checker("crossref", RetractionSignal(source="crossref", status="retracted"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
+        tags = get_tags_for_paper(conn, pid)
+    engine.dispose()
+    assert len(tags) == 1
+    assert tags[0]["name"] == RETRACTION_TAG_NAME
+    assert tags[0]["import_source"] == RETRACTION_TAG_SOURCE == "system:retraction"
+
+
+def test_apply_unretraction_removes_the_system_fact_tag(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        flag = _checker("crossref", RetractionSignal(source="crossref", status="retracted"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
+        assert len(get_tags_for_paper(conn, pid)) == 1
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[_checker("crossref")]))  # un-retracted
+        tags = get_tags_for_paper(conn, pid)
+    engine.dispose()
+    assert tags == []
+
+
+def test_apply_correction_or_concern_does_not_tag_as_retracted(temp_db_url):
+    # Only status == "retracted" gets the system tag — matches count_retraction_flagged's/SIGNAL_FILTERS' existing
+    # definition of "flagged" (a correction or an expression of concern is a different, lesser status).
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        flag = _checker("crossref", RetractionSignal(source="crossref", status="correction"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
+        tags = get_tags_for_paper(conn, pid)
+    engine.dispose()
+    assert tags == []
+
+
+def test_apply_retraction_reapply_is_idempotent(temp_db_url):
+    # Repeated batch runs (or the on-import hook re-firing) must not duplicate the tag link.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = _paper(conn, doi="10.1/x")
+        paper = {"id": pid, "doi": "10.1/x", "csl_json": {}}
+        flag = _checker("crossref", RetractionSignal(source="crossref", status="retracted"))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
+        apply_retraction(conn, pid, detect_retraction(conn, paper, checkers=[flag]))
+        tags = get_tags_for_paper(conn, pid)
+    engine.dispose()
+    assert len(tags) == 1
 
 
 # ---- the source checkers (injected fake fetchers, no network) --------------

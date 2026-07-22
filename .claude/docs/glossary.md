@@ -52,13 +52,16 @@
 - Import source: provenance field used for records/attachments/notes/annotations (each table's own vocabulary,
   e.g. `zotero`, `user`, `crossref`, `ai-agent`). **Tag** provenance (`tags.import_source`) is the one table with
   a *formalized* vocabulary (backlog #9): a bare `user` sentinel plus `{namespace}:{origin}` values —
-  `import:zotero`, `keyword:crossref`/`keyword:openalex`/`keyword:pubmed`, `agent:mcp` — see
+  `import:zotero`, `keyword:crossref`/`keyword:openalex`/`keyword:pubmed`, `agent:mcp`, `system:retraction` — see
   `app/backend/persistence/tags_repo.py::TAG_SOURCE_NAMESPACES`, the authoritative list.
+- System-facts tags (backlog #19, inc 335): a findings-subsystem FACT projected as a real, non-editable tag
+  (currently just retraction: `system:retraction:retracted`, applied/removed by `methods/retraction.py::
+  apply_retraction()` in lockstep with the existing FACT/signal). Visually distinct (no color/lock/remove;
+  displays as "Retracted", not the raw reserved name) and reachable via the same tag-filter mechanism as any
+  other tag — additive alongside the pre-existing `signal=retraction-retracted` facet/chip, not a replacement.
 
 ## Future-Track Vocabulary
 
-- Findings subsystem: planned FACT-vs-candidate infrastructure for retractions, statcheck, transparency, and other inspectable signals.
-- System-facts tags: the `system:{fact}` namespace is RESERVED in the tag vocabulary above but not yet produced
-  by any code path — backlog #19 will make the findings subsystem emit read-only, filterable tags under it
-  (e.g. `system:retraction`), visually distinct from user tags.
+- Findings subsystem: planned FACT-vs-candidate infrastructure for statcheck, transparency, and other
+  inspectable signals not yet projected as system-facts tags (retraction is the one exception — see above).
 - THEORY/METHODS panes: planned module-registry UI for inspectable literature-analysis modules.

@@ -273,6 +273,38 @@ def test_only_keyword_namespace_suppresses_on_removal(temp_db_url: str) -> None:
     engine.dispose()
 
 
+# --- backlog #19: system-fact tags are non-editable + the namespace is reserved ---
+
+
+def test_system_tag_is_protected_from_user_mutation(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        tid = int(add_tag_to_paper(conn, pid, "system:retraction:retracted", import_source="system:retraction")["id"])
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    assert client.post(f"/tags/{tid}/color", json={"color": "blue"}).status_code == 409
+    assert client.post(f"/papers/{pid}/tags/{tid}/lock", json={"locked": True}).status_code == 409
+    assert client.delete(f"/papers/{pid}/tags/{tid}").status_code == 409
+    # a plain, non-system tag on the same paper is unaffected by the guard
+    other = client.post(f"/papers/{pid}/tags", json={"name": "ordinary"}).json()
+    assert client.post(f"/tags/{other['id']}/color", json={"color": "blue"}).status_code == 200
+
+
+def test_user_cannot_create_a_tag_in_the_reserved_system_namespace(temp_db_url: str) -> None:
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    r = client.post(f"/papers/{pid}/tags", json={"name": "system:whatever"})
+    assert r.status_code == 422
+    r2 = client.post(f"/papers/{pid}/tags", json={"name": "SYSTEM:whatever"})  # case-insensitive
+    assert r2.status_code == 422
+
+
 def test_migration_0047_renames_legacy_bare_tag_sources(tmp_path: Path) -> None:
     # A pre-#9 DB (any revision at/after 0044, when paper_tags.locked landed) could carry bare "zotero"/"ai-agent"
     # tags.import_source values. 0047 must rename them in place without touching any other table's provenance.

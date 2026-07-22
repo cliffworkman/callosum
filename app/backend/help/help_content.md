@@ -970,6 +970,7 @@ How results show up:
 
 - A retracted paper gets a **"Retraction status"** row in **Synthesize → Critique**'s "What the checks surfaced" list, with a link to the **retraction notice** and the source(s) that reported it, plus a red **RETRACTED** badge on its library card and Details pane — a registry record to **verify before citing**, never an accusation of the authors.
 - A red **"⚠ N retracted"** chip appears in the library header; click it to filter to just those papers.
+- A retracted paper's fact also shows up as a **"Retracted"** entry in the sidebar's **Tags** tab, under its own "System facts" group — a second, always-available way to browse to (or filter by) every retracted paper. It behaves like the header chip's filter, not like a tag you added: it can't be colored, locked, or removed, since it's a registry fact, not a label.
 - A paper that was checked and **nothing** was found still gets its own "Retraction status" row (so silence is never presented as "clean"); a paper with **no DOI** has no such row, since it was never checked.
 
 New papers are also checked **automatically as they're imported** (a scan or a citation-file import), so a freshly added retracted paper flags right away without waiting for a batch run.

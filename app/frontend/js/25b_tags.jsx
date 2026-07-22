@@ -18,7 +18,9 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
   const [error, setError] = useState("");               // a rejected add/color/remove was previously silent (QA route_20/30)
   const errorId = `tag-error-${paperId}`;
   const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
-  const refreshSuggestions = () => api("/tags").then(r => { if (r.ok) setAll(r.data); });
+  // system-fact tags (backlog #19) are machine-applied and reserved (routers/tags.py rejects a user typing the
+  // name) — never worth autocompleting into the add-tag box.
+  const refreshSuggestions = () => api("/tags").then(r => { if (r.ok) setAll(r.data.filter(t => !tagIsSystemFact(t.source))); });
   useEffect(() => { refreshSuggestions(); }, []);
   useEffect(() => { api("/tags/colors").then(r => { if (r.ok) setPalette(r.data || []); }); }, []);
   // inc-207: set (or clear, color=null) a tag's palette color. Optimistic; refreshes the sidebar Tags browser.
@@ -80,16 +82,16 @@ function TagsRow({ paperId, initialTags, onFilterToTag, onTagsChanged, readOnly 
         {tags.map(t => (
           <span key={t.id}
             className={"tag-chip" + (t.color ? " tag-colored tag-color-" + t.color : (tagIsImported(t.source) ? " tag-chip-imported" : ""))}>
-            {!readOnly && <button className="tag-chip-dot" title="Set a color for this tag"
+            {!readOnly && !tagIsSystemFact(t.source) && <button className="tag-chip-dot" title="Set a color for this tag"
               onClick={() => setPicking(p => (p === t.id ? null : t.id))}>●</button>}
-            {!readOnly && <button className={"tag-chip-lock" + (t.locked ? " on" : "")}
+            {!readOnly && !tagIsSystemFact(t.source) && <button className={"tag-chip-lock" + (t.locked ? " on" : "")}
               title={t.locked ? "Unlock this tag before removing it from this paper" : "Lock this tag on this paper"}
               aria-label={t.locked ? "Unlock this tag on this paper" : "Lock this tag on this paper"}
               aria-pressed={!!t.locked}
               onClick={() => setLocked(t.id, !t.locked)}>{t.locked ? "locked" : "lock"}</button>}
             <button className="tag-chip-name" title={tagSourceLabel(t.source) + " · click to filter the library"}
-              onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })}>{t.name}</button>
-            {!readOnly && !t.locked && <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>}
+              onClick={() => onFilterToTag && onFilterToTag({ id: t.id, name: tagDisplayName(t) })}>{tagDisplayName(t)}</button>
+            {!readOnly && !t.locked && !tagIsSystemFact(t.source) && <button className="tag-chip-x" title="Remove this tag" onClick={() => remove(t.id)}>×</button>}
             {!readOnly && picking === t.id &&
               <span className="tag-swatches" role="listbox" aria-label="Tag color">
                 {palette.map(c => (

@@ -184,3 +184,15 @@ new work goes in the open backlog.
   The sidebar Tags browser now groups by exact source with a header per group (new `js/10e_tagspanel.jsx`,
   extracted from `10_pdf_layer.jsx` when grouping pushed it over the 600-line cap). The per-**link** per-paper-fact
   half stays with #19, unchanged.
+- [x] **#19 Tags ↔ findings / system-facts (retraction-surfacing)** (inc 335) — the naming-only path #9 sketched:
+  `apply_retraction()` (`app/backend/methods/retraction.py`, the one call site both the batch job and the
+  on-import hook use) now links/unlinks a real tag (`RETRACTION_TAG_NAME = "system:retraction:retracted"`,
+  `import_source = "system:retraction"`) in lockstep with the existing FACT/signal, scoped to `status ==
+  "retracted"` only (matches `count_retraction_flagged`'s existing "flagged" definition — not correction/
+  concern). The existing `signal=retraction-retracted` facet, header chip, and RETRACTED badge are UNCHANGED —
+  this is an additive discovery path through the generic tag/tag-filter mechanism, not a replacement. New
+  `tags_repo.get_tag`/`remove_tag_from_paper_by_name` + three router guards (`routers/tags.py`: reject
+  color/lock/delete on any `system:`-namespaced tag, 409; reject a user creating a tag literally named
+  `system:...`, 422) protect the fact from being edited or squatted. Frontend: `tagIsSystemFact`/`tagDisplayName`
+  (`00_lib.jsx`) hide the color-dot/lock/remove affordances and show "Retracted" instead of the raw reserved
+  tag name, in both `TagsRow` (`25b_tags.jsx`) and the sidebar `TagsPanel` (`10e_tagspanel.jsx`).

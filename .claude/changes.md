@@ -9,10 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-22 inc 334 — reviewed the entries below back to the prior (inc 333) marker.
-Added one clause to "Tagging papers" describing the new group-by-source header in the sidebar Tags tab
-(backlog #9). The repo-furniture entry (#20: SECURITY.md/CITATION.cff/.env.example) is not user-facing
-app behavior, so no corpus change was needed for it. Nothing above this line has an un-synced corpus change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 335 — reviewed the entries below back to the prior (inc 334) marker.
+Added one bullet to "Checking for retractions" describing the new sidebar Tags-tab discovery path (backlog
+#19). Nothing above this line has an un-synced corpus change. -->
+## 2026-07-22 — Backlog #19: tags ↔ findings/system-facts (retraction-surfacing)
+
+- **Files:** `app/backend/methods/retraction.py`, `app/backend/persistence/tags_repo.py`,
+  `app/backend/api/routers/tags.py`, `app/frontend/js/00_lib.jsx`, `app/frontend/js/25b_tags.jsx`,
+  `app/frontend/js/10e_tagspanel.jsx`, `tests/test_retraction.py`, `tests/test_tags.py`,
+  `tests/test_frontend_assembly.py`, `app/backend/help/help_content.md`, `.claude/docs/data-contracts.md`,
+  `.claude/docs/glossary.md`, `.claude/docs/INCREMENT-BACKLOG.md`, `.claude/docs/INCREMENT-BACKLOG-DONE.md`.
+- **What:** `apply_retraction()` now links/unlinks a real, non-editable `system:retraction:retracted` tag in
+  lockstep with the existing FACT/signal — an additive discovery path through the generic tag/tag-filter
+  mechanism, alongside the pre-existing (unchanged) `signal=retraction-retracted` chip/filter.
+- **Why:** Cliff's choice from the 12-item decision queue ("build a filter for this"); #9 had already reserved
+  and sketched the naming-only approach, so this closes #19 with no schema change.
+- **Revert:** `git revert` this commit.
+
 ## 2026-07-22 — Backlog #9: tag provenance vocabulary formalization
 
 - **Files:** `app/backend/persistence/tags_repo.py`, `app/backend/importers/zotero.py`,

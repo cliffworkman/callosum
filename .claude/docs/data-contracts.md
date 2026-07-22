@@ -21,7 +21,8 @@ The authoritative schema is `app/backend/persistence/schema.py`. This document s
   `{namespace}:{origin}` contract (`app/backend/persistence/tags_repo.py::TAG_SOURCE_NAMESPACES`): the bare
   sentinel `user` (human-typed, the sole exception), `import:{system}` (e.g. `import:zotero`), `keyword:{system}`
   (e.g. `keyword:crossref` / `keyword:openalex` / `keyword:pubmed`), `agent:{system}` (e.g. `agent:mcp`), and
-  `system:{fact}` — RESERVED, not yet produced, for backlog #19's per-paper system-facts (e.g. retraction). A new
+  `system:{fact}` for a findings-subsystem per-paper fact projected as a real, non-editable tag — backlog #19
+  (inc 335) is the first producer, `system:retraction` (`methods/retraction.py::apply_retraction()`). A new
   producer must pick an existing namespace or add one, never write a bare/ad-hoc string.
 - `notes`: imported notes attached to papers.
 

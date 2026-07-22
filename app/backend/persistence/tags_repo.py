@@ -72,6 +72,15 @@ def suppressed_tag_names(conn: Connection, paper_id: int) -> set[str]:
     }
 
 
+def get_tag(conn: Connection, tag_id: int) -> RowMapping | None:
+    """A single tag row as ``{id, name, import_source, color}``, or None if no such tag."""
+    return (
+        conn.execute(select(tags.c.id, tags.c.name, tags.c.import_source, tags.c.color).where(tags.c.id == tag_id))
+        .mappings()
+        .first()
+    )
+
+
 def get_tags_for_paper(conn: Connection, paper_id: int) -> list[RowMapping]:
     """The paper's tags as ``{id, name, import_source, color, locked}``, ordered case-insensitively by name.
     `import_source` (inc 100) distinguishes imported keywords from your tags; `color` (inc 207) is the optional
@@ -192,3 +201,13 @@ def remove_tag_from_paper(conn: Connection, paper_id: int, tag_id: int) -> bool:
     if not still_used:  # orphaned → prune so the tag list stays meaningful
         conn.execute(delete(tags).where(tags.c.id == tag_id))
     return True
+
+
+def remove_tag_from_paper_by_name(conn: Connection, paper_id: int, name: str) -> bool:
+    """Unlink a tag from the paper by exact name (backlog #19: a `system:*` fact producer un-tags without ever
+    holding a tag id — e.g. un-retraction). False if no such tag exists or it wasn't linked on this paper (the
+    common case: a paper that was never flagged). Caller commits."""
+    row = conn.execute(select(tags.c.id).where(tags.c.name == name)).mappings().first()
+    if row is None:
+        return False
+    return remove_tag_from_paper(conn, paper_id, int(row["id"]))

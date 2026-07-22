@@ -2505,6 +2505,9 @@
   function tagIsImported(source) {
     return !!source && source !== "user";
   }
+  function tagIsSystemFact(source) {
+    return !!source && source.split(":", 1)[0] === "system";
+  }
   function tagSourceLabel(source) {
     if (!source || source === "user") return "Added by you";
     if (source === "keyword:crossref") return "Imported keyword \u2014 from Crossref subjects";
@@ -2512,6 +2515,7 @@
     if (source === "keyword:pubmed") return "Imported keyword \u2014 from PubMed (MeSH)";
     if (source === "import:zotero") return "Imported from Zotero";
     if (source === "agent:mcp") return "Added by an MCP agent action";
+    if (source === "system:retraction") return "Automatically detected \u2014 a registry reports this paper as retracted";
     return "Imported keyword (" + source + ")";
   }
   function tagSourceGroupLabel(source) {
@@ -2521,7 +2525,12 @@
     if (source === "keyword:pubmed") return "PubMed (MeSH)";
     if (source === "import:zotero") return "Zotero import";
     if (source === "agent:mcp") return "Agent-added";
+    if (source === "system:retraction") return "System facts";
     return source;
+  }
+  function tagDisplayName(t) {
+    if (t && t.name === "system:retraction:retracted") return "Retracted";
+    return t ? t.name : "";
   }
   const PAGE_SIZE = 50;
   async function api(path) {
@@ -8118,10 +8127,10 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       {
         key: t.id,
         className: "tags-panel-item" + (!t.color && tagIsImported(t.source) ? " tags-panel-item-imported" : ""),
-        title: tagSourceLabel(t.source) + " \xB7 filter the library to \u201C" + t.name + "\u201D",
-        onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
+        title: tagSourceLabel(t.source) + " \xB7 filter the library to \u201C" + tagDisplayName(t) + "\u201D",
+        onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: tagDisplayName(t) })
       },
-      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.color && /* @__PURE__ */ React.createElement("span", { className: "tags-panel-dot tag-color-" + t.color }), t.name),
+      /* @__PURE__ */ React.createElement("span", { className: "tags-panel-name" }, t.color && /* @__PURE__ */ React.createElement("span", { className: "tags-panel-dot tag-color-" + t.color }), tagDisplayName(t)),
       /* @__PURE__ */ React.createElement("span", { className: "tags-panel-count" }, t.paper_count)
     );
     return /* @__PURE__ */ React.createElement("div", { className: "tags-panel" }, tags.length > 8 && /* @__PURE__ */ React.createElement("input", { className: "axis-filter", placeholder: "Filter tags\u2026", value: filter, onChange: (e) => setFilter(e.target.value), spellCheck: false }), tags.length > 0 && hasImported && hasMine && /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter" }, [["all", "All"], ["mine", "Yours"], ["imported", "Keywords"]].map(([k, lbl]) => /* @__PURE__ */ React.createElement(
@@ -10693,7 +10702,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const errorId = `tag-error-${paperId}`;
     const sortByName = (ts) => [...ts].sort((x, y) => x.name.toLowerCase().localeCompare(y.name.toLowerCase()));
     const refreshSuggestions = () => api("/tags").then((r) => {
-      if (r.ok) setAll(r.data);
+      if (r.ok) setAll(r.data.filter((t) => !tagIsSystemFact(t.source)));
     });
     useEffect(() => {
       refreshSuggestions();
@@ -10764,7 +10773,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         key: t.id,
         className: "tag-chip" + (t.color ? " tag-colored tag-color-" + t.color : tagIsImported(t.source) ? " tag-chip-imported" : "")
       },
-      !readOnly && /* @__PURE__ */ React.createElement(
+      !readOnly && !tagIsSystemFact(t.source) && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "tag-chip-dot",
@@ -10773,7 +10782,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         },
         "\u25CF"
       ),
-      !readOnly && /* @__PURE__ */ React.createElement(
+      !readOnly && !tagIsSystemFact(t.source) && /* @__PURE__ */ React.createElement(
         "button",
         {
           className: "tag-chip-lock" + (t.locked ? " on" : ""),
@@ -10789,11 +10798,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         {
           className: "tag-chip-name",
           title: tagSourceLabel(t.source) + " \xB7 click to filter the library",
-          onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: t.name })
+          onClick: () => onFilterToTag && onFilterToTag({ id: t.id, name: tagDisplayName(t) })
         },
-        t.name
+        tagDisplayName(t)
       ),
-      !readOnly && !t.locked && /* @__PURE__ */ React.createElement("button", { className: "tag-chip-x", title: "Remove this tag", onClick: () => remove(t.id) }, "\xD7"),
+      !readOnly && !t.locked && !tagIsSystemFact(t.source) && /* @__PURE__ */ React.createElement("button", { className: "tag-chip-x", title: "Remove this tag", onClick: () => remove(t.id) }, "\xD7"),
       !readOnly && picking === t.id && /* @__PURE__ */ React.createElement("span", { className: "tag-swatches", role: "listbox", "aria-label": "Tag color" }, palette.map((c) => /* @__PURE__ */ React.createElement(
         "button",
         {
