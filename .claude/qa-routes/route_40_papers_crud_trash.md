@@ -37,8 +37,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 5. Export selected papers (`POST /papers/export`) in visible formats. Confirm no hidden filtering or ranking affects exported rows.
 6. Soft-delete a disposable paper (`DELETE /papers/{paper_id}`). Confirm it leaves normal library view and appears in trash/deleted filter.
 7. Restore it (`POST /papers/{paper_id}/restore`). Confirm it returns to the library.
-8. Soft-delete again, then permanent-delete (`DELETE /papers/{paper_id}/permanent`). Confirm direct detail links handle 404/deleted state cleanly.
-9. Soft-delete multiple disposable papers and empty trash (`POST /papers/trash/empty`). Confirm count and UI state update.
+8. Soft-delete again, then permanent-delete (`DELETE /papers/{paper_id}/permanent`). Give the disposable paper one attachment inside `CALLOSUM_LIBRARY_DIR` with `storage_mode=managed` and one linked attachment; confirm the managed file is removed, the linked file remains, and direct detail links handle 404/deleted state cleanly. A live paper must remain unpurgeable and keep both files. Simulate a locked managed file: the API returns 409, the UI shows the error, and the paper plus file remain recoverable in Trash.
+9. Soft-delete multiple disposable papers and empty trash (`POST /papers/trash/empty`). Confirm the count and UI state update, every exclusively owned managed file is removed, and linked files plus a managed file still referenced by a live paper remain.
 10. **Reveal the selected paper (inc 319).** With no filter active, open a paper several pages deep (e.g. via a
     citation or an axis card) — confirm the library jumps to its page and the card scrolls + flashes into view
     (`GET /papers/{paper_id}/position` returns its index; no filter is touched). Apply a filter/search that
@@ -53,6 +53,8 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - Listing, detail, edit, re-resolve, export, delete, restore, permanent delete, and empty trash complete.
 - 0 console/page errors and 0 genai-host requests.
 - Deleted/permanently deleted deep links fail cleanly.
+- Permanent deletion removes only exclusively owned files inside Callosum's managed library directory; linked,
+  out-of-root, shared, and live-paper files survive.
 - Mobile viewport has no horizontal overflow.
 - The selected-paper reveal jumps to the correct page + flashes the card when the paper matches the active
   filter, and is a silent no-op (filter/page untouched) when it doesn't — never clears/overrides the filter.
@@ -60,4 +62,3 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_40_papers_crud_trash.md` + `screenshots/` (see `_TEMPLATE.md`).
-

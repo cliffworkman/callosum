@@ -1199,7 +1199,7 @@ To permanently delete (irreversible):
 
 - Open **Trash**.
 - Click **Delete forever** on a single paper to purge just that one, or **Empty Trash** in the header to purge everything in Trash.
-- Confirm. This removes the paper along with its extracted text, highlights, and search index, and **cannot be undone**.
+- Confirm. This removes the paper, its extracted text, highlights, search index, and attachment files stored in Callosum's managed library folder. Files linked from elsewhere on your computer are left in place. Permanent deletion **cannot be undone**.
 - Permanent delete is only reachable from Trash — a paper must be moved to Trash first, so a live paper can never be purged in one click.
 
 Gotchas:

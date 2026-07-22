@@ -10,6 +10,7 @@ from fastapi import status as http_status
 from sqlalchemy import Connection, Engine
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
+from app.backend.acquisition.fetch import library_dir
 from app.backend.api.dependencies import get_connection, get_engine
 from app.backend.api.routers.paper_edit_input import edits_from_request
 from app.backend.api.routers.paper_files import _local_attachment_path, _select_primary_pdf_attachment
@@ -34,6 +35,7 @@ from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStor
 from app.backend.metadata.abstract_display import abstract_plain_text, clean_abstract_for_display
 from app.backend.metadata.citation_export import render_citations
 from app.backend.metadata.paper_edits import build_paper_update
+from app.backend.paper_purge import ManagedFilePurgeError, purge_paper_permanently, purge_trash_permanently
 from app.backend.pdf_processing.ingest import PdfReprocessEmptyExtraction, reprocess_pdf_attachment
 from app.backend.persistence.paper_urls_repo import list_paper_urls, replace_paper_urls
 from app.backend.persistence.repository import (
@@ -46,8 +48,6 @@ from app.backend.persistence.repository import (
     get_papers_for_export,
     list_item_types,
     list_papers,
-    purge_all_trashed,
-    purge_paper,
     refresh_processing_tier,
     restore_paper,
     set_paper_priority,
@@ -301,18 +301,31 @@ def set_priority_endpoint(
 # embeddings + sqlite-vec vectors too, so nothing orphans (an orphaned paper-embedding crashes retrieval).
 @router.delete("/papers/{paper_id}/permanent", status_code=http_status.HTTP_204_NO_CONTENT)
 def purge_paper_endpoint(paper_id: int, request: Request, conn: Connection = Depends(get_connection)) -> Response:
-    if not purge_paper(conn, paper_id, vector_store=_vector_store(request.app)):
-        # missing or still live — a live paper must be soft-deleted (moved to Trash) before it can be purged
+    try:
+        purged = purge_paper_permanently(
+            conn,
+            paper_id,
+            vector_store=_vector_store(request.app),
+            managed_library_dir=library_dir(),
+        )
+    except ManagedFilePurgeError as exc:
+        raise HTTPException(status_code=409, detail=f"Paper remains in Trash: {exc}") from exc
+    if not purged:
         raise HTTPException(status_code=404, detail="Paper not found in Trash")
-    conn.commit()
     return Response(status_code=http_status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/papers/trash/empty", response_model=EmptyTrashResponse)
 def empty_trash_endpoint(request: Request, conn: Connection = Depends(get_connection)) -> EmptyTrashResponse:
     # Permanently delete every trashed paper. Literal 3-segment path → no collision with /papers/{paper_id}.
-    purged = purge_all_trashed(conn, vector_store=_vector_store(request.app))
-    conn.commit()
+    try:
+        purged = purge_trash_permanently(
+            conn,
+            vector_store=_vector_store(request.app),
+            managed_library_dir=library_dir(),
+        )
+    except ManagedFilePurgeError as exc:
+        raise HTTPException(status_code=409, detail=f"Trash was not emptied: {exc}") from exc
     return EmptyTrashResponse(purged=purged)
 
 

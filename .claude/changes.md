@@ -9,6 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 340 — permanent-delete help now states that Callosum-managed attachment
+files are removed while externally linked files remain on disk. Nothing above this line has an un-synced corpus
+change. -->
+## 2026-07-22 — Backlog #14: permanent delete removes Callosum-managed files
+
+- **Files:** `app/backend/paper_purge.py`, `app/backend/persistence/paper_lifecycle_repo.py`,
+  `app/backend/persistence/repository.py`, `app/backend/api/routers/papers.py`, `app/frontend/js/03_library.jsx`,
+  `callosum-app.html`, `app/backend/help/help_content.md`, `tests/test_papers.py`,
+  `tests/test_short_write_sweep.py`, `.claude/qa-routes/route_40_papers_crud_trash.md`, and the increment-340
+  notes/security audit.
+- **What:** Delete forever and Empty Trash now remove root-contained `managed` attachment files, with reversible
+  staging around the database/vector transaction. Linked, URL, out-of-root, shared, missing, directory, and symlink
+  paths remain untouched; file-lock failures leave the paper in Trash and are shown to the user.
+- **Why:** close backlog #14 without treating external file pointers as files Callosum owns.
+- **Revert:** `git revert` this commit. The pre-change snapshot is
+  `.claude/backups/callosum_inc340_pre_managed_file_purge.zip`.
+
 <!-- HELP-DOCS-SYNCED 2026-07-22 inc 339 — reviewed the entries below back to the prior (inc 338) marker.
 Added role-bundle + "and"-toggle bullets to "Building a CRediT contribution statement", and a one-line mention
 of the new jump-link to "Where to submit" (backlog #26). The LibreOffice .oxt fix entry below is a packaging

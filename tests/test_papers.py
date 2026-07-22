@@ -1300,10 +1300,191 @@ def test_permanent_delete_endpoint_only_from_trash(temp_db_url: str) -> None:
     assert client.delete(f"/papers/{pid}/permanent").status_code == 404  # already purged
 
 
-def test_empty_trash_purges_all_trashed_only(temp_db_url: str) -> None:
+def test_permanent_delete_removes_only_owned_managed_files(temp_db_url: str, tmp_path: Path, monkeypatch) -> None:
+    managed_root = tmp_path / "managed-library"
+    managed_root.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(managed_root))
+    managed_file = managed_root / "owned.pdf"
+    linked_file = managed_root / "linked.pdf"
+    outside_file = tmp_path / "outside.pdf"
+    for path in (managed_file, linked_file, outside_file):
+        path.write_bytes(b"%PDF-test")
+
+    seeded = _seed_library(temp_db_url)
+    pid = seeded["facial_paper_id"]
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        for path, storage_mode in (
+            (managed_file, "managed"),
+            (linked_file, "linked"),
+            (outside_file, "managed"),
+        ):
+            create_attachment(
+                conn,
+                paper_id=pid,
+                storage_mode=storage_mode,
+                availability="available",
+                original_path=str(path),
+                resolved_path=str(path),
+                content_type="application/pdf",
+                attachment_type="pdf",
+                role="primary",
+            )
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url, vector_store=InMemoryVectorStore()))
+    assert client.delete(f"/papers/{pid}").status_code == 204
+    assert client.delete(f"/papers/{pid}/permanent").status_code == 204
+
+    assert not managed_file.exists()
+    assert linked_file.exists()
+    assert outside_file.exists()
+
+
+def test_permanent_delete_preserves_managed_file_until_last_reference_is_purged(
+    temp_db_url: str, tmp_path: Path, monkeypatch
+) -> None:
+    managed_root = tmp_path / "managed-library"
+    managed_root.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(managed_root))
+    shared_file = managed_root / "shared.pdf"
+    shared_file.write_bytes(b"%PDF-test")
+
+    seeded = _seed_library(temp_db_url)
+    first, second = seeded["facial_paper_id"], seeded["signal_paper_id"]
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        for paper_id in (first, second):
+            create_attachment(
+                conn,
+                paper_id=paper_id,
+                storage_mode="managed",
+                availability="available",
+                original_path=str(shared_file),
+                resolved_path=str(shared_file),
+                content_type="application/pdf",
+                attachment_type="pdf",
+                role="primary",
+            )
+    engine.dispose()
+
+    client = TestClient(create_app(db_url=temp_db_url, vector_store=InMemoryVectorStore()))
+    assert client.delete(f"/papers/{first}").status_code == 204
+    assert client.delete(f"/papers/{first}/permanent").status_code == 204
+    assert shared_file.exists()
+
+    assert client.delete(f"/papers/{second}").status_code == 204
+    assert client.delete(f"/papers/{second}/permanent").status_code == 204
+    assert not shared_file.exists()
+
+
+def test_managed_file_staging_failure_leaves_paper_in_trash(temp_db_url: str, tmp_path: Path, monkeypatch) -> None:
+    managed_root = tmp_path / "managed-library"
+    managed_root.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(managed_root))
+    managed_files = [managed_root / "first.pdf", managed_root / "locked.pdf"]
+    for path in managed_files:
+        path.write_bytes(b"%PDF-test")
+
+    seeded = _seed_library(temp_db_url)
+    pid = seeded["facial_paper_id"]
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        for path in managed_files:
+            create_attachment(
+                conn,
+                paper_id=pid,
+                storage_mode="managed",
+                availability="available",
+                original_path=str(path),
+                resolved_path=str(path),
+                content_type="application/pdf",
+                attachment_type="pdf",
+                role="primary",
+            )
+    engine.dispose()
+
+    move_count = 0
+
+    def fail_move(source: Path, destination: Path) -> None:
+        nonlocal move_count
+        move_count += 1
+        if move_count == 2:
+            raise OSError("simulated file lock")
+        source.replace(destination)
+
+    monkeypatch.setattr("app.backend.paper_purge._move_file", fail_move)
+    client = TestClient(create_app(db_url=temp_db_url, vector_store=InMemoryVectorStore()))
+    assert client.delete(f"/papers/{pid}").status_code == 204
+    response = client.delete(f"/papers/{pid}/permanent")
+
+    assert response.status_code == 409
+    assert response.json()["detail"].startswith("Paper remains in Trash:")
+    assert pid in _library_ids(client, deleted=True)
+    assert all(path.exists() for path in managed_files)
+
+
+def test_database_purge_failure_restores_staged_managed_file(temp_db_url: str, tmp_path: Path, monkeypatch) -> None:
+    managed_root = tmp_path / "managed-library"
+    managed_root.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(managed_root))
+    managed_file = managed_root / "rollback.pdf"
+    managed_file.write_bytes(b"%PDF-test")
+
+    seeded = _seed_library(temp_db_url)
+    pid = seeded["facial_paper_id"]
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_attachment(
+            conn,
+            paper_id=pid,
+            storage_mode="managed",
+            availability="available",
+            original_path=str(managed_file),
+            resolved_path=str(managed_file),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+    engine.dispose()
+
+    client = TestClient(
+        create_app(db_url=temp_db_url, vector_store=InMemoryVectorStore()), raise_server_exceptions=False
+    )
+    assert client.delete(f"/papers/{pid}").status_code == 204
+
+    def fail_purge(*args, **kwargs) -> bool:
+        raise RuntimeError("simulated database failure")
+
+    monkeypatch.setattr("app.backend.paper_purge.purge_paper", fail_purge)
+    assert client.delete(f"/papers/{pid}/permanent").status_code == 500
+    assert managed_file.exists()
+    assert pid in _library_ids(client, deleted=True)
+
+
+def test_empty_trash_purges_all_trashed_only(temp_db_url: str, tmp_path: Path, monkeypatch) -> None:
     seeded = _seed_library(temp_db_url)
     client = TestClient(create_app(db_url=temp_db_url, vector_store=InMemoryVectorStore()))
     facial, signal = seeded["facial_paper_id"], seeded["signal_paper_id"]
+    managed_root = tmp_path / "managed-library"
+    managed_root.mkdir()
+    monkeypatch.setenv("CALLOSUM_LIBRARY_DIR", str(managed_root))
+    managed_file = managed_root / "empty-trash.pdf"
+    managed_file.write_bytes(b"%PDF-test")
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        create_attachment(
+            conn,
+            paper_id=facial,
+            storage_mode="managed",
+            availability="available",
+            original_path=str(managed_file),
+            resolved_path=str(managed_file),
+            content_type="application/pdf",
+            attachment_type="pdf",
+            role="primary",
+        )
+    engine.dispose()
     client.delete(f"/papers/{facial}")  # trash only the facial paper; signal stays live
 
     resp = client.post("/papers/trash/empty")
@@ -1311,6 +1492,7 @@ def test_empty_trash_purges_all_trashed_only(temp_db_url: str) -> None:
     assert resp.status_code == 200 and resp.json()["purged"] == 1
     assert _library_ids(client, deleted=True) == set()  # Trash is empty
     assert signal in _library_ids(client)  # the live paper is untouched
+    assert not managed_file.exists()
 
 
 def test_trashed_paper_excluded_from_retrieval(temp_db_url: str) -> None:

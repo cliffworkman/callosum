@@ -44,7 +44,8 @@ new work goes in the open backlog.
 ## Theme 2 — Library management (inc 54–67)
 - [x] **D. Multi-select + bulk delete → soft-delete + Trash/Restore** (inc 54); **permanent delete /
   empty-trash** with vector cleanup → no orphan crash (inc 65); **exclude trashed papers from synthesis
-  retrieval** (inc 66). *(Deferred: permanent delete doesn't remove the on-disk PDF — open.)*
+  retrieval** (inc 66); **permanent delete removes exclusively owned managed attachment files while preserving
+  linked/out-of-root/shared paths** (inc 340, security-audited).
 - [x] **E. Duplicate detection** — layered (identifier→title→embedding) + union-find, flag-only, local (inc 56);
   **persistent "not a duplicate" dismiss** (inc 64); **un-dismiss / manage dismissals** (inc 67).
   *(Deferred: the actual library **merge** — open, do-last.)*

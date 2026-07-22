@@ -120,9 +120,9 @@
 
 ## 3. Gated — destructive / security / outward-facing sign-off, or an explicit maintainer decision
 
-- **#14 Permanent delete doesn't remove the on-disk PDF** (managed/linked). [destructive] Deferred from inc 65
-  because deleting user files on disk is riskier than a DB soft-delete. Needs a confirmation flow + a security
-  audit before it ships. See `INCREMENT-65-NOTES.md`.
+- ✅ **#14 Permanent delete removes managed on-disk attachments — CLOSED inc 340 (2026-07-22).** Delete forever
+  and Empty Trash now remove only root-contained `managed` files; linked, URL, out-of-root, shared, and unsafe
+  paths survive. Reversible staging coordinates filesystem cleanup with DB/vector rollback; audit PASS.
 - ✅ **#15 Sync UI (SP3c) — CLOSED (your remaining pieces below).** The accounts/sync arc (incs 194–202: SP1 ORCID
   sign-in, SP2 email/Google, SP3 the full E2E crypto+engine+server) + its SP3c UI, split into 2 increments and
   shipped 2026-07-19/20: **Increment A (inc 310)** — `GET /sync/conflicts` + `POST /sync/conflicts/{id}/resolve`

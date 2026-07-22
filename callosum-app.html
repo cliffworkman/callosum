@@ -3186,15 +3186,17 @@
       });
     }, []);
     const purgePaper = useCallback((id) => {
-      if (!window.confirm("Permanently delete this paper? This removes its text, highlights, and search index, and cannot be undone.")) return;
+      if (!window.confirm("Permanently delete this paper? This removes its Callosum-managed files, text, highlights, and search index. Linked files outside Callosum are kept. This cannot be undone.")) return;
       apiDelete(`/papers/${id}/permanent`).then((r) => {
         if (r.ok) setLibRefresh((n) => n + 1);
+        else if (!r.authRequired) window.alert(r.error || "The paper could not be permanently deleted.");
       });
     }, []);
     const emptyTrash = useCallback(() => {
-      if (!window.confirm("Permanently delete EVERY paper in Trash? This cannot be undone.")) return;
+      if (!window.confirm("Permanently delete EVERY paper in Trash? Callosum-managed files are removed; linked files outside Callosum are kept. This cannot be undone.")) return;
       apiPost("/papers/trash/empty", {}).then((r) => {
         if (r.ok) setLibRefresh((n) => n + 1);
+        else if (!r.authRequired) window.alert(r.error || "Trash could not be emptied.");
       });
     }, []);
     const toggleTrash = useCallback(() => {

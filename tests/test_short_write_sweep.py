@@ -17,7 +17,7 @@ from app.backend.api.startup import PROJECT_ROOT
 # file name -> number of intentional raw conn.commit() calls that stay OUTSIDE run_write, with why.
 ALLOWED_RAW_COMMITS = {
     # heavy / non-transactional — a lock-retry would re-run the expensive work (or re-touch the vector store).
-    "papers.py": 3,  # reprocess-pdf (re-extract + re-embed) + purge + empty-trash (sqlite-vec vector removal)
+    "papers.py": 1,  # reprocess-pdf (re-extract + re-embed); purge commits moved to paper_purge.py (file staging)
     "summaries.py": 1,  # summary reverify — local retrieval + NLI + quote-location over the library
     "critical_review.py": 1,  # candidate generate — NLI verification of AI drafts (egress-gated)
     "workbench.py": 1,  # propose_row — the LLM assisted-extraction proposal (egress)

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import Connection, and_, delete, func, or_, select, update
+from sqlalchemy import Connection, and_, delete, exists, func, or_, select, update
 
 from app.backend.persistence.schema import chunks, embeddings, merge_operations, papers
 from app.backend.persistence.sqlite_retry import retry_sqlite_locked
@@ -88,17 +88,18 @@ def purge_paper(conn: Connection, paper_id: int, *, vector_store: "VectorStore")
     return True
 
 
-def purge_all_trashed(conn: Connection, *, vector_store: "VectorStore") -> int:
-    """Empty the Trash: permanently delete every soft-deleted paper. Returns the count purged. Caller commits."""
-    ids = [
-        int(r[0])
-        for r in conn.execute(
-            select(papers.c.id).where(and_(papers.c.deleted_at.is_not(None), papers.c.merged_into.is_(None)))
+def purgeable_trashed_paper_ids(conn: Connection, *, paper_id: int | None = None) -> list[int]:
+    """Return trashed, non-merged papers that are not the survivor of an active merge."""
+    active_merge = exists(
+        select(merge_operations.c.id).where(
+            merge_operations.c.canonical_paper_id == papers.c.id,
+            merge_operations.c.status == "active",
         )
-    ]
-    for paper_id in ids:
-        purge_paper(conn, paper_id, vector_store=vector_store)  # each is trashed → True
-    return len(ids)
+    )
+    conditions = [papers.c.deleted_at.is_not(None), papers.c.merged_into.is_(None), ~active_merge]
+    if paper_id is not None:
+        conditions.append(papers.c.id == paper_id)
+    return [int(row[0]) for row in conn.execute(select(papers.c.id).where(and_(*conditions)))]
 
 
 def _purge_paper_embeddings(conn: Connection, paper_id: int, *, vector_store: "VectorStore") -> None:
