@@ -7,14 +7,18 @@ through Phase 10, then continued into the composer (Phase 5a/5b/5c) — **closin
 a strategic release-readiness review at Cliff's prompt ("what am I missing before the presentation, and beyond
 it"). That review's findings are folded in below. This file exists because the session ran long enough to need
 a handoff — it's written for whoever picks up next (Codex or a fresh Claude Code session) with **zero assumed
-prior context**. (Superseded three earlier revisions of itself as the rework kept going past its first
-"Phase 5 not started" snapshot — this is the final, accurate version.)
+prior context**. (Superseded four earlier revisions of itself: three as the LibreOffice rework kept going past
+its first "Phase 5 not started" snapshot, and a fourth after backlog #30 turned out to already be mostly built —
+this is the final, accurate version.)
 
-**Repo state: everything below is committed and pushed to `origin/main`** (HEAD `dfb5fbe`). **Increment 331**,
-**1340 pytest passing, 1 skipped**. `pytest -n auto -q` and `ruff format/check` are clean; the pre-commit
+**Repo state: everything below is committed and pushed to `origin/main`** (HEAD `ccad974`). **Increment 332**,
+**1345 pytest passing, 1 skipped**. `pytest -n auto -q` and `ruff format/check` are clean; the pre-commit
 line-budget hook is clean.
 
 ## What shipped this session (don't redo)
+- **Backlog #30's LibreOffice wiring + doc-drift cleanup (inc 332)** — see the "#30 correction" entry further
+  down for the full story; short version: the feature was already built, only the LibreOffice adapter's Suggest
+  macro needed wiring to it, plus several stale docs needed fixing.
 - **The entire LibreOffice adapter P0 rework is done — backlog #33/#34, phases 0–10 plus 5a/5b/5c** (all under
   `adapters/libreoffice/`): versioned mark schema, transactional refresh with rollback, backend citeproc
   passthrough (locator/prefix/suffix/suppress-author/author-only), `mark_at_cursor`, delete/merge/split/
@@ -93,9 +97,27 @@ retention, backup runbook; NOT the same as the local UI work, which is done), ha
 work (#20 — `SECURITY.md`/`CITATION.cff`/`.env.example`/`uv.lock`/`.pre-commit-config.yaml` still don't exist),
 packaging/distribution exploration (#21, Tauri desktop shell — exploratory only).
 
-**The highest-value unbuilt thing, per the backlog's own audit note:** **#30, Track C SP2/Stage-3** —
-"beyond-library suggest" (surfacing relevant papers the user doesn't yet have, not just ranking what's already
-in the library). Worth a fresh look if there's room for a substantial new feature this week.
+**#30 correction (2026-07-22) — this WAS wrong, don't repeat it:** an earlier revision of this file called #30
+"the highest-value unbuilt thing." That was propagated, unverified, from a stale `INCREMENT-BACKLOG.md` entry —
+**it was already shipped** (inc 271/272, 2026-07-14/15), just never folded back into that file's bookkeeping
+because it landed as one large uncredited Codex commit with no increment notes of its own. `app/backend/
+citations/beyond_library.py` already does OpenAlex graph expansion + public-metadata search with an
+explainable reason per candidate, wired into `POST /citations/suggest` and the web Cite pane, security-audited
+PASS. This session (2026-07-22) closed the one real gap that WAS there — the LibreOffice adapter's Suggest
+macro never called the beyond-library path at all — and fixed the doc drift (`INCREMENT-BACKLOG.md`,
+`integrations/README.md` which was ALSO stale — it listed the already-real `openalex`/`semantic_scholar`
+adapters as "planned, not implemented" — and `.claude/qa-routes/route_42_cite.md`, whose steps never actually
+exercised the beyond-library checkbox despite the file already being "covered" by the mechanical gate). Also
+removed a genuinely dead, confusing duplicate stub dir, `integrations/semantic-scholar/` (hyphen) — the real
+implementation is `integrations/semantic_scholar/` (underscore). **Lesson for next time:** verify a backlog
+"unbuilt" claim against the actual code before treating it as true, exactly the same "verify, don't assume"
+lesson this session already learned twice with `fetch_csl` and the stale selftest timeout.
+
+**What's genuinely still open for Track C:** Semantic Scholar's *recommendations* endpoint (the client exists,
+used only for citation-context work — adding recommendations is a new external fetch, audit-gated); a
+persistent, dismissible cache surface in the `gaps.py` style (what's shipped is live/per-sentence/ephemeral —
+structurally different from the backlog's original "persistent... cache... dismiss" framing, and was never
+built); Stage-4 section-scoping (needs GROBID + the plugin).
 
 **Good candidates for small, self-contained work** (matches the "aesthetic/targeted polish" role Cliff described
 this session): backlog #45 (Spärck Jones, above); #27 (more statcheck test forms, low-effort whenever); general
