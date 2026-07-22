@@ -39,8 +39,9 @@ callosum_cite** (and can be bound to a toolbar via **Tools → Customize**). The
 ## Use
 Start callosum, open a document in Writer, and use the **Callosum** menu / toolbar:
 
-1. **Add citation…** — **search your library** (author / title / year), pick a paper from the list, and it's
-   inserted at the cursor as a live, formatted citation. The everyday cite action — no paper ids to remember.
+1. **Add citation…** — the composer: **search your library live as you type** (author / title / year), **add one
+   or more** results to the citation you're building, see a **real rendered preview** as you go, then click
+   **Insert**. Building `(Smith, 2020; Jones, 2021)` from scratch is one composer session, not an insert-then-merge.
 2. **Suggest citation** — **select (highlight)** the sentence you're writing (or place the cursor in it): callosum
    ranks **your library** by relevance to that sentence and shows a pick-list — each row gives the paper's **stance**
    (supports / contrasts / mentions the claim), a **match** score, and a **quote** preview (the evidence). Pick one
@@ -119,11 +120,12 @@ the **Zotero `CSL_CITATION` field convention** (reused as a *pattern*, not code)
 built on **citeproc-js** and the **CSL** project; see the project's `THIRD-PARTY-NOTICES.md`.
 
 ## Limitations (v1)
-Insert is by paper id, by relevance via **Suggest**, or by library search via **Add citation…** (a name/title
-search picker); Suggest covers papers **already in your library** (finding relevant papers you don't yet have is
-the next stage) and shows a truncated quote per row (read the full evidence in callosum's in-app **Cite** panel).
-Every *insert* still adds a single work at a time — **Merge**/**Split** let you combine or separate citations
-after the fact, but there's no composer yet to build a multi-work citation, add a page locator/prefix/suffix, or
-suppress the author/date in one step (that's the next phase); **Prepare submission copy…** always saves ODF
+Insert is by paper id, by relevance via **Suggest**, or by the live-search **Add citation…** composer (which now
+builds true multi-work citations from scratch); Suggest covers papers **already in your library** (finding
+relevant papers you don't yet have is a future stage) and shows a truncated quote per row (read the full
+evidence in callosum's in-app **Cite** panel). The composer doesn't yet expose a page locator/prefix/suffix, or
+suppress-author/date, per item (that's the next phase — the backend/schema already support these; only the UI
+doesn't yet); **Edit Citation** (reopening the composer on an existing citation) is also not built yet — use
+**Merge**/**Split**/**Delete** to adjust an existing one instead. **Prepare submission copy…** always saves ODF
 (`.odt`) for now, regardless of your document's original format; in-text styles only (footnote/note styles
 later); no Track-Changes-corruption handling. Word (Office.js) and Google Docs are the next two adapters.

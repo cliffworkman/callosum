@@ -610,6 +610,126 @@ def spike_prepare_submission_copy(ctx, base, p1):
         pass
 
 
+def spike_live_search_listener(ctx, base):
+    """Phase 5a spike (the citation composer, backlog #33/#34): this codebase has never implemented a UNO event
+    listener from Python except the .oxt dispatcher itself (`XJobExecutor` in `callosum_addon.py`) — a live
+    text-changed listener driving Zotero-style search-as-you-type is new territory. Empirically confirms whether
+    a PROGRAMMATIC `setText()` call fires `XTextListener.textChanged` at all (UNO's own docs are silent on this
+    for various AWT controls) and whether a synchronous local search-and-refresh from inside that callback works
+    without a reentrancy problem. Never calls `dialog.execute()` (which blocks on real user interaction), so
+    this is spikeable headless — but real per-keystroke firing/timing from an actual human typing is NOT provable
+    this way and needs a manual check in real Writer before the composer design commits to this listener type."""
+    import time as _time
+
+    import unohelper
+    from com.sun.star.awt import XTextListener
+
+    log("spike (phase 5a): live-search text-listener mechanism")
+
+    class _TextChangeListener(unohelper.Base, XTextListener):
+        def __init__(self, callback):
+            self._callback = callback
+
+        def textChanged(self, event):
+            self._callback()
+
+        def disposing(self, event):
+            pass
+
+    smgr = ctx.ServiceManager
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 300, 150, "spike"
+    edit = dm.createInstance("com.sun.star.awt.UnoControlEditModel")
+    edit.PositionX, edit.PositionY, edit.Width, edit.Height, edit.Text = 6, 6, 288, 14, ""
+    dm.insertByName("edit", edit)
+    lst = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    lst.PositionX, lst.PositionY, lst.Width, lst.Height = 6, 24, 288, 100
+    dm.insertByName("list", lst)
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+
+    edit_ctrl = dialog.getControl("edit")
+    list_ctrl = dialog.getControl("list")
+    events = {"n": 0}
+
+    def on_change():
+        events["n"] += 1
+        query = edit_ctrl.getModel().Text
+        hits = cc.search_library(base, query) if query.strip() else []
+        list_ctrl.getModel().StringItemList = tuple(cc.build_search_rows(hits))
+
+    edit_ctrl.addTextListener(_TextChangeListener(on_change))
+    check(events["n"] == 0, "no textChanged events should have fired before any text change")
+
+    t0 = _time.time()
+    edit_ctrl.setText("attention")
+    elapsed_ms = (_time.time() - t0) * 1000
+    fired = events["n"] > 0
+    row_count = len(list_ctrl.getModel().StringItemList)
+    log(
+        f"spike (phase 5a): setText() {'fired' if fired else 'did NOT fire'} textChanged "
+        f"({events['n']} event(s)); listbox has {row_count} row(s); search+refresh took {elapsed_ms:.0f}ms"
+    )
+
+    if fired:
+        check(row_count >= 1, "expected search results in the listbox after setText('attention')")
+        log(
+            "spike (phase 5a): FINDING -- programmatic setText() DOES fire XTextListener; a synchronous "
+            "search-and-refresh from inside the callback works with no observed reentrancy problem. This only "
+            "proves the wiring mechanism -- real per-keystroke debounce timing still needs manual verification "
+            "in actual Writer, since headless can't synthesize real key events."
+        )
+    else:
+        log(
+            "spike (phase 5a): FINDING -- programmatic setText() does NOT fire XTextListener here. Real keyboard "
+            "input may still fire it (untested -- headless can't synthesize keys), or XKeyListener may be the "
+            "more reliable mechanism. Needs manual GUI verification before committing the composer to this "
+            "listener type."
+        )
+
+    dialog.dispose()
+
+
+def spike_insert_citation_items(ctx, base, p1, p2):
+    """Phase 5a (backlog #33/#34): `insert_citation_items` generalizes `insert_citation` to accept multiple
+    paper ids in ONE mark (the composer's insert path) — confirms exactly one mark is created (not two), its
+    item list has both papers in the given order, the rendered text reflects both sources, and that the
+    original single-item `insert_citation` (now a thin wrapper) still behaves identically to before (a
+    regression check on every existing caller: suggest, add-by-search's old path, insert-by-id)."""
+    log("spike (phase 5a): insert_citation_items — a single mark with multiple items")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("See the following.\n")
+    cc.set_style(doc, "apa", "en-US", base)
+    rnd = cc.insert_citation_items(doc, [p1, p2], base, cursor=text.createTextCursorByRange(text.getEnd()))
+
+    marks = [n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)]
+    check(len(marks) == 1, f"expected exactly 1 mark for a grouped insert, found {len(marks)}")
+    field = cc.scan_citations_in_order(doc)[0]
+    check(field["citationID"] == rnd, f"the mark's citationID {field['citationID']!r} != returned rnd {rnd!r}")
+    ids = [it.get("id") for it in field["items"]]
+    check(
+        ids == [f"callosum-{p1}", f"callosum-{p2}"],
+        f"expected items [callosum-{p1}, callosum-{p2}] in order, got {ids}",
+    )
+    rendered = field["_mark"].getAnchor().getString()
+    check(rendered.startswith("(") and rendered.endswith(")"), f"expected an APA '(...)' render, got {rendered!r}")
+    check(";" in rendered or "," in rendered, f"expected a grouped multi-source APA render, got {rendered!r}")
+    log(f"spike (phase 5a): OK — one mark, 2 items in order, rendered as {rendered!r}")
+
+    log("spike (phase 5a): insert_citation (single-item wrapper) is an unaffected regression check")
+    doc2 = new_writer(ctx)
+    text2 = doc2.getText()
+    text2.createTextCursorByRange(text2.getStart()).setString("Solo cite.\n")
+    cc.insert_citation(doc2, p1, base, cursor=text2.createTextCursorByRange(text2.getEnd()))
+    solo = cc.scan_citations_in_order(doc2)
+    check(len(solo) == 1 and len(solo[0]["items"]) == 1, f"expected 1 mark with 1 item, got {solo}")
+    check(solo[0]["items"][0].get("id") == f"callosum-{p1}", "single-item insert_citation regressed")
+    log("spike (phase 5a): OK — insert_citation (single-item) still behaves identically")
+
+
 def spike_document_diagnostics(ctx, base, p1, p2):
     """P0 phase 9 (the last of the smaller phases, backlog #33/#34): `diagnose_document` is read-only, so this
     spike constructs each unhealthy state directly rather than waiting for it to occur naturally — a truly
@@ -835,6 +955,12 @@ def main():
 
         # 12) P0 phase 9 (backlog #33/#34, the last of the smaller phases): read-only document diagnostics.
         spike_document_diagnostics(ctx, base, p1, p2)
+
+        # 13) Phase 5a (backlog #33/#34, the composer's live-search mechanism): de-risk before designing further.
+        spike_live_search_listener(ctx, base)
+
+        # 14) Phase 5a (backlog #33/#34): the composer's insert-side backend, bypassing the (blocking) dialog.
+        spike_insert_citation_items(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

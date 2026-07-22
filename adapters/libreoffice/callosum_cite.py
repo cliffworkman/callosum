@@ -397,14 +397,19 @@ def current_query_text(doc) -> str:
     return str(para.getString() or "").strip()
 
 
-def insert_citation(doc, paper_id, base: str = DEFAULT_BASE, cursor=None) -> str:
-    """Insert a live citation ReferenceMark for `paper_id` at the cursor, then re-render the document.
+def insert_citation_items(doc, paper_ids: list, base: str = DEFAULT_BASE, cursor=None) -> str:
+    """Insert a live citation ReferenceMark wrapping ONE OR MORE works at the cursor, then re-render the
+    document (Phase 5a, backlog #33/#34 — generalizes the original single-item `insert_citation`, now a thin
+    wrapper over this). `paper_ids` order becomes the citation's initial item order — subject to whatever the
+    chosen CSL style's own `<citation><sort>` does at render time regardless (4 of the 7 bundled styles define
+    one; confirmed in Phase 3 that a composer preview must always be a real round-trip, never simulated, for
+    exactly this reason).
 
-    Returns the new mark's `rnd` tag. (UNO; the macro entry point supplies the dialog + current doc.)
+    Returns the new mark's `rnd` tag. (UNO; the macro entry point / composer supplies the dialog + current doc.)
     """
-    record = stamp_item_id(fetch_csl(base, paper_id), paper_id)
+    records = [stamp_item_id(fetch_csl(base, pid), pid) for pid in paper_ids]
     rnd = _new_rnd(doc)
-    payload = {"items": [record]}
+    payload = {"items": records}
     text = doc.getText()
     if cursor is None:
         cursor = _insertion_cursor(doc)
@@ -414,6 +419,12 @@ def insert_citation(doc, paper_id, base: str = DEFAULT_BASE, cursor=None) -> str
     text.insertTextContent(cursor, mark, True)  # absorb=True → the mark wraps the placeholder range
     refresh(doc, base)
     return rnd
+
+
+def insert_citation(doc, paper_id, base: str = DEFAULT_BASE, cursor=None) -> str:
+    """Insert a live citation ReferenceMark for a SINGLE paper_id — a thin wrapper over
+    `insert_citation_items` (the common case; every existing caller keeps working unchanged)."""
+    return insert_citation_items(doc, [paper_id], base, cursor)
 
 
 def _our_marks(doc) -> list:
@@ -897,19 +908,19 @@ def suggest_and_insert(doc, base: str = DEFAULT_BASE) -> str | None:
 
 
 def add_citation_by_search(doc, base: str) -> str | None:
-    """Add a citation by SEARCHING the library: prompt for a query, show matching papers, insert the chosen one.
-    The familiar 'type to find a paper' cite flow (vs suggest-from-the-sentence). Returns the mark rnd or None."""
-    query = _input_box(doc, "Add citation", "Search your library (author / title / year):")
-    if not query or not query.strip():
+    """Add a citation via the live-search composer (Phase 5a, backlog #33/#34): search-as-you-type, assemble one
+    or more sources with a real rendered preview, then insert as one (possibly grouped) citation. Replaces the
+    original one-shot search+single-select flow. Returns the mark rnd, or None if nothing was assembled/inserted."""
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import composer
+
+    paper_ids = composer.run_composer_dialog(doc, base)
+    if not paper_ids:
         return None
-    papers = search_library(base, query.strip())
-    if not papers:
-        _msgbox("No matching papers in your library.")
-        return None
-    idx = _suggest_listbox(doc, build_search_rows(papers), "Add citation", "Pick a paper from your library to cite.")
-    if idx is None:
-        return None
-    return insert_citation(doc, papers[idx]["id"], base, cursor=_insertion_cursor(doc))
+    return insert_citation_items(doc, paper_ids, base, cursor=_insertion_cursor(doc))
 
 
 # ── interactive flows (the prompt+act bodies; shared by the macro entry points AND the .oxt dispatcher) ─────

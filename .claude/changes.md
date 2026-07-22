@@ -13,6 +13,21 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-22 — Increment 329: LibreOffice adapter rework, Phase 5a (the composer)
+- **Files:** `adapters/libreoffice/composer.py` (new), `adapters/libreoffice/{callosum_cite,selftest_uno,README}.py/.md`,
+  `.claude/docs/increment-notes/INCREMENT-329-NOTES.md`.
+- **What:** a live-search, multi-item citation composer replacing the old one-shot search+single-select "Add
+  citation…" flow — search-as-you-type, an assembly list, a real rendered preview (never simulated), Insert.
+  New backend `insert_citation_items` generalizes `insert_citation` to wrap multiple papers in one mark. A
+  real-UNO spike (this codebase's first UNO event-listener beyond the .oxt dispatcher itself) confirmed a
+  programmatic `setText()` reliably fires `XTextListener.textChanged` and a synchronous local search-refresh
+  has no reentrancy issue (~26-37ms round-trip) — simple enough that no debounce timer was needed.
+- **Why:** Phase 5 was the last major deferred piece of the P0 rework; scoped into 5a/5b/5c the same way every
+  other phase in this rework got scoped, rather than attempting the whole original spec in one pass.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-329-NOTES.md`. Note: the
+  composer itself has NOT been driven by a real human in real Writer yet — flagged as an open manual-verification
+  gap, not assumed away.
+
 ## 2026-07-21 — Increment 328: LibreOffice adapter rework, Phase 10 (test-hardening, closes #33/#34's P0 batch)
 - **Files:** `adapters/libreoffice/run_roundtrip.py` (new, promoted from gitignored `.local/`),
   `.github/workflows/libreoffice-adapter.yml` (new), `adapters/libreoffice/{selftest_uno,README}.py/.md`,
