@@ -314,14 +314,25 @@ Cite straight from your callosum library while you write in **LibreOffice Writer
 
 A **Callosum** menu (and toolbar) then appears in Writer:
 
-- **Add citation…** — search your library (author / title / year), pick a paper, and it's inserted as a live, formatted citation. (No paper ids to remember.)
-- **Suggest citation** — select the sentence you're writing; callosum suggests papers by relevance, with stance + a quote, the same engine as the in-app Cite panel.
-- **Refresh / renumber + bibliography** — re-render every citation and rebuild the References list (numeric styles renumber by position; run it after edits).
+- **Add citation…** — the composer: search your library **live as you type**, add one or more results to the citation you're building, and watch a **real rendered preview** update as you go, before you click **Insert**. Building a grouped citation like `(Smith, 2020; Jones, 2021)` from scratch is one composer session, not insert-then-merge. Select an assembled source and click **Options…** to set a **locator** (page / chapter / section / … — a fixed vocabulary), a **prefix**/**suffix** (e.g. "see …"), or **suppress the author** / show **author only** — each applies to this citation only, your library record is never touched. **Move ↑ / ↓** reorders sources manually (a citation style with its own sort rule, like APA, may still reorder them at render time regardless — the preview always shows the real result, so you'll see this rather than be surprised by it). Check **Also search beyond my library** to widen the search the same way the in-app Cite panel does (see *Verified citation suggestions*) — off by default, opt-in each time; picking an outside-library result adds it to your library first, then cites it.
+- **Suggest citation** — select the sentence you're writing; callosum suggests papers by relevance, with stance + a quote (and the same beyond-library option), the same engine as the in-app Cite panel.
+- **Insert citation by id…** — if you already know a paper's callosum id.
+- **Edit citation…** — place your cursor inside an existing citation and reopen the same composer, pre-populated with its current sources and options — add, remove, reorder, or change locators/prefixes without starting over. It's still the same citation; only its contents change.
+- **Delete citation** — removes the citation, both the field and its rendered text.
+- **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a single grouped citation.
+- **Split citation** — reverses a grouped citation back into that many separate single-work citations.
+- **Open in callosum** — opens the cited paper's page in the callosum app (a browser tab). For a grouped citation, opens the first source only.
+- **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (numeric styles renumber by position; run it after edits or after moving citations).
 - **Citation style…** — pick a CSL style (apa, ieee, nature, …) and locale; the whole document re-renders.
-- **Flatten to static text** — convert the live citations to plain text for hand-off (one-way).
+- **Insert bibliography here** — moves the bibliography to the cursor (run it again elsewhere to move it there instead).
+- **Toggle automatic bibliography rebuild** — pause the bibliography specifically; citations still update normally on Refresh.
+- **Document diagnostics…** — a read-only health check: reports a malformed citation, one written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose source paper is no longer in your library, or a damaged/not-yet-built bibliography. Never changes your document.
+- **Prepare submission copy…** (recommended for hand-off) — saves a **separate** copy with citations converted to static text; your open document is never changed.
+- **Flatten to static text** — the advanced, in-place option: converts citations to plain text in *this* document directly. One-way — prefer Prepare submission copy unless you specifically want to keep editing the flattened version.
+- **Insert CRediT statement** — inserts the contribution statement you built in **Theory → CRediT statement → Send to LibreOffice**, as plain text at the cursor.
 - **Server URL…** — only needed if you run callosum on a non-default port.
 
-Everything is local: the plugin talks only to callosum on your own machine, and all formatting is done by callosum's citation engine (so it matches the in-app "Cite as…"). Nothing leaves your machine.
+Everything is local: the plugin talks only to callosum on your own machine (plus public metadata providers, only if you opt into "Also search beyond my library"), and all formatting is done by callosum's citation engine (so it matches the in-app "Cite as…"). Nothing else leaves your machine.
 
 <!-- section: cite-in-word -->
 ## Citing in Microsoft Word (desktop)

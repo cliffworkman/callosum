@@ -9,10 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-21 inc 318 — updated the "Checking for retractions" section's Retraction Watch
-database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
-launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
-un-synced corpus change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 333 — reviewed every entry back to the prior (inc 318) marker for
+help-corpus relevance. Rewrote "Citing in LibreOffice Writer" in full — it predated the whole Phase 0-10 +
+5a/5b/5c rework (composer w/ live search + Options + reorder + beyond-library, Edit Citation, delete/merge/
+split/open-in-callosum, bibliography controls, document diagnostics, Prepare submission copy) and was badly
+stale. Added one sentence to "Checking statistics (statcheck)" for the new test-stat-as-bound coverage
+(backlog #27). Everything else since inc 318 was either non-help-corpus-relevant (CI/test infra, the GitHub
+README, a Settings placeholder string) or already covered. Nothing above this line has an un-synced corpus
+change. -->
+## 2026-07-22 — Help docs: rewrite "Citing in LibreOffice Writer" (closes the flagged staleness)
+- **Files:** `app/backend/help/help_content.md`.
+- **What:** the served help corpus's LibreOffice section predated the entire Phase 0-10 + 5a/5b/5c rework — it
+  still described the old one-shot search+single-select "Add citation…" flow and never mentioned Edit
+  Citation, delete/merge/split/open-in-callosum, the bibliography controls, document diagnostics, or Prepare
+  submission copy. Rewritten in full to describe the actual current menu: the composer (live search, Options
+  incl. locator/prefix/suffix/suppress-author, Move ↑/↓ reorder, the beyond-library checkbox), Edit citation…,
+  every existing-citation action, both bibliography controls, Document diagnostics…, and Prepare submission
+  copy vs. Flatten.
+- **Why:** flagged during backlog #27 (the statcheck fix) as a real, un-actioned gap; the user asked for it to
+  be addressed as its own pass rather than folded into the smaller statcheck fix.
+- **Revert:** `git log` this commit.
+
 ## 2026-07-22 — Backlog #27: statcheck reads test statistics reported as a bound, not just "="
 - **Files:** `app/backend/methods/statcheck.py`, `tests/test_statcheck.py`, `app/backend/help/help_content.md`.
 - **What:** the test-statistic comparator is no longer required to be "=" — statcheck now also reads APA
