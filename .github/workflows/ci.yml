@@ -15,7 +15,7 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm
@@ -29,6 +29,8 @@ jobs:
         run: uv run ruff format --check .
       - name: Line budget (rule #1 — 600-line cap on app/ + integrations/)
         run: uv run python tools/check_line_budget.py
+      - name: Alembic migration check (fresh temp DB: upgrade head + zero model/migration drift)
+        run: uv run pytest tests/test_migrations.py -q
       - name: Pytest (offline suite; parallel via pytest-xdist; the browser e2e is opt-in and runs in the job below)
         run: uv run pytest -n auto -q
       - name: QA surface-coverage check (report-only until the route suite is green; inc 120)
@@ -43,7 +45,7 @@ jobs:
         with:
           enable-cache: true
           python-version: "3.11"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "24"
           cache: npm

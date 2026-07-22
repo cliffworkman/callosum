@@ -19,6 +19,16 @@ if config.config_file_name is not None:
 target_metadata = metadata
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    # chunks_fts (inc 209/A3) is a raw `CREATE VIRTUAL TABLE ... USING fts5` (migration 0026) — an external-content
+    # FTS5 index with no SQLAlchemy Core `Table` equivalent, so it (and the shadow tables SQLite generates for it:
+    # _data/_idx/_docsize/_config) can never appear in `target_metadata`. Without this exclusion, `alembic check`
+    # (tests/test_migrations.py) would report them as permanent, un-fixable drift on every run.
+    if type_ == "table" and name.startswith("chunks_fts"):
+        return False
+    return True
+
+
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
@@ -26,6 +36,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=include_object,
     )
 
     with context.begin_transaction():
@@ -44,7 +55,7 @@ def run_migrations_online() -> None:
         if connection.dialect.name == "sqlite":
             connection.exec_driver_sql("PRAGMA foreign_keys=ON")
 
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, include_object=include_object)
 
         with context.begin_transaction():
             context.run_migrations()
