@@ -13,6 +13,24 @@ are the design diary; this is the chronological "what & why" record.
 database paragraph to describe the new opt-in "Auto-refresh when stale" checkbox (off by default, fires on
 launch/focus only when the mirror is >30 days old or never downloaded). Nothing above this line has an
 un-synced corpus change. -->
+## 2026-07-22 — Increment 331: LibreOffice adapter rework, Phase 5c (Edit Citation) — closes backlog #33/#34
+- **Files:** `adapters/libreoffice/{callosum_cite,composer,selftest_uno,README}.py/.md`,
+  `adapters/libreoffice/oxt/Addons.xcu`, `tests/test_libreoffice_composer.py` (new),
+  `tests/test_libreoffice_adapter.py`, `.claude/docs/increment-notes/INCREMENT-331-NOTES.md`.
+- **What:** "Edit citation…" reopens the composer pre-populated from an existing citation (via `mark_at_cursor`),
+  supporting add/remove/reorder (new Move ↑/↓ buttons) and per-item options, then saves back to the SAME
+  citation identity (never mints a new rnd). Investigated and deliberately declined building a "restore
+  style-defined sort" action — CSL/citeproc-js has no per-request override for a style's own sort behavior, so
+  such a button would be a no-op for 4 of the 7 bundled styles; a control implying capability the tool doesn't
+  have would itself be a transparency regression. Also added real pytest coverage for `composer.py`'s pure
+  helpers (a gap from Phase 5a/5b — the module loads fine under plain pytest; only its dialog-building
+  functions need real UNO).
+- **Why:** the last piece of the original Phase 5 (composer) scope — and with it, the entire P0 LibreOffice-
+  adapter rework (backlog #33/#34, phases 0-10 + 5a-5c) is now shipped.
+- **Revert:** `git log` this commit; see `.claude/docs/increment-notes/INCREMENT-331-NOTES.md`. Note: the
+  composer (Insert and Edit) still hasn't been driven by a real human in real Writer — flagged across three
+  increments now, not assumed away.
+
 ## 2026-07-22 — Increment 330: LibreOffice adapter rework, Phase 5b (per-item locator/prefix/suffix)
 - **Files:** `adapters/libreoffice/{callosum_cite,composer,selftest_uno,README}.py/.md`,
   `.claude/docs/increment-notes/INCREMENT-330-NOTES.md`.

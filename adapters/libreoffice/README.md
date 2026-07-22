@@ -67,25 +67,29 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    ReferenceMark, unaffected by refresh/flatten). If nothing is staged, the macro tells you to build one first.
 8. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
 
-**Acting on an existing citation** — place the cursor **inside** the citation first (all four show an honest
+**Acting on an existing citation** — place the cursor **inside** the citation first (all show an honest
 message if it isn't):
-9. **Delete citation** — removes the citation entirely, both the field and its rendered text.
-10. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
+9. **Edit citation…** — reopens the same live-search composer used for **Add citation…**, pre-populated with
+   this citation's current sources and their locator/prefix/suffix/suppress-author options. Add or remove
+   sources, reorder them (**Move ↑ / ↓**), change any source's **Options…**, then click **Update**. The
+   citation's identity is preserved — this changes what it contains, not which citation it is.
+10. **Delete citation** — removes the citation entirely, both the field and its rendered text.
+11. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
     single grouped citation, e.g. two separate `(Smith, 2020)` `(Jones, 2021)` become one
-    `(Smith, 2020; Jones, 2021)`. Any text between the two originals (a comma, "and", …) is left in place —
-    there's no composer yet to know what to do with it.
-11. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
+    `(Smith, 2020; Jones, 2021)`. Any text between the two originals (a comma, "and", …) is left in place — use
+    **Edit citation…** afterward if you want to add locators/prefixes to the now-combined result.
+12. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
     by `"; "`.
-12. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
+13. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
     grouped citation, opens the **first** work only for now.
 
 **Bibliography controls:**
-13. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
+14. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
     the "move" action: invoking it again elsewhere moves the block there.
-14. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+15. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
-15. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+16. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
     written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
@@ -93,8 +97,8 @@ message if it isn't):
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
-`CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumDeleteCitation`, `CallosumMergeWithNext`,
-`CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
+`CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
+`CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
 `CallosumInsertBibliographyHere`, `CallosumToggleBibAuto`, `CallosumDiagnostics` — are also runnable from the
 Python macro dialog if you installed by hand.)
 
@@ -123,12 +127,14 @@ the **Zotero `CSL_CITATION` field convention** (reused as a *pattern*, not code)
 built on **citeproc-js** and the **CSL** project; see the project's `THIRD-PARTY-NOTICES.md`.
 
 ## Limitations (v1)
-Insert is by paper id, by relevance via **Suggest**, or by the live-search **Add citation…** composer (which now
-builds true multi-work citations from scratch, with per-item locator/prefix/suffix/suppress-author via
-**Options…**); Suggest covers papers **already in your library** (finding relevant papers you don't yet have is
-a future stage) and shows a truncated quote per row (read the full evidence in callosum's in-app **Cite**
-panel). There's no "suppress date" option — CSL/citeproc-js has no equivalent mechanism. **Edit Citation**
-(reopening the composer on an existing citation, or "revert manual overrides"/"restore style sort") is not built
-yet — use **Merge**/**Split**/**Delete** to adjust an existing one instead. **Prepare submission copy…** always
-saves ODF (`.odt`) for now, regardless of your document's original format; in-text styles only (footnote/note styles
-later); no Track-Changes-corruption handling. Word (Office.js) and Google Docs are the next two adapters.
+Insert is by paper id, by relevance via **Suggest**, or by the live-search **Add citation…** composer, which
+also handles **Edit citation…** (add/remove/reorder sources, per-item locator/prefix/suffix/suppress-author via
+**Options…**, on an existing citation); Suggest covers papers **already in your library** (finding relevant
+papers you don't yet have is a future stage) and shows a truncated quote per row (read the full evidence in
+callosum's in-app **Cite** panel). There's no "suppress date" option — CSL/citeproc-js has no equivalent
+mechanism. A CSL style that defines its own `<citation><sort>` (4 of the 7 bundled styles: apa, ieee, nature,
+harvard-cite-them-right) will re-sort a grouped citation's items regardless of the order you arrange them in —
+the composer's preview always shows the real result, so you'll see this rather than be surprised by it.
+**Prepare submission copy…** always saves ODF (`.odt`) for now, regardless of your document's original format;
+in-text styles only (footnote/note styles later); no Track-Changes-corruption handling. Word (Office.js) and
+Google Docs are the next two adapters.

@@ -781,6 +781,44 @@ def spike_per_item_citation_overrides(ctx, base, p1):
     log(f"spike (phase 5b): OK — author-only reached the render: {author_only_rendered!r}")
 
 
+def spike_edit_citation(ctx, base, p1, p2):
+    """Phase 5c (backlog #33/#34): `edit_citation_items` replaces an EXISTING citation's items in place — same
+    rnd/mark identity, new item set — confirmed against real UNO by calling it directly, bypassing the composer
+    dialog (which blocks on real user interaction, the same limitation every dialog-driven action in this file
+    has). Covers both growing a citation (add an item + set a locator) and shrinking one (remove an item)."""
+    log("spike (phase 5c): edit_citation_items preserves citation identity while changing its items")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("A single citation here.\n")
+    cc.set_style(doc, "apa", "en-US", base)
+    original_rnd = cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+
+    field = cc.scan_citations_in_order(doc)[0]
+    check(field["citationID"] == original_rnd, "sanity: citationID should match the insert's own rnd")
+    cc.edit_citation_items(doc, field, [{"paper_id": p1, "label": "page", "locator": "9"}, {"paper_id": p2}], base)
+
+    after = cc.scan_citations_in_order(doc)
+    check(len(after) == 1, f"expected still exactly 1 mark after editing, found {len(after)}")
+    check(after[0]["citationID"] == original_rnd, "editing a citation must not change its rnd/identity")
+    ids = [it.get("id") for it in after[0]["items"]]
+    check(ids == [f"callosum-{p1}", f"callosum-{p2}"], f"expected items in the given order, got {ids}")
+    check(after[0]["items"][0].get("locator") == "9", "the locator set during edit did not persist")
+    rendered = after[0]["_mark"].getAnchor().getString()
+    check("9" in rendered, f"expected the locator to reach the render, got {rendered!r}")
+    log(f"spike (phase 5c): OK — same rnd ({original_rnd!r}), 2 items now, locator reached render: {rendered!r}")
+
+    log("spike (phase 5c): edit_citation_items can also REMOVE an item, still same identity")
+    cc.edit_citation_items(doc, cc.scan_citations_in_order(doc)[0], [{"paper_id": p2}], base)
+    reduced = cc.scan_citations_in_order(doc)
+    check(len(reduced) == 1, f"expected still exactly 1 mark, found {len(reduced)}")
+    check(reduced[0]["citationID"] == original_rnd, "removing an item during edit must not change identity")
+    check(
+        len(reduced[0]["items"]) == 1 and reduced[0]["items"][0].get("id") == f"callosum-{p2}",
+        f"expected only {p2} remaining, got {reduced[0]['items']}",
+    )
+    log("spike (phase 5c): OK — editing down to 1 item kept the same citation identity")
+
+
 def spike_document_diagnostics(ctx, base, p1, p2):
     """P0 phase 9 (the last of the smaller phases, backlog #33/#34): `diagnose_document` is read-only, so this
     spike constructs each unhealthy state directly rather than waiting for it to occur naturally — a truly
@@ -1015,6 +1053,9 @@ def main():
 
         # 15) Phase 5b (backlog #33/#34): per-item locator/prefix/suffix/suppress-author reach the real render.
         spike_per_item_citation_overrides(ctx, base, p1)
+
+        # 16) Phase 5c (backlog #33/#34): Edit Citation's backend -- same identity, new items, bypassing the dialog.
+        spike_edit_citation(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

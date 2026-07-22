@@ -415,3 +415,29 @@ def test_diagnose_document_bibliography_states(monkeypatch) -> None:
     assert not_built["bibliography"] == "not_built"
     no_citations = cc.diagnose_document(_FakeDiagDoc([]), "http://x")
     assert no_citations["bibliography"] == "n/a"
+
+
+# ── Phase 5c (backlog #33/#34): csl_record_row -- formatting an EXISTING citation's CSL record for the
+# composer's Edit-Citation pre-population (as opposed to build_search_rows, which formats a /papers?q= hit) ──
+
+
+def test_csl_record_row_formats_family_name_and_issued_year() -> None:
+    record = {
+        "title": "Attention is all you need",
+        "author": [{"family": "Vaswani", "given": "Ashish"}, {"family": "Shazeer", "given": "Noam"}],
+        "issued": {"date-parts": [[2017]]},
+    }
+    row = cc.csl_record_row(record)
+    assert row == "Vaswani et al. 2017 — Attention is all you need"
+
+
+def test_csl_record_row_defensive_on_missing_fields() -> None:
+    assert cc.csl_record_row({}) == "— n.d. — Untitled"
+    single_author = cc.csl_record_row({"author": [{"family": "Devlin"}], "title": "BERT"})
+    assert single_author == "Devlin n.d. — BERT"  # no "et al." for a single author
+
+
+def test_csl_record_row_truncates_long_titles() -> None:
+    long_title = "X" * 200
+    row = cc.csl_record_row({"title": long_title, "issued": {"date-parts": [[2020]]}})
+    assert row.endswith("…") and len(row) < len(long_title)

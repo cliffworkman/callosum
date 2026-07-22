@@ -336,6 +336,24 @@ def build_search_rows(papers: list[dict]) -> list[str]:
     return rows
 
 
+def csl_record_row(record: dict) -> str:
+    """Same ``Author [et al.] Year — Title`` row shape as `build_search_rows`, but reads a full CSL-JSON record
+    (``author: [{family, given}]``, ``issued: {"date-parts": [[year]]}``) rather than a `/papers?q=` search
+    hit's flattened shape — used to display an EXISTING citation's already-decoded items when editing (Phase
+    5c, backlog #33/#34), where only the CSL record is available, not a fresh search result."""
+    authors = record.get("author") or []
+    who = (authors[0].get("family") or "—") if authors else "—"
+    if len(authors) > 1:
+        who += " et al."
+    issued = record.get("issued") or {}
+    parts = issued.get("date-parts") or []
+    year = parts[0][0] if parts and parts[0] else "n.d."
+    title = (record.get("title") or "Untitled").strip()
+    if len(title) > SEARCH_TITLE_MAX:
+        title = title[:SEARCH_TITLE_MAX] + "…"
+    return f"{who} {year} — {title}"
+
+
 # ── UNO layer (lazy `import uno`; driven by the macro entry points + the headless self-test) ───────────────
 
 
@@ -434,13 +452,7 @@ def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, curs
 
     Returns the new mark's `rnd` tag. (UNO; the macro entry point / composer supplies the dialog + current doc.)
     """
-    records = []
-    for it in items:
-        paper_id = it["paper_id"]
-        record = stamp_item_id(fetch_csl(base, paper_id), paper_id)
-        overrides = {k: v for k, v in it.items() if k != "paper_id"}
-        record.update(_normalize_item(overrides))
-        records.append(record)
+    records = _build_records(items, base)
     rnd = _new_rnd(doc)
     payload = {"items": records}
     text = doc.getText()
@@ -454,10 +466,34 @@ def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, curs
     return rnd
 
 
+def _build_records(items: list[dict], base: str) -> list[dict]:
+    """Shared by `insert_citation_items` and `edit_citation_items`: fetch + stamp each item's CSL record and
+    merge in whatever per-occurrence overrides were given (defaulted via `_normalize_item`)."""
+    records = []
+    for it in items:
+        paper_id = it["paper_id"]
+        record = stamp_item_id(fetch_csl(base, paper_id), paper_id)
+        overrides = {k: v for k, v in it.items() if k != "paper_id"}
+        record.update(_normalize_item(overrides))
+        records.append(record)
+    return records
+
+
 def insert_citation(doc, paper_id, base: str = DEFAULT_BASE, cursor=None) -> str:
     """Insert a live citation ReferenceMark for a SINGLE paper_id, no per-occurrence overrides — a thin wrapper
     over `insert_citation_items` (the common case; every existing caller keeps working unchanged)."""
     return insert_citation_items(doc, [{"paper_id": paper_id}], base, cursor)
+
+
+def edit_citation_items(doc, field: dict, items: list[dict], base: str = DEFAULT_BASE) -> None:
+    """Replace an EXISTING citation's items in place — same rnd/mark identity, new item set (Phase 5c, backlog
+    #33/#34, the composer's Edit-Citation path). Unlike `insert_citation_items`, this never mints a new rnd:
+    editing a citation must not change its identity. `field` is the `mark_at_cursor`/`scan_citations_in_order`
+    shape (``{"citationID", "items", "_mark"}``). Caller should have already confirmed the user wants to save
+    (the composer returning a non-None item list); this always writes and refreshes."""
+    records = _build_records(items, base)
+    _rewrap_mark_payload(doc, field["_mark"], {"items": records}, field["citationID"])
+    refresh(doc, base)
 
 
 def _our_marks(doc) -> list:
@@ -1129,6 +1165,26 @@ def split_citation_interactive(doc, base: str) -> None:
     refresh(doc, base)
 
 
+def edit_citation_interactive(doc, base: str) -> None:
+    """Reopen the composer on the citation at the cursor, pre-populated with its current items + per-occurrence
+    options (Phase 5c, backlog #33/#34) — add/remove/reorder sources, change locators/prefixes/suffixes/
+    suppress-author, or clear an item's overrides, then save back to the SAME citation."""
+    field = mark_at_cursor(doc)
+    if field is None:
+        _msgbox("Place your cursor inside a citation to edit it.")
+        return
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import composer
+
+    items = composer.run_composer_dialog(doc, base, existing_items=field["items"])
+    if items is None:
+        return  # cancelled -- the citation is left exactly as it was
+    edit_citation_items(doc, field, items, base)
+
+
 def insert_bibliography_here_interactive(doc, base: str) -> None:
     """Move (or, if none exists yet, create) the bibliography at the cursor (P0 phase 7)."""
     refresh(doc, base, bib_cursor=_insertion_cursor(doc))
@@ -1298,6 +1354,7 @@ _ACTIONS = {
     "insertBibliographyHere": insert_bibliography_here_interactive,
     "toggleBibAuto": toggle_bib_auto_interactive,
     "diagnostics": document_diagnostics_interactive,
+    "editCitation": edit_citation_interactive,
 }
 
 
@@ -1386,6 +1443,10 @@ def CallosumDiagnostics(*_args):
     _macro("diagnostics")
 
 
+def CallosumEditCitation(*_args):
+    _macro("editCitation")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -1404,4 +1465,5 @@ g_exportedScripts = (
     CallosumToggleBibAuto,
     CallosumPrepareSubmissionCopy,
     CallosumDiagnostics,
+    CallosumEditCitation,
 )

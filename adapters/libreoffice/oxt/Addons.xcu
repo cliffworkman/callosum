@@ -33,6 +33,14 @@
           <!-- Acting on the EXISTING citation at the cursor (P0 phase 6, backlog #33/#34) — all resolve
                "which citation" via mark_at_cursor (phase 4); each shows an honest message if the cursor isn't
                inside a citation. -->
+          <!-- P0 phase 5c: reopens the same live-search composer used for Insert, pre-populated with this
+               citation's current items + per-occurrence options. -->
+          <node oor:name="m02f" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?editCitation</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Edit citation…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m02a" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?deleteCitation</value></prop>
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Delete citation</value></prop>
