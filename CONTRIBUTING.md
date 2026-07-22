@@ -18,9 +18,16 @@ evidence. Contributions must keep that promise.
 ## Dev setup
 
 ```bash
+uv sync                                    # installs the pinned dev/CI toolchain from uv.lock into .venv
+pre-commit install                         # wires the fast pre-commit gate (ruff, whitespace/EOF, line budget)
+uv run uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080   # then open http://127.0.0.1:8080/
+```
+
+No `uv`? The pip fallback still works (kept in sync by hand):
+
+```bash
 python -m venv .venv && . .venv/bin/activate      # Windows: .venv\Scripts\Activate.ps1
 pip install -r requirements-dev.txt
-uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080   # then open http://127.0.0.1:8080/
 ```
 
 Secrets come from the environment or a **gitignored `.env`** — never commit keys. Optional Gemini summary

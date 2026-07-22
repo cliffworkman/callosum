@@ -3,25 +3,55 @@ name = "callosum"
 version = "0.1.0"
 description = "Local-first reference manager persistence core."
 requires-python = ">=3.11"
+license = "AGPL-3.0-or-later"
 dependencies = [
+    "sqlalchemy>=2.0,<3",
     "alembic>=1.13,<2",
-    "fastapi>=0.115,<1",
-    "google-genai>=1,<2",
+    # Pin the web stack exactly. Bumped to fastapi 0.139.2 + starlette 1.3.1 to clear 14 Dependabot advisories on
+    # starlette (6 high; a high covers the whole `>=0.4.1,<1.3.1` range, so 1.3.1 is the floor — see the security
+    # audit 2026-07-19_web-stack-cve-migration.md). Bump fastapi + starlette together deliberately (fastapi 0.115
+    # caps starlette <0.46, so no patched starlette fits the old fastapi).
+    "fastapi==0.139.2",
+    "starlette==1.3.1",
     "httpx>=0.27,<1",
     "pymupdf>=1.24,<2",
-    "scikit-learn>=1.4,<2",
     "sentence-transformers>=3,<6",
     "sqlite-vec>=0.1,<1",
-    "sqlalchemy>=2.0,<3",
+    "scikit-learn>=1.4,<2",
+    "numpy>=1.26,<3",
+    "scipy>=1.11,<2", # statcheck p-value recomputation (inc 95); already present transitively via scikit-learn
+    "google-genai>=1,<2",
     "uvicorn[standard]>=0.30,<1",
+    # Optional-account sign-in (ORCID via OIDC): id-token verification (JWKS signature + iss/aud/exp).
+    # Lazy-imported in app/backend/api/auth/oidc.py — the app + hermetic suite run without it.
+    "pyjwt[crypto]>=2.8,<3",
 ]
 
 [project.optional-dependencies]
-test = [
-    "httpx>=0.27,<1",
-    "httpx2>=2,<3",
+# Optional (inc 152): OS-keychain storage for BYOK provider API keys (Windows Credential Manager / macOS
+# Keychain / Linux Secret Service) instead of the local settings-file fallback.
+keyring = ["keyring>=24"]
+
+[dependency-groups]
+# The dev/CI toolchain. `uv sync` installs this group by default (see [tool.uv] below).
+# requirements-dev.txt mirrors this list for pip-only workflows; keep the two in sync by hand.
+dev = [
     "pytest>=7.4,<9",
+    "pytest-xdist>=3", # parallel test runner (`pytest -n auto`) — cuts full-suite wall-clock ~3-4x (inc 300)
+    "pytest-testmon>=2", # change-based selection (`pytest --testmon`) (inc 300)
+    "httpx2>=2,<3", # starlette 1.x (inc 305) prefers httpx2 under TestClient; dev/test-only
+    # Pin ruff EXACTLY: its 0.x minor releases change lint/format behavior (an unpinned range once let CI grab
+    # a newer minor that flagged import-ordering the dev version accepted → red CI). Bump deliberately.
+    "ruff==0.9.6",
+    "pip-audit>=2.7",
+    "pre-commit>=4",
+    "playwright>=1.40",
+    "pytest-playwright>=0.5",
+    "mcp>=1.2", # mcp_server SP1 — to run tests/test_mcp_server.py (B1); a server-only runtime dep, dev-side here
 ]
+
+[tool.uv]
+default-groups = ["dev"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

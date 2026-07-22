@@ -50,4 +50,3 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_56_acquisition_wanted.md` + `screenshots/` (see `_TEMPLATE.md`).
-

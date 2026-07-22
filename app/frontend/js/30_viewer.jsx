@@ -597,4 +597,3 @@ function PdfViewer({ paperId, title, target, annoRefresh, mobile, armedCapture, 
 
 // MinimapTrack + usePinchZoom were extracted to 30f_pdf_gestures.jsx (inc 239, rule #1). LibraryFrame (the center
 // tab shell) lives in 30c_frame.jsx (inc 182). PdfViewer (above) references all three via the shared IIFE scope.
-

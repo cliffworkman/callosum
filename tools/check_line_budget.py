@@ -7,7 +7,7 @@ count too — they live under `app/`). Exempt by rule #1: `tests/`, `tools/`, an
 
 Threshold: a file is a violation when it is **> 600 lines** (601+). The project holds files at "599/600" as
 "at cap"; crossing the cap (601+) is the violation the historical splits (inc 91/137/214/220/226/256/262 …) all
-cleared. Run standalone or from the pre-commit hook (`tools/git-hooks/pre-commit`).
+cleared. Run standalone or from the pre-commit hook (`.pre-commit-config.yaml`).
 
 Usage:  python tools/check_line_budget.py            # check, exit 1 on any violation
         python tools/check_line_budget.py --list     # also print the 10 closest-to-cap files (a watch list)

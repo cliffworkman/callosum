@@ -4,6 +4,9 @@
 .testmondata-journal
 __pycache__/
 *.py[cod]
+
+# --- uv-managed virtualenv (uv.lock IS committed; the venv it builds is not) ---
+.venv/
 *.sqlite
 *.db
 *.pdf

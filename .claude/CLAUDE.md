@@ -188,6 +188,8 @@ Run from the project root. The shell is **PowerShell** (Windows).
 
 | Command | Description |
 |---|---|
+| `uv sync` | Install the pinned dev/CI toolchain from `uv.lock` into `.venv` (backlog #20; `pyproject.toml` + `[dependency-groups] dev` is the source of truth — `requirements.txt`/`requirements-dev.txt` are a kept-in-sync pip fallback) |
+| `pre-commit install` | Wire the fast pre-commit gate (`.pre-commit-config.yaml`: ruff format/check, whitespace/EOF/large-file hygiene, the line-budget script) — install once per clone |
 | `$env:CALLOSUM_DB_URL = "sqlite:///C:/Users/cliff/Dropbox/Dropbox/01_Work/callosum/.local/validation-summarize/validation.sqlite"` | Point the app at a SQLite DB (default if unset: `sqlite:///.local/validation/validation.sqlite`) |
 | `uvicorn app.backend.api.app:app --host 127.0.0.1 --port 8080` | Start the FastAPI app; then open `http://127.0.0.1:8080/` |
 | `npm install` | Install the build-time frontend toolchain (pinned `esbuild`) — required once before `tools/build_frontend.py` / live assembly (inc 102) |
@@ -281,8 +283,9 @@ evidence-quote table group → new `persistence/schema_summaries.py` (107) on th
 (604→**507**) moved the paper-card cluster (`ClipboardIcon`/`CheckIcon`/`PaperCopyButton`/`PaperCard`) → new
 `js/10d_papercard.jsx` (100; the inc-208/222 shared-IIFE hoist).
 **The 600-cap is now machine-enforced (backlog #20 ratchet step 1) — the hand-maintained watch list is retired.**
-`tools/check_line_budget.py` fails on any over-cap `app/`/`integrations/` `.py`/`.jsx`, wired into a **git
-pre-commit hook** (`tools/git-hooks/pre-commit`; install once per clone: `git config core.hooksPath tools/git-hooks`)
+`tools/check_line_budget.py` fails on any over-cap `app/`/`integrations/` `.py`/`.jsx`, wired into the **pre-commit
+framework** (`.pre-commit-config.yaml`; install once per clone: `pre-commit install` — backlog #20 ratchet step 2
+replaced the earlier hand-rolled `tools/git-hooks/pre-commit` + `core.hooksPath` mechanism with this standard tool)
 **and CI**. Run **`python tools/check_line_budget.py --list`** for the live closest-to-cap files instead of trusting
 prose — the old watch list kept drifting stale (it missed axes.py at 609 and 10_pdf_layer.jsx at 604), which is
 exactly why the check is now automated.

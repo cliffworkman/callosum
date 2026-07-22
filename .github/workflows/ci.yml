@@ -10,50 +10,50 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9
         with:
+          enable-cache: true
           python-version: "3.11"
-          cache: pip
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: npm
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          uv sync --locked
           npm ci
       - name: Ruff lint
-        run: ruff check .
+        run: uv run ruff check .
       - name: Ruff format check
-        run: ruff format --check .
+        run: uv run ruff format --check .
       - name: Line budget (rule #1 — 600-line cap on app/ + integrations/)
-        run: python tools/check_line_budget.py
+        run: uv run python tools/check_line_budget.py
       - name: Pytest (offline suite; parallel via pytest-xdist; the browser e2e is opt-in and runs in the job below)
-        run: pytest -n auto -q
+        run: uv run pytest -n auto -q
       - name: QA surface-coverage check (report-only until the route suite is green; inc 120)
-        run: python tools/qa/build_surface_map.py check || true
+        run: uv run python tools/qa/build_surface_map.py check || true
 
   e2e-smoke:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: actions/setup-python@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9
         with:
+          enable-cache: true
           python-version: "3.11"
-          cache: pip
       - uses: actions/setup-node@v4
         with:
           node-version: "24"
           cache: npm
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          uv sync --locked
           npm ci
       - name: Install Chromium for Playwright
-        run: python -m playwright install --with-deps chromium
+        run: uv run playwright install --with-deps chromium
       - name: Browser smoke (loads the app, asserts zero console errors)
         env:
           CALLOSUM_RUN_E2E: "1"
-        run: pytest tests/e2e -q
+        run: uv run pytest tests/e2e -q

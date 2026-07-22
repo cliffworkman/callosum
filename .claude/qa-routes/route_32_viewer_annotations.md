@@ -76,4 +76,3 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 ## Deposit
 
 Write `.claude/qa-inbox/<RUN_ID>/route_32_viewer_annotations.md` + `screenshots/` (see `_TEMPLATE.md`).
-

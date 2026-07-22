@@ -27,7 +27,7 @@ LibreOffice — not the FastAPI app, not a server-side `integrations/` client).
 The field model + endpoint were settled; the hard part was UNO's document-mutation semantics. The headless
 self-test (driving a real LibreOffice) surfaced four bugs a static read would never catch:
 1. **`loadComponentFromURL` crashes the bridge** unless loaded with `Hidden=True` (and `--invisible` makes it
-   worse — dropped). 
+   worse — dropped).
 2. **Stale bookmark anchor** — clearing the old bibliography deletes its bookmark, so re-reading that anchor
    hangs; reuse the live cursor instead.
 3. **`setString` on a ReferenceMark anchor destroys the mark** (replacing a mark's whole range removes it) — so

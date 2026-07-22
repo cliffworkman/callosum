@@ -1,4 +1,6 @@
-# Dev + CI toolchain. Runtime deps live in requirements.txt (and pyproject [project.dependencies]).
+# Dev + CI toolchain — the pip-only fallback (backlog #20). `pyproject.toml` ([project.dependencies] +
+# [dependency-groups].dev) + the committed `uv.lock` are the source of truth; `uv sync` is the primary path.
+# This file is kept in sync by hand for contributors without uv. Runtime deps live in requirements.txt.
 # Install with:  pip install -r requirements-dev.txt
 # The browser e2e smoke also needs the Chromium binary:  python -m playwright install chromium
 -r requirements.txt
@@ -13,6 +15,7 @@ httpx2>=2,<3  # starlette 1.x (inc 305) prefers httpx2 under TestClient and warn
 # 0.15.x, which flagged import-ordering the dev version accepted → red CI). Bump deliberately, reformatting then.
 ruff==0.9.6
 pip-audit>=2.7
+pre-commit>=4  # `.pre-commit-config.yaml` — install the hook with `pre-commit install`
 playwright>=1.40
 pytest-playwright>=0.5
 mcp>=1.2  # mcp_server SP1 — to run tests/test_mcp_server.py (B1); a server-only runtime dep, dev-side here for CI

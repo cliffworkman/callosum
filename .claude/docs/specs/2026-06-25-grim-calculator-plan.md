@@ -254,7 +254,7 @@ def test_grim_endpoint(temp_db_url):
     assert client.post("/methods/grim", json={"mean": "3.45", "n": 0}).status_code == 422
 ```
 
-- [ ] **Step 2: Run** → 404 (route missing). 
+- [ ] **Step 2: Run** → 404 (route missing).
 
 - [ ] **Step 3: Implement** in `app/backend/api/routers/methods.py` — add `from app.backend.methods.grim import
   grim_test, grimmer_test` and:

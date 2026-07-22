@@ -91,4 +91,3 @@ Missing-literature suggestion:
 ## Styling Notes
 
 The mockup uses a restrained research-workbench visual style: serif titles, compact metadata, low-saturation panels, and confidence/status colors. Future CSS should preserve the dense, inspection-focused character while adapting it to the selected design system.
-

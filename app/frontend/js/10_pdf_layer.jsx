@@ -543,4 +543,3 @@ function PaperList({ state, query, onQuery, selected, onSelect, page, onPage, to
     </div>
   );
 }
-

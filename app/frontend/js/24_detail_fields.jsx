@@ -156,4 +156,3 @@ function IdentifierRow({ label, value, fieldKey, source, paper, onSave, onResolv
     </div>
   );
 }
-

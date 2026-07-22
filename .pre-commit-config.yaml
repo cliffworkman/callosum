@@ -1,0 +1,41 @@
+# Callosum pre-commit config (backlog #20 ratchet). Fast, deterministic checks that must pass before a
+# commit lands. Mirrors (and supersedes) the old hand-rolled tools/git-hooks/pre-commit script — CI remains
+# the actual authority (this is bypassable with `git commit --no-verify`; CI enforces the same checks either way).
+#
+# Install once per clone:
+#   uv sync                     # or: pip install -r requirements-dev.txt
+#   pre-commit install
+#
+# Run on demand (e.g. before pushing, or against the whole tree after adding a hook):
+#   pre-commit run --all-files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-yaml
+      - id: check-toml
+
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format --check
+        entry: ruff format --check
+        language: system
+        types: [python]
+      - id: ruff-check
+        name: ruff check
+        entry: ruff check
+        language: system
+        types: [python]
+      - id: line-budget
+        name: 600-line size budget (rule #1 — app/ + integrations/)
+        entry: python tools/check_line_budget.py
+        language: system
+        pass_filenames: false
+        types_or: [python, jsx]
