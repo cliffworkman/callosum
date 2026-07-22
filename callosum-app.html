@@ -1105,6 +1105,7 @@
   .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* Open Data detected — a checkable signal with evidence, never an openness score/verdict */
   .trash-toggle.lmm-chip, .trash-toggle.lmm-chip:hover { color: var(--flag); font-weight: 600; }   /* LMM reporting gap — a completeness signal, amber like statcheck (backlog #23) */
   .trash-toggle.meta-chip, .trash-toggle.meta-chip:hover { color: var(--flag); font-weight: 600; }   /* meta-analysis reporting gap — same completeness-signal semantics as the LMM chip (backlog #23) */
+  .trash-toggle.bayes-chip, .trash-toggle.bayes-chip:hover { color: var(--flag); font-weight: 600; }   /* Bayesian auditor flag (BF mismatch or reporting gap) — amber, same signal-not-fact semantics (backlog #23) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -3081,6 +3082,7 @@
     const [openDataDetected, setOpenDataDetected] = useState(0);
     const [lmmFlagged, setLmmFlagged] = useState(0);
     const [metaFlagged, setMetaFlagged] = useState(0);
+    const [bayesFlagged, setBayesFlagged] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -3357,6 +3359,20 @@
       setActiveTab("library");
       setPage(0);
     }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const showBayesFlagged = useCallback(() => {
+      setLibrarySignalFilter("bayes-flagged");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      setLibraryTextHealthFilter(null);
+      setLibraryReferenceFilter(null);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
     const showTextHealthFilter = useCallback((filter) => {
       const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
       if (!paperIds.length) return;
@@ -3411,6 +3427,11 @@
     const refreshMetaChip = useCallback(() => {
       api("/methods/meta-analysis/summary").then((r) => {
         if (r.ok) setMetaFlagged(r.data.incomplete || 0);
+      });
+    }, []);
+    const refreshBayesChip = useCallback(() => {
+      api("/methods/bayes/summary").then((r) => {
+        if (r.ok) setBayesFlagged(r.data.flagged || 0);
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -3695,6 +3716,9 @@
     useEffect(() => {
       refreshMetaChip();
     }, [refreshMetaChip]);
+    useEffect(() => {
+      refreshBayesChip();
+    }, [refreshBayesChip]);
     const libraryBits = {
       state: listState,
       query,
@@ -3759,6 +3783,8 @@
       onShowLmmFlagged: showLmmFlagged,
       metaFlagged,
       onShowMetaFlagged: showMetaFlagged,
+      bayesFlagged,
+      onShowBayesFlagged: showBayesFlagged,
       findingsToReview,
       onShowFindingsToReview: showFindingsToReview,
       findingsByPaper,
@@ -3793,11 +3819,13 @@
       showTransparencyReview,
       showLmmFlagged,
       showMetaFlagged,
+      showBayesFlagged,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
       refreshLmmChip,
       refreshMetaChip,
+      refreshBayesChip,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       showTextHealthFilter,
@@ -4804,7 +4832,7 @@
         page: r.page,
         caveat: "Recomputed under default-prior assumptions; mismatch is a prompt to inspect, not an error verdict."
       }
-    )))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Recomputed under each test's ", /* @__PURE__ */ React.createElement("b", null, "default prior"), " \u2014 the JZS prior (Cauchy scale r \u2248 ", d.prior_scale, ") for a t-test (under both a paired and a two-sample reading), or the default correlation prior (Ly et al. 2016) for an ", /* @__PURE__ */ React.createElement("code", null, "r(df)"), ". A Bayes factor \u201Creproduces\u201D if it matches within a factor of ~2. If the paper used a different prior or a design we can't read (e.g. ANOVA), a mismatch is expected \u2014 a prompt to look, not a verdict or an accusation. It reads only inline t-test / correlation BFs, so a clean result isn't a clean bill.")), d.completeness && d.completeness.is_bayesian && /* @__PURE__ */ React.createElement(BayesChecklist, { items: d.completeness.items, onOpen: open }), d.completeness && d.completeness.advisories && d.completeness.advisories.length > 0 && /* @__PURE__ */ React.createElement(BayesAdvisories, { notes: d.completeness.advisories, onOpen: open }))));
+    )))), /* @__PURE__ */ React.createElement("div", { className: "statcheck-caveat" }, "Recomputed under each test's ", /* @__PURE__ */ React.createElement("b", null, "default prior"), " \u2014 the JZS prior (Cauchy scale r \u2248 ", d.prior_scale, ") for a t-test (under both a paired and a two-sample reading), or the default correlation prior (Ly et al. 2016) for an ", /* @__PURE__ */ React.createElement("code", null, "r(df)"), ". A Bayes factor \u201Creproduces\u201D if it matches within a factor of ~2. If the paper used a different prior or a design we can't read (e.g. ANOVA), a mismatch is expected \u2014 a prompt to look, not a verdict or an accusation. It reads only inline t-test / correlation BFs, so a clean result isn't a clean bill.")), d.completeness && d.completeness.is_bayesian && /* @__PURE__ */ React.createElement(BayesChecklist, { items: d.completeness.items, onOpen: open }), d.completeness && d.completeness.advisories && d.completeness.advisories.length > 0 && /* @__PURE__ */ React.createElement(BayesAdvisories, { notes: d.completeness.advisories, onOpen: open }), /* @__PURE__ */ React.createElement(BayesCredit, null))));
   }
   function BayesAdvisories({ notes, onOpen }) {
     return /* @__PURE__ */ React.createElement("div", { className: "bayes-advisory" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Advisory \u2014 requires expert judgment"), notes.map((a, i) => /* @__PURE__ */ React.createElement("div", { key: i, className: "bayes-advisory-item" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("span", { className: "bayes-advisory-label" }, a.label, ":"), " ", a.note, "."), a.evidence && /* @__PURE__ */ React.createElement(
@@ -4871,8 +4899,34 @@
   function BayesCredit() {
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " the default JZS t-test Bayes factor \u2014 Rouder, Speckman, Sun, Morey & Iverson (2009), ", /* @__PURE__ */ React.createElement("i", null, "Psychonomic Bulletin & Review"), " 16(2):225\u2013237; and the default correlation Bayes factor \u2014 Ly, Verhagen & Wagenmakers (2016), ", /* @__PURE__ */ React.createElement("i", null, "Journal of Mathematical Psychology"), " 72:19\u201332.", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: BAYES_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "Re-implemented in Python (the closed forms JASP / the ", /* @__PURE__ */ React.createElement("i", null, "BayesFactor"), " R package [Morey & Rouder] use) \u2014 credited, not reused. Surfaced via D. Lakens' automated-review catalog."));
   }
+  function BayesLibrary({ onShowFlagged, onRan }) {
+    const [run, setRun] = useState({ status: "idle" });
+    const start = async () => {
+      setRun({ status: "running" });
+      const poll = (jobId) => api(`/methods/bayes/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRun({ status: "done", summary: d.summary });
+          if (onRan) onRan();
+        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Audit failed." });
+        else setTimeout(() => poll(jobId), 1500);
+      });
+      const r = await apiPost("/methods/bayes/run", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const s = run.summary;
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit Bayesian statistics across your whole library \u2014 local, no AI. Papers where a Bayes factor didn't reproduce, or the reporting checklist found a gap, appear below, filterable from the library header."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Auditing\u2026" : "Audit all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Auditing Bayesian statistics\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Audit failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.total, " paper", s.total === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.detected), " detectably Bayesian", s.flagged > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", "\xB7 ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, s.flagged, " flagged")), s.flagged === 0 && s.detected > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 0 flagged")));
+  }
   function BayesSection({ ctx, active }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute a paper's reported ", /* @__PURE__ */ React.createElement("b", null, "default Bayes factors"), " for inline t-test and correlation results \u2014 the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF\u2081\u2080 doesn't reproduce under the standard default prior; usually a different prior, not an error \u2014 a prompt to look, never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(BayesPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }), /* @__PURE__ */ React.createElement(BayesCredit, null));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Recompute a paper's reported ", /* @__PURE__ */ React.createElement("b", null, "default Bayes factors"), " for inline t-test and correlation results \u2014 the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF\u2081\u2080 doesn't reproduce under the standard default prior; usually a different prior, not an error \u2014 a prompt to look, never a verdict."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(BayesLibrary, { onShowFlagged: ctx.onShowBayesFlagged, onRan: ctx.onBayesRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(BayesPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
   registerPaneTab(
     { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
@@ -7530,6 +7584,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onShowLmmFlagged,
     metaFlagged,
     onShowMetaFlagged,
+    bayesFlagged,
+    onShowBayesFlagged,
     findingsToReview,
     onShowFindingsToReview,
     findingsByPaper,
@@ -7581,7 +7637,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const showTransparencyChip = !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
     const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
     const showMetaChip = !trashView && metaFlagged > 0 && librarySignalFilter !== "meta-incomplete";
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
+    const showBayesChip = !trashView && bayesFlagged > 0 && librarySignalFilter !== "bayes-flagged";
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip || showBayesChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -7626,6 +7683,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       "\u2211 Meta \xB7 ",
       metaFlagged
+    ), showBayesChip && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle bayes-chip",
+        onClick: onShowBayesFlagged,
+        title: "Papers detectably using Bayesian statistics where a reported Bayes factor didn't reproduce under the default prior, or the reporting checklist found a gap \u2014 a signal to inspect, never a verdict"
+      },
+      "B Bayes \xB7 ",
+      bayesFlagged
     )), showFindingsChip && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -14987,12 +15053,14 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       showTransparencyReview,
       showLmmFlagged,
       showMetaFlagged,
+      showBayesFlagged,
       showTextHealthFilter,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
       refreshLmmChip,
       refreshMetaChip,
+      refreshBayesChip,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       pcurvePapers,
@@ -15198,6 +15266,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       // backlog #23 F1
       onShowMetaFlagged: showMetaFlagged,
       onMetaRan: refreshMetaChip,
+      // backlog #23 F1
+      onShowBayesFlagged: showBayesFlagged,
+      onBayesRan: refreshBayesChip,
       // backlog #23 F1
       onFindingsChanged: () => setFindingsRefresh((n) => n + 1),
       onReferenceWarningsChanged: () => setReferenceWarningsRefresh((n) => n + 1),

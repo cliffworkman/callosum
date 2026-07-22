@@ -35,6 +35,10 @@ from dataclasses import dataclass, field
 
 from scipy.integrate import quad
 from scipy.special import betaln, hyp2f1
+from sqlalchemy import Connection
+
+from app.backend.persistence.findings_repo import upsert_findings
+from app.backend.persistence.signals_repo import store_bayes
 
 DEFAULT_R = math.sqrt(2) / 2  # ≈ 0.7071 — the JZS/Cauchy default prior scale (Rouder et al. 2009)
 DEFAULT_KAPPA = 1.0  # the default stretched-beta prior width for the correlation test (JASP/BayesFactor default)
@@ -504,3 +508,37 @@ def audit_completeness(chunks: list) -> BayesCompleteness:
     )
 
     return BayesCompleteness(is_bayesian=True, items=items, advisories=_advisory_notes(rows))
+
+
+def apply_bayes(conn: Connection, paper_id: int, report: BayesReport, completeness: BayesCompleteness) -> None:
+    """Persist a paper's Bayesian audit (backlog #23, F1/F4). Unlike `apply_lmm`/`apply_meta_analysis`, this
+    auditor emits TWO independent signals — `report.not_reproduced` (a BF-recompute mismatch, statcheck-like) and
+    `completeness.items` (a reporting-completeness checklist, LMM-like) — combined into one `store_bayes` status:
+    `flagged` when EITHER a BF fails to reproduce OR a checklist item is `not-found`/`coherence-flag`. Gated on
+    `completeness.is_bayesian` (not `report.checked`, which has no gate of its own): a paper with no detectable
+    Bayesian framing isn't worth persisting library-wide even if a bare `t(df)=…, BF=…` happened to match. One
+    shared function, callable from both the ad-hoc per-paper view and the library-wide batch."""
+    gap_keys = [i.key for i in completeness.items if i.status in ("not-found", "coherence-flag")]
+    flagged = report.not_reproduced > 0 or bool(gap_keys)
+    store_bayes(conn, paper_id, is_bayesian=completeness.is_bayesian, flagged=flagged)
+    if completeness.is_bayesian and flagged:
+        parts = []
+        if report.not_reproduced:
+            n = report.not_reproduced
+            parts.append(f"{n} Bayes factor{'s' if n != 1 else ''} didn't reproduce under the default prior")
+        if gap_keys:
+            parts.append(f"{len(gap_keys)} reporting item{'s' if len(gap_keys) != 1 else ''} not detected/coherent")
+        upsert_findings(
+            conn,
+            paper_id,
+            "bayes",
+            [
+                {
+                    "kind": "candidate",
+                    "tier": "primary",
+                    "payload": {"desc": " and ".join(parts) + " — review", "missing": gap_keys},
+                }
+            ],
+        )
+    else:
+        upsert_findings(conn, paper_id, "bayes", [])

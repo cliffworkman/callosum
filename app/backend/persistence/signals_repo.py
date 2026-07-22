@@ -267,3 +267,56 @@ def get_meta_summary(conn: Connection, paper_id: int) -> RowMapping | None:
         .mappings()
         .first()
     )
+
+
+BAYES_SIGNAL = "bayes"
+BAYES_SOURCE = "bayes"
+
+
+def store_bayes(conn: Connection, paper_id: int, *, is_bayesian: bool, flagged: bool) -> None:
+    """Upsert a paper's Bayesian-auditor status (backlog #23). Unlike `store_lmm`/`store_meta`, `flagged` here
+    combines TWO independent signals from `methods.bayes.apply_bayes` (a BF-reproduction mismatch OR a reporting-
+    completeness gap/coherence-flag) into one status — `'flagged'` when either fires, else `'clean'`. Not
+    detectably Bayesian → DELETE any prior row, same non-applicable-isn't-worth-persisting reasoning as LMM/meta."""
+    if not is_bayesian:
+        conn.execute(
+            delete(open_science_signals).where(
+                open_science_signals.c.paper_id == paper_id, open_science_signals.c.signal_type == BAYES_SIGNAL
+            )
+        )
+        return
+    conn.execute(
+        insert(open_science_signals)
+        .prefix_with("OR REPLACE")
+        .values(
+            paper_id=paper_id,
+            signal_type=BAYES_SIGNAL,
+            source=BAYES_SOURCE,
+            status="flagged" if flagged else "clean",
+        )
+    )
+
+
+def count_bayes_flagged(conn: Connection) -> int:
+    """How many papers the Bayesian auditor flagged (a BF mismatch or a reporting gap) — drives the library chip."""
+    total = conn.execute(
+        select(func.count())
+        .select_from(open_science_signals)
+        .where(open_science_signals.c.signal_type == BAYES_SIGNAL, open_science_signals.c.status == "flagged")
+    ).scalar()
+    return int(total or 0)
+
+
+def get_bayes_summary(conn: Connection, paper_id: int) -> RowMapping | None:
+    """The stored Bayesian-auditor status row for a paper, or None if never persisted."""
+    return (
+        conn.execute(
+            select(open_science_signals).where(
+                open_science_signals.c.paper_id == paper_id,
+                open_science_signals.c.signal_type == BAYES_SIGNAL,
+                open_science_signals.c.source == BAYES_SOURCE,
+            )
+        )
+        .mappings()
+        .first()
+    )

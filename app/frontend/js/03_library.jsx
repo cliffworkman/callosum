@@ -35,6 +35,7 @@ function useLibrary(opts) {
   const [openDataDetected, setOpenDataDetected] = useState(0);  // # papers where open-data disclosure was detected → signal chip
   const [lmmFlagged, setLmmFlagged] = useState(0);  // backlog #23 (F1): # papers with an incomplete LMM reporting checklist → header chip
   const [metaFlagged, setMetaFlagged] = useState(0);  // backlog #23 (F1): # papers with an incomplete meta-analysis reporting checklist → header chip
+  const [bayesFlagged, setBayesFlagged] = useState(0);  // backlog #23 (F1): # papers the Bayesian auditor flagged (BF mismatch or reporting gap) → header chip
   const [librarySort, setLibrarySort] = useState(() => {  // inc-69; persisted inc-94
     try { return localStorage.getItem("callosum.librarySort") || "added"; } catch (e) { return "added"; }
   });
@@ -209,6 +210,11 @@ function useLibrary(opts) {
     setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
     setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
   }, [cancelFocus, setSettingsOpen, setActiveTab]);
+  const showBayesFlagged = useCallback(() => {
+    setLibrarySignalFilter("bayes-flagged");
+    setTrashView(false); setLibraryAxisFilter(null); setLibraryTagFilter(null); setLibraryNeedsReview(false); setLibraryTextHealthFilter(null); setLibraryReferenceFilter(null); cancelFocus();
+    setSelectedLibraryIds(new Set()); setSettingsOpen(false); setActiveTab("library"); setPage(0);
+  }, [cancelFocus, setSettingsOpen, setActiveTab]);
   const showTextHealthFilter = useCallback((filter) => {
     const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
     if (!paperIds.length) return;
@@ -237,6 +243,9 @@ function useLibrary(opts) {
   }, []);
   const refreshMetaChip = useCallback(() => {
     api("/methods/meta-analysis/summary").then(r => { if (r.ok) setMetaFlagged(r.data.incomplete || 0); });
+  }, []);
+  const refreshBayesChip = useCallback(() => {
+    api("/methods/bayes/summary").then(r => { if (r.ok) setBayesFlagged(r.data.flagged || 0); });
   }, []);
 
   // --- findings overview → the "N to review" badge + FactMark; re-fetched after a review ---
@@ -493,6 +502,7 @@ function useLibrary(opts) {
   useEffect(() => { refreshTransparencyChip(); }, [refreshTransparencyChip]);
   useEffect(() => { refreshLmmChip(); }, [refreshLmmChip]);
   useEffect(() => { refreshMetaChip(); }, [refreshMetaChip]);
+  useEffect(() => { refreshBayesChip(); }, [refreshBayesChip]);
 
   // The LibraryFrame prop bundle (minus the focus + selected props App still owns + spreads in).
   const libraryBits = {
@@ -518,6 +528,7 @@ function useLibrary(opts) {
     openDataDetected, onShowTransparencyReview: showTransparencyReview,
     lmmFlagged, onShowLmmFlagged: showLmmFlagged,
     metaFlagged, onShowMetaFlagged: showMetaFlagged,
+    bayesFlagged, onShowBayesFlagged: showBayesFlagged,
     findingsToReview, onShowFindingsToReview: showFindingsToReview,
     findingsByPaper, referenceWarningsByPaper,
     onToggleTrash: toggleTrash, onRestore: restorePaper,
@@ -531,8 +542,8 @@ function useLibrary(opts) {
     libraryBits, setLibRefresh,
     pendingSummarize, summarizePaperIds,
     filterToTag, filterToAxis, clearViewFilters, showNeedsReview,
-    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged,
-    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
+    showStatcheckFlagged, showRetractionFlagged, showTransparencyReview, showLmmFlagged, showMetaFlagged, showBayesFlagged,
+    refreshStatcheckChip, refreshRetractionChip, refreshTransparencyChip, refreshLmmChip, refreshMetaChip, refreshBayesChip, setFindingsRefresh, setReferenceWarningsRefresh, showTextHealthFilter,
     pcurvePapers, setPcurvePapers, mergeIds, setMergeIds, onMerged,
     critSetIds, setCritSetIds,
   };

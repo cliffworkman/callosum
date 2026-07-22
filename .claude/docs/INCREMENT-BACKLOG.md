@@ -106,12 +106,6 @@
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
 
-- **#23 cross-method auditor deferrals** (LMM/meta-analysis/statcheck/Bayesian siblings, from the inc-247/249
-  experience passes): **(F1)** an on-paper "report card" chip (mirrors statcheck's inc-141 chip→section path) so
-  a citer reaches any auto-detected-method panel without knowing it exists; **(F4)** let each audit persist as a
-  **candidate** in the findings/review store so the judgment survives closing the pane; **(F2)** suppress the
-  methods-credit footer on a panel's explicit "not applicable to this paper" state (small, uniform across the
-  four siblings). A bigger, design-gated consolidation, not urgent.
 - **#26 CRediT builder UX follow-ups** (from the inc-261 experience pass, persona Dr. Maya Chen): **(a)** *role
   presets* per author (First-author/PI/Collaborator one-click bundles) — highest-value, but wants a principles
   beat first (must read as an editable convenience the human asserts, never Callosum inferring who did what);

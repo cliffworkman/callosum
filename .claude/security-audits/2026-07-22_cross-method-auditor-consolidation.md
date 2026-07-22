@@ -7,8 +7,7 @@ endpoints these additions introduce (each auditor's own read-only text-scanning 
 `2026-07-02_lmm-auditor.md`, `2026-07-02_metaanalysis-auditor.md`, `2026-07-01_bayes-auditor.md` — and is
 unchanged here). Triggers the gate: new API endpoints (3 per checker) + a new persistence write path.
 
-**Landed incrementally: LMM (inc 336) done; meta-analysis (inc 337) done; Bayesian to follow in this same
-document.**
+**Landed incrementally: LMM (inc 336), meta-analysis (inc 337), Bayesian (inc 338) — all three done. #23 closed.**
 
 ## Threat review
 
@@ -57,9 +56,28 @@ Identical checks re-run against `apply_meta_analysis`/`store_meta`/`POST /method
 additive, correctly un-gates when a paper stops detecting as a meta-analysis. No new threat surface — the
 pattern is byte-for-byte the same code shape as LMM, just against `methods/metaanalysis.py`'s own report.
 
+## Negative-path checks (run — Bayesian)
+
+Same shape again, plus one Bayes-specific case: the combination rule (`flagged = not_reproduced>0 OR any
+completeness item is not-found/coherence-flag`) is verified in isolation with directly-constructed
+`BayesReport`/`BayesCompleteness` objects (`test_apply_bayes_flags_on_bf_mismatch_alone`,
+`test_apply_bayes_flags_on_completeness_gap_alone`, `test_apply_bayes_clean_stores_signal_no_candidate`,
+`test_apply_bayes_not_bayesian_stores_nothing`, `test_apply_bayes_reapply_is_idempotent`) — decoupling the
+persistence/combination logic from the text-detection logic (already covered by the existing `run_bayes`/
+`audit_completeness` tests), so each of the three flagging paths (mismatch-only, gap-only, neither) is tested
+independently rather than relying on a single real-text sample to exercise all three at once. Plus the same
+ad-hoc-persists + batch+chip+filter end-to-end tests as LMM/meta-analysis.
+
+One additional structural change this checker needed: `GET /papers/{id}/bayes` (previously inline in
+`methods.py`, which was approaching the 600-line cap) was extracted to its own `methods_bayes.py` router,
+mirroring the inc-262 `methods_retraction.py` precedent — a pure file-organization move, verified by the full
+existing `test_bayes.py` suite passing unchanged (the endpoint's URL/behavior is identical) plus a direct
+`create_app` import smoke-check.
+
 ## Result
 
-**Security Audit: PASS (LMM, meta-analysis)** — reuses already-audited persistence primitives and the
-already-audited statcheck/retraction batch-job shape; the one genuinely new pattern (a GET with a persistence
-side effect) is idempotent, additive, and scoped to two already-hardened tables. Re-run the negative-path
-checks (not a fresh threat-model pass — the pattern is unchanged) when Bayesian lands in this same document.
+**Security Audit: PASS (LMM, meta-analysis, Bayesian) — backlog #23 closed.** All three checkers reuse
+already-audited persistence primitives and the already-audited statcheck/retraction batch-job shape; the one
+genuinely new pattern (a GET with a persistence side effect) is idempotent, additive, and scoped to two
+already-hardened tables across all three. The Bayesian checker's two-signal combination is tested in isolation
+to avoid a false sense of coverage from only ever exercising both signals at once.

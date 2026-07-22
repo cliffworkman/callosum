@@ -9,10 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-22 inc 337 — reviewed the entries below back to the prior (inc 336) marker.
-Added the same "Whole library" paragraph to "Auditing meta-analysis reporting" + noted the credit block now
-only shows once a paper is confirmed a meta-analysis (backlog #23, 2/3). Nothing above this line has an
-un-synced corpus change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 338 — reviewed the entries below back to the prior (inc 337) marker.
+Added the same "Whole library" paragraph to "Checking Bayes factors" + noted the credit block now only shows
+once a paper is confirmed applicable (backlog #23, 3/3 — closed). Nothing above this line has an un-synced
+corpus change. -->
+## 2026-07-22 — Backlog #23 (3/3, CLOSED): Bayesian auditor — F1 chip + F4 persistence + F2 footer fix
+
+- **Files:** `app/backend/persistence/signals_repo.py`, `app/backend/methods/bayes.py`,
+  `app/backend/api/routers/methods.py`, `app/backend/api/routers/methods_bayes.py` (new),
+  `app/backend/persistence/paper_query_repo.py`, `app/backend/api/app.py`, `app/frontend/js/03_library.jsx`,
+  `app/frontend/js/40_app.jsx`, `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/08d_methods_bayes.jsx`,
+  `app/frontend/styles.css`, `tests/test_bayes.py`,
+  `.claude/security-audits/2026-07-22_cross-method-auditor-consolidation.md`,
+  `.claude/qa-routes/route_59_methods_bayes.md`, `app/backend/help/help_content.md`.
+- **What:** the Bayesian auditor gets the same F1/F4/F2 build as LMM/meta-analysis, combining its two
+  independent signals (a BF-reproduction mismatch + a reporting-completeness gap) into one `flagged` status.
+  `GET /papers/{id}/bayes` moved out of `methods.py` into its own `methods_bayes.py` router (the file was out
+  of headroom for the new batch endpoints). **Backlog #23 is now fully closed** — full suite: 1380 passed,
+  1 skipped.
+- **Why:** third and last of three checkers in backlog #23's full-scope build (Cliff's choice).
+- **Revert:** `git revert` this commit.
+
 ## 2026-07-22 — Backlog #23 (2/3): meta-analysis auditor — F1 chip + F4 persistence + F2 footer fix
 
 - **Files:** `app/backend/persistence/signals_repo.py`, `app/backend/methods/metaanalysis.py`,

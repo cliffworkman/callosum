@@ -7,9 +7,22 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.methods.bayes import _normalize_bf10, audit_completeness, corr_bf10, jzs_bf10, run_bayes
+from app.backend.methods.bayes import (
+    BayesCompleteness,
+    BayesReport,
+    BayesResult,
+    CompletenessItem,
+    _normalize_bf10,
+    apply_bayes,
+    audit_completeness,
+    corr_bf10,
+    jzs_bf10,
+    run_bayes,
+)
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import create_attachment, create_chunk, create_paper
+from app.backend.persistence.signals_repo import count_bayes_flagged, get_bayes_summary
 
 
 def _chunk(text, page=1):
@@ -261,3 +274,175 @@ def test_advisory_none_for_non_bayesian():
     # advisories run only on a Bayesian paper — a non-Bayesian paper mentioning a confidence interval is untouched
     comp = audit_completeness([_chunk("An OLS regression; we report the 95% confidence interval.")])
     assert comp.is_bayesian is False and comp.advisories == []
+
+
+# --- backlog #23: apply_bayes combines two independent signals (F4 persistence) + the F1 batch/chip ---
+
+
+def _clean_item(key):
+    return CompletenessItem(key, key, "present", "evidence", 1, None)
+
+
+def _gap_item(key):
+    return CompletenessItem(key, key, "not-found", None, None, None)
+
+
+def test_apply_bayes_flags_on_bf_mismatch_alone(temp_db_url):
+    report = BayesReport(
+        checked=1,
+        not_reproduced=1,
+        results=[BayesResult("t(19)=2.5, BF=500", 500.0, 1.2, 0.9, None, "not-reproduced", None, 1)],
+    )
+    completeness = BayesCompleteness(
+        is_bayesian=True,
+        items=[_clean_item("prior"), _clean_item("convergence"), _clean_item("sensitivity")],
+        advisories=[],
+    )
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_bayes(conn, pid, report, completeness)
+        summary = get_bayes_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+    engine.dispose()
+    assert summary["status"] == "flagged"
+    assert len(findings["candidates"]) == 1
+    assert "didn't reproduce" in findings["candidates"][0]["payload"]["desc"]
+
+
+def test_apply_bayes_flags_on_completeness_gap_alone(temp_db_url):
+    report = BayesReport(
+        checked=1,
+        not_reproduced=0,
+        results=[BayesResult("t(19)=2.5, BF=3", 3.0, 3.1, None, None, "reproduced", "paired", 1)],
+    )
+    completeness = BayesCompleteness(
+        is_bayesian=True,
+        items=[_gap_item("prior"), _clean_item("convergence"), _clean_item("sensitivity")],
+        advisories=[],
+    )
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_bayes(conn, pid, report, completeness)
+        summary = get_bayes_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+    engine.dispose()
+    assert summary["status"] == "flagged"
+    assert len(findings["candidates"]) == 1
+    assert "not detected" in findings["candidates"][0]["payload"]["desc"]
+
+
+def test_apply_bayes_clean_stores_signal_no_candidate(temp_db_url):
+    report = BayesReport(
+        checked=1,
+        not_reproduced=0,
+        results=[BayesResult("t(19)=2.5, BF=3", 3.0, 3.1, None, None, "reproduced", "paired", 1)],
+    )
+    completeness = BayesCompleteness(
+        is_bayesian=True,
+        items=[_clean_item("prior"), _clean_item("convergence"), _clean_item("sensitivity")],
+        advisories=[],
+    )
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_bayes(conn, pid, report, completeness)
+        summary = get_bayes_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+    engine.dispose()
+    assert summary["status"] == "clean"
+    assert findings["candidates"] == []
+
+
+def test_apply_bayes_not_bayesian_stores_nothing(temp_db_url):
+    report = BayesReport(checked=0, not_reproduced=0, results=[])
+    completeness = BayesCompleteness(is_bayesian=False, items=[], advisories=[])
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_bayes(conn, pid, report, completeness)
+        summary = get_bayes_summary(conn, pid)
+    engine.dispose()
+    assert summary is None
+
+
+def test_apply_bayes_reapply_is_idempotent(temp_db_url):
+    report = BayesReport(checked=1, not_reproduced=1, results=[])
+    completeness = BayesCompleteness(is_bayesian=True, items=[_gap_item("prior")], advisories=[])
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_bayes(conn, pid, report, completeness)
+        apply_bayes(conn, pid, report, completeness)
+        findings = get_paper_findings(conn, pid)
+        flagged = count_bayes_flagged(conn)
+    engine.dispose()
+    assert len(findings["candidates"]) == 1
+    assert flagged == 1
+
+
+def _seed_chunk_text(conn, paper_id, text):
+    aid = create_attachment(
+        conn,
+        paper_id=paper_id,
+        storage_mode="linked",
+        availability="available",
+        content_type="application/pdf",
+        checksum=f"bayes-test-{paper_id}",
+    )
+    create_chunk(
+        conn,
+        paper_id=paper_id,
+        attachment_id=aid,
+        text=text,
+        page_start=1,
+        page_end=1,
+        bbox_coordinate_system="pdf-points-top-left",
+        extraction_tool="fixture",
+        extraction_version="1",
+        chunking_strategy="paragraph",
+        chunk_version=f"cv-{paper_id}",
+        source_attachment_checksum=f"bayes-test-{paper_id}",
+    )
+
+
+def test_endpoint_persists_signal_on_ad_hoc_view(temp_db_url):
+    # F4: simply viewing a paper's Bayes panel (the ad-hoc GET) persists — no batch run required first.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        _seed_chunk_text(conn, pid, "t(19) = 2.53, BF10 = 500.")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    with make_engine(temp_db_url).connect() as conn:
+        assert get_bayes_summary(conn, pid) is None  # never viewed yet
+
+    r = client.get(f"/papers/{pid}/bayes")
+    assert r.status_code == 200 and r.json()["completeness"]["is_bayesian"] is True
+
+    with make_engine(temp_db_url).connect() as conn:
+        assert get_bayes_summary(conn, pid)["status"] == "flagged"
+    assert client.get(f"/papers/{pid}/findings").json()["candidates"]
+
+
+def test_batch_run_summary_and_library_filter(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="A", csl_json={"title": "A"})
+        _seed_chunk_text(conn, a, "t(19) = 2.53, BF10 = 500.")
+        b = create_paper(conn, title="B", csl_json={"title": "B"})
+        _seed_chunk_text(conn, b, "An OLS regression; we report the 95% confidence interval.")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    run = client.post("/methods/bayes/run")
+    assert run.status_code == 202
+    done = client.get(f"/methods/bayes/run/{run.json()['job_id']}").json()
+    assert done["status"] == "done"
+    assert done["summary"]["total"] == 2 and done["summary"]["detected"] == 1 and done["summary"]["flagged"] == 1
+
+    assert client.get("/methods/bayes/summary").json()["flagged"] == 1
+    ids = [p["id"] for p in client.get("/papers?signal=bayes-flagged").json()]
+    assert a in ids and b not in ids

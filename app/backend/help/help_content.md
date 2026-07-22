@@ -826,6 +826,9 @@ Read the checklist as a prompt, not a report card:
 - **“Not found” means we didn't detect it in the extracted text**, not that it's missing — tables aren't read, so check the paper. It is never an accusation.
 - **Convergence diagnostics show “n/a”** when the paper uses a closed-form Bayes factor (there are no MCMC chains to diagnose) — that's not a gap.
 - The **⚠ check** flag appears only when a *reported* value breaches a convention (e.g. an R-hat above 1.1, or an effective sample size below 400); those thresholds are widely-used **conventions**, cited as such, not laws.
+- The credit block (only shown once a paper is confirmed applicable) credits Rouder et al. (2009) and Ly et al. (2016).
+
+**Whole library.** Above the per-paper view, click **Audit all papers** to batch-check your whole library at once; a red **B Bayes · N** chip appears in the library header for papers where a Bayes factor didn't reproduce OR the reporting checklist found a gap — click it to filter the library to just those papers. (Viewing a single paper's panel already keeps that paper's own count current — the batch just catches up every paper you haven't opened yet.)
 
 <!-- section: auditing-mixed-model-reporting -->
 ## Auditing mixed-model reporting

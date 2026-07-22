@@ -49,6 +49,7 @@ from app.backend.api.routers import (
     lmm,
     metaanalysis,
     methods,
+    methods_bayes,
     methods_retraction,
     my_publications,
     ocr,
@@ -164,6 +165,7 @@ def create_app(
     api.state.retraction_jobs = JobStore()  # inc 131: library-wide retraction batch
     api.state.lmm_jobs = JobStore()  # backlog #23 F1: library-wide LMM reporting-completeness batch
     api.state.meta_jobs = JobStore()  # backlog #23 F1: library-wide meta-analysis reporting-completeness batch
+    api.state.bayes_jobs = JobStore()  # backlog #23 F1: library-wide Bayesian auditor batch
     api.state.retraction_checkers = DEFAULT_RETRACTION_CHECKERS  # inc 131: per-source checkers (overridable in tests)
     api.state.transparency_jobs = JobStore()  # inc 251: library-wide transparency-signals batch (#44)
     api.state.retraction_db_jobs = JobStore()  # inc 132: Retraction Watch DB download
@@ -281,6 +283,9 @@ def create_app(
     api.include_router(
         methods_retraction.router
     )  # /methods/retraction/* — retraction findings, split from methods.py (inc 261)
+    api.include_router(
+        methods_bayes.router
+    )  # /papers/{id}/bayes + /methods/bayes/* — Bayesian auditor, split from methods.py (backlog #23, inc 338)
     api.include_router(citation_equity.router)  # /methods/citation-equity/* — structural reference-list audit (inc 227)
     api.include_router(publishers.router)  # /methods/publishers/* — "where to submit" journal-finder (#40)
     api.include_router(reference_integrity.router)  # /papers/{id}/reference-integrity — Meta Reference List

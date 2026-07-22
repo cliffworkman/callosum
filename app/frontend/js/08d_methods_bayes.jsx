@@ -114,6 +114,7 @@ function BayesPaper({ paperId, onOpenPaper, active }) {
             {d.completeness && d.completeness.is_bayesian && <BayesChecklist items={d.completeness.items} onOpen={open} />}
             {d.completeness && d.completeness.advisories && d.completeness.advisories.length > 0 &&
               <BayesAdvisories notes={d.completeness.advisories} onOpen={open} />}
+            <BayesCredit />
           </div>)}
     </div>
   );
@@ -201,13 +202,53 @@ function BayesCredit() {
   );
 }
 
+// backlog #23 (F1): whole-library batch — mirrors LmmLibrary/MetaLibrary/TransparencyLibrary. Persists a
+// per-paper #23 signal via the shared apply_bayes (methods/bayes.py), so the header chip + GET /papers?signal=
+// bayes-flagged stay current even for papers nobody has opened this panel for yet.
+function BayesLibrary({ onShowFlagged, onRan }) {
+  const [run, setRun] = useState({ status: "idle" });
+  const start = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/bayes/run/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setRun({ status: "done", summary: d.summary }); if (onRan) onRan(); }
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Audit failed." });
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    const r = await apiPost("/methods/bayes/run", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const s = run.summary;
+  return (
+    <div className="statcheck-lib">
+      <div className="settings-sub">Audit Bayesian statistics across your whole library — local, no AI. Papers where a Bayes factor didn't reproduce, or the reporting checklist found a gap, appear below, filterable from the library header.</div>
+      <div className="settings-actions">
+        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+          {run.status === "running" ? "Auditing…" : "Audit all papers"}
+        </button>
+      </div>
+      {run.status === "running" && <ProgressBar label="Auditing Bayesian statistics…" />}
+      {run.status === "error" && <div className="settings-note settings-note-err">Audit failed: {run.error}</div>}
+      {run.status === "done" && s &&
+        <div className="settings-note">
+          {s.total} paper{s.total === 1 ? "" : "s"} checked · <b>{s.detected}</b> detectably Bayesian
+          {s.flagged > 0 && onShowFlagged && <React.Fragment>{" "}· <button className="btn-link" onClick={onShowFlagged}>{s.flagged} flagged</button></React.Fragment>}
+          {s.flagged === 0 && s.detected > 0 && <React.Fragment> · 0 flagged</React.Fragment>}
+        </div>}
+    </div>
+  );
+}
+
 function BayesSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Recompute a paper's reported <b>default Bayes factors</b> for inline t-test and correlation results — the Bayesian analogue of statcheck. Local, no AI. It flags where a reported BF₁₀ doesn't reproduce under the standard default prior; usually a different prior, not an error — a prompt to look, never a verdict.</div>
+      <p className="eyebrow">Whole library</p>
+      <BayesLibrary onShowFlagged={ctx.onShowBayesFlagged} onRan={ctx.onBayesRan} />
       <p className="eyebrow">This paper</p>
       <BayesPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
-      <BayesCredit />
     </div>
   );
 }

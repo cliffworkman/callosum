@@ -184,6 +184,18 @@ new work goes in the open backlog.
   The sidebar Tags browser now groups by exact source with a header per group (new `js/10e_tagspanel.jsx`,
   extracted from `10_pdf_layer.jsx` when grouping pushed it over the 600-line cap). The per-**link** per-paper-fact
   half stays with #19, unchanged.
+- [x] **#23 cross-method auditor consolidation** (incs 336-338, F1/F2/F4, all three checkers) — LMM, meta-analysis,
+  and Bayesian each gained: a library-wide batch + header chip counting flagged papers, filterable via
+  `GET /papers?signal=...` (F1, the full statcheck-style build Cliff chose over the cheaper per-paper badge);
+  a review-queue candidate persisted as a side effect of the existing ad-hoc per-paper view, no batch run
+  required first (F4, Cliff's chosen "persist on ad-hoc view" design); and the credit-block footer no longer
+  renders before the paper is confirmed applicable (F2 — a genuine bug for LMM/meta/Bayesian; confirmed NOT
+  applicable to statcheck, which has no `is_x`-style gate, so left untouched there). The Bayesian checker
+  combines two independent signals (a BF-reproduction mismatch + a reporting-completeness checklist) into one
+  `flagged` status — the one real design decision beyond mechanically repeating the LMM pattern; its
+  `GET /papers/{id}/bayes` endpoint was also extracted from `methods.py` into its own `methods_bayes.py` router
+  (mirroring the inc-262 `methods_retraction.py` precedent) to stay under the 600-line cap. Security audit:
+  `.claude/security-audits/2026-07-22_cross-method-auditor-consolidation.md` (PASS, all three).
 - [x] **#19 Tags ↔ findings / system-facts (retraction-surfacing)** (inc 335) — the naming-only path #9 sketched:
   `apply_retraction()` (`app/backend/methods/retraction.py`, the one call site both the batch job and the
   on-import hook use) now links/unlinks a real tag (`RETRACTION_TAG_NAME = "system:retraction:retracted"`,

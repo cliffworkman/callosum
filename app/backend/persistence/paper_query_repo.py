@@ -69,6 +69,9 @@ SIGNAL_FILTERS = {
     # verdict on the modelling itself.
     "lmm-incomplete": ("lmm", None, "incomplete"),
     "meta-incomplete": ("meta", None, "incomplete"),
+    # backlog #23 (F1): a detectably-Bayesian paper with ≥1 BF-reproduction mismatch or reporting-completeness
+    # gap — combines two independent signals from the one auditor (methods/bayes.py::apply_bayes).
+    "bayes-flagged": ("bayes", None, "flagged"),
 }
 
 # Findings review-queue filters (inc 133). `finding` value -> the paper_findings.review_state to match. A *work

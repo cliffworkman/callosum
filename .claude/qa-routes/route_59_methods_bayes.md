@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /papers/{paper_id}/bayes
+api: /papers/{paper_id}/bayes, /methods/bayes/run, /methods/bayes/run/{job_id}, /methods/bayes/summary
 fe: 08d_methods_bayes.jsx
 -->
 
@@ -36,6 +36,13 @@ genai-host request regardless). Register listeners before navigation.
   (else no checklist). "not found" is worded **"not detected in the extracted text — check the paper"**, NEVER
   "missing" / an accusation (Critical if it reads as a verdict). Convergence is **n/a** when no MCMC is reported (a
   closed-form BF has no chains — not "missing"). Thresholds (R-hat < 1.1, ESS > 400) are cited as **conventions**.
+- **Credit suppression (backlog #23 F2, Critical if violated).** The **Methods:** credit block must render ONLY
+  when the paper is applicable (`checked > 0` OR the completeness checklist is applicable) — never for a paper
+  that appears to report no Bayesian analysis at all, and never before the auditor has run.
+- **Library-wide chip combines two signals honestly (backlog #23 F1).** The header **B Bayes · N** chip counts
+  papers where EITHER a Bayes factor didn't reproduce OR the reporting checklist found a gap/coherence-flag —
+  a completeness/reproduction signal, never a verdict on the paper's Bayesian analysis. Clicking it filters the
+  library (`GET /papers?signal=bayes-flagged`) alongside the existing statcheck/retraction/LMM/meta chips.
 
 ## Adversarial checklist
 
@@ -76,6 +83,16 @@ genai-host request regardless). Register listeners before navigation.
 7. Confirm the **credit** block (Rouder, Speckman, Sun, Morey & Iverson 2009) + a working **＋ add to library**.
 8. Adversarial: a metadata-only paper -> "Process a PDF first"; a non-Bayesian paper -> "doesn't appear to report a
    Bayesian analysis"; 999999 -> 404-class.
+9. **Whole-library batch (backlog #23 F1).** Above "This paper", confirm a **"Whole library"** section with an
+   **Audit all papers** button. Click it -> a progress bar, then a summary ("N papers checked · M detectably
+   Bayesian · K flagged"). If K > 0, click the **"K flagged"** link -> the library filters to those papers and
+   the header **B Bayes · K** chip now shows the same count.
+10. **Credit suppression (F2).** Select a non-Bayesian paper -> confirm NO "Methods:" credit block renders.
+   Select a Bayesian paper (with or without an inline BF) -> confirm the credit block renders only once the
+   result/checklist itself has rendered.
+11. **Persist-on-view (F4).** After viewing a flagged Bayesian paper's panel, open **Synthesize -> Critique** for
+   the same paper and confirm a "bayes" candidate finding is listed — persisted from the ad-hoc view alone, no
+   batch run required.
 
 ## Pass criteria
 
@@ -84,6 +101,9 @@ genai-host request regardless). Register listeners before navigation.
 - 0 console/page errors; **0 genai-host requests** (local).
 - No per-paper/per-author judgment, no score/rank; a mismatch is "couldn't reproduce under the default prior".
 - No-chunks / no-BF / unknown-id fail closed honestly; mobile viewport has no horizontal overflow.
+- The whole-library batch completes, the chip count matches the batch summary's `flagged`, and the chip's filter
+  click shows the same papers; the credit block never renders before the paper is confirmed applicable; an
+  ad-hoc per-paper view alone (no batch) is enough to seed a Critique candidate.
 
 ## Deposit
 

@@ -25,9 +25,7 @@ from sqlalchemy.exc import NoResultFound
 
 from app.backend.api.dependencies import get_connection
 from app.backend.api.job_store import JobStore
-from app.backend.methods.bayes import DEFAULT_R, audit_completeness, run_bayes
 from app.backend.methods.effectsize import convert as convert_effect_size
-from app.backend.methods.evidence_anchors import anchor_evidence
 from app.backend.methods.grim import grim_test, grimmer_test
 from app.backend.methods.pcurve import PcurveResult, run_pcurve
 from app.backend.methods.statcheck import run_statcheck
@@ -125,119 +123,6 @@ def _statcheck_result_payload(conn: Connection, result) -> dict[str, Any]:
         "coordinate_precision": precision,
         "bbox_json": bbox_json,
     }
-
-
-# ── Bayesian auditor (inc 241): recompute reported default (JZS) Bayes factors for inline t-test BFs (sync,
-# read-only, local, no egress, no LLM). A signal, not a verdict — see `methods/bayes.py`. ──
-
-
-class BayesResult(BaseModel):
-    raw: str
-    reported_bf10: float
-    computed_paired: float | None = None
-    computed_two_sample: float | None = None
-    computed_correlation: float | None = None
-    consistency: str  # reproduced | not-reproduced
-    matched_design: str | None = None
-    page: int | None = None
-    page_end: int | None = None
-    coordinate_precision: str | None = None
-    bbox_json: Any | None = None
-
-
-class BayesCompletenessItem(BaseModel):
-    key: str  # prior | convergence | sensitivity
-    label: str
-    status: str  # present | not-found | not-applicable | coherence-flag
-    evidence: str | None = None
-    page: int | None = None
-    page_end: int | None = None
-    coordinate_precision: str | None = None
-    bbox_json: Any | None = None
-    note: str | None = None
-
-
-class BayesAdvisoryNote(BaseModel):
-    key: str  # credible-confidence | bf-direction
-    label: str
-    note: str
-    evidence: str | None = None
-    page: int | None = None
-    page_end: int | None = None
-    coordinate_precision: str | None = None
-    bbox_json: Any | None = None
-
-
-class BayesCompletenessOut(BaseModel):
-    is_bayesian: bool  # the checklist runs only on a paper that detectably does Bayesian analysis
-    items: list[BayesCompletenessItem]
-    advisories: list[BayesAdvisoryNote] = []  # SP4: Tier-3 advisory prompts (requires expert judgment)
-
-
-class BayesResponse(BaseModel):
-    checked: int
-    not_reproduced: int
-    prior_scale: float  # the assumed default JZS prior scale (r ≈ 0.707), shown for inspectability
-    results: list[BayesResult]
-    completeness: BayesCompletenessOut  # SP2: the Tier-2 BARG/WAMBS/JASP reporting checklist
-
-
-@router.get("/papers/{paper_id}/bayes", response_model=BayesResponse)
-def paper_bayes(paper_id: int, conn: Connection = Depends(get_connection)) -> BayesResponse:
-    # Deterministic, local recompute of default JZS Bayes factors + a Tier-2 completeness checklist over the paper's
-    # extracted text. No chunks → checked: 0, an honest "no extractable text" — never an error.
-    try:
-        get_paper(conn, paper_id)
-    except NoResultFound:
-        raise HTTPException(status_code=404, detail="Paper not found") from None
-    chunks = get_chunks_for_paper(conn, paper_id)
-    report = run_bayes(chunks)
-    completeness = audit_completeness(chunks)
-    return BayesResponse(
-        checked=report.checked,
-        not_reproduced=report.not_reproduced,
-        prior_scale=round(DEFAULT_R, 4),
-        results=[
-            BayesResult(
-                raw=r.raw,
-                reported_bf10=r.reported_bf10,
-                computed_paired=r.computed_paired,
-                computed_two_sample=r.computed_two_sample,
-                computed_correlation=r.computed_correlation,
-                consistency=r.consistency,
-                matched_design=r.matched_design,
-                page=r.page,
-                **anchor_evidence(conn, chunks, r.raw, r.page),
-            )
-            for r in report.results
-        ],
-        completeness=BayesCompletenessOut(
-            is_bayesian=completeness.is_bayesian,
-            items=[
-                BayesCompletenessItem(
-                    key=i.key,
-                    label=i.label,
-                    status=i.status,
-                    evidence=i.evidence,
-                    page=i.page,
-                    note=i.note,
-                    **anchor_evidence(conn, chunks, i.evidence, i.page),
-                )
-                for i in completeness.items
-            ],
-            advisories=[
-                BayesAdvisoryNote(
-                    key=a.key,
-                    label=a.label,
-                    note=a.note,
-                    evidence=a.evidence,
-                    page=a.page,
-                    **anchor_evidence(conn, chunks, a.evidence, a.page),
-                )
-                for a in completeness.advisories
-            ],
-        ),
-    )
 
 
 # ── GRIM + GRIMMER (inc 127): an assisted, per-value data-consistency calculator (sync, stateless, no DB/egress).
