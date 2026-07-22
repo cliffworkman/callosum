@@ -17,6 +17,18 @@ stale. Added one sentence to "Checking statistics (statcheck)" for the new test-
 (backlog #27). Everything else since inc 318 was either non-help-corpus-relevant (CI/test infra, the GitHub
 README, a Settings placeholder string) or already covered. Nothing above this line has an un-synced corpus
 change. -->
+## 2026-07-22 — Relocate the working library DB out of the Dropbox-synced folder
+- **Files:** `run-callosum.ps1`; the persisted `CALLOSUM_DB_URL` User environment variable (not repo state).
+- **What:** the machine's real, 209-paper working library (`.local/validation-summarize/validation.sqlite`,
+  378MB) lived inside the Dropbox-synced project tree — exactly the setup the README warns against (a real
+  `database is locked` risk). Confirmed a live uvicorn (port 8888) had it open; Cliff stopped it, then the WAL
+  was checkpointed into the main file, copied to `C:\Users\cliff\callosum-data\library.sqlite` (integrity
+  checked, paper counts confirmed identical), and `CALLOSUM_DB_URL` repointed there. Verified end-to-end with a
+  live smoke-test server on a scratch port before touching the persisted launcher script. The old copy is left
+  in place, untouched, as a backup.
+- **Why:** flagged in the pre-presentation readiness review as a real risk; Cliff's own call on the target path.
+- **Revert:** the old file at its original path is untouched; re-point `CALLOSUM_DB_URL` back if ever needed.
+
 ## 2026-07-22 — Help docs: rewrite "Citing in LibreOffice Writer" (closes the flagged staleness)
 - **Files:** `app/backend/help/help_content.md`.
 - **What:** the served help corpus's LibreOffice section predated the entire Phase 0-10 + 5a/5b/5c rework — it
