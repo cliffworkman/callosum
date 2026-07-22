@@ -38,7 +38,7 @@ keyring = ["keyring>=24"]
 dev = [
     # pip-audit flags PYSEC-2026-1845 on 8.4.2 (fixed 9.0.3) — ACCEPTED, dev-tool-only; see the matching
     # comment in requirements-dev.txt and .claude/security-audits/2026-06-20_pre-github-fullsweep.md (addendum).
-    "pytest>=7.4,<9",
+    "pytest>=9.1.1,<10",
     "pytest-xdist>=3", # parallel test runner (`pytest -n auto`) — cuts full-suite wall-clock ~3-4x (inc 300)
     "pytest-testmon>=2", # change-based selection (`pytest --testmon`) (inc 300)
     "httpx2>=2,<3", # starlette 1.x (inc 305) prefers httpx2 under TestClient; dev/test-only

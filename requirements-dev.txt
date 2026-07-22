@@ -9,7 +9,7 @@
 # runs against untrusted input). Deferred rather than bumped blind: pytest 9 is a major version bump across a
 # 1396-test suite + pytest-xdist/testmon/playwright plugins, and deserves its own compatibility pass, not a
 # drive-by pin change here. Tracked in .claude/security-audits/2026-06-20_pre-github-fullsweep.md (addendum).
-pytest>=7.4,<9
+pytest>=9.1.1,<10
 pytest-xdist>=3  # parallel test runner (`pytest -n auto`) — cuts the full-suite wall-clock ~3-4x (inc 300)
 pytest-testmon>=2  # change-based selection (`pytest --testmon`) — runs only tests whose covered code changed (inc 300)
 httpx>=0.27,<1
