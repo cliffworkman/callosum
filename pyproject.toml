@@ -44,7 +44,7 @@ dev = [
     "httpx2>=2,<3", # starlette 1.x (inc 305) prefers httpx2 under TestClient; dev/test-only
     # Pin ruff EXACTLY: its 0.x minor releases change lint/format behavior (an unpinned range once let CI grab
     # a newer minor that flagged import-ordering the dev version accepted → red CI). Bump deliberately.
-    "ruff==0.9.6",
+    "ruff==0.15.22",
     "pip-audit>=2.7",
     "pre-commit>=4",
     "playwright>=1.40",
