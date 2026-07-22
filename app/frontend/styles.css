@@ -1080,6 +1080,7 @@
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
   .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* Open Data detected — a checkable signal with evidence, never an openness score/verdict */
   .trash-toggle.lmm-chip, .trash-toggle.lmm-chip:hover { color: var(--flag); font-weight: 600; }   /* LMM reporting gap — a completeness signal, amber like statcheck (backlog #23) */
+  .trash-toggle.meta-chip, .trash-toggle.meta-chip:hover { color: var(--flag); font-weight: 600; }   /* meta-analysis reporting gap — same completeness-signal semantics as the LMM chip (backlog #23) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }

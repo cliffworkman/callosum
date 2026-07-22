@@ -214,3 +214,56 @@ def get_lmm_summary(conn: Connection, paper_id: int) -> RowMapping | None:
         .mappings()
         .first()
     )
+
+
+META_SIGNAL = "meta"
+META_SOURCE = "meta"
+
+
+def store_meta(conn: Connection, paper_id: int, *, is_meta_analysis: bool, incomplete_keys: list[str]) -> None:
+    """Upsert a paper's meta-analysis-reporting-completeness status (backlog #23). Mirrors `store_lmm` exactly:
+    `status='incomplete'` when ≥1 check is `not-found`, else `'complete'`; not a meta-analysis → DELETE any prior
+    row rather than persist a not-applicable fact for the vast majority of a general library."""
+    if not is_meta_analysis:
+        conn.execute(
+            delete(open_science_signals).where(
+                open_science_signals.c.paper_id == paper_id, open_science_signals.c.signal_type == META_SIGNAL
+            )
+        )
+        return
+    conn.execute(
+        insert(open_science_signals)
+        .prefix_with("OR REPLACE")
+        .values(
+            paper_id=paper_id,
+            signal_type=META_SIGNAL,
+            source=META_SOURCE,
+            status="incomplete" if incomplete_keys else "complete",
+            evidence_snippet=json.dumps({"missing": list(incomplete_keys)}) if incomplete_keys else None,
+        )
+    )
+
+
+def count_meta_flagged(conn: Connection) -> int:
+    """How many papers have an incomplete meta-analysis-reporting checklist — drives the library chip."""
+    total = conn.execute(
+        select(func.count())
+        .select_from(open_science_signals)
+        .where(open_science_signals.c.signal_type == META_SIGNAL, open_science_signals.c.status == "incomplete")
+    ).scalar()
+    return int(total or 0)
+
+
+def get_meta_summary(conn: Connection, paper_id: int) -> RowMapping | None:
+    """The stored meta-analysis status row for a paper, or None if never persisted."""
+    return (
+        conn.execute(
+            select(open_science_signals).where(
+                open_science_signals.c.paper_id == paper_id,
+                open_science_signals.c.signal_type == META_SIGNAL,
+                open_science_signals.c.source == META_SOURCE,
+            )
+        )
+        .mappings()
+        .first()
+    )

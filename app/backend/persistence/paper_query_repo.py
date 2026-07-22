@@ -68,6 +68,7 @@ SIGNAL_FILTERS = {
     # backlog #23 (F1): a detected mixed-model paper missing ≥1 reporting item — a completeness gap, never a
     # verdict on the modelling itself.
     "lmm-incomplete": ("lmm", None, "incomplete"),
+    "meta-incomplete": ("meta", None, "incomplete"),
 }
 
 # Findings review-queue filters (inc 133). `finding` value -> the paper_findings.review_state to match. A *work

@@ -9,10 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED 2026-07-22 inc 336 — reviewed the entries below back to the prior (inc 335) marker.
-Added a "Whole library" paragraph to "Auditing mixed-model reporting" for the new batch button + chip, and
-noted the credit block now only shows once a paper is confirmed mixed-model (backlog #23, LMM only so far).
-Nothing above this line has an un-synced corpus change. -->
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 337 — reviewed the entries below back to the prior (inc 336) marker.
+Added the same "Whole library" paragraph to "Auditing meta-analysis reporting" + noted the credit block now
+only shows once a paper is confirmed a meta-analysis (backlog #23, 2/3). Nothing above this line has an
+un-synced corpus change. -->
+## 2026-07-22 — Backlog #23 (2/3): meta-analysis auditor — F1 chip + F4 persistence + F2 footer fix
+
+- **Files:** `app/backend/persistence/signals_repo.py`, `app/backend/methods/metaanalysis.py`,
+  `app/backend/api/routers/metaanalysis.py`, `app/backend/persistence/paper_query_repo.py`,
+  `app/backend/api/app.py`, `app/frontend/js/03_library.jsx`, `app/frontend/js/40_app.jsx`,
+  `app/frontend/js/10_pdf_layer.jsx`, `app/frontend/js/08g_methods_metaanalysis.jsx`, `app/frontend/styles.css`,
+  `tests/test_metaanalysis.py`, `.claude/security-audits/2026-07-22_cross-method-auditor-consolidation.md`,
+  `.claude/qa-routes/route_62_methods_metaanalysis.md`, `app/backend/help/help_content.md`.
+- **What:** same F1/F2/F4 build as LMM (inc 336), now for the meta-analysis reporting auditor — mechanical
+  repetition of a proven pattern, no new design decisions.
+- **Why:** second of three checkers in backlog #23's full-scope build.
+- **Revert:** `git revert` this commit.
+
 ## 2026-07-22 — Backlog #23 (1/3): LMM auditor — F1 chip + F4 persistence + F2 footer fix
 
 - **Files:** `app/backend/persistence/signals_repo.py`, `app/backend/methods/lmm.py`,

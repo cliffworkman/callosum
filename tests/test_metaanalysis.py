@@ -14,9 +14,11 @@ from dataclasses import dataclass
 from fastapi.testclient import TestClient
 
 from app.backend.api import create_app
-from app.backend.methods.metaanalysis import audit_meta_analysis
+from app.backend.methods.metaanalysis import apply_meta_analysis, audit_meta_analysis
 from app.backend.persistence.database import make_engine
+from app.backend.persistence.findings_repo import get_paper_findings
 from app.backend.persistence.repository import create_paper
+from app.backend.persistence.signals_repo import count_meta_flagged, get_meta_summary
 
 
 @dataclass
@@ -138,3 +140,131 @@ def test_endpoint_no_chunks_is_honest_empty(temp_db_url):
     assert r.status_code == 200
     body = r.json()
     assert body["is_meta_analysis"] is False and body["checks"] == []
+
+
+# --- backlog #23: apply_meta_analysis (F4 persistence) + the F1 batch/chip ---
+
+_INCOMPLETE_TEXT = "We performed a random-effects meta-analysis of Hedges' g across the literature."
+
+
+def test_apply_meta_incomplete_stores_signal_and_candidate(temp_db_url):
+    rep = _audit(_INCOMPLETE_TEXT)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_meta_analysis(conn, pid, rep)
+        summary = get_meta_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+        flagged = count_meta_flagged(conn)
+    engine.dispose()
+    assert summary["status"] == "incomplete"
+    assert len(findings["candidates"]) == 1
+    assert flagged == 1
+
+
+def test_apply_meta_complete_stores_signal_no_candidate(temp_db_url):
+    rep = _audit(_META_TEXT)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_meta_analysis(conn, pid, rep)
+        summary = get_meta_summary(conn, pid)
+        findings = get_paper_findings(conn, pid)
+    engine.dispose()
+    assert summary["status"] == "complete"
+    assert findings["candidates"] == []
+
+
+def test_apply_meta_not_meta_analysis_stores_nothing(temp_db_url):
+    rep = audit_meta_analysis([_Chunk("We ran a randomized controlled trial of a new therapy in 40 patients.")])
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_meta_analysis(conn, pid, rep)
+        summary = get_meta_summary(conn, pid)
+    engine.dispose()
+    assert summary is None
+
+
+def test_apply_meta_reapply_is_idempotent(temp_db_url):
+    rep = _audit(_INCOMPLETE_TEXT)
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        apply_meta_analysis(conn, pid, rep)
+        apply_meta_analysis(conn, pid, rep)
+        findings = get_paper_findings(conn, pid)
+        flagged = count_meta_flagged(conn)
+    engine.dispose()
+    assert len(findings["candidates"]) == 1
+    assert flagged == 1
+
+
+def test_endpoint_persists_signal_on_ad_hoc_view(temp_db_url):
+    # F4: simply viewing a paper's meta-analysis panel (the ad-hoc GET) persists — no batch run required first.
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        pid = create_paper(conn, title="P", csl_json={"title": "P"})
+        _seed_chunks(conn, pid, _INCOMPLETE_TEXT)
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    with make_engine(temp_db_url).connect() as conn:
+        assert get_meta_summary(conn, pid) is None  # never viewed yet
+
+    r = client.get(f"/papers/{pid}/meta-analysis")
+    assert r.status_code == 200 and r.json()["is_meta_analysis"] is True
+
+    with make_engine(temp_db_url).connect() as conn:
+        assert get_meta_summary(conn, pid)["status"] == "incomplete"
+    assert client.get(f"/papers/{pid}/findings").json()["candidates"]
+
+
+def test_batch_run_summary_and_library_filter(temp_db_url):
+    engine = make_engine(temp_db_url)
+    with engine.begin() as conn:
+        a = create_paper(conn, title="A", csl_json={"title": "A"})
+        _seed_chunks(conn, a, _INCOMPLETE_TEXT)
+        b = create_paper(conn, title="B", csl_json={"title": "B"})
+        _seed_chunks(conn, b, "We ran a randomized controlled trial of a new therapy in 40 patients.")
+    engine.dispose()
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    run = client.post("/methods/meta-analysis/run")
+    assert run.status_code == 202
+    done = client.get(f"/methods/meta-analysis/run/{run.json()['job_id']}").json()
+    assert done["status"] == "done"
+    assert done["summary"]["total"] == 2 and done["summary"]["detected"] == 1 and done["summary"]["incomplete"] == 1
+
+    assert client.get("/methods/meta-analysis/summary").json()["incomplete"] == 1
+    ids = [p["id"] for p in client.get("/papers?signal=meta-incomplete").json()]
+    assert a in ids and b not in ids
+
+
+def _seed_chunks(conn, paper_id, *texts):
+    from app.backend.persistence.repository import create_attachment, create_chunk
+
+    checksum = f"meta-test-{paper_id}"
+    aid = create_attachment(
+        conn,
+        paper_id=paper_id,
+        storage_mode="linked",
+        availability="available",
+        content_type="application/pdf",
+        checksum=checksum,
+    )
+    for text in texts:
+        create_chunk(
+            conn,
+            paper_id=paper_id,
+            attachment_id=aid,
+            text=text,
+            page_start=1,
+            page_end=1,
+            bbox_coordinate_system="pdf-points-top-left",
+            extraction_tool="fixture",
+            extraction_version="1",
+            chunking_strategy="paragraph",
+            chunk_version=f"cv-{checksum}",
+            source_attachment_checksum=checksum,
+        )

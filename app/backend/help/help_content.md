@@ -871,7 +871,9 @@ Read it as a prompt, not a report card:
 - **“Not found” means we didn't detect it in the extracted text** — tables/figures aren't fully read, so check the paper. It is never “missing” and never an accusation.
 - The publication-bias note points out that for fewer than ~10 studies a funnel-based check is underpowered, so absence there may be appropriate; the search & selection check is **n/a** for a within-study meta-analysis.
 - There is **no score, no rank, and no verdict** — each fired flag carries a grounded, cited recommendation, and a present check opens its evidence in the PDF.
-- The section credits each check's source and offers a one-click **add missing to library**.
+- The section credits each check's source (only once a paper is confirmed to report a meta-analysis) and offers a one-click **add missing to library**.
+
+**Whole library.** Above the per-paper checklist, click **Audit all papers** to batch-check your whole library at once; a red **∑ Meta · N** chip appears in the library header for papers with an incomplete checklist — click it to filter the library to just those papers. (Viewing a single paper's checklist already keeps that paper's own count current — the batch just catches up every paper you haven't opened yet.)
 
 <!-- section: auditing-transparency-signals -->
 ## Auditing transparency signals

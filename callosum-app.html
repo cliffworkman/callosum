@@ -1104,6 +1104,7 @@
   .trash-toggle.findings-chip, .trash-toggle.findings-chip:hover { color: var(--accent); font-weight: 600; }   /* "N to review" — a work-state queue, indigo (inc 133) */
   .trash-toggle.transparency-chip, .trash-toggle.transparency-chip:hover { color: var(--accent); font-weight: 600; }   /* Open Data detected — a checkable signal with evidence, never an openness score/verdict */
   .trash-toggle.lmm-chip, .trash-toggle.lmm-chip:hover { color: var(--flag); font-weight: 600; }   /* LMM reporting gap — a completeness signal, amber like statcheck (backlog #23) */
+  .trash-toggle.meta-chip, .trash-toggle.meta-chip:hover { color: var(--flag); font-weight: 600; }   /* meta-analysis reporting gap — same completeness-signal semantics as the LMM chip (backlog #23) */
   .trash-toggle.add, .trash-toggle.add:hover { color: var(--verified); font-weight: 600; }   /* "+ Add ▾" — add = green affordance (inc 114) */
   /* "+ Add ▾" header menu (inc 94) — folds Scan folder + Import into one dropdown to declutter the lib-head. */
   .add-menu { position: relative; display: inline-flex; }
@@ -3079,6 +3080,7 @@
     const [retractionFlagged, setRetractionFlagged] = useState(0);
     const [openDataDetected, setOpenDataDetected] = useState(0);
     const [lmmFlagged, setLmmFlagged] = useState(0);
+    const [metaFlagged, setMetaFlagged] = useState(0);
     const [librarySort, setLibrarySort] = useState(() => {
       try {
         return localStorage.getItem("callosum.librarySort") || "added";
@@ -3341,6 +3343,20 @@
       setActiveTab("library");
       setPage(0);
     }, [cancelFocus, setSettingsOpen, setActiveTab]);
+    const showMetaFlagged = useCallback(() => {
+      setLibrarySignalFilter("meta-incomplete");
+      setTrashView(false);
+      setLibraryAxisFilter(null);
+      setLibraryTagFilter(null);
+      setLibraryNeedsReview(false);
+      setLibraryTextHealthFilter(null);
+      setLibraryReferenceFilter(null);
+      cancelFocus();
+      setSelectedLibraryIds(/* @__PURE__ */ new Set());
+      setSettingsOpen(false);
+      setActiveTab("library");
+      setPage(0);
+    }, [cancelFocus, setSettingsOpen, setActiveTab]);
     const showTextHealthFilter = useCallback((filter) => {
       const paperIds = [...new Set((filter.paperIds || []).map(Number).filter(Boolean))];
       if (!paperIds.length) return;
@@ -3390,6 +3406,11 @@
     const refreshLmmChip = useCallback(() => {
       api("/methods/lmm/summary").then((r) => {
         if (r.ok) setLmmFlagged(r.data.incomplete || 0);
+      });
+    }, []);
+    const refreshMetaChip = useCallback(() => {
+      api("/methods/meta-analysis/summary").then((r) => {
+        if (r.ok) setMetaFlagged(r.data.incomplete || 0);
       });
     }, []);
     const [findingsByPaper, setFindingsByPaper] = useState({});
@@ -3671,6 +3692,9 @@
     useEffect(() => {
       refreshLmmChip();
     }, [refreshLmmChip]);
+    useEffect(() => {
+      refreshMetaChip();
+    }, [refreshMetaChip]);
     const libraryBits = {
       state: listState,
       query,
@@ -3733,6 +3757,8 @@
       onShowTransparencyReview: showTransparencyReview,
       lmmFlagged,
       onShowLmmFlagged: showLmmFlagged,
+      metaFlagged,
+      onShowMetaFlagged: showMetaFlagged,
       findingsToReview,
       onShowFindingsToReview: showFindingsToReview,
       findingsByPaper,
@@ -3766,10 +3792,12 @@
       showRetractionFlagged,
       showTransparencyReview,
       showLmmFlagged,
+      showMetaFlagged,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
       refreshLmmChip,
+      refreshMetaChip,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       showTextHealthFilter,
@@ -5440,7 +5468,33 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (paperId == null) return /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "Select a paper to audit its meta-analysis reporting.");
     const hasText = meta ? meta.hasText : false;
     const d = state.data;
-    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Audit this paper's meta-analysis reporting \u2014 local, no AI", onClick: run }, "Audit reporting") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "auditing\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't audit: ", state.error), state.status === "done" && d && (!d.is_meta_analysis ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper doesn't appear to report a meta-analysis \u2014 nothing to audit.") : /* @__PURE__ */ React.createElement(MetaChecklist, { checks: d.checks, onOpen: open })));
+    return /* @__PURE__ */ React.createElement("div", { className: "detail-statcheck" }, /* @__PURE__ */ React.createElement("span", { className: "detail-cite-label" }, meta ? meta.title : "This paper"), !meta ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "loading\u2026") : !hasText ? /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "Process a PDF first \u2014 the auditor reads the paper's extracted text.") : state.status === "idle" ? /* @__PURE__ */ React.createElement("button", { className: "btn-link", title: "Audit this paper's meta-analysis reporting \u2014 local, no AI", onClick: run }, "Audit reporting") : null, state.status === "running" && /* @__PURE__ */ React.createElement("span", { className: "tag-suggest-empty" }, "auditing\u2026"), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, "Couldn't audit: ", state.error), state.status === "done" && d && (!d.is_meta_analysis ? /* @__PURE__ */ React.createElement("div", { className: "tag-suggest-empty" }, "This paper doesn't appear to report a meta-analysis \u2014 nothing to audit.") : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(MetaChecklist, { checks: d.checks, onOpen: open }), /* @__PURE__ */ React.createElement(MetaCredit, null))));
+  }
+  function MetaLibrary({ onShowFlagged, onRan }) {
+    const [run, setRun] = useState({ status: "idle" });
+    const start = async () => {
+      setRun({ status: "running" });
+      const poll = (jobId) => api(`/methods/meta-analysis/run/${jobId}`).then((r2) => {
+        if (!r2.ok) {
+          setRun({ status: "error", error: r2.error });
+          return;
+        }
+        const d = r2.data;
+        if (d.status === "done") {
+          setRun({ status: "done", summary: d.summary });
+          if (onRan) onRan();
+        } else if (d.status === "error") setRun({ status: "error", error: d.detail || "Audit failed." });
+        else setTimeout(() => poll(jobId), 1500);
+      });
+      const r = await apiPost("/methods/meta-analysis/run", {});
+      if (!r.ok) {
+        setRun({ status: "error", error: r.error });
+        return;
+      }
+      poll(r.data.job_id);
+    };
+    const s = run.summary;
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-lib" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit meta-analysis reporting completeness across your whole library \u2014 local, no AI. Papers with an incomplete checklist appear below, filterable from the library header."), /* @__PURE__ */ React.createElement("div", { className: "settings-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: run.status === "running", onClick: start }, run.status === "running" ? "Auditing\u2026" : "Audit all papers")), run.status === "running" && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Auditing meta-analysis reporting\u2026" }), run.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Audit failed: ", run.error), run.status === "done" && s && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, s.total, " paper", s.total === 1 ? "" : "s", " checked \xB7 ", /* @__PURE__ */ React.createElement("b", null, s.detected), " detectably a meta-analysis", s.incomplete > 0 && onShowFlagged && /* @__PURE__ */ React.createElement(React.Fragment, null, " ", "\xB7 ", /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: onShowFlagged }, s.incomplete, " incomplete")), s.incomplete === 0 && s.detected > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 0 incomplete")));
   }
   function MetaChecklist({ checks, onOpen }) {
     if (!checks || !checks.length) return null;
@@ -5475,7 +5529,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "method-credit" }, /* @__PURE__ */ React.createElement("b", null, "Methods:"), " effect sizes & general \u2014 Borenstein et al. (2009), Viechtbauer (2010, ", /* @__PURE__ */ React.createElement("i", null, "metafor"), "); model \u2014 DerSimonian & Laird (1986), IntHout et al. (2014); heterogeneity \u2014 Higgins et al. (2003); publication bias \u2014 Egger et al. (1997), Duval & Tweedie (2000), Sterne et al. (2011); influence \u2014 Viechtbauer & Cheung (2010); reporting \u2014 PRISMA 2020 (Page et al. 2021).", " ", /* @__PURE__ */ React.createElement(MethodCreditButton, { items: META_CSL }), /* @__PURE__ */ React.createElement("div", { className: "method-credit-sub" }, "A reading aid \u2014 it never pools, models, or re-computes a meta-analysis. Surfaced via D. Lakens' automated-review catalog."));
   }
   function MetaSection({ ctx, active }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a published ", /* @__PURE__ */ React.createElement("b", null, "meta-analysis's reporting"), " \u2014 does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search & selection? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict, and it never pools or re-computes."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(MetaPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }), /* @__PURE__ */ React.createElement(MetaCredit, null));
+    return /* @__PURE__ */ React.createElement("div", { className: "statcheck-section" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Audit a published ", /* @__PURE__ */ React.createElement("b", null, "meta-analysis's reporting"), " \u2014 does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search & selection? Local, no AI. It flags what's not reported, with a grounded recommendation \u2014 never a verdict, and it never pools or re-computes."), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Whole library"), /* @__PURE__ */ React.createElement(MetaLibrary, { onShowFlagged: ctx.onShowMetaFlagged, onRan: ctx.onMetaRan }), /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "This paper"), /* @__PURE__ */ React.createElement(MetaPaper, { paperId: ctx.selectedPaper, onOpenPaper: ctx.onOpenPaper, active }));
   }
   registerPaneTab(
     { id: "checklists", label: "Checklists", paneId: "methods", order: 40 },
@@ -7474,6 +7528,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     onShowTransparencyReview,
     lmmFlagged,
     onShowLmmFlagged,
+    metaFlagged,
+    onShowMetaFlagged,
     findingsToReview,
     onShowFindingsToReview,
     findingsByPaper,
@@ -7524,7 +7580,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const showFindingsChip = !trashView && findingsToReview > 0 && librarySignalFilter !== "needs-review";
     const showTransparencyChip = !trashView && openDataDetected > 0 && librarySignalFilter !== "transparency-data-detected";
     const showLmmChip = !trashView && lmmFlagged > 0 && librarySignalFilter !== "lmm-incomplete";
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
+    const showMetaChip = !trashView && metaFlagged > 0 && librarySignalFilter !== "meta-incomplete";
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, trashView ? "Trash" : "Library"), !readOnly && /* @__PURE__ */ React.createElement("span", { className: "lib-head-actions" }, !trashView && /* @__PURE__ */ React.createElement(AddMenu, { onScan: onOpenScan, onImport: onOpenImport, onImportBundle: onOpenImportBundle, onExportBundle }), !trashView && /* @__PURE__ */ React.createElement(SavedSearchMenu, { searches: savedSearches, onApply: onApplySavedSearch, onSave: onSaveSearch, onDelete: onDeleteSavedSearch }), (showStatcheckChip || showRetractionChip || showTransparencyChip || showLmmChip || showMetaChip) && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-signals", title: "Check signals \u2014 a check detected something concrete on these papers" }, showStatcheckChip && /* @__PURE__ */ React.createElement(
       "button",
       {
         className: "trash-toggle statcheck-chip",
@@ -7560,6 +7617,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       "\u{1F517} LMM \xB7 ",
       lmmFlagged
+    ), showMetaChip && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "trash-toggle meta-chip",
+        onClick: onShowMetaFlagged,
+        title: "Papers detectably a meta-analysis where the reporting checklist found \u22651 item not detected in the text \u2014 a completeness gap to inspect, never a verdict on the pooling"
+      },
+      "\u2211 Meta \xB7 ",
+      metaFlagged
     )), showFindingsChip && /* @__PURE__ */ React.createElement("span", { className: "lib-chip-group lib-chip-queue", title: "Your review queue \u2014 things for you to go look at; clears as you review" }, showFindingsChip && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -14920,11 +14986,13 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       showRetractionFlagged,
       showTransparencyReview,
       showLmmFlagged,
+      showMetaFlagged,
       showTextHealthFilter,
       refreshStatcheckChip,
       refreshRetractionChip,
       refreshTransparencyChip,
       refreshLmmChip,
+      refreshMetaChip,
       setFindingsRefresh,
       setReferenceWarningsRefresh,
       pcurvePapers,
@@ -15127,6 +15195,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       // inc 251
       onShowLmmFlagged: showLmmFlagged,
       onLmmRan: refreshLmmChip,
+      // backlog #23 F1
+      onShowMetaFlagged: showMetaFlagged,
+      onMetaRan: refreshMetaChip,
       // backlog #23 F1
       onFindingsChanged: () => setFindingsRefresh((n) => n + 1),
       onReferenceWarningsChanged: () => setReferenceWarningsRefresh((n) => n + 1),

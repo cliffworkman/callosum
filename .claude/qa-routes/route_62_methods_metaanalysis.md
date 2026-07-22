@@ -1,5 +1,5 @@
 <!-- qa-coverage
-api: /papers/{paper_id}/meta-analysis
+api: /papers/{paper_id}/meta-analysis, /methods/meta-analysis/run, /methods/meta-analysis/run/{job_id}, /methods/meta-analysis/summary
 fe: 08g_methods_metaanalysis.jsx
 -->
 
@@ -37,6 +37,12 @@ genai-host request regardless). Register listeners before navigation.
   fabricated exact highlight.
 - **Credit-the-lineage.** Each check names its source in-context (`basis`); the panel offers the methods sources to
   the library via a working **＋ add methods sources to library**.
+- **Credit suppression (backlog #23 F2, Critical if violated).** The **Methods:** credit block must render ONLY
+  after a paper is confirmed `is_meta_analysis:true` — never while loading, never for a non-meta paper.
+- **Library-wide chip is additive, not a new verdict (backlog #23 F1).** The header **∑ Meta · N** chip counts
+  papers with an *incomplete* reporting checklist — a completeness gap, never a judgment on the pooling itself.
+  Clicking it filters the library (`GET /papers?signal=meta-incomplete`) exactly like the existing statcheck/
+  retraction/LMM chips; it must NOT replace or hide those.
 
 ## Adversarial checklist
 
@@ -71,6 +77,15 @@ genai-host request regardless). Register listeners before navigation.
    Viechtbauer & Cheung/PRISMA 2020/Borenstein) + a working **＋ add methods sources to library**.
 8. Adversarial: a metadata-only paper -> "Process a PDF first"; a non-meta paper -> "doesn't appear to report a
    meta-analysis"; 999999 -> 404-class.
+9. **Whole-library batch (backlog #23 F1).** Above "This paper", confirm a **"Whole library"** section with an
+   **Audit all papers** button. Click it -> a progress bar, then a summary ("N papers checked · M detectably a
+   meta-analysis · K incomplete"). If K > 0, click the **"K incomplete"** link -> the library filters to those
+   papers and the header **∑ Meta · K** chip now shows the same count.
+10. **Credit suppression (F2).** Select a non-meta paper -> confirm NO "Methods:" credit block renders. Select a
+   meta-analysis paper -> confirm the credit block renders only once the checklist itself has rendered.
+11. **Persist-on-view (F4).** After viewing an incomplete meta-analysis paper's panel, open **Synthesize ->
+   Critique** for the same paper and confirm a "meta-analysis reporting" candidate finding is listed — persisted
+   from the ad-hoc view alone, no batch run required.
 
 ## Pass criteria
 
@@ -80,6 +95,9 @@ genai-host request regardless). Register listeners before navigation.
 - No verdict/score/rank/accusation; no re-analysis shown; search & selection is precondition-scoped (n/a for a
   mini-meta); "not found" ≠ "missing".
 - No-chunks / non-meta / unknown-id fail closed honestly; mobile viewport has no horizontal overflow.
+- The whole-library batch completes, the chip count matches the batch summary's `incomplete`, and the chip's
+  filter click shows the same papers; the credit block never renders before `is_meta_analysis` is confirmed
+  true; an ad-hoc per-paper view alone (no batch) is enough to seed a Critique candidate.
 
 ## Deposit
 

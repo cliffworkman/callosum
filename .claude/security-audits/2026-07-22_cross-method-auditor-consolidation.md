@@ -7,7 +7,8 @@ endpoints these additions introduce (each auditor's own read-only text-scanning 
 `2026-07-02_lmm-auditor.md`, `2026-07-02_metaanalysis-auditor.md`, `2026-07-01_bayes-auditor.md` — and is
 unchanged here). Triggers the gate: new API endpoints (3 per checker) + a new persistence write path.
 
-**Landed incrementally: LMM (inc 336) done; meta-analysis and Bayesian to follow in this same document.**
+**Landed incrementally: LMM (inc 336) done; meta-analysis (inc 337) done; Bayesian to follow in this same
+document.**
 
 ## Threat review
 
@@ -48,9 +49,17 @@ unchanged here). Triggers the gate: new API endpoints (3 per checker) + a new pe
 - The chip/filter never shows a count exceeding what a fresh `GET /papers?signal=lmm-incomplete` actually returns
   (same query path the chip's number is sourced from — no separate, driftable cache).
 
+## Negative-path checks (run — meta-analysis)
+
+Identical checks re-run against `apply_meta_analysis`/`store_meta`/`POST /methods/meta-analysis/run` —
+`test_metaanalysis.py`'s `test_apply_meta_*` + `test_endpoint_persists_signal_on_ad_hoc_view` +
+`test_batch_run_summary_and_library_filter` (mirroring the LMM test names exactly). Same result: idempotent,
+additive, correctly un-gates when a paper stops detecting as a meta-analysis. No new threat surface — the
+pattern is byte-for-byte the same code shape as LMM, just against `methods/metaanalysis.py`'s own report.
+
 ## Result
 
-**Security Audit: PASS (LMM)** — reuses already-audited persistence primitives and the already-audited
-statcheck/retraction batch-job shape; the one genuinely new pattern (a GET with a persistence side effect) is
-idempotent, additive, and scoped to two already-hardened tables. Re-run the negative-path checks (not a fresh
-threat-model pass — the pattern is unchanged) when meta-analysis and Bayesian land in this same document.
+**Security Audit: PASS (LMM, meta-analysis)** — reuses already-audited persistence primitives and the
+already-audited statcheck/retraction batch-job shape; the one genuinely new pattern (a GET with a persistence
+side effect) is idempotent, additive, and scoped to two already-hardened tables. Re-run the negative-path
+checks (not a fresh threat-model pass — the pattern is unchanged) when Bayesian lands in this same document.

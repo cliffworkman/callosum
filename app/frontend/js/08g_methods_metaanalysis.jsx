@@ -180,7 +180,46 @@ function MetaPaper({ paperId, onOpenPaper, active }) {
       {state.status === "error" && <div className="axis-err">Couldn't audit: {state.error}</div>}
       {state.status === "done" && d && (!d.is_meta_analysis
         ? <div className="tag-suggest-empty">This paper doesn't appear to report a meta-analysis — nothing to audit.</div>
-        : <MetaChecklist checks={d.checks} onOpen={open} />)}
+        : <React.Fragment><MetaChecklist checks={d.checks} onOpen={open} /><MetaCredit /></React.Fragment>)}
+    </div>
+  );
+}
+
+// backlog #23 (F1): whole-library batch — mirrors LmmLibrary/TransparencyLibrary. Persists a per-paper #23 signal
+// via the shared apply_meta_analysis (methods/metaanalysis.py), so the header chip + GET /papers?signal=
+// meta-incomplete stay current even for papers nobody has opened this panel for yet.
+function MetaLibrary({ onShowFlagged, onRan }) {
+  const [run, setRun] = useState({ status: "idle" });
+  const start = async () => {
+    setRun({ status: "running" });
+    const poll = (jobId) => api(`/methods/meta-analysis/run/${jobId}`).then(r => {
+      if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+      const d = r.data;
+      if (d.status === "done") { setRun({ status: "done", summary: d.summary }); if (onRan) onRan(); }
+      else if (d.status === "error") setRun({ status: "error", error: d.detail || "Audit failed." });
+      else setTimeout(() => poll(jobId), 1500);
+    });
+    const r = await apiPost("/methods/meta-analysis/run", {});
+    if (!r.ok) { setRun({ status: "error", error: r.error }); return; }
+    poll(r.data.job_id);
+  };
+  const s = run.summary;
+  return (
+    <div className="statcheck-lib">
+      <div className="settings-sub">Audit meta-analysis reporting completeness across your whole library — local, no AI. Papers with an incomplete checklist appear below, filterable from the library header.</div>
+      <div className="settings-actions">
+        <button className="btn btn-primary" disabled={run.status === "running"} onClick={start}>
+          {run.status === "running" ? "Auditing…" : "Audit all papers"}
+        </button>
+      </div>
+      {run.status === "running" && <ProgressBar label="Auditing meta-analysis reporting…" />}
+      {run.status === "error" && <div className="settings-note settings-note-err">Audit failed: {run.error}</div>}
+      {run.status === "done" && s &&
+        <div className="settings-note">
+          {s.total} paper{s.total === 1 ? "" : "s"} checked · <b>{s.detected}</b> detectably a meta-analysis
+          {s.incomplete > 0 && onShowFlagged && <React.Fragment>{" "}· <button className="btn-link" onClick={onShowFlagged}>{s.incomplete} incomplete</button></React.Fragment>}
+          {s.incomplete === 0 && s.detected > 0 && <React.Fragment> · 0 incomplete</React.Fragment>}
+        </div>}
     </div>
   );
 }
@@ -237,9 +276,10 @@ function MetaSection({ ctx, active }) {
   return (
     <div className="statcheck-section">
       <div className="settings-sub">Audit a published <b>meta-analysis's reporting</b> — does it state the effect-size metric, the model (fixed vs random-effects), heterogeneity, a publication-bias assessment, a sensitivity/influence analysis, the number of studies pooled, and (for a systematic review) the search &amp; selection? Local, no AI. It flags what's not reported, with a grounded recommendation — never a verdict, and it never pools or re-computes.</div>
+      <p className="eyebrow">Whole library</p>
+      <MetaLibrary onShowFlagged={ctx.onShowMetaFlagged} onRan={ctx.onMetaRan} />
       <p className="eyebrow">This paper</p>
       <MetaPaper paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} active={active} />
-      <MetaCredit />
     </div>
   );
 }

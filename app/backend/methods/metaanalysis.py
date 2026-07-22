@@ -14,6 +14,11 @@ from __future__ import annotations
 import re
 from dataclasses import asdict, dataclass
 
+from sqlalchemy import Connection
+
+from app.backend.persistence.findings_repo import upsert_findings
+from app.backend.persistence.signals_repo import store_meta
+
 
 @dataclass(frozen=True)
 class MetaCheck:
@@ -278,3 +283,30 @@ def audit_meta_analysis(chunks: list) -> MetaReport:
         )
 
     return MetaReport(is_meta_analysis=True, checks=checks)
+
+
+def apply_meta_analysis(conn: Connection, paper_id: int, report: MetaReport) -> None:
+    """Persist a paper's meta-analysis audit (backlog #23, F1/F4). Mirrors `apply_lmm` exactly: the #23-signal
+    status always, and — only when incomplete — a review-queue CANDIDATE (never a fact). One shared function,
+    callable from both the ad-hoc per-paper view and the library-wide batch."""
+    incomplete = [c.key for c in report.checks if c.status == "not-found"]
+    store_meta(conn, paper_id, is_meta_analysis=report.is_meta_analysis, incomplete_keys=incomplete)
+    if report.is_meta_analysis and incomplete:
+        n = len(incomplete)
+        upsert_findings(
+            conn,
+            paper_id,
+            "meta",
+            [
+                {
+                    "kind": "candidate",
+                    "tier": "primary",
+                    "payload": {
+                        "desc": f"{n} meta-analysis reporting item{'s' if n != 1 else ''} not detected in the text — review",
+                        "missing": incomplete,
+                    },
+                }
+            ],
+        )
+    else:
+        upsert_findings(conn, paper_id, "meta", [])
