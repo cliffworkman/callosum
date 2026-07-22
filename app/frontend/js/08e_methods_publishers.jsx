@@ -258,6 +258,11 @@ function PublishersPanel({ ctx }) {
         Facts to weigh, never a verdict. Every candidate is shown (including closed journals); elevation underscores
         goods a journal offers, never flags the others. No composite score. Your abstract stays on your machine.
       </div>
+      {ctx.onOpenCreditBuilder &&
+        <button type="button" className="btn-link pub-credit-jump" onClick={ctx.onOpenCreditBuilder}
+          title="Build the contribution statement most journals now require, in Work → CRediT">
+          Once you've picked a journal, build your CRediT statement →
+        </button>}
 
       <div className="tags-srcfilter pub-mode" role="group" aria-label="Input">
         <button type="button" className={"tags-srcfilter-btn" + (mode === "paper" ? " on" : "")} onClick={() => setMode("paper")}>Selected paper</button>

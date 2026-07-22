@@ -106,11 +106,6 @@
 
 ## 2. Needs a design decision from Cliff (not destructive/security — just your call)
 
-- **#26 CRediT builder UX follow-ups** (from the inc-261 experience pass, persona Dr. Maya Chen): **(a)** *role
-  presets* per author (First-author/PI/Collaborator one-click bundles) — highest-value, but wants a principles
-  beat first (must read as an editable convenience the human asserts, never Callosum inferring who did what);
-  **(b)** an "and" before the last name in by-role lines — debatable, make it an opt-in format flag if adopted;
-  **(c)** discoverability — CRediT is item ~5 in the accordion; consider a jump-link from "Where to submit."
 - **statcheck signal/work-state duality** (from #14 of the original close-out list): the "⚠ flagged" (signal) vs
   "📋 to review" (work-state) coexistence is intentional (inc 133) but still reads as two overlapping systems to
   a new user. Clarify or collapse — low urgency, a UX nuance not a bug.

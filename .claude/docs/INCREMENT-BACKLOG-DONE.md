@@ -208,3 +208,12 @@ new work goes in the open backlog.
   `system:...`, 422) protect the fact from being edited or squatted. Frontend: `tagIsSystemFact`/`tagDisplayName`
   (`00_lib.jsx`) hide the color-dot/lock/remove affordances and show "Retracted" instead of the raw reserved
   tag name, in both `TagsRow` (`25b_tags.jsx`) and the sidebar `TagsPanel` (`10e_tagspanel.jsx`).
+- [x] **#26 CRediT builder UX follow-ups** (inc 339, from the inc-261 experience pass): **(a)** role presets
+  per author (First author / PI / Collaborator one-click bundles) — pure client-side toggle-all-or-fill-gaps
+  convenience, byte-for-byte the same `roles` state a manual multi-click would produce, so the audited
+  "build never infer" backend boundary is untouched (Cliff's call: "build presets anyway, skip the
+  discussion" — a quick internal Principles check still ran at design time); **(b)** an opt-in "and" before
+  the last by-role contributor name (`use_and`, default off, scoped to the by-role join only); **(c)** a
+  discoverability jump-link from Discover → Journals ("Where to submit") to Work → CRediT (the backlog's
+  "item ~5 in the accordion" framing was stale — both features had already moved to top-level workspace tabs
+  in inc 280; the jump is cross-workspace, mirroring the existing `openReferenceWarnings` pattern).

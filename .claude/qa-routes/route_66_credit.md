@@ -32,6 +32,14 @@ genai-host request regardless). Register listeners before navigation. The sectio
   & Scott 2015, *Learned Publishing*) **and** the prior tool **tenzing** (Holcombe, Kovacs, Aust & Aczel 2020,
   *PLOS ONE*) in-context, with a working **＋ add these sources to library** (idempotent). The feature never uses the
   name "tenzing" for itself.
+- **Role bundles are a one-click shortcut, never an inference (backlog #26 F1, Critical if violated).** A preset
+  button ("First author bundle" / "PI bundle" / "Collaborator bundle") must produce EXACTLY the same `roles` state
+  a manual multi-click would — no separate "preset-sourced" marker, no dimmed/pending/suggested visual state, every
+  bundled role immediately just another editable/removable chip. The button text/label must read as a bundle
+  shortcut, never as callosum determining what that author did.
+- **The "and"-joining flag is opt-in (backlog #26, default OFF).** The by-role checkbox controls a pure formatting
+  choice (Oxford "and" before the last contributor name) — unchecked by default; toggling it must never change
+  which roles/authors appear, only the punctuation joining names within a role's contributor list.
 
 ## Adversarial checklist
 
@@ -67,6 +75,19 @@ genai-host request regardless). Register listeners before navigation. The sectio
    **＋ add these sources to library** (idempotent — re-adding does not duplicate).
 8. Adversarial (API): unknown role -> 422; unknown degree -> 422; > MAX_AUTHORS -> 422; over-long pending text ->
    422; empty grid -> 200 empty statement. Confirm NO infer/score/verify control exists in the UI.
+9. **Role presets (backlog #26 F1).** For a fresh author, click **First author bundle** -> confirm
+   Conceptualization/Methodology/Formal analysis/Investigation/Writing – original draft all toggle ON (each an
+   ordinary chip, individually editable/removable afterward). Click the SAME bundle button again -> confirm all
+   five toggle back OFF (the toggle-all-or-fill-gaps semantics). Click **PI bundle** then manually un-toggle one
+   of its roles -> confirm clicking PI bundle again only re-adds the one missing role (doesn't reset the others).
+10. **"and" formatting toggle (backlog #26).** Assign the same role to 2+ authors, switch to **By role** view ->
+   confirm a checkbox **"Use 'and' before the last name"** appears (only in By-role view), default unchecked,
+   output reads e.g. "Smith, Jones, Lee." Check it -> output reads "Smith, Jones, and Lee." (three+ names, Oxford
+   comma) or "Smith and Lee." (exactly two, no comma). Switch to **By author** -> confirm the checkbox is hidden
+   and the by-author role-per-author lines are unaffected either way.
+11. **Discoverability jump-link (backlog #26 F2/c).** Open **Discover -> Journals**. Confirm a link "Once you've
+   picked a journal, build your CRediT statement →" appears near the top. Click it -> the workspace switches to
+   **Work -> CRediT** with the tab selected.
 
 ## Pass criteria
 
@@ -78,6 +99,9 @@ genai-host request regardless). Register listeners before navigation. The sectio
 - The lineage is credited in-context (CRediT/NISO taxonomy + tenzing) with a working, idempotent library-add.
 - Bad inputs fail closed (422-class); staging round-trips via `/credit/pending`; mobile viewport has no horizontal
   overflow.
+- Role-bundle buttons toggle the exact same chip state a manual multi-click would (add-missing / remove-all,
+  never a separate inferred state); the "and" checkbox is by-role-only, opt-in, and purely a joining-punctuation
+  change; the Journals -> CRediT jump-link actually lands on the CRediT tab.
 
 ## Deposit
 

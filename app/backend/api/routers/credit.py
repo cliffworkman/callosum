@@ -39,6 +39,7 @@ class AuthorRoles(BaseModel):
 
 class CreditStatementRequest(BaseModel):
     authors: list[AuthorRoles] = Field(default_factory=list, max_length=MAX_AUTHORS)
+    use_and: bool = False  # backlog #26: opt-in Oxford "and" before the last name in by-role contributor lists
 
 
 class CreditStatementResponse(BaseModel):
@@ -52,7 +53,7 @@ def credit_statement(payload: CreditStatementRequest) -> CreditStatementResponse
     # Deterministic, stateless, local — no DB, no egress, no LLM. Formats asserted contributions (never infers them).
     authors = [a.model_dump() for a in payload.authors]
     try:
-        result = format_statement(authors)
+        result = format_statement(authors, use_and=payload.use_and)
     except (ValueError, KeyError, TypeError):
         raise HTTPException(
             status_code=422,

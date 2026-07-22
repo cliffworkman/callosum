@@ -1126,6 +1126,8 @@ Give it a **selected library paper** (with a DOI) or **paste an abstract + a sub
 
 Recent Journals searches are also stored in this browser only. Use **Recent journal searches** to re-run a selected-paper or pasted-abstract search input, and **Clear history** to forget that local list.
 
+Once you've picked a target, a link near the top ("Once you've picked a journal, build your CRediT statement →") jumps straight to **Work → CRediT** — most journals now ask for a contribution statement alongside your manuscript.
+
 <!-- section: credit-statement -->
 ## Building a CRediT contribution statement
 When a paper is ready to submit, most journals ask for a **CRediT contribution statement** — who contributed what, using the 14 standard **NISO CRediT** roles (Conceptualization, Methodology, Software, … Writing – review & editing). The **Work → CRediT** tab builds one for you.
@@ -1136,7 +1138,8 @@ How to use it:
 
 - With a paper selected, click **⤵ pull authors from this paper** to seed the grid with its author names (non-destructive — it appends, keeping any rows you've already added). Or type authors in yourself with **＋ add author**; **✕** removes one.
 - For each author, click the roles they contributed. An active role can optionally carry a **degree** — **lead**, **equal**, or **supporting** — from the little selector that appears; leave it blank if you don't distinguish degrees.
-- The statement generates as you go, in **two layouts**: **By author** (a line per person listing their roles) and **By role** (a line per role listing the people). Flip between them with the toggle to match what your journal wants — both come from the same data, so switching is instant.
+- **Role bundles** — click **First author bundle**, **PI bundle**, or **Collaborator bundle** to toggle several common roles at once for that author. It's a shortcut for clicking each chip yourself, nothing more: every role it adds is an ordinary, editable chip afterward, and clicking the same bundle again removes exactly what it added. It's a convention-based starting point, never Callosum's determination of what that author actually did — check and adjust it like any other row.
+- The statement generates as you go, in **two layouts**: **By author** (a line per person listing their roles) and **By role** (a line per role listing the people). Flip between them with the toggle to match what your journal wants — both come from the same data, so switching is instant. In **By role**, an optional checkbox adds an "and" before the last name in each role's contributor list (e.g. "Smith, Jones, and Lee" instead of "Smith, Jones, Lee") — off by default, purely a formatting choice.
 
 Getting it into your manuscript:
 

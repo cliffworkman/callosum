@@ -178,6 +178,13 @@ function App() {
     selectWorkspace("work");
     if (mobile) setMobilePane("library");
   }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
+  // backlog #26 (F1 discoverability): jump from PUBLISHERS ("Where to submit") to the CRediT builder — both
+  // already operate on the same globally-selected paper, so no re-select is needed, just a workspace/tab switch.
+  const openCreditBuilder = useCallback(() => {
+    requestWorkspaceTab("work", "credit");
+    selectWorkspace("work");
+    if (mobile) setMobilePane("library");
+  }, [mobile, requestWorkspaceTab, selectWorkspace, setMobilePane]);
   const openTextHealth = useCallback((context = null) => {
     setTextHealthContext(context || null);
     setTextHealthOpen(true);
@@ -297,6 +304,7 @@ function App() {
   const workspaceCtx = {
     ...paneCtx,
     onDiscoverSaved: () => setLibRefresh(n => n + 1),
+    onOpenCreditBuilder: openCreditBuilder,  // backlog #26 (F1): PUBLISHERS ("Journals") → the CRediT builder
     onOpenWanted: () => setWantedOpen(true),
     onOpenGaps: () => setGapsOpen(true),
     onOpenOverlooked: () => setOverlookedOpen(true),

@@ -22,6 +22,18 @@ const CREDIT_ROLES = [
 ];
 const CREDIT_DEGREES = ["lead", "equal", "supporting"];
 
+// backlog #26 (F1 of the inc-261 experience-pass follow-ups): per-author role BUNDLES — a one-click shortcut for
+// toggling several common chips at once, never a suggestion or an inference. Clicking a bundle button produces
+// the EXACT SAME `roles` state a manual multi-click would (no separate "preset-sourced" marker, no dimmed/pending
+// state) — every role it adds is immediately just another chip, editable/removable like any other. The three
+// bundles are the ones named in the backlog; they're a common-convention STARTING POINT, not a determination of
+// what any given author actually did — always fully overridable per author, per role.
+const CREDIT_PRESETS = [
+  { key: "first_author", label: "First author", roles: ["conceptualization", "methodology", "formal_analysis", "investigation", "writing_original_draft"] },
+  { key: "pi", label: "PI", roles: ["conceptualization", "supervision", "funding_acquisition", "project_administration", "writing_review_editing"] },
+  { key: "collaborator", label: "Collaborator", roles: ["investigation", "data_curation"] },
+];
+
 // credit-the-lineage: the taxonomy this operationalizes + the prior tool (tenzing). Added via the inc-93 import path.
 const CREDIT_TAXONOMY_CSL = {
   type: "article-journal",
@@ -70,6 +82,10 @@ function CreditSection({ ctx }) {
   const [copied, setCopied] = useState(false);
   const [staged, setStaged] = useState(false);
   const [pulled, setPulled] = useState("idle");     // idle | pulling | none
+  // backlog #26: an opt-in Oxford "and" before the last by-role name — a global formatting preference (not
+  // per-paper content, unlike the authors×roles grid above), default off.
+  const [useAnd, setUseAnd] = useState(() => _loadLayout("callosum.credit.useAnd", "") === "1");
+  useEffect(() => { _saveLayout("callosum.credit.useAnd", useAnd ? "1" : "0"); }, [useAnd]);
   const loadedKeyRef = useRef(null);
 
   // Load the saved grid on mount + whenever the selected paper changes (per-paper scratchpad).
@@ -94,17 +110,20 @@ function CreditSection({ ctx }) {
   // before /health resolves on a read-only companion (the CRediT tab is `hideInReadOnly`, but it can mount first).
   useEffect(() => {
     if (readOnly !== false) return;
-    const body = { authors: authors.map((a) => ({
-      name: a.name,
-      roles: Object.keys(a.roles).map((role) => ({ role, degree: a.roles[role] || null })),
-    })) };
+    const body = {
+      authors: authors.map((a) => ({
+        name: a.name,
+        roles: Object.keys(a.roles).map((role) => ({ role, degree: a.roles[role] || null })),
+      })),
+      use_and: useAnd,
+    };
     setStaged(false);  // the staged copy in /credit/pending is now stale — the user must re-send after editing
     const t = setTimeout(async () => {
       const r = await apiPost("/credit/statement", body);
       if (r.ok) setResult(r.data);
     }, 250);
     return () => clearTimeout(t);
-  }, [authors, readOnly]);
+  }, [authors, useAnd, readOnly]);
 
   const setName = (i) => (e) => setAuthors(authors.map((a, ai) => ai === i ? { ...a, name: e.target.value } : a));
   const addAuthor = () => setAuthors([...authors, _blankAuthor()]);
@@ -117,6 +136,16 @@ function CreditSection({ ctx }) {
   }));
   const setDegree = (i, key, deg) => setAuthors(authors.map((a, ai) =>
     ai === i ? { ...a, roles: { ...a.roles, [key]: deg } } : a));
+  // backlog #26: apply (or, if every bundled role is already assigned, remove) a role bundle for one author —
+  // same chip-toggle semantics as clicking each role individually, just several at once.
+  const applyPreset = (i, presetRoles) => setAuthors(authors.map((a, ai) => {
+    if (ai !== i) return a;
+    const allOn = presetRoles.every((k) => k in a.roles);
+    const roles = { ...a.roles };
+    if (allOn) presetRoles.forEach((k) => delete roles[k]);
+    else presetRoles.forEach((k) => { if (!(k in roles)) roles[k] = ""; });
+    return { ...a, roles };
+  }));
 
   const pullAuthors = async () => {
     if (!ctx || ctx.selectedPaper == null) return;
@@ -157,6 +186,13 @@ function CreditSection({ ctx }) {
               <input className="es-in credit-name" value={a.name} onChange={setName(i)} placeholder="Author name" spellCheck={false} />
               <button className="btn-icon credit-remove" title="Remove author" onClick={() => removeAuthor(i)}>✕</button>
             </div>
+            <div className="credit-presets">
+              {CREDIT_PRESETS.map((p) => (
+                <button key={p.key} type="button" className="btn-link credit-preset"
+                  title={`Toggle the common "${p.label}" role bundle for this author — a starting point, edit any chip after`}
+                  onClick={() => applyPreset(i, p.roles)}>+ {p.label} bundle</button>
+              ))}
+            </div>
             <div className="credit-roles">
               {CREDIT_ROLES.map((role) => {
                 const assigned = role.key in a.roles;
@@ -182,6 +218,11 @@ function CreditSection({ ctx }) {
         <button className={"tags-srcfilter-btn" + (view === "by_role" ? " on" : "")} onClick={() => setView("by_role")}>By role</button>
       </div>
       <div className="settings-sub credit-view-hint">Most journals ask for the <b>by-author</b> layout — check your target journal's instructions for authors.</div>
+      {view === "by_role" &&
+        <label className="settings-sub credit-and-toggle">
+          <input type="checkbox" checked={useAnd} onChange={(e) => setUseAnd(e.target.checked)} />
+          {" "}Use "and" before the last name (e.g. "Smith, Jones, and Lee")
+        </label>}
 
       {lines.length > 0
         ? <div className="credit-output" aria-label="Contribution statement">{lines.map((ln, i) => <div key={i} className="credit-line">{ln}</div>)}</div>

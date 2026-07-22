@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED 2026-07-22 inc 339 — reviewed the entries below back to the prior (inc 338) marker.
+Added role-bundle + "and"-toggle bullets to "Building a CRediT contribution statement", and a one-line mention
+of the new jump-link to "Where to submit" (backlog #26). The LibreOffice .oxt fix entry below is a packaging
+bug fix with no user-facing behavior change to document (composer already worked once installed correctly).
+Nothing above this line has an un-synced corpus change. -->
+## 2026-07-22 — Backlog #26: CRediT builder — role presets + "and" formatting + discoverability jump-link
+
+- **Files:** `app/backend/methods/credit.py`, `app/backend/api/routers/credit.py`,
+  `app/frontend/js/38_credit.jsx`, `app/frontend/js/40_app.jsx`, `app/frontend/js/08e_methods_publishers.jsx`,
+  `app/frontend/styles.css`, `tests/test_credit.py`, `.claude/qa-routes/route_66_credit.md`,
+  `app/backend/help/help_content.md`.
+- **What:** three inc-261 experience-pass follow-ups, all closed: per-author role-bundle buttons (First author
+  / PI / Collaborator — a pure client-side toggle shortcut, same `roles` state as manual clicks); an opt-in
+  "and" before the last by-role contributor name (`use_and`, default off); a jump-link from Discover → Journals
+  to Work → CRediT.
+- **Why:** Cliff's choice from the 12-item decision queue ("build presets anyway, skip the discussion" for
+  the presets specifically).
+- **Revert:** `git revert` this commit.
+
 ## 2026-07-22 — fix: LibreOffice .oxt missing composer.py ("No module named 'composer'")
 
 - **Files:** `tools/build_libreoffice_oxt.py`, `adapters/libreoffice/oxt/description.xml`,
@@ -25,10 +44,6 @@ are the design diary; this is the chronological "what & why" record.
   existing `test_build_oxt_has_expected_entries` had a stale hardcoded entry list that just matched the bug).
 - **Revert:** `git revert` this commit — but there's no reason to; this is a straightforward correctness fix.
 
-<!-- HELP-DOCS-SYNCED 2026-07-22 inc 338 — reviewed the entries below back to the prior (inc 337) marker.
-Added the same "Whole library" paragraph to "Checking Bayes factors" + noted the credit block now only shows
-once a paper is confirmed applicable (backlog #23, 3/3 — closed). Nothing above this line has an un-synced
-corpus change. -->
 ## 2026-07-22 — Backlog #23 (3/3, CLOSED): Bayesian auditor — F1 chip + F4 persistence + F2 footer fix
 
 - **Files:** `app/backend/persistence/signals_repo.py`, `app/backend/methods/bayes.py`,

@@ -62,6 +62,30 @@ def test_by_role_canonical_order_authors_in_input_order_and_omits_unused():
     ]
 
 
+def test_by_role_use_and_is_opt_in_and_scoped_to_by_role_only():
+    # backlog #26: an Oxford "and" before the last contributor name in by-role lists — default off, opt-in.
+    authors = [
+        _author("Ann Ng", ("methodology",)),
+        _author("Bob Lee", ("methodology",)),
+        _author("Cy Wu", ("methodology", "supporting")),
+    ]
+    off = cr.format_statement(authors)
+    assert off.by_role == ["Methodology: Ann Ng, Bob Lee, Cy Wu (supporting)."]
+
+    on = cr.format_statement(authors, use_and=True)
+    assert on.by_role == ["Methodology: Ann Ng, Bob Lee, and Cy Wu (supporting)."]
+    # the by-author per-author role list is a DIFFERENT join (roles, not names) and is unaffected either way
+    assert on.by_author == off.by_author
+
+
+def test_join_names_two_and_one_cases():
+    assert cr._join_names([], use_and=True) == ""
+    assert cr._join_names(["Ann"], use_and=True) == "Ann"
+    assert cr._join_names(["Ann", "Bob"], use_and=True) == "Ann and Bob"  # no comma for exactly two
+    assert cr._join_names(["Ann", "Bob", "Cy"], use_and=True) == "Ann, Bob, and Cy"  # Oxford comma for 3+
+    assert cr._join_names(["Ann", "Bob", "Cy"], use_and=False) == "Ann, Bob, Cy"
+
+
 def test_roles_legend_is_the_full_taxonomy():
     st = cr.format_statement([])
     assert [r["key"] for r in st.roles] == [r["key"] for r in cr.CREDIT_ROLES]
@@ -160,6 +184,20 @@ def test_statement_endpoint(temp_db_url):
     # empty grid → 200 empty statement (not an error)
     re = client.post("/credit/statement", json={"authors": []})
     assert re.status_code == 200 and re.json()["by_author"] == []
+
+
+def test_statement_endpoint_use_and_flag(temp_db_url):
+    client = TestClient(create_app(db_url=temp_db_url))
+    body = {
+        "authors": [
+            {"name": "Ann Ng", "roles": [{"role": "methodology"}]},
+            {"name": "Bob Lee", "roles": [{"role": "methodology"}]},
+        ]
+    }
+    default_off = client.post("/credit/statement", json=body).json()
+    assert default_off["by_role"] == ["Methodology: Ann Ng, Bob Lee."]
+    on = client.post("/credit/statement", json={**body, "use_and": True}).json()
+    assert on["by_role"] == ["Methodology: Ann Ng and Bob Lee."]
 
 
 def test_statement_endpoint_rejects_bad_input(temp_db_url):

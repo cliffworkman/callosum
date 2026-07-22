@@ -72,6 +72,15 @@ def _degree_suffix(degree) -> str:
     return f" ({degree})" if degree in DEGREES else ""
 
 
+def _join_names(names: list[str], *, use_and: bool) -> str:
+    """Join a role's contributor names. Plain `", "` by default (unchanged); an opt-in `use_and` (backlog #26,
+    debated in the inc-261 experience pass) inserts an Oxford "and" before the last name for 2+ names — a pure
+    formatting choice, never a claim about the contributors."""
+    if not use_and or len(names) < 2:
+        return ", ".join(names)
+    return ", ".join(names[:-1]) + ", and " + names[-1] if len(names) > 2 else " and ".join(names)
+
+
 def _normalise(authors) -> list[dict]:
     """Validate + normalise the request into [{name, roles: [{role, degree}]}] with canonical, de-duped roles.
 
@@ -116,8 +125,11 @@ def validate(authors) -> None:
     _normalise(authors)
 
 
-def format_statement(authors) -> CreditStatement:
-    """Format the asserted authors × roles into a CreditStatement (both layouts). Empty input → empty statement."""
+def format_statement(authors, *, use_and: bool = False) -> CreditStatement:
+    """Format the asserted authors × roles into a CreditStatement (both layouts). Empty input → empty statement.
+    `use_and` (default off — opt-in, backlog #26) inserts an Oxford "and" before the last name in each **by-role**
+    contributor list; the by-author per-author role list is unaffected (the backlog's own scoping — only the
+    by-role name lists were the debated case)."""
     norm = _normalise(authors)
 
     # by-author: each contributing author (blank name or no roles omitted), roles in canonical order.
@@ -139,6 +151,6 @@ def format_statement(authors) -> CreditStatement:
     for role in CREDIT_ROLES:
         names = contributors.get(role["key"])
         if names:
-            by_role.append(f"{role['label']}: {', '.join(names)}.")
+            by_role.append(f"{role['label']}: {_join_names(names, use_and=use_and)}.")
 
     return CreditStatement(by_author=by_author, by_role=by_role, roles=list(CREDIT_ROLES))
