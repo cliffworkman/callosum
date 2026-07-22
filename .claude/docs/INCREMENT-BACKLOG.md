@@ -153,14 +153,18 @@
   yet), `CITATION.cff` (no ORCID — flagged as a maintainer TODO rather than invented), `.env.example` (every
   `CALLOSUM_*`/provider-key env var grepped from the actual codebase, organized by concern). **Not done, not
   asked for this pass:** `CHANGELOG.md` and SPDX file headers — narrower scope than what was actually
-  requested; add them separately if wanted. **Remaining, in progress:** adopt **uv** (`uv.lock`); a
-  **pre-commit** config (ruff, whitespace — the size-budget script already runs there); CI gates added **one at
-  a time** (`alembic check` + a temp-DB migration test, pip-audit + Dependabot — Dependabot itself already
-  appears active per the inc-305 CVE migration, but the CI-gate wiring isn't confirmed); a
-  `.claude/staged-harnesses/` + `REGISTRY.md` for dormant judgment-call checks (Pyright strict, tach, coverage,
-  Hypothesis, embedding-drift, bandit); branch protection once CI is green (the exact ruleset gets shown to
-  Cliff before applying). Standing rule: ratchet one new blocking gate at a time; this changes the workflow
-  Claude Code itself runs under, so it needs sign-off per gate.
+  requested; add them separately if wanted. **Also closed 2026-07-22 (inc 342):** uv adoption (`pyproject.toml`
+  normalized + `[dependency-groups].dev` + committed `uv.lock`; CI installs via `uv sync --locked`); migrated
+  the hand-rolled `tools/git-hooks/pre-commit` to the standard **pre-commit framework**
+  (`.pre-commit-config.yaml`: ruff + whitespace/EOF/large-file hygiene + the size-budget script); 3 CI gates
+  added **one at a time**, each confirmed green before the next (`alembic upgrade head` + `alembic check`
+  against a temp DB; `pip-audit` blocking on `requirements.txt` + report-only on `requirements-dev.txt`;
+  Dependabot enabled for `uv`/`npm`/`github-actions`); the `.claude/staged-harnesses/REGISTRY.md` for 7 dormant
+  judgment-call checks (Pyright, tach, coverage gate, Hypothesis, embedding-drift, performance monitoring,
+  bandit), each with an explicit activation trigger. **Remaining, not yet applied:** branch protection — a
+  proposal is ready (the repo already has an active ruleset predating this session; the gap is a
+  required-status-checks addition) but needs Cliff's explicit sign-off on the exact ruleset before the GitHub
+  API is called, per the standing rule below.
 - **#21 Packaging & distribution (post-V1).** [exploratory] A Tauri desktop shell (`app/desktop-shell/`
   placeholder); an OS keychain for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; desktop
   distribution + GROBID service ops (when Track C Stage-4 section-scoping lands — SP2/Stage-3 shipped inc
