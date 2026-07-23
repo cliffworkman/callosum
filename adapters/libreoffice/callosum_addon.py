@@ -53,6 +53,8 @@ class Dispatcher(unohelper.Base, XJobExecutor):
         try:
             desktop = self.ctx.ServiceManager.createInstanceWithContext("com.sun.star.frame.Desktop", self.ctx)
             cc.dispatch(str(arg), desktop.getCurrentComponent(), cc._base())
+        except cc.RefreshCancelled:
+            pass
         except Exception as exc:  # surface, never crash Writer
             try:
                 cc._msgbox(f"{arg}: {exc}")

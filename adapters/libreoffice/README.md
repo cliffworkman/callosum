@@ -62,7 +62,10 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    but leaves every other citation and the bibliography untouched. A document-wide pending-citations warning
    remains until you run a document-wide citation refresh. **Refresh current section** updates the nearest
    preceding heading and its nested subsections, stopping at the next heading of the same or higher rank. Text
-   before the first heading is a preamble section; a document without headings is one section.
+   before the first heading is a preamble section; a document without headings is one section. Large refreshes
+   show progress in Writer's status bar; press **Esc** to cancel. If cancellation arrives after writing begins,
+   the complete refresh is rolled back. A citation changed while formatting is underway is never overwritten by
+   the now-stale render — Callosum stops and asks you to refresh again.
 4. **Toggle automatic citation formatting** — switch to manual refresh mode for a large document. Citation
    inserts and edits remain structured live fields, but their visible text waits for **Refresh / renumber +
    bibliography** or **Refresh citations only**. New inserts visibly show `{citation}` while pending. Turning
@@ -141,7 +144,9 @@ Each citation is a Writer **ReferenceMark** whose name carries the cited work's 
 the visible marked text is the rendered citation. On refresh the adapter scans every such mark **in document
 order**, POSTs the ordered set to callosum's `POST /citations/render-document`, and writes the position-aware
 result back. All formatting happens in callosum's bundled citeproc engine, so the output is identical to the in-app
-"Cite as…" and to the future Word/Google-Docs adapters.
+"Cite as…" and to the future Word/Google-Docs adapters. Large Writer updates are one UndoManager transaction:
+status-bar progress yields between completed units, **Esc** raises a cooperative cancellation at a checkpoint,
+and the same verified rollback used for write failures restores every field if any unit had already changed.
 
 ## Testing
 Real UNO mutation logic (inserting/editing marks, the bibliography rebuild, flatten, …) isn't meaningfully

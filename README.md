@@ -137,8 +137,9 @@ citation formatting and bibliography rebuilding independently, with a persistent
 surface is stale, and can refresh only the citation at the Writer cursor without touching other citations or the
 bibliography. It can also refresh the current heading-defined section, including nested subsections, without
 rewriting citations elsewhere. Pending state returns as soon as a saved document opens, and native Writer
-citation moves are detected without treating ordinary prose edits as citation changes. See `adapters/`'s
-per-tool READMEs for setup.
+citation moves are detected without treating ordinary prose edits as citation changes. Large refreshes show
+native Writer status-bar progress and can be cancelled with **Esc**; a cancellation rolls back the complete
+refresh rather than leaving mixed formatting. See `adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 

@@ -324,6 +324,118 @@ def spike_transactional_refresh_rollback(ctx, base, p1, p2):
     log("spike (phase 2): OK — a mid-loop failure rolled back to the exact pre-refresh state (no mixed document)")
 
 
+def spike_refresh_progress_cancellation(ctx, base, p1, p2):
+    """P1 item #13: native status progress, cooperative cancellation rollback, and stale-response rejection."""
+    log("spike (P1 #13): native refresh progress + cancellation")
+    cc._DISPATCH_CTX = ctx
+    doc = new_writer(ctx)
+    text = doc.getText()
+    count = 12
+    text.createTextCursorByRange(text.getStart()).setString(" ".join(f"XXX{i}" for i in range(count)) + "\n")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    cc.set_cite_auto(doc, False)
+    cc.set_bib_auto(doc, False)
+    for index in range(count):
+        cc.insert_citation(
+            doc,
+            p1 if index % 2 == 0 else p2,
+            base,
+            cursor=text.createTextCursorByRange(find_range(f"XXX{index}")),
+        )
+    cc.set_cite_auto(doc, True)
+    cc.set_bib_auto(doc, True)
+    cc._set_pref(doc, "ieee", "en-US")
+    cc.refresh(doc, base)
+
+    native = cc._new_refresh_progress(doc, cc.PROGRESS_MIN_WORK)
+    check(native.indicator is not None and native.started, "Writer did not provide a native status indicator")
+    check(native.listener is not None, "Writer did not register the temporary Escape-key listener")
+
+    class EscapeEvent:
+        KeyCode = 1281  # com.sun.star.awt.Key.ESCAPE
+
+    check(native.listener.keyPressed(EscapeEvent()), "the Escape listener did not consume Escape")
+    cancelled = False
+    try:
+        native.update(1, "Callosum: cancellation probe")
+    except cc.RefreshCancelled:
+        cancelled = True
+    finally:
+        native.close()
+    check(cancelled, "the Escape listener did not cooperatively cancel progress")
+
+    def snapshot():
+        return {
+            nm: doc.getReferenceMarks().getByName(nm).getAnchor().getString()
+            for nm in doc.getReferenceMarks().getElementNames()
+            if cc.decode_mark_name(nm)
+        }
+
+    cc._set_pref(doc, "apa", "en-US")
+    cc.set_dirty_state(doc, citations=True, bibliography=True)
+    before = snapshot()
+    original_progress_factory = cc._new_refresh_progress
+
+    class CancelDuringWrite:
+        def __init__(self):
+            self.closed = False
+
+        def update(self, _value, label):
+            if "updated citation 3 of" in label:
+                raise cc.RefreshCancelled("injected cancellation")
+
+        def close(self):
+            self.closed = True
+
+    injected = CancelDuringWrite()
+    cc._new_refresh_progress = lambda _doc, _total: injected
+    try:
+        raised = None
+        try:
+            cc.refresh(doc, base)
+        except Exception as exc:
+            raised = exc
+        check(isinstance(raised, cc.RefreshCancelled), f"expected RefreshCancelled, got {raised!r}")
+    finally:
+        cc._new_refresh_progress = original_progress_factory
+    check(injected.closed, "refresh did not close its progress controller after cancellation")
+    check(snapshot() == before, "cancellation did not roll every partial citation write back")
+    check(cc.dirty_state(doc) == (True, True), "cancelled refresh incorrectly cleared pending state")
+
+    original_render = cc.render_document
+    manual_text = "MANUAL CITATION EDIT"
+
+    def render_while_document_changes(base_, request):
+        response = original_render(base_, request)
+        first = cc.scan_citations_in_order(doc)[0]["_mark"]
+        cc._replace_mark_text(doc, first, manual_text)
+        return response
+
+    cc.render_document = render_while_document_changes
+    try:
+        raised = None
+        try:
+            cc.refresh(doc, base)
+        except Exception as exc:
+            raised = exc
+        check(
+            isinstance(raised, RuntimeError) and "changed while Callosum was formatting" in str(raised),
+            f"stale render response was not rejected: {raised!r}",
+        )
+    finally:
+        cc.render_document = original_render
+    check(
+        cc.scan_citations_in_order(doc)[0]["_mark"].getAnchor().getString() == manual_text,
+        "stale render response overwrote the concurrent Writer citation edit",
+    )
+    log("spike (P1 #13): OK — native progress, full cancellation rollback, stale response rejected")
+
+
 def spike_mark_at_cursor(ctx, base, p1, p2):
     """P0 phase 4: `mark_at_cursor` is the first "which ONE existing citation is the user pointing at" lookup —
     every prior action either inserted new or operated over all marks. Confirms, against real UNO, that moving
@@ -1581,6 +1693,9 @@ def main():
 
         # 7) P0 phase 2 (backlog #33/#34): transactional refresh — a real fault-injection proof, not assumed.
         spike_transactional_refresh_rollback(ctx, base, p1, p2)
+
+        # P1 item #13: large-refresh status, cooperative Escape cancellation, and stale render protection.
+        spike_refresh_progress_cancellation(ctx, base, p1, p2)
 
         # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
         spike_mark_at_cursor(ctx, base, p1, p2)

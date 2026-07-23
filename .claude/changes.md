@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 359 — LibreOffice document lifecycle observer -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 360 — LibreOffice refresh progress and cancellation -->
+## 2026-07-23 — Increment 360: LibreOffice refresh progress and cancellation (P1 item #13)
+
+- **Files:** LibreOffice adapter/component/selftest/README/OXT version (0.9.0 → 0.10.0), adapter tests, root
+  README, served help, security audit, backlog/CLAUDE/increment notes.
+- **What:** large document refreshes use Writer's native status indicator and a temporary Escape-key listener.
+  Progress covers the document-wide render and each targeted citation/bibliography write; small refreshes retain
+  the existing silent fast path.
+- **Integrity:** cancellation is checked before mutation and after every completed write. If any field changed,
+  the existing UndoManager transaction rolls the complete refresh back and verifies the original mark text.
+  Yielding to Writer cannot apply a stale render: ordered mark identity and visible text are compared again
+  before write-back, and any concurrent citation change aborts untouched.
+- **Verify:** 86 targeted LibreOffice tests; real installed OXT + Writer proves native indicator/listener
+  availability, injected cancellation after three writes with exact rollback, stale-response rejection, and the
+  complete legacy suite (`SELFTEST OK`). Full-suite results are in the increment note.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 ## 2026-07-23 — Increment 359: LibreOffice document lifecycle observer (P1 item #13)
 
 - **Files:** LibreOffice adapter/component/Jobs.xcu/manifest/builder/selftest/README/OXT version

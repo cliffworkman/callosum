@@ -186,6 +186,79 @@ def test_snapshot_marks_reads_current_anchor_text() -> None:
     assert cc._snapshot_marks(doc, ["m1", "missing"]) == {"m1": "Smith, 2020"}  # an absent name is silently skipped
 
 
+class _FakeProgressIndicator:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def start(self, text: str, total: int) -> None:
+        self.calls.append(("start", text, total))
+
+    def setText(self, text: str) -> None:
+        self.calls.append(("text", text))
+
+    def setValue(self, value: int) -> None:
+        self.calls.append(("value", value))
+
+    def end(self) -> None:
+        self.calls.append(("end",))
+
+
+class _FakeProgressToolkit:
+    def __init__(self) -> None:
+        self.calls = []
+
+    def reschedule(self) -> None:
+        self.calls.append(("reschedule",))
+
+    def removeKeyHandler(self, listener) -> None:
+        self.calls.append(("remove", listener))
+
+
+def test_refresh_progress_reports_clamped_values_cancels_and_cleans_up() -> None:
+    progress = cc._RefreshProgress(3)
+    progress.indicator = _FakeProgressIndicator()
+    progress.toolkit = _FakeProgressToolkit()
+    progress.listener = object()
+
+    progress.start()
+    progress.update(99, "Applying")
+    progress.cancelled = True
+    with pytest.raises(cc.RefreshCancelled, match="partial formatting was rolled back"):
+        progress.update(2, "Ignored")
+    listener = progress.listener
+    progress.close()
+
+    assert progress.indicator.calls == [
+        ("start", "Callosum: preparing citation refresh (Esc cancels)", 3),
+        ("text", "Applying (Esc cancels)"),
+        ("value", 3),
+        ("end",),
+    ]
+    assert progress.toolkit.calls == [("reschedule",), ("remove", listener)]
+    assert not progress.started
+
+
+def test_small_refresh_progress_is_a_noop_without_touching_uno() -> None:
+    progress = cc._new_refresh_progress(object(), cc.PROGRESS_MIN_WORK - 1)
+    assert progress.indicator is None
+    progress.update(1, "No visible progress")
+    progress.close()
+
+
+def test_render_input_signature_tracks_identity_order_and_visible_text() -> None:
+    first = SimpleNamespace(Name="mark-a", getAnchor=lambda: _FakeAnchor("(A, 2020)"))
+    second = SimpleNamespace(Name="mark-b", getAnchor=lambda: _FakeAnchor("(B, 2021)"))
+    fields = [
+        {"citationID": "c1", "_mark": first},
+        {"citationID": "c2", "_mark": second},
+    ]
+    assert cc.render_input_signature(fields) == (
+        ("mark-a", "c1", "(A, 2020)"),
+        ("mark-b", "c2", "(B, 2021)"),
+    )
+    assert cc.render_input_signature(list(reversed(fields))) != cc.render_input_signature(fields)
+
+
 def test_partial_refresh_wrappers_select_only_the_requested_surface(monkeypatch) -> None:
     calls = []
 

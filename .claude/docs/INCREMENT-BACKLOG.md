@@ -258,8 +258,13 @@ the Principles + A-A gates before build.)*
   **Inc 359 added the Writer document lifecycle:** the packaged job restores persisted pending state immediately
   when a visible document opens, then one `XModifyListener` per document compares ordered live citation fields
   and the bounded bibliography. Native Writer citation moves/adds/deletes/edits mark the appropriate surfaces
-  pending; unrelated prose edits remain clean. The observer never renders or calls HTTP. Still open within #13:
-  progress/cancellation and incremental rendering. **Needs Cliff's own manual
+  pending; unrelated prose edits remain clean. The observer never renders or calls HTTP. **Inc 360 added native
+  large-refresh progress and cooperative cancellation:** Writer's status bar reports the current phase/unit and
+  a temporary Escape listener cancels at the next checkpoint. Cancellation after mutation begins travels through
+  the existing verified UndoManager rollback, so no mixed-format document commits. Because progress yields to
+  Writer events, the ordered field identity/value is rechecked after rendering; a concurrent citation edit makes
+  the response stale and aborts before write-back. Only incremental rendering remains open within #13.
+  **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance

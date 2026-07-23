@@ -100,6 +100,7 @@ DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_BASE = "http://127.0.0.1:8080"
 HTTP_TIMEOUT = 20
+PROGRESS_MIN_WORK = 20  # roughly ten full-document citation updates; avoid flashing UI for small documents
 PLACEHOLDER = "{citation}"  # transient visible text before the first render
 BIB_HEADING = "References"
 # Where the extension persists the (optional) server URL — outside LibreOffice's read-only extension package, in the
@@ -112,6 +113,59 @@ CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".callosum", "libreoffice.js
 _DISPATCH_CTX = None
 _DOCUMENT_OBSERVERS: dict[str, object] = {}
 _OBSERVATION_SUPPRESSIONS: dict[str, int] = {}
+
+
+class RefreshCancelled(RuntimeError):
+    """The user cooperatively cancelled a refresh before its transaction committed."""
+
+
+class _RefreshProgress:
+    """Small testable wrapper around Writer's status indicator and a temporary Toolkit Escape listener."""
+
+    def __init__(self, total: int):
+        self.total = max(1, total)
+        self.indicator = None
+        self.toolkit = None
+        self.listener = None
+        self.cancelled = False
+        self.started = False
+
+    def start(self) -> None:
+        if self.indicator is None:
+            return
+        self.indicator.start(self._label("Callosum: preparing citation refresh"), self.total)
+        self.started = True
+
+    def _label(self, text: str) -> str:
+        return f"{text} (Esc cancels)" if self.listener is not None else text
+
+    def update(self, value: int, text: str) -> None:
+        if self.cancelled:
+            raise RefreshCancelled("Citation refresh cancelled; any partial formatting was rolled back.")
+        if self.indicator is not None and self.started:
+            self.indicator.setText(self._label(text))
+            self.indicator.setValue(max(0, min(value, self.total)))
+        if self.toolkit is not None:
+            try:
+                self.toolkit.reschedule()
+            except Exception:
+                pass
+        if self.cancelled:
+            raise RefreshCancelled("Citation refresh cancelled; any partial formatting was rolled back.")
+
+    def close(self) -> None:
+        if self.toolkit is not None and self.listener is not None:
+            try:
+                self.toolkit.removeKeyHandler(self.listener)
+            except Exception:
+                pass
+        if self.indicator is not None and self.started:
+            try:
+                self.indicator.end()
+            except Exception:
+                pass
+        self.listener = None
+        self.started = False
 
 
 def get_server_url(path: str = CONFIG_PATH) -> str:
@@ -617,6 +671,55 @@ def observe_document(doc) -> bool:
         return False
 
 
+def _new_refresh_progress(doc, total: int) -> _RefreshProgress:
+    """Create native Writer progress for a large refresh; degrade to a no-op wrapper if any UI service is absent."""
+    progress = _RefreshProgress(total)
+    if total < PROGRESS_MIN_WORK:
+        return progress
+    try:
+        progress.indicator = doc.getCurrentController().getFrame().createStatusIndicator()
+    except Exception:
+        return progress
+    try:
+        import unohelper
+        from com.sun.star.awt import XKeyHandler
+        from com.sun.star.awt.Key import ESCAPE
+
+        ctx = _component_ctx()
+        progress.toolkit = ctx.ServiceManager.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+
+        class EscapeListener(unohelper.Base, XKeyHandler):
+            def keyPressed(self, event):
+                if event.KeyCode == ESCAPE:
+                    progress.cancelled = True
+                    return True
+                return False
+
+            def keyReleased(self, _event):
+                return False
+
+            def disposing(self, _event):
+                progress.toolkit = None
+                progress.listener = None
+
+        progress.listener = EscapeListener()
+        progress.toolkit.addKeyHandler(progress.listener)
+    except Exception:
+        if progress.toolkit is not None and progress.listener is not None:
+            try:
+                progress.toolkit.removeKeyHandler(progress.listener)
+            except Exception:
+                pass
+        progress.toolkit = None
+        progress.listener = None
+    try:
+        progress.start()
+    except Exception:
+        progress.indicator = None
+        progress.started = False
+    return progress
+
+
 def _dirty_infobar_copy(citations_pending: bool, bibliography_pending: bool) -> tuple[str, str]:
     if citations_pending and bibliography_pending:
         return "Callosum refresh pending", "Citation formatting and the bibliography are out of date."
@@ -825,6 +928,11 @@ def scan_citations_in_order(doc) -> list[dict]:
     return order_by_comparator(fields, _compare)
 
 
+def render_input_signature(fields: list[dict]) -> tuple[tuple[str, str, str], ...]:
+    """Identity, order, and visible value of the live fields that produced one render request."""
+    return tuple((field["_mark"].Name, field["citationID"], field["_mark"].getAnchor().getString()) for field in fields)
+
+
 def mark_at_cursor(doc) -> dict | None:
     """Find the citation whose ReferenceMark anchor contains the current view-cursor position (the start of the
     current selection, or the collapsed caret) — the shared primitive Edit Citation / Delete Citation / merge /
@@ -960,67 +1068,102 @@ def refresh(
     `citation_names`, when provided, narrows citation write-back to those ReferenceMark names while the render
     request still contains every citation. A targeted refresh deliberately does not clear the document-wide
     citation-dirty flag: without per-mark dirty state, updating one citation cannot prove the others are current.
+
+    Large refreshes use Writer's native status indicator. A temporary Escape-key listener cooperatively cancels
+    at the next checkpoint; if any write already occurred, `_transactional_apply` rolls the entire UndoManager
+    group back. Because yielding to Writer can admit a document event, the exact ordered render input is checked
+    again before mutation and a stale response is discarded.
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
+    expected_signature = render_input_signature(fields)
     # P1 item #11 (backlog #33/#34): bibliography editing. Both lists are read-only inputs to this render; the
     # panel (citations_panel.py) is what actually persists them via _set_id_list.
     cited_ids = {_paper_id_from_item(it) for f in fields for it in f["items"]}
     exclude_ids = [f"callosum-{pid}" for pid in _get_id_list(doc, PREF_BIB_EXCLUDE)]
-    uncited_items: list[dict] = []
-    for pid in _get_id_list(doc, PREF_BIB_UNCITED):
-        if pid in cited_ids:
-            continue  # already cited normally -- redundant as a bibliography-only "uncited" entry
-        try:
-            uncited_items.append(stamp_item_id(fetch_csl(base, pid), pid))
-        except ValueError:
-            continue  # a manually-included paper no longer in the library -- skip silently, not a hard failure
     write_bibliography = (
         update_bibliography if update_bibliography is not None else bib_cursor is not None or bib_auto_enabled(doc)
     )
-    if not fields and not uncited_items:
+    target_count = (
+        sum(1 for field in fields if citation_names is None or field["_mark"].Name in citation_names)
+        if update_citations
+        else 0
+    )
+    progress = _new_refresh_progress(
+        doc,
+        max(1, len(fields) + target_count + int(write_bibliography)),
+    )
+    try:
+        progress.update(0, "Callosum: preparing citation data")
+        uncited_items: list[dict] = []
+        for pid in _get_id_list(doc, PREF_BIB_UNCITED):
+            if pid in cited_ids:
+                continue  # already cited normally -- redundant as a bibliography-only "uncited" entry
+            try:
+                uncited_items.append(stamp_item_id(fetch_csl(base, pid), pid))
+            except ValueError:
+                continue  # a manually-included paper no longer in the library -- skip silently, not a hard failure
+        if not fields and not uncited_items:
+            _transactional_apply(
+                doc,
+                [],
+                [],
+                bib_cursor=bib_cursor,
+                write_bibliography=write_bibliography,
+                progress=progress,
+            )
+            set_dirty_state(
+                doc,
+                citations=False if update_citations and citation_names is None else None,
+                bibliography=False if write_bibliography else None,
+            )
+            return {"citations": [], "bibliography_text": ""}
+        response = render_document(
+            base,
+            build_render_request(
+                fields,
+                style,
+                locale,
+                uncited_items=uncited_items,
+                bibliography_exclude_ids=exclude_ids,
+            ),
+        )
+        progress.update(len(fields), "Callosum: checking the live document")
+        if render_input_signature(scan_citations_in_order(doc)) != expected_signature:
+            raise RuntimeError(
+                "Citation fields changed while Callosum was formatting them; no rendered changes were applied. "
+                "Run Refresh again."
+            )
+        rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
+        # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
+        # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
+        plan = (
+            [
+                (field["_mark"].Name, rendered[field["citationID"]])
+                for field in fields
+                if rendered.get(field["citationID"])
+                and (citation_names is None or field["_mark"].Name in citation_names)
+            ]
+            if update_citations
+            else []
+        )
         _transactional_apply(
             doc,
-            [],
-            [],
+            plan,
+            response.get("bibliography_text", "").splitlines(),
             bib_cursor=bib_cursor,
             write_bibliography=write_bibliography,
+            progress=progress,
+            progress_offset=len(fields),
         )
         set_dirty_state(
             doc,
             citations=False if update_citations and citation_names is None else None,
             bibliography=False if write_bibliography else None,
         )
-        return {"citations": [], "bibliography_text": ""}
-    response = render_document(
-        base,
-        build_render_request(fields, style, locale, uncited_items=uncited_items, bibliography_exclude_ids=exclude_ids),
-    )
-    rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
-    # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
-    # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
-    plan = (
-        [
-            (field["_mark"].Name, rendered[field["citationID"]])
-            for field in fields
-            if rendered.get(field["citationID"]) and (citation_names is None or field["_mark"].Name in citation_names)
-        ]
-        if update_citations
-        else []
-    )
-    _transactional_apply(
-        doc,
-        plan,
-        response.get("bibliography_text", "").splitlines(),
-        bib_cursor=bib_cursor,
-        write_bibliography=write_bibliography,
-    )
-    set_dirty_state(
-        doc,
-        citations=False if update_citations and citation_names is None else None,
-        bibliography=False if write_bibliography else None,
-    )
-    return response
+        return response
+    finally:
+        progress.close()
 
 
 def refresh_citations(doc, base: str = DEFAULT_BASE) -> dict:
@@ -1125,6 +1268,8 @@ def _transactional_apply(
     bib_cursor=None,
     *,
     write_bibliography: bool | None = None,
+    progress: _RefreshProgress | None = None,
+    progress_offset: int = 0,
 ) -> None:
     """Apply the per-mark write-back + bibliography rebuild as one UndoManager-grouped unit (P0 phase 2).
 
@@ -1140,21 +1285,36 @@ def _transactional_apply(
     (P0 phase 7) UNLESS `bib_cursor` is given — an explicit "put it here" request always writes, even while
     passive every-refresh rebuilding is paused. P1 item #13's partial-refresh commands pass an explicit boolean:
     False keeps the bibliography untouched; True deliberately rebuilds it even while auto-rebuild is paused.
+
+    P1 item #13's progress object checks for cooperative cancellation before mutation and after each completed
+    unit. Cancellation is an ordinary exception to this transaction, so the same verified rollback path handles
+    it rather than maintaining a second recovery mechanism.
     """
     names = [name for name, _ in plan]
     before = _snapshot_marks(doc, names)
     undo = doc.getUndoManager()
+    if progress is not None:
+        progress.update(progress_offset, "Callosum: applying citation formatting")
     undo.enterUndoContext("Callosum refresh")
     try:
-        for name, text_out in plan:
+        for index, (name, text_out) in enumerate(plan, 1):
             mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
             _replace_mark_text(doc, mark, text_out)
+            if progress is not None:
+                progress.update(
+                    progress_offset + index,
+                    f"Callosum: updated citation {index} of {len(plan)}",
+                )
         if write_bibliography is None:
             should_write_bibliography = bib_cursor is not None or bib_auto_enabled(doc)
         else:
             should_write_bibliography = write_bibliography
         if should_write_bibliography:
+            if progress is not None:
+                progress.update(progress_offset + len(plan), "Callosum: updating the bibliography")
             _write_bibliography(doc, bib_entries, cursor=bib_cursor)
+            if progress is not None:
+                progress.update(progress_offset + len(plan) + 1, "Callosum: refresh complete")
     except Exception as exc:
         undo.leaveUndoContext()
         undo.undo()
@@ -2116,6 +2276,8 @@ def _macro(action: str) -> None:
     """Macro-mode entry point body: resolve the doc + base from the script context, run the action, surface errors."""
     try:
         dispatch(action, _current_doc(), _base())
+    except RefreshCancelled:
+        pass
     except Exception as exc:  # surface, never crash Writer
         _msgbox(f"{action}: {exc}")
 
