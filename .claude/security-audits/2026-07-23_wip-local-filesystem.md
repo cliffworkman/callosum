@@ -26,6 +26,10 @@
 - [x] WIP tables are absent from `sync.changeset.SYNCABLE`.
 - [x] No WIP code calls an LLM or external provider.
 - [x] File hashing is local and bounded to 256 MiB per file; scans are capped at 5,000 files and depth 20.
+- [x] Primary-file extraction accepts only an explicit supported-format allowlist, is capped at 256 MiB (plain text
+      at 32 MiB), persists no full manuscript text/file bytes, and bounds checkpoint context to 6 × 500 characters.
+- [x] Snapshot create/list routes inherit the same local-only dependency; checkpoints deduplicate in SQLite and
+      never enter sync or an external request.
 - [x] OS open/reveal is loopback-only and uses only a trusted DB-resolved path.
 
 ## Findings
@@ -35,3 +39,5 @@ Host values, and non-loopback clients. Discovery skips symlink directories/files
 reveal accept only database IDs, reconstruct a root-relative path through `trusted_child`, and require a current
 regular file before invoking the OS. Tests cover remote/forwarded/read-only denial, stable missing/restored identity,
 hashing, primary-file uniqueness, and injected open/reveal targets.
+Checkpoint tests additionally cover exact extracted identity, deduplication, changed-file status, unsupported
+formats, and forwarded-request denial.

@@ -586,6 +586,7 @@ from app.backend.persistence.schema_wip import (  # noqa: E402,F401
     wip_manuscripts,
     wip_references,
     wip_sections,
+    wip_snapshots,
     wip_tasks,
     wip_watch_roots,
 )

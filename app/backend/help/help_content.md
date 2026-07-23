@@ -1257,7 +1257,15 @@ Double-click a WIP card to open its manuscript workspace:
 - **Tasks** records manuscript work and can scope a task to a section.
 - **Files** assigns roles and lets you explicitly choose one primary manuscript.
 - **References** links existing Library papers without copying their bibliographic records.
+- **Checks** creates and inspects local content checkpoints. Choosing a primary file and changing stage also create
+  checkpoints when text extraction is available.
 - **Activity** records important workspace changes.
+
+Each checkpoint records exact whole-file and normalized extracted-text hashes, extraction provider/version, and a
+small bounded text context for inspection. It does not copy the manuscript file and it does not mean the manuscript
+passed a check. If a rescan sees a changed file before Callosum extracts its current text, the earlier checkpoint is
+**potentially stale**; after extraction it is **current** only when normalized text still matches, otherwise **stale**.
+Supported primary formats are PDF, DOCX, ODT, HTML, JATS/XML, Markdown, plain text, and TeX.
 
 WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
 AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished

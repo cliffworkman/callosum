@@ -16,7 +16,13 @@ from pydantic import BaseModel, Field
 from app.backend.api.job_store import JobStore
 from app.backend.api.wip_security import require_local_wip
 from app.backend.persistence.sqlite_retry import run_write
+from app.backend.persistence.wip_provenance_repo import (
+    mark_extraction_failure,
+    prepare_snapshot,
+    record_snapshot,
+)
 from app.backend.persistence.wip_repo import (
+    add_activity,
     create_watch_root,
     delete_watch_root,
     get_file,
@@ -31,6 +37,7 @@ from app.backend.persistence.wip_repo import (
     update_manuscript,
     update_watch_root,
 )
+from app.backend.wip.content import ContentIdentityError
 from app.backend.wip.discovery import inspect_watch_root
 from app.backend.wip.paths import path_key, trusted_child
 
@@ -230,10 +237,43 @@ def manuscript_get(manuscript_id: int, request: Request) -> dict:
 @router.patch("/manuscripts/{manuscript_id}")
 def manuscript_patch(manuscript_id: int, payload: ManuscriptPatch, request: Request) -> dict:
     values = payload.model_dump(exclude_unset=True)
-    result = run_write(
-        request.app.state.engine,
-        lambda conn: update_manuscript(conn, manuscript_id, values),
-    )
+    prepared = None
+    checkpoint_error = None
+    checkpoint_file_id = None
+    reason_detail = ""
+    with request.app.state.engine.connect() as conn:
+        before = get_manuscript(conn, manuscript_id)
+        if before is not None and "stage" in values and values["stage"] != before["stage"]:
+            reason_detail = f"{before['stage']} -> {values['stage']}"
+            primary = next((file for file in list_files(conn, manuscript_id) if file["is_primary"]), None)
+            checkpoint_file_id = int(primary["id"]) if primary else None
+            try:
+                prepared = prepare_snapshot(conn, manuscript_id)
+            except ContentIdentityError as exc:
+                checkpoint_error = exc
+
+    def mutate(conn):
+        result = update_manuscript(conn, manuscript_id, values)
+        if result is not None and prepared is not None:
+            record_snapshot(conn, prepared, reason="stage-transition", reason_detail=reason_detail)
+        elif result is not None and checkpoint_error is not None and checkpoint_file_id is not None:
+            mark_extraction_failure(
+                conn,
+                manuscript_id,
+                checkpoint_file_id,
+                checkpoint_error,
+                reason="stage-transition",
+            )
+        elif result is not None and checkpoint_error is not None:
+            add_activity(
+                conn,
+                manuscript_id,
+                "checkpoint-skipped",
+                f"Could not create stage transition checkpoint: {checkpoint_error}",
+            )
+        return result
+
+    result = run_write(request.app.state.engine, mutate)
     if result is None:
         raise HTTPException(status_code=404, detail="WIP manuscript not found")
     return result
@@ -250,12 +290,37 @@ def manuscript_files(manuscript_id: int, request: Request) -> list[dict]:
 @router.patch("/manuscripts/{manuscript_id}/files/{file_id}")
 def manuscript_file_patch(manuscript_id: int, file_id: int, payload: FilePatch, request: Request) -> dict:
     values = payload.model_dump(exclude_unset=True)
+    prepared = None
+    checkpoint_error = None
+    reason_detail = ""
     if values.get("is_primary"):
         values["role"] = "primary-manuscript"
-    result = run_write(
-        request.app.state.engine,
-        lambda conn: update_file(conn, manuscript_id, file_id, values),
-    )
+        with request.app.state.engine.connect() as conn:
+            current_primary = next((file for file in list_files(conn, manuscript_id) if file["is_primary"]), None)
+            if current_primary and int(current_primary["id"]) == file_id:
+                values.pop("is_primary")
+            else:
+                reason_detail = f"{current_primary['id'] if current_primary else 'none'} -> {file_id}"
+                try:
+                    prepared = prepare_snapshot(conn, manuscript_id, file_id=file_id)
+                except ContentIdentityError as exc:
+                    checkpoint_error = exc
+
+    def mutate(conn):
+        result = update_file(conn, manuscript_id, file_id, values)
+        if result is not None and prepared is not None:
+            record_snapshot(conn, prepared, reason="primary-file-replacement", reason_detail=reason_detail)
+        elif result is not None and checkpoint_error is not None:
+            mark_extraction_failure(
+                conn,
+                manuscript_id,
+                file_id,
+                checkpoint_error,
+                reason="primary-file-replacement",
+            )
+        return get_file(conn, manuscript_id, file_id) if result is not None else None
+
+    result = run_write(request.app.state.engine, mutate)
     if result is None:
         raise HTTPException(status_code=404, detail="WIP file not found")
     return result

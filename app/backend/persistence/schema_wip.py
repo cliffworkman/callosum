@@ -96,6 +96,7 @@ wip_files = Table(
     Column("modified_at", DateTime),
     Column("whole_file_hash", String(64)),
     Column("extracted_text_hash", String(64)),
+    Column("extracted_from_whole_hash", String(64)),
     Column("extraction_status", String(30), nullable=False, server_default="not-run"),
     Column("extraction_error", Text),
     Column("extraction_provider", String(80)),
@@ -130,4 +131,5 @@ wip_activity_events = Table(
 Index("ix_wip_activity_manuscript_time", wip_activity_events.c.manuscript_id, wip_activity_events.c.created_at)
 
 # Workflow tables share this concern and are re-exported here so schema.py needs one compact registration import.
+from app.backend.persistence.schema_wip_provenance import wip_snapshots  # noqa: E402,F401
 from app.backend.persistence.schema_wip_workflow import wip_references, wip_sections, wip_tasks  # noqa: E402,F401

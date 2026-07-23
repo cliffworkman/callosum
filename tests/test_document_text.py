@@ -58,6 +58,34 @@ def test_docx_provider_extracts_paragraphs(tmp_path):
     ]
 
 
+def test_odt_provider_extracts_heading_scoped_paragraphs(tmp_path):
+    path = tmp_path / "article.odt"
+    content_xml = """<?xml version="1.0" encoding="UTF-8"?>
+      <office:document-content
+        xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+        xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0">
+        <office:body><office:text>
+          <text:h text:outline-level="1">Results</text:h>
+          <text:p>The preregistered analysis was completed.</text:p>
+        </office:text></office:body>
+      </office:document-content>"""
+    with zipfile.ZipFile(path, "w") as odt:
+        odt.writestr("content.xml", content_xml)
+    extraction = extract_text_document(path)
+    assert extraction.provider_id == "odt-text"
+    assert [(segment.section, segment.text) for segment in extraction.segments] == [
+        ("Results", "The preregistered analysis was completed.")
+    ]
+
+
+def test_plain_text_provider_extracts_bounded_blocks(tmp_path):
+    path = tmp_path / "draft.md"
+    path.write_text("# Abstract\n\nA local manuscript draft.", encoding="utf-8")
+    extraction = extract_text_document(path)
+    assert extraction.provider_id == "plain-text"
+    assert [segment.text for segment in extraction.segments] == ["# Abstract", "A local manuscript draft."]
+
+
 def test_attach_text_document_feeds_normal_chunks(temp_db_url, tmp_path):
     path = tmp_path / "article.xml"
     path.write_text(

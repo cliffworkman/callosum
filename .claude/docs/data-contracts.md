@@ -35,13 +35,19 @@ WIP manuscripts are research products and never rows in `papers`. They are local
 - `wip_manuscripts`: stable UUID identity, derived/overridden title, root path, lifecycle state, type, stage, target,
   deadline, notes, template identity, and filesystem activity.
 - `wip_files`: root-relative file identity, role, explicit single primary file, existence state, size/mtime, bounded
-  SHA-256 content identity, and extraction metadata. A scan marks missing records; it never deletes them.
+  SHA-256 content identity, extraction metadata, and `extracted_from_whole_hash`. The latter makes an outdated
+  extracted-text hash distinguishable from current extraction. A scan marks missing records; it never deletes them.
 - `wip_sections`: explicit user-managed manuscript structure and status. `content_detected` is distinct from
   completion and cannot automatically mark a section complete.
 - `wip_tasks`: manuscript-scoped work with optional section/file/paper links and explicit status/completion time.
 - `wip_references`: relationships to canonical Library `papers`; bibliographic metadata is not duplicated.
 - `wip_activity_events`: append-style provenance for discovery, missing/restored paths, stage/section/task changes,
-  primary-file changes, and Library links.
+  primary-file changes, checkpoints, and Library links.
+- `wip_snapshots`: lightweight primary-file checkpoints with exact whole-file/extracted-text hashes, optional
+  section hashes where the provider supplies honest section boundaries, bounded evidence context, provider/version,
+  reason/detail, and timestamp. Full unpublished file bytes and full extracted text are not duplicated in SQLite.
+  Identical content plus identical reason/detail deduplicates. Status is derived against the current primary file:
+  changed-but-not-re-extracted is `potentially-stale`; changed extracted text or primary replacement is `stale`.
 
 Every `/wip/*` endpoint denies remote, forwarded, and read-only requests because paths and unpublished manuscript
 metadata are host-local data.

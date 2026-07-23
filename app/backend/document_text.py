@@ -1,8 +1,9 @@
 """DocumentTextProvider adapters for non-PDF scholarly text sources.
 
 This is the buildable infrastructure slice of the transparency / registration-alignment track. It keeps PyMuPDF as
-the primary PDF path, but lets JATS/XML, DOCX, and HTML feed the same ``chunks`` table used by transparency,
-statcheck, synthesis, and future registration comparison. The adapters are deterministic, local, and dependency-free.
+the primary PDF path, but lets JATS/XML, DOCX, ODT, HTML, and bounded plain-text documents feed the same ``chunks``
+table used by transparency, statcheck, synthesis, and future registration comparison. The adapters are
+deterministic, local, and dependency-free.
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from app.backend.pdf_processing.extraction import ChunkDraft, make_chunk_version
 TEXT_COORDINATE_SYSTEM = "document-text-offsets"
 DEFAULT_TEXT_CHUNKING_STRATEGY = "document-text-block-v1"
 EXTRACTION_VERSION = "1"
+MAX_PLAIN_TEXT_BYTES = 32 * 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -103,6 +105,7 @@ def content_type_for_document(path: str | Path, content_type: str | None = None)
     suffix = Path(path).suffix.lower()
     return {
         ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".odt": "application/vnd.oasis.opendocument.text",
         ".html": "text/html",
         ".htm": "text/html",
         ".xml": "application/xml",
@@ -114,6 +117,8 @@ def attachment_type_for_document(path: str | Path, content_type: str | None = No
     ctype = content_type_for_document(path, content_type).lower()
     if "wordprocessingml" in ctype or Path(path).suffix.lower() == ".docx":
         return "docx"
+    if "opendocument.text" in ctype or Path(path).suffix.lower() == ".odt":
+        return "odt"
     if "html" in ctype or Path(path).suffix.lower() in {".html", ".htm"}:
         return "html"
     if "xml" in ctype or Path(path).suffix.lower() in {".xml", ".jats"}:
@@ -169,6 +174,36 @@ class DocxTextProvider:
         )
 
 
+class OdtTextProvider:
+    provider_id = "odt-text"
+
+    def supports(self, path: Path, content_type: str | None = None) -> bool:
+        ctype = (content_type or "").lower()
+        return path.suffix.lower() == ".odt" or "opendocument.text" in ctype
+
+    def extract(self, path: Path, content_type: str | None = None) -> DocumentTextExtraction:
+        with zipfile.ZipFile(path) as odt:
+            content_xml = odt.read("content.xml")
+        root = ET.fromstring(content_xml)
+        segments: list[TextSegment] = []
+        section: str | None = None
+        for node in root.iter():
+            name = _local_name(node.tag)
+            text = _element_text(node) if name in {"h", "p"} else ""
+            if name == "h" and text:
+                section = text
+            elif name == "p" and text:
+                segments.append(TextSegment(text, section))
+        return DocumentTextExtraction(
+            source_path=path,
+            provider_id=self.provider_id,
+            content_type=content_type_for_document(path, content_type),
+            extraction_version=EXTRACTION_VERSION,
+            coordinate_system=TEXT_COORDINATE_SYSTEM,
+            segments=tuple(segments),
+        )
+
+
 class HtmlTextProvider:
     provider_id = "html-text"
 
@@ -187,6 +222,28 @@ class HtmlTextProvider:
             extraction_version=EXTRACTION_VERSION,
             coordinate_system=TEXT_COORDINATE_SYSTEM,
             segments=tuple(parser.segments),
+        )
+
+
+class PlainTextProvider:
+    provider_id = "plain-text"
+    _suffixes = {".md", ".txt", ".tex"}
+
+    def supports(self, path: Path, content_type: str | None = None) -> bool:
+        return path.suffix.lower() in self._suffixes
+
+    def extract(self, path: Path, content_type: str | None = None) -> DocumentTextExtraction:
+        if path.stat().st_size > MAX_PLAIN_TEXT_BYTES:
+            raise ValueError(f"Plain-text document exceeds the {MAX_PLAIN_TEXT_BYTES // (1024 * 1024)} MiB limit")
+        text = path.read_text(encoding="utf-8", errors="replace")
+        segments = tuple(TextSegment(block) for block in text.split("\n\n") if block.strip())
+        return DocumentTextExtraction(
+            source_path=path,
+            provider_id=self.provider_id,
+            content_type=content_type_for_document(path, content_type),
+            extraction_version=EXTRACTION_VERSION,
+            coordinate_system=TEXT_COORDINATE_SYSTEM,
+            segments=segments,
         )
 
 
@@ -275,4 +332,10 @@ def _normalize_space(text: str) -> str:
     return " ".join(str(text or "").split())
 
 
-_PROVIDERS: tuple[DocumentTextProvider, ...] = (JatsXmlTextProvider(), DocxTextProvider(), HtmlTextProvider())
+_PROVIDERS: tuple[DocumentTextProvider, ...] = (
+    JatsXmlTextProvider(),
+    DocxTextProvider(),
+    OdtTextProvider(),
+    HtmlTextProvider(),
+    PlainTextProvider(),
+)

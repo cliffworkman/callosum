@@ -49,6 +49,10 @@ first attempt — expect iteration.
 Type roles: **serif** (`--serif`) = paper/summary/quote titles (reads like a bibliography); **sans** =
 all chrome/controls; **mono** = confidences, counts, IDs, status, timestamps.
 
+WIP checkpoint status uses the ordinary status vocabulary, not the WIP context color: `current` is neutral because
+a matching hash is not verification; `potentially stale` and `stale` use amber plus explicit text. Red remains
+reserved for destructive actions, and green remains reserved for grounded/verified facts.
+
 ---
 
 ## 1b. Dark theme (inc 46)

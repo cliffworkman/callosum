@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 351 — WIP manuscript workspace -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 352 — WIP content checkpoints -->
+## 2026-07-23 — Increment 352: WIP content checkpoints and exact text identity
+
+- **Files:** migration `0050`, reusable ODT/plain-text extraction, WIP content/provenance schema/repository/router,
+  Checks UI, checkpoint tests, served help, data/design/security docs, and QA route 75.
+- **What:** selecting a primary manuscript and changing stage now create lightweight checkpoints; users can create
+  manual checkpoints in **Checks**. Each stores exact whole-file and normalized extracted-text hashes, bounded
+  context, and extractor provenance, without copying unpublished files or full text.
+- **Honesty:** unchanged reason/content checkpoints deduplicate. A changed but not re-extracted file is
+  `potentially stale`; an extracted-text change or primary replacement is `stale`; matching identity is merely
+  `current`, never “verified” or “clean.”
+- **Verify:** `pytest -n auto -q` (**1449 passed, 1 skipped**), frontend rebuild, Ruff, 600-line budget, QA map
+  (**289/289 API surfaces**), and desktop/mobile headless Chromium with zero console/page errors or overflow.
+- **Revert:** `git revert` this commit. Migration `0050` is additive and may remain empty.
+
 ## 2026-07-23 — Increment 351: WIP manuscript workspace foundation and workflow
 
 - **Files:** migrations `0048`/`0049`, WIP schema/repos/routers/security/discovery, Library frame/workspace/details

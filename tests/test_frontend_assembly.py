@@ -260,8 +260,13 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert library_tab < wip_tab < selected_paper_tab
     assert 'onClick={() => onActivate("wip")}' in raw
     assert "<WipBrowser wip={wip} onOpen={onOpenWip} />" in raw
-    assert "<WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript} onOpenPaper={onOpenPdf} workspace />" in raw
-    assert '["overview", "structure", "tasks", "files", "references", "activity"]' in raw
+    assert (
+        "<WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript} onOpenPaper={onOpenPdf} workspace />"
+        in raw
+    )
+    assert '["overview", "structure", "tasks", "files", "references", "checks", "activity"]' in raw
+    assert "Create checkpoint" in raw
+    assert "No tool result is implied by a content checkpoint." in raw
     assert 'const wipModeActive = activeTab === "wip" || !!activeWipTab' in raw
     assert 'kind: "manuscript", entity: activeWipManuscript || null' in raw
     assert 'const contextPaperId = researchContext.kind === "paper" ? selected : null' in raw

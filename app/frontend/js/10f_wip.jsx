@@ -354,12 +354,52 @@ function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
   );
 }
 
+function WipChecks({ manuscriptId, snapshots, onReload }) {
+  const [creating, setCreating] = useState(false);
+  const [error, setError] = useState("");
+  const createCheckpoint = async () => {
+    setCreating(true);
+    setError("");
+    const result = await apiPost(`/wip/manuscripts/${manuscriptId}/snapshots`, {});
+    setCreating(false);
+    if (result.ok) onReload();
+    else setError(result.error || "Could not create checkpoint.");
+  };
+  return <section className="wip-work-view">
+    <div className="wip-check-head">
+      <div>
+        <h3>Content checkpoints</h3>
+        <p>Exact local hashes and bounded extracted-text context. Checkpoints never copy the manuscript file.</p>
+      </div>
+      <button className="axis-btn" disabled={creating} onClick={createCheckpoint}>
+        {creating ? "Creating…" : "Create checkpoint"}
+      </button>
+    </div>
+    {error && <div className="wip-root-error">{error}</div>}
+    {snapshots.length === 0 ? <p className="axis-hint">No content checkpoints yet.</p> :
+      snapshots.map(snapshot => <div className="wip-checkpoint-row" key={snapshot.id}>
+        <div>
+          <strong>{snapshot.reason.replace(/-/g, " ")}</strong>
+          {snapshot.reason_detail && <span>{snapshot.reason_detail}</span>}
+          <small>{snapshot.extraction_provider} {snapshot.extraction_version} · {snapshot.extracted_char_count.toLocaleString()} extracted characters</small>
+        </div>
+        <div className="wip-checkpoint-state">
+          <span className={`wip-identity-${snapshot.identity_status}`}>{snapshot.identity_status.replace(/-/g, " ")}</span>
+          <time>{wipWhen(snapshot.created_at)}</time>
+        </div>
+        <p>{snapshot.status_detail}</p>
+      </div>)}
+    <p className="axis-hint">No tool result is implied by a content checkpoint. Deterministic checks will appear here after they run.</p>
+  </section>;
+}
+
 function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState([]);
   const [sections, setSections] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [references, setReferences] = useState([]);
+  const [snapshots, setSnapshots] = useState([]);
   const [tab, setTab] = useState("overview");
   const [nonce, setNonce] = useState(0);
   const [draft, setDraft] = useState(manuscript || {});
@@ -373,12 +413,14 @@ function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
       api(`/wip/manuscripts/${manuscript.id}/sections`),
       api(`/wip/manuscripts/${manuscript.id}/tasks`),
       api(`/wip/manuscripts/${manuscript.id}/references`),
-    ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult]) => {
+      api(`/wip/manuscripts/${manuscript.id}/snapshots`),
+    ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult]) => {
       if (fileResult.ok) setFiles(fileResult.data || []);
       if (activityResult.ok) setActivity(activityResult.data || []);
       if (sectionResult.ok) setSections(sectionResult.data || []);
       if (taskResult.ok) setTasks(taskResult.data || []);
       if (referenceResult.ok) setReferences(referenceResult.data || []);
+      if (snapshotResult.ok) setSnapshots(snapshotResult.data || []);
     });
   }, [manuscript && manuscript.id, manuscript && manuscript.updated_at, nonce]);
   if (!manuscript) return <div className="axis-hint">Select a WIP manuscript to see its details.</div>;
@@ -452,7 +494,7 @@ function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
       </header>
       {workspace ? <>
         <div className="tags-srcfilter wip-work-tabs" role="tablist">
-          {["overview", "structure", "tasks", "files", "references", "activity"].map(value =>
+          {["overview", "structure", "tasks", "files", "references", "checks", "activity"].map(value =>
             <button key={value} className={"tags-srcfilter-btn" + (tab === value ? " on" : "")}
               onClick={() => setTab(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
         </div>
@@ -462,6 +504,7 @@ function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
         {tab === "files" && fileView}
         {tab === "references" && <WipReferences manuscriptId={manuscript.id} references={references}
           onReload={reload} onOpenPaper={onOpenPaper} />}
+        {tab === "checks" && <WipChecks manuscriptId={manuscript.id} snapshots={snapshots} onReload={reload} />}
         {tab === "activity" && activityView}
       </> : <>
         {overview}
