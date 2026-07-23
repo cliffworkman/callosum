@@ -201,6 +201,46 @@ def test_partial_refresh_wrappers_select_only_the_requested_surface(monkeypatch)
     ]
 
 
+@pytest.mark.parametrize(
+    ("cite_auto", "bib_auto", "expected"),
+    [
+        (True, True, {"update_citations": True, "update_bibliography": True}),
+        (True, False, {"update_citations": True, "update_bibliography": False}),
+        (False, True, {"update_citations": False, "update_bibliography": True}),
+        (False, False, None),
+    ],
+)
+def test_auto_refresh_honors_the_two_independent_preferences(monkeypatch, cite_auto, bib_auto, expected) -> None:
+    calls = []
+    monkeypatch.setattr(cc, "cite_auto_enabled", lambda doc: cite_auto)
+    monkeypatch.setattr(cc, "bib_auto_enabled", lambda doc: bib_auto)
+    monkeypatch.setattr(cc, "refresh", lambda doc, base, **kwargs: calls.append((doc, base, kwargs)) or {"ok": True})
+    doc = object()
+
+    result = cc._auto_refresh(doc, "http://x")
+
+    if expected is None:
+        assert result is None
+        assert calls == []  # both paused means no render request, not merely a no-op write-back
+    else:
+        assert result == {"ok": True}
+        assert calls == [(doc, "http://x", expected)]
+
+
+def test_toggle_citation_auto_reports_manual_refresh_path(monkeypatch) -> None:
+    states = []
+    messages = []
+    monkeypatch.setattr(cc, "cite_auto_enabled", lambda doc: False)
+    monkeypatch.setattr(cc, "set_cite_auto", lambda doc, enabled: states.append(enabled))
+    monkeypatch.setattr(cc, "_msgbox", messages.append)
+
+    cc.toggle_cite_auto_interactive(object(), "http://x")
+
+    assert states == [True]
+    assert "now ON" in messages[0]
+    assert "Existing pending changes are not refreshed automatically" in messages[0]
+
+
 def test_stamp_item_id_is_stable_and_nondestructive() -> None:
     record = {"title": "X", "type": "article-journal"}
     stamped = cc.stamp_item_id(record, 42)
@@ -609,6 +649,13 @@ class _PanelDoc:
 
     def getDocumentProperties(self) -> _PanelDocProps:
         return self._doc_props
+
+
+def test_auto_refresh_preferences_default_on_and_explicit_zero_disables() -> None:
+    assert cc.cite_auto_enabled(_PanelDoc({}))
+    assert cc.bib_auto_enabled(_PanelDoc({}))
+    assert not cc.cite_auto_enabled(_PanelDoc({}, {cc.PREF_CITE_AUTO: "0"}))
+    assert not cc.bib_auto_enabled(_PanelDoc({}, {cc.PREF_BIB_AUTO: "0"}))
 
 
 def _panel_mark(paper_id: str, rnd: str, pos: int) -> tuple[str, _PanelMark]:

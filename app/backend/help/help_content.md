@@ -323,6 +323,7 @@ A **Callosum** menu (and toolbar) then appears in Writer:
 - **Split citation** — reverses a grouped citation back into that many separate single-work citations.
 - **Open in callosum** — opens the cited paper's page in the callosum app (a browser tab). For a grouped citation, opens the first source only.
 - **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (numeric styles renumber by position; run it after edits or after moving citations). For a large document, **Refresh citations only** leaves the bibliography untouched, while **Refresh bibliography only** leaves citation text untouched and works even when automatic bibliography rebuilding is paused.
+- **Toggle automatic citation formatting** — switch to manual refresh mode for a large document. Citation inserts and edits remain structured live fields, but visible text waits for **Refresh / renumber + bibliography** or **Refresh citations only**; new pending inserts show `{citation}`. Turning automatic formatting back on affects later changes, so run one explicit refresh for existing pending changes. Bibliography auto-rebuilding is controlled separately.
 - **Citation style…** — pick a CSL style (apa, ieee, nature, …) and locale; the whole document re-renders.
 - **Insert bibliography here** — moves the bibliography to the cursor (run it again elsewhere to move it there instead).
 - **Toggle automatic bibliography rebuild** — pause the bibliography specifically; citations still update normally on Refresh.

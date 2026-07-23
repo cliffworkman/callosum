@@ -72,7 +72,7 @@ def test_every_menu_action_is_a_real_action(tmp_path) -> None:
     actions = set(re.findall(r"Dispatcher\?(\w+)", addons))
     assert actions, "no dispatcher actions found in Addons.xcu"
     assert actions <= set(cc._ACTIONS), f"menu actions {actions - set(cc._ACTIONS)} are not in callosum_cite._ACTIONS"
-    assert {"refresh", "refreshCitations", "refreshBibliography"} <= actions
+    assert {"refresh", "refreshCitations", "refreshBibliography", "toggleCiteAuto"} <= actions
 
 
 def test_build_search_rows() -> None:

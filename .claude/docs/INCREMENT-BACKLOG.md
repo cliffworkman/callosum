@@ -241,10 +241,13 @@ the Principles + A-A gates before build.)*
   **Refresh citations only** and **Refresh bibliography only** commands for large manuscripts. Both preserve
   full-document citeproc context but mutate only the requested surface; the explicit bibliography command also
   works while automatic bibliography rebuilding is paused. Real UNO proved the isolation in both directions.
-  Still open within #13: manual-refresh mode / pause-formatting state, selected-citation and current-section
-  refresh, dirty-state/progress/cancellation, and incremental rendering. **Needs Cliff's own manual click-through
-  soon** (flagged explicitly for #12/#11's panel buttons and #13's two new menu commands — not left to drift like
-  the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
+  **Inc 349 added manual-refresh mode / pause automatic citation formatting:** ordinary insert/edit/style/
+  delete/merge/split changes now honor independent per-document citation-formatting and bibliography-rebuild
+  preferences; explicit refresh commands always override the citation preference. With both paused, no automatic
+  render request occurs. Still open within #13: selected-citation and current-section refresh, a persistent
+  dirty-state indicator, progress/cancellation, and incremental rendering. **Needs Cliff's own manual
+  click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
+  not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance
   controls, portability, journal abbreviations, keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,

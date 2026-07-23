@@ -132,7 +132,8 @@ project root, kept out of git) gives you a one-command start on any OS.
 Callosum can place live, formatted citations directly in **LibreOffice Writer**, **Microsoft Word** (desktop), and
 **Google Docs** — search your library live as you type, build multi-source citations with locators/prefixes/
 suffixes, edit an existing citation without starting over, and suggest citations for the sentence you're writing
-(optionally reaching beyond your library too). See `adapters/`'s per-tool READMEs for setup.
+(optionally reaching beyond your library too). In LibreOffice, large-document controls can pause automatic
+citation formatting and bibliography rebuilding independently. See `adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 

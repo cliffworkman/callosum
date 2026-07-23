@@ -42,6 +42,7 @@ BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the START of the mana
 # any user text placed after the bibliography.
 BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
 PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
+PREF_CITE_AUTO = "CallosumCiteAuto"  # document user-property: "0" pauses automatic citation formatting (P1 #13)
 # Mark-payload schema version (inc TBD, P0 phase 1 of the LibreOffice-adapter rework — backlog #33/#34). v1 is the
 # original shape (no "v" key, always exactly one item, no per-instance fields) and is still read losslessly; v2
 # adds optional per-occurrence citeproc-cite properties (locator/label/prefix/suffix/suppress-author/author-only)
@@ -481,6 +482,23 @@ def set_bib_auto(doc, enabled: bool) -> None:
         props.addProperty(PREF_BIB_AUTO, REMOVABLE, value)
 
 
+def cite_auto_enabled(doc) -> bool:
+    """Whether citation mutations format themselves immediately. Default True for existing and new documents."""
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    return _user_prop(props, PREF_CITE_AUTO) != "0"
+
+
+def set_cite_auto(doc, enabled: bool) -> None:
+    from com.sun.star.beans.PropertyAttribute import REMOVABLE
+
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    value = "1" if enabled else "0"
+    if props.getPropertySetInfo().hasPropertyByName(PREF_CITE_AUTO):
+        props.setPropertyValue(PREF_CITE_AUTO, value)
+    else:
+        props.addProperty(PREF_CITE_AUTO, REMOVABLE, value)
+
+
 def _get_id_list(doc, name: str) -> list[str]:
     """Read a JSON-encoded list of paper_id strings from a document user-property (P1 item #11, backlog
     #33/#34 — `PREF_BIB_EXCLUDE`/`PREF_BIB_UNCITED`). Defensive against a missing/corrupt property: both return
@@ -570,7 +588,7 @@ def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, curs
     mark = doc.createInstance("com.sun.star.text.ReferenceMark")
     mark.Name = encode_mark_name(payload, rnd)
     text.insertTextContent(cursor, mark, True)  # absorb=True → the mark wraps the placeholder range
-    refresh(doc, base)
+    _auto_refresh(doc, base)
     return rnd
 
 
@@ -598,10 +616,11 @@ def edit_citation_items(doc, field: dict, items: list[dict], base: str = DEFAULT
     #33/#34, the composer's Edit-Citation path). Unlike `insert_citation_items`, this never mints a new rnd:
     editing a citation must not change its identity. `field` is the `mark_at_cursor`/`scan_citations_in_order`
     shape (``{"citationID", "items", "_mark"}``). Caller should have already confirmed the user wants to save
-    (the composer returning a non-None item list); this always writes and refreshes."""
+    (the composer returning a non-None item list); this always writes and then follows the document's automatic
+    refresh preferences."""
     records = _build_records(items, base)
     _rewrap_mark_payload(doc, field["_mark"], {"items": records}, field["citationID"])
-    refresh(doc, base)
+    _auto_refresh(doc, base)
 
 
 def _our_marks(doc) -> list:
@@ -741,6 +760,24 @@ def refresh_citations(doc, base: str = DEFAULT_BASE) -> dict:
 def refresh_bibliography(doc, base: str = DEFAULT_BASE) -> dict:
     """Rebuild the managed bibliography only; leave every citation mark untouched."""
     return refresh(doc, base, update_citations=False, update_bibliography=True)
+
+
+def _auto_refresh(doc, base: str = DEFAULT_BASE) -> dict | None:
+    """Apply only the document surfaces whose automatic-update preferences are enabled.
+
+    Explicit refresh commands call `refresh`/the partial wrappers directly and therefore always override this
+    policy. If both surfaces are paused, citation mutations remain structured but perform no render request.
+    """
+    update_citations = cite_auto_enabled(doc)
+    update_bibliography = bib_auto_enabled(doc)
+    if not update_citations and not update_bibliography:
+        return None
+    return refresh(
+        doc,
+        base,
+        update_citations=update_citations,
+        update_bibliography=update_bibliography,
+    )
 
 
 def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
@@ -899,12 +936,12 @@ def _PARAGRAH_BREAK():
 
 
 def set_style(doc, style: str, locale: str, base: str = DEFAULT_BASE) -> None:
-    """Validate the style against the server's bundled set, persist the preference, re-render."""
+    """Validate and persist the style, then follow the document's automatic refresh preferences."""
     valid = list_style_ids(base)
     if style not in valid:
         raise ValueError(f"Unknown style '{style}'. Available: {', '.join(sorted(valid))}")
     _set_pref(doc, style, locale or DEFAULT_LOCALE)
-    refresh(doc, base)
+    _auto_refresh(doc, base)
 
 
 def flatten(doc) -> int:
@@ -1358,7 +1395,7 @@ def delete_citation_interactive(doc, base: str) -> None:
         _msgbox("Place your cursor inside a citation to delete it.")
         return
     delete_citation(doc, field)
-    refresh(doc, base)
+    _auto_refresh(doc, base)
 
 
 def _merge_adjacent_interactive(doc, base: str, direction: str) -> None:
@@ -1376,7 +1413,7 @@ def _merge_adjacent_interactive(doc, base: str, direction: str) -> None:
         return
     earlier, later = (fields[idx], fields[other_idx]) if direction == "next" else (fields[other_idx], fields[idx])
     merge_citations(doc, earlier, later)
-    refresh(doc, base)
+    _auto_refresh(doc, base)
 
 
 def merge_with_next_interactive(doc, base: str) -> None:
@@ -1396,7 +1433,7 @@ def split_citation_interactive(doc, base: str) -> None:
         _msgbox("This citation has only one source — nothing to split.")
         return
     split_citation(doc, field)
-    refresh(doc, base)
+    _auto_refresh(doc, base)
 
 
 def edit_citation_interactive(doc, base: str) -> None:
@@ -1421,7 +1458,13 @@ def edit_citation_interactive(doc, base: str) -> None:
 
 def insert_bibliography_here_interactive(doc, base: str) -> None:
     """Move (or, if none exists yet, create) the bibliography at the cursor (P0 phase 7)."""
-    refresh(doc, base, bib_cursor=_insertion_cursor(doc))
+    refresh(
+        doc,
+        base,
+        bib_cursor=_insertion_cursor(doc),
+        update_citations=False,
+        update_bibliography=True,
+    )
 
 
 def toggle_bib_auto_interactive(doc, base: str) -> None:
@@ -1437,6 +1480,24 @@ def toggle_bib_auto_interactive(doc, base: str) -> None:
             else " Citations still update on refresh; the bibliography stays as-is until you turn this back on."
         )
     )
+
+
+def toggle_cite_auto_interactive(doc, base: str) -> None:
+    """Flip automatic citation formatting independently of automatic bibliography rebuilding."""
+    enabled = not cite_auto_enabled(doc)
+    set_cite_auto(doc, enabled)
+    if enabled:
+        detail = (
+            " Citation changes will format immediately. Existing pending changes are not refreshed automatically; "
+            "run Refresh / renumber + bibliography or Refresh citations only once."
+        )
+    else:
+        detail = (
+            " Citation changes remain live fields, but their visible text will not update until you run "
+            "Refresh / renumber + bibliography or Refresh citations only. Automatic bibliography rebuilding "
+            "is controlled separately."
+        )
+    _msgbox(f"Automatic citation formatting is now {'ON' if enabled else 'OFF'}.{detail}")
 
 
 def insert_statement(doc, base: str) -> None:
@@ -1682,6 +1743,7 @@ _ACTIONS = {
     "splitCitation": split_citation_interactive,
     "openInCallosum": open_in_callosum,
     "insertBibliographyHere": insert_bibliography_here_interactive,
+    "toggleCiteAuto": toggle_cite_auto_interactive,
     "toggleBibAuto": toggle_bib_auto_interactive,
     "diagnostics": document_diagnostics_interactive,
     "editCitation": edit_citation_interactive,
@@ -1774,6 +1836,10 @@ def CallosumToggleBibAuto(*_args):
     _macro("toggleBibAuto")
 
 
+def CallosumToggleCiteAuto(*_args):
+    _macro("toggleCiteAuto")
+
+
 def CallosumPrepareSubmissionCopy(*_args):
     _macro("prepareSubmissionCopy")
 
@@ -1807,6 +1873,7 @@ g_exportedScripts = (
     CallosumSplitCitation,
     CallosumOpenInCallosum,
     CallosumInsertBibliographyHere,
+    CallosumToggleCiteAuto,
     CallosumToggleBibAuto,
     CallosumPrepareSubmissionCopy,
     CallosumDiagnostics,

@@ -58,49 +58,54 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    after moving citations — numeric styles renumber by position). For a large document, **Refresh citations
    only** leaves the bibliography untouched, while **Refresh bibliography only** leaves citation text untouched
    and works even when automatic bibliography rebuilding is paused.
-4. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
+4. **Toggle automatic citation formatting** — switch to manual refresh mode for a large document. Citation
+   inserts and edits remain structured live fields, but their visible text waits for **Refresh / renumber +
+   bibliography** or **Refresh citations only**. New inserts visibly show `{citation}` while pending. Turning
+   automatic formatting back on affects later changes; run one explicit refresh to resolve existing pending
+   changes. Bibliography auto-rebuilding is controlled separately.
+5. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
    the whole document re-renders. The choice is saved in the document.
-5. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
+6. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
    copy** with citations converted to static text; your open document is **never changed**. Names the copy
    `<your-document>-submission-copy.odt` by default (always ODF for now) and tells you exactly where it saved.
-6. **Flatten to static text** — the advanced option: convert the live citation fields to plain text **in this
+7. **Flatten to static text** — the advanced option: convert the live citation fields to plain text **in this
    document** directly. **One-way:** after flattening, the citations no longer update. Prefer **Prepare
    submission copy…** unless you specifically want to keep editing the flattened version yourself.
-7. **Insert CRediT statement** — insert the **CRediT contribution statement** you built + staged in callosum
+8. **Insert CRediT statement** — insert the **CRediT contribution statement** you built + staged in callosum
    (Theory → CRediT statement → **Send to LibreOffice**) at the cursor, as plain static text. A contributorship
    statement is prose the author asserts, not a live citation field, so it is inserted as literal text (no
    ReferenceMark, unaffected by refresh/flatten). If nothing is staged, the macro tells you to build one first.
-8. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
+9. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
 
 **Acting on an existing citation** — place the cursor **inside** the citation first (all show an honest
 message if it isn't):
-9. **Edit citation…** — reopens the same live-search composer used for **Add citation…**, pre-populated with
+10. **Edit citation…** — reopens the same live-search composer used for **Add citation…**, pre-populated with
    this citation's current sources and their locator/prefix/suffix/suppress-author options. Add or remove
    sources, reorder them (**Move ↑ / ↓**), change any source's **Options…**, then click **Update**. The
    citation's identity is preserved — this changes what it contains, not which citation it is.
-10. **Delete citation** — removes the citation entirely, both the field and its rendered text.
-11. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
+11. **Delete citation** — removes the citation entirely, both the field and its rendered text.
+12. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
     single grouped citation, e.g. two separate `(Smith, 2020)` `(Jones, 2021)` become one
     `(Smith, 2020; Jones, 2021)`. Any text between the two originals (a comma, "and", …) is left in place — use
     **Edit citation…** afterward if you want to add locators/prefixes to the now-combined result.
-12. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
+13. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
     by `"; "`.
-13. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
+14. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
     grouped citation, opens the **first** work only for now.
 
 **Bibliography controls:**
-14. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
+15. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
     the "move" action: invoking it again elsewhere moves the block there.
-15. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+16. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
-16. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+17. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
     written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
-17. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
+18. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
     it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
     cited work or **Add uncited work(s)…** (for further reading). It is a snapshot at the moment you open it —
@@ -111,8 +116,8 @@ message if it isn't):
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
 `CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
-`CallosumInsertBibliographyHere`, `CallosumToggleBibAuto`, `CallosumDiagnostics`, `CallosumCitationsPanel` — are
-also runnable from the Python macro dialog if you installed by hand.)
+`CallosumInsertBibliographyHere`, `CallosumToggleCiteAuto`, `CallosumToggleBibAuto`, `CallosumDiagnostics`,
+`CallosumCitationsPanel` — are also runnable from the Python macro dialog if you installed by hand.)
 
 The bibliography is a **bounded** managed block (a start/end bookmark pair) — a refresh only ever rebuilds
 what's between those two bookmarks, so any of your own text placed after the bibliography is always preserved.

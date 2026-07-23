@@ -1170,6 +1170,75 @@ def spike_partial_refresh_controls(ctx, base, p1):
     log("spike (P1 #13): OK — each partial refresh changed only its requested surface")
 
 
+def spike_manual_refresh_mode(ctx, base, p1, p2):
+    """P1 item #13: citation formatting and bibliography rebuilding can be paused independently.
+
+    Paused inserts remain real ReferenceMarks with their full payload, but their visible placeholder is left
+    alone until an explicit refresh. With both surfaces paused, no automatic document write occurs.
+    """
+    log("spike (P1 #13): manual refresh mode / pause automatic citation formatting")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("A XXX0, B XXX1, and C XXX2.\n")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    def bibliography_text():
+        bookmarks = doc.getBookmarks()
+        start = bookmarks.getByName(cc.BIB_BOOKMARK).getAnchor().getStart()
+        end = bookmarks.getByName(cc.BIB_BOOKMARK_END).getAnchor().getEnd()
+        cursor = text.createTextCursorByRange(start)
+        cursor.gotoRange(end, True)
+        return cursor.getString()
+
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
+    check(cc.cite_auto_enabled(doc), "citation auto-formatting should default to enabled")
+    cc.set_cite_auto(doc, False)
+    check(not cc.cite_auto_enabled(doc), "citation auto-formatting preference did not persist as disabled")
+
+    bib_before = bibliography_text()
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("XXX1")))
+    fields = cc.scan_citations_in_order(doc)
+    paused_mark = fields[1]["_mark"].Name
+    check(
+        doc.getReferenceMarks().getByName(paused_mark).getAnchor().getString() == cc.PLACEHOLDER,
+        "paused citation insertion unexpectedly formatted its visible text",
+    )
+    check(bibliography_text() != bib_before, "bibliography did not update while only citation formatting was paused")
+
+    bib_after_insert = bibliography_text()
+    cc.refresh_citations(doc, base)
+    check(
+        doc.getReferenceMarks().getByName(paused_mark).getAnchor().getString() != cc.PLACEHOLDER,
+        "explicit citation-only refresh did not format the pending citation",
+    )
+    check(bibliography_text() == bib_after_insert, "citation-only refresh changed the bibliography")
+
+    cc.set_bib_auto(doc, False)
+    cc._write_bibliography(doc, ["FROZEN BIBLIOGRAPHY"])
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX2")))
+    fields = cc.scan_citations_in_order(doc)
+    newest_mark = fields[2]["_mark"].Name
+    check(
+        doc.getReferenceMarks().getByName(newest_mark).getAnchor().getString() == cc.PLACEHOLDER,
+        "both-paused insertion unexpectedly formatted its visible text",
+    )
+    check("FROZEN BIBLIOGRAPHY" in bibliography_text(), "both-paused insertion unexpectedly rebuilt bibliography")
+
+    cc.set_cite_auto(doc, True)
+    cc.set_bib_auto(doc, True)
+    cc.refresh(doc, base)
+    check(
+        all(f["_mark"].getAnchor().getString() != cc.PLACEHOLDER for f in cc.scan_citations_in_order(doc)),
+        "explicit full refresh left a pending citation placeholder",
+    )
+    check("FROZEN BIBLIOGRAPHY" not in bibliography_text(), "explicit full refresh did not rebuild bibliography")
+    log("spike (P1 #13): OK — citation formatting and bibliography rebuilding paused independently")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -1337,6 +1406,9 @@ def main():
 
         # 21) P1 item #13: explicit partial refreshes for large documents.
         spike_partial_refresh_controls(ctx, base, p1)
+
+        # 22) P1 item #13: independent automatic citation-formatting / bibliography modes.
+        spike_manual_refresh_mode(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

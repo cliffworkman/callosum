@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 349 — LibreOffice manual citation refresh mode -->
+## 2026-07-23 — Increment 349: LibreOffice manual citation refresh mode (P1 item #13)
+
+- **Files:** `adapters/libreoffice/{callosum_cite.py,citations_panel.py,selftest_uno.py,README.md}`,
+  `oxt/{Addons.xcu,description.xml}` (0.4.0 → 0.5.0), LibreOffice tests, root README, served help, security audit,
+  backlog/CLAUDE/increment notes.
+- **What:** added a document-scoped **Toggle automatic citation formatting** command. Ordinary citation
+  insert/edit/style/delete/merge/split operations now honor citation-formatting and bibliography-rebuild
+  preferences independently; explicit full/citation-only refreshes still format citations, while explicit
+  bibliography-only refresh still overrides the bibliography pause. If both surfaces are paused, no render
+  request is made. Bibliography-panel edits and insert-at-cursor now use deliberate bibliography-only refreshes,
+  so they cannot rewrite paused citations.
+- **Why:** continues P1 item #13 with a usable manual-refresh mode for large Writer documents while preserving
+  structured live citation data and the existing transactional renderer.
+- **Verify:** 58 targeted LibreOffice tests; real headless Writer `SELFTEST OK`; full suite **1424 passed,
+  1 skipped**; ruff/format, line budget, QA surface map, OXT packaging, and security audit all clean.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 348 — Workbench retrieval-narrowed drafting context -->
 ## 2026-07-23 — Increment 348: Workbench locally retrieved drafting context (backlog #36)
 
