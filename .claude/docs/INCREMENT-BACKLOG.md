@@ -237,10 +237,16 @@ the Principles + A-A gates before build.)*
   `POST /citations/render-document`), both now live in the same panel (which moved from read-only to
   read-write). Found + fixed a real, previously-latent bug along the way:
   `_write_bibliography`'s bookmark cleanup wasn't reliable across repeated rebuilds — see
-  `INCREMENT-345-NOTES.md`. **Needs Cliff's own manual click-through soon** (flagged explicitly for both #12 and
-  #11 — not left to drift like the composer's verification did). Remaining P1 (real CSL style manager,
-  note/footnote styles, more bibliography editing controls — categories/chapter bibliographies/hyperlinked
-  entries, refresh/performance controls, portability, journal abbreviations, keyboard/accessibility) **and P2
+  `INCREMENT-345-NOTES.md`. **P1 item #13 started (inc 346, 2026-07-23):** the menu now has independent
+  **Refresh citations only** and **Refresh bibliography only** commands for large manuscripts. Both preserve
+  full-document citeproc context but mutate only the requested surface; the explicit bibliography command also
+  works while automatic bibliography rebuilding is paused. Real UNO proved the isolation in both directions.
+  Still open within #13: manual-refresh mode / pause-formatting state, selected-citation and current-section
+  refresh, dirty-state/progress/cancellation, and incremental rendering. **Needs Cliff's own manual click-through
+  soon** (flagged explicitly for #12/#11's panel buttons and #13's two new menu commands — not left to drift like
+  the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
+  editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance
+  controls, portability, journal abbreviations, keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.

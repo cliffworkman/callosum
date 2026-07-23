@@ -55,7 +55,9 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    score. This sends your sentence to public metadata providers (not an AI/Gemini call) — off by default, opt-in
    each time you check it. Picking a beyond-library result adds it to your library first, then cites it.
 3. **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (run after edits, or
-   after moving citations — numeric styles renumber by position).
+   after moving citations — numeric styles renumber by position). For a large document, **Refresh citations
+   only** leaves the bibliography untouched, while **Refresh bibliography only** leaves citation text untouched
+   and works even when automatic bibliography rebuilding is paused.
 4. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
    the whole document re-renders. The choice is saved in the document.
@@ -98,12 +100,14 @@ message if it isn't):
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
-17. **Citations in this document…** — a read-only overview of every unique work you've cited: how many times,
-    whether it's still in your library, and its retraction/correction status, with a live filter box and a "Go
-    to" button that jumps you to its first occurrence. A snapshot at the moment you open it — reopen after
-    editing to refresh.
+17. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
+    it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
+    button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
+    cited work or **Add uncited work(s)…** (for further reading). It is a snapshot at the moment you open it —
+    reopen after editing to refresh.
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
+`CallosumRefreshCitations`, `CallosumRefreshBibliography`,
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
 `CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,

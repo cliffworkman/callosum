@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 346 — LibreOffice partial refresh commands + bibliography-panel drift fix -->
+## 2026-07-23 — Increment 346: LibreOffice independent citation/bibliography refresh (P1 item #13)
+
+- **Files:** `adapters/libreoffice/callosum_cite.py`, `selftest_uno.py`, `oxt/Addons.xcu`,
+  `oxt/description.xml` (0.3.0 → 0.4.0), `README.md`, `tests/test_libreoffice_{adapter,oxt}.py`, served help,
+  backlog/CLAUDE/increment notes.
+- **What:** added **Refresh citations only** and **Refresh bibliography only** immediately below the existing
+  full refresh command. Both still send the entire ordered document to citeproc (numeric order,
+  disambiguation, and bibliography membership stay correct) but the transactional writer mutates only the
+  requested surface. An explicit bibliography-only refresh works while automatic bibliography rebuilding is
+  paused; citation-only never touches the managed bibliography. Also corrected pre-existing help/README drift
+  that still called the inc-345 bibliography-editing panel read-only.
+- **Why:** the first bounded slice of roadmap P1 item #13's large-manuscript controls, built on the proven
+  transactional refresh path rather than a parallel render mechanism.
+- **Verify:** 52 targeted pytest tests; real headless Writer round trip produced `SELFTEST OK`, including a new
+  isolation spike that deliberately corrupted citation and bibliography text independently. Full gate recorded
+  in `INCREMENT-346-NOTES.md`.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 ## 2026-07-23 — LibreOffice adapter: bibliography editing — include uncited / exclude cited (P1 item #11)
 
 - **Files:** `app/backend/citations/citeproc_runner.js`, `app/backend/citations/render.py`,

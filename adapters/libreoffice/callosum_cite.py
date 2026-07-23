@@ -658,7 +658,14 @@ def mark_at_cursor(doc) -> dict | None:
     return None
 
 
-def refresh(doc, base: str = DEFAULT_BASE, bib_cursor=None) -> dict:
+def refresh(
+    doc,
+    base: str = DEFAULT_BASE,
+    bib_cursor=None,
+    *,
+    update_citations: bool = True,
+    update_bibliography: bool | None = None,
+) -> dict:
     """The live-field loop: scan → render-document → write back in-text + bibliography. Returns the response.
 
     The write-back (per-mark text replace + bibliography rebuild) is wrapped in an UndoManager-grouped
@@ -672,6 +679,14 @@ def refresh(doc, base: str = DEFAULT_BASE, bib_cursor=None) -> dict:
     — "Insert bibliography here" (P0 phase 7). An explicit `bib_cursor` request always writes, even when
     automatic rebuilding is otherwise paused (`bib_auto_enabled(doc)` is False) — pausing the passive
     every-refresh rebuild shouldn't silently swallow a deliberate "put it here" action.
+
+    P1 item #13 adds explicit partial refreshes without weakening citeproc's document-wide context:
+    `update_citations=False` leaves every citation mark untouched, while `update_bibliography=False` leaves the
+    managed bibliography block untouched. The full ordered citation set is still rendered before either write,
+    so numeric ordering, disambiguation, and bibliography membership never depend on a partial citeproc input.
+    When `update_bibliography` is None (the default), the existing document preference decides whether a passive
+    refresh rebuilds it; an explicit True is the deliberate "Refresh bibliography only" command and therefore
+    writes even while automatic rebuilding is paused.
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
@@ -688,7 +703,13 @@ def refresh(doc, base: str = DEFAULT_BASE, bib_cursor=None) -> dict:
         except ValueError:
             continue  # a manually-included paper no longer in the library -- skip silently, not a hard failure
     if not fields and not uncited_items:
-        _transactional_apply(doc, [], [], bib_cursor=bib_cursor)
+        _transactional_apply(
+            doc,
+            [],
+            [],
+            bib_cursor=bib_cursor,
+            write_bibliography=update_bibliography,
+        )
         return {"citations": [], "bibliography_text": ""}
     response = render_document(
         base,
@@ -697,11 +718,29 @@ def refresh(doc, base: str = DEFAULT_BASE, bib_cursor=None) -> dict:
     rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
     # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
     # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
-    plan = [
-        (field["_mark"].Name, rendered[field["citationID"]]) for field in fields if rendered.get(field["citationID"])
-    ]
-    _transactional_apply(doc, plan, response.get("bibliography_text", "").splitlines(), bib_cursor=bib_cursor)
+    plan = (
+        [(field["_mark"].Name, rendered[field["citationID"]]) for field in fields if rendered.get(field["citationID"])]
+        if update_citations
+        else []
+    )
+    _transactional_apply(
+        doc,
+        plan,
+        response.get("bibliography_text", "").splitlines(),
+        bib_cursor=bib_cursor,
+        write_bibliography=update_bibliography,
+    )
     return response
+
+
+def refresh_citations(doc, base: str = DEFAULT_BASE) -> dict:
+    """Re-render citation marks only; leave the managed bibliography byte-for-byte untouched."""
+    return refresh(doc, base, update_bibliography=False)
+
+
+def refresh_bibliography(doc, base: str = DEFAULT_BASE) -> dict:
+    """Rebuild the managed bibliography only; leave every citation mark untouched."""
+    return refresh(doc, base, update_citations=False, update_bibliography=True)
 
 
 def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
@@ -714,7 +753,14 @@ def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
     return {name: marks.getByName(name).getAnchor().getString() for name in names if marks.hasByName(name)}
 
 
-def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str], bib_cursor=None) -> None:
+def _transactional_apply(
+    doc,
+    plan: list[tuple[str, str]],
+    bib_entries: list[str],
+    bib_cursor=None,
+    *,
+    write_bibliography: bool | None = None,
+) -> None:
     """Apply the per-mark write-back + bibliography rebuild as one UndoManager-grouped unit (P0 phase 2).
 
     On success: the whole group commits as one entry on the document's own Undo stack (a user's Ctrl+Z after a
@@ -725,9 +771,10 @@ def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str
     own distinct error rather than silently re-raising the original one, since it means the document may now be
     in a state neither the caller nor the user expected.
 
-    The bibliography rebuild is skipped when `bib_auto_enabled(doc)` is False (P0 phase 7) UNLESS `bib_cursor`
-    is given — an explicit "put it here" request always writes, even while passive every-refresh rebuilding is
-    paused; citations still update either way, the bibliography just stays frozen otherwise.
+    When `write_bibliography` is None, the bibliography rebuild is skipped if `bib_auto_enabled(doc)` is False
+    (P0 phase 7) UNLESS `bib_cursor` is given — an explicit "put it here" request always writes, even while
+    passive every-refresh rebuilding is paused. P1 item #13's partial-refresh commands pass an explicit boolean:
+    False keeps the bibliography untouched; True deliberately rebuilds it even while auto-rebuild is paused.
     """
     names = [name for name, _ in plan]
     before = _snapshot_marks(doc, names)
@@ -737,7 +784,11 @@ def _transactional_apply(doc, plan: list[tuple[str, str]], bib_entries: list[str
         for name, text_out in plan:
             mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
             _replace_mark_text(doc, mark, text_out)
-        if bib_cursor is not None or bib_auto_enabled(doc):
+        if write_bibliography is None:
+            should_write_bibliography = bib_cursor is not None or bib_auto_enabled(doc)
+        else:
+            should_write_bibliography = write_bibliography
+        if should_write_bibliography:
             _write_bibliography(doc, bib_entries, cursor=bib_cursor)
     except Exception as exc:
         undo.leaveUndoContext()
@@ -1618,6 +1669,8 @@ _ACTIONS = {
     "insert": insert_citation_interactive,
     "suggest": suggest_and_insert,
     "refresh": refresh,
+    "refreshCitations": refresh_citations,
+    "refreshBibliography": refresh_bibliography,
     "setStyle": set_style_interactive,
     "flatten": lambda doc, base: flatten_interactive(doc),
     "prepareSubmissionCopy": lambda doc, base: prepare_submission_copy_interactive(doc),
@@ -1667,6 +1720,14 @@ def CallosumSuggestCitations(*_args):
 
 def CallosumRefresh(*_args):
     _macro("refresh")
+
+
+def CallosumRefreshCitations(*_args):
+    _macro("refreshCitations")
+
+
+def CallosumRefreshBibliography(*_args):
+    _macro("refreshBibliography")
 
 
 def CallosumSetStyle(*_args):
@@ -1734,6 +1795,8 @@ g_exportedScripts = (
     CallosumInsertCitation,
     CallosumSuggestCitations,
     CallosumRefresh,
+    CallosumRefreshCitations,
+    CallosumRefreshBibliography,
     CallosumSetStyle,
     CallosumFlatten,
     CallosumInsertStatement,

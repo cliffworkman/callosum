@@ -184,6 +184,23 @@ def test_snapshot_marks_reads_current_anchor_text() -> None:
     assert cc._snapshot_marks(doc, ["m1", "missing"]) == {"m1": "Smith, 2020"}  # an absent name is silently skipped
 
 
+def test_partial_refresh_wrappers_select_only_the_requested_surface(monkeypatch) -> None:
+    calls = []
+
+    def fake_refresh(doc, base, **kwargs):
+        calls.append((doc, base, kwargs))
+        return {"ok": True}
+
+    monkeypatch.setattr(cc, "refresh", fake_refresh)
+    doc = object()
+    assert cc.refresh_citations(doc, "http://x") == {"ok": True}
+    assert cc.refresh_bibliography(doc, "http://x") == {"ok": True}
+    assert calls == [
+        (doc, "http://x", {"update_bibliography": False}),
+        (doc, "http://x", {"update_citations": False, "update_bibliography": True}),
+    ]
+
+
 def test_stamp_item_id_is_stable_and_nondestructive() -> None:
     record = {"title": "X", "type": "article-journal"}
     stamped = cc.stamp_item_id(record, 42)

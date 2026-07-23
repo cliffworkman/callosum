@@ -322,11 +322,12 @@ A **Callosum** menu (and toolbar) then appears in Writer:
 - **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a single grouped citation.
 - **Split citation** — reverses a grouped citation back into that many separate single-work citations.
 - **Open in callosum** — opens the cited paper's page in the callosum app (a browser tab). For a grouped citation, opens the first source only.
-- **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (numeric styles renumber by position; run it after edits or after moving citations).
+- **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (numeric styles renumber by position; run it after edits or after moving citations). For a large document, **Refresh citations only** leaves the bibliography untouched, while **Refresh bibliography only** leaves citation text untouched and works even when automatic bibliography rebuilding is paused.
 - **Citation style…** — pick a CSL style (apa, ieee, nature, …) and locale; the whole document re-renders.
 - **Insert bibliography here** — moves the bibliography to the cursor (run it again elsewhere to move it there instead).
 - **Toggle automatic bibliography rebuild** — pause the bibliography specifically; citations still update normally on Refresh.
 - **Document diagnostics…** — a read-only health check: reports a malformed citation, one written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose source paper is no longer in your library, or a damaged/not-yet-built bibliography. Never changes your document.
+- **Citations in this document…** — shows each unique cited work, occurrence count, missing/retraction status, and a jump-to-first-occurrence action. From the same snapshot you can exclude a cited work from the bibliography or add an uncited work as further reading; reopen the panel after document edits to refresh its list.
 - **Prepare submission copy…** (recommended for hand-off) — saves a **separate** copy with citations converted to static text; your open document is never changed.
 - **Flatten to static text** — the advanced, in-place option: converts citations to plain text in *this* document directly. One-way — prefer Prepare submission copy unless you specifically want to keep editing the flattened version.
 - **Insert CRediT statement** — inserts the contribution statement you built in **Theory → CRediT statement → Send to LibreOffice**, as plain text at the cursor.

@@ -1127,6 +1127,49 @@ def spike_bibliography_editing(ctx, base, p1, p2):
     log("spike (P1 #11): OK — bibliography exclude persisted + reported, in-text citation untouched")
 
 
+def spike_partial_refresh_controls(ctx, base, p1):
+    """P1 item #13: citation-only and bibliography-only refreshes mutate exactly the requested surface.
+
+    This deliberately writes stale visible text into a real ReferenceMark and the real managed bibliography,
+    then exercises both public partial-refresh functions. Bibliography-only must work even while automatic
+    bibliography rebuilding is paused: it is an explicit user command, not a passive full-refresh side effect.
+    """
+    log("spike (P1 #13): independent citation-only / bibliography-only refresh")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Claim XXX.\n")
+
+    sd = doc.createSearchDescriptor()
+    sd.SearchString = "XXX"
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(doc.findFirst(sd)))
+    field = cc.scan_citations_in_order(doc)[0]
+    mark_name = field["_mark"].Name
+
+    cc._replace_mark_text(doc, doc.getReferenceMarks().getByName(mark_name), "STALE CITATION")
+    cc._write_bibliography(doc, ["STALE BIBLIOGRAPHY"])
+    cc.set_bib_auto(doc, False)
+    cc.refresh_bibliography(doc, base)
+    check(
+        doc.getReferenceMarks().getByName(mark_name).getAnchor().getString() == "STALE CITATION",
+        "bibliography-only refresh unexpectedly changed citation text",
+    )
+    body = text.getString()
+    check("STALE BIBLIOGRAPHY" not in body, "bibliography-only refresh did not rebuild the bibliography")
+    check(cc.BIB_HEADING in body, "bibliography-only refresh removed the managed bibliography")
+
+    cc._write_bibliography(doc, ["FROZEN BIBLIOGRAPHY"])
+    cc.refresh_citations(doc, base)
+    check(
+        doc.getReferenceMarks().getByName(mark_name).getAnchor().getString() != "STALE CITATION",
+        "citation-only refresh did not repair citation text",
+    )
+    check(
+        "FROZEN BIBLIOGRAPHY" in text.getString(),
+        "citation-only refresh unexpectedly changed the managed bibliography",
+    )
+    log("spike (P1 #13): OK — each partial refresh changed only its requested surface")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -1291,6 +1334,9 @@ def main():
 
         # 20) P1 item #11 (backlog #33/#34): bibliography editing -- exclude a cited work, include an uncited one.
         spike_bibliography_editing(ctx, base, p1, p2)
+
+        # 21) P1 item #13: explicit partial refreshes for large documents.
+        spike_partial_refresh_controls(ctx, base, p1)
 
         print("SELFTEST OK", flush=True)
         return 0

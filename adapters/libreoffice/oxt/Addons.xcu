@@ -80,6 +80,20 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <!-- P1 item #13: deliberate partial refreshes for large manuscripts. Each still renders the full
+               ordered citation set for citeproc correctness, but mutates only the named document surface. -->
+          <node oor:name="m04c" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?refreshCitations</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Refresh citations only</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m04d" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?refreshBibliography</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Refresh bibliography only</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <!-- Bibliography controls (P0 phase 7, backlog #33/#34) -->
           <node oor:name="m04a" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?insertBibliographyHere</value></prop>
