@@ -251,9 +251,13 @@ the Principles + A-A gates before build.)*
   save/reopen; the bar is restored on the next Callosum action. **Inc 357 added Refresh citation at cursor:**
   citeproc still receives the full ordered document, but transactional write-back targets only the selected live
   mark, never the bibliography or neighboring citations; the global citation-dirty flag is intentionally retained
-  because one repaired mark cannot prove the rest are current. Still open within #13: observing arbitrary
+  because one repaired mark cannot prove the rest are current. **Inc 358 added Refresh current section:** Writer
+  outline levels define a section as the nearest preceding heading plus nested subsections through the next
+  same-or-higher-level heading. Full-document citeproc context is preserved while write-back targets only marks
+  in that heading subtree; preamble, peer sections, bibliography, and global pending state remain untouched.
+  Still open within #13: observing arbitrary
   Writer-only citation moves and restoring the bar immediately on document-open (both need a document-event
-  listener), current-section refresh, progress/cancellation, and incremental rendering. **Needs Cliff's own manual
+  listener), progress/cancellation, and incremental rendering. **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance

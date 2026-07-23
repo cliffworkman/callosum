@@ -1215,6 +1215,62 @@ def spike_selected_citation_refresh(ctx, base, p1, p2):
     log("spike (P1 #13): OK — only the cursor citation changed; global pending state stayed honest")
 
 
+def spike_current_section_refresh(ctx, base, p1, p2):
+    """P1 item #13: outline-defined section refresh includes nested subsections and stops at the next peer."""
+    log("spike (P1 #13): refresh current outline section")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    rows = ["Preamble XXX0.", "Section One", "First XXX1.", "Subsection", "Nested XXX2.", "Section Two", "Second XXX3."]
+    for row in rows:
+        cursor = text.createTextCursorByRange(text.getEnd())
+        text.insertString(cursor, row, False)
+        text.insertControlCharacter(cursor, cc._PARAGRAH_BREAK(), False)
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    def set_heading(needle, style):
+        cursor = text.createTextCursorByRange(find_range(needle))
+        cursor.gotoStartOfParagraph(False)
+        cursor.gotoEndOfParagraph(True)
+        cursor.ParaStyleName = style
+
+    set_heading("Section One", "Heading 1")
+    set_heading("Subsection", "Heading 2")
+    set_heading("Section Two", "Heading 1")
+    for marker, paper_id in (("XXX0", p1), ("XXX1", p1), ("XXX2", p2), ("XXX3", p2)):
+        cc.insert_citation(doc, paper_id, base, cursor=text.createTextCursorByRange(find_range(marker)))
+
+    fields = cc.scan_citations_in_order(doc)
+    names = [field["_mark"].Name for field in fields]
+    stale = ["STALE PREAMBLE", "STALE FIRST", "STALE NESTED", "STALE SECOND"]
+    for name, value in zip(names, stale, strict=True):
+        cc._replace_mark_text(doc, doc.getReferenceMarks().getByName(name), value)
+    cc.set_dirty_state(doc, citations=True)
+    bibliography_before = text.getString().split(cc.BIB_HEADING, 1)[-1]
+
+    view_cursor = doc.getCurrentController().getViewCursor()
+    view_cursor.gotoRange(doc.getReferenceMarks().getByName(names[1]).getAnchor().getStart(), False)
+    cc.refresh_current_section(doc, base)
+
+    rendered = [doc.getReferenceMarks().getByName(name).getAnchor().getString() for name in names]
+    check(rendered[0] == stale[0], "current-section refresh unexpectedly changed the preamble citation")
+    check(rendered[1] != stale[1], "current-section refresh did not update its direct citation")
+    check(rendered[2] != stale[2], "current-section refresh did not include its nested subsection")
+    check(rendered[3] == stale[3], "current-section refresh crossed into the next peer section")
+    check(
+        text.getString().split(cc.BIB_HEADING, 1)[-1] == bibliography_before,
+        "current-section refresh unexpectedly changed the bibliography",
+    )
+    check(
+        cc.dirty_state(doc) == (True, False),
+        "current-section refresh falsely cleared the document-wide citation-pending state",
+    )
+    log("spike (P1 #13): OK — heading subtree refreshed; preamble/next peer/bibliography stayed unchanged")
+
+
 def spike_manual_refresh_mode(ctx, base, p1, p2):
     """P1 item #13: citation formatting and bibliography rebuilding can be paused independently.
 
@@ -1417,6 +1473,10 @@ def main():
         check(disp is not None, "the .oxt dispatcher service did not resolve — extension not installed/registered?")
         check(hasattr(disp, "trigger"), "the .oxt dispatcher does not expose trigger() (XJobExecutor)")
         log("dispatcher OK")
+
+        # P1 item #13: heading-defined current-section refresh. Kept early because it exercises Writer's live
+        # OutlineLevel bridge and should fail fast before the slower legacy scale spikes.
+        spike_current_section_refresh(ctx, base, p1, p2)
 
         # 6) P0 phase-0 spike (backlog #33/#34): empirically de-risk open questions for the rework's later
         # phases, before committing further engineering on top of assumed answers. Findings are LOGGED, not all

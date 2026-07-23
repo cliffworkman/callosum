@@ -94,6 +94,12 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <node oor:name="m04t" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?refreshCurrentSection</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Refresh current section</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m04d" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?refreshBibliography</value></prop>
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Refresh bibliography only</value></prop>

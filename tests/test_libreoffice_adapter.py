@@ -237,6 +237,132 @@ def test_refresh_selected_citation_requires_cursor_inside_mark(monkeypatch) -> N
     assert messages == ["Place your cursor inside a citation to refresh it."]
 
 
+class _OutlineRange:
+    def __init__(self, position: int) -> None:
+        self.position = position
+
+    def getStart(self):
+        return self
+
+
+class _OutlineParagraph(_OutlineRange):
+    def __init__(self, position: int, level: int) -> None:
+        super().__init__(position)
+        self.OutlineLevel = level
+
+    def getPropertyValue(self, name: str):
+        if name != "OutlineLevel":
+            raise KeyError(name)
+        return self.OutlineLevel
+
+
+class _OutlineEnumeration:
+    def __init__(self, paragraphs) -> None:
+        self._paragraphs = iter(paragraphs)
+        self._next = None
+
+    def hasMoreElements(self) -> bool:
+        if self._next is None:
+            self._next = next(self._paragraphs, False)
+        return self._next is not False
+
+    def nextElement(self):
+        item = self._next
+        self._next = None
+        return item
+
+
+class _OutlineText:
+    def __init__(self, headings) -> None:
+        self._paragraphs = [_OutlineParagraph(position, level) for position, level in headings]
+
+    def createEnumeration(self):
+        return _OutlineEnumeration(self._paragraphs)
+
+    def compareRegionStarts(self, left, right) -> int:
+        return 1 if left.position < right.position else (-1 if left.position > right.position else 0)
+
+    def getStart(self):
+        return _OutlineRange(0)
+
+    def getEnd(self):
+        return _OutlineRange(100)
+
+
+class _OutlineController:
+    def __init__(self, position: int) -> None:
+        self._cursor = _OutlineRange(position)
+
+    def getViewCursor(self):
+        return self._cursor
+
+
+class _OutlineDoc:
+    def __init__(self, headings, cursor: int) -> None:
+        self._text = _OutlineText(headings)
+        self._controller = _OutlineController(cursor)
+
+    def getText(self):
+        return self._text
+
+    def getCurrentController(self):
+        return self._controller
+
+
+@pytest.mark.parametrize(
+    ("headings", "cursor", "expected"),
+    [
+        ([(10, 1), (30, 2), (50, 2), (80, 1)], 20, (10, 80)),
+        ([(10, 1), (30, 2), (50, 2), (80, 1)], 35, (30, 50)),
+        ([(10, 1), (30, 2)], 5, (0, 10)),
+        ([], 35, (0, 100)),
+    ],
+)
+def test_current_outline_section_bounds_follow_heading_subtrees(headings, cursor, expected) -> None:
+    start, end = cc._current_outline_section_bounds(_OutlineDoc(headings, cursor))
+    assert (start.position, end.position) == expected
+
+
+def test_refresh_current_section_targets_only_section_marks(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(cc, "current_section_citation_names", lambda doc: {"mark-2", "mark-3"})
+    monkeypatch.setattr(
+        cc,
+        "refresh",
+        lambda doc, base, **kwargs: calls.append((doc, base, kwargs)) or {"ok": True},
+    )
+    doc = object()
+
+    assert cc.refresh_current_section(doc, "http://x") == {"ok": True}
+    assert calls == [
+        (
+            doc,
+            "http://x",
+            {
+                "update_bibliography": False,
+                "citation_names": {"mark-2", "mark-3"},
+            },
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    ("names", "message"),
+    [
+        (None, "Place your cursor in the main document text to refresh its current section."),
+        (set(), "No live Callosum citations were found in the current section."),
+    ],
+)
+def test_refresh_current_section_handles_missing_scope_without_render(monkeypatch, names, message) -> None:
+    messages = []
+    monkeypatch.setattr(cc, "current_section_citation_names", lambda doc: names)
+    monkeypatch.setattr(cc, "_msgbox", messages.append)
+    monkeypatch.setattr(cc, "refresh", lambda *args, **kwargs: pytest.fail("refresh should not run"))
+
+    assert cc.refresh_current_section(object(), "http://x") is None
+    assert messages == [message]
+
+
 @pytest.mark.parametrize(
     ("cite_auto", "bib_auto", "expected", "expected_dirty"),
     [

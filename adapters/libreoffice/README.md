@@ -60,7 +60,9 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    and works even when automatic bibliography rebuilding is paused. **Refresh citation at cursor** updates just
    the live citation containing the caret. It still renders the full citation sequence for correct numbering,
    but leaves every other citation and the bibliography untouched. A document-wide pending-citations warning
-   remains until you run a document-wide citation refresh.
+   remains until you run a document-wide citation refresh. **Refresh current section** updates the nearest
+   preceding heading and its nested subsections, stopping at the next heading of the same or higher rank. Text
+   before the first heading is a preamble section; a document without headings is one section.
 4. **Toggle automatic citation formatting** — switch to manual refresh mode for a large document. Citation
    inserts and edits remain structured live fields, but their visible text waits for **Refresh / renumber +
    bibliography** or **Refresh citations only**. New inserts visibly show `{citation}` while pending. Turning

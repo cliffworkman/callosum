@@ -200,9 +200,8 @@ def start_stack():
     )
     before = soffice_pids()
     soffice = None
+    profile_dir = HERE / f"lo_profile_{os.getpid()}_{time.time_ns()}"
     try:
-        profile_dir = HERE / "lo_profile"
-        shutil.rmtree(profile_dir, ignore_errors=True)  # clean profile → deterministic install (no stale extension)
         profile = profile_dir.as_uri()
         install_oxt(profile)
         # unopkg's bootstrap soffice.bin can linger and hold the profile lock; clear it before launching ours.
@@ -224,13 +223,13 @@ def start_stack():
         print("server up", flush=True)
         wait_port(PORT_UNO)
         print("soffice UNO socket up", flush=True)
-        return server, soffice, before, p1, p2
+        return server, soffice, before, p1, p2, profile_dir
     except Exception:
-        teardown(server, soffice, before)  # never leak the uvicorn/soffice on a startup failure (it locks the DB)
+        teardown(server, soffice, before, profile_dir)  # never leak processes/profile on a startup failure
         raise
 
 
-def teardown(server, soffice, before):
+def teardown(server, soffice, before, profile_dir=None):
     for proc in (server, soffice):
         try:
             proc.terminate()
@@ -239,11 +238,13 @@ def teardown(server, soffice, before):
     for pid in soffice_pids() - before:  # kill only the soffice.bin we spawned
         kill_pid(pid)
     time.sleep(1)
+    if profile_dir is not None:
+        shutil.rmtree(profile_dir, ignore_errors=True)
 
 
 def main() -> int:
     serve = len(sys.argv) > 1 and sys.argv[1] == "serve"
-    server, soffice, before, p1, p2 = start_stack()
+    server, soffice, before, p1, p2, profile_dir = start_stack()
     try:
         if serve:
             print(f"READY base=http://127.0.0.1:{PORT_HTTP} ids={p1},{p2} uno_port={PORT_UNO}", flush=True)
@@ -261,7 +262,7 @@ def main() -> int:
             return 2
     finally:
         if not serve:
-            teardown(server, soffice, before)
+            teardown(server, soffice, before, profile_dir)
 
 
 if __name__ == "__main__":

@@ -76,6 +76,7 @@ def test_every_menu_action_is_a_real_action(tmp_path) -> None:
         "refresh",
         "refreshCitations",
         "refreshSelectedCitation",
+        "refreshCurrentSection",
         "refreshBibliography",
         "toggleCiteAuto",
     } <= actions

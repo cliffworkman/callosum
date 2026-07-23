@@ -742,6 +742,79 @@ def mark_at_cursor(doc) -> dict | None:
     return None
 
 
+def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
+    """Return the heading-defined section containing the Writer caret as ``(start, end)``.
+
+    Writer's ``OutlineLevel`` is the semantic authority: 0 is body text and 1..10 are headings. A section starts
+    at the nearest preceding heading and includes nested lower-ranked headings until the next heading at the same
+    or higher rank. Text before the first heading is a preamble section; a heading-free document is one section.
+    """
+    text = doc.getText()
+    try:
+        cursor = doc.getCurrentController().getViewCursor().getStart()
+        enumeration = text.createEnumeration()
+    except Exception:
+        return None
+    headings = []
+    while enumeration.hasMoreElements():
+        paragraph = enumeration.nextElement()
+        try:
+            start = paragraph.getStart()
+        except Exception:
+            continue
+        try:
+            level = int(paragraph.getPropertyValue("OutlineLevel"))
+        except Exception:
+            try:
+                level = int(paragraph.OutlineLevel)
+            except Exception:
+                continue
+        if level > 0:
+            headings.append((start, level))
+
+    current_index = None
+    try:
+        for index, (start, _level) in enumerate(headings):
+            if text.compareRegionStarts(start, cursor) >= 0:
+                current_index = index
+            else:
+                break
+    except Exception:
+        return None
+
+    if current_index is None:
+        return text.getStart(), headings[0][0] if headings else text.getEnd()
+
+    start, level = headings[current_index]
+    end = text.getEnd()
+    for next_start, next_level in headings[current_index + 1 :]:
+        if next_level <= level:
+            end = next_start
+            break
+    return start, end
+
+
+def current_section_citation_names(doc) -> set[str] | None:
+    """Return recognized citation mark names inside the caret's heading-defined section."""
+    bounds = _current_outline_section_bounds(doc)
+    if bounds is None:
+        return None
+    start, end = bounds
+    text = doc.getText()
+    names = set()
+    for field in scan_citations_in_order(doc):
+        anchor_start = field["_mark"].getAnchor().getStart()
+        try:
+            inside = (
+                text.compareRegionStarts(start, anchor_start) >= 0 and text.compareRegionStarts(anchor_start, end) > 0
+            )
+        except Exception:
+            continue
+        if inside:
+            names.add(field["_mark"].Name)
+    return names
+
+
 def refresh(
     doc,
     base: str = DEFAULT_BASE,
@@ -855,6 +928,23 @@ def refresh_selected_citation(doc, base: str = DEFAULT_BASE) -> dict | None:
         base,
         update_bibliography=False,
         citation_names={field["_mark"].Name},
+    )
+
+
+def refresh_current_section(doc, base: str = DEFAULT_BASE) -> dict | None:
+    """Re-render citations in the caret's heading-defined section, using full-document citeproc context."""
+    names = current_section_citation_names(doc)
+    if names is None:
+        _msgbox("Place your cursor in the main document text to refresh its current section.")
+        return None
+    if not names:
+        _msgbox("No live Callosum citations were found in the current section.")
+        return None
+    return refresh(
+        doc,
+        base,
+        update_bibliography=False,
+        citation_names=names,
     )
 
 
@@ -1872,6 +1962,7 @@ _ACTIONS = {
     "refresh": refresh,
     "refreshCitations": refresh_citations,
     "refreshSelectedCitation": refresh_selected_citation,
+    "refreshCurrentSection": refresh_current_section,
     "refreshBibliography": refresh_bibliography,
     "refreshPending": refresh_pending,
     "setStyle": set_style_interactive,
@@ -1933,6 +2024,10 @@ def CallosumRefreshCitations(*_args):
 
 def CallosumRefreshSelectedCitation(*_args):
     _macro("refreshSelectedCitation")
+
+
+def CallosumRefreshCurrentSection(*_args):
+    _macro("refreshCurrentSection")
 
 
 def CallosumRefreshBibliography(*_args):
@@ -2010,6 +2105,7 @@ g_exportedScripts = (
     CallosumRefresh,
     CallosumRefreshCitations,
     CallosumRefreshSelectedCitation,
+    CallosumRefreshCurrentSection,
     CallosumRefreshBibliography,
     CallosumSetStyle,
     CallosumFlatten,
