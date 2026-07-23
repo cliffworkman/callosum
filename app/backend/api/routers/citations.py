@@ -113,10 +113,23 @@ class CitationCluster(BaseModel):
     items: list[CitationItem] = Field(min_length=1, max_length=MAX_ITEMS_PER_CLUSTER)
 
 
+class UncitedItem(BaseModel):
+    """A bibliography-only entry (P1 item #11, backlog #33/#34) — a work with no in-text citation mark in the
+    document (a "further reading" item). CSL-JSON fields pass through untouched via ``extra="allow"``, same as
+    `CitationItem`; the only field this model itself cares about is `id`, matched against
+    `bibliography_exclude_ids` and citeproc's own item registry."""
+
+    model_config = ConfigDict(extra="allow")
+    id: str
+
+
 class RenderDocumentRequest(BaseModel):
     citations: list[CitationCluster] = Field(max_length=MAX_CLUSTERS)
     style: str = DEFAULT_STYLE
     locale: str = DEFAULT_LOCALE
+    # P1 item #11 (backlog #33/#34): bibliography editing. Both additive/optional — existing callers unaffected.
+    uncited_items: list[UncitedItem] = Field(default=[], max_length=MAX_ITEMS_PER_CLUSTER)
+    bibliography_exclude_ids: list[str] = Field(default=[], max_length=MAX_CLUSTERS)
 
 
 @router.get("/citations/styles")
@@ -153,8 +166,15 @@ def render_citation_document(payload: RenderDocumentRequest) -> dict[str, Any]:
     # by_alias=True: CitationItem's suppress_author/author_only dump as the hyphenated citeproc-cite property
     # names (P0 phase 3) — the wire shape render_document()/citeproc_runner.js expect, not the Python attribute.
     clusters = [c.model_dump(by_alias=True) for c in payload.citations]
+    uncited = [u.model_dump() for u in payload.uncited_items]
     try:
-        return render_document(clusters, style=payload.style, locale=payload.locale)
+        return render_document(
+            clusters,
+            style=payload.style,
+            locale=payload.locale,
+            uncited_items=uncited,
+            bibliography_exclude_ids=payload.bibliography_exclude_ids,
+        )
     except CitationEngineUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ValueError as exc:

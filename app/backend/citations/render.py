@@ -169,7 +169,14 @@ def render_papers(papers: Sequence[Mapping[str, Any]], *, style: str, locale: st
     }
 
 
-def render_document(citations: Sequence[Mapping[str, Any]], *, style: str, locale: str) -> dict[str, Any]:
+def render_document(
+    citations: Sequence[Mapping[str, Any]],
+    *,
+    style: str,
+    locale: str,
+    uncited_items: Sequence[Mapping[str, Any]] = (),
+    bibliography_exclude_ids: Sequence[str] = (),
+) -> dict[str, Any]:
     """Position-aware render of a document's ORDERED citation clusters — the word-processor adapter contract.
 
     Each cluster is ``{"citationID"?: str, "items": [<CSL-JSON dict, each with an `id`>]}``, passed in **document
@@ -177,6 +184,12 @@ def render_document(citations: Sequence[Mapping[str, Any]], *, style: str, local
     styles renumber `[1][2][3]` by appearance, author-date styles disambiguate (`2020a`/`2020b`) across the
     document. Self-contained: it renders from the **passed CSL-JSON payloads** (each document field carries its
     own), so it needs no library lookup. Returns per-cluster in-text (text + sanitized HTML) + the bibliography.
+
+    ``uncited_items`` (P1 item #11, backlog #33/#34) are bibliography-only entries — a "further reading" work
+    with no in-text citation mark — via citeproc-js's own ``updateUncitedItems``. ``bibliography_exclude_ids``
+    removes specific CITED works from the bibliography (e.g. a personal communication) while their in-text
+    citation still renders, via citeproc-js's own ``makeBibliography({exclude: [...]})`` field filter — both are
+    real, already-supported citeproc-js mechanisms, just not previously wired through this endpoint.
     """
     if style not in STYLE_IDS:
         raise ValueError(f"unknown style: {style}")
@@ -184,6 +197,10 @@ def render_document(citations: Sequence[Mapping[str, Any]], *, style: str, local
         locale = DEFAULT_LOCALE
     if len(citations) > MAX_CLUSTERS:
         raise ValueError(f"too many citations to render at once (max {MAX_CLUSTERS})")
+    if len(uncited_items) > MAX_ITEMS_PER_CLUSTER:
+        raise ValueError(f"too many uncited items at once (max {MAX_ITEMS_PER_CLUSTER})")
+    if len(bibliography_exclude_ids) > MAX_CLUSTERS:
+        raise ValueError(f"too many bibliography-exclude ids at once (max {MAX_CLUSTERS})")
 
     clusters: list[dict[str, Any]] = []
     total_items = 0
@@ -205,7 +222,26 @@ def render_document(citations: Sequence[Mapping[str, Any]], *, style: str, local
     if total_items > MAX_ITEMS:
         raise ValueError(f"too many items to render at once (max {MAX_ITEMS})")
 
-    data = _run({"mode": "document", "style": style, "locale": locale, "citations": clusters})
+    out_uncited: list[dict[str, Any]] = []
+    for it in uncited_items:
+        if not isinstance(it, Mapping) or it.get("id") is None:
+            raise ValueError("each uncited item needs an id")
+        item = dict(it)
+        item["id"] = str(item["id"])
+        item.setdefault("type", "article-journal")
+        out_uncited.append(item)
+    exclude_ids = [str(x) for x in bibliography_exclude_ids]
+
+    data = _run(
+        {
+            "mode": "document",
+            "style": style,
+            "locale": locale,
+            "citations": clusters,
+            "uncited_items": out_uncited,
+            "bibliography_exclude_ids": exclude_ids,
+        }
+    )
 
     out_citations: list[dict[str, Any]] = []
     for c in data.get("citations", []):

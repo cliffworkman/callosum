@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-23 — LibreOffice adapter: bibliography editing — include uncited / exclude cited (P1 item #11)
+
+- **Files:** `app/backend/citations/citeproc_runner.js`, `app/backend/citations/render.py`,
+  `app/backend/api/routers/citations.py`, `adapters/libreoffice/callosum_cite.py`,
+  `adapters/libreoffice/citations_panel.py`, `adapters/libreoffice/selftest_uno.py`, `tests/test_citations.py`,
+  `tests/test_libreoffice_adapter.py`, `.claude/security-audits/2026-06-21_citation-render-document.md`
+  (addendum), `adapters/libreoffice/oxt/description.xml` (0.2.0 → 0.3.0).
+- **What:** wired two real, pre-existing-but-unused citeproc-js mechanisms (`updateUncitedItems`,
+  `makeBibliography`'s field-filter `exclude`) through `POST /citations/render-document` (two new additive
+  request fields) and the LibreOffice adapter: "Add uncited work(s)…" (reuses the composer dialog verbatim)
+  and "Toggle bibliography exclude", both now live in the "Citations in this document" panel, which moves from
+  read-only to read-write. Along the way, found and fixed a real, previously-latent bug in
+  `_write_bibliography`: `cursor.setString("")` on the bookmark-bounded range doesn't reliably remove the
+  bookmark *objects* themselves, so a second-and-later rebuild could collide on name with survivors and
+  silently accumulate an orphaned stack of old bibliography blocks — fixed via explicit
+  `text.removeTextContent()`, the same pattern already used for ReferenceMarks.
+- **Why:** next pick after the citations panel (P1 item #12); Cliff chose bibliography editing (roadmap item
+  #11) as the next LibreOffice P1 slice.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 ## 2026-07-23 — LibreOffice adapter: "Citations in this document" panel (P1 item #12)
 
 - **Files:** `adapters/libreoffice/citations_panel.py` (new), `adapters/libreoffice/callosum_cite.py`,

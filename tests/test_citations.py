@@ -258,3 +258,60 @@ def test_citation_item_locator_length_capped(temp_db_url: str) -> None:
         "/citations/render-document", json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]}
     )
     assert r.status_code == 422
+
+
+# ── P1 item #11 (backlog #33/#34): bibliography editing — include an uncited "further reading" work, exclude a
+# specific CITED work from the bibliography (e.g. a personal communication) — both real citeproc-js mechanisms
+# (updateUncitedItems / makeBibliography's field-filter bibsection), just newly wired through this endpoint ──
+
+
+def test_render_document_uncited_item_appears_in_bibliography_with_no_in_text_citation(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post(
+        "/citations/render-document",
+        json={
+            "style": "apa",
+            "citations": [_cluster("A", "a")],
+            "uncited_items": [_DOC_ITEMS["c"]],
+        },
+    )
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert len(d["citations"]) == 1  # only the actually-cited cluster gets an in-text render
+    assert "Radford" in d["bibliography_text"]  # the uncited item ("c") still appears in the bibliography
+    assert "Vaswani" in d["bibliography_text"]
+
+
+def test_render_document_bibliography_exclude_removes_entry_but_keeps_in_text_citation(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post(
+        "/citations/render-document",
+        json={
+            "style": "apa",
+            "citations": [_cluster("A", "a"), _cluster("B", "b")],
+            "bibliography_exclude_ids": ["b"],
+        },
+    )
+    assert r.status_code == 200, r.text
+    d = r.json()
+    by_id = {c["citationID"]: c["text"] for c in d["citations"]}
+    assert "Devlin" in by_id["B"]  # the excluded work's in-text citation still renders
+    assert "Devlin" not in d["bibliography_text"]  # but it's gone from the bibliography
+    assert "Vaswani" in d["bibliography_text"]  # the non-excluded work is unaffected
+
+
+def test_render_document_uncited_item_missing_id_rejected(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post(
+        "/citations/render-document",
+        json={"style": "apa", "citations": [_cluster("A", "a")], "uncited_items": [{"title": "No id"}]},
+    )
+    assert r.status_code == 422
+
+
+def test_render_document_bibliography_editing_fields_are_optional(temp_db_url: str) -> None:
+    """Existing callers (no uncited_items/bibliography_exclude_ids at all) are completely unaffected — the
+    additive-fields contract the security-audit addendum relies on."""
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post("/citations/render-document", json={"style": "apa", "citations": [_cluster("A", "a")]})
+    assert r.status_code == 200, r.text

@@ -1072,6 +1072,61 @@ def spike_list_document_citations(ctx, base, p1, p2):
     log(f"spike (P1 #12): OK — list_document_citations = {[(e['paper_id'], e['count']) for e in entries]}")
 
 
+def spike_bibliography_editing(ctx, base, p1, p2):
+    """P1 item #11 (backlog #33/#34): exclude a cited work from the bibliography while its in-text citation
+    still renders, and include an uncited "further reading" work — both against a real document, real
+    `refresh()`, and the real `_get_id_list`/`_set_id_list` user-property persistence (the one part of this
+    feature that literally cannot be faked in pytest, since it needs `com.sun.star.beans.PropertyAttribute`)."""
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Claim one AAA.\n")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    def mark_count():
+        return len([n for n in doc.getReferenceMarks().getElementNames() if cc.decode_mark_name(n)])
+
+    def bibliography_only():
+        # The default style is author-date (APA), so the in-text citation ALSO contains the author surname
+        # ("(Vaswani, 2017)") -- isolate the text AFTER the bibliography heading so presence/absence checks
+        # below test the bibliography specifically, not "anywhere in the document".
+        body = text.getString()
+        idx = body.find(cc.BIB_HEADING)
+        return body[idx:] if idx >= 0 else ""
+
+    # insert_citation() already calls refresh() internally -- no extra explicit refresh needed right after.
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("AAA")))
+    bib = bibliography_only()
+    check("Vaswani" in bib, f"expected p1's bibliography entry after the first refresh, bib={bib!r}")
+    check("Devlin" not in bib, "p2 shouldn't appear yet -- never cited, never added as uncited")
+    marks_before = mark_count()
+
+    log("spike (P1 #11): add p2 as an uncited 'further reading' work")
+    cc._set_id_list(doc, cc.PREF_BIB_UNCITED, [p2])
+    cc.refresh(doc, base)
+    bib = bibliography_only()
+    check("Devlin" in bib, f"expected p2's bibliography entry after adding it as uncited, bib={bib!r}")
+    check(mark_count() == marks_before, f"p2 must NOT get an in-text citation mark, count={mark_count()}")
+    log("spike (P1 #11): OK — uncited work appears in bibliography with no in-text mark")
+
+    log("spike (P1 #11): exclude p1 from the bibliography (still cited in text)")
+    cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, [p1])
+    cc.refresh(doc, base)
+    bib = bibliography_only()
+    check("Vaswani" not in bib, f"p1's bibliography entry should be gone once excluded, bib={bib!r}")
+    check("Devlin" in bib, "p2's uncited entry should be unaffected by p1's exclusion")
+    check(mark_count() == marks_before, "excluding from the bibliography must not remove the in-text citation mark")
+    check("Vaswani" in text.getString(), "p1's in-text citation must still render even though it's excluded")
+    entries = cc.list_document_citations(doc, base)
+    p1_entry = next(e for e in entries if e["paper_id"] == p1)
+    check(p1_entry["excluded"] is True, f"p1 should report excluded=True, got {p1_entry}")
+    check(p1_entry["mark"] is not None, "p1 is still cited -- its mark must still be findable")
+    log("spike (P1 #11): OK — bibliography exclude persisted + reported, in-text citation untouched")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -1233,6 +1288,9 @@ def main():
 
         # 19) P1 item #12 (backlog #33/#34): the "Citations in this document" panel's read-only data source.
         spike_list_document_citations(ctx, base, p1, p2)
+
+        # 20) P1 item #11 (backlog #33/#34): bibliography editing -- exclude a cited work, include an uncited one.
+        spike_bibliography_editing(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

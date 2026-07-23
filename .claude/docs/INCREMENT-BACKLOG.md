@@ -227,13 +227,21 @@ the Principles + A-A gates before build.)*
   per-occurrence versioned metadata (`composer.py`, Phases 5a/5b/5c, incs 329–331) are all live in the code
   today — confirmed by reading the actual implementation, not just the increment notes. **The composer's
   manual-verification debt is now closed (2026-07-23):** Cliff hand-tested Phases 5a/5b/5c live in Writer —
-  "a great start!" **Then P1 parity started (inc 344, 2026-07-23):** item #12, the "Citations in this
-  document" panel, shipped — a modal (not yet live-refreshing; see `citations_panel.py`'s own docstring for
-  why) list of every unique cited work with occurrence count, missing/orphaned + retraction status, live
-  filter, and click-to-navigate. **Needs Cliff's own manual click-through soon** (flagged explicitly, not left
-  to drift like the composer's did). Remaining P1 (real CSL style manager, note/footnote styles, bibliography
-  editing controls, refresh/performance controls, portability, journal abbreviations, keyboard/accessibility)
-  **and P2 leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
+  "a great start!" **P1 parity started (inc 344, 2026-07-23):** item #12, the "Citations in this document"
+  panel, shipped — a modal (not yet live-refreshing; see `citations_panel.py`'s own docstring for why) list of
+  every unique cited work with occurrence count, missing/orphaned + retraction status, live filter, and
+  click-to-navigate. **Item #11, bibliography editing, shipped next (inc 345, 2026-07-23):** "Add uncited
+  work(s)…" (a "further reading" entry with no in-text citation, via citeproc-js's own `updateUncitedItems`)
+  and "Toggle bibliography exclude" (a cited work omitted from the bibliography, e.g. a personal communication,
+  via `makeBibliography`'s field-filter `exclude` — both real citeproc-js mechanisms, newly wired through
+  `POST /citations/render-document`), both now live in the same panel (which moved from read-only to
+  read-write). Found + fixed a real, previously-latent bug along the way:
+  `_write_bibliography`'s bookmark cleanup wasn't reliable across repeated rebuilds — see
+  `INCREMENT-345-NOTES.md`. **Needs Cliff's own manual click-through soon** (flagged explicitly for both #12 and
+  #11 — not left to drift like the composer's verification did). Remaining P1 (real CSL style manager,
+  note/footnote styles, more bibliography editing controls — categories/chapter bibliographies/hyperlinked
+  entries, refresh/performance controls, portability, journal abbreviations, keyboard/accessibility) **and P2
+  leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth

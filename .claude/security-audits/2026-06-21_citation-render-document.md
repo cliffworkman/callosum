@@ -72,3 +72,42 @@ word-processor adapter substrate, not an assertion. Honors credit-the-lineage vi
 ## Result
 **Security Audit: PASS** — additive, local, fail-closed, output-sanitized, input-capped; no egress, no new
 dependency, no SQL, no file-path-from-input.
+
+## Addendum (2026-07-23) — P1 item #11 (backlog #33/#34): bibliography editing
+
+**Trigger:** audit gate #1 (request-schema change to this existing endpoint). Adds two new **optional,
+additive** fields to `RenderDocumentRequest`: `uncited_items: list[UncitedItem] = []` (bibliography-only
+"further reading" entries — same CSL-JSON shape as a `CitationItem`, `extra="allow"`, requires only `id`) and
+`bibliography_exclude_ids: list[str] = []` (cited works to omit from the rendered bibliography while their
+in-text citation is unaffected — e.g. a personal communication). Both mechanisms are **real, pre-existing
+citeproc-js capabilities** (`engine.updateUncitedItems`, `engine.makeBibliography({exclude: [...]})` — confirmed
+in `node_modules/citeproc/citeproc_commonjs.js`), newly wired through this endpoint; no new library, no new
+egress, no new SQL.
+
+- **Input validation / boundary (rule #4).** `uncited_items` capped at `MAX_ITEMS_PER_CLUSTER` (50);
+  `bibliography_exclude_ids` capped at `MAX_CLUSTERS` (5000) — both existing, already-audited constants, no new
+  magic numbers. Each uncited item is validated the same way a citation item already is: must carry an `id`
+  (422 otherwise, via the same `ValueError` → 422 path `render_document` already uses). Exclude ids are coerced
+  to `str` defensively before reaching the sidecar.
+- **Injection / sidecar boundary.** Both new fields ride the exact same fixed-argv `node <runner>` subprocess
+  with JSON on stdin — no new subprocess invocation, no new command construction. `bibsection.exclude` matches
+  `item[field] === value` inside citeproc-js's own engine (a pure in-memory JS comparison over the already-
+  trusted item objects this endpoint already builds) — the `field` used is always the literal string `"id"`,
+  never taken from request data, so there is no way for a caller to make the filter target an arbitrary
+  property.
+- **Output.** Unaffected — the response shape (`citations`, `bibliography_text`, `bibliography_html`) is
+  unchanged; the same `_safe_html`/`_to_text` sanitization already applies to every bibliography entry,
+  including the new uncited ones (they flow through the identical `makeBibliography()` → sanitize path as any
+  cited work).
+- **Backward compatibility.** Both fields default to empty lists — an existing caller (any adapter that predates
+  this change) sending no `uncited_items`/`bibliography_exclude_ids` at all gets byte-identical behavior to
+  before (`test_render_document_bibliography_editing_fields_are_optional`).
+- **Negative-path checks:** an uncited item missing `id` → 422
+  (`test_render_document_uncited_item_missing_id_rejected`); a real end-to-end check that an excluded work's
+  in-text citation still renders while its bibliography entry disappears, and that an uncited item appears in
+  the bibliography with no matching in-text citation
+  (`test_render_document_bibliography_exclude_removes_entry_but_keeps_in_text_citation`,
+  `test_render_document_uncited_item_appears_in_bibliography_with_no_in_text_citation`).
+
+**Security Audit (addendum): PASS** — additive, same fail-closed/sanitized/capped posture as the original audit;
+no new attack surface introduced by either new field.

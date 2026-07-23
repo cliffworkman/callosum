@@ -87,6 +87,9 @@ CSL_LOCATOR_LABELS = (
 )
 PREF_STYLE = "CallosumStyle"  # document user-property: chosen CSL style id
 PREF_LOCALE = "CallosumLocale"  # document user-property: chosen locale
+# P1 item #11 (backlog #33/#34): bibliography editing — each a JSON-encoded list of paper_id strings.
+PREF_BIB_EXCLUDE = "CallosumBibExclude"  # cited works omitted from the bibliography (e.g. personal comms)
+PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works included in the bibliography
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_BASE = "http://127.0.0.1:8080"
@@ -189,15 +192,26 @@ def stamp_item_id(record: dict, paper_id: int | str) -> dict:
     return out
 
 
-def build_render_request(fields: list[dict], style: str, locale: str) -> dict:
+def build_render_request(
+    fields: list[dict],
+    style: str,
+    locale: str,
+    *,
+    uncited_items: list[dict] | None = None,
+    bibliography_exclude_ids: list[str] | None = None,
+) -> dict:
     """Turn ordered citation fields into the `/citations/render-document` body.
 
-    Each field is ``{"citationID": <rnd>, "items": [<CSL-JSON>, …]}`` (in document order).
+    Each field is ``{"citationID": <rnd>, "items": [<CSL-JSON>, …]}`` (in document order). `uncited_items`/
+    `bibliography_exclude_ids` (P1 item #11, backlog #33/#34) are both optional — omitted entirely, they're
+    empty lists, matching the backend's own additive/optional contract.
     """
     return {
         "style": style,
         "locale": locale,
         "citations": [{"citationID": f["citationID"], "items": f["items"]} for f in fields],
+        "uncited_items": uncited_items or [],
+        "bibliography_exclude_ids": bibliography_exclude_ids or [],
     }
 
 
@@ -467,6 +481,33 @@ def set_bib_auto(doc, enabled: bool) -> None:
         props.addProperty(PREF_BIB_AUTO, REMOVABLE, value)
 
 
+def _get_id_list(doc, name: str) -> list[str]:
+    """Read a JSON-encoded list of paper_id strings from a document user-property (P1 item #11, backlog
+    #33/#34 — `PREF_BIB_EXCLUDE`/`PREF_BIB_UNCITED`). Defensive against a missing/corrupt property: both return
+    an empty list rather than raising, since a bibliography-editing preference is never load-bearing enough to
+    break a refresh over."""
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    raw = _user_prop(props, name)
+    if not raw:
+        return []
+    try:
+        ids = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return [str(x) for x in ids] if isinstance(ids, list) else []
+
+
+def _set_id_list(doc, name: str, ids: list[str]) -> None:
+    from com.sun.star.beans.PropertyAttribute import REMOVABLE
+
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    value = json.dumps(list(ids))
+    if props.getPropertySetInfo().hasPropertyByName(name):
+        props.setPropertyValue(name, value)
+    else:
+        props.addProperty(name, REMOVABLE, value)
+
+
 def _insertion_cursor(doc):
     """A text cursor at the current insertion point (view cursor), else the document end."""
     text = doc.getText()
@@ -634,10 +675,25 @@ def refresh(doc, base: str = DEFAULT_BASE, bib_cursor=None) -> dict:
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
-    if not fields:
+    # P1 item #11 (backlog #33/#34): bibliography editing. Both lists are read-only inputs to this render; the
+    # panel (citations_panel.py) is what actually persists them via _set_id_list.
+    cited_ids = {_paper_id_from_item(it) for f in fields for it in f["items"]}
+    exclude_ids = [f"callosum-{pid}" for pid in _get_id_list(doc, PREF_BIB_EXCLUDE)]
+    uncited_items: list[dict] = []
+    for pid in _get_id_list(doc, PREF_BIB_UNCITED):
+        if pid in cited_ids:
+            continue  # already cited normally -- redundant as a bibliography-only "uncited" entry
+        try:
+            uncited_items.append(stamp_item_id(fetch_csl(base, pid), pid))
+        except ValueError:
+            continue  # a manually-included paper no longer in the library -- skip silently, not a hard failure
+    if not fields and not uncited_items:
         _transactional_apply(doc, [], [], bib_cursor=bib_cursor)
         return {"citations": [], "bibliography_text": ""}
-    response = render_document(base, build_render_request(fields, style, locale))
+    response = render_document(
+        base,
+        build_render_request(fields, style, locale, uncited_items=uncited_items, bibliography_exclude_ids=exclude_ids),
+    )
     rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
     # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
     # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
@@ -745,7 +801,19 @@ def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
         end = bookmarks.getByName(BIB_BOOKMARK_END).getAnchor().getEnd()
         cursor = text.createTextCursorByRange(start)
         cursor.gotoRange(end, True)  # select exactly [start, end] — bounded, never extends past the end bookmark
-        cursor.setString("")  # deletes only the managed block + both bookmarks
+        cursor.setString("")  # clears the managed block's TEXT
+        # Explicitly remove the bookmark TextContent objects too (P1 item #11, backlog #33/#34 — found via the
+        # bibliography-editing spike): a bare setString("") on the enclosing range was observed to sometimes
+        # leave the now-zero-width bookmark objects themselves still registered, so the fresh start_mark/
+        # end_mark created below collided on name and LibreOffice silently auto-renamed the duplicate
+        # ("... Copy 1") instead of erroring — producing an orphaned second bibliography block on the very next
+        # refresh. Re-query fresh (not the `bookmarks` snapshot from the top of this function) and remove any
+        # survivor before creating the new pair.
+        fresh_bookmarks = doc.getBookmarks()
+        if fresh_bookmarks.hasByName(BIB_BOOKMARK):
+            text.removeTextContent(fresh_bookmarks.getByName(BIB_BOOKMARK))
+        if fresh_bookmarks.hasByName(BIB_BOOKMARK_END):
+            text.removeTextContent(fresh_bookmarks.getByName(BIB_BOOKMARK_END))
     elif has_start:
         # A damaged/legacy document (a start bookmark survived without its end) — rebuild fresh at the start
         # bookmark's own position rather than guessing where "the end" might be. A user-facing repair/diagnostics
@@ -1458,15 +1526,18 @@ def _paper_id_from_item(item: dict) -> str | None:
 
 def list_document_citations(doc, base: str) -> list[dict]:
     """Read-only rollup of every unique cited work in the document, in first-occurrence order (P1 item #12,
-    backlog #33/#34 — the "Citations in this document" panel's data source). Never mutates.
+    backlog #33/#34 — the "Citations in this document" panel's data source), PLUS any manually-included
+    uncited "further reading" works (P1 item #11) appended after. Never mutates.
 
     For each unique paper_id: a rendered ``Author Year — Title`` row (`csl_record_row`), the occurrence count
-    (a paper cited 3 times counts once here, count=3), whether it's orphaned (no longer in the library — reuses
-    `fetch_csl`'s existing raise-on-missing contract, the same signal `diagnose_document` already uses),
-    retraction status (one call per unique paper_id to the already-audited, read-only
-    ``GET /papers/{id}/retraction`` — no new endpoint), and the FIRST occurrence's mark (for navigate-to).
+    (a paper cited 3 times counts once here, count=3; an uncited-include entry is always 0), whether it's
+    orphaned (no longer in the library — reuses `fetch_csl`'s existing raise-on-missing contract, the same
+    signal `diagnose_document` already uses), retraction status (one call per unique paper_id to the
+    already-audited, read-only ``GET /papers/{id}/retraction`` — no new endpoint), whether it's currently
+    excluded from the bibliography (`PREF_BIB_EXCLUDE`), and the FIRST occurrence's mark for navigate-to (``None``
+    for an uncited-include entry — there's nowhere in the document to navigate to).
 
-    Returns ``[{"paper_id", "row", "count", "orphaned", "retraction_label", "mark"}, ...]``.
+    Returns ``[{"paper_id", "row", "count", "orphaned", "retraction_label", "excluded", "uncited", "mark"}, ...]``.
     """
     seen: dict[str, dict] = {}
     order: list[str] = []
@@ -1479,6 +1550,12 @@ def list_document_citations(doc, base: str) -> list[dict]:
                 seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": field["_mark"]}
                 order.append(paper_id)
             seen[paper_id]["count"] += 1
+
+    exclude_ids = set(_get_id_list(doc, PREF_BIB_EXCLUDE))
+    for paper_id in _get_id_list(doc, PREF_BIB_UNCITED):
+        if paper_id not in seen:  # already cited normally -- don't duplicate as a separate uncited row
+            seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": None}
+            order.append(paper_id)
 
     results = []
     for paper_id in order:
@@ -1504,6 +1581,8 @@ def list_document_citations(doc, base: str) -> list[dict]:
                 "count": entry["count"],
                 "orphaned": orphaned,
                 "retraction_label": retraction_label,
+                "excluded": paper_id in exclude_ids,
+                "uncited": entry["mark"] is None,
                 "mark": entry["mark"],
             }
         )
@@ -1511,21 +1590,20 @@ def list_document_citations(doc, base: str) -> list[dict]:
 
 
 def citations_panel_interactive(doc, base: str) -> None:
-    """Open the "Citations in this document" panel (P1 item #12, backlog #33/#34): every unique cited work,
-    occurrence count, missing/orphaned + retraction flags, and click-to-navigate. A snapshot at open time —
-    reopen after editing to refresh (the always-open/live-refreshing version is a later, deliberately deferred
-    phase; see `citations_panel.py`'s own docstring for why)."""
-    entries = list_document_citations(doc, base)
-    if not entries:
-        _msgbox("No callosum citations in this document yet.", title="callosum — citations in this document")
-        return
+    """Open the "Citations in this document" panel (P1 item #12; bibliography editing P1 item #11, both
+    backlog #33/#34): every unique cited work, occurrence count, missing/orphaned + retraction flags, a live
+    filter, click-to-navigate, and — from the panel itself — toggling a cited work's bibliography exclusion or
+    adding an uncited "further reading" work. A snapshot re-fetched after every edit made from within the panel
+    (the always-open/live-refreshing version that also tracks edits made OUTSIDE it is a later, deliberately
+    deferred phase; see `citations_panel.py`'s own docstring for why). Opens even with nothing cited yet — that
+    is itself a valid starting point for "Add uncited work(s)…" to build a reading list from scratch."""
     import os
     import sys
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import citations_panel
 
-    mark = citations_panel.run_citations_panel(entries)
+    mark = citations_panel.run_citations_panel(doc, base)
     if mark is not None:
         doc.getCurrentController().select(mark.getAnchor())
 

@@ -1,19 +1,26 @@
-"""callosum — "Citations in this document" panel (P1 item #12, backlog #33/#34).
+"""callosum — "Citations in this document" panel (P1 item #12; bibliography editing P1 item #11, both
+backlog #33/#34).
 
-A read-only overview of every unique work cited in the current document: occurrence count, missing/orphaned
-status, retraction status, and click-to-navigate — modeled on RefWorks' "My Citations" view. A **snapshot at
-open time**, not a live-refreshing panel: every dialog in this codebase (composer.py, callosum_cite.py's own
-`_input_box`/`_msgbox`) is modal (`.execute()`), and nothing here has ever built a non-modal/"stays open while
-you keep editing" UNO window — the `.oxt` dispatcher (`callosum_addon.py`) is a stateless per-click invocation
-with no persistent object between actions, so a real always-open panel needs new lifecycle plumbing (an
-`XModifyListener`, something holding a reference so it isn't garbage-collected) with zero precedent here.
-Shipping the modal version first (reopen after editing to refresh) delivers the value without that risk; the
-always-open version is a deliberate, named later phase, not a silent scope cut.
+A read-only overview of every unique work cited in the document — occurrence count, missing/orphaned status,
+retraction status, a live filter, and click-to-navigate — modeled on RefWorks' "My Citations" view. **Also the
+management surface for bibliography editing** (P1 item #11): excluding a cited work from the bibliography
+(e.g. a personal communication — still cited in text, conventionally omitted from the reference list) and
+adding an uncited "further reading" work. This is the natural, already-built home for "manage what's in my
+bibliography" (matching how Zotero/EndNote unify this), rather than a separate new dialog — a deliberate
+architecture shift from read-only to read-write, flagged here rather than silently absorbed.
+
+A **snapshot at open time, re-fetched after each edit** — not a live-refreshing panel that tracks ongoing
+document edits made outside it: every dialog in this codebase is modal (`.execute()`), and nothing here has
+ever built a non-modal/"stays open while you keep editing" UNO window — the `.oxt` dispatcher
+(`callosum_addon.py`) is a stateless per-click invocation with no persistent object between actions, so a real
+always-open panel would need new, unproven UNO lifecycle plumbing (an `XModifyListener`, something to keep the
+window from being garbage-collected). Shipping the modal version keeps the value without that risk; a real
+always-open panel is a deliberately deferred later phase.
 
 Kept in its own module (mirrors the `composer.py` split): dialog CONSTRUCTION is a distinct concern from the
-document-scanning logic (`callosum_cite.py::list_document_citations`), which the caller already ran before
-opening this — this module only renders already-fetched data and returns a navigation choice, no network calls
-and no `import callosum_cite` needed.
+document-scanning logic (`callosum_cite.py::list_document_citations`). Reuses `composer.run_composer_dialog`
+verbatim for "Add uncited work(s)…" — the exact same search/assemble UI already built, just repurposed to add
+bibliography-only entries instead of a citation mark.
 
 NOTE: like `composer.py`, this is only ever exercised interactively (`dialog.execute()` blocks on real UI
 input) — no headless spike for the dialog itself, only for the pure data-gathering side
@@ -31,15 +38,23 @@ import callosum_cite as cc  # noqa: E402  (after sys.path injection, matching co
 
 
 def _format_row(entry: dict) -> str:
-    tag = f"  [{entry['retraction_label']}]" if entry.get("retraction_label") else ""
-    return f"{entry['row']}  ({entry['count']}×){tag}"
+    tags = []
+    if entry.get("uncited"):
+        tags.append("further reading")
+    else:
+        tags.append(f"{entry['count']}×")
+    if entry.get("excluded"):
+        tags.append("excluded from bibliography")
+    if entry.get("retraction_label"):
+        tags.append(entry["retraction_label"])
+    return f"{entry['row']}  ({', '.join(tags)})"
 
 
-def run_citations_panel(entries: list[dict]):
-    """Show the panel over the already-fetched `entries` (`callosum_cite.py::list_document_citations`'
-    output). Returns the chosen entry's ReferenceMark if the user selected one and clicked "Go to", else None.
-    The caller (not this module) does the actual navigation — mirrors `composer.py::run_composer_dialog`
-    returning assembled items for its caller to insert, rather than mutating the document itself."""
+def run_citations_panel(doc, base: str):
+    """Show the panel: fetches `list_document_citations(doc, base)` itself (and again after any edit, so the
+    displayed list/flags never go stale within the same dialog session). Returns the chosen entry's
+    ReferenceMark if the user selected a cited work and clicked "Go to", else None — the caller (not this
+    module) does the actual navigation, mirroring `composer.py::run_composer_dialog`'s own contract."""
     import unohelper
     from com.sun.star.awt import XActionListener, XTextListener
 
@@ -67,7 +82,7 @@ def run_citations_panel(entries: list[dict]):
             pass
 
     dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
-    dm.Width, dm.Height, dm.Title = 380, 280, "Citations in this document"
+    dm.Width, dm.Height, dm.Title = 420, 290, "Citations in this document"
 
     def _label(name, x, y, w, h, text):
         lbl = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
@@ -80,25 +95,40 @@ def run_citations_panel(entries: list[dict]):
     filter_box.PositionX, filter_box.PositionY, filter_box.Width, filter_box.Height, filter_box.Text = (
         70,
         4,
-        304,
+        344,
         14,
         "",
     )
     dm.insertByName("filter", filter_box)
 
-    _label("count_lbl", 6, 22, 368, 12, f"{len(entries)} cited work(s):")
+    _label("count_lbl", 6, 22, 408, 12, "")
 
     results = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
-    results.PositionX, results.PositionY, results.Width, results.Height = 6, 36, 368, 200
+    results.PositionX, results.PositionY, results.Width, results.Height = 6, 36, 408, 200
     dm.insertByName("results", results)
 
     goto_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
-    goto_btn.PositionX, goto_btn.PositionY, goto_btn.Width, goto_btn.Height = 214, 244, 74, 18
+    goto_btn.PositionX, goto_btn.PositionY, goto_btn.Width, goto_btn.Height = 6, 244, 80, 18
     goto_btn.Label, goto_btn.PushButtonType = "Go to", 1
     dm.insertByName("goto", goto_btn)
 
+    exclude_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    exclude_btn.PositionX, exclude_btn.PositionY, exclude_btn.Width, exclude_btn.Height = 90, 244, 130, 18
+    exclude_btn.Label = "Toggle bibliography exclude"
+    dm.insertByName("exclude", exclude_btn)
+
+    add_uncited_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    add_uncited_btn.PositionX, add_uncited_btn.PositionY, add_uncited_btn.Width, add_uncited_btn.Height = (
+        224,
+        244,
+        112,
+        18,
+    )
+    add_uncited_btn.Label = "Add uncited work(s)…"
+    dm.insertByName("add_uncited", add_uncited_btn)
+
     close_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
-    close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 294, 244, 80, 18
+    close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 340, 244, 74, 18
     close_btn.Label, close_btn.PushButtonType = "Close", 2
     dm.insertByName("close", close_btn)
 
@@ -111,21 +141,55 @@ def run_citations_panel(entries: list[dict]):
     results_ctrl = dialog.getControl("results")
     count_lbl_ctrl = dialog.getControl("count_lbl")
 
-    # `state["visible"]` mirrors what's on screen after the current filter, so `do_filter`'s selection index
-    # maps back to the right full-list entry regardless of how the filter has narrowed the list.
-    state = {"visible": list(entries)}
+    # state["entries"]: the full, current list from the backend (re-fetched after every edit).
+    # state["visible"]: entries after the current filter text — what's actually on screen, so a selected
+    # listbox index maps back to the right full-list entry regardless of how the filter has narrowed the list.
+    state = {"entries": cc.list_document_citations(doc, base), "visible": []}
 
-    def _refresh_listbox():
+    def _apply_filter():
+        needle = filter_ctrl.getModel().Text.strip().lower()
+        entries = state["entries"]
+        state["visible"] = list(entries) if not needle else [e for e in entries if needle in _format_row(e).lower()]
         results_ctrl.getModel().StringItemList = tuple(_format_row(e) for e in state["visible"])
         count_lbl_ctrl.getModel().Label = f"{len(state['visible'])} of {len(entries)} cited work(s):"
 
-    def do_filter():
-        needle = filter_ctrl.getModel().Text.strip().lower()
-        state["visible"] = list(entries) if not needle else [e for e in entries if needle in _format_row(e).lower()]
-        _refresh_listbox()
+    def _reload():
+        state["entries"] = cc.list_document_citations(doc, base)
+        _apply_filter()
 
-    _refresh_listbox()
-    filter_ctrl.addTextListener(_TextChangeListener(do_filter))
+    def do_toggle_exclude():
+        pos = results_ctrl.getSelectedItemPos()
+        if pos is None or pos < 0 or pos >= len(state["visible"]):
+            return
+        entry = state["visible"][pos]
+        if entry.get("uncited"):
+            return  # exclusion only applies to an actually-cited work
+        exclude_ids = set(cc._get_id_list(doc, cc.PREF_BIB_EXCLUDE))
+        if entry["paper_id"] in exclude_ids:
+            exclude_ids.discard(entry["paper_id"])
+        else:
+            exclude_ids.add(entry["paper_id"])
+        cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, sorted(exclude_ids))
+        cc.refresh(doc, base)
+        _reload()
+
+    def do_add_uncited():
+        import composer
+
+        items = composer.run_composer_dialog(doc, base)
+        if not items:
+            return
+        uncited_ids = set(cc._get_id_list(doc, cc.PREF_BIB_UNCITED))
+        for it in items:
+            uncited_ids.add(str(it["paper_id"]))
+        cc._set_id_list(doc, cc.PREF_BIB_UNCITED, sorted(uncited_ids))
+        cc.refresh(doc, base)
+        _reload()
+
+    _apply_filter()
+    filter_ctrl.addTextListener(_TextChangeListener(_apply_filter))
+    dialog.getControl("exclude").addActionListener(_ActionListener(do_toggle_exclude))
+    dialog.getControl("add_uncited").addActionListener(_ActionListener(do_add_uncited))
 
     result = dialog.execute()  # 1 == Go to (PushButtonType), 0/2 == Close
     chosen = None

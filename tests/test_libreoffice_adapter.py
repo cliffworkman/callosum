@@ -203,6 +203,17 @@ def test_build_render_request_shape() -> None:
         {"citationID": "c2", "items": [{"id": "callosum-2"}]},
     ]
     assert "_mark" not in req["citations"][0]  # internal handle never sent to the server
+    # P1 item #11 (backlog #33/#34): omitted entirely -> empty lists, matching the backend's additive contract.
+    assert req["uncited_items"] == []
+    assert req["bibliography_exclude_ids"] == []
+
+
+def test_build_render_request_bibliography_editing_fields() -> None:
+    req = cc.build_render_request(
+        [], "apa", "en-US", uncited_items=[{"id": "callosum-9"}], bibliography_exclude_ids=["callosum-5"]
+    )
+    assert req["uncited_items"] == [{"id": "callosum-9"}]
+    assert req["bibliography_exclude_ids"] == ["callosum-5"]
 
 
 def test_order_by_comparator_sorts_into_document_order() -> None:
@@ -544,16 +555,43 @@ class _PanelText:
         return b.pos - a.pos  # UNO convention: > 0 iff a precedes b
 
 
+class _PanelUserProps:
+    """Fakes the `getUserDefinedProperties()` bag well enough for `_get_id_list` (P1 item #11, backlog
+    #33/#34): `getPropertyValue` raises for an unset name, matching `_user_prop`'s try/except -> None contract.
+    Read-only — the write side (`_set_id_list`) needs a real `com.sun.star` import (like `_set_pref`/
+    `set_bib_auto` before it) and so is only ever exercised via the real-UNO round-trip, never faked here."""
+
+    def __init__(self, values: dict[str, str] | None = None) -> None:
+        self._values = dict(values or {})
+
+    def getPropertyValue(self, name: str) -> str:
+        if name not in self._values:
+            raise KeyError(f"no such property: {name}")
+        return self._values[name]
+
+
+class _PanelDocProps:
+    def __init__(self, props: _PanelUserProps) -> None:
+        self._props = props
+
+    def getUserDefinedProperties(self) -> _PanelUserProps:
+        return self._props
+
+
 class _PanelDoc:
-    def __init__(self, marks: dict) -> None:
+    def __init__(self, marks: dict, user_props: dict[str, str] | None = None) -> None:
         self._marks = _PanelMarksCollection(marks)
         self._text = _PanelText()
+        self._doc_props = _PanelDocProps(_PanelUserProps(user_props))
 
     def getReferenceMarks(self) -> _PanelMarksCollection:
         return self._marks
 
     def getText(self) -> _PanelText:
         return self._text
+
+    def getDocumentProperties(self) -> _PanelDocProps:
+        return self._doc_props
 
 
 def _panel_mark(paper_id: str, rnd: str, pos: int) -> tuple[str, _PanelMark]:
@@ -612,6 +650,63 @@ def test_list_document_citations_retraction_lookup_failure_is_non_fatal(monkeypa
 def test_list_document_citations_empty_document() -> None:
     doc = _PanelDoc({})
     assert cc.list_document_citations(doc, "http://x") == []
+
+
+# ── P1 item #11 (backlog #33/#34): bibliography editing -- persisted exclude/uncited lists (_get_id_list/
+# _set_id_list) and their effect on list_document_citations' output ─────────────────────────────────────────
+
+
+def test_get_id_list_defaults_to_empty_when_unset() -> None:
+    doc = _PanelDoc({})
+    assert cc._get_id_list(doc, cc.PREF_BIB_EXCLUDE) == []
+
+
+def test_get_id_list_reads_a_set_json_property() -> None:
+    doc = _PanelDoc({}, user_props={cc.PREF_BIB_EXCLUDE: '["3", "7"]'})
+    assert cc._get_id_list(doc, cc.PREF_BIB_EXCLUDE) == ["3", "7"]
+
+
+def test_get_id_list_defensive_on_corrupt_json() -> None:
+    doc = _PanelDoc({}, user_props={cc.PREF_BIB_EXCLUDE: "not json"})
+    assert cc._get_id_list(doc, cc.PREF_BIB_EXCLUDE) == []
+
+
+def test_list_document_citations_marks_excluded_from_persisted_property(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"title": "X", "issued": {"date-parts": [[2020]]}})
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"status": "none"})
+    n1, m1 = _panel_mark("1", "c1", pos=0)
+    doc = _PanelDoc({n1: m1}, user_props={cc.PREF_BIB_EXCLUDE: '["1"]'})
+    entries = cc.list_document_citations(doc, "http://x")
+    assert entries[0]["excluded"] is True
+    assert entries[0]["uncited"] is False
+
+
+def test_list_document_citations_includes_uncited_work_with_no_mark(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cc, "fetch_csl", lambda base, pid: {"title": f"Paper {pid}", "issued": {"date-parts": [[2020]]}}
+    )
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"status": "none"})
+    n1, m1 = _panel_mark("1", "c1", pos=0)
+    doc = _PanelDoc({n1: m1}, user_props={cc.PREF_BIB_UNCITED: '["9"]'})
+    entries = cc.list_document_citations(doc, "http://x")
+    assert [e["paper_id"] for e in entries] == ["1", "9"]
+    uncited = entries[1]
+    assert uncited["uncited"] is True
+    assert uncited["count"] == 0
+    assert uncited["mark"] is None
+    assert uncited["excluded"] is False
+
+
+def test_list_document_citations_uncited_entry_skipped_if_already_cited(monkeypatch) -> None:
+    """A paper_id in PREF_BIB_UNCITED that's ALSO actually cited must not produce a duplicate row -- it's
+    already represented once, correctly, as a cited entry."""
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"title": "X", "issued": {"date-parts": [[2020]]}})
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"status": "none"})
+    n1, m1 = _panel_mark("1", "c1", pos=0)
+    doc = _PanelDoc({n1: m1}, user_props={cc.PREF_BIB_UNCITED: '["1"]'})
+    entries = cc.list_document_citations(doc, "http://x")
+    assert [e["paper_id"] for e in entries] == ["1"]
+    assert entries[0]["uncited"] is False  # it's the CITED entry, not a separate uncited one
 
 
 # ── Phase 5c (backlog #33/#34): csl_record_row -- formatting an EXISTING citation's CSL record for the
