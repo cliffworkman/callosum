@@ -1766,6 +1766,22 @@
   .wip-card { border-left: 3px solid transparent; }
   .wip-card:hover { border-left-color: var(--wip-line); }
   .wip-card.sel { background: var(--wip-soft); box-shadow: inset 3px 0 0 var(--wip); }
+  .wip-context-menu {
+    position: fixed; z-index: 70; display: grid; min-width: 210px; padding: 5px;
+    background: var(--panel); border: 1px solid var(--wip-line); border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  }
+  .wip-context-menu button, .wip-context-menu label {
+    min-width: 0; border: 0; background: transparent; color: var(--ink-2);
+    font: 11.5px var(--sans); padding: 7px 8px; text-align: left;
+  }
+  .wip-context-menu button { cursor: pointer; }
+  .wip-context-menu button:hover { background: var(--wip-soft); color: var(--wip); }
+  .wip-context-menu label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+  .wip-context-menu select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--panel); color: var(--ink); padding: 4px 5px;
+  }
   .wip-card-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .wip-card-heading .paper-title { padding-right: 0; flex: 1; min-width: 0; }
   .wip-stage {
@@ -8663,7 +8679,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       }
     ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: mode, onChange: (event) => setMode(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "folder" }, "This folder is one manuscript"), /* @__PURE__ */ React.createElement("option", { value: "children" }, "Immediate subfolders are manuscripts")), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !path.trim() }, "Add"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-ghost", onClick: () => setExpanded(false) }, "Cancel"), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error)));
   }
-  function WipCard({ manuscript, selected, onSelect, onOpen }) {
+  function WipCard({ manuscript, selected, onSelect, onOpen, onMenu }) {
     return /* @__PURE__ */ React.createElement(
       "article",
       {
@@ -8674,6 +8690,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         "aria-label": `WIP manuscript: ${manuscript.display_title}`,
         onClick: () => onSelect(manuscript.id),
         onDoubleClick: () => onOpen(manuscript),
+        onContextMenu: (event) => onMenu(event, manuscript),
         onKeyDown: (event) => {
           if (event.key === "Enter") {
             event.preventDefault();
@@ -8683,8 +8700,12 @@ ${(p.abstract || "").trim().toLowerCase()}`;
             event.preventDefault();
             onSelect(manuscript.id);
           }
+          if (event.key === "ContextMenu" || event.shiftKey && event.key === "F10") {
+            const rect = event.currentTarget.getBoundingClientRect();
+            onMenu(event, manuscript, { x: rect.left + 24, y: rect.top + 24 });
+          }
         },
-        title: "Work in progress \u2014 double-click to open the manuscript workspace"
+        title: "Work in progress \u2014 double-click to open; right-click for manuscript actions"
       },
       /* @__PURE__ */ React.createElement("div", { className: "wip-card-heading" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, manuscript.display_title)),
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, /* @__PURE__ */ React.createElement("span", null, wipStageLabel(manuscript.stage)), manuscript.manuscript_type && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", manuscript.manuscript_type.replace(/-/g, " ")), manuscript.target_journal && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", manuscript.target_journal)),
@@ -8692,6 +8713,13 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     );
   }
   function WipBrowser({ wip, onOpen }) {
+    const [menu, setMenu] = useState(null);
+    const openMenu = (event, manuscript, position) => {
+      event.preventDefault();
+      event.stopPropagation();
+      wip.setSelectedId(manuscript.id);
+      setMenu({ manuscript, x: position ? position.x : event.clientX, y: position ? position.y : event.clientY });
+    };
     return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body wip-browser" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Work in progress"), /* @__PURE__ */ React.createElement("span", { className: "wip-mode-label" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), " Unpublished manuscripts")), /* @__PURE__ */ React.createElement(WipRootSetup, { roots: wip.roots, scanning: wip.scanning, onAdd: wip.addRoot, onRescan: wip.rescan }), /* @__PURE__ */ React.createElement(WipFilters, { wip }), wip.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, wip.manuscripts.length, " shown")), wip.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, "Loading work in progress\u2026"), wip.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load WIP."), /* @__PURE__ */ React.createElement("br", null), wip.error), wip.status === "ready" && wip.manuscripts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, wip.roots.length ? "No manuscripts match this view." : "Add a manuscript location."), wip.roots.length ? "Change the stage or state filters, or rescan the watched locations." : "Choose one manuscript folder, or a parent whose immediate subfolders are manuscripts."), wip.status === "ready" && wip.manuscripts.map((item) => /* @__PURE__ */ React.createElement(
       WipCard,
       {
@@ -8699,9 +8727,19 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         manuscript: item,
         selected: wip.selectedId === item.id,
         onSelect: wip.setSelectedId,
-        onOpen
+        onOpen,
+        onMenu: openMenu
       }
-    )));
+    )), /* @__PURE__ */ React.createElement(
+      WipContextMenu,
+      {
+        menu,
+        onClose: () => setMenu(null),
+        onOpen,
+        onUpdate: wip.updateManuscript,
+        onRescan: wip.rescan
+      }
+    ));
   }
   function WipStructure({ manuscriptId, sections, onReload }) {
     const [name, setName] = useState("");
@@ -9292,6 +9330,54 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => patch({ missingPrimary: !wip.filters.missingPrimary })
       }
     ), active && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => wip.setFilters(WIP_EMPTY_FILTERS) }, "Clear filters")));
+  }
+  function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan }) {
+    useEffect(() => {
+      if (!menu) return void 0;
+      const close = () => onClose();
+      const onKey = (event) => {
+        if (event.key === "Escape") close();
+      };
+      window.addEventListener("mousedown", close);
+      window.addEventListener("contextmenu", close);
+      window.addEventListener("keydown", onKey);
+      return () => {
+        window.removeEventListener("mousedown", close);
+        window.removeEventListener("contextmenu", close);
+        window.removeEventListener("keydown", onKey);
+      };
+    }, [menu, onClose]);
+    if (!menu) return null;
+    const manuscript = menu.manuscript;
+    const left = Math.max(8, Math.min(menu.x, window.innerWidth - 218));
+    const top = Math.max(8, Math.min(menu.y, window.innerHeight - 245));
+    const update = async (values) => {
+      const result = await onUpdate(manuscript.id, values);
+      if (result && result.ok) onClose();
+    };
+    const rescan = async () => {
+      onClose();
+      await onRescan();
+    };
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "wip-context-menu",
+        role: "menu",
+        "aria-label": "Manuscript actions",
+        style: { left, top },
+        onMouseDown: (event) => event.stopPropagation(),
+        onContextMenu: (event) => event.stopPropagation()
+      },
+      /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: () => {
+        onClose();
+        onOpen(manuscript);
+      } }, "Open workspace"),
+      /* @__PURE__ */ React.createElement("label", null, "Stage", /* @__PURE__ */ React.createElement("select", { value: manuscript.stage, onChange: (event) => update({ stage: event.target.value }) }, WIP_STAGES.map((item) => /* @__PURE__ */ React.createElement("option", { key: item[0], value: item[0] }, item[1])))),
+      ["active", "paused"].includes(manuscript.state) && /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: () => update({ state: manuscript.state === "paused" ? "active" : "paused" }) }, manuscript.state === "paused" ? "Resume tracking" : "Pause tracking"),
+      /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: () => update({ state: manuscript.state === "archived" ? "active" : "archived" }) }, manuscript.state === "archived" ? "Restore to active" : "Archive manuscript"),
+      /* @__PURE__ */ React.createElement("button", { role: "menuitem", onClick: rescan }, "Rescan files")
+    );
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");
@@ -13177,7 +13263,8 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, mobile ? /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: tools moved into ", /* @__PURE__ */ React.createElement("b", null, "Discover"), " and ", /* @__PURE__ */ React.createElement("b", null, "Work"), " on the menu bar \u2014 see ", /* @__PURE__ */ React.createElement("b", null, "Help"), " for the full map.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesize"), " is on the menu bar with ", /* @__PURE__ */ React.createElement("b", null, "Ask"), " + ", /* @__PURE__ */ React.createElement("b", null, "Critique"), "; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta-Reference"), ", ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analyze"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), ".")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
-  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+  const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
+  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
     const [dragOverKey, setDragOverKey] = useState(null);
     const openSelectedPaper = () => {
       if (!selectedPaperTab) return;
@@ -13219,8 +13306,29 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "span",
       {
         key: t.key,
-        className: "frame-tab frame-tab-wip-manuscript" + (activeTab === t.key ? " active" : ""),
-        onClick: () => onActivate(t.key)
+        draggable: true,
+        className: "frame-tab frame-tab-wip-manuscript" + (activeTab === t.key ? " active" : "") + (dragOverKey === t.key ? " dragover" : ""),
+        onClick: () => onActivate(t.key),
+        onDragStart: (event) => {
+          event.dataTransfer.setData(WIP_TAB_DRAG_TYPE, t.key);
+          event.dataTransfer.effectAllowed = "move";
+        },
+        onDragOver: (event) => {
+          if (!Array.from(event.dataTransfer.types || []).includes(WIP_TAB_DRAG_TYPE)) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = "move";
+          setDragOverKey(t.key);
+        },
+        onDragLeave: () => setDragOverKey((key) => key === t.key ? null : key),
+        onDrop: (event) => {
+          const dragged = event.dataTransfer.getData(WIP_TAB_DRAG_TYPE);
+          setDragOverKey(null);
+          if (!dragged || dragged === t.key) return;
+          event.preventDefault();
+          event.stopPropagation();
+          onReorderWipTabs(dragged, t.key);
+        },
+        onDragEnd: () => setDragOverKey(null)
       },
       /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"),
       /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label", title: t.title }, t.title),
@@ -16251,6 +16359,18 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         return next;
       });
     }, []);
+    const reorderWipTabs = useCallback((draggedKey, targetKey) => {
+      if (!draggedKey || !targetKey || draggedKey === targetKey) return;
+      setWipTabs((prev) => {
+        const from = prev.findIndex((tab) => tab.key === draggedKey);
+        const to = prev.findIndex((tab) => tab.key === targetKey);
+        if (from < 0 || to < 0) return prev;
+        const next = [...prev];
+        const [moved] = next.splice(from, 1);
+        next.splice(to, 0, moved);
+        return next;
+      });
+    }, []);
     useEffect(() => {
       if (selected == null || tabs.some((t) => t.paperId === selected)) {
         setSelectedPaperTab(null);
@@ -16418,6 +16538,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onOpenPdf: openPdf,
         onOpenWip: openWip,
         onReorderTabs: reorderPdfTabs,
+        onReorderWipTabs: reorderWipTabs,
         annoRefresh,
         readingMode,
         onToggleReading: toggleReading,

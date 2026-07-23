@@ -256,6 +256,18 @@ function App() {
       return next;
     });
   }, []);
+  const reorderWipTabs = useCallback((draggedKey, targetKey) => {
+    if (!draggedKey || !targetKey || draggedKey === targetKey) return;
+    setWipTabs(prev => {
+      const from = prev.findIndex(tab => tab.key === draggedKey);
+      const to = prev.findIndex(tab => tab.key === targetKey);
+      if (from < 0 || to < 0) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (selected == null || tabs.some(t => t.paperId === selected)) {
@@ -395,7 +407,8 @@ function App() {
           wip={wip} wipTabs={hydratedWipTabs} selectedWipTab={selectedWipTab}
           tabs={tabs} selectedPaperTab={wipModeActive ? null : selectedPaperTab} activeTab={activeTab}
           onActivate={setActiveTab} onClose={closeTab} onCloseWip={closeWipTab}
-          onOpenPdf={openPdf} onOpenWip={openWip} onReorderTabs={reorderPdfTabs}
+          onOpenPdf={openPdf} onOpenWip={openWip}
+          onReorderTabs={reorderPdfTabs} onReorderWipTabs={reorderWipTabs}
           annoRefresh={annoRefresh}
           readingMode={readingMode} onToggleReading={toggleReading}
           mobile={mobile}

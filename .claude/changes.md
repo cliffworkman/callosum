@@ -9,7 +9,19 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 355 — manuscript-specific WIP facets -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 356 — WIP interaction parity -->
+## 2026-07-23 — Increment 356: WIP context actions and tab reorder parity
+
+- **Files:** WIP card/browser, manuscript context-menu module, Library frame/App tab wiring, styles, frontend
+  assertions, served help, generated frontend, QA route 75, and increment notes.
+- **What:** right-click or Shift+F10 opens connected manuscript actions for open, stage, pause/resume,
+  archive/restore, and rescan. Open WIP tabs now use the same drag-reorder behavior as PDF tabs.
+- **Accessibility:** cards remain keyboard-selectable/openable, Context Menu/Shift+F10 expose the action surface,
+  Escape closes it, and its fixed position is clamped inside desktop/mobile viewports.
+- **Verify:** focused frontend/WIP suites (**54 passed**), frontend rebuild, 600-line budget, and QA map
+  (**293/293 API surfaces**). Full-suite and browser results are recorded in the increment note.
+- **Revert:** `git revert` this commit. It adds no migration or new backend authority.
+
 ## 2026-07-23 — Increment 355: Manuscript-specific WIP facets and count sorts
 
 - **Files:** WIP listing query/router, dedicated WIP query/facet frontend module, card status counts, tests, served

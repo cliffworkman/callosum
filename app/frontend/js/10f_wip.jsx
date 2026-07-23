@@ -57,18 +57,23 @@ function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
   );
 }
 
-function WipCard({ manuscript, selected, onSelect, onOpen }) {
+function WipCard({ manuscript, selected, onSelect, onOpen, onMenu }) {
   return (
     <article className={"paper wip-card" + (selected ? " sel" : "")}
       data-wip-id={manuscript.id}
       role="button" tabIndex={0} aria-label={`WIP manuscript: ${manuscript.display_title}`}
       onClick={() => onSelect(manuscript.id)}
       onDoubleClick={() => onOpen(manuscript)}
+      onContextMenu={event => onMenu(event, manuscript)}
       onKeyDown={event => {
         if (event.key === "Enter") { event.preventDefault(); onOpen(manuscript); }
         if (event.key === " ") { event.preventDefault(); onSelect(manuscript.id); }
+        if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          onMenu(event, manuscript, { x: rect.left + 24, y: rect.top + 24 });
+        }
       }}
-      title="Work in progress — double-click to open the manuscript workspace">
+      title="Work in progress — double-click to open; right-click for manuscript actions">
       <div className="wip-card-heading">
         <span className="wip-badge">WIP</span>
         <p className="paper-title">{manuscript.display_title}</p>
@@ -98,6 +103,13 @@ function WipCard({ manuscript, selected, onSelect, onOpen }) {
 }
 
 function WipBrowser({ wip, onOpen }) {
+  const [menu, setMenu] = useState(null);
+  const openMenu = (event, manuscript, position) => {
+    event.preventDefault();
+    event.stopPropagation();
+    wip.setSelectedId(manuscript.id);
+    setMenu({ manuscript, x: position ? position.x : event.clientX, y: position ? position.y : event.clientY });
+  };
   return (
     <div className="pane-list-body wip-browser">
       <div className="pane-head">
@@ -120,7 +132,9 @@ function WipBrowser({ wip, onOpen }) {
         </div>}
       {wip.status === "ready" && wip.manuscripts.map(item =>
         <WipCard key={item.id} manuscript={item} selected={wip.selectedId === item.id}
-          onSelect={wip.setSelectedId} onOpen={onOpen} />)}
+          onSelect={wip.setSelectedId} onOpen={onOpen} onMenu={openMenu} />)}
+      <WipContextMenu menu={menu} onClose={() => setMenu(null)} onOpen={onOpen}
+        onUpdate={wip.updateManuscript} onRescan={wip.rescan} />
     </div>
   );
 }

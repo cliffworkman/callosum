@@ -27,8 +27,9 @@ function WorkspacesWhatsNewHint({ readOnly, mobile }) {
 }
 
 const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
+const WIP_TAB_DRAG_TYPE = "application/x-callosum-wiptab";
 
-function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, onReorderWipTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
   const [dragOverKey, setDragOverKey] = useState(null);
   const openSelectedPaper = () => {
     if (!selectedPaperTab) return;
@@ -65,8 +66,30 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
           </button>}
         {wipTabs.map(t => (
           <span key={t.key}
-            className={"frame-tab frame-tab-wip-manuscript" + (activeTab === t.key ? " active" : "")}
-            onClick={() => onActivate(t.key)}>
+            draggable
+            className={"frame-tab frame-tab-wip-manuscript" + (activeTab === t.key ? " active" : "") +
+              (dragOverKey === t.key ? " dragover" : "")}
+            onClick={() => onActivate(t.key)}
+            onDragStart={event => {
+              event.dataTransfer.setData(WIP_TAB_DRAG_TYPE, t.key);
+              event.dataTransfer.effectAllowed = "move";
+            }}
+            onDragOver={event => {
+              if (!Array.from(event.dataTransfer.types || []).includes(WIP_TAB_DRAG_TYPE)) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = "move";
+              setDragOverKey(t.key);
+            }}
+            onDragLeave={() => setDragOverKey(key => (key === t.key ? null : key))}
+            onDrop={event => {
+              const dragged = event.dataTransfer.getData(WIP_TAB_DRAG_TYPE);
+              setDragOverKey(null);
+              if (!dragged || dragged === t.key) return;
+              event.preventDefault();
+              event.stopPropagation();
+              onReorderWipTabs(dragged, t.key);
+            }}
+            onDragEnd={() => setDragOverKey(null)}>
             <span className="wip-badge">WIP</span>
             <span className="frame-tab-label" title={t.title}>{t.title}</span>
             <button className="frame-tab-close" title="Close manuscript tab"

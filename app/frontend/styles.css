@@ -1742,6 +1742,22 @@
   .wip-card { border-left: 3px solid transparent; }
   .wip-card:hover { border-left-color: var(--wip-line); }
   .wip-card.sel { background: var(--wip-soft); box-shadow: inset 3px 0 0 var(--wip); }
+  .wip-context-menu {
+    position: fixed; z-index: 70; display: grid; min-width: 210px; padding: 5px;
+    background: var(--panel); border: 1px solid var(--wip-line); border-radius: var(--radius);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  }
+  .wip-context-menu button, .wip-context-menu label {
+    min-width: 0; border: 0; background: transparent; color: var(--ink-2);
+    font: 11.5px var(--sans); padding: 7px 8px; text-align: left;
+  }
+  .wip-context-menu button { cursor: pointer; }
+  .wip-context-menu button:hover { background: var(--wip-soft); color: var(--wip); }
+  .wip-context-menu label { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 8px; }
+  .wip-context-menu select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--panel); color: var(--ink); padding: 4px 5px;
+  }
   .wip-card-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
   .wip-card-heading .paper-title { padding-right: 0; flex: 1; min-width: 0; }
   .wip-stage {

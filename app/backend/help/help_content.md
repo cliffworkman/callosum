@@ -1272,6 +1272,10 @@ Double-click a WIP card to open its manuscript workspace:
   available.
 - **Activity** records important workspace changes.
 
+Right-click a WIP card, or focus it and press **Shift+F10**, for manuscript actions: open the workspace, change
+stage, pause/resume tracking, archive/restore, or rescan files. These actions use the same explicit workflow state
+shown in Details and Activity. Open manuscript tabs can be dragged to reorder them just like open paper tabs.
+
 A linked Library paper shows **Used in WIPs** in its Details pane. Choose a WIP there to open the complete
 manuscript workspace; the paper remains a canonical Library record and the relationship remains only a link.
 

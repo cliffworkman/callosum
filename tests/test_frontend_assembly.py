@@ -282,6 +282,10 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "Unresolved findings" in raw
     assert "Missing primary" in raw
     assert "manuscript.stale_check_count" in raw
+    assert "function WipContextMenu({ menu, onClose, onOpen, onUpdate, onRescan })" in raw
+    assert 'event.key === "ContextMenu"' in raw
+    assert "WIP_TAB_DRAG_TYPE" in raw
+    assert "onReorderWipTabs(dragged, t.key)" in raw
     assert "No tool result is implied by a content checkpoint." in raw
     assert 'const wipModeActive = activeTab === "wip" || !!activeWipTab' in raw
     assert 'kind: "manuscript", entity: activeWipManuscript || null' in raw
