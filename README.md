@@ -136,7 +136,9 @@ suffixes, edit an existing citation without starting over, and suggest citations
 citation formatting and bibliography rebuilding independently, with a persistent pending-refresh bar when either
 surface is stale, and can refresh only the citation at the Writer cursor without touching other citations or the
 bibliography. It can also refresh the current heading-defined section, including nested subsections, without
-rewriting citations elsewhere. See `adapters/`'s per-tool READMEs for setup.
+rewriting citations elsewhere. Pending state returns as soon as a saved document opens, and native Writer
+citation moves are detected without treating ordinary prose edits as citation changes. See `adapters/`'s
+per-tool READMEs for setup.
 
 ## Security note
 

@@ -26,6 +26,7 @@ request-build) import + unit-test under ordinary CPython without LibreOffice —
 from __future__ import annotations
 
 import base64
+import contextlib
 import functools
 import json
 import os
@@ -109,6 +110,8 @@ CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".callosum", "libreoffice.js
 # Set by the .oxt dispatcher (callosum_addon.py) so the dialog helpers can find a component context when this code
 # runs inside a UNO component (where the macro-only `XSCRIPTCONTEXT` global does NOT exist). None ⇒ macro mode.
 _DISPATCH_CTX = None
+_DOCUMENT_OBSERVERS: dict[str, object] = {}
+_OBSERVATION_SUPPRESSIONS: dict[str, int] = {}
 
 
 def get_server_url(path: str = CONFIG_PATH) -> str:
@@ -504,6 +507,114 @@ def dirty_state(doc) -> tuple[bool, bool]:
     """Return `(citations_pending, bibliography_pending)` from the document-local refresh flags."""
     props = doc.getDocumentProperties().getUserDefinedProperties()
     return _user_prop(props, PREF_CITE_DIRTY) == "1", _user_prop(props, PREF_BIB_DIRTY) == "1"
+
+
+def _document_uid(doc) -> str:
+    """Runtime-only document identity used for listener ownership; never persisted or exposed."""
+    try:
+        return str(doc.RuntimeUID)
+    except Exception:
+        return str(id(doc))
+
+
+def _managed_bibliography_signature(doc) -> tuple[bool, bool, str]:
+    bookmarks = doc.getBookmarks()
+    has_start = bookmarks.hasByName(BIB_BOOKMARK)
+    has_end = bookmarks.hasByName(BIB_BOOKMARK_END)
+    if not (has_start and has_end):
+        return has_start, has_end, ""
+    text = doc.getText()
+    cursor = text.createTextCursorByRange(bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart())
+    cursor.gotoRange(bookmarks.getByName(BIB_BOOKMARK_END).getAnchor().getEnd(), True)
+    return True, True, cursor.getString()
+
+
+def document_structure_signature(doc) -> tuple[tuple[tuple[str, str], ...], tuple[bool, bool, str]]:
+    """Snapshot only the Writer structure that can make rendered citations or bibliography stale."""
+    citations = tuple(
+        (field["_mark"].Name, field["_mark"].getAnchor().getString()) for field in scan_citations_in_order(doc)
+    )
+    return citations, _managed_bibliography_signature(doc)
+
+
+def structure_change_flags(
+    previous: tuple[tuple[tuple[str, str], ...], tuple[bool, bool, str]],
+    current: tuple[tuple[tuple[str, str], ...], tuple[bool, bool, str]],
+) -> tuple[bool, bool]:
+    """Map a structured Writer change to `(citations_pending, bibliography_pending)`."""
+    citations_changed = previous[0] != current[0]
+    bibliography_changed = previous[1] != current[1]
+    return citations_changed, citations_changed or bibliography_changed
+
+
+@contextlib.contextmanager
+def suspend_document_observation(doc):
+    """Keep the listener's baseline current while a Callosum command performs its own precise state accounting."""
+    uid = _document_uid(doc)
+    _OBSERVATION_SUPPRESSIONS[uid] = _OBSERVATION_SUPPRESSIONS.get(uid, 0) + 1
+    try:
+        yield
+    finally:
+        remaining = _OBSERVATION_SUPPRESSIONS.get(uid, 1) - 1
+        if remaining:
+            _OBSERVATION_SUPPRESSIONS[uid] = remaining
+        else:
+            _OBSERVATION_SUPPRESSIONS.pop(uid, None)
+
+
+def _new_document_observer(doc):
+    import unohelper
+    from com.sun.star.util import XModifyListener
+
+    uid = _document_uid(doc)
+
+    class DocumentObserver(unohelper.Base, XModifyListener):
+        def __init__(self):
+            self.signature = document_structure_signature(doc)
+            self.busy = False
+
+        def modified(self, _event):
+            if self.busy:
+                return
+            try:
+                current = document_structure_signature(doc)
+                citations_pending, bibliography_pending = structure_change_flags(self.signature, current)
+                self.signature = current
+                if uid in _OBSERVATION_SUPPRESSIONS or not (citations_pending or bibliography_pending):
+                    return
+                self.busy = True
+                set_dirty_state(
+                    doc,
+                    citations=True if citations_pending else None,
+                    bibliography=True if bibliography_pending else None,
+                )
+            except Exception:
+                pass
+            finally:
+                self.busy = False
+
+        def disposing(self, _event):
+            if _DOCUMENT_OBSERVERS.get(uid) is self:
+                _DOCUMENT_OBSERVERS.pop(uid, None)
+            _OBSERVATION_SUPPRESSIONS.pop(uid, None)
+
+    return DocumentObserver()
+
+
+def observe_document(doc) -> bool:
+    """Restore persisted UI state and install one structured-change listener on a Writer document."""
+    try:
+        if not doc.supportsService("com.sun.star.text.TextDocument"):
+            return False
+        _sync_dirty_infobar(doc)
+        uid = _document_uid(doc)
+        if uid not in _DOCUMENT_OBSERVERS:
+            listener = _new_document_observer(doc)
+            doc.addModifyListener(listener)
+            _DOCUMENT_OBSERVERS[uid] = listener
+        return True
+    except Exception:
+        return False
 
 
 def _dirty_infobar_copy(citations_pending: bool, bibliography_pending: bool) -> tuple[str, str]:
@@ -1987,8 +2098,18 @@ _ACTIONS = {
 def dispatch(action: str, doc, base: str) -> None:
     """Run a named action against `doc`. Shared by the macro entry points (macro mode) and the .oxt dispatcher
     (component mode); the caller resolves doc + base and wraps errors."""
-    _sync_dirty_infobar(doc)  # restore a persisted pending indicator when a saved document is reopened
-    _ACTIONS[action](doc, base)
+    before = document_structure_signature(doc)
+    try:
+        with suspend_document_observation(doc):
+            _sync_dirty_infobar(doc)
+            _ACTIONS[action](doc, base)
+    except Exception:
+        after = document_structure_signature(doc)
+        if structure_change_flags(before, after) != (False, False):
+            set_dirty_state(doc, citations=True, bibliography=True)
+        raise
+    finally:
+        observe_document(doc)
 
 
 def _macro(action: str) -> None:

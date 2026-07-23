@@ -22,7 +22,26 @@ import os
 import sys
 
 import unohelper
-from com.sun.star.task import XJobExecutor
+from com.sun.star.task import XJob, XJobExecutor
+
+
+def _import_adapter(ctx):
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import callosum_cite as cc
+
+    cc._DISPATCH_CTX = ctx
+    return cc
+
+
+def _job_model(args):
+    """Extract the XModel supplied for a Jobs.xcu DOCUMENTEVENT execution."""
+    for outer in args:
+        if outer.Name != "Environment":
+            continue
+        for item in outer.Value:
+            if item.Name == "Model":
+                return item.Value
+    return None
 
 
 class Dispatcher(unohelper.Base, XJobExecutor):
@@ -30,10 +49,7 @@ class Dispatcher(unohelper.Base, XJobExecutor):
         self.ctx = ctx
 
     def trigger(self, arg):
-        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))  # make the sibling callosum_cite importable
-        import callosum_cite as cc
-
-        cc._DISPATCH_CTX = self.ctx  # let cc's dialog helpers find a component context (no XSCRIPTCONTEXT here)
+        cc = _import_adapter(self.ctx)
         try:
             desktop = self.ctx.ServiceManager.createInstanceWithContext("com.sun.star.frame.Desktop", self.ctx)
             cc.dispatch(str(arg), desktop.getCurrentComponent(), cc._base())
@@ -44,5 +60,26 @@ class Dispatcher(unohelper.Base, XJobExecutor):
                 pass
 
 
+class DocumentLifecycleJob(unohelper.Base, XJob):
+    """Restore persisted state and begin structured-change observation as soon as a Writer file opens."""
+
+    def __init__(self, ctx):
+        self.ctx = ctx
+
+    def execute(self, args):
+        try:
+            model = _job_model(args)
+            if model is not None:
+                _import_adapter(self.ctx).observe_document(model)
+        except Exception:
+            pass
+        return None
+
+
 g_ImplementationHelper = unohelper.ImplementationHelper()
 g_ImplementationHelper.addImplementation(Dispatcher, "com.callosum.cite.Dispatcher", ("com.callosum.cite.Dispatcher",))
+g_ImplementationHelper.addImplementation(
+    DocumentLifecycleJob,
+    "com.callosum.cite.DocumentLifecycle",
+    ("com.callosum.cite.DocumentLifecycle",),
+)

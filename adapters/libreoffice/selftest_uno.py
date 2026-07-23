@@ -62,16 +62,16 @@ def new_writer(ctx):
     return desktop.loadComponentFromURL("private:factory/swriter", "_blank", 0, (hidden,))
 
 
-def load_doc(ctx, url):
+def load_doc(ctx, url, hidden=True):
     """Load an existing document from a URL (vs. new_writer's blank-factory create) — used by the Phase-0
     save/reopen spike to get a genuinely fresh doc object backed by the saved file, not the original in-memory one."""
     from com.sun.star.beans import PropertyValue
 
     smgr = ctx.ServiceManager
     desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
-    hidden = PropertyValue()
-    hidden.Name, hidden.Value = "Hidden", True
-    return desktop.loadComponentFromURL(url, "_blank", 0, (hidden,))
+    hidden_arg = PropertyValue()
+    hidden_arg.Name, hidden_arg.Value = "Hidden", hidden
+    return desktop.loadComponentFromURL(url, "_blank", 0, (hidden_arg,))
 
 
 def dispatch_uno(ctx, frame, url):
@@ -97,6 +97,15 @@ def check(cond, msg):
 
 def log(msg):
     print(f"[selftest] {msg}", flush=True)
+
+
+def wait_until(predicate, timeout=5):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.05)
+    return bool(predicate())
 
 
 def spike_mark_size_and_reopen(ctx, base, p1, p2, n=25):
@@ -1363,6 +1372,84 @@ def spike_manual_refresh_mode(ctx, base, p1, p2):
     log("spike (P1 #13): OK — independent dirty flags drove a persistent Infobar and exact-surface refresh")
 
 
+def spike_document_lifecycle_observer(ctx, base, p1, p2):
+    """P1 item #13: the packaged document-open job restores state immediately and observes native mark moves."""
+    import tempfile
+
+    log("spike (P1 #13): document-open state + native Writer citation observation")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("First XXX0. Second XXX1. Plain PROSE. Move MOVEHERE.\n")
+
+    def find_in(active_doc, needle):
+        descriptor = active_doc.createSearchDescriptor()
+        descriptor.SearchString = needle
+        return active_doc.findFirst(descriptor)
+
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_in(doc, "XXX0")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_in(doc, "XXX1")))
+    cc.set_dirty_state(doc, citations=True, bibliography=False)
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    save_url = uno.systemPathToFileUrl(save_path)
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeAsURL(save_url, (filt,))
+        doc.close(False)
+
+        reopened = load_doc(ctx, save_url, hidden=False)
+        controller = reopened.getCurrentController()
+        check(
+            wait_until(lambda: controller.hasInfobar(cc.DIRTY_INFOBAR_ID)),
+            "persisted dirty state did not restore its Infobar automatically on document open",
+        )
+        check(cc.dirty_state(reopened) == (True, False), "reopen changed the persisted citation-only dirty state")
+
+        cc.set_dirty_state(reopened, citations=False, bibliography=False)
+        reopened_text = reopened.getText()
+        prose = find_in(reopened, "PROSE")
+        prose.setString("edited prose")
+        time.sleep(0.2)
+        check(cc.dirty_state(reopened) == (False, False), "an unrelated prose edit falsely marked citations stale")
+
+        fields = cc.scan_citations_in_order(reopened)
+        first = fields[0]["_mark"]
+        first_name = first.Name
+        rendered = first.getAnchor().getString()
+        old_cursor = reopened_text.createTextCursorByRange(first.getAnchor())
+        reopened_text.removeTextContent(first)
+        old_cursor.setString("")
+        target = reopened_text.createTextCursorByRange(find_in(reopened, "MOVEHERE"))
+        target.setString(rendered)
+        moved = reopened.createInstance("com.sun.star.text.ReferenceMark")
+        moved.Name = first_name
+        reopened_text.insertTextContent(target, moved, True)
+
+        check(
+            wait_until(lambda: cc.dirty_state(reopened) == (True, True)),
+            "a native Writer citation move did not mark citation formatting and bibliography stale",
+        )
+        check(
+            controller.hasInfobar(cc.DIRTY_INFOBAR_ID),
+            "a native Writer citation move did not show the pending-refresh Infobar",
+        )
+        check(
+            order_of_papers(reopened) == [f"callosum-{p2}", f"callosum-{p1}"],
+            "native move fixture did not actually reorder the two live citations",
+        )
+        reopened.close(False)
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+    log("spike (P1 #13): OK — reopen state was immediate; native move detected; prose edit ignored")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -1472,11 +1559,17 @@ def main():
         disp = ctx.ServiceManager.createInstanceWithContext("com.callosum.cite.Dispatcher", ctx)
         check(disp is not None, "the .oxt dispatcher service did not resolve — extension not installed/registered?")
         check(hasattr(disp, "trigger"), "the .oxt dispatcher does not expose trigger() (XJobExecutor)")
+        lifecycle = ctx.ServiceManager.createInstanceWithContext("com.callosum.cite.DocumentLifecycle", ctx)
+        check(lifecycle is not None, "the .oxt document-lifecycle job service did not resolve")
+        check(hasattr(lifecycle, "execute"), "the document-lifecycle service does not expose execute() (XJob)")
         log("dispatcher OK")
 
         # P1 item #13: heading-defined current-section refresh. Kept early because it exercises Writer's live
         # OutlineLevel bridge and should fail fast before the slower legacy scale spikes.
         spike_current_section_refresh(ctx, base, p1, p2)
+
+        # P1 item #13: Jobs.xcu OnLoadFinished lifecycle + structured XModifyListener observation.
+        spike_document_lifecycle_observer(ctx, base, p1, p2)
 
         # 6) P0 phase-0 spike (backlog #33/#34): empirically de-risk open questions for the rework's later
         # phases, before committing further engineering on top of assumed answers. Findings are LOGGED, not all

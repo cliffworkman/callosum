@@ -19,6 +19,7 @@ EXPECTED_ENTRIES = {
     "META-INF/manifest.xml",
     "description.xml",
     "Addons.xcu",
+    "Jobs.xcu",
     "callosum_cite.py",
     "callosum_addon.py",
     "composer.py",
@@ -56,12 +57,16 @@ def test_every_local_sibling_import_is_packaged(tmp_path) -> None:
 def test_oxt_xml_well_formed_and_wires_the_dispatcher(tmp_path) -> None:
     oxt = build_oxt(tmp_path / "callosum.oxt")
     with zipfile.ZipFile(oxt) as z:
-        for entry in ("description.xml", "META-INF/manifest.xml", "Addons.xcu"):
+        for entry in ("description.xml", "META-INF/manifest.xml", "Addons.xcu", "Jobs.xcu"):
             ET.fromstring(z.read(entry))  # raises on malformed XML
         addons = z.read("Addons.xcu").decode("utf-8")
+        jobs = z.read("Jobs.xcu").decode("utf-8")
         manifest = z.read("META-INF/manifest.xml").decode("utf-8")
     assert "service:com.callosum.cite.Dispatcher?suggest" in addons
     assert "callosum_addon.py" in manifest and "uno-component;type=Python" in manifest
+    assert "Jobs.xcu" in manifest and "configuration-data" in manifest
+    assert "onDocumentOpened" in jobs and "OnLoad" in jobs and "OnLoadFinished" in jobs
+    assert "com.callosum.cite.DocumentLifecycle" in jobs
 
 
 def test_every_menu_action_is_a_real_action(tmp_path) -> None:

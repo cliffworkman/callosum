@@ -255,9 +255,11 @@ the Principles + A-A gates before build.)*
   outline levels define a section as the nearest preceding heading plus nested subsections through the next
   same-or-higher-level heading. Full-document citeproc context is preserved while write-back targets only marks
   in that heading subtree; preamble, peer sections, bibliography, and global pending state remain untouched.
-  Still open within #13: observing arbitrary
-  Writer-only citation moves and restoring the bar immediately on document-open (both need a document-event
-  listener), progress/cancellation, and incremental rendering. **Needs Cliff's own manual
+  **Inc 359 added the Writer document lifecycle:** the packaged job restores persisted pending state immediately
+  when a visible document opens, then one `XModifyListener` per document compares ordered live citation fields
+  and the bounded bibliography. Native Writer citation moves/adds/deletes/edits mark the appropriate surfaces
+  pending; unrelated prose edits remain clean. The observer never renders or calls HTTP. Still open within #13:
+  progress/cancellation and incremental rendering. **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance

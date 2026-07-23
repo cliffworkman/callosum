@@ -886,6 +886,63 @@ def test_dirty_state_defaults_clean_and_reads_each_persisted_flag() -> None:
     assert cc.dirty_state(_PanelDoc({}, {cc.PREF_CITE_DIRTY: "1", cc.PREF_BIB_DIRTY: "1"})) == (True, True)
 
 
+def test_structure_change_flags_ignore_prose_but_track_citations_and_bibliography() -> None:
+    original = ((("mark-a", "(A, 2020)"),), (True, True, "References\nA"))
+    assert cc.structure_change_flags(original, original) == (False, False)
+    assert cc.structure_change_flags(original, ((("mark-b", "(B, 2021)"),), original[1])) == (True, True)
+    assert cc.structure_change_flags(original, (original[0], (True, True, "References\nEdited"))) == (False, True)
+
+
+class _ObserverDoc:
+    RuntimeUID = "observer-doc"
+
+    def __init__(self) -> None:
+        self.listeners = []
+
+    def supportsService(self, name: str) -> bool:
+        return name == "com.sun.star.text.TextDocument"
+
+    def addModifyListener(self, listener) -> None:
+        self.listeners.append(listener)
+
+
+def test_observe_document_restores_state_and_installs_one_listener(monkeypatch) -> None:
+    doc = _ObserverDoc()
+    listener = object()
+    synced = []
+    monkeypatch.setattr(cc, "_sync_dirty_infobar", lambda observed: synced.append(observed))
+    monkeypatch.setattr(cc, "_new_document_observer", lambda observed: listener)
+    cc._DOCUMENT_OBSERVERS.pop(doc.RuntimeUID, None)
+
+    assert cc.observe_document(doc)
+    assert cc.observe_document(doc)
+    assert doc.listeners == [listener]
+    assert synced == [doc, doc]
+    cc._DOCUMENT_OBSERVERS.pop(doc.RuntimeUID, None)
+
+
+def test_dispatch_suspends_observation_and_installs_listener_after_action(monkeypatch) -> None:
+    doc = SimpleNamespace(RuntimeUID="dispatch-doc")
+    calls = []
+
+    def action(observed, base):
+        calls.append(("action", observed, base, doc.RuntimeUID in cc._OBSERVATION_SUPPRESSIONS))
+
+    monkeypatch.setitem(cc._ACTIONS, "_testObserver", action)
+    monkeypatch.setattr(cc, "document_structure_signature", lambda observed: ((), (False, False, "")))
+    monkeypatch.setattr(cc, "_sync_dirty_infobar", lambda observed: calls.append(("sync", observed)))
+    monkeypatch.setattr(cc, "observe_document", lambda observed: calls.append(("observe", observed)))
+
+    cc.dispatch("_testObserver", doc, "http://local")
+
+    assert calls == [
+        ("sync", doc),
+        ("action", doc, "http://local", True),
+        ("observe", doc),
+    ]
+    assert doc.RuntimeUID not in cc._OBSERVATION_SUPPRESSIONS
+
+
 class _FakeInfobarController:
     def __init__(self, exists: bool = False) -> None:
         self.exists = exists

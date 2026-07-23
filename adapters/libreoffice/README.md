@@ -119,9 +119,10 @@ message if it isn't):
     reopen after editing to refresh.
 
 The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
-returns the next time you use a Callosum command. Changes made entirely outside Callosum — for example manually
-moving a citation through Writer's own cut/paste commands — are not yet observed automatically; run **Refresh /
-renumber + bibliography** after those edits.
+returns as soon as Writer opens the document. The installed extension also watches the ordered live citation
+fields and managed bibliography: moving, adding, deleting, or editing those through Writer's own commands marks
+the affected surfaces pending, while unrelated prose edits do not. Observation only updates local document flags
+and the Infobar; it never renders or contacts the Callosum server until you choose a refresh command.
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumRefreshCitations`, `CallosumRefreshBibliography`,

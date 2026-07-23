@@ -25,6 +25,7 @@ ENTRIES: list[tuple[str, Path]] = [
     ("META-INF/manifest.xml", OXT_SRC / "META-INF" / "manifest.xml"),
     ("description.xml", OXT_SRC / "description.xml"),
     ("Addons.xcu", OXT_SRC / "Addons.xcu"),
+    ("Jobs.xcu", OXT_SRC / "Jobs.xcu"),
     ("callosum_cite.py", ADAPTER_DIR / "callosum_cite.py"),
     ("callosum_addon.py", ADAPTER_DIR / "callosum_addon.py"),
     ("composer.py", ADAPTER_DIR / "composer.py"),
