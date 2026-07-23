@@ -240,6 +240,7 @@ def test_api_exposes_only_read_only_get_routes(temp_db_url: str) -> None:
         ("/wip/watch-roots/{root_id}/scan", frozenset({"POST"})),
         ("/wip/rescan", frozenset({"POST"})),
         ("/wip/manuscripts/{manuscript_id}", frozenset({"PATCH"})),
+        ("/wip/manuscripts/{manuscript_id}/relink", frozenset({"POST"})),
         ("/wip/manuscripts/{manuscript_id}/files/{file_id}", frozenset({"PATCH"})),
         ("/wip/manuscripts/{manuscript_id}/files/{file_id}/open", frozenset({"POST"})),
         ("/wip/manuscripts/{manuscript_id}/files/{file_id}/reveal", frozenset({"POST"})),

@@ -123,7 +123,8 @@ function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, select
       </div>}
       {wipTabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
-          <WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript} onOpenPaper={onOpenPdf} workspace />
+          <WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript}
+            onRelinked={wip.reload} onOpenPaper={onOpenPdf} workspace />
         </div>
       ))}
       {tabs.map(t => (

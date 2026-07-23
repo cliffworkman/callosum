@@ -1,6 +1,6 @@
 # Security audit — WIP local filesystem workspace
 
-**Status:** PASS for increments 351–353
+**Status:** PASS for increments 351–354
 **Date:** 2026-07-23
 **Scope:** WIP watch roots, manuscript/file discovery, local file open/reveal, manuscript extraction, and all
 `/wip/*` API routes.
@@ -20,6 +20,8 @@
 
 - [x] Every `/wip/*` route is local-only, including GET; read-only companion mode is denied.
 - [x] Root creation validates an existing directory and stores a normalized comparison key.
+- [x] Explicit relinking validates an existing non-symlink directory, refuses manuscript/root collisions, preserves
+      stable manuscript/file identity, and records both the previous and replacement paths in local activity.
 - [x] Discovery never follows symlink/junction directories and has entry/depth bounds.
 - [x] Client paths are accepted only when registering/relinking a root; later open/read operations resolve trusted
       rows and re-check containment.
@@ -48,3 +50,5 @@ Checkpoint tests additionally cover exact extracted identity, deduplication, cha
 formats, and forwarded-request denial.
 Tool-run tests cover exact snapshot binding, candidate evidence/context, disposition review, current-to-potentially-
 stale-to-stale invalidation, explicit no-finding coverage language, and remote denial for every check endpoint.
+Relink tests cover stable UUID/workflow/file identity, missing-to-active restoration, target collision refusal, and
+remote denial. Reverse paper-to-WIP navigation reads only existing local relationship rows.

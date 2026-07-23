@@ -1249,6 +1249,10 @@ products you are creating. They share familiar selection and tab behavior but re
 Add a watched location from **Library → WIP → Add location**. Choose whether the selected folder is one manuscript
 or whether each immediate subfolder is a manuscript. Callosum scans on launch and when the app regains focus.
 Missing folders and files are marked missing; manuscript metadata is preserved.
+If a manuscript folder moves, open its **Overview** and choose **Relink folder**. Select the relocated folder
+explicitly: Callosum preserves the manuscript's identity, workflow, Library links, checkpoints, tool runs, and
+matching root-relative file identities. It refuses a folder that already belongs to another WIP instead of
+guessing which records to merge.
 
 Double-click a WIP card to open its manuscript workspace:
 
@@ -1261,6 +1265,9 @@ Double-click a WIP card to open its manuscript workspace:
   primary manuscript. Choosing a primary file and changing stage also create checkpoints when text extraction is
   available.
 - **Activity** records important workspace changes.
+
+A linked Library paper shows **Used in WIPs** in its Details pane. Choose a WIP there to open the complete
+manuscript workspace; the paper remains a canonical Library record and the relationship remains only a link.
 
 Each checkpoint records exact whole-file and normalized extracted-text hashes, extraction provider/version, and a
 small bounded text context for inspection. It does not copy the manuscript file and it does not mean the manuscript

@@ -300,10 +300,14 @@ function App() {
     ? "0px 0px minmax(340px, 1fr) 0px 0px"
     : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
   const selectedOpenPaperTab = selected == null ? null : (tabs.find(t => t.paperId === selected) || null);
-  const hydratedWipTabs = wipTabs.map(tab => ({
-    ...tab,
-    manuscript: wip.manuscripts.find(item => item.id === tab.manuscriptId) || tab.manuscript,
-  }));
+  const hydratedWipTabs = wipTabs.map(tab => {
+    const manuscript = wip.manuscripts.find(item => item.id === tab.manuscriptId) || tab.manuscript;
+    return {
+      ...tab,
+      manuscript,
+      title: manuscript.display_title || manuscript.derived_title || tab.title,
+    };
+  });
   const activeWipTab = hydratedWipTabs.find(tab => tab.key === activeTab) || null;
   const wipModeActive = activeTab === "wip" || !!activeWipTab;
   const activeWipManuscript = activeWipTab ? activeWipTab.manuscript : wip.selected;
@@ -318,7 +322,8 @@ function App() {
   const paneCtx = {
     readOnly,  // B5 SP2: hide write controls in every section when the instance is read-only
     conn, researchContext, selectedPaper: contextPaperId, onSelectPaper: setSelected, onOpenPaper: openPdf,
-    onOpenWip: openWip, onActivateWipTab: activateWipTab, onUpdateWip: wip.updateManuscript,
+    onOpenWip: openWip, onActivateWipTab: activateWipTab,
+    onUpdateWip: wip.updateManuscript, onReloadWip: wip.reload,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
     onTagsChanged: () => setTagRefresh(n => n + 1),

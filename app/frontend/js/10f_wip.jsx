@@ -143,8 +143,13 @@ function WipCard({ manuscript, selected, onSelect, onOpen }) {
   return (
     <article className={"paper wip-card" + (selected ? " sel" : "")}
       data-wip-id={manuscript.id}
+      role="button" tabIndex={0} aria-label={`WIP manuscript: ${manuscript.display_title}`}
       onClick={() => onSelect(manuscript.id)}
       onDoubleClick={() => onOpen(manuscript)}
+      onKeyDown={event => {
+        if (event.key === "Enter") { event.preventDefault(); onOpen(manuscript); }
+        if (event.key === " ") { event.preventDefault(); onSelect(manuscript.id); }
+      }}
       title="Work in progress — double-click to open the manuscript workspace">
       <div className="wip-card-heading">
         <span className="wip-badge">WIP</span>
@@ -445,7 +450,7 @@ function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
   </section>;
 }
 
-function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
+function WipDetails({ manuscript, onUpdate, onRelinked, onOpenPaper, workspace = false }) {
   const [files, setFiles] = useState([]);
   const [activity, setActivity] = useState([]);
   const [sections, setSections] = useState([]);
@@ -493,6 +498,11 @@ function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
   };
   const reload = () => setNonce(value => value + 1);
   const overview = <>
+    <WipRelink manuscript={draft} onRelinked={row => {
+      setDraft(row);
+      if (onRelinked) onRelinked();
+      reload();
+    }} />
     <div className="wip-detail-grid">
       <label>Display title<input value={draft.title_override || ""} placeholder={manuscript.derived_title}
         onChange={event => setDraft({ ...draft, title_override: event.target.value })} /></label>

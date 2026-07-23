@@ -112,6 +112,66 @@ def test_watch_root_validation_pause_and_delete_preserves_manuscript(temp_db_url
     assert preserved["uid"] == manuscripts[0]["uid"]
 
 
+def test_missing_manuscript_relinks_without_losing_identity_or_workflow(temp_db_url: str, tmp_path: Path) -> None:
+    original = tmp_path / "Original draft"
+    original.mkdir()
+    (original / "draft.md").write_text("# Draft", encoding="utf-8")
+    client = TestClient(create_app(db_url=temp_db_url))
+    root = client.post(
+        "/wip/watch-roots",
+        json={"path": str(original), "discovery_mode": "folder"},
+    ).json()
+    _poll(client, client.post(f"/wip/watch-roots/{root['id']}/scan").json()["job_id"])
+    manuscript = client.get("/wip/manuscripts").json()[0]
+    file_before = client.get(f"/wip/manuscripts/{manuscript['id']}/files").json()[0]
+    client.patch(
+        f"/wip/manuscripts/{manuscript['id']}",
+        json={"title_override": "Preserved title", "stage": "drafting"},
+    )
+
+    relocated = tmp_path / "Relocated draft"
+    original.rename(relocated)
+    _poll(client, client.post(f"/wip/watch-roots/{root['id']}/scan").json()["job_id"])
+    assert client.get(f"/wip/manuscripts/{manuscript['id']}").json()["state"] == "missing"
+
+    relinked = client.post(
+        f"/wip/manuscripts/{manuscript['id']}/relink",
+        json={"path": str(relocated)},
+    )
+    assert relinked.status_code == 200
+    payload = relinked.json()
+    assert payload["uid"] == manuscript["uid"]
+    assert payload["display_title"] == "Preserved title"
+    assert payload["stage"] == "drafting"
+    assert payload["state"] == "active"
+    assert Path(payload["root_path"]) == relocated
+    file_after = client.get(f"/wip/manuscripts/{manuscript['id']}/files").json()[0]
+    assert file_after["id"] == file_before["id"]
+    roots = client.get("/wip/watch-roots").json()
+    assert Path(roots[0]["path"]) == relocated
+    events = client.get(f"/wip/manuscripts/{manuscript['id']}/activity").json()
+    assert any(event["event_type"] == "manuscript-relinked" for event in events)
+
+
+def test_relink_refuses_folder_owned_by_another_manuscript(temp_db_url: str, tmp_path: Path) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    manuscripts = []
+    for name in ("First", "Second"):
+        folder = tmp_path / name
+        folder.mkdir()
+        root = client.post(
+            "/wip/watch-roots",
+            json={"path": str(folder), "discovery_mode": "folder"},
+        ).json()
+        _poll(client, client.post(f"/wip/watch-roots/{root['id']}/scan").json()["job_id"])
+        manuscripts = client.get("/wip/manuscripts").json()
+    assert len(manuscripts) == 2
+    first_id = next(row["id"] for row in manuscripts if row["derived_title"] == "First")
+    result = client.post(f"/wip/manuscripts/{first_id}/relink", json={"path": str(tmp_path / "Second")})
+    assert result.status_code == 409
+    assert "another WIP manuscript" in result.json()["detail"]
+
+
 def test_wip_routes_deny_remote_forwarded_and_read_only_access(
     temp_db_url: str,
     monkeypatch,
@@ -119,6 +179,14 @@ def test_wip_routes_deny_remote_forwarded_and_read_only_access(
     client = TestClient(create_app(db_url=temp_db_url))
 
     assert client.get("/wip/manuscripts", headers={"host": "example.com"}).status_code == 403
+    assert (
+        client.post(
+            "/wip/manuscripts/1/relink",
+            headers={"host": "example.com"},
+            json={"path": str(Path.cwd())},
+        ).status_code
+        == 403
+    )
     assert client.get("/wip/manuscripts", headers={"x-forwarded-for": "203.0.113.5"}).status_code == 403
     monkeypatch.setenv("CALLOSUM_READ_ONLY", "1")
     assert client.get("/wip/manuscripts").status_code == 403

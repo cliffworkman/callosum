@@ -71,6 +71,13 @@ def inspect_watch_root(root: dict) -> ScanInspection:
     return ScanInspection(tuple(manuscripts), tuple(errors))
 
 
+def inspect_manuscript(root: str | Path) -> DiscoveredManuscript:
+    candidate = Path(root).expanduser()
+    if not candidate.is_dir() or candidate.is_symlink():
+        raise OSError("Manuscript folder must be an existing non-symlink directory")
+    return _inspect_manuscript(candidate)
+
+
 def _inspect_manuscript(root: Path) -> DiscoveredManuscript:
     files: list[DiscoveredFile] = []
     latest: datetime | None = _mtime(root)

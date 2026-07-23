@@ -33,12 +33,13 @@ from app.backend.persistence.wip_repo import (
     list_manuscripts,
     list_watch_roots,
     reconcile_watch_root,
+    relink_manuscript,
     update_file,
     update_manuscript,
     update_watch_root,
 )
 from app.backend.wip.content import ContentIdentityError
-from app.backend.wip.discovery import inspect_watch_root
+from app.backend.wip.discovery import inspect_manuscript, inspect_watch_root
 from app.backend.wip.paths import path_key, trusted_child
 
 router = APIRouter(prefix="/wip", dependencies=[Depends(require_local_wip)])
@@ -83,6 +84,10 @@ class FilePatch(BaseModel):
         | None
     ) = None
     is_primary: bool | None = None
+
+
+class ManuscriptRelink(BaseModel):
+    path: str = Field(min_length=1, max_length=4096)
 
 
 class ScanResponse(BaseModel):
@@ -274,6 +279,23 @@ def manuscript_patch(manuscript_id: int, payload: ManuscriptPatch, request: Requ
         return result
 
     result = run_write(request.app.state.engine, mutate)
+    if result is None:
+        raise HTTPException(status_code=404, detail="WIP manuscript not found")
+    return result
+
+
+@router.post("/manuscripts/{manuscript_id}/relink")
+def manuscript_relink(manuscript_id: int, payload: ManuscriptRelink, request: Request) -> dict:
+    try:
+        discovered = inspect_manuscript(payload.path)
+        result = run_write(
+            request.app.state.engine,
+            lambda conn: relink_manuscript(conn, manuscript_id, discovered),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     if result is None:
         raise HTTPException(status_code=404, detail="WIP manuscript not found")
     return result

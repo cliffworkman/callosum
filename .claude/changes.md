@@ -9,7 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 353 — snapshot-bound WIP checks -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 354 — WIP relink and reverse navigation -->
+## 2026-07-23 — Increment 354: Stable WIP relink and reverse navigation
+
+- **Files:** WIP discovery/repository/router, Overview relink control, Library Details relationship navigation,
+  keyboard-accessible WIP cards, tests, served help, data/security docs, and QA route 75.
+- **What:** a moved manuscript folder can be explicitly relinked without changing its UUID, workflow, relationships,
+  provenance, tool runs, or matching root-relative file IDs. Library papers now expose **Used in WIPs** and open the
+  complete unpublished manuscript workspace. WIP cards support keyboard selection/opening.
+- **Guardrails:** relink accepts only an existing non-symlink directory, refuses paths owned by another manuscript
+  or incompatible watch root, remains local/read-only denied, and records the previous/new path in activity.
+- **Verify:** focused WIP/frontend/health suites (**61 passed**), frontend rebuild, Ruff, 600-line budget, and QA map
+  (**293/293 API surfaces**). Full-suite and browser results are recorded in the increment note.
+- **Revert:** `git revert` this commit. No migration is involved; relink activity rows may remain.
+
 ## 2026-07-23 — Increment 353: Snapshot-bound WIP checks and reviewable findings
 
 - **Files:** migration `0051`, generic/WIP tool-run and finding schemas/repository/router, block-preserving WIP

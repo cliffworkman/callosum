@@ -51,9 +51,11 @@ function sectionTabs(section, readOnly) {
 registerPaneSection({
   id: "details", label: "Details", paneId: "methods", order: 10,
   render: (ctx) => ctx.researchContext && ctx.researchContext.kind === "manuscript"
-    ? <WipDetails manuscript={ctx.researchContext.entity} onUpdate={ctx.onUpdateWip} onOpenPaper={ctx.onOpenPaper} />
+    ? <WipDetails manuscript={ctx.researchContext.entity} onUpdate={ctx.onUpdateWip}
+        onRelinked={ctx.onReloadWip} onOpenPaper={ctx.onOpenPaper} />
     : ctx.selectedPaper != null
-    ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} readOnly={ctx.readOnly}
+    ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} onOpenWip={ctx.onOpenWip}
+        readOnly={ctx.readOnly}
         onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} onQueueChanged={ctx.onQueueChanged} />
     : <div className="axis-hint">Select a paper to see its details.</div>,
 });

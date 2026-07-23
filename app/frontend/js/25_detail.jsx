@@ -111,7 +111,7 @@ function DetailSection({ title, open, onToggle, children }) {
 
 // TagsRow (inc-71 + inc-207 color picker) lives in js/25b_tags.jsx; action widgets live in 25a_detail_actions.jsx.
 
-function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQueueChanged, readOnly }) {
+function DetailContent({ paperId, onOpenPaper, onOpenWip, onFilterToTag, onTagsChanged, onQueueChanged, readOnly }) {
   const [state, setState] = useState({ status: "idle" });
   const [savingField, setSavingField] = useState(null);
   const [note, setNote] = useState(null);
@@ -123,9 +123,10 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
   const [moreOpen, setMoreOpen] = useState(true);
   const [mergeOrigin, setMergeOrigin] = useState(null);  // #16: this paper is a merge survivor → offer Un-merge
   const [unmerging, setUnmerging] = useState(false);
+  const [usedWips, setUsedWips] = useState([]);
 
   useEffect(() => {
-    setNote(null); setMergeOrigin(null);
+    setNote(null); setMergeOrigin(null); setUsedWips([]);
     if (paperId == null) { setState({ status: "idle" }); return; }
     let live = true;
     setState({ status: "loading" });
@@ -135,6 +136,9 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
       else setState({ status: "error", error: r.error });
     });
     api(`/papers/${paperId}/merge-origin`).then((r) => { if (live && r.ok) setMergeOrigin(r.data); });
+    if (!readOnly) {
+      api(`/wip/papers/${paperId}`).then((r) => { if (live && r.ok) setUsedWips(r.data || []); });
+    }
     return () => { live = false; };
   }, [paperId]);
 
@@ -260,6 +264,12 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
     api(`/papers/${paperId}`).then((r) => { if (r.ok) setState({ status: "ready", paper: r.data }); });
   }, [paperId]);
 
+  const openUsedWip = useCallback(async (wip) => {
+    const result = await api(`/wip/manuscripts/${wip.id}`);
+    if (result.ok && result.data && onOpenWip) onOpenWip(result.data);
+    else setNote({ kind: "err", text: result.error || "Couldn't open this WIP manuscript." });
+  }, [onOpenWip]);
+
   if (state.status === "idle")
     return <div className="state"><div className="big">Select a paper</div>Its metadata and provenance appear here — and are editable.</div>;
   if (state.status === "loading")
@@ -331,6 +341,14 @@ function DetailContent({ paperId, onOpenPaper, onFilterToTag, onTagsChanged, onQ
         onSave={(t) => saveField("abstract", t)} expandable />
 
       <TagsRow key={p.id} paperId={p.id} initialTags={p.tags} onFilterToTag={onFilterToTag} onTagsChanged={onTagsChanged} readOnly={readOnly} />
+
+      {usedWips.length > 0 && <div className="detail-wips">
+        <span>Used in WIPs</span>
+        <div>{usedWips.map(wip => <button key={wip.id} className="btn-link" onClick={() => openUsedWip(wip)}>
+          <span className="wip-badge">WIP</span> {wip.display_title}
+          <small>{wip.relationship_state.replace(/-/g, " ")}</small>
+        </button>)}</div>
+      </div>}
 
       <DetailSection title="Identifiers" open={idOpen} onToggle={() => setIdOpen((o) => !o)}>
         <IdentifierRow label="DOI" value={p.doi} fieldKey="doi" source="crossref"

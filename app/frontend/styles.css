@@ -1251,6 +1251,13 @@
   .detail-files { margin-top: 14px; }
   .detail-files-label { font-family: var(--sans); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-3); }
   .detail-files-list { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+  .detail-wips { margin: 14px 0; }
+  .detail-wips > span {
+    color: var(--ink-3); font-size: 11px; font-weight: 700; text-transform: uppercase;
+  }
+  .detail-wips > div { display: grid; gap: 4px; margin-top: 5px; }
+  .detail-wips .btn-link { align-items: center; display: flex; gap: 5px; text-align: left; }
+  .detail-wips small { color: var(--ink-3); margin-left: auto; }
   .detail-file { display: flex; align-items: center; gap: 7px; background: none; border: none; cursor: pointer; padding: 2px 0; text-align: left; }
   .detail-file:hover .src-tag { border-color: var(--accent); color: var(--accent); }
   .detail-file-role { font-family: var(--mono); font-size: 9.5px; text-transform: uppercase; color: var(--ink-3); letter-spacing: 0.04em; }
@@ -1750,6 +1757,19 @@
     padding: 6px 7px; background: var(--panel); color: var(--ink); font: 11.5px var(--sans);
   }
   .wip-detail-wide { grid-column: 1 / -1; }
+  .wip-location {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px 10px;
+    margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  .wip-location > div:first-child { display: grid; gap: 3px; min-width: 0; }
+  .wip-location span { color: var(--ink-3); font-size: 10.5px; }
+  .wip-location code { color: var(--ink-2); font: 10.5px var(--mono); overflow-wrap: anywhere; }
+  .wip-location form { display: grid; grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+  .wip-location input {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius);
+    background: var(--panel); color: var(--ink); padding: 7px 9px;
+  }
+  .wip-location .wip-root-error { grid-column: 1 / -1; }
   .wip-detail-section { margin-top: 18px; }
   .wip-detail-section h3 {
     margin: 0 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--line);
@@ -1871,6 +1891,7 @@
   .app.mobile .wip-reference-row > span { display: none; }
   .app.mobile .wip-check-head { align-items: stretch; flex-direction: column; }
   .app.mobile .wip-check-actions { align-items: stretch; flex-direction: column; }
+  .app.mobile .wip-location form { grid-template-columns: minmax(0, 1fr); }
   .app.mobile .wip-finding-row { grid-template-columns: minmax(0, 1fr); }
   .app.mobile .wip-finding-row select { width: 100%; }
   .app.mobile .wip-checkpoint-row { grid-template-columns: minmax(0, 1fr); }

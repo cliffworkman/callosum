@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from sqlalchemy import Connection, case, delete, func, insert, or_, select, update
 
 from app.backend.persistence.schema import wip_activity_events, wip_files, wip_manuscripts, wip_watch_roots
-from app.backend.wip.discovery import ScanInspection
+from app.backend.wip.discovery import DiscoveredManuscript, ScanInspection
+from app.backend.wip.paths import path_key
 
 
 def create_watch_root(
@@ -286,6 +288,95 @@ def update_manuscript(conn: Connection, manuscript_id: int, values: dict[str, An
         if "title_override" in clean and clean["title_override"] != before["title_override"]:
             add_activity(conn, manuscript_id, "manuscript-renamed", "Display title changed")
     return get_manuscript(conn, manuscript_id)
+
+
+def relink_manuscript(conn: Connection, manuscript_id: int, discovered: DiscoveredManuscript) -> dict | None:
+    before = get_manuscript(conn, manuscript_id)
+    if before is None:
+        return None
+    collision = conn.execute(
+        select(wip_manuscripts.c.id).where(
+            wip_manuscripts.c.path_key == discovered.path_key,
+            wip_manuscripts.c.id != manuscript_id,
+        )
+    ).first()
+    if collision:
+        raise ValueError("That folder already belongs to another WIP manuscript.")
+
+    old_root = get_watch_root(conn, int(before["watch_root_id"])) if before.get("watch_root_id") else None
+    watch_root_id = _relink_watch_root(conn, old_root, discovered)
+    next_state = "active" if before["state"] == "missing" else before["state"]
+    conn.execute(
+        update(wip_manuscripts)
+        .where(wip_manuscripts.c.id == manuscript_id)
+        .values(
+            watch_root_id=watch_root_id,
+            root_path=discovered.root_path,
+            path_key=discovered.path_key,
+            derived_title=discovered.derived_title,
+            state=next_state,
+            missing_since=None,
+            last_filesystem_activity_at=discovered.last_activity_at,
+            updated_at=func.current_timestamp(),
+        )
+    )
+    _reconcile_files(conn, manuscript_id, discovered.files)
+    add_activity(
+        conn,
+        manuscript_id,
+        "manuscript-relinked",
+        f"Relinked folder to {discovered.root_path}",
+        metadata={"previous_path": before["root_path"], "new_path": discovered.root_path},
+    )
+    return get_manuscript(conn, manuscript_id)
+
+
+def _relink_watch_root(
+    conn: Connection,
+    old_root: dict | None,
+    discovered: DiscoveredManuscript,
+) -> int:
+    if old_root and old_root["discovery_mode"] == "folder":
+        other = (
+            conn.execute(
+                select(wip_watch_roots).where(
+                    wip_watch_roots.c.path_key == discovered.path_key,
+                    wip_watch_roots.c.id != old_root["id"],
+                )
+            )
+            .mappings()
+            .first()
+        )
+        if other:
+            if other["discovery_mode"] != "folder":
+                raise ValueError("That folder is already registered as a parent WIP location.")
+            return int(other["id"])
+        update_watch_root(
+            conn,
+            int(old_root["id"]),
+            {"path": discovered.root_path, "path_key": discovered.path_key},
+        )
+        return int(old_root["id"])
+    if old_root and path_key(Path(discovered.root_path).parent) == old_root["path_key"]:
+        return int(old_root["id"])
+    exact = (
+        conn.execute(select(wip_watch_roots).where(wip_watch_roots.c.path_key == discovered.path_key))
+        .mappings()
+        .first()
+    )
+    if exact:
+        if exact["discovery_mode"] != "folder":
+            raise ValueError("That folder is already registered as a parent WIP location.")
+        return int(exact["id"])
+    return int(
+        create_watch_root(
+            conn,
+            path=discovered.root_path,
+            path_key=discovered.path_key,
+            discovery_mode="folder",
+            excluded_children=[],
+        )["id"]
+    )
 
 
 def list_files(conn: Connection, manuscript_id: int) -> list[dict]:

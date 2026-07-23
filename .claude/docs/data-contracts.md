@@ -60,6 +60,12 @@ WIP manuscripts are research products and never rows in `papers`. They are local
 Every `/wip/*` endpoint denies remote, forwarded, and read-only requests because paths and unpublished manuscript
 metadata are host-local data.
 
+An explicit manuscript relink updates `root_path`/`path_key` while retaining the `wip_manuscripts` UUID, workflow,
+references, checkpoints, tool runs, and other dependent rows. Files are reconciled by normalized root-relative path,
+so an unchanged relative file keeps its `wip_files` identity. A target path already owned by another manuscript is
+a conflict, never an implicit merge. `GET /wip/papers/{paper_id}` is the reverse relationship projection used by
+Library Details; opening it hydrates the canonical manuscript record without changing the selected paper record.
+
 ## PDF Text And Coordinates
 
 `chunks` stores extracted text spans with `paper_id`, `attachment_id`, page range, optional character offsets, `bbox_json`, `bbox_coordinate_system`, extraction metadata, chunking metadata, source attachment checksum, and creation time.
