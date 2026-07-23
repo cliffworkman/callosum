@@ -71,6 +71,7 @@ from app.backend.api.routers import (
     transparency,
     wanted,
     wip,
+    wip_checks,
     wip_provenance,
     wip_workflow,
     word,
@@ -317,6 +318,7 @@ def create_app(
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
     api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
+    api.include_router(wip_checks.router)
     api.include_router(wip_provenance.router)
     api.include_router(wip_workflow.router)
     api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)

@@ -25,6 +25,7 @@ from scipy.stats import t as t_dist
 
 ALPHA = 0.05
 MAX_RESULTS = 500  # bound the work on an untrusted/huge text (rule #4)
+STATCHECK_VERSION = "1"
 
 # A number: "2.10", ".04", "45", "-2.1". Backlog #27: the test-statistic comparator is no longer required to be
 # "=" -- APA reporting sometimes gives an inequality instead of an exact value (e.g. "F(1,44) < 1, p > .05",

@@ -24,6 +24,14 @@ class ContentIdentityError(ValueError):
 
 
 @dataclass(frozen=True)
+class ContentBlock:
+    text: str
+    section: str | None
+    page_start: int | None
+    page_end: int | None
+
+
+@dataclass(frozen=True)
 class ContentIdentity:
     whole_file_hash: str
     extracted_text_hash: str
@@ -32,6 +40,7 @@ class ContentIdentity:
     extracted_char_count: int
     section_hashes: dict[str, str]
     evidence_contexts: tuple[str, ...]
+    blocks: tuple[ContentBlock, ...]
 
 
 def extract_content_identity(path: str | Path) -> ContentIdentity:
@@ -47,15 +56,20 @@ def extract_content_identity(path: str | Path) -> ContentIdentity:
             raise ContentIdentityError("Primary manuscript exceeds the 256 MiB extraction limit")
         if suffix == ".pdf":
             extraction = extract_pdf(source)
-            blocks = [
-                (None, block.text) for page in extraction.pages for block in page.blocks if _normalize_text(block.text)
+            raw_blocks = [
+                (None, block.text, page.page_number, page.page_number)
+                for page in extraction.pages
+                for block in page.blocks
+                if _normalize_text(block.text)
             ]
             provider = extraction.extraction_tool
             version = extraction.extraction_version
         else:
             extraction = extract_text_document(source)
-            blocks = [
-                (segment.section, segment.text) for segment in extraction.segments if _normalize_text(segment.text)
+            raw_blocks = [
+                (segment.section, segment.text, segment.page_start, segment.page_end)
+                for segment in extraction.segments
+                if _normalize_text(segment.text)
             ]
             provider = extraction.provider_id
             version = extraction.extraction_version
@@ -63,16 +77,24 @@ def extract_content_identity(path: str | Path) -> ContentIdentity:
         raise
     except (OSError, ValueError, KeyError, RuntimeError, SyntaxError) as exc:
         raise ContentIdentityError(f"{type(exc).__name__}: {exc}") from exc
-    normalized_blocks = [(_normalize_text(section or ""), _normalize_text(text)) for section, text in blocks]
-    normalized_blocks = [(section, text) for section, text in normalized_blocks if text]
-    if not normalized_blocks:
+    blocks = tuple(
+        ContentBlock(
+            text=_normalize_text(text),
+            section=_normalize_text(section or "") or None,
+            page_start=page_start,
+            page_end=page_end,
+        )
+        for section, text, page_start, page_end in raw_blocks
+        if _normalize_text(text)
+    )
+    if not blocks:
         raise ContentIdentityError("No manuscript text could be extracted")
-    text = "\n\n".join(block for _, block in normalized_blocks)
+    text = "\n\n".join(block.text for block in blocks)
     section_text: dict[str, list[str]] = {}
-    for section, block in normalized_blocks:
-        if section:
-            section_text.setdefault(section, []).append(block)
-    contexts = tuple(block[:MAX_EVIDENCE_CONTEXT_CHARS] for _, block in normalized_blocks[:MAX_EVIDENCE_CONTEXTS])
+    for block in blocks:
+        if block.section:
+            section_text.setdefault(block.section, []).append(block.text)
+    contexts = tuple(block.text[:MAX_EVIDENCE_CONTEXT_CHARS] for block in blocks[:MAX_EVIDENCE_CONTEXTS])
     return ContentIdentity(
         whole_file_hash=file_sha256(source),
         extracted_text_hash=_text_hash(text),
@@ -81,6 +103,7 @@ def extract_content_identity(path: str | Path) -> ContentIdentity:
         extracted_char_count=len(text),
         section_hashes={name: _text_hash("\n\n".join(parts)) for name, parts in section_text.items()},
         evidence_contexts=contexts,
+        blocks=blocks,
     )
 
 

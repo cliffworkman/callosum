@@ -48,6 +48,14 @@ WIP manuscripts are research products and never rows in `papers`. They are local
   reason/detail, and timestamp. Full unpublished file bytes and full extracted text are not duplicated in SQLite.
   Identical content plus identical reason/detail deduplicates. Status is derived against the current primary file:
   changed-but-not-re-extracted is `potentially-stale`; changed extracted text or primary replacement is `stale`.
+- `tool_runs`: generic deterministic/assisted tool provenance: stable UUID, tool and Callosum versions, parameters,
+  structured result, human-readable summary, explicit coverage, status/error, and execution time.
+- `wip_tool_runs`: one-to-one WIP association binding a tool run to its manuscript, primary file, exact checkpoint,
+  and normalized extracted-text hash.
+- `wip_findings`: per-run facts or reviewable candidates with type/severity, structured details, bounded
+  quote/context, honest coordinate precision, disposition, optional resolution notes, and timestamps. Statcheck
+  currently emits candidates only. Run validity is derived from checkpoint identity plus unresolved dispositions:
+  `current-with-findings`, `current`, `potentially-stale`, or `stale`.
 
 Every `/wip/*` endpoint denies remote, forwarded, and read-only requests because paths and unpublished manuscript
 metadata are host-local data.

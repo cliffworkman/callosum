@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 352 — WIP content checkpoints -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 353 — snapshot-bound WIP checks -->
+## 2026-07-23 — Increment 353: Snapshot-bound WIP checks and reviewable findings
+
+- **Files:** migration `0051`, generic/WIP tool-run and finding schemas/repository/router, block-preserving WIP
+  extraction, Checks UI, tests, served help, data/design/security docs, and QA route 75.
+- **What:** WIP manuscripts can run deterministic local Statcheck against the current primary file. Every run names
+  its exact checkpoint/hash, tool/Callosum versions, time, summary, structured result, and coverage; possible
+  inconsistencies remain evidence-carrying candidates with review dispositions and a direct source-file action.
+- **Honesty:** validity is derived as current-with-findings/current/potentially-stale/stale. No finding is presented
+  as a verdict, absent findings never mean clean, and null coordinates never draw an exact highlight.
+- **Verify:** `pytest -n auto -q` (**1453 passed, 1 skipped**), frontend rebuild, Ruff, 600-line budget, fresh and
+  `0050 -> 0051` migrations, QA map (**292/292 API surfaces**), and desktop/mobile Chromium with zero
+  console/page errors, egress, or overflow.
+- **Revert:** `git revert` this commit. Migration `0051` is additive and the local provenance rows may remain.
+
 ## 2026-07-23 — Increment 352: WIP content checkpoints and exact text identity
 
 - **Files:** migration `0050`, reusable ODT/plain-text extraction, WIP content/provenance schema/repository/router,

@@ -266,6 +266,12 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     )
     assert '["overview", "structure", "tasks", "files", "references", "checks", "activity"]' in raw
     assert "Create checkpoint" in raw
+    assert "Run statcheck" in raw
+    assert "running && <ProgressBar />" in raw
+    assert "Open source file" in raw
+    assert "An empty history is not a clean manuscript." in raw
+    assert "run.coverage" in raw
+    assert "finding.details_json.computed_p" in raw
     assert "No tool result is implied by a content checkpoint." in raw
     assert 'const wipModeActive = activeTab === "wip" || !!activeWipTab' in raw
     assert 'kind: "manuscript", entity: activeWipManuscript || null' in raw

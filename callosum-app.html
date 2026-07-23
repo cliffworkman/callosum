@@ -1828,6 +1828,36 @@
   }
   .wip-check-head h3 { margin: 0; color: var(--ink); font: 600 12px var(--sans); }
   .wip-check-head p { margin: 3px 0 0; color: var(--ink-3); font-size: 10.5px; }
+  .wip-check-actions { display: flex; gap: 7px; align-items: center; }
+  .wip-tool-run { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .wip-tool-run-head { display: flex; align-items: center; gap: 8px; }
+  .wip-tool-run-head strong { color: var(--ink); text-transform: capitalize; }
+  .wip-tool-run-head > span {
+    border: 1px solid var(--line-2); border-radius: var(--radius-pill); padding: 1px 7px;
+    color: var(--ink-2); font: 600 9.5px var(--sans); text-transform: capitalize;
+  }
+  .wip-tool-run-head .wip-identity-current-with-findings,
+  .wip-tool-run-head .wip-identity-potentially-stale,
+  .wip-tool-run-head .wip-identity-stale {
+    border-color: var(--flag-line); background: var(--flag-soft); color: var(--flag);
+  }
+  .wip-tool-run-head time { margin-left: auto; color: var(--ink-3); font-size: 10px; }
+  .wip-tool-run > p { margin: 5px 0 2px; color: var(--ink); }
+  .wip-tool-run > small { display: block; color: var(--ink-3); line-height: 1.4; }
+  .wip-finding-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 10px;
+    margin-top: 9px; padding: 8px; border: 1px solid var(--flag-line); border-radius: var(--radius-sm);
+    background: var(--flag-soft);
+  }
+  .wip-finding-row strong { color: var(--flag); font-size: 9.5px; text-transform: uppercase; }
+  .wip-finding-row > div .btn-link { margin-left: 8px; }
+  .wip-finding-row select { min-width: 120px; background: var(--panel); color: var(--ink); border: 1px solid var(--line-2); }
+  .wip-finding-row blockquote, .wip-finding-row p, .wip-finding-row small { grid-column: 1 / -1; margin: 0; }
+  .wip-finding-row blockquote { color: var(--ink); font-family: var(--mono); }
+  .wip-finding-row p, .wip-finding-row small { color: var(--ink-2); }
+  .wip-checkpoint-heading { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .wip-checkpoint-heading h3 { margin: 0; color: var(--ink); font: 600 12px var(--sans); }
+  .wip-checkpoint-heading p { margin: 3px 0 0; color: var(--ink-3); font-size: 10.5px; }
   .wip-checkpoint-row {
     display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px;
     padding: 9px 0; border-bottom: 1px solid var(--line);
@@ -1864,6 +1894,9 @@
   .app.mobile .wip-reference-row { grid-template-columns: minmax(80px, 1fr) 110px 24px; }
   .app.mobile .wip-reference-row > span { display: none; }
   .app.mobile .wip-check-head { align-items: stretch; flex-direction: column; }
+  .app.mobile .wip-check-actions { align-items: stretch; flex-direction: column; }
+  .app.mobile .wip-finding-row { grid-template-columns: minmax(0, 1fr); }
+  .app.mobile .wip-finding-row select { width: 100%; }
   .app.mobile .wip-checkpoint-row { grid-template-columns: minmax(0, 1fr); }
   .app.mobile .wip-checkpoint-row > p { grid-column: 1; }
   .app.mobile .wip-work-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -8885,8 +8918,9 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       "\xD7"
     ))));
   }
-  function WipChecks({ manuscriptId, snapshots, onReload }) {
+  function WipChecks({ manuscriptId, snapshots, checks, onReload }) {
     const [creating, setCreating] = useState(false);
+    const [running, setRunning] = useState(false);
     const [error, setError] = useState("");
     const createCheckpoint = async () => {
       setCreating(true);
@@ -8896,7 +8930,25 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       if (result.ok) onReload();
       else setError(result.error || "Could not create checkpoint.");
     };
-    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-check-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", null, "Content checkpoints"), /* @__PURE__ */ React.createElement("p", null, "Exact local hashes and bounded extracted-text context. Checkpoints never copy the manuscript file.")), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: creating, onClick: createCheckpoint }, creating ? "Creating\u2026" : "Create checkpoint")), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), snapshots.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No content checkpoints yet.") : snapshots.map((snapshot) => /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: snapshot.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, snapshot.reason.replace(/-/g, " ")), snapshot.reason_detail && /* @__PURE__ */ React.createElement("span", null, snapshot.reason_detail), /* @__PURE__ */ React.createElement("small", null, snapshot.extraction_provider, " ", snapshot.extraction_version, " \xB7 ", snapshot.extracted_char_count.toLocaleString(), " extracted characters")), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${snapshot.identity_status}` }, snapshot.identity_status.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(snapshot.created_at))), /* @__PURE__ */ React.createElement("p", null, snapshot.status_detail))), /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No tool result is implied by a content checkpoint. Deterministic checks will appear here after they run."));
+    const runStatcheck = async () => {
+      setRunning(true);
+      setError("");
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/checks/statcheck`, {});
+      setRunning(false);
+      if (result.ok) onReload();
+      else setError(result.error || "Statcheck could not run.");
+    };
+    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-check-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", null, "Deterministic checks"), /* @__PURE__ */ React.createElement("p", null, "Each run names its exact checkpoint, tool version, coverage, and reviewable findings.")), /* @__PURE__ */ React.createElement("div", { className: "wip-check-actions" }, /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: creating, onClick: createCheckpoint }, creating ? "Creating\u2026" : "Create checkpoint"), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: running, onClick: runStatcheck }, running ? "Running\u2026" : "Run statcheck"))), running && /* @__PURE__ */ React.createElement(ProgressBar, null), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), (checks.runs || []).length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No checks run yet. An empty history is not a clean manuscript.") : checks.runs.map((run) => /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run", key: run.id }, /* @__PURE__ */ React.createElement("div", { className: "wip-tool-run-head" }, /* @__PURE__ */ React.createElement("strong", null, run.tool_id), /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${run.validity}` }, run.validity.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(run.executed_at))), /* @__PURE__ */ React.createElement("p", null, run.result_summary), /* @__PURE__ */ React.createElement("small", null, "v", run.tool_version, " \xB7 snapshot ", run.snapshot_id, " \xB7 ", run.coverage), (run.findings || []).map((finding) => /* @__PURE__ */ React.createElement("div", { className: "wip-finding-row", key: finding.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, "Candidate"), " ", /* @__PURE__ */ React.createElement("span", null, finding.summary), /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: async () => {
+      const result = await apiPost(
+        `/wip/manuscripts/${manuscriptId}/files/${finding.file_id}/open`,
+        {}
+      );
+      if (!result.ok) setError(result.error || "Could not open the source file.");
+    } }, "Open source file")), /* @__PURE__ */ React.createElement("select", { value: finding.disposition || "open", onChange: async (event) => {
+      const result = await apiPatch(`/wip/findings/${finding.id}`, { disposition: event.target.value });
+      if (result.ok) onReload();
+      else setError(result.error || "Could not update the finding.");
+    } }, ["open", "acknowledged", "resolved", "dismissed", "false-positive", "deferred", "superseded"].map((value) => /* @__PURE__ */ React.createElement("option", { key: value, value }, value.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement("blockquote", null, finding.quote), /* @__PURE__ */ React.createElement("p", null, finding.context), /* @__PURE__ */ React.createElement("small", null, "Reported ", finding.details_json.reported_p, "; recomputed p = ", finding.details_json.computed_p))))), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-heading" }, /* @__PURE__ */ React.createElement("h3", null, "Content checkpoints"), /* @__PURE__ */ React.createElement("p", null, "Exact local hashes and bounded context; never a copy of the manuscript file.")), snapshots.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No content checkpoints yet.") : snapshots.map((snapshot) => /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-row", key: snapshot.id }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("strong", null, snapshot.reason.replace(/-/g, " ")), snapshot.reason_detail && /* @__PURE__ */ React.createElement("span", null, snapshot.reason_detail), /* @__PURE__ */ React.createElement("small", null, snapshot.extraction_provider, " ", snapshot.extraction_version, " \xB7 ", snapshot.extracted_char_count.toLocaleString(), " extracted characters")), /* @__PURE__ */ React.createElement("div", { className: "wip-checkpoint-state" }, /* @__PURE__ */ React.createElement("span", { className: `wip-identity-${snapshot.identity_status}` }, snapshot.identity_status.replace(/-/g, " ")), /* @__PURE__ */ React.createElement("time", null, wipWhen(snapshot.created_at))), /* @__PURE__ */ React.createElement("p", null, snapshot.status_detail))), /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No tool result is implied by a content checkpoint. Deterministic checks will appear here after they run."));
   }
   function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
     const [files, setFiles] = useState([]);
@@ -8905,6 +8957,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     const [tasks, setTasks] = useState([]);
     const [references, setReferences] = useState([]);
     const [snapshots, setSnapshots] = useState([]);
+    const [checks, setChecks] = useState({ tools: [], runs: [] });
     const [tab, setTab] = useState("overview");
     const [nonce, setNonce] = useState(0);
     const [draft, setDraft] = useState(manuscript || {});
@@ -8920,14 +8973,16 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         api(`/wip/manuscripts/${manuscript.id}/sections`),
         api(`/wip/manuscripts/${manuscript.id}/tasks`),
         api(`/wip/manuscripts/${manuscript.id}/references`),
-        api(`/wip/manuscripts/${manuscript.id}/snapshots`)
-      ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult]) => {
+        api(`/wip/manuscripts/${manuscript.id}/snapshots`),
+        api(`/wip/manuscripts/${manuscript.id}/checks`)
+      ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult, snapshotResult, checkResult]) => {
         if (fileResult.ok) setFiles(fileResult.data || []);
         if (activityResult.ok) setActivity(activityResult.data || []);
         if (sectionResult.ok) setSections(sectionResult.data || []);
         if (taskResult.ok) setTasks(taskResult.data || []);
         if (referenceResult.ok) setReferences(referenceResult.data || []);
         if (snapshotResult.ok) setSnapshots(snapshotResult.data || []);
+        if (checkResult.ok) setChecks(checkResult.data || { tools: [], runs: [] });
       });
     }, [manuscript && manuscript.id, manuscript && manuscript.updated_at, nonce]);
     if (!manuscript) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a WIP manuscript to see its details.");
@@ -9036,7 +9091,15 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onReload: reload,
         onOpenPaper
       }
-    ), tab === "checks" && /* @__PURE__ */ React.createElement(WipChecks, { manuscriptId: manuscript.id, snapshots, onReload: reload }), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
+    ), tab === "checks" && /* @__PURE__ */ React.createElement(
+      WipChecks,
+      {
+        manuscriptId: manuscript.id,
+        snapshots,
+        checks,
+        onReload: reload
+      }
+    ), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");

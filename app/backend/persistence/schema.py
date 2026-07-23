@@ -511,13 +511,8 @@ missing_literature_suggestions = Table(
 # Literature Feed tables (inc 187) — same split rationale; re-exported so existing import paths keep working and
 # importing this module registers them on the shared metadata.
 # Critical-review candidate store (backlog #12) — same split rationale.
-from app.backend.persistence.schema_critical_review import (  # noqa: E402,F401
-    critical_review_candidates,
-)
-from app.backend.persistence.schema_feed import (  # noqa: E402,F401
-    feed_items,
-    feed_subscriptions,
-)
+from app.backend.persistence.schema_critical_review import critical_review_candidates  # noqa: E402,F401
+from app.backend.persistence.schema_feed import feed_items, feed_subscriptions  # noqa: E402,F401
 from app.backend.persistence.schema_findings import (  # noqa: E402,F401
     agent_writes,
     gap_candidates,
@@ -577,17 +572,20 @@ from app.backend.persistence.schema_sync import (  # noqa: E402,F401
     sync_identity,
     sync_state,
 )
+from app.backend.persistence.schema_tool_runs import tool_runs  # noqa: E402,F401
 from app.backend.persistence.schema_watched import watched_folders  # noqa: E402,F401
 
 # Work-in-Progress manuscript workspace tables — distinct from papers by design.
 from app.backend.persistence.schema_wip import (  # noqa: E402,F401
     wip_activity_events,
     wip_files,
+    wip_findings,
     wip_manuscripts,
     wip_references,
     wip_sections,
     wip_snapshots,
     wip_tasks,
+    wip_tool_runs,
     wip_watch_roots,
 )
 
