@@ -75,6 +75,12 @@ def test_every_menu_action_is_a_real_action(tmp_path) -> None:
     assert {"refresh", "refreshCitations", "refreshBibliography", "toggleCiteAuto"} <= actions
 
 
+def test_dirty_infobar_refresh_button_targets_a_real_packaged_action() -> None:
+    action = cc.DIRTY_REFRESH_URL.rsplit("?", 1)[-1]
+    assert action == "refreshPending"
+    assert action in cc._ACTIONS
+
+
 def test_build_search_rows() -> None:
     rows = cc.build_search_rows(
         [

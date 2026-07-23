@@ -43,6 +43,10 @@ BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the START of the mana
 BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
 PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
 PREF_CITE_AUTO = "CallosumCiteAuto"  # document user-property: "0" pauses automatic citation formatting (P1 #13)
+PREF_CITE_DIRTY = "CallosumCiteDirty"  # "1" means visible citation text needs an explicit refresh (P1 #13)
+PREF_BIB_DIRTY = "CallosumBibDirty"  # "1" means the managed bibliography needs an explicit refresh (P1 #13)
+DIRTY_INFOBAR_ID = "callosum-refresh-pending"
+DIRTY_REFRESH_URL = "service:com.callosum.cite.Dispatcher?refreshPending"
 # Mark-payload schema version (inc TBD, P0 phase 1 of the LibreOffice-adapter rework — backlog #33/#34). v1 is the
 # original shape (no "v" key, always exactly one item, no per-instance fields) and is still read losslessly; v2
 # adds optional per-occurrence citeproc-cite properties (locator/label/prefix/suffix/suppress-author/author-only)
@@ -472,14 +476,18 @@ def bib_auto_enabled(doc) -> bool:
 
 
 def set_bib_auto(doc, enabled: bool) -> None:
+    _set_bool_prop(doc, PREF_BIB_AUTO, enabled)
+
+
+def _set_bool_prop(doc, name: str, enabled: bool) -> None:
     from com.sun.star.beans.PropertyAttribute import REMOVABLE
 
     props = doc.getDocumentProperties().getUserDefinedProperties()
     value = "1" if enabled else "0"
-    if props.getPropertySetInfo().hasPropertyByName(PREF_BIB_AUTO):
-        props.setPropertyValue(PREF_BIB_AUTO, value)
+    if props.getPropertySetInfo().hasPropertyByName(name):
+        props.setPropertyValue(name, value)
     else:
-        props.addProperty(PREF_BIB_AUTO, REMOVABLE, value)
+        props.addProperty(name, REMOVABLE, value)
 
 
 def cite_auto_enabled(doc) -> bool:
@@ -489,14 +497,71 @@ def cite_auto_enabled(doc) -> bool:
 
 
 def set_cite_auto(doc, enabled: bool) -> None:
-    from com.sun.star.beans.PropertyAttribute import REMOVABLE
+    _set_bool_prop(doc, PREF_CITE_AUTO, enabled)
 
+
+def dirty_state(doc) -> tuple[bool, bool]:
+    """Return `(citations_pending, bibliography_pending)` from the document-local refresh flags."""
     props = doc.getDocumentProperties().getUserDefinedProperties()
-    value = "1" if enabled else "0"
-    if props.getPropertySetInfo().hasPropertyByName(PREF_CITE_AUTO):
-        props.setPropertyValue(PREF_CITE_AUTO, value)
-    else:
-        props.addProperty(PREF_CITE_AUTO, REMOVABLE, value)
+    return _user_prop(props, PREF_CITE_DIRTY) == "1", _user_prop(props, PREF_BIB_DIRTY) == "1"
+
+
+def _dirty_infobar_copy(citations_pending: bool, bibliography_pending: bool) -> tuple[str, str]:
+    if citations_pending and bibliography_pending:
+        return "Callosum refresh pending", "Citation formatting and the bibliography are out of date."
+    if citations_pending:
+        return "Callosum refresh pending", "Citation formatting is out of date."
+    return "Callosum refresh pending", "The bibliography is out of date."
+
+
+def _infobar_refresh_button():
+    from com.sun.star.beans import StringPair
+
+    button = StringPair()
+    button.First = "Refresh pending"
+    button.Second = DIRTY_REFRESH_URL
+    return button
+
+
+def _sync_dirty_infobar(doc) -> bool:
+    """Synchronize the non-dismissible Writer Infobar with the persisted dirty flags.
+
+    Returns whether the indicator is visible. Infobar support is best-effort so an older/unusual controller can
+    never turn a successful citation mutation into a failure; supported LibreOffice versions are verified by the
+    real-UNO harness.
+    """
+    citations_pending, bibliography_pending = dirty_state(doc)
+    try:
+        controller = doc.getCurrentController()
+        exists = controller.hasInfobar(DIRTY_INFOBAR_ID)
+        if not citations_pending and not bibliography_pending:
+            if exists:
+                controller.removeInfobar(DIRTY_INFOBAR_ID)
+            return False
+        primary, secondary = _dirty_infobar_copy(citations_pending, bibliography_pending)
+        if exists:
+            controller.updateInfobar(DIRTY_INFOBAR_ID, primary, secondary, 2)
+        else:
+            controller.appendInfobar(
+                DIRTY_INFOBAR_ID,
+                primary,
+                secondary,
+                2,  # com.sun.star.frame.InfobarType.WARNING
+                (_infobar_refresh_button(),),
+                False,
+            )
+        return True
+    except Exception:
+        return False
+
+
+def set_dirty_state(doc, *, citations: bool | None = None, bibliography: bool | None = None) -> None:
+    """Persist either dirty flag without disturbing the other, then synchronize the visible Writer indicator."""
+    if citations is not None:
+        _set_bool_prop(doc, PREF_CITE_DIRTY, citations)
+    if bibliography is not None:
+        _set_bool_prop(doc, PREF_BIB_DIRTY, bibliography)
+    _sync_dirty_infobar(doc)
 
 
 def _get_id_list(doc, name: str) -> list[str]:
@@ -721,13 +786,21 @@ def refresh(
             uncited_items.append(stamp_item_id(fetch_csl(base, pid), pid))
         except ValueError:
             continue  # a manually-included paper no longer in the library -- skip silently, not a hard failure
+    write_bibliography = (
+        update_bibliography if update_bibliography is not None else bib_cursor is not None or bib_auto_enabled(doc)
+    )
     if not fields and not uncited_items:
         _transactional_apply(
             doc,
             [],
             [],
             bib_cursor=bib_cursor,
-            write_bibliography=update_bibliography,
+            write_bibliography=write_bibliography,
+        )
+        set_dirty_state(
+            doc,
+            citations=False if update_citations else None,
+            bibliography=False if write_bibliography else None,
         )
         return {"citations": [], "bibliography_text": ""}
     response = render_document(
@@ -747,7 +820,12 @@ def refresh(
         plan,
         response.get("bibliography_text", "").splitlines(),
         bib_cursor=bib_cursor,
-        write_bibliography=update_bibliography,
+        write_bibliography=write_bibliography,
+    )
+    set_dirty_state(
+        doc,
+        citations=False if update_citations else None,
+        bibliography=False if write_bibliography else None,
     )
     return response
 
@@ -762,6 +840,20 @@ def refresh_bibliography(doc, base: str = DEFAULT_BASE) -> dict:
     return refresh(doc, base, update_citations=False, update_bibliography=True)
 
 
+def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:
+    """Refresh exactly the surfaces named by the persisted dirty flags, regardless of automatic-mode settings."""
+    citations_pending, bibliography_pending = dirty_state(doc)
+    if not citations_pending and not bibliography_pending:
+        _sync_dirty_infobar(doc)
+        return None
+    return refresh(
+        doc,
+        base,
+        update_citations=citations_pending,
+        update_bibliography=bibliography_pending,
+    )
+
+
 def _auto_refresh(doc, base: str = DEFAULT_BASE) -> dict | None:
     """Apply only the document surfaces whose automatic-update preferences are enabled.
 
@@ -771,13 +863,25 @@ def _auto_refresh(doc, base: str = DEFAULT_BASE) -> dict | None:
     update_citations = cite_auto_enabled(doc)
     update_bibliography = bib_auto_enabled(doc)
     if not update_citations and not update_bibliography:
+        set_dirty_state(doc, citations=True, bibliography=True)
         return None
-    return refresh(
-        doc,
-        base,
-        update_citations=update_citations,
-        update_bibliography=update_bibliography,
-    )
+    pending = {}
+    if not update_citations:
+        pending["citations"] = True
+    if not update_bibliography:
+        pending["bibliography"] = True
+    if pending:
+        set_dirty_state(doc, **pending)
+    try:
+        return refresh(
+            doc,
+            base,
+            update_citations=update_citations,
+            update_bibliography=update_bibliography,
+        )
+    except Exception:
+        set_dirty_state(doc, citations=True, bibliography=True)
+        raise
 
 
 def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
@@ -1581,6 +1685,7 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
         bib_state = "not_built"
     else:
         bib_state = "n/a"
+    citation_dirty, bibliography_dirty = dirty_state(doc)
 
     return {
         "malformed": malformed,
@@ -1588,12 +1693,24 @@ def diagnose_document(doc, base: str = DEFAULT_BASE) -> dict:
         "duplicate_ids": duplicate_ids,
         "orphaned": orphaned,
         "bibliography": bib_state,
+        "refresh_pending": {
+            "citations": citation_dirty,
+            "bibliography": bibliography_dirty,
+        },
     }
 
 
 def document_diagnostics_interactive(doc, base: str) -> None:
     report = diagnose_document(doc, base)
     lines = []
+    pending = report["refresh_pending"]
+    if pending["citations"] or pending["bibliography"]:
+        surfaces = (
+            "citations and bibliography"
+            if all(pending.values())
+            else ("citations" if pending["citations"] else "bibliography")
+        )
+        lines.append(f"Refresh pending for {surfaces} — use the Writer Infobar action or a matching Refresh command.")
     if report["malformed"]:
         lines.append(
             f"{len(report['malformed'])} malformed citation field(s) — corrupted beyond repair; "
@@ -1732,6 +1849,7 @@ _ACTIONS = {
     "refresh": refresh,
     "refreshCitations": refresh_citations,
     "refreshBibliography": refresh_bibliography,
+    "refreshPending": refresh_pending,
     "setStyle": set_style_interactive,
     "flatten": lambda doc, base: flatten_interactive(doc),
     "prepareSubmissionCopy": lambda doc, base: prepare_submission_copy_interactive(doc),
@@ -1754,6 +1872,7 @@ _ACTIONS = {
 def dispatch(action: str, doc, base: str) -> None:
     """Run a named action against `doc`. Shared by the macro entry points (macro mode) and the .oxt dispatcher
     (component mode); the caller resolves doc + base and wraps errors."""
+    _sync_dirty_infobar(doc)  # restore a persisted pending indicator when a saved document is reopened
     _ACTIONS[action](doc, base)
 
 

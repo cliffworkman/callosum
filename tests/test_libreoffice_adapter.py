@@ -202,19 +202,23 @@ def test_partial_refresh_wrappers_select_only_the_requested_surface(monkeypatch)
 
 
 @pytest.mark.parametrize(
-    ("cite_auto", "bib_auto", "expected"),
+    ("cite_auto", "bib_auto", "expected", "expected_dirty"),
     [
-        (True, True, {"update_citations": True, "update_bibliography": True}),
-        (True, False, {"update_citations": True, "update_bibliography": False}),
-        (False, True, {"update_citations": False, "update_bibliography": True}),
-        (False, False, None),
+        (True, True, {"update_citations": True, "update_bibliography": True}, []),
+        (True, False, {"update_citations": True, "update_bibliography": False}, [{"bibliography": True}]),
+        (False, True, {"update_citations": False, "update_bibliography": True}, [{"citations": True}]),
+        (False, False, None, [{"citations": True, "bibliography": True}]),
     ],
 )
-def test_auto_refresh_honors_the_two_independent_preferences(monkeypatch, cite_auto, bib_auto, expected) -> None:
+def test_auto_refresh_honors_the_two_independent_preferences(
+    monkeypatch, cite_auto, bib_auto, expected, expected_dirty
+) -> None:
     calls = []
+    dirty_calls = []
     monkeypatch.setattr(cc, "cite_auto_enabled", lambda doc: cite_auto)
     monkeypatch.setattr(cc, "bib_auto_enabled", lambda doc: bib_auto)
     monkeypatch.setattr(cc, "refresh", lambda doc, base, **kwargs: calls.append((doc, base, kwargs)) or {"ok": True})
+    monkeypatch.setattr(cc, "set_dirty_state", lambda doc, **kwargs: dirty_calls.append(kwargs))
     doc = object()
 
     result = cc._auto_refresh(doc, "http://x")
@@ -225,6 +229,47 @@ def test_auto_refresh_honors_the_two_independent_preferences(monkeypatch, cite_a
     else:
         assert result == {"ok": True}
         assert calls == [(doc, "http://x", expected)]
+    assert dirty_calls == expected_dirty
+
+
+def test_auto_refresh_failure_marks_both_surfaces_pending(monkeypatch) -> None:
+    dirty_calls = []
+    monkeypatch.setattr(cc, "cite_auto_enabled", lambda doc: True)
+    monkeypatch.setattr(cc, "bib_auto_enabled", lambda doc: True)
+    monkeypatch.setattr(cc, "set_dirty_state", lambda doc, **kwargs: dirty_calls.append(kwargs))
+
+    def fail_refresh(doc, base, **kwargs):
+        raise OSError("server unavailable")
+
+    monkeypatch.setattr(cc, "refresh", fail_refresh)
+    with pytest.raises(OSError, match="server unavailable"):
+        cc._auto_refresh(object(), "http://x")
+    assert dirty_calls == [{"citations": True, "bibliography": True}]
+
+
+@pytest.mark.parametrize(
+    ("state", "expected_kwargs"),
+    [
+        ((True, False), {"update_citations": True, "update_bibliography": False}),
+        ((False, True), {"update_citations": False, "update_bibliography": True}),
+        ((True, True), {"update_citations": True, "update_bibliography": True}),
+    ],
+)
+def test_refresh_pending_targets_exact_dirty_surfaces(monkeypatch, state, expected_kwargs) -> None:
+    calls = []
+    monkeypatch.setattr(cc, "dirty_state", lambda doc: state)
+    monkeypatch.setattr(cc, "refresh", lambda doc, base, **kwargs: calls.append(kwargs) or {"ok": True})
+    assert cc.refresh_pending(object(), "http://x") == {"ok": True}
+    assert calls == [expected_kwargs]
+
+
+def test_refresh_pending_is_noop_when_clean(monkeypatch) -> None:
+    synced = []
+    monkeypatch.setattr(cc, "dirty_state", lambda doc: (False, False))
+    monkeypatch.setattr(cc, "_sync_dirty_infobar", lambda doc: synced.append(doc))
+    doc = object()
+    assert cc.refresh_pending(doc, "http://x") is None
+    assert synced == [doc]
 
 
 def test_toggle_citation_auto_reports_manual_refresh_path(monkeypatch) -> None:
@@ -478,6 +523,16 @@ class _FakeBookmarks:
         return name in self._names
 
 
+class _FakeEmptyUserProps:
+    def getPropertyValue(self, name: str) -> str:
+        raise KeyError(name)
+
+
+class _FakeDocumentProperties:
+    def getUserDefinedProperties(self) -> _FakeEmptyUserProps:
+        return _FakeEmptyUserProps()
+
+
 class _FakeDiagDoc:
     def __init__(self, mark_names: list[str], bookmark_names=()) -> None:
         self._marks = _FakeMarksCollection(mark_names)
@@ -488,6 +543,9 @@ class _FakeDiagDoc:
 
     def getBookmarks(self) -> _FakeBookmarks:
         return self._bookmarks
+
+    def getDocumentProperties(self) -> _FakeDocumentProperties:
+        return _FakeDocumentProperties()
 
 
 def _ok_mark(paper_id: str, rnd: str) -> str:
@@ -504,6 +562,7 @@ def test_diagnose_document_clean_document_reports_nothing(monkeypatch) -> None:
         "duplicate_ids": [],
         "orphaned": [],
         "bibliography": "ok",
+        "refresh_pending": {"citations": False, "bibliography": False},
     }
 
 
@@ -656,6 +715,70 @@ def test_auto_refresh_preferences_default_on_and_explicit_zero_disables() -> Non
     assert cc.bib_auto_enabled(_PanelDoc({}))
     assert not cc.cite_auto_enabled(_PanelDoc({}, {cc.PREF_CITE_AUTO: "0"}))
     assert not cc.bib_auto_enabled(_PanelDoc({}, {cc.PREF_BIB_AUTO: "0"}))
+
+
+def test_dirty_state_defaults_clean_and_reads_each_persisted_flag() -> None:
+    assert cc.dirty_state(_PanelDoc({})) == (False, False)
+    assert cc.dirty_state(_PanelDoc({}, {cc.PREF_CITE_DIRTY: "1"})) == (True, False)
+    assert cc.dirty_state(_PanelDoc({}, {cc.PREF_BIB_DIRTY: "1"})) == (False, True)
+    assert cc.dirty_state(_PanelDoc({}, {cc.PREF_CITE_DIRTY: "1", cc.PREF_BIB_DIRTY: "1"})) == (True, True)
+
+
+class _FakeInfobarController:
+    def __init__(self, exists: bool = False) -> None:
+        self.exists = exists
+        self.appended = []
+        self.updated = []
+        self.removed = []
+
+    def hasInfobar(self, infobar_id: str) -> bool:
+        return self.exists
+
+    def appendInfobar(self, *args) -> None:
+        self.appended.append(args)
+        self.exists = True
+
+    def updateInfobar(self, *args) -> None:
+        self.updated.append(args)
+
+    def removeInfobar(self, infobar_id: str) -> None:
+        self.removed.append(infobar_id)
+        self.exists = False
+
+
+class _FakeInfobarDoc(_PanelDoc):
+    def __init__(self, user_props: dict[str, str], controller: _FakeInfobarController) -> None:
+        super().__init__({}, user_props)
+        self._controller = controller
+
+    def getCurrentController(self) -> _FakeInfobarController:
+        return self._controller
+
+
+def test_dirty_infobar_is_non_dismissible_and_refreshes_exact_pending_state(monkeypatch) -> None:
+    controller = _FakeInfobarController()
+    doc = _FakeInfobarDoc({cc.PREF_CITE_DIRTY: "1", cc.PREF_BIB_DIRTY: "1"}, controller)
+    button = object()
+    monkeypatch.setattr(cc, "_infobar_refresh_button", lambda: button)
+
+    assert cc._sync_dirty_infobar(doc)
+    assert controller.appended == [
+        (
+            cc.DIRTY_INFOBAR_ID,
+            "Callosum refresh pending",
+            "Citation formatting and the bibliography are out of date.",
+            2,
+            (button,),
+            False,
+        )
+    ]
+
+
+def test_dirty_infobar_is_removed_when_persisted_state_is_clean() -> None:
+    controller = _FakeInfobarController(exists=True)
+    doc = _FakeInfobarDoc({}, controller)
+    assert not cc._sync_dirty_infobar(doc)
+    assert controller.removed == [cc.DIRTY_INFOBAR_ID]
 
 
 def _panel_mark(paper_id: str, rnd: str, pos: int) -> tuple[str, _PanelMark]:

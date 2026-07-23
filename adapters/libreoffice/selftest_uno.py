@@ -1196,6 +1196,11 @@ def spike_manual_refresh_mode(ctx, base, p1, p2):
 
     cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
     check(cc.cite_auto_enabled(doc), "citation auto-formatting should default to enabled")
+    check(cc.dirty_state(doc) == (False, False), "fully automatic insertion should leave no pending surface")
+    check(
+        not doc.getCurrentController().hasInfobar(cc.DIRTY_INFOBAR_ID),
+        "fully automatic insertion unexpectedly showed the pending-refresh Infobar",
+    )
     cc.set_cite_auto(doc, False)
     check(not cc.cite_auto_enabled(doc), "citation auto-formatting preference did not persist as disabled")
 
@@ -1208,6 +1213,11 @@ def spike_manual_refresh_mode(ctx, base, p1, p2):
         "paused citation insertion unexpectedly formatted its visible text",
     )
     check(bibliography_text() != bib_before, "bibliography did not update while only citation formatting was paused")
+    check(cc.dirty_state(doc) == (True, False), "citation-only pending state was not persisted")
+    check(
+        doc.getCurrentController().hasInfobar(cc.DIRTY_INFOBAR_ID),
+        "citation-only pending state did not show the Writer Infobar",
+    )
 
     bib_after_insert = bibliography_text()
     cc.refresh_citations(doc, base)
@@ -1216,6 +1226,11 @@ def spike_manual_refresh_mode(ctx, base, p1, p2):
         "explicit citation-only refresh did not format the pending citation",
     )
     check(bibliography_text() == bib_after_insert, "citation-only refresh changed the bibliography")
+    check(cc.dirty_state(doc) == (False, False), "citation-only refresh did not clear its dirty flag")
+    check(
+        not doc.getCurrentController().hasInfobar(cc.DIRTY_INFOBAR_ID),
+        "citation-only refresh did not remove the clean Infobar",
+    )
 
     cc.set_bib_auto(doc, False)
     cc._write_bibliography(doc, ["FROZEN BIBLIOGRAPHY"])
@@ -1227,16 +1242,24 @@ def spike_manual_refresh_mode(ctx, base, p1, p2):
         "both-paused insertion unexpectedly formatted its visible text",
     )
     check("FROZEN BIBLIOGRAPHY" in bibliography_text(), "both-paused insertion unexpectedly rebuilt bibliography")
+    check(cc.dirty_state(doc) == (True, True), "both-paused insertion did not persist both dirty flags")
+    check(
+        doc.getCurrentController().hasInfobar(cc.DIRTY_INFOBAR_ID),
+        "both-paused pending state did not show the Writer Infobar",
+    )
 
-    cc.set_cite_auto(doc, True)
-    cc.set_bib_auto(doc, True)
-    cc.refresh(doc, base)
+    cc.refresh_pending(doc, base)
     check(
         all(f["_mark"].getAnchor().getString() != cc.PLACEHOLDER for f in cc.scan_citations_in_order(doc)),
-        "explicit full refresh left a pending citation placeholder",
+        "Refresh pending left a citation placeholder",
     )
-    check("FROZEN BIBLIOGRAPHY" not in bibliography_text(), "explicit full refresh did not rebuild bibliography")
-    log("spike (P1 #13): OK — citation formatting and bibliography rebuilding paused independently")
+    check("FROZEN BIBLIOGRAPHY" not in bibliography_text(), "Refresh pending did not rebuild bibliography")
+    check(cc.dirty_state(doc) == (False, False), "Refresh pending did not clear both dirty flags")
+    check(
+        not doc.getCurrentController().hasInfobar(cc.DIRTY_INFOBAR_ID),
+        "Refresh pending did not remove the clean Infobar",
+    )
+    log("spike (P1 #13): OK — independent dirty flags drove a persistent Infobar and exact-surface refresh")
 
 
 def main():

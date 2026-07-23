@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 350 — LibreOffice pending-refresh Infobar -->
+## 2026-07-23 — Increment 350: LibreOffice visible dirty-state indicator (P1 item #13)
+
+- **Files:** LibreOffice adapter/selftest/README/OXT version (0.5.0 → 0.6.0), adapter/OXT tests, root README,
+  served help, security audit, backlog/CLAUDE/increment notes.
+- **What:** added separate persisted citation/bibliography dirty flags and a non-dismissible Writer
+  **Callosum refresh pending** Infobar that names the stale surface(s). Its **Refresh pending** action updates
+  exactly those surfaces even when both automatic modes remain paused. Successful refreshes clear their own
+  flags; post-mutation render failures conservatively mark both; document diagnostics reports the state.
+- **Why:** makes manual refresh mode usable without asking the writer to remember whether old-looking citation
+  text or bibliography output is current.
+- **Verify:** 67 targeted LibreOffice tests; real headless Writer `SELFTEST OK` including Infobar
+  show/update/remove and exact-surface refresh; full suite **1433 passed, 1 skipped**; ruff/format, line budget,
+  QA surface map, OXT packaging, and security audit clean.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 349 — LibreOffice manual citation refresh mode -->
 ## 2026-07-23 — Increment 349: LibreOffice manual citation refresh mode (P1 item #13)
 

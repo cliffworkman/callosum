@@ -170,7 +170,11 @@ def run_citations_panel(doc, base: str):
         else:
             exclude_ids.add(entry["paper_id"])
         cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, sorted(exclude_ids))
-        cc.refresh_bibliography(doc, base)
+        try:
+            cc.refresh_bibliography(doc, base)
+        except Exception:
+            cc.set_dirty_state(doc, bibliography=True)
+            raise
         _reload()
 
     def do_add_uncited():
@@ -183,7 +187,11 @@ def run_citations_panel(doc, base: str):
         for it in items:
             uncited_ids.add(str(it["paper_id"]))
         cc._set_id_list(doc, cc.PREF_BIB_UNCITED, sorted(uncited_ids))
-        cc.refresh_bibliography(doc, base)
+        try:
+            cc.refresh_bibliography(doc, base)
+        except Exception:
+            cc.set_dirty_state(doc, bibliography=True)
+            raise
         _reload()
 
     _apply_filter()

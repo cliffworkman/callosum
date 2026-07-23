@@ -62,7 +62,9 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    inserts and edits remain structured live fields, but their visible text waits for **Refresh / renumber +
    bibliography** or **Refresh citations only**. New inserts visibly show `{citation}` while pending. Turning
    automatic formatting back on affects later changes; run one explicit refresh to resolve existing pending
-   changes. Bibliography auto-rebuilding is controlled separately.
+   changes. Bibliography auto-rebuilding is controlled separately. Whenever a Callosum operation leaves citation
+   formatting or the bibliography pending, Writer shows a non-dismissible **Callosum refresh pending** bar naming
+   the stale surface(s); **Refresh pending** updates exactly those surfaces and removes the bar.
 5. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
    the whole document re-renders. The choice is saved in the document.
@@ -110,6 +112,11 @@ message if it isn't):
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
     cited work or **Add uncited work(s)…** (for further reading). It is a snapshot at the moment you open it —
     reopen after editing to refresh.
+
+The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
+returns the next time you use a Callosum command. Changes made entirely outside Callosum — for example manually
+moving a citation through Writer's own cut/paste commands — are not yet observed automatically; run **Refresh /
+renumber + bibliography** after those edits.
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumRefreshCitations`, `CallosumRefreshBibliography`,

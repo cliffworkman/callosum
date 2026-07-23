@@ -244,8 +244,13 @@ the Principles + A-A gates before build.)*
   **Inc 349 added manual-refresh mode / pause automatic citation formatting:** ordinary insert/edit/style/
   delete/merge/split changes now honor independent per-document citation-formatting and bibliography-rebuild
   preferences; explicit refresh commands always override the citation preference. With both paused, no automatic
-  render request occurs. Still open within #13: selected-citation and current-section refresh, a persistent
-  dirty-state indicator, progress/cancellation, and incremental rendering. **Needs Cliff's own manual
+  render request occurs. **Inc 350 added persistent dirty state for known adapter mutations:** separate
+  document-local citation/bibliography flags drive a non-dismissible Writer Infobar naming the pending surfaces;
+  its **Refresh pending** action updates exactly those surfaces even when both automatic modes remain paused.
+  Render failures conservatively mark both surfaces pending, and diagnostics reports the state. The flags survive
+  save/reopen; the bar is restored on the next Callosum action. Still open within #13: observing arbitrary
+  Writer-only citation moves and restoring the bar immediately on document-open (both need a document-event
+  listener), selected-citation and current-section refresh, progress/cancellation, and incremental rendering. **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance
