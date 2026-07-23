@@ -9,7 +9,23 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 347 — Workbench batch drafting + candidate-review invariants -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 348 — Workbench retrieval-narrowed drafting context -->
+## 2026-07-23 — Increment 348: Workbench locally retrieved drafting context (backlog #36)
+
+- **Files:** `app/backend/{workbench_assist.py,embeddings/retrieval.py}`, workbench router/frontend, embedding +
+  workbench-assist tests, route 65, served help, security-audit addendum, backlog/CLAUDE/increment notes.
+- **What:** replaced the long-paper 50k-character document head with local field-aware retrieval. When a linked
+  paper exceeds 12 chunks, Callosum embeds the empty structured field labels, embeds/reuses that paper's chunk
+  vectors, restricts search to those exact chunk IDs, and sends only the top 12 page-tagged passages through the
+  unchanged consent-gated provider path. The 50k cap remains; embedding/vector failure falls back to the prior
+  bounded document-order text from a rolled-back savepoint. Status copy now says "locally selected relevant
+  passages", not "first part".
+- **Why:** closes backlog #36's second and final near-term assisted-extraction escalation with lower egress volume
+  and context selected for the fields actually being drafted, without changing candidate authority.
+- **Verify:** targeted workbench/embedding suites, frontend build/static tests, full repository gate, and QA
+  surface-map results are recorded in `INCREMENT-348-NOTES.md`.
+- **Revert:** `git revert` this commit; rebuild `callosum-app.html` via `python tools/build_frontend.py`.
+
 ## 2026-07-23 — Increment 347: Workbench "Draft all un-filled rows" (backlog #36)
 
 - **Files:** `app/frontend/js/45_workbench.jsx`, `46_workbench_propose.jsx`, `styles.css`,

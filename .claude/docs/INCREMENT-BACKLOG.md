@@ -260,9 +260,11 @@ the Principles + A-A gates before build.)*
   and the AI-proposes/human-filters funnel are all shipped (SP1/SP2a/SP2b, incs 249–259). **Batch "Draft all
   un-filled rows" shipped inc 347 (2026-07-23):** sequentially proposes across eligible paper-linked rows, skips
   rows with existing candidates, shows determinate progress, continues past named row failures, and never
-  bulk-accepts — every candidate keeps the same per-cell verify gate. **Still next:** retrieval-narrowed text
-  (embed the field labels → send only the top-k relevant chunks, cheaper + more accurate than the current
-  50k-char head). **Far future, its own workspace:** screening/PRISMA, double-coding/IRR
+  bulk-accepts — every candidate keeps the same per-cell verify gate. **Retrieval-narrowed text shipped inc 348
+  (2026-07-23):** for papers over the 12-chunk budget, the empty structured field labels are embedded locally and
+  vector search is restricted to that linked paper's chunks; only the top 12 page-tagged passages cross the
+  consent-gated provider boundary (still capped at 50k chars), with the old bounded document-order assembly as a
+  failure fallback. **Far future, its own workspace:** screening/PRISMA, double-coding/IRR
   (human-only — the track's no-independent-coder veto holds), RoB instruments, figure extraction (point at
   WebPlotDigitizer, don't build it).
 - **#37 Equity & integrity signals — remaining.** The overlooked-work lens shipped (inc 279) and its

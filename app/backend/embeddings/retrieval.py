@@ -36,13 +36,19 @@ def search_similar(
     vector_store: VectorStore,
     top_k: int = 5,
     target_types: tuple[Literal["chunk", "paper"], ...] = ("chunk", "paper"),
+    candidate_target_ids: set[int] | None = None,
 ) -> list[RetrievalHit]:
     if query_vector is None:
         if query is None:
             raise ValueError("Either query or query_vector is required")
         query_vector = model.encode_texts([query])[0]
 
-    candidate_ids = _candidate_embedding_ids(conn, model=model, target_types=target_types)
+    candidate_ids = _candidate_embedding_ids(
+        conn,
+        model=model,
+        target_types=target_types,
+        candidate_target_ids=candidate_target_ids,
+    )
     vector_hits = vector_store.search(
         conn,
         vector=query_vector,
@@ -57,6 +63,7 @@ def _candidate_embedding_ids(
     *,
     model: EmbeddingModel,
     target_types: tuple[str, ...],
+    candidate_target_ids: set[int] | None = None,
 ) -> set[int]:
     # Exclude embeddings that belong to a trashed (soft-deleted) paper — a paper-target embedding pointing at
     # a trashed paper, or a chunk-target embedding whose chunk belongs to one (inc 66). Keeps retrieval from
@@ -67,16 +74,19 @@ def _candidate_embedding_ids(
         and_(embeddings.c.target_type == "paper", embeddings.c.target_id.in_(trashed_papers)),
         and_(embeddings.c.target_type == "chunk", embeddings.c.target_id.in_(trashed_chunks)),
     )
-    rows = conn.execute(
-        select(embeddings.c.id).where(
-            embeddings.c.target_type.in_(target_types),
-            embeddings.c.model_name == model.name,
-            embeddings.c.model_version == model.version,
-            embeddings.c.dimension == model.dimension,
-            embeddings.c.normalization == model.normalization,
-            not_(belongs_to_trashed),
-        )
-    )
+    if candidate_target_ids is not None and not candidate_target_ids:
+        return set()
+    filters = [
+        embeddings.c.target_type.in_(target_types),
+        embeddings.c.model_name == model.name,
+        embeddings.c.model_version == model.version,
+        embeddings.c.dimension == model.dimension,
+        embeddings.c.normalization == model.normalization,
+        not_(belongs_to_trashed),
+    ]
+    if candidate_target_ids is not None:
+        filters.append(embeddings.c.target_id.in_(candidate_target_ids))
+    rows = conn.execute(select(embeddings.c.id).where(*filters))
     return {int(row[0]) for row in rows}
 
 

@@ -122,7 +122,9 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
     setDraftingRow(null);
     if (!result.ok) { setAiErr(result.error); return; }
     if (!result.count) setAiErr("No empty structured cells to draft — clear or add a cell first.");
-    else if (result.truncated) setAiErr("Note: this PDF is long, so only its first part was sent to the AI.");
+    else if (result.truncated) {
+      setAiErr("Note: this PDF is long, so only its most relevant locally selected passages were sent to the AI.");
+    }
   };
   const draftAll = async () => {
     const targets = workbenchDraftableRows(project);
@@ -150,7 +152,9 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
       `Drafted ${candidates} candidate${candidates === 1 ? "" : "s"} across ${rowsWithCandidates} of ` +
       `${targets.length} row${targets.length === 1 ? "" : "s"}. Review and accept or reject each candidate individually.`);
     const notes = [];
-    if (truncated) notes.push(`${truncated} long PDF${truncated === 1 ? " was" : "s were"} truncated.`);
+    if (truncated) {
+      notes.push(`${truncated} long PDF${truncated === 1 ? " used" : "s used"} locally selected relevant passages.`);
+    }
     if (failures.length) {
       const names = failures.slice(0, 4).join(", ");
       notes.push(`${failures.length} row${failures.length === 1 ? "" : "s"} couldn't be drafted: ${names}` +

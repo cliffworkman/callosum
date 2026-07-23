@@ -65,6 +65,11 @@ in QA. Register listeners before navigation.
   the same per-row proposal path for eligible paper-linked rows. It never accepts a candidate, never replaces a
   row's existing live candidates, shows determinate row progress, and continues past a row-level failure with a
   named partial-failure summary. Existing candidates remain awaiting the same individual accept/edit/reject choice.
+- **Long-paper context is locally narrowed (High if violated).** For a linked paper with more than 12 chunks, the
+  endpoint embeds the empty structured fields' labels locally and searches only that paper's chunk embeddings. It
+  sends the provider at most the 12 most relevant page-tagged passages, still under the 50,000-character cap. A
+  local embedding/vector failure falls back to bounded document-order text; it does not bypass the egress gate or
+  write a candidate. The UI must not claim that the "first part" was sent after relevance selection.
 - **Every candidate carries its evidence (High if violated — invariant #4).** Each candidate shows its **verbatim
   quote** inline (the passage the value was read from) + an **anchor badge** (exact / region / couldn't-verify) — the
   human vets it without trusting the model. No candidate is shown as a bare number.
@@ -101,6 +106,11 @@ in QA. Register listeners before navigation.
   rows without candidates, one at a time; determinate progress reaches N/N; successful rows show amber candidates;
   the existing candidates are unchanged; the failed row is named in the summary; no cell value changes and no
   accept endpoint is called
+- **funnel — retrieval narrowing:** seed a linked paper with more than 12 chunks and put the relevant result passage
+  after the old 50,000-character head. Draft an empty structured field and inspect the intercepted provider body:
+  the relevant late passage is present, no more than 12 page-tagged chunks are present, an unrelated early passage
+  is absent, and no chunk from another paper is present. Force the local embedder to fail and confirm the same
+  request still drafts from capped document-order text with no uncaught error.
 
 ## Steps
 
@@ -175,7 +185,8 @@ in QA. Register listeners before navigation.
   claim) and `origin='assisted'` in the provenance. **Draft from PDF** is egress-gated (disabled + 403 with AI off, no
   genai-host request); a fully-filled row makes no provider call. **Draft all un-filled rows** is sequential,
   progress-visible, partial-failure-tolerant batch-propose only — it skips existing candidates and never bulk-accepts.
-  No opaque score is shown on a candidate.
+  Long-paper text is narrowed locally to this paper's top 12 chunks against the empty field labels (with a bounded
+  document-order fallback); no retrieval score is shown on a candidate.
 
 ## Deposit
 

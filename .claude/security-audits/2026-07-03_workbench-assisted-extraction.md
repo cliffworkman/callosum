@@ -56,3 +56,25 @@ exports until a human accepts a proposal per cell. AI = funnel, human = filter (
   (`test_propose_short_circuits_no_model_call_when_all_fields_filled`).
 
 **Security Audit: PASS**
+
+---
+
+## 2026-07-23 addendum — inc 348 retrieval-narrowed extraction context
+
+**Status: PASS.** The egress route, consent gate, provider roster, request shape, response parser, and candidate
+isolation are unchanged. What changes is the bounded paper-text selection before the existing provider call:
+
+- Papers with more than 12 chunks embed the empty structured field labels and candidate chunks locally, then use
+  vector search restricted to those exact chunk target IDs. No other paper's text can enter the prompt.
+- At most 12 page-tagged chunks are selected, and the existing 50,000-character cap remains a second resource bound.
+  The response's compatibility `truncated` flag now also reports relevance narrowing; the UI describes locally
+  selected passages rather than falsely claiming that the document head was sent.
+- Embedding/vector failure is caught before egress and falls back to the prior bounded document-order assembly.
+  Retrieval runs inside a database savepoint, so a partial embedding failure is rolled back before fallback. It
+  neither disables the existing egress gate nor writes a proposal.
+- No new endpoint, user input, host, dependency, secret, or persistence surface was added. The shared retrieval API's
+  additive `candidate_target_ids` filter is expressed through SQLAlchemy bound parameters.
+
+Hermetic coverage: `test_relevant_text_ranks_only_this_papers_chunks_from_field_labels`,
+`test_relevant_text_falls_back_to_bounded_document_order`, and
+`test_retrieval_can_restrict_hits_to_candidate_target_ids`.

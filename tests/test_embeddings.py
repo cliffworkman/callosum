@@ -181,6 +181,31 @@ def test_retrieval_ranks_relevant_chunk_above_unrelated_with_fake_vector_store(t
     assert hits[0].score > hits[1].score
 
 
+def test_retrieval_can_restrict_hits_to_candidate_target_ids(tmp_path: Path) -> None:
+    engine = _migrated_engine(tmp_path)
+    model = FakeEmbeddingModel()
+    vector_store: VectorStore = InMemoryVectorStore()
+
+    with engine.begin() as conn:
+        pdf_path = _make_embedding_fixture_pdf(tmp_path / "candidate-target-fixture.pdf")
+        ingest_pdf_scaffold(conn, pdf_path, title="Candidate Target Fixture")
+        embed_chunks(conn, model=model, vector_store=vector_store)
+        chunk_rows = list(conn.execute(select(chunks.c.id, chunks.c.text)).mappings())
+        neural_id = int(next(row["id"] for row in chunk_rows if "Neural" in row["text"]))
+
+        hits = search_similar(
+            conn,
+            query="banana fruit orchard",
+            model=model,
+            vector_store=vector_store,
+            top_k=5,
+            target_types=("chunk",),
+            candidate_target_ids={neural_id},
+        )
+
+    assert [hit.chunk_id for hit in hits] == [neural_id]
+
+
 def test_embedding_model_change_creates_distinct_records_and_stale_detection(tmp_path: Path) -> None:
     engine = _migrated_engine(tmp_path)
     old_model = FakeEmbeddingModel(version="v1")

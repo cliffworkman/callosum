@@ -3,22 +3,30 @@
 The honesty engine: it turns the LLM's untrusted {value, quote, page} proposals into anchored candidates by running
 the deterministic local locator (pdf_processing.quote_matching.locate_quote) — the MODEL never asserts a location or a
 confidence; the locator decides the anchor state (exact/region/unanchored). It also selects which cells to draft
-(empty structured only — the funnel fills gaps, never contests a human), builds the page-tagged capped paper text, and
-resolves the paper's PDF path ONLY from its trusted attachment rows (rule #4). No egress here (fitz is local).
+ (empty structured only — the funnel fills gaps, never contests a human), narrows page-tagged paper text with local
+ embedding retrieval, and resolves the paper's PDF path ONLY from its trusted attachment rows (rule #4). No egress here
+ (fitz and embeddings are local).
 """
 
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from sqlalchemy.engine import Connection
 
+from app.backend.embeddings.models import EmbeddingModel
+from app.backend.embeddings.pipeline import embed_chunks
+from app.backend.embeddings.retrieval import search_similar
+from app.backend.embeddings.vector_store import VectorStore
 from app.backend.pdf_processing.quote_matching import locate_quote
 from app.backend.persistence.repository import get_attachments_for_paper
 
 MAX_TEXT_CHARS = 50_000  # the paper-text egress cap (resource guard; also bounds the prompt)
+MAX_RELEVANT_CHUNKS = 12  # local retrieval budget before the text egress cap is applied
 STRUCTURED_TYPES = {"number", "choice"}  # the funnel drafts these; free-text columns stay hand-entered
+logger = logging.getLogger(__name__)
 
 
 def page_tagged_text(chunks, *, cap: int = MAX_TEXT_CHARS) -> tuple[str, bool]:
@@ -34,6 +42,56 @@ def page_tagged_text(chunks, *, cap: int = MAX_TEXT_CHARS) -> tuple[str, bool]:
         parts.append(seg)
         total += len(seg)
     return "".join(parts), truncated
+
+
+def field_retrieval_query(fields: list[dict]) -> str:
+    """A local retrieval query made only from the empty structured fields' human-readable labels."""
+    return "\n".join(f"Extraction field: {field['label']}" for field in fields if str(field.get("label") or "").strip())
+
+
+def relevant_page_tagged_text(
+    conn: Connection,
+    chunks,
+    *,
+    fields: list[dict],
+    model: EmbeddingModel,
+    vector_store: VectorStore,
+    top_k: int = MAX_RELEVANT_CHUNKS,
+    cap: int = MAX_TEXT_CHARS,
+) -> tuple[str, bool]:
+    """Select this paper's top-k chunks against the field labels, then page-tag + cap them.
+
+    The fallback deliberately preserves the previous bounded behavior: local embedding or vector-store trouble may make
+    a draft less focused, but must not make an otherwise draftable row unusable.
+    """
+    rows = list(chunks)
+    if not rows:
+        return "", False
+    if len(rows) <= top_k:
+        return page_tagged_text(rows, cap=cap)
+
+    try:
+        with conn.begin_nested():
+            chunk_ids = [int(row["id"]) for row in rows]
+            embed_chunks(conn, model=model, vector_store=vector_store, chunk_ids=chunk_ids)
+            hits = search_similar(
+                conn,
+                query=field_retrieval_query(fields),
+                model=model,
+                vector_store=vector_store,
+                top_k=min(top_k, len(chunk_ids)),
+                target_types=("chunk",),
+                candidate_target_ids=set(chunk_ids),
+            )
+            by_id = {int(row["id"]): row for row in rows}
+            selected = [by_id[hit.chunk_id] for hit in hits if hit.chunk_id in by_id]
+            if not selected:
+                raise RuntimeError("local retrieval returned no candidate chunks")
+        text, capped = page_tagged_text(selected, cap=cap)
+        return text, capped or len(selected) < len(rows)
+    except Exception as exc:
+        logger.warning("Workbench chunk retrieval failed; using bounded document-order text: %s", exc)
+        return page_tagged_text(rows, cap=cap)
 
 
 def proposable_fields(template: list[dict], cells: dict) -> list[dict]:

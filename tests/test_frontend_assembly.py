@@ -70,6 +70,8 @@ def test_workbench_batch_drafting_preserves_candidate_review_gate():
     assert "for (let i = 0; i < targets.length; i += 1)" in batch_body
     assert "await requestDraft(row)" in batch_body  # sequential, bounded provider load
     assert "/accept" not in batch_body  # batching proposes only; every candidate still needs an individual choice
+    assert "most relevant locally selected passages were sent" in src
+    assert "only its first part was sent" not in src
     assert ".wb-gridwrap { overflow-x: auto; flex: 0 0 auto; }" in css  # table stays visible in the mobile flex pane
 
 

@@ -4,10 +4,30 @@ Hermetic — no DB, no network."""
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import fitz  # PyMuPDF — build a tiny real PDF so locate_quote can anchor
 
 from app.backend import workbench_assist as wa
 from integrations.gemini.extraction_assistant import parse_proposals
+
+
+class _FakeConnection:
+    def __init__(self):
+        self.savepoint_rolled_back = None
+
+    def begin_nested(self):
+        owner = self
+
+        class _Savepoint:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                owner.savepoint_rolled_back = exc_type is not None
+                return False
+
+        return _Savepoint()
 
 
 def _pdf(tmp_path, text: str) -> str:
@@ -60,6 +80,61 @@ def test_page_tagged_text_caps_and_flags_truncation():
     text, truncated = wa.page_tagged_text(chunks, cap=500)
     assert truncated is True and len(text) <= 500
     assert text.startswith("[p.1] ")
+
+
+def test_relevant_text_ranks_only_this_papers_chunks_from_field_labels(monkeypatch):
+    chunks = [{"id": i, "page_start": i, "page_end": i, "text": f"chunk {i}"} for i in range(1, 16)]
+    captured = {}
+
+    def fake_embed(conn, *, model, vector_store, chunk_ids):
+        captured["embedded"] = chunk_ids
+
+    def fake_search(conn, **kwargs):
+        captured["search"] = kwargs
+        return [SimpleNamespace(chunk_id=14), SimpleNamespace(chunk_id=9), SimpleNamespace(chunk_id=3)]
+
+    monkeypatch.setattr(wa, "embed_chunks", fake_embed)
+    monkeypatch.setattr(wa, "search_similar", fake_search)
+    conn = _FakeConnection()
+    fields = [
+        {"key": "r", "label": "Correlation r", "type": "number"},
+        {"key": "n", "label": "Sample size", "type": "number"},
+    ]
+    text, narrowed = wa.relevant_page_tagged_text(
+        conn, chunks, fields=fields, model=object(), vector_store=object(), top_k=3
+    )
+
+    assert captured["embedded"] == list(range(1, 16))
+    assert captured["search"]["query"] == "Extraction field: Correlation r\nExtraction field: Sample size"
+    assert captured["search"]["candidate_target_ids"] == set(range(1, 16))
+    assert captured["search"]["target_types"] == ("chunk",)
+    assert text == "[p.14] chunk 14\n[p.9] chunk 9\n[p.3] chunk 3\n"
+    assert narrowed is True
+    assert conn.savepoint_rolled_back is False
+
+
+def test_relevant_text_falls_back_to_bounded_document_order(monkeypatch):
+    chunks = [{"id": i, "page_start": i, "page_end": i, "text": "x" * 30} for i in range(1, 16)]
+
+    def unavailable(*args, **kwargs):
+        raise RuntimeError("local embedding unavailable")
+
+    monkeypatch.setattr(wa, "embed_chunks", unavailable)
+    conn = _FakeConnection()
+    text, truncated = wa.relevant_page_tagged_text(
+        conn,
+        chunks,
+        fields=[{"label": "Correlation r"}],
+        model=object(),
+        vector_store=object(),
+        top_k=3,
+        cap=80,
+    )
+
+    assert text.startswith("[p.1] ")
+    assert "[p.3]" not in text
+    assert truncated is True
+    assert conn.savepoint_rolled_back is True
 
 
 def test_parse_proposals_defensive():

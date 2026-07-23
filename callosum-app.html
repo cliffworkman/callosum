@@ -15645,7 +15645,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         return;
       }
       if (!result.count) setAiErr("No empty structured cells to draft \u2014 clear or add a cell first.");
-      else if (result.truncated) setAiErr("Note: this PDF is long, so only its first part was sent to the AI.");
+      else if (result.truncated) {
+        setAiErr("Note: this PDF is long, so only its most relevant locally selected passages were sent to the AI.");
+      }
     };
     const draftAll = async () => {
       const targets = workbenchDraftableRows(project);
@@ -15676,7 +15678,9 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         `Drafted ${candidates} candidate${candidates === 1 ? "" : "s"} across ${rowsWithCandidates} of ${targets.length} row${targets.length === 1 ? "" : "s"}. Review and accept or reject each candidate individually.`
       );
       const notes = [];
-      if (truncated) notes.push(`${truncated} long PDF${truncated === 1 ? " was" : "s were"} truncated.`);
+      if (truncated) {
+        notes.push(`${truncated} long PDF${truncated === 1 ? " used" : "s used"} locally selected relevant passages.`);
+      }
       if (failures.length) {
         const names = failures.slice(0, 4).join(", ");
         notes.push(`${failures.length} row${failures.length === 1 ? "" : "s"} couldn't be drafted: ${names}` + (failures.length > 4 ? ` +${failures.length - 4} more.` : "."));

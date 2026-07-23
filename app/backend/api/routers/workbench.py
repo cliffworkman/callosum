@@ -23,6 +23,7 @@ from sqlalchemy import Connection, Engine
 
 from app.backend import workbench_assist as wa
 from app.backend.api.dependencies import get_connection, get_engine
+from app.backend.api.routers.library import _embedding_model, _vector_store
 from app.backend.llm.egress import DataEgressDisabledError, EgressGatedExtractionAssistant
 from app.backend.llm.providers import ProviderError
 from app.backend.methods.effectsize import convert
@@ -343,7 +344,13 @@ def propose_row(row_id: int, request: Request, conn: Connection = Depends(get_co
     pdf_path = wa.primary_pdf_path(conn, row["paper_id"])
     if pdf_path is None:
         raise HTTPException(status_code=422, detail="This paper has no processed local PDF to draft from.")
-    text, truncated = wa.page_tagged_text(get_chunks_for_paper(conn, row["paper_id"]))
+    text, truncated = wa.relevant_page_tagged_text(
+        conn,
+        get_chunks_for_paper(conn, row["paper_id"]),
+        fields=fields,
+        model=_embedding_model(request.app),
+        vector_store=_vector_store(request.app),
+    )
     if not text.strip():
         raise HTTPException(status_code=422, detail="This paper has no extracted text to draft from.")
     assistant = _extraction_assistant(request.app)
