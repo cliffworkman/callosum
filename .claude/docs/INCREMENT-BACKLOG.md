@@ -169,7 +169,12 @@
 - **#21 Packaging & distribution (post-V1).** [exploratory] A Tauri desktop shell (`app/desktop-shell/`
   placeholder); an OS keychain for `GOOGLE_API_KEY` (+ future secrets) for a non-technical desktop user; desktop
   distribution + GROBID service ops (when Track C Stage-4 section-scoping lands — SP2/Stage-3 shipped inc
-  271/272 and doesn't need GROBID).
+  271/272 and doesn't need GROBID). **Explored 2026-07-23 (inc 343), still open:** research doc +
+  hands-on spike (`.claude/docs/future-tracks/desktop-packaging-tauri.md`) — the OS-keychain half is already
+  mostly done (inc 152); a bare Tauri shell **confirmed working** against the real, already-running backend.
+  The actual remaining engineering is bundling the Python backend + its ML stack (torch alone: 1.19 GB) into a
+  Tauri sidecar — recommends evaluating an ONNX Runtime embedding-backend swap first, on its own merits, before
+  any packaging build starts.
 
 ---
 

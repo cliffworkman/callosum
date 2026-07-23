@@ -9,6 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-23 — Backlog #21: Tauri desktop-shell feasibility research + spike
+
+- **Files:** `.claude/docs/future-tracks/desktop-packaging-tauri.md` (new), `.claude/docs/future-tracks/README.md`.
+- **What:** a feasibility research doc (the OS-keychain half of #21 is already mostly done via inc 152; the
+  real open question is bundling the Python/FastAPI backend + its ML stack — torch alone measured at 1.19 GB —
+  into a Tauri sidecar, with an ONNX Runtime embedding-backend swap flagged as worth evaluating first to shrink
+  that footprint) plus a hands-on spike: installed Rust via winget, scaffolded a minimal Tauri v2 app, pointed
+  its window at the already-running callosum backend. **Confirmed working** — Cliff watched the real callosum
+  UI render in a native window. The spike project itself is intentionally not committed (throwaway, per
+  Cliff's chosen scope); it lives outside the repo at `C:\tauri-spike\`.
+- **Why:** last item in Cliff's 12-item decision queue; #21 was always exploratory, and he chose "research doc
+  + a small spike" over a full scaffold build when asked how far to take it.
+- **Revert:** `git revert` (docs-only; nothing else in-repo changed).
+
 ## 2026-07-22 — Backlog #20: branch protection (required status checks)
 
 - **Files:** none in-repo — a GitHub repository-settings change via the API (`.claude/docs/increment-notes/
