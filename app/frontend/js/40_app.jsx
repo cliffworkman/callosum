@@ -21,6 +21,7 @@ function App() {
   const [selected, setSelected] = useState(null);
   // tabbed library frame: a persistent Library tab plus open PDF tabs.
   const [tabs, setTabs] = useState([]);            // [{ key, paperId, title, target }]
+  const [wipTabs, setWipTabs] = useState([]);      // [{ key, manuscriptId, title, manuscript }]
   const [selectedPaperTab, setSelectedPaperTab] = useState(null);  // selected in Library, not yet opened as a PDF tab
   const [activeTab, setActiveTab] = useState("library");
   // inc 280: the top-level "what am I doing" workspace (menu bar, 04b_workspaces.jsx). `activeTab` above is now the
@@ -70,6 +71,7 @@ function App() {
   // before we know); then true (read-only) or false (read-write). The write-control gates treat undefined as falsy.
   const [readOnly, setReadOnly] = useState(undefined);
   const [healthLoaded, setHealthLoaded] = useState(false);
+  const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
 
   // The library-list subsystem (inc 221). Cross-cutting setters go in via opts; cancelFocus + setAxisRefresh are
   // resolved through refs (set after useFocusMode) because useFocusMode is declared after useLibrary but its
@@ -117,6 +119,19 @@ function App() {
     setActiveTab(key);  // focuses the existing tab if already open
     if (mobile) { setMobilePane("library"); setCitationReturn(false); }  // pull the reader region into view
   }, [mobile, setMobilePane, selectWorkspace]);
+
+  const openWip = useCallback((manuscript) => {
+    if (!manuscript || manuscript.id == null) return;
+    const key = "wip:" + manuscript.id;
+    const title = manuscript.display_title || manuscript.derived_title || `WIP ${manuscript.id}`;
+    wip.setSelectedId(manuscript.id);
+    setWipTabs(prev => prev.some(tab => tab.key === key)
+      ? prev.map(tab => tab.key === key ? { ...tab, title, manuscript } : tab)
+      : [...prev, { key, manuscriptId: manuscript.id, title, manuscript }]);
+    selectWorkspace("library");
+    setActiveTab(key);
+    if (mobile) setMobilePane("library");
+  }, [mobile, selectWorkspace, setMobilePane, wip.setSelectedId]);
 
   // Keep the library-visible "selected" paper (Details pane, row highlight) in one-to-one correspondence with
   // whichever PDF tab is actually focused — a single derivation from `activeTab` covers every path that can
@@ -210,7 +225,19 @@ function App() {
     setActiveTab(prev => (prev === key ? "library" : prev));
   }, []);
 
+  const closeWipTab = useCallback((key) => {
+    setWipTabs(prev => prev.filter(tab => tab.key !== key));
+    setActiveTab(prev => (prev === key ? "wip" : prev));
+  }, []);
+
   const activatePaperTab = useCallback((key) => {
+    if (!key) return;
+    selectWorkspace("library");
+    setActiveTab(key);
+    if (mobile) setMobilePane("library");
+  }, [mobile, selectWorkspace, setMobilePane]);
+
+  const activateWipTab = useCallback((key) => {
     if (!key) return;
     selectWorkspace("library");
     setActiveTab(key);
@@ -273,11 +300,25 @@ function App() {
     ? "0px 0px minmax(340px, 1fr) 0px 0px"
     : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
   const selectedOpenPaperTab = selected == null ? null : (tabs.find(t => t.paperId === selected) || null);
+  const hydratedWipTabs = wipTabs.map(tab => ({
+    ...tab,
+    manuscript: wip.manuscripts.find(item => item.id === tab.manuscriptId) || tab.manuscript,
+  }));
+  const activeWipTab = hydratedWipTabs.find(tab => tab.key === activeTab) || null;
+  const wipModeActive = activeTab === "wip" || !!activeWipTab;
+  const activeWipManuscript = activeWipTab ? activeWipTab.manuscript : wip.selected;
+  const researchContext = wipModeActive
+    ? { kind: "manuscript", entity: activeWipManuscript || null, openTab: activeWipTab }
+    : { kind: "paper", entityId: selected, openTab: selectedOpenPaperTab };
+  const contextPaperId = researchContext.kind === "paper" ? selected : null;
+  const selectedWipTab = wipModeActive && wip.selected &&
+    !hydratedWipTabs.some(tab => tab.manuscriptId === wip.selected.id) ? wip.selected : null;
 
   // inc 121: one prop-bundle the accordion hands to each section's render(ctx).
   const paneCtx = {
     readOnly,  // B5 SP2: hide write controls in every section when the instance is read-only
-    conn, selectedPaper: selected, onSelectPaper: setSelected, onOpenPaper: openPdf,
+    conn, researchContext, selectedPaper: contextPaperId, onSelectPaper: setSelected, onOpenPaper: openPdf,
+    onOpenWip: openWip, onActivateWipTab: activateWipTab, onUpdateWip: wip.updateManuscript,
     onOpenCitation: openCitation, onSaveHighlight: saveCitationHighlight,
     onFilterToTag: filterToTag, onFilterToAxis: filterToAxis, onEnterFocus: enterFocus,
     onTagsChanged: () => setTagRefresh(n => n + 1),
@@ -309,8 +350,10 @@ function App() {
     onOpenGaps: () => setGapsOpen(true),
     onOpenOverlooked: () => setOverlookedOpen(true),
     onOpenPdf: openPdf, onOpenPaper: openPdf,
-    selectedPaper: selected,  // Work/Discover tabs read the app-level selection
-    selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab,
+    selectedPaper: contextPaperId,  // paper-only tools receive no stale Library paper while WIP is active
+    selectedPaperTab: wipModeActive ? null : selectedPaperTab,
+    selectedOpenPaperTab: wipModeActive ? null : selectedOpenPaperTab,
+    onActivatePaperTab: activatePaperTab,
     workspaceTabRequest,
     capture, onArmCapture: armCapture, onCaptureApplied: clearCapture,
   };
@@ -344,8 +387,10 @@ function App() {
             onOpenScan: () => setScanOpen(true), onOpenImport: () => setImportOpen(true),
             onOpenImportBundle: () => setBundleImportOpen(true), onExportBundle: () => downloadBundle("library"),
           }}
-          tabs={tabs} selectedPaperTab={selectedPaperTab} activeTab={activeTab}
-          onActivate={setActiveTab} onClose={closeTab} onOpenPdf={openPdf} onReorderTabs={reorderPdfTabs}
+          wip={wip} wipTabs={hydratedWipTabs} selectedWipTab={selectedWipTab}
+          tabs={tabs} selectedPaperTab={wipModeActive ? null : selectedPaperTab} activeTab={activeTab}
+          onActivate={setActiveTab} onClose={closeTab} onCloseWip={closeWipTab}
+          onOpenPdf={openPdf} onOpenWip={openWip} onReorderTabs={reorderPdfTabs}
           annoRefresh={annoRefresh}
           readingMode={readingMode} onToggleReading={toggleReading}
           mobile={mobile}

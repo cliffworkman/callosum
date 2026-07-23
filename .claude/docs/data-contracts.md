@@ -26,6 +26,26 @@ The authoritative schema is `app/backend/persistence/schema.py`. This document s
   producer must pick an existing namespace or add one, never write a bare/ad-hoc string.
 - `notes`: imported notes attached to papers.
 
+## Work In Progress
+
+WIP manuscripts are research products and never rows in `papers`. They are local-only and excluded from sync.
+
+- `wip_watch_roots`: normalized local roots, folder-vs-immediate-children discovery mode, exclusions, enabled state,
+  and last scan outcome.
+- `wip_manuscripts`: stable UUID identity, derived/overridden title, root path, lifecycle state, type, stage, target,
+  deadline, notes, template identity, and filesystem activity.
+- `wip_files`: root-relative file identity, role, explicit single primary file, existence state, size/mtime, bounded
+  SHA-256 content identity, and extraction metadata. A scan marks missing records; it never deletes them.
+- `wip_sections`: explicit user-managed manuscript structure and status. `content_detected` is distinct from
+  completion and cannot automatically mark a section complete.
+- `wip_tasks`: manuscript-scoped work with optional section/file/paper links and explicit status/completion time.
+- `wip_references`: relationships to canonical Library `papers`; bibliographic metadata is not duplicated.
+- `wip_activity_events`: append-style provenance for discovery, missing/restored paths, stage/section/task changes,
+  primary-file changes, and Library links.
+
+Every `/wip/*` endpoint denies remote, forwarded, and read-only requests because paths and unpublished manuscript
+metadata are host-local data.
+
 ## PDF Text And Coordinates
 
 `chunks` stores extracted text spans with `paper_id`, `attachment_id`, page range, optional character offsets, `bbox_json`, `bbox_coordinate_system`, extraction metadata, chunking metadata, source attachment checksum, and creation time.

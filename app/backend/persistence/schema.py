@@ -504,18 +504,6 @@ missing_literature_suggestions = Table(
     CheckConstraint("score IS NULL OR (score >= 0 AND score <= 1)", name="missing_lit_score_0_1"),
 )
 
-# Watched library folders (inc 98): folders callosum re-scans to pick up new PDFs (Zotero/Mendeley-style).
-# Scanning a folder registers it here; auto-rescan-on-launch + a manual "Re-scan all" reconcile them.
-watched_folders = Table(
-    "watched_folders",
-    metadata,
-    Column("id", Integer, primary_key=True),
-    Column("path", Text, nullable=False),
-    Column("created_at", DateTime, nullable=False, server_default=func.current_timestamp()),
-    Column("last_scanned_at", DateTime),
-    UniqueConstraint("path", name="uq_watched_folders_path"),
-)
-
 # Findings / open-science-signals / retraction-mirror / gap-finder tables live in schema_findings (split out to
 # keep this file under the 600-line cap, rule #1). Re-exported here so existing
 # ``from app.backend.persistence.schema import paper_findings`` imports keep working, and so importing this module
@@ -588,6 +576,18 @@ from app.backend.persistence.schema_sync import (  # noqa: E402,F401
     sync_conflicts,
     sync_identity,
     sync_state,
+)
+from app.backend.persistence.schema_watched import watched_folders  # noqa: E402,F401
+
+# Work-in-Progress manuscript workspace tables — distinct from papers by design.
+from app.backend.persistence.schema_wip import (  # noqa: E402,F401
+    wip_activity_events,
+    wip_files,
+    wip_manuscripts,
+    wip_references,
+    wip_sections,
+    wip_tasks,
+    wip_watch_roots,
 )
 
 # Meta-analysis extraction workspace tables (workbench SP2a, inc 253) — same split rationale.

@@ -1241,6 +1241,28 @@ Tips:
 - Use it to find the right section fast, then read that section for the details.
 - If a question is not covered by the help, it will say so — the written docs below are the source of truth.
 
+<!-- section: work-in-progress -->
+## Work in progress
+**Library** contains published research sources. **WIP**, directly beside Library, contains unpublished research
+products you are creating. They share familiar selection and tab behavior but remain different records.
+
+Add a watched location from **Library → WIP → Add location**. Choose whether the selected folder is one manuscript
+or whether each immediate subfolder is a manuscript. Callosum scans on launch and when the app regains focus.
+Missing folders and files are marked missing; manuscript metadata is preserved.
+
+Double-click a WIP card to open its manuscript workspace:
+
+- **Overview** edits its display title, stage, type, target journal, deadline, and notes.
+- **Structure** tracks explicit section status. Content detection never means a section is complete.
+- **Tasks** records manuscript work and can scope a task to a section.
+- **Files** assigns roles and lets you explicitly choose one primary manuscript.
+- **References** links existing Library papers without copying their bibliographic records.
+- **Activity** records important workspace changes.
+
+WIP is local-only. It is hidden from read-only/remote views, excluded from cross-device sync, and never sent to an
+AI provider by these workspace features. A teal treatment plus a visible **WIP** badge distinguishes unpublished
+manuscripts from papers in tabs, Details, and Synthesize/Discover/Work context cues.
+
 <!-- section: privacy-and-data-egress -->
 ## Privacy and data egress
 Callosum is local-first by design. Your PDFs, extracted text, chunks, embeddings, search, axis scoring, duplicate scanning, clustering, and citation verification run on your machine.

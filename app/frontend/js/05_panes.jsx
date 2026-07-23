@@ -50,7 +50,9 @@ function sectionTabs(section, readOnly) {
 // Tags tab) / SYNTHESIS self-register in their own chunks (15/20/10). A later split of 25_detail.jsx can move this back.
 registerPaneSection({
   id: "details", label: "Details", paneId: "methods", order: 10,
-  render: (ctx) => ctx.selectedPaper != null
+  render: (ctx) => ctx.researchContext && ctx.researchContext.kind === "manuscript"
+    ? <WipDetails manuscript={ctx.researchContext.entity} onUpdate={ctx.onUpdateWip} onOpenPaper={ctx.onOpenPaper} />
+    : ctx.selectedPaper != null
     ? <DetailContent paperId={ctx.selectedPaper} onOpenPaper={ctx.onOpenPaper} readOnly={ctx.readOnly}
         onFilterToTag={ctx.onFilterToTag} onTagsChanged={ctx.onTagsChanged} onQueueChanged={ctx.onQueueChanged} />
     : <div className="axis-hint">Select a paper to see its details.</div>,

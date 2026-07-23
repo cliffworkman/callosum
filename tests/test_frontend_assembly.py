@@ -220,7 +220,7 @@ def test_library_selected_paper_tab_and_pdf_reorder_present():
     assert "onOpenPdf({ id: selectedPaperTab.id, title: selectedPaperTab.title })" in raw
     assert 'const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab"' in raw
     assert "draggable" in raw and "onReorderTabs(dragged, t.key)" in raw
-    assert "function LibraryFrame({ libraryProps, tabs, selectedPaperTab" in raw
+    assert "function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab" in raw
     assert "const reorderPdfTabs = useCallback((draggedKey, targetKey)" in raw
     assert ".frame-tab-selected" in css
     assert ".frame-tab.dragover" in css
@@ -244,8 +244,30 @@ def test_every_workspace_tab_shows_selected_paper_tab_cue():
     assert "<WorkspacePaperCue ctx={ctx} />" in raw
     assert 'ws.id === "discover" &&' not in raw
     assert "const selectedOpenPaperTab = selected == null ? null" in raw
-    assert "selectedPaperTab, selectedOpenPaperTab, onActivatePaperTab: activatePaperTab" in raw
+    assert "selectedPaperTab: wipModeActive ? null : selectedPaperTab" in raw
+    assert "selectedOpenPaperTab: wipModeActive ? null : selectedOpenPaperTab" in raw
+    assert "onActivatePaperTab: activatePaperTab" in raw
     assert ".workspace-paper-cue" in css
+
+
+def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_selection():
+    raw = assemble_jsx()
+    css = (PROJECT_ROOT / "app/frontend/styles.css").read_text(encoding="utf-8")
+
+    library_tab = raw.index(">Library</button>")
+    wip_tab = raw.index("> Work in progress</button>")
+    selected_paper_tab = raw.index("{selectedPaperTab &&", library_tab)
+    assert library_tab < wip_tab < selected_paper_tab
+    assert 'onClick={() => onActivate("wip")}' in raw
+    assert "<WipBrowser wip={wip} onOpen={onOpenWip} />" in raw
+    assert "<WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript} onOpenPaper={onOpenPdf} workspace />" in raw
+    assert '["overview", "structure", "tasks", "files", "references", "activity"]' in raw
+    assert 'const wipModeActive = activeTab === "wip" || !!activeWipTab' in raw
+    assert 'kind: "manuscript", entity: activeWipManuscript || null' in raw
+    assert 'const contextPaperId = researchContext.kind === "paper" ? selected : null' in raw
+    assert "selectedPaper: contextPaperId" in raw
+    assert 'ctx.researchContext.kind === "manuscript"' in raw
+    assert "--wip:" in css and ".frame-tab-selected-wip" in css and ".workspace-wip-cue" in css
 
 
 def test_my_publications_workspace_loads_without_axis_card_button():

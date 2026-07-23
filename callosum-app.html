@@ -56,6 +56,9 @@
     --flag-ink: #6e4421;     /* text on --flag-soft (error text) */
     --danger: #b3261e;       /* red — destructive actions (delete) only */
     --danger-line: #e3b1ac;  /* destructive button border */
+    --wip: #147b78;          /* teal — unpublished manuscript context, never a quality/status judgment */
+    --wip-soft: #e5f3f1;
+    --wip-line: #9bcac5;
     /* inc 207 (A5): the tag-color palette — one ink per key; the colored-chip recipe mixes it with --panel for the
        bg (so it auto-adapts to the theme). Light inks here; the dark block overrides them lighter. NOT semantic
        (these are user-chosen labels, distinct from the indigo/green/amber/red status colors above). */
@@ -106,6 +109,9 @@
     --tag-red: #ef8a82;    --tag-orange: #e6a463;  --tag-amber: #d8c060;  --tag-green: #79c98f;
     --tag-teal: #5fc2ba;   --tag-blue: #8aa2ee;    --tag-purple: #b196ec; --tag-gray: #b8b1a3;
     --danger-line: #6e3b36;
+    --wip: #6fcac2;
+    --wip-soft: #1f3936;
+    --wip-line: #356b66;
     --sel: #2a2740;
     --hover: #2f2a22;
     --on-fill: #201d16;
@@ -1690,6 +1696,22 @@
     cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; border-radius: var(--radius-sm);
   }
   .frame-tab-close:hover { color: var(--flag); background: var(--flag-soft); }
+  .wip-badge {
+    display: inline-flex; align-items: center; flex: 0 0 auto;
+    border: 1px solid var(--wip-line); border-radius: var(--radius-sm);
+    padding: 0 4px; background: var(--wip-soft); color: var(--wip);
+    font: 700 8.5px/1.45 var(--mono); letter-spacing: .04em;
+  }
+  .frame-tab-wip { color: var(--wip); }
+  .frame-tab-wip.active, .frame-tab-wip-manuscript.active {
+    box-shadow: inset 0 2px 0 var(--wip);
+  }
+  .frame-tab-selected-wip {
+    color: var(--wip); background: var(--wip-soft); border-color: var(--wip);
+  }
+  .frame-tab-selected-wip:hover { background: var(--wip-soft); border-color: var(--wip); }
+  .workspace-wip-cue { color: var(--wip); }
+  .workspace-wip-cue.active { box-shadow: inset 0 2px 0 var(--wip); }
   /* Reading mode toggle (inc 101) — a tab-bar control pushed to the right; accent = "mode active". */
   .frame-reading {
     margin-left: auto; flex: 0 0 auto; margin-bottom: 6px; cursor: pointer; white-space: nowrap;
@@ -1709,6 +1731,112 @@
   /* the paper list now lives inside the frame and owns its own scroll */
   .pane-list-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--panel); }
   .pane-list-body .pane-head { background: var(--panel); }
+
+  /* WIP manuscript collection — Library geometry with an explicit unpublished-work token family + text badge. */
+  .wip-browser .pane-head { border-top: 2px solid var(--wip); }
+  .wip-mode-label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 11px; }
+  .wip-roots { margin-top: 6px; }
+  .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
+  .wip-roots-summary span:first-child { margin-right: auto; }
+  .wip-root-form {
+    display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto; align-items: center; gap: 7px;
+    margin-top: 8px; padding: 9px; border: 1px solid var(--wip-line); border-radius: var(--radius);
+    background: var(--wip-soft);
+  }
+  .wip-root-form input {
+    min-width: 0; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--panel); color: var(--ink); font: 12px var(--sans);
+  }
+  .wip-root-error { grid-column: 1 / -1; color: var(--danger); font-size: 11px; }
+  .wip-card { border-left: 3px solid transparent; }
+  .wip-card:hover { border-left-color: var(--wip-line); }
+  .wip-card.sel { background: var(--wip-soft); box-shadow: inset 3px 0 0 var(--wip); }
+  .wip-card-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .wip-card-heading .paper-title { padding-right: 0; flex: 1; min-width: 0; }
+  .wip-stage {
+    color: var(--wip); background: var(--wip-soft); border: 1px solid var(--wip-line);
+    border-radius: var(--radius-pill); padding: 1px 7px; font: 600 10px var(--sans);
+  }
+  .wip-warning { color: var(--flag); background: var(--flag-soft); border-radius: var(--radius-pill); padding: 1px 7px; font-size: 10px; }
+  .wip-modified { margin-left: auto; color: var(--ink-3); font-size: 10.5px; }
+  .wip-details { padding: 12px 14px 20px; overflow: auto; height: 100%; color: var(--ink-2); font-size: 11.5px; }
+  .wip-workspace { flex: 1 1 auto; width: 100%; padding: 20px clamp(18px, 4vw, 52px) 40px; background: var(--panel); }
+  .wip-detail-head {
+    display: flex; gap: 9px; align-items: flex-start; padding-bottom: 11px; margin-bottom: 12px;
+    border-bottom: 1px solid var(--wip-line);
+  }
+  .wip-detail-head h2 { margin: 0; color: var(--ink); font: 600 18px/1.25 var(--serif); overflow-wrap: anywhere; }
+  .wip-detail-head p { margin: 2px 0 0; color: var(--wip); font-size: 10.5px; }
+  .wip-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
+  .wip-detail-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--ink-3); font-size: 10.5px; }
+  .wip-detail-grid input, .wip-detail-grid select, .wip-detail-grid textarea {
+    width: 100%; min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 6px 7px; background: var(--panel); color: var(--ink); font: 11.5px var(--sans);
+  }
+  .wip-detail-wide { grid-column: 1 / -1; }
+  .wip-detail-section { margin-top: 18px; }
+  .wip-detail-section h3 {
+    margin: 0 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+    color: var(--wip); font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .06em;
+  }
+  .wip-activity-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 5px 0;
+    border-bottom: 1px solid var(--line); align-items: baseline;
+  }
+  .wip-file-row {
+    display: grid; grid-template-columns: minmax(120px, 1fr) 150px auto 24px 24px;
+    gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); align-items: center;
+  }
+  .wip-file-row select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 4px 6px; background: var(--panel); color: var(--ink); font: 10px var(--sans);
+  }
+  .wip-file-row span:first-child { color: var(--ink); font-family: var(--mono); overflow-wrap: anywhere; }
+  .wip-file-row span:last-child, .wip-activity-row time { color: var(--ink-3); font-size: 10px; }
+  .wip-primary { color: var(--wip); border-color: var(--wip-line); background: var(--wip-soft); }
+  .wip-work-tabs { margin: 0 0 14px; }
+  .wip-work-tabs .tags-srcfilter-btn.on { color: var(--wip); border-color: var(--wip-line); background: var(--wip-soft); }
+  .wip-work-view { min-height: 80px; }
+  .wip-section-add, .wip-task-add, .wip-reference-add {
+    display: grid; grid-template-columns: minmax(140px, 1fr) auto auto; gap: 7px; align-items: center; margin-bottom: 10px;
+  }
+  .wip-section-add { grid-template-columns: minmax(140px, 1fr) auto; }
+  .wip-section-add input, .wip-task-add input, .wip-reference-add input,
+  .wip-section-row select, .wip-task-add select, .wip-task-row select, .wip-reference-add select, .wip-reference-row select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 5px 7px; background: var(--panel); color: var(--ink); font: 11px var(--sans);
+  }
+  .wip-section-row {
+    display: grid; grid-template-columns: minmax(130px, 1fr) auto 150px 24px 24px 24px;
+    gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line);
+  }
+  .wip-section-name { color: var(--ink); }
+  .wip-detected { color: var(--wip); font-size: 9.5px; }
+  .wip-task-row {
+    display: grid; grid-template-columns: 18px minmax(130px, 1fr) 130px 24px;
+    gap: 7px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line);
+  }
+  .wip-task-row.complete > span { color: var(--ink-3); text-decoration: line-through; }
+  .wip-reference-row {
+    display: grid; grid-template-columns: minmax(130px, 1fr) auto 150px 24px;
+    gap: 7px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line);
+  }
+  .wip-reference-row .btn-link { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app.mobile .wip-root-form, .app.mobile .wip-detail-grid,
+  .app.mobile .wip-section-add, .app.mobile .wip-task-add, .app.mobile .wip-reference-add {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app.mobile .wip-section-row {
+    grid-template-columns: minmax(90px, 1fr) 120px 24px 24px 24px;
+  }
+  .app.mobile .wip-section-row .wip-detected { grid-column: 1 / -1; }
+  .app.mobile .wip-file-row { grid-template-columns: minmax(90px, 1fr) 120px 24px 24px; }
+  .app.mobile .wip-file-row .btn-ghost { grid-column: 1 / -1; }
+  .app.mobile .wip-task-row { grid-template-columns: 18px minmax(80px, 1fr) 100px 24px; }
+  .app.mobile .wip-reference-row { grid-template-columns: minmax(80px, 1fr) 110px 24px; }
+  .app.mobile .wip-reference-row > span { display: none; }
+  .app.mobile .wip-work-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app.mobile .wip-work-tabs .tags-srcfilter-btn { width: 100%; overflow-wrap: anywhere; }
 
   /* ---- Discover (Search) tab (inc 184) — mirrors the .paper card recipe; tokens only ---- */
   /* inc 253: the "Extract" meta-analysis workspace (a center-pane sibling of Discover/Feed; tokens only). */
@@ -4053,6 +4181,21 @@
   }
   function WorkspacePaperCue({ ctx }) {
     if (!ctx) return null;
+    const research = ctx.researchContext || null;
+    if (research && research.kind === "manuscript" && research.entity) {
+      const manuscript = research.entity;
+      return /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "frame-tab workspace-paper-cue workspace-wip-cue" + (research.openTab ? " active" : " frame-tab-selected"),
+          title: research.openTab ? "WIP manuscript workspace is open \u2014 click to view it" : "Selected WIP manuscript \u2014 click to open its workspace",
+          onClick: () => research.openTab ? ctx.onActivateWipTab(research.openTab.key) : ctx.onOpenWip(manuscript)
+        },
+        /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"),
+        /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label" }, manuscript.display_title)
+      );
+    }
     const openTab = ctx.selectedOpenPaperTab || null;
     const selectedTab = ctx.selectedPaperTab || null;
     if (openTab) {
@@ -4242,7 +4385,7 @@
     label: "Details",
     paneId: "methods",
     order: 10,
-    render: (ctx) => ctx.selectedPaper != null ? /* @__PURE__ */ React.createElement(
+    render: (ctx) => ctx.researchContext && ctx.researchContext.kind === "manuscript" ? /* @__PURE__ */ React.createElement(WipDetails, { manuscript: ctx.researchContext.entity, onUpdate: ctx.onUpdateWip, onOpenPaper: ctx.onOpenPaper }) : ctx.selectedPaper != null ? /* @__PURE__ */ React.createElement(
       DetailContent,
       {
         paperId: ctx.selectedPaper,
@@ -8366,6 +8509,488 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       render: (ctx) => /* @__PURE__ */ React.createElement(TagsPanel, { onFilterToTag: ctx.onFilterToTag, tagRefresh: ctx.tagRefresh })
     }
   );
+  const WIP_STAGES = [
+    ["idea", "Idea"],
+    ["planning", "Planning"],
+    ["data-collection", "Data collection"],
+    ["analysis", "Analysis"],
+    ["drafting", "Drafting"],
+    ["internal-review", "Internal review"],
+    ["preprint", "Preprint"],
+    ["submitted", "Submitted"],
+    ["revise-and-resubmit", "Revise and resubmit"],
+    ["accepted", "Accepted"],
+    ["published", "Published"],
+    ["paused", "Paused"],
+    ["abandoned", "Abandoned"]
+  ];
+  function wipStageLabel(value) {
+    const found = WIP_STAGES.find((item) => item[0] === value);
+    return found ? found[1] : String(value || "Idea").replace(/-/g, " ");
+  }
+  function wipWhen(value) {
+    if (!value) return "No filesystem activity yet";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+  function useWipWorkspace({ enabled }) {
+    const [state, setState] = useState({ status: "idle", manuscripts: [], roots: [], error: null });
+    const [query, setQuery] = useState("");
+    const [stage, setStage] = useState("");
+    const [workspaceState, setWorkspaceState] = useState("active");
+    const [sort, setSort] = useState(() => _loadLayout("callosum.wip.sort", "activity"));
+    const [selectedId, setSelectedId] = useState(null);
+    const [refresh, setRefresh] = useState(0);
+    const [scanning, setScanning] = useState(false);
+    const load = useCallback(async () => {
+      if (!enabled) return;
+      setState((prev) => ({ ...prev, status: prev.manuscripts.length ? "ready" : "loading", error: null }));
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("query", query.trim());
+      if (stage) params.set("stage", stage);
+      if (workspaceState) params.set("state", workspaceState);
+      params.set("sort", sort);
+      const [items, roots] = await Promise.all([api("/wip/manuscripts?" + params), api("/wip/watch-roots")]);
+      if (!items.ok || !roots.ok) {
+        setState((prev) => ({ ...prev, status: "error", error: items.error || roots.error || "Could not load WIP." }));
+        return;
+      }
+      setState({ status: "ready", manuscripts: items.data || [], roots: roots.data || [], error: null });
+    }, [enabled, query, stage, workspaceState, sort, refresh]);
+    useEffect(() => {
+      load();
+    }, [load]);
+    const pollScan = useCallback(async (jobId) => {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const result = await api(`/wip/scan/${jobId}`);
+        if (!result.ok || result.data && ["done", "error"].includes(result.data.status)) {
+          setScanning(false);
+          setRefresh((n) => n + 1);
+          return result;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      setScanning(false);
+      return { ok: false, error: "The WIP scan is still running." };
+    }, []);
+    const rescan = useCallback(async () => {
+      if (!enabled || scanning) return;
+      setScanning(true);
+      const result = await apiPost("/wip/rescan", {});
+      if (!result.ok) {
+        setScanning(false);
+        return result;
+      }
+      return pollScan(result.data.job_id);
+    }, [enabled, scanning, pollScan]);
+    useEffect(() => {
+      if (!enabled) return void 0;
+      rescan();
+      const onFocus = () => rescan();
+      window.addEventListener("focus", onFocus);
+      return () => window.removeEventListener("focus", onFocus);
+    }, [enabled]);
+    const addRoot = useCallback(async (values) => {
+      const result = await apiPost("/wip/watch-roots", values);
+      if (!result.ok) return result;
+      setRefresh((n) => n + 1);
+      setScanning(true);
+      const scan = await apiPost(`/wip/watch-roots/${result.data.id}/scan`, {});
+      if (!scan.ok) {
+        setScanning(false);
+        return scan;
+      }
+      return pollScan(scan.data.job_id);
+    }, [pollScan]);
+    const updateManuscript = useCallback(async (id, values) => {
+      const result = await apiPatch(`/wip/manuscripts/${id}`, values);
+      if (result.ok) setRefresh((n) => n + 1);
+      return result;
+    }, []);
+    const selected = state.manuscripts.find((item) => item.id === selectedId) || null;
+    return {
+      ...state,
+      enabled,
+      query,
+      setQuery,
+      stage,
+      setStage,
+      workspaceState,
+      setWorkspaceState,
+      sort,
+      setSort: (value) => {
+        setSort(value);
+        _saveLayout("callosum.wip.sort", value);
+      },
+      selectedId,
+      setSelectedId,
+      selected,
+      scanning,
+      rescan,
+      addRoot,
+      updateManuscript,
+      reload: () => setRefresh((n) => n + 1)
+    };
+  }
+  function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
+    const [expanded, setExpanded] = useState(false);
+    const [path, setPath] = useState("");
+    const [mode, setMode] = useState("folder");
+    const [error, setError] = useState("");
+    const submit = async (event) => {
+      event.preventDefault();
+      setError("");
+      const result = await onAdd({ path: path.trim(), discovery_mode: mode, excluded_children: [] });
+      if (!result || !result.ok) {
+        setError(result && result.error || "Could not add this folder.");
+        return;
+      }
+      setPath("");
+      setExpanded(false);
+    };
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-roots" }, /* @__PURE__ */ React.createElement("div", { className: "wip-roots-summary" }, /* @__PURE__ */ React.createElement("span", null, roots.length, " watched ", roots.length === 1 ? "location" : "locations"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", onClick: () => setExpanded((value) => !value) }, "+ Add location"), /* @__PURE__ */ React.createElement("button", { className: "btn-ghost", disabled: scanning || roots.length === 0, onClick: onRescan }, scanning ? "Scanning\u2026" : "Rescan")), expanded && /* @__PURE__ */ React.createElement("form", { className: "wip-root-form", onSubmit: submit }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        value: path,
+        onChange: (event) => setPath(event.target.value),
+        placeholder: "Full path to a manuscript folder or a folder of WIPs",
+        "aria-label": "WIP folder path"
+      }
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: mode, onChange: (event) => setMode(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "folder" }, "This folder is one manuscript"), /* @__PURE__ */ React.createElement("option", { value: "children" }, "Immediate subfolders are manuscripts")), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !path.trim() }, "Add"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-ghost", onClick: () => setExpanded(false) }, "Cancel"), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error)));
+  }
+  function WipCard({ manuscript, selected, onSelect, onOpen }) {
+    return /* @__PURE__ */ React.createElement(
+      "article",
+      {
+        className: "paper wip-card" + (selected ? " sel" : ""),
+        "data-wip-id": manuscript.id,
+        onClick: () => onSelect(manuscript.id),
+        onDoubleClick: () => onOpen(manuscript),
+        title: "Work in progress \u2014 double-click to open the manuscript workspace"
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "wip-card-heading" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, manuscript.display_title)),
+      /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, /* @__PURE__ */ React.createElement("span", null, wipStageLabel(manuscript.stage)), manuscript.manuscript_type && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", manuscript.manuscript_type.replace(/-/g, " ")), manuscript.target_journal && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", manuscript.target_journal)),
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "wip-stage" }, wipStageLabel(manuscript.stage)), /* @__PURE__ */ React.createElement("span", { className: "chip" }, manuscript.file_count, " file", manuscript.file_count === 1 ? "" : "s"), manuscript.missing_file_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, manuscript.missing_file_count, " missing"), manuscript.state === "missing" && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, "folder missing"), /* @__PURE__ */ React.createElement("span", { className: "wip-modified" }, wipWhen(manuscript.last_filesystem_activity_at)))
+    );
+  }
+  function WipBrowser({ wip, onOpen }) {
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body wip-browser" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Work in progress"), /* @__PURE__ */ React.createElement("span", { className: "wip-mode-label" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), " Unpublished manuscripts")), /* @__PURE__ */ React.createElement(WipRootSetup, { roots: wip.roots, scanning: wip.scanning, onAdd: wip.addRoot, onRescan: wip.rescan }), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        placeholder: "Search manuscript title, journal, or notes\u2026",
+        value: wip.query,
+        onChange: (event) => wip.setQuery(event.target.value),
+        spellCheck: false
+      }
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: wip.stage, onChange: (event) => wip.setStage(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All stages"), WIP_STAGES.map((item) => /* @__PURE__ */ React.createElement("option", { key: item[0], value: item[0] }, item[1]))), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "lib-sort",
+        value: wip.workspaceState,
+        onChange: (event) => wip.setWorkspaceState(event.target.value)
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "active" }, "Active"),
+      /* @__PURE__ */ React.createElement("option", { value: "paused" }, "Paused"),
+      /* @__PURE__ */ React.createElement("option", { value: "archived" }, "Archived"),
+      /* @__PURE__ */ React.createElement("option", { value: "missing" }, "Missing"),
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "All states")
+    ), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: wip.sort, onChange: (event) => wip.setSort(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "activity" }, "Last modified"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "stage" }, "Stage"), /* @__PURE__ */ React.createElement("option", { value: "deadline" }, "Deadline"), /* @__PURE__ */ React.createElement("option", { value: "created" }, "Created"))), wip.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, wip.manuscripts.length, " shown")), wip.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, "Loading work in progress\u2026"), wip.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load WIP."), /* @__PURE__ */ React.createElement("br", null), wip.error), wip.status === "ready" && wip.manuscripts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, wip.roots.length ? "No manuscripts match this view." : "Add a manuscript location."), wip.roots.length ? "Change the stage or state filters, or rescan the watched locations." : "Choose one manuscript folder, or a parent whose immediate subfolders are manuscripts."), wip.status === "ready" && wip.manuscripts.map((item) => /* @__PURE__ */ React.createElement(
+      WipCard,
+      {
+        key: item.id,
+        manuscript: item,
+        selected: wip.selectedId === item.id,
+        onSelect: wip.setSelectedId,
+        onOpen
+      }
+    )));
+  }
+  function WipStructure({ manuscriptId, sections, onReload }) {
+    const [name, setName] = useState("");
+    const change = async (section, values) => {
+      const result = await apiPatch(`/wip/manuscripts/${manuscriptId}/sections/${section.id}`, values);
+      if (result.ok) onReload();
+    };
+    const move = async (index, delta) => {
+      const next = sections.map((section) => section.id);
+      const target = index + delta;
+      if (target < 0 || target >= next.length) return;
+      [next[index], next[target]] = [next[target], next[index]];
+      const result = await apiPut(`/wip/manuscripts/${manuscriptId}/sections/order`, { section_ids: next });
+      if (result.ok) onReload();
+    };
+    const add = async () => {
+      if (!name.trim()) return;
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/sections`, { name: name.trim() });
+      if (result.ok) {
+        setName("");
+        onReload();
+      }
+    };
+    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-section-add" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        value: name,
+        onChange: (event) => setName(event.target.value),
+        placeholder: "Add a custom section",
+        onKeyDown: (event) => {
+          if (event.key === "Enter") add();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !name.trim(), onClick: add }, "Add section")), sections.map((section, index) => /* @__PURE__ */ React.createElement("div", { className: "wip-section-row", key: section.id }, /* @__PURE__ */ React.createElement("span", { className: "wip-section-name" }, section.name), section.content_detected && /* @__PURE__ */ React.createElement("span", { className: "wip-detected" }, "Content detected"), /* @__PURE__ */ React.createElement("select", { value: section.status, onChange: (event) => change(section, { status: event.target.value }) }, ["not-started", "outlined", "drafting", "complete", "needs-revision", "under-review", "approved", "not-applicable"].map((status) => /* @__PURE__ */ React.createElement("option", { key: status, value: status }, status.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement("button", { className: "btn-icon", title: "Move section up", disabled: index === 0, onClick: () => move(index, -1) }, "\u2191"), /* @__PURE__ */ React.createElement("button", { className: "btn-icon", title: "Move section down", disabled: index === sections.length - 1, onClick: () => move(index, 1) }, "\u2193"), section.is_custom && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon danger",
+        title: "Delete custom section",
+        onClick: async () => {
+          const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/sections/${section.id}`);
+          if (result.ok) onReload();
+        }
+      },
+      "\xD7"
+    ))));
+  }
+  function WipTasks({ manuscriptId, tasks, sections, onReload }) {
+    const [title, setTitle] = useState("");
+    const [sectionId, setSectionId] = useState("");
+    const add = async () => {
+      if (!title.trim()) return;
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/tasks`, {
+        title: title.trim(),
+        section_id: sectionId ? Number(sectionId) : null
+      });
+      if (result.ok) {
+        setTitle("");
+        onReload();
+      }
+    };
+    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-task-add" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        value: title,
+        onChange: (event) => setTitle(event.target.value),
+        placeholder: "Add a manuscript task",
+        onKeyDown: (event) => {
+          if (event.key === "Enter") add();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("select", { value: sectionId, onChange: (event) => setSectionId(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "Whole manuscript"), sections.map((section) => /* @__PURE__ */ React.createElement("option", { key: section.id, value: section.id }, section.name))), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !title.trim(), onClick: add }, "Add task")), tasks.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No manuscript tasks."), tasks.map((task) => /* @__PURE__ */ React.createElement("div", { className: "wip-task-row" + (task.status === "complete" ? " complete" : ""), key: task.id }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "checkbox",
+        checked: task.status === "complete",
+        onChange: async (event) => {
+          const result = await apiPatch(
+            `/wip/manuscripts/${manuscriptId}/tasks/${task.id}`,
+            { status: event.target.checked ? "complete" : "open" }
+          );
+          if (result.ok) onReload();
+        }
+      }
+    ), /* @__PURE__ */ React.createElement("span", null, task.title), /* @__PURE__ */ React.createElement("select", { value: task.status, onChange: async (event) => {
+      const result = await apiPatch(`/wip/manuscripts/${manuscriptId}/tasks/${task.id}`, { status: event.target.value });
+      if (result.ok) onReload();
+    } }, ["open", "in-progress", "blocked", "complete", "deferred", "cancelled"].map((status) => /* @__PURE__ */ React.createElement("option", { key: status, value: status }, status.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon danger",
+        title: "Delete task",
+        onClick: async () => {
+          const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/tasks/${task.id}`);
+          if (result.ok) onReload();
+        }
+      },
+      "\xD7"
+    ))));
+  }
+  function WipReferences({ manuscriptId, references, onReload, onOpenPaper }) {
+    const [paperId, setPaperId] = useState("");
+    const [relationship, setRelationship] = useState("possibly-cited");
+    const [error, setError] = useState("");
+    const add = async () => {
+      const id = Number(paperId);
+      if (!Number.isInteger(id) || id < 1) return;
+      const result = await apiPost(
+        `/wip/manuscripts/${manuscriptId}/references`,
+        { paper_id: id, relationship_state: relationship }
+      );
+      if (!result.ok) {
+        setError(result.error || "Library paper not found.");
+        return;
+      }
+      setPaperId("");
+      setError("");
+      onReload();
+    };
+    return /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, /* @__PURE__ */ React.createElement("div", { className: "wip-reference-add" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        inputMode: "numeric",
+        value: paperId,
+        onChange: (event) => setPaperId(event.target.value),
+        placeholder: "Library paper ID"
+      }
+    ), /* @__PURE__ */ React.createElement("select", { value: relationship, onChange: (event) => setRelationship(event.target.value) }, ["cited", "possibly-cited", "background-reading", "to-cite", "rejected-for-use", "needs-verification"].map((state) => /* @__PURE__ */ React.createElement("option", { key: state, value: state }, state.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: !paperId, onClick: add }, "Link paper")), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error), references.length === 0 && /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No Library references linked yet."), references.map((reference) => /* @__PURE__ */ React.createElement("div", { className: "wip-reference-row", key: reference.id }, /* @__PURE__ */ React.createElement("button", { className: "btn-link", onClick: () => onOpenPaper && onOpenPaper({
+      id: reference.paper_id,
+      title: reference.paper_title
+    }) }, reference.paper_title), /* @__PURE__ */ React.createElement("span", null, reference.paper_year || ""), /* @__PURE__ */ React.createElement("select", { value: reference.relationship_state, onChange: async (event) => {
+      const result = await apiPost(`/wip/manuscripts/${manuscriptId}/references`, {
+        paper_id: reference.paper_id,
+        relationship_state: event.target.value,
+        notes: reference.notes
+      });
+      if (result.ok) onReload();
+    } }, ["cited", "possibly-cited", "background-reading", "to-cite", "rejected-for-use", "needs-verification"].map((state) => /* @__PURE__ */ React.createElement("option", { key: state, value: state }, state.replace(/-/g, " ")))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon danger",
+        title: "Unlink paper",
+        onClick: async () => {
+          const result = await apiDelete(`/wip/manuscripts/${manuscriptId}/references/${reference.paper_id}`);
+          if (result.ok) onReload();
+        }
+      },
+      "\xD7"
+    ))));
+  }
+  function WipDetails({ manuscript, onUpdate, onOpenPaper, workspace = false }) {
+    const [files, setFiles] = useState([]);
+    const [activity, setActivity] = useState([]);
+    const [sections, setSections] = useState([]);
+    const [tasks, setTasks] = useState([]);
+    const [references, setReferences] = useState([]);
+    const [tab, setTab] = useState("overview");
+    const [nonce, setNonce] = useState(0);
+    const [draft, setDraft] = useState(manuscript || {});
+    const [saving, setSaving] = useState(false);
+    useEffect(() => {
+      setDraft(manuscript || {});
+    }, [manuscript && manuscript.id, manuscript && manuscript.updated_at]);
+    useEffect(() => {
+      if (!manuscript) return;
+      Promise.all([
+        api(`/wip/manuscripts/${manuscript.id}/files`),
+        api(`/wip/manuscripts/${manuscript.id}/activity`),
+        api(`/wip/manuscripts/${manuscript.id}/sections`),
+        api(`/wip/manuscripts/${manuscript.id}/tasks`),
+        api(`/wip/manuscripts/${manuscript.id}/references`)
+      ]).then(([fileResult, activityResult, sectionResult, taskResult, referenceResult]) => {
+        if (fileResult.ok) setFiles(fileResult.data || []);
+        if (activityResult.ok) setActivity(activityResult.data || []);
+        if (sectionResult.ok) setSections(sectionResult.data || []);
+        if (taskResult.ok) setTasks(taskResult.data || []);
+        if (referenceResult.ok) setReferences(referenceResult.data || []);
+      });
+    }, [manuscript && manuscript.id, manuscript && manuscript.updated_at, nonce]);
+    if (!manuscript) return /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Select a WIP manuscript to see its details.");
+    const save = async () => {
+      setSaving(true);
+      await onUpdate(manuscript.id, {
+        title_override: (draft.title_override || "").trim() || null,
+        stage: draft.stage,
+        manuscript_type: draft.manuscript_type,
+        target_journal: (draft.target_journal || "").trim() || null,
+        deadline: draft.deadline || null,
+        notes: draft.notes || null
+      });
+      setSaving(false);
+    };
+    const reload = () => setNonce((value) => value + 1);
+    const overview = /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "wip-detail-grid" }, /* @__PURE__ */ React.createElement("label", null, "Display title", /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        value: draft.title_override || "",
+        placeholder: manuscript.derived_title,
+        onChange: (event) => setDraft({ ...draft, title_override: event.target.value })
+      }
+    )), /* @__PURE__ */ React.createElement("label", null, "Stage", /* @__PURE__ */ React.createElement("select", { value: draft.stage || "idea", onChange: (event) => setDraft({ ...draft, stage: event.target.value }) }, WIP_STAGES.map((item) => /* @__PURE__ */ React.createElement("option", { key: item[0], value: item[0] }, item[1])))), /* @__PURE__ */ React.createElement("label", null, "Manuscript type", /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        value: draft.manuscript_type || "",
+        onChange: (event) => setDraft({ ...draft, manuscript_type: event.target.value })
+      }
+    )), /* @__PURE__ */ React.createElement("label", null, "Target journal", /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        value: draft.target_journal || "",
+        onChange: (event) => setDraft({ ...draft, target_journal: event.target.value })
+      }
+    )), /* @__PURE__ */ React.createElement("label", null, "Deadline", /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        type: "date",
+        value: draft.deadline || "",
+        onChange: (event) => setDraft({ ...draft, deadline: event.target.value })
+      }
+    )), /* @__PURE__ */ React.createElement("label", { className: "wip-detail-wide" }, "Notes", /* @__PURE__ */ React.createElement(
+      "textarea",
+      {
+        rows: workspace ? 4 : 3,
+        value: draft.notes || "",
+        onChange: (event) => setDraft({ ...draft, notes: event.target.value })
+      }
+    ))), /* @__PURE__ */ React.createElement("button", { className: "axis-btn", disabled: saving, onClick: save }, saving ? "Saving\u2026" : "Save manuscript"));
+    const fileView = /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, files.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No files discovered.") : files.map((file) => /* @__PURE__ */ React.createElement("div", { className: "wip-file-row", key: file.id }, /* @__PURE__ */ React.createElement("span", null, file.relative_path), /* @__PURE__ */ React.createElement("select", { value: file.role, onChange: async (event) => {
+      const result = await apiPatch(`/wip/manuscripts/${manuscript.id}/files/${file.id}`, { role: event.target.value });
+      if (result.ok) reload();
+    } }, [
+      "manuscript-candidate",
+      "supplement",
+      "cover-letter",
+      "response-to-reviewers",
+      "reporting-checklist",
+      "figure",
+      "table",
+      "analysis-output",
+      "other"
+    ].map((role) => /* @__PURE__ */ React.createElement("option", { key: role, value: role }, role.replace(/-/g, " "))), file.is_primary && /* @__PURE__ */ React.createElement("option", { value: "primary-manuscript" }, "primary manuscript")), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-ghost" + (file.is_primary ? " wip-primary" : ""),
+        disabled: file.existence_state !== "available",
+        onClick: async () => {
+          const result = await apiPatch(`/wip/manuscripts/${manuscript.id}/files/${file.id}`, { is_primary: true });
+          if (result.ok) reload();
+        }
+      },
+      file.is_primary ? "Primary" : "Make primary"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon",
+        title: "Open file",
+        onClick: () => apiPost(`/wip/manuscripts/${manuscript.id}/files/${file.id}/open`, {})
+      },
+      "\u2197"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "btn-icon",
+        title: "Reveal file in its folder",
+        onClick: () => apiPost(`/wip/manuscripts/${manuscript.id}/files/${file.id}/reveal`, {})
+      },
+      "\u2316"
+    ))));
+    const activityView = /* @__PURE__ */ React.createElement("section", { className: "wip-work-view" }, activity.length === 0 ? /* @__PURE__ */ React.createElement("p", { className: "axis-hint" }, "No activity recorded.") : activity.slice(0, workspace ? 100 : 6).map((event) => /* @__PURE__ */ React.createElement("div", { className: "wip-activity-row", key: event.id }, /* @__PURE__ */ React.createElement("span", null, event.summary), /* @__PURE__ */ React.createElement("time", null, wipWhen(event.created_at)))));
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-details" + (workspace ? " wip-workspace" : "") }, /* @__PURE__ */ React.createElement("header", { className: "wip-detail-head" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", null, manuscript.display_title), /* @__PURE__ */ React.createElement("p", null, "Unpublished manuscript workspace"))), workspace ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "tags-srcfilter wip-work-tabs", role: "tablist" }, ["overview", "structure", "tasks", "files", "references", "activity"].map((value) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: value,
+        className: "tags-srcfilter-btn" + (tab === value ? " on" : ""),
+        onClick: () => setTab(value)
+      },
+      value[0].toUpperCase() + value.slice(1)
+    ))), tab === "overview" && overview, tab === "structure" && /* @__PURE__ */ React.createElement(WipStructure, { manuscriptId: manuscript.id, sections, onReload: reload }), tab === "tasks" && /* @__PURE__ */ React.createElement(WipTasks, { manuscriptId: manuscript.id, tasks, sections, onReload: reload }), tab === "files" && fileView, tab === "references" && /* @__PURE__ */ React.createElement(
+      WipReferences,
+      {
+        manuscriptId: manuscript.id,
+        references,
+        onReload: reload,
+        onOpenPaper
+      }
+    ), tab === "activity" && activityView) : /* @__PURE__ */ React.createElement(React.Fragment, null, overview, /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Files"), fileView), /* @__PURE__ */ React.createElement("section", { className: "wip-detail-section" }, /* @__PURE__ */ React.createElement("h3", null, "Recent activity"), activityView)));
+  }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");
     const [prose, setProse] = useState(initialDescription || "");
@@ -12238,7 +12863,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     return /* @__PURE__ */ React.createElement("div", { className: "axis-hint workspace-whatsnew", role: "status" }, /* @__PURE__ */ React.createElement("span", null, mobile ? /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: tools moved into ", /* @__PURE__ */ React.createElement("b", null, "Discover"), " and ", /* @__PURE__ */ React.createElement("b", null, "Work"), " on the menu bar \u2014 see ", /* @__PURE__ */ React.createElement("b", null, "Help"), " for the full map.") : /* @__PURE__ */ React.createElement(React.Fragment, null, "New layout: ", /* @__PURE__ */ React.createElement("b", null, "Synthesize"), " is on the menu bar with ", /* @__PURE__ */ React.createElement("b", null, "Ask"), " + ", /* @__PURE__ */ React.createElement("b", null, "Critique"), "; ", /* @__PURE__ */ React.createElement("b", null, "Cite"), ", ", /* @__PURE__ */ React.createElement("b", null, "Meta-Reference"), ", ", /* @__PURE__ */ React.createElement("b", null, "CRediT"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Meta-Analyze"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Work"), "; ", /* @__PURE__ */ React.createElement("b", null, "Wanted"), ", ", /* @__PURE__ */ React.createElement("b", null, "Gaps"), ", and ", /* @__PURE__ */ React.createElement("b", null, "Overlooked"), " are under ", /* @__PURE__ */ React.createElement("b", null, "Discover \u2192 Search"), ".")), /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn-icon workspace-whatsnew-dismiss", "aria-label": "Dismiss workspace layout notice", title: "Dismiss", onClick: dismiss }, "\xD7"));
   }
   const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
-  function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActivate, onClose, onOpenPdf, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+  function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
     const [dragOverKey, setDragOverKey] = useState(null);
     const openSelectedPaper = () => {
       if (!selectedPaperTab) return;
@@ -12251,6 +12876,14 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: () => onActivate("library")
       },
       "Library"
+    ), wip.enabled && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "frame-tab frame-tab-wip" + (activeTab === "wip" ? " active" : ""),
+        onClick: () => onActivate("wip")
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"),
+      " Work in progress"
     ), selectedPaperTab && /* @__PURE__ */ React.createElement(
       "button",
       {
@@ -12259,7 +12892,37 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: openSelectedPaper
       },
       /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label" }, selectedPaperTab.title)
-    ), tabs.map((t) => /* @__PURE__ */ React.createElement(
+    ), selectedWipTab && /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "frame-tab frame-tab-selected frame-tab-selected-wip",
+        title: "Selected WIP manuscript, not open \u2014 click to open its workspace",
+        onClick: () => onOpenWip(selectedWipTab)
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"),
+      /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label" }, selectedWipTab.display_title)
+    ), wipTabs.map((t) => /* @__PURE__ */ React.createElement(
+      "span",
+      {
+        key: t.key,
+        className: "frame-tab frame-tab-wip-manuscript" + (activeTab === t.key ? " active" : ""),
+        onClick: () => onActivate(t.key)
+      },
+      /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"),
+      /* @__PURE__ */ React.createElement("span", { className: "frame-tab-label", title: t.title }, t.title),
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          className: "frame-tab-close",
+          title: "Close manuscript tab",
+          onClick: (e) => {
+            e.stopPropagation();
+            onCloseWip(t.key);
+          }
+        },
+        "\xD7"
+      )
+    )), tabs.map((t) => /* @__PURE__ */ React.createElement(
       "span",
       {
         key: t.key,
@@ -12308,7 +12971,7 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onClick: onToggleReading
       },
       readingMode ? "\u2922 Exit" : "\u26F6 Read"
-    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "library" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(PaperList, { ...libraryProps, onOpenPdf })), wip.enabled && /* @__PURE__ */ React.createElement("div", { className: "frame-pane", style: { display: activeTab === "wip" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WipBrowser, { wip, onOpen: onOpenWip })), wipTabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WipDetails, { manuscript: t.manuscript, onUpdate: wip.updateManuscript, onOpenPaper: onOpenPdf, workspace: true }))), tabs.map((t) => /* @__PURE__ */ React.createElement("div", { key: t.key, className: "frame-pane", style: { display: activeTab === t.key ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(
       PdfViewer,
       {
         paperId: t.paperId,
@@ -15030,6 +15693,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     } = useUiPrefs();
     const [selected, setSelected] = useState(null);
     const [tabs, setTabs] = useState([]);
+    const [wipTabs, setWipTabs] = useState([]);
     const [selectedPaperTab, setSelectedPaperTab] = useState(null);
     const [activeTab, setActiveTab] = useState("library");
     const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
@@ -15072,6 +15736,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     });
     const [readOnly, setReadOnly] = useState(void 0);
     const [healthLoaded, setHealthLoaded] = useState(false);
+    const wip = useWipWorkspace({ enabled: healthLoaded && readOnly === false });
     const lib = useLibrary({
       selected,
       setSelected,
@@ -15151,6 +15816,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setCitationReturn(false);
       }
     }, [mobile, setMobilePane, selectWorkspace]);
+    const openWip = useCallback((manuscript) => {
+      if (!manuscript || manuscript.id == null) return;
+      const key = "wip:" + manuscript.id;
+      const title = manuscript.display_title || manuscript.derived_title || `WIP ${manuscript.id}`;
+      wip.setSelectedId(manuscript.id);
+      setWipTabs((prev) => prev.some((tab) => tab.key === key) ? prev.map((tab) => tab.key === key ? { ...tab, title, manuscript } : tab) : [...prev, { key, manuscriptId: manuscript.id, title, manuscript }]);
+      selectWorkspace("library");
+      setActiveTab(key);
+      if (mobile) setMobilePane("library");
+    }, [mobile, selectWorkspace, setMobilePane, wip.setSelectedId]);
     useEffect(() => {
       if (activeTab === "library") return;
       const tab = tabs.find((t) => t.key === activeTab);
@@ -15225,7 +15900,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setTabs((prev) => prev.filter((t) => t.key !== key));
       setActiveTab((prev) => prev === key ? "library" : prev);
     }, []);
+    const closeWipTab = useCallback((key) => {
+      setWipTabs((prev) => prev.filter((tab) => tab.key !== key));
+      setActiveTab((prev) => prev === key ? "wip" : prev);
+    }, []);
     const activatePaperTab = useCallback((key) => {
+      if (!key) return;
+      selectWorkspace("library");
+      setActiveTab(key);
+      if (mobile) setMobilePane("library");
+    }, [mobile, selectWorkspace, setMobilePane]);
+    const activateWipTab = useCallback((key) => {
       if (!key) return;
       selectWorkspace("library");
       setActiveTab(key);
@@ -15281,13 +15966,27 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     }, [readingMode, anyModalOpen, toggleReading]);
     const cols = readingMode ? "0px 0px minmax(340px, 1fr) 0px 0px" : `${leftOpen ? leftW : 0}px 12px minmax(340px, 1fr) 12px ${rightOpen ? rightW : 0}px`;
     const selectedOpenPaperTab = selected == null ? null : tabs.find((t) => t.paperId === selected) || null;
+    const hydratedWipTabs = wipTabs.map((tab) => ({
+      ...tab,
+      manuscript: wip.manuscripts.find((item) => item.id === tab.manuscriptId) || tab.manuscript
+    }));
+    const activeWipTab = hydratedWipTabs.find((tab) => tab.key === activeTab) || null;
+    const wipModeActive = activeTab === "wip" || !!activeWipTab;
+    const activeWipManuscript = activeWipTab ? activeWipTab.manuscript : wip.selected;
+    const researchContext = wipModeActive ? { kind: "manuscript", entity: activeWipManuscript || null, openTab: activeWipTab } : { kind: "paper", entityId: selected, openTab: selectedOpenPaperTab };
+    const contextPaperId = researchContext.kind === "paper" ? selected : null;
+    const selectedWipTab = wipModeActive && wip.selected && !hydratedWipTabs.some((tab) => tab.manuscriptId === wip.selected.id) ? wip.selected : null;
     const paneCtx = {
       readOnly,
       // B5 SP2: hide write controls in every section when the instance is read-only
       conn,
-      selectedPaper: selected,
+      researchContext,
+      selectedPaper: contextPaperId,
       onSelectPaper: setSelected,
       onOpenPaper: openPdf,
+      onOpenWip: openWip,
+      onActivateWipTab: activateWipTab,
+      onUpdateWip: wip.updateManuscript,
       onOpenCitation: openCitation,
       onSaveHighlight: saveCitationHighlight,
       onFilterToTag: filterToTag,
@@ -15343,10 +16042,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       onOpenOverlooked: () => setOverlookedOpen(true),
       onOpenPdf: openPdf,
       onOpenPaper: openPdf,
-      selectedPaper: selected,
-      // Work/Discover tabs read the app-level selection
-      selectedPaperTab,
-      selectedOpenPaperTab,
+      selectedPaper: contextPaperId,
+      // paper-only tools receive no stale Library paper while WIP is active
+      selectedPaperTab: wipModeActive ? null : selectedPaperTab,
+      selectedOpenPaperTab: wipModeActive ? null : selectedOpenPaperTab,
       onActivatePaperTab: activatePaperTab,
       workspaceTabRequest,
       capture,
@@ -15379,12 +16078,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
           onOpenImportBundle: () => setBundleImportOpen(true),
           onExportBundle: () => downloadBundle("library")
         },
+        wip,
+        wipTabs: hydratedWipTabs,
+        selectedWipTab,
         tabs,
-        selectedPaperTab,
+        selectedPaperTab: wipModeActive ? null : selectedPaperTab,
         activeTab,
         onActivate: setActiveTab,
         onClose: closeTab,
+        onCloseWip: closeWipTab,
         onOpenPdf: openPdf,
+        onOpenWip: openWip,
         onReorderTabs: reorderPdfTabs,
         annoRefresh,
         readingMode,

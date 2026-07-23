@@ -32,6 +32,9 @@
     --flag-ink: #6e4421;     /* text on --flag-soft (error text) */
     --danger: #b3261e;       /* red — destructive actions (delete) only */
     --danger-line: #e3b1ac;  /* destructive button border */
+    --wip: #147b78;          /* teal — unpublished manuscript context, never a quality/status judgment */
+    --wip-soft: #e5f3f1;
+    --wip-line: #9bcac5;
     /* inc 207 (A5): the tag-color palette — one ink per key; the colored-chip recipe mixes it with --panel for the
        bg (so it auto-adapts to the theme). Light inks here; the dark block overrides them lighter. NOT semantic
        (these are user-chosen labels, distinct from the indigo/green/amber/red status colors above). */
@@ -82,6 +85,9 @@
     --tag-red: #ef8a82;    --tag-orange: #e6a463;  --tag-amber: #d8c060;  --tag-green: #79c98f;
     --tag-teal: #5fc2ba;   --tag-blue: #8aa2ee;    --tag-purple: #b196ec; --tag-gray: #b8b1a3;
     --danger-line: #6e3b36;
+    --wip: #6fcac2;
+    --wip-soft: #1f3936;
+    --wip-line: #356b66;
     --sel: #2a2740;
     --hover: #2f2a22;
     --on-fill: #201d16;
@@ -1666,6 +1672,22 @@
     cursor: pointer; font-size: 15px; line-height: 1; padding: 0 3px; border-radius: var(--radius-sm);
   }
   .frame-tab-close:hover { color: var(--flag); background: var(--flag-soft); }
+  .wip-badge {
+    display: inline-flex; align-items: center; flex: 0 0 auto;
+    border: 1px solid var(--wip-line); border-radius: var(--radius-sm);
+    padding: 0 4px; background: var(--wip-soft); color: var(--wip);
+    font: 700 8.5px/1.45 var(--mono); letter-spacing: .04em;
+  }
+  .frame-tab-wip { color: var(--wip); }
+  .frame-tab-wip.active, .frame-tab-wip-manuscript.active {
+    box-shadow: inset 0 2px 0 var(--wip);
+  }
+  .frame-tab-selected-wip {
+    color: var(--wip); background: var(--wip-soft); border-color: var(--wip);
+  }
+  .frame-tab-selected-wip:hover { background: var(--wip-soft); border-color: var(--wip); }
+  .workspace-wip-cue { color: var(--wip); }
+  .workspace-wip-cue.active { box-shadow: inset 0 2px 0 var(--wip); }
   /* Reading mode toggle (inc 101) — a tab-bar control pushed to the right; accent = "mode active". */
   .frame-reading {
     margin-left: auto; flex: 0 0 auto; margin-bottom: 6px; cursor: pointer; white-space: nowrap;
@@ -1685,6 +1707,112 @@
   /* the paper list now lives inside the frame and owns its own scroll */
   .pane-list-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; background: var(--panel); }
   .pane-list-body .pane-head { background: var(--panel); }
+
+  /* WIP manuscript collection — Library geometry with an explicit unpublished-work token family + text badge. */
+  .wip-browser .pane-head { border-top: 2px solid var(--wip); }
+  .wip-mode-label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 11px; }
+  .wip-roots { margin-top: 6px; }
+  .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
+  .wip-roots-summary span:first-child { margin-right: auto; }
+  .wip-root-form {
+    display: grid; grid-template-columns: minmax(180px, 1fr) auto auto auto; align-items: center; gap: 7px;
+    margin-top: 8px; padding: 9px; border: 1px solid var(--wip-line); border-radius: var(--radius);
+    background: var(--wip-soft);
+  }
+  .wip-root-form input {
+    min-width: 0; padding: 6px 8px; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    background: var(--panel); color: var(--ink); font: 12px var(--sans);
+  }
+  .wip-root-error { grid-column: 1 / -1; color: var(--danger); font-size: 11px; }
+  .wip-card { border-left: 3px solid transparent; }
+  .wip-card:hover { border-left-color: var(--wip-line); }
+  .wip-card.sel { background: var(--wip-soft); box-shadow: inset 3px 0 0 var(--wip); }
+  .wip-card-heading { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .wip-card-heading .paper-title { padding-right: 0; flex: 1; min-width: 0; }
+  .wip-stage {
+    color: var(--wip); background: var(--wip-soft); border: 1px solid var(--wip-line);
+    border-radius: var(--radius-pill); padding: 1px 7px; font: 600 10px var(--sans);
+  }
+  .wip-warning { color: var(--flag); background: var(--flag-soft); border-radius: var(--radius-pill); padding: 1px 7px; font-size: 10px; }
+  .wip-modified { margin-left: auto; color: var(--ink-3); font-size: 10.5px; }
+  .wip-details { padding: 12px 14px 20px; overflow: auto; height: 100%; color: var(--ink-2); font-size: 11.5px; }
+  .wip-workspace { flex: 1 1 auto; width: 100%; padding: 20px clamp(18px, 4vw, 52px) 40px; background: var(--panel); }
+  .wip-detail-head {
+    display: flex; gap: 9px; align-items: flex-start; padding-bottom: 11px; margin-bottom: 12px;
+    border-bottom: 1px solid var(--wip-line);
+  }
+  .wip-detail-head h2 { margin: 0; color: var(--ink); font: 600 18px/1.25 var(--serif); overflow-wrap: anywhere; }
+  .wip-detail-head p { margin: 2px 0 0; color: var(--wip); font-size: 10.5px; }
+  .wip-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-bottom: 9px; }
+  .wip-detail-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--ink-3); font-size: 10.5px; }
+  .wip-detail-grid input, .wip-detail-grid select, .wip-detail-grid textarea {
+    width: 100%; min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 6px 7px; background: var(--panel); color: var(--ink); font: 11.5px var(--sans);
+  }
+  .wip-detail-wide { grid-column: 1 / -1; }
+  .wip-detail-section { margin-top: 18px; }
+  .wip-detail-section h3 {
+    margin: 0 0 6px; padding-bottom: 5px; border-bottom: 1px solid var(--line);
+    color: var(--wip); font: 600 10px var(--sans); text-transform: uppercase; letter-spacing: .06em;
+  }
+  .wip-activity-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding: 5px 0;
+    border-bottom: 1px solid var(--line); align-items: baseline;
+  }
+  .wip-file-row {
+    display: grid; grid-template-columns: minmax(120px, 1fr) 150px auto 24px 24px;
+    gap: 6px; padding: 5px 0; border-bottom: 1px solid var(--line); align-items: center;
+  }
+  .wip-file-row select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 4px 6px; background: var(--panel); color: var(--ink); font: 10px var(--sans);
+  }
+  .wip-file-row span:first-child { color: var(--ink); font-family: var(--mono); overflow-wrap: anywhere; }
+  .wip-file-row span:last-child, .wip-activity-row time { color: var(--ink-3); font-size: 10px; }
+  .wip-primary { color: var(--wip); border-color: var(--wip-line); background: var(--wip-soft); }
+  .wip-work-tabs { margin: 0 0 14px; }
+  .wip-work-tabs .tags-srcfilter-btn.on { color: var(--wip); border-color: var(--wip-line); background: var(--wip-soft); }
+  .wip-work-view { min-height: 80px; }
+  .wip-section-add, .wip-task-add, .wip-reference-add {
+    display: grid; grid-template-columns: minmax(140px, 1fr) auto auto; gap: 7px; align-items: center; margin-bottom: 10px;
+  }
+  .wip-section-add { grid-template-columns: minmax(140px, 1fr) auto; }
+  .wip-section-add input, .wip-task-add input, .wip-reference-add input,
+  .wip-section-row select, .wip-task-add select, .wip-task-row select, .wip-reference-add select, .wip-reference-row select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+    padding: 5px 7px; background: var(--panel); color: var(--ink); font: 11px var(--sans);
+  }
+  .wip-section-row {
+    display: grid; grid-template-columns: minmax(130px, 1fr) auto 150px 24px 24px 24px;
+    gap: 6px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line);
+  }
+  .wip-section-name { color: var(--ink); }
+  .wip-detected { color: var(--wip); font-size: 9.5px; }
+  .wip-task-row {
+    display: grid; grid-template-columns: 18px minmax(130px, 1fr) 130px 24px;
+    gap: 7px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line);
+  }
+  .wip-task-row.complete > span { color: var(--ink-3); text-decoration: line-through; }
+  .wip-reference-row {
+    display: grid; grid-template-columns: minmax(130px, 1fr) auto 150px 24px;
+    gap: 7px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line);
+  }
+  .wip-reference-row .btn-link { text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .app.mobile .wip-root-form, .app.mobile .wip-detail-grid,
+  .app.mobile .wip-section-add, .app.mobile .wip-task-add, .app.mobile .wip-reference-add {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .app.mobile .wip-section-row {
+    grid-template-columns: minmax(90px, 1fr) 120px 24px 24px 24px;
+  }
+  .app.mobile .wip-section-row .wip-detected { grid-column: 1 / -1; }
+  .app.mobile .wip-file-row { grid-template-columns: minmax(90px, 1fr) 120px 24px 24px; }
+  .app.mobile .wip-file-row .btn-ghost { grid-column: 1 / -1; }
+  .app.mobile .wip-task-row { grid-template-columns: 18px minmax(80px, 1fr) 100px 24px; }
+  .app.mobile .wip-reference-row { grid-template-columns: minmax(80px, 1fr) 110px 24px; }
+  .app.mobile .wip-reference-row > span { display: none; }
+  .app.mobile .wip-work-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .app.mobile .wip-work-tabs .tags-srcfilter-btn { width: 100%; overflow-wrap: anywhere; }
 
   /* ---- Discover (Search) tab (inc 184) — mirrors the .paper card recipe; tokens only ---- */
   /* inc 253: the "Extract" meta-analysis workspace (a center-pane sibling of Discover/Feed; tokens only). */

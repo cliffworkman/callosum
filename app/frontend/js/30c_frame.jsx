@@ -28,7 +28,7 @@ function WorkspacesWhatsNewHint({ readOnly, mobile }) {
 
 const PDF_TAB_DRAG_TYPE = "application/x-callosum-pdftab";
 
-function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActivate, onClose, onOpenPdf, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
+function LibraryFrame({ libraryProps, wip, wipTabs, selectedWipTab, tabs, selectedPaperTab, activeTab, onActivate, onClose, onCloseWip, onOpenPdf, onOpenWip, onReorderTabs, annoRefresh, readingMode, onToggleReading, mobile, capture, onCaptureAnchor, onCancelCapture }) {
   const [dragOverKey, setDragOverKey] = useState(null);
   const openSelectedPaper = () => {
     if (!selectedPaperTab) return;
@@ -42,6 +42,10 @@ function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActiv
           className={"frame-tab" + (activeTab === "library" ? " active" : "")}
           onClick={() => onActivate("library")}
         >Library</button>
+        {wip.enabled && <button
+          className={"frame-tab frame-tab-wip" + (activeTab === "wip" ? " active" : "")}
+          onClick={() => onActivate("wip")}
+        ><span className="wip-badge">WIP</span> Work in progress</button>}
         {selectedPaperTab &&
           <button
             className="frame-tab frame-tab-selected"
@@ -50,6 +54,25 @@ function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActiv
           >
             <span className="frame-tab-label">{selectedPaperTab.title}</span>
           </button>}
+        {selectedWipTab &&
+          <button
+            className="frame-tab frame-tab-selected frame-tab-selected-wip"
+            title="Selected WIP manuscript, not open — click to open its workspace"
+            onClick={() => onOpenWip(selectedWipTab)}
+          >
+            <span className="wip-badge">WIP</span>
+            <span className="frame-tab-label">{selectedWipTab.display_title}</span>
+          </button>}
+        {wipTabs.map(t => (
+          <span key={t.key}
+            className={"frame-tab frame-tab-wip-manuscript" + (activeTab === t.key ? " active" : "")}
+            onClick={() => onActivate(t.key)}>
+            <span className="wip-badge">WIP</span>
+            <span className="frame-tab-label" title={t.title}>{t.title}</span>
+            <button className="frame-tab-close" title="Close manuscript tab"
+              onClick={(e) => { e.stopPropagation(); onCloseWip(t.key); }}>×</button>
+          </span>
+        ))}
         {tabs.map(t => (
           <span
             key={t.key}
@@ -95,6 +118,14 @@ function LibraryFrame({ libraryProps, tabs, selectedPaperTab, activeTab, onActiv
       <div className="frame-pane" style={{ display: activeTab === "library" ? "flex" : "none" }}>
         <PaperList {...libraryProps} onOpenPdf={onOpenPdf} />
       </div>
+      {wip.enabled && <div className="frame-pane" style={{ display: activeTab === "wip" ? "flex" : "none" }}>
+        <WipBrowser wip={wip} onOpen={onOpenWip} />
+      </div>}
+      {wipTabs.map(t => (
+        <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
+          <WipDetails manuscript={t.manuscript} onUpdate={wip.updateManuscript} onOpenPaper={onOpenPdf} workspace />
+        </div>
+      ))}
       {tabs.map(t => (
         <div key={t.key} className="frame-pane" style={{ display: activeTab === t.key ? "flex" : "none" }}>
           <PdfViewer paperId={t.paperId} title={t.title} target={t.target || null} annoRefresh={annoRefresh} mobile={mobile}

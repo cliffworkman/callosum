@@ -39,6 +39,7 @@ first attempt — expect iteration.
 | `--accent-line` | `#dad8ee` | border partner for `--accent-soft` |
 | `--flag-line` / `--flag-ink` | `#e6cdb4` / `#6e4421` | border + text partners for `--flag-soft` |
 | `--danger` / `--danger-line` | `#b3261e` / `#e3b1ac` | **destructive actions** (delete) — distinct from `--flag` (status) |
+| `--wip` / `--wip-soft` / `--wip-line` | `#147b78` / `#e5f3f1` / `#9bcac5` | unpublished-manuscript context; always paired with a visible `WIP` badge, never a quality signal |
 | `--accent-overlay` | `#5c55b0` | on-page indigo (PDF highlight/synthesis) — **constant across themes** (white page) |
 | `--on-fill` | `#ffffff` | text on a filled semantic color (primary button, status badge) — **flips in dark** |
 | `--radius` | `7px` | default corner radius |

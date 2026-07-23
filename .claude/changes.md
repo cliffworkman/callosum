@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 351 — WIP manuscript workspace -->
+## 2026-07-23 — Increment 351: WIP manuscript workspace foundation and workflow
+
+- **Files:** migrations `0048`/`0049`, WIP schema/repos/routers/security/discovery, Library frame/workspace/details
+  frontend, WIP tests, served help, design/data-contract docs, QA route 75, and security audit.
+- **What:** added WIP directly after Library as a local-only manuscript collection with watched-folder discovery,
+  stable missing/restored identity, explicit metadata/stages, file roles/primary file, empirical sections, tasks,
+  Library-reference links, activity, and opened manuscript workspace tabs. Typed `researchContext` now replaces
+  stale paper context with the selected/open WIP across Synthesize/Discover/Work.
+- **Why:** extend Callosum from organizing research inputs to coordinating unpublished research products without
+  pretending a manuscript is a bibliographic paper.
+- **Verify:** fresh migration through `0049`; focused discovery/API/workflow/frontend tests; frontend build and
+  line budget; headless Chromium light/dark desktop checks with no console/page errors or overflow.
+- **Revert:** `git revert` this commit. The additive local-only tables may remain empty if migration downgrade is
+  intentionally avoided.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 350 — LibreOffice pending-refresh Infobar -->
 ## 2026-07-23 — Increment 350: LibreOffice visible dirty-state indicator (P1 item #13)
 

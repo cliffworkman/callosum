@@ -70,6 +70,8 @@ from app.backend.api.routers import (
     text_health,
     transparency,
     wanted,
+    wip,
+    wip_workflow,
     word,
     workbench,
 )
@@ -158,6 +160,9 @@ def create_app(
     api.state.library_scan_jobs = JobStore()
     api.state.library_scan_singleflight_lock = Lock()  # one scan/rescan writer at a time
     api.state.active_library_scan_job_id = None
+    api.state.wip_scan_jobs = JobStore()
+    api.state.wip_scan_singleflight_lock = Lock()
+    api.state.active_wip_scan_job_id = None
     api.state.library_import_jobs = JobStore()  # inc 93: citation-file import
     api.state.library_bundle_import_jobs = JobStore()  # B2 SP1 (inc 234): portable library bundle import
     api.state.statcheck_jobs = JobStore()  # inc 97: library-wide statcheck batch
@@ -310,6 +315,8 @@ def create_app(
     api.include_router(saved_searches.router)
     api.include_router(reading_queue.router)  # /reading-queue/* — the to-read Queue tab (inc 219)
     api.include_router(library.router)
+    api.include_router(wip.router)  # /wip/* — local-only unpublished manuscript workspaces
+    api.include_router(wip_workflow.router)
     api.include_router(library_enrich.router)  # /library/enrich/refresh — split out of library.py (rule #1)
     api.include_router(axes.router)
     api.include_router(summaries.router)

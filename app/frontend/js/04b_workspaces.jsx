@@ -95,6 +95,21 @@ function WorkspacePaperCue({ ctx }) {
   // Cite/CRediT/Meta-Analyze added for visual consistency it covered every registered tab, so the per-tab gate
   // was removed rather than grown to a 10-item no-op list.
   if (!ctx) return null;
+  const research = ctx.researchContext || null;
+  if (research && research.kind === "manuscript" && research.entity) {
+    const manuscript = research.entity;
+    return (
+      <button type="button"
+        className={"frame-tab workspace-paper-cue workspace-wip-cue" + (research.openTab ? " active" : " frame-tab-selected")}
+        title={research.openTab ? "WIP manuscript workspace is open — click to view it" : "Selected WIP manuscript — click to open its workspace"}
+        onClick={() => research.openTab
+          ? ctx.onActivateWipTab(research.openTab.key)
+          : ctx.onOpenWip(manuscript)}>
+        <span className="wip-badge">WIP</span>
+        <span className="frame-tab-label">{manuscript.display_title}</span>
+      </button>
+    );
+  }
   const openTab = ctx.selectedOpenPaperTab || null;
   const selectedTab = ctx.selectedPaperTab || null;
   if (openTab) {
