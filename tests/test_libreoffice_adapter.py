@@ -509,6 +509,111 @@ def test_diagnose_document_bibliography_states(monkeypatch) -> None:
     assert no_citations["bibliography"] == "n/a"
 
 
+# ── P1 item #12 (backlog #33/#34): list_document_citations -- the "Citations in this document" panel's data
+# source. Unlike diagnose_document (which iterates getReferenceMarks() directly), this goes through
+# scan_citations_in_order, so the fake needs a fuller doc: getText().compareRegionStarts for document order.
+
+
+class _PanelAnchor:
+    def __init__(self, pos: int) -> None:
+        self.pos = pos
+
+
+class _PanelMark:
+    def __init__(self, name: str, pos: int) -> None:
+        self.Name = name
+        self._anchor = _PanelAnchor(pos)
+
+    def getAnchor(self) -> _PanelAnchor:
+        return self._anchor
+
+
+class _PanelMarksCollection:
+    def __init__(self, marks: dict) -> None:
+        self._marks = marks
+
+    def getElementNames(self) -> list[str]:
+        return list(self._marks.keys())
+
+    def getByName(self, name: str) -> _PanelMark:
+        return self._marks[name]
+
+
+class _PanelText:
+    def compareRegionStarts(self, a: _PanelAnchor, b: _PanelAnchor) -> int:
+        return b.pos - a.pos  # UNO convention: > 0 iff a precedes b
+
+
+class _PanelDoc:
+    def __init__(self, marks: dict) -> None:
+        self._marks = _PanelMarksCollection(marks)
+        self._text = _PanelText()
+
+    def getReferenceMarks(self) -> _PanelMarksCollection:
+        return self._marks
+
+    def getText(self) -> _PanelText:
+        return self._text
+
+
+def _panel_mark(paper_id: str, rnd: str, pos: int) -> tuple[str, _PanelMark]:
+    name = cc.encode_mark_name({"items": [{"id": f"callosum-{paper_id}"}]}, rnd)
+    return name, _PanelMark(name, pos)
+
+
+def test_list_document_citations_groups_counts_and_orders(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cc, "fetch_csl", lambda base, pid: {"title": f"Paper {pid}", "issued": {"date-parts": [[2020]]}}
+    )
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"status": "none"})
+    n1, m1 = _panel_mark("1", "c1", pos=1)
+    n2, m2 = _panel_mark("2", "c2", pos=0)
+    n3, m3 = _panel_mark("1", "c3", pos=2)  # paper 1 cited again -- rolls up into the SAME entry as n1
+    doc = _PanelDoc({n1: m1, n2: m2, n3: m3})
+    entries = cc.list_document_citations(doc, "http://x")
+    assert [e["paper_id"] for e in entries] == ["2", "1"]  # document order: pos 0 (paper 2), then pos 1 (paper 1)
+    paper1 = next(e for e in entries if e["paper_id"] == "1")
+    assert paper1["count"] == 2
+    assert paper1["orphaned"] is False
+    assert paper1["retraction_label"] is None
+
+
+def test_list_document_citations_marks_orphaned_and_retracted(monkeypatch) -> None:
+    def fake_fetch(base, pid):
+        if pid == "404":
+            raise ValueError("missing")
+        return {"title": "X", "issued": {"date-parts": [[2020]]}}
+
+    monkeypatch.setattr(cc, "fetch_csl", fake_fetch)
+    monkeypatch.setattr(cc, "_get_json", lambda url: {"status": "retracted"})
+    n1, m1 = _panel_mark("1", "c1", pos=0)
+    n2, m2 = _panel_mark("404", "c2", pos=1)
+    doc = _PanelDoc({n1: m1, n2: m2})
+    entries = cc.list_document_citations(doc, "http://x")
+    by_id = {e["paper_id"]: e for e in entries}
+    assert by_id["1"]["retraction_label"] == "RETRACTED"
+    assert by_id["404"]["orphaned"] is True
+    assert by_id["404"]["retraction_label"] is None  # never looked up for an orphaned paper
+
+
+def test_list_document_citations_retraction_lookup_failure_is_non_fatal(monkeypatch) -> None:
+    monkeypatch.setattr(cc, "fetch_csl", lambda base, pid: {"title": "X", "issued": {"date-parts": [[2020]]}})
+
+    def fake_get(url):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr(cc, "_get_json", fake_get)
+    n1, m1 = _panel_mark("1", "c1", pos=0)
+    doc = _PanelDoc({n1: m1})
+    entries = cc.list_document_citations(doc, "http://x")
+    assert entries[0]["retraction_label"] is None
+
+
+def test_list_document_citations_empty_document() -> None:
+    doc = _PanelDoc({})
+    assert cc.list_document_citations(doc, "http://x") == []
+
+
 # ── Phase 5c (backlog #33/#34): csl_record_row -- formatting an EXISTING citation's CSL record for the
 # composer's Edit-Citation pre-population (as opposed to build_search_rows, which formats a /papers?q= hit) ──
 

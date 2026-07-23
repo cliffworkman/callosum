@@ -1043,6 +1043,35 @@ def spike_document_diagnostics(ctx, base, p1, p2):
     log("spike (phase 9): OK — citations without a bibliography yet are reported as not_built")
 
 
+def spike_list_document_citations(ctx, base, p1, p2):
+    """P1 item #12 (backlog #33/#34): `list_document_citations` is read-only, so this spike proves it against a
+    real document — real ReferenceMarks, real document-order comparison, real `fetch_csl` + retraction calls —
+    the parts a CPython-side fake (tests/test_libreoffice_adapter.py) can't fully exercise."""
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("Claim one AAA. Claim two BBB. Claim three CCC.\n")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("AAA")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("BBB")))
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("CCC")))  # p1 cited again
+
+    entries = cc.list_document_citations(doc, base)
+    check(len(entries) == 2, f"expected 2 unique cited works, got {len(entries)}: {entries}")
+    check(entries[0]["paper_id"] == p1, f"expected paper {p1} first (document order), got {entries[0]}")
+    check(entries[0]["count"] == 2, f"expected paper {p1} cited twice, got count={entries[0]['count']}")
+    check(entries[1]["paper_id"] == p2, f"expected paper {p2} second, got {entries[1]}")
+    check("Vaswani" in entries[0]["row"], f"expected Vaswani in row, got {entries[0]['row']!r}")
+    check(not entries[0]["orphaned"] and not entries[1]["orphaned"], "neither cited paper should be orphaned")
+    check(entries[0]["retraction_label"] is None, f"a fresh seeded paper shouldn't be flagged retracted: {entries[0]}")
+    check(entries[0]["mark"] is not None, "first entry's mark handle should be the actual ReferenceMark")
+    log(f"spike (P1 #12): OK — list_document_citations = {[(e['paper_id'], e['count']) for e in entries]}")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -1201,6 +1230,9 @@ def main():
 
         # 18) Backlog #30: save-then-cite a beyond-library candidate, against the real local server.
         spike_save_beyond_library_item_and_cite(ctx, base)
+
+        # 19) P1 item #12 (backlog #33/#34): the "Citations in this document" panel's read-only data source.
+        spike_list_document_citations(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)
         return 0

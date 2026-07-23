@@ -1446,6 +1446,90 @@ def document_diagnostics_interactive(doc, base: str) -> None:
     _msgbox("\n\n".join(lines) if lines else "No issues found.", title="callosum — document diagnostics")
 
 
+_RETRACTION_LABEL = {"retracted": "RETRACTED", "correction": "CORRECTION", "concern": "EXPRESSION OF CONCERN"}
+
+
+def _paper_id_from_item(item: dict) -> str | None:
+    """The ``"callosum-{paper_id}"`` item-id idiom, in one place (P1 item #12, backlog #33/#34) — new call
+    sites should use this rather than copy-pasting the strip-the-prefix idiom a 4th time."""
+    item_id = str(item.get("id") or "")
+    return item_id[len("callosum-") :] if item_id.startswith("callosum-") else None
+
+
+def list_document_citations(doc, base: str) -> list[dict]:
+    """Read-only rollup of every unique cited work in the document, in first-occurrence order (P1 item #12,
+    backlog #33/#34 — the "Citations in this document" panel's data source). Never mutates.
+
+    For each unique paper_id: a rendered ``Author Year — Title`` row (`csl_record_row`), the occurrence count
+    (a paper cited 3 times counts once here, count=3), whether it's orphaned (no longer in the library — reuses
+    `fetch_csl`'s existing raise-on-missing contract, the same signal `diagnose_document` already uses),
+    retraction status (one call per unique paper_id to the already-audited, read-only
+    ``GET /papers/{id}/retraction`` — no new endpoint), and the FIRST occurrence's mark (for navigate-to).
+
+    Returns ``[{"paper_id", "row", "count", "orphaned", "retraction_label", "mark"}, ...]``.
+    """
+    seen: dict[str, dict] = {}
+    order: list[str] = []
+    for field in scan_citations_in_order(doc):
+        for item in field["items"]:
+            paper_id = _paper_id_from_item(item)
+            if paper_id is None:
+                continue
+            if paper_id not in seen:
+                seen[paper_id] = {"paper_id": paper_id, "count": 0, "mark": field["_mark"]}
+                order.append(paper_id)
+            seen[paper_id]["count"] += 1
+
+    results = []
+    for paper_id in order:
+        entry = seen[paper_id]
+        try:
+            record = fetch_csl(base, paper_id)
+            row = csl_record_row(record)
+            orphaned = False
+        except ValueError:
+            row = f"(missing from library — paper {paper_id})"
+            orphaned = True
+        retraction_label = None
+        if not orphaned:
+            try:
+                status = _get_json(f"{base}/papers/{paper_id}/retraction").get("status")
+                retraction_label = _RETRACTION_LABEL.get(status)
+            except Exception:
+                retraction_label = None  # never let a retraction-lookup hiccup break the whole panel
+        results.append(
+            {
+                "paper_id": paper_id,
+                "row": row,
+                "count": entry["count"],
+                "orphaned": orphaned,
+                "retraction_label": retraction_label,
+                "mark": entry["mark"],
+            }
+        )
+    return results
+
+
+def citations_panel_interactive(doc, base: str) -> None:
+    """Open the "Citations in this document" panel (P1 item #12, backlog #33/#34): every unique cited work,
+    occurrence count, missing/orphaned + retraction flags, and click-to-navigate. A snapshot at open time —
+    reopen after editing to refresh (the always-open/live-refreshing version is a later, deliberately deferred
+    phase; see `citations_panel.py`'s own docstring for why)."""
+    entries = list_document_citations(doc, base)
+    if not entries:
+        _msgbox("No callosum citations in this document yet.", title="callosum — citations in this document")
+        return
+    import os
+    import sys
+
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import citations_panel
+
+    mark = citations_panel.run_citations_panel(entries)
+    if mark is not None:
+        doc.getCurrentController().select(mark.getAnchor())
+
+
 # Action registry — the single source of truth for what each Callosum command does. Keyed by the action name the
 # .oxt Addons.xcu menu/toolbar dispatches (`service:com.callosum.cite.Dispatcher?<action>`). Each value takes
 # (doc, base); flatten/setServerUrl ignore base. `add_citation_by_search` (search-to-cite) is added in SP2.
@@ -1470,6 +1554,7 @@ _ACTIONS = {
     "toggleBibAuto": toggle_bib_auto_interactive,
     "diagnostics": document_diagnostics_interactive,
     "editCitation": edit_citation_interactive,
+    "citationsPanel": citations_panel_interactive,
 }
 
 
@@ -1562,6 +1647,10 @@ def CallosumEditCitation(*_args):
     _macro("editCitation")
 
 
+def CallosumCitationsPanel(*_args):
+    _macro("citationsPanel")
+
+
 g_exportedScripts = (
     CallosumAddCitation,
     CallosumInsertCitation,
@@ -1581,4 +1670,5 @@ g_exportedScripts = (
     CallosumPrepareSubmissionCopy,
     CallosumDiagnostics,
     CallosumEditCitation,
+    CallosumCitationsPanel,
 )

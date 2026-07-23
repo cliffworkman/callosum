@@ -98,13 +98,17 @@ message if it isn't):
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
+17. **Citations in this document…** — a read-only overview of every unique work you've cited: how many times,
+    whether it's still in your library, and its retraction/correction status, with a live filter box and a "Go
+    to" button that jumps you to its first occurrence. A snapshot at the moment you open it — reopen after
+    editing to refresh.
 
 (The macro names behind these — `CallosumAddCitation`, `CallosumSuggestCitations`, `CallosumRefresh`,
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
 `CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
-`CallosumInsertBibliographyHere`, `CallosumToggleBibAuto`, `CallosumDiagnostics` — are also runnable from the
-Python macro dialog if you installed by hand.)
+`CallosumInsertBibliographyHere`, `CallosumToggleBibAuto`, `CallosumDiagnostics`, `CallosumCitationsPanel` — are
+also runnable from the Python macro dialog if you installed by hand.)
 
 The bibliography is a **bounded** managed block (a start/end bookmark pair) — a refresh only ever rebuilds
 what's between those two bookmarks, so any of your own text placed after the bibliography is always preserved.

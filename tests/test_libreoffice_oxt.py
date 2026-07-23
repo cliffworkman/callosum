@@ -22,6 +22,7 @@ EXPECTED_ENTRIES = {
     "callosum_cite.py",
     "callosum_addon.py",
     "composer.py",
+    "citations_panel.py",
 }
 
 

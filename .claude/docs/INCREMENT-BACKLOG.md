@@ -225,12 +225,14 @@ the Principles + A-A gates before build.)*
   `verify_flatten_integrity`), transactional refresh + a document-diagnostics/repair command
   (`_transactional_apply` / `diagnose_document`), and the unified live-search citation composer with
   per-occurrence versioned metadata (`composer.py`, Phases 5a/5b/5c, incs 329–331) are all live in the code
-  today — confirmed by reading the actual implementation, not just the increment notes. **The one real gap
-  this uncovered:** the composer (Phases 5a/5b/5c) has **never been manually verified by a human** clicking
-  through it in real LibreOffice Writer — only the automated `run_roundtrip.py` real-UNO script has touched
-  it, flagged as the standing overdue item across incs 329/330/331/332's own "Next" sections. **Then P1
-  parity** (real CSL style manager, note/footnote styles, bibliography editing controls, a "citations in this
-  document" panel, refresh/performance controls, portability, journal abbreviations, keyboard/accessibility)
+  today — confirmed by reading the actual implementation, not just the increment notes. **The composer's
+  manual-verification debt is now closed (2026-07-23):** Cliff hand-tested Phases 5a/5b/5c live in Writer —
+  "a great start!" **Then P1 parity started (inc 344, 2026-07-23):** item #12, the "Citations in this
+  document" panel, shipped — a modal (not yet live-refreshing; see `citations_panel.py`'s own docstring for
+  why) list of every unique cited work with occurrence count, missing/orphaned + retraction status, live
+  filter, and click-to-navigate. **Needs Cliff's own manual click-through soon** (flagged explicitly, not left
+  to drift like the composer's did). Remaining P1 (real CSL style manager, note/footnote styles, bibliography
+  editing controls, refresh/performance controls, portability, journal abbreviations, keyboard/accessibility)
   **and P2 leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.

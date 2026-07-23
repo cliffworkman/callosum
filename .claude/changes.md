@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+## 2026-07-23 — LibreOffice adapter: "Citations in this document" panel (P1 item #12)
+
+- **Files:** `adapters/libreoffice/citations_panel.py` (new), `adapters/libreoffice/callosum_cite.py`,
+  `adapters/libreoffice/selftest_uno.py`, `adapters/libreoffice/oxt/{Addons.xcu,description.xml}`,
+  `adapters/libreoffice/README.md`, `tools/build_libreoffice_oxt.py`, `tests/test_libreoffice_adapter.py`,
+  `tests/test_libreoffice_oxt.py`.
+- **What:** a read-only panel listing every unique cited work in the document — occurrence count,
+  missing/orphaned status, retraction status, a live filter, and click-to-navigate — modeled on RefWorks' "My
+  Citations" view. Deliberately a **modal snapshot**, not a true always-open/live-refreshing panel: no dialog
+  in this codebase has ever been non-modal, and building one would need new, unproven UNO lifecycle plumbing
+  (an `XModifyListener`, a way to keep the window from being garbage-collected between the `.oxt` dispatcher's
+  stateless per-click invocations) — deferred explicitly, not silently dropped. Extension version 0.1.1 → 0.2.0.
+- **Why:** next pick after Cliff hand-verified the composer live in Writer ("a great start!") and asked what to
+  build next. Surfaced along the way: the `INCREMENT-BACKLOG.md` #33/#34 entry was stale, describing an
+  already-shipped P0 batch (incs 320–328) as still "active now" — corrected by reading the actual code rather
+  than trusting the backlog's own prose.
+- **Revert:** `git revert` this commit; `.oxt` rebuild via `python tools/build_libreoffice_oxt.py`.
+
 ## 2026-07-23 — Backlog #21: Tauri desktop-shell feasibility research + spike
 
 - **Files:** `.claude/docs/future-tracks/desktop-packaging-tauri.md` (new), `.claude/docs/future-tracks/README.md`.

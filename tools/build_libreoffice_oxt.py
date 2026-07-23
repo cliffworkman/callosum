@@ -2,11 +2,11 @@
 
 An `.oxt` is just a zip. We assemble it from the source under `adapters/libreoffice/oxt/` (description.xml,
 META-INF/manifest.xml, Addons.xcu) plus the macro/component files (`callosum_cite.py`, `callosum_addon.py`,
-`composer.py`) that also serve as the by-hand macro install — so there's a single source for both install
-routes. Pure stdlib (`zipfile`), so the backend can build it on demand to serve / install (no Node, no shell).
-Every sibling module `callosum_cite.py` imports at runtime (currently just `composer.py`) must be listed in
-ENTRIES below, or a packaged install (unlike the by-hand macro, which shares the same folder) 404s with
-"No module named '<name>'" the first time that code path runs.
+`composer.py`, `citations_panel.py`) that also serve as the by-hand macro install — so there's a single source
+for both install routes. Pure stdlib (`zipfile`), so the backend can build it on demand to serve / install (no
+Node, no shell). Every sibling module `callosum_cite.py` imports at runtime (currently `composer.py` and
+`citations_panel.py`) must be listed in ENTRIES below, or a packaged install (unlike the by-hand macro, which
+shares the same folder) 404s with "No module named '<name>'" the first time that code path runs.
 
     python tools/build_libreoffice_oxt.py        # → adapters/libreoffice/dist/callosum.oxt
 """
@@ -28,6 +28,7 @@ ENTRIES: list[tuple[str, Path]] = [
     ("callosum_cite.py", ADAPTER_DIR / "callosum_cite.py"),
     ("callosum_addon.py", ADAPTER_DIR / "callosum_addon.py"),
     ("composer.py", ADAPTER_DIR / "composer.py"),
+    ("citations_panel.py", ADAPTER_DIR / "citations_panel.py"),
 ]
 
 
