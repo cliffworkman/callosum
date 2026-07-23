@@ -167,6 +167,19 @@ pass; this layer adds depth without taxing the cases the principles already cove
 Same philosophy throughout: a **reflective pause, not a block**, and *propose the aligned alternative, don't
 just object*. A feature that cannot honor the values is a **finding about the feature** too.
 
+**Governance layer — `.claude/GOVERNANCE-COMMITMENTS.md` (founder/organizational, not product design).** Cliff's
+own signed, dated public precommitment on how the project is governed while it remains founder-led — founder
+accountability practices, the triggers for expanding governance beyond one person, and the composition/limits
+of a future external advisory body. It restates several PRINCIPLES/A-A themes (illumination not substitution,
+signal not verdict, provenance) but at the level of *how the founder holds himself accountable*, not *how a
+feature is designed*. **Narrower trigger than the two gates above — not a third mandatory read on ordinary
+gated edits.** Consult it when a change touches: founder/governance-authority structure itself; workplace power
+or surveillance dynamics (a PI/admin-facing feature, anything that could enable monitoring workers rather than
+coordinating work); external advisory-body composition or authority; or a decision under commercial/adoption
+pressure to weaken a stated commitment (§"Conflicts between mission and growth"). For an ordinary claim/signal/
+judgment feature, PRINCIPLES.md (+ A-A when novel) remains the whole gate — don't inflate this into a third
+ceremony step.
+
 ---
 
 ## Rule priority & exceptions
@@ -362,7 +375,9 @@ when at odds, **propose the aligned alternative** — design *what could be righ
 that can't honor the principles is a finding about the feature. For **novel / value-level / future-track**
 changes (where no principle directly fits), the gate also consults the deeper **values layer**
 (`.claude/APPROACH-AVOIDANCE.md`) — derive the check from the value, run its drift typology, and honor its
-veto-level boundaries; it is conditional, not a second mandatory read.
+veto-level boundaries; it is conditional, not a second mandatory read. For anything touching **founder/
+governance authority, workplace power or surveillance dynamics, or external advisory-body questions**, also
+consult `.claude/GOVERNANCE-COMMITMENTS.md` — narrower still, not a third mandatory read on ordinary edits.
 
 ### 10. QA coverage: read `.claude/QA-POLICY.md` before changing an end-user surface
 
@@ -646,6 +661,7 @@ before large design changes:
 |---|---|
 | `.claude/PRINCIPLES.md` | **The project charter — read before ANY claim/signal/judgment feature (rule #9 / Principles alignment gate): the 10 commitments, the THEORY contract, and four aligned-vs-misaligned worked examples. When at odds, propose the aligned alternative.** |
 | `.claude/APPROACH-AVOIDANCE.md` | **The value substrate *beneath* the charter — the deeper, *conditional* layer of the gate (consulted for novel / value-level / future-track changes only, not every gated edit): 8 approach values + standalone veto-level avoidance boundaries (no paywall circumvention / no reaching into other tools' stores / no accusation of individuals) + the confirmed/extended/emergent/divergent drift typology. Derive the check from the value when no principle directly applies.** |
+| `.claude/GOVERNANCE-COMMITMENTS.md` | **Cliff's signed, dated public precommitment on founder/organizational governance (not product design): founder-accountability practices, triggers for expanding governance beyond one person, and the composition/limits of a future external advisory body. Narrowest-trigger of the three gate documents — consult for founder-authority, workplace-power/surveillance, or advisory-body questions; not a third mandatory read on ordinary feature work.** |
 | `.claude/CREDIT-THE-LINEAGE.md` | **Values-layer cross-cutting principle (inbox-captured 2026-06-21): any tool that implements/operationalizes/is-built-on identifiable scholarly work must credit it *in-context* + offer the source paper(s) to the library (one-click), and credit a prior *tool* by citation + library-add, never by appropriating its name. Apply to every method-implementing feature; the retroactive credit-help backfill is in the backlog. Not yet wired as a hard rule-#9 gate trigger.** |
 | `.claude/DESIGN.md` | **Design dictionary — read before ANY CSS/inline-style change (rule #8): tokens, element recipes, fixed color/type semantics, consolidation worklist** |
 | `.claude/QA-POLICY.md` | **The QA contract — read before changing any end-user surface (rule #10): the fixture contract, the computed coverage gate (`tools/qa/build_surface_map.py`), the honesty-invariant assertions, the severity rubric, and the Codex-exec supervisor + watched-inbox loop. Add/extend a QA route in the same increment as a surface change.** |
@@ -696,7 +712,9 @@ When starting any non-trivial work:
    `.claude/PRINCIPLES.md`; name the principle(s) + the worked example it resembles + the misaligned easy
    path; when at odds, **propose the aligned alternative**, don't just object. For **novel / value-level /
    future-track** work, also consult the deeper values layer `.claude/APPROACH-AVOIDANCE.md` (derive from the
-   value; run its drift typology; honor its veto-level boundaries).
+   value; run its drift typology; honor its veto-level boundaries). For anything touching **founder/governance
+   authority, workplace power/surveillance, or advisory-body questions**, also consult
+   `.claude/GOVERNANCE-COMMITMENTS.md` — narrower still, not a routine read.
 9. **Check the future-tracks watched inbox** (Phase 8). Glance at `.claude/docs/future-tracks-import/`. It
    normally sits empty bar its `README.md` + the items the README's **Parked** list names — **anything else is
    unprocessed input a prior session or the user dropped in.** For each new file, **surface it to the user**
