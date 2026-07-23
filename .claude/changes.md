@@ -9,7 +9,21 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 356 — WIP interaction parity -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 357 — LibreOffice selected-citation refresh -->
+## 2026-07-23 — Increment 357: LibreOffice refresh citation at cursor (P1 item #13)
+
+- **Files:** LibreOffice adapter/menu/selftest/README/OXT version (0.6.0 → 0.7.0), adapter/OXT tests, root README,
+  served help, security audit, backlog/CLAUDE/increment notes.
+- **What:** **Refresh citation at cursor** renders the complete ordered citation set for citeproc correctness but
+  transactionally rewrites only the live citation containing the Writer caret. Other citations and the
+  bibliography remain untouched.
+- **State:** a targeted refresh never clears the document-wide citation-pending flag because no per-mark dirty
+  ledger can prove every other citation is current.
+- **Verify:** 73 targeted LibreOffice tests; real headless Writer **SELFTEST OK** with two stale citations proving
+  exact mark isolation, bibliography preservation, and honest pending state. Full-suite results are in the
+  increment note.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 ## 2026-07-23 — Increment 356: WIP context actions and tab reorder parity
 
 - **Files:** WIP card/browser, manuscript context-menu module, Library frame/App tab wiring, styles, frontend

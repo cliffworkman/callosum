@@ -57,7 +57,10 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
 3. **Refresh / renumber + bibliography** — re-render every citation and rebuild the bibliography (run after edits, or
    after moving citations — numeric styles renumber by position). For a large document, **Refresh citations
    only** leaves the bibliography untouched, while **Refresh bibliography only** leaves citation text untouched
-   and works even when automatic bibliography rebuilding is paused.
+   and works even when automatic bibliography rebuilding is paused. **Refresh citation at cursor** updates just
+   the live citation containing the caret. It still renders the full citation sequence for correct numbering,
+   but leaves every other citation and the bibliography untouched. A document-wide pending-citations warning
+   remains until you run a document-wide citation refresh.
 4. **Toggle automatic citation formatting** — switch to manual refresh mode for a large document. Citation
    inserts and edits remain structured live fields, but their visible text waits for **Refresh / renumber +
    bibliography** or **Refresh citations only**. New inserts visibly show `{citation}` while pending. Turning

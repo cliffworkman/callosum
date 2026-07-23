@@ -749,6 +749,7 @@ def refresh(
     *,
     update_citations: bool = True,
     update_bibliography: bool | None = None,
+    citation_names: set[str] | None = None,
 ) -> dict:
     """The live-field loop: scan → render-document → write back in-text + bibliography. Returns the response.
 
@@ -771,6 +772,10 @@ def refresh(
     When `update_bibliography` is None (the default), the existing document preference decides whether a passive
     refresh rebuilds it; an explicit True is the deliberate "Refresh bibliography only" command and therefore
     writes even while automatic rebuilding is paused.
+
+    `citation_names`, when provided, narrows citation write-back to those ReferenceMark names while the render
+    request still contains every citation. A targeted refresh deliberately does not clear the document-wide
+    citation-dirty flag: without per-mark dirty state, updating one citation cannot prove the others are current.
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
@@ -799,7 +804,7 @@ def refresh(
         )
         set_dirty_state(
             doc,
-            citations=False if update_citations else None,
+            citations=False if update_citations and citation_names is None else None,
             bibliography=False if write_bibliography else None,
         )
         return {"citations": [], "bibliography_text": ""}
@@ -811,7 +816,11 @@ def refresh(
     # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
     # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
     plan = (
-        [(field["_mark"].Name, rendered[field["citationID"]]) for field in fields if rendered.get(field["citationID"])]
+        [
+            (field["_mark"].Name, rendered[field["citationID"]])
+            for field in fields
+            if rendered.get(field["citationID"]) and (citation_names is None or field["_mark"].Name in citation_names)
+        ]
         if update_citations
         else []
     )
@@ -824,7 +833,7 @@ def refresh(
     )
     set_dirty_state(
         doc,
-        citations=False if update_citations else None,
+        citations=False if update_citations and citation_names is None else None,
         bibliography=False if write_bibliography else None,
     )
     return response
@@ -833,6 +842,20 @@ def refresh(
 def refresh_citations(doc, base: str = DEFAULT_BASE) -> dict:
     """Re-render citation marks only; leave the managed bibliography byte-for-byte untouched."""
     return refresh(doc, base, update_bibliography=False)
+
+
+def refresh_selected_citation(doc, base: str = DEFAULT_BASE) -> dict | None:
+    """Re-render only the citation at the Writer cursor, using full-document citeproc context."""
+    field = mark_at_cursor(doc)
+    if field is None:
+        _msgbox("Place your cursor inside a citation to refresh it.")
+        return None
+    return refresh(
+        doc,
+        base,
+        update_bibliography=False,
+        citation_names={field["_mark"].Name},
+    )
 
 
 def refresh_bibliography(doc, base: str = DEFAULT_BASE) -> dict:
@@ -1848,6 +1871,7 @@ _ACTIONS = {
     "suggest": suggest_and_insert,
     "refresh": refresh,
     "refreshCitations": refresh_citations,
+    "refreshSelectedCitation": refresh_selected_citation,
     "refreshBibliography": refresh_bibliography,
     "refreshPending": refresh_pending,
     "setStyle": set_style_interactive,
@@ -1905,6 +1929,10 @@ def CallosumRefresh(*_args):
 
 def CallosumRefreshCitations(*_args):
     _macro("refreshCitations")
+
+
+def CallosumRefreshSelectedCitation(*_args):
+    _macro("refreshSelectedCitation")
 
 
 def CallosumRefreshBibliography(*_args):
@@ -1981,6 +2009,7 @@ g_exportedScripts = (
     CallosumSuggestCitations,
     CallosumRefresh,
     CallosumRefreshCitations,
+    CallosumRefreshSelectedCitation,
     CallosumRefreshBibliography,
     CallosumSetStyle,
     CallosumFlatten,

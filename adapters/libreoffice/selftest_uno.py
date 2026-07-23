@@ -1170,6 +1170,51 @@ def spike_partial_refresh_controls(ctx, base, p1):
     log("spike (P1 #13): OK — each partial refresh changed only its requested surface")
 
 
+def spike_selected_citation_refresh(ctx, base, p1, p2):
+    """P1 item #13: cursor-scoped refresh renders full context but mutates only one citation mark."""
+    log("spike (P1 #13): refresh citation at cursor")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("First XXX0. Second XXX1.\n")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("XXX0")))
+    cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find_range("XXX1")))
+    fields = cc.scan_citations_in_order(doc)
+    first_name = fields[0]["_mark"].Name
+    second_name = fields[1]["_mark"].Name
+    cc._replace_mark_text(doc, doc.getReferenceMarks().getByName(first_name), "STALE FIRST")
+    cc._replace_mark_text(doc, doc.getReferenceMarks().getByName(second_name), "STALE SECOND")
+    cc.set_dirty_state(doc, citations=True)
+    bibliography_before = text.getString().split(cc.BIB_HEADING, 1)[-1]
+
+    view_cursor = doc.getCurrentController().getViewCursor()
+    view_cursor.gotoRange(doc.getReferenceMarks().getByName(first_name).getAnchor().getStart(), False)
+    cc.refresh_selected_citation(doc, base)
+
+    check(
+        doc.getReferenceMarks().getByName(first_name).getAnchor().getString() != "STALE FIRST",
+        "cursor-scoped refresh did not update the selected citation",
+    )
+    check(
+        doc.getReferenceMarks().getByName(second_name).getAnchor().getString() == "STALE SECOND",
+        "cursor-scoped refresh unexpectedly changed another citation",
+    )
+    check(
+        text.getString().split(cc.BIB_HEADING, 1)[-1] == bibliography_before,
+        "cursor-scoped refresh unexpectedly changed the bibliography",
+    )
+    check(
+        cc.dirty_state(doc) == (True, False),
+        "cursor-scoped refresh falsely cleared the document-wide citation-pending state",
+    )
+    log("spike (P1 #13): OK — only the cursor citation changed; global pending state stayed honest")
+
+
 def spike_manual_refresh_mode(ctx, base, p1, p2):
     """P1 item #13: citation formatting and bibliography rebuilding can be paused independently.
 
@@ -1430,7 +1475,10 @@ def main():
         # 21) P1 item #13: explicit partial refreshes for large documents.
         spike_partial_refresh_controls(ctx, base, p1)
 
-        # 22) P1 item #13: independent automatic citation-formatting / bibliography modes.
+        # 22) P1 item #13: cursor-scoped refresh with full-document citeproc context.
+        spike_selected_citation_refresh(ctx, base, p1, p2)
+
+        # 23) P1 item #13: independent automatic citation-formatting / bibliography modes.
         spike_manual_refresh_mode(ctx, base, p1, p2)
 
         print("SELFTEST OK", flush=True)

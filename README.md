@@ -134,7 +134,8 @@ Callosum can place live, formatted citations directly in **LibreOffice Writer**,
 suffixes, edit an existing citation without starting over, and suggest citations for the sentence you're writing
 (optionally reaching beyond your library too). In LibreOffice, large-document controls can pause automatic
 citation formatting and bibliography rebuilding independently, with a persistent pending-refresh bar when either
-surface is stale. See `adapters/`'s per-tool READMEs for setup.
+surface is stale, and can refresh only the citation at the Writer cursor without touching other citations or the
+bibliography. See `adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 

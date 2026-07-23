@@ -8,6 +8,8 @@ not collected here). The adapter module imports no `uno` at top level, so it loa
 
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import pytest
 
 from adapters.libreoffice import callosum_cite as cc
@@ -199,6 +201,40 @@ def test_partial_refresh_wrappers_select_only_the_requested_surface(monkeypatch)
         (doc, "http://x", {"update_bibliography": False}),
         (doc, "http://x", {"update_citations": False, "update_bibliography": True}),
     ]
+
+
+def test_refresh_selected_citation_targets_only_mark_at_cursor(monkeypatch) -> None:
+    calls = []
+    field = {"_mark": SimpleNamespace(Name="CALLOSUM_CITATION target")}
+    monkeypatch.setattr(cc, "mark_at_cursor", lambda doc: field)
+    monkeypatch.setattr(
+        cc,
+        "refresh",
+        lambda doc, base, **kwargs: calls.append((doc, base, kwargs)) or {"ok": True},
+    )
+    doc = object()
+
+    assert cc.refresh_selected_citation(doc, "http://x") == {"ok": True}
+    assert calls == [
+        (
+            doc,
+            "http://x",
+            {
+                "update_bibliography": False,
+                "citation_names": {"CALLOSUM_CITATION target"},
+            },
+        )
+    ]
+
+
+def test_refresh_selected_citation_requires_cursor_inside_mark(monkeypatch) -> None:
+    messages = []
+    monkeypatch.setattr(cc, "mark_at_cursor", lambda doc: None)
+    monkeypatch.setattr(cc, "_msgbox", messages.append)
+    monkeypatch.setattr(cc, "refresh", lambda *args, **kwargs: pytest.fail("refresh should not run"))
+
+    assert cc.refresh_selected_citation(object(), "http://x") is None
+    assert messages == ["Place your cursor inside a citation to refresh it."]
 
 
 @pytest.mark.parametrize(
