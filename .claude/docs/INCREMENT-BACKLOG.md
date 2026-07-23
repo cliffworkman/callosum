@@ -257,10 +257,12 @@ the Principles + A-A gates before build.)*
   collaborators (LLM narration over graph data only). Not started.
 - **#36 Meta-analysis — the assisted-extraction funnel's next escalations.** The consumer-side reporting auditor,
   the effect-size converter, the extraction workspace (grid + select-in-PDF capture), the dataset loop + exports,
-  and the AI-proposes/human-filters funnel are all shipped (SP1/SP2a/SP2b, incs 249–259). Next: **(1)** a batch
-  "Draft all un-filled rows" (same per-cell verify gate on every candidate — never a bulk auto-accept); **(2)**
-  retrieval-narrowed text (embed the field labels → send only the top-k relevant chunks, cheaper + more accurate
-  than the current 50k-char head). **Far future, its own workspace:** screening/PRISMA, double-coding/IRR
+  and the AI-proposes/human-filters funnel are all shipped (SP1/SP2a/SP2b, incs 249–259). **Batch "Draft all
+  un-filled rows" shipped inc 347 (2026-07-23):** sequentially proposes across eligible paper-linked rows, skips
+  rows with existing candidates, shows determinate progress, continues past named row failures, and never
+  bulk-accepts — every candidate keeps the same per-cell verify gate. **Still next:** retrieval-narrowed text
+  (embed the field labels → send only the top-k relevant chunks, cheaper + more accurate than the current
+  50k-char head). **Far future, its own workspace:** screening/PRISMA, double-coding/IRR
   (human-only — the track's no-independent-coder veto holds), RoB instruments, figure extraction (point at
   WebPlotDigitizer, don't build it).
 - **#37 Equity & integrity signals — remaining.** The overlooked-work lens shipped (inc 279) and its

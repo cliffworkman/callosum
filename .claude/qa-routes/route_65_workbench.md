@@ -61,6 +61,10 @@ in QA. Register listeners before navigation.
   value. It renders as an **amber** card and **never** appears in a cell's trusted value, in `Convert`/`Convert all`,
   or in ANY export (CSV / metafor / RevMan / provenance) until a human **accepts** it. A proposed value showing up in
   a pre-accept export is a Critical fact/candidate breach.
+- **Batch draft is batch-propose only (Critical if violated).** **Draft all un-filled rows** sequentially invokes
+  the same per-row proposal path for eligible paper-linked rows. It never accepts a candidate, never replaces a
+  row's existing live candidates, shows determinate row progress, and continues past a row-level failure with a
+  named partial-failure summary. Existing candidates remain awaiting the same individual accept/edit/reject choice.
 - **Every candidate carries its evidence (High if violated — invariant #4).** Each candidate shows its **verbatim
   quote** inline (the passage the value was read from) + an **anchor badge** (exact / region / couldn't-verify) — the
   human vets it without trusting the model. No candidate is shown as a bare number.
@@ -92,6 +96,11 @@ in QA. Register listeners before navigation.
 - **funnel — evidence shown:** every candidate shows its verbatim quote inline + an exact/region/couldn't-verify badge (never a bare number)
 - **funnel — coordinate honesty:** **Open at anchor** on an `exact` candidate draws a rect; on a `region`/`unanchored` candidate it opens the page with **no** rect; **edit** a candidate's number then accept → the stored anchor is region (no exact box on the changed number)
 - **funnel — accept/reject:** accept one candidate → it becomes the cell's value with `origin='assisted'` (visible in the provenance export); reject one → it disappears and nothing is written; malformed/empty model output → 0 candidates, clean 200, no crash
+- **funnel — batch propose:** with a mix of eligible rows, a row already holding candidates, a fully-filled row,
+  an unlinked row, and one paper whose draft request fails, **Draft all un-filled rows** calls only the eligible
+  rows without candidates, one at a time; determinate progress reaches N/N; successful rows show amber candidates;
+  the existing candidates are unchanged; the failed row is named in the summary; no cell value changes and no
+  accept endpoint is called
 
 ## Steps
 
@@ -135,7 +144,11 @@ in QA. Register listeners before navigation.
    opens the page with no rect (invariant #2). **Accept** one (-> it becomes the cell value, `origin='assisted'` in the
    provenance export), **edit** one's number then accept (-> stored anchor drops to region, no exact box), **reject**
    one (-> gone, nothing written). Then **turn AI off** and confirm **Draft from PDF** is disabled with an honest
-   tooltip and a forced propose returns 403 with **0 genai-host requests**.
+   tooltip and a forced propose returns 403 with **0 genai-host requests**. Add several paper-linked blank rows,
+   leaving accepted values in one and live candidates in another, then click **Draft all un-filled rows**. Confirm
+   determinate row progress; only eligible rows without existing candidates are drafted; the live candidates are
+   not replaced; each new proposal still waits for an individual accept/edit/reject; one forced row failure is
+   named without stopping later rows. With AI off, the batch control is disabled too.
 13. **Effect-size calculator subsection.** Scroll to it (present in both the project picker and inside an open
    project). Pick a family (e.g. **SMD -> Hedges' g**, method **group means + SDs**), fill the fields, **Convert**
    -> a result renders (metric = value, variance/SE, 95% CI, the derivation path, any caveats) + a **copy value +
@@ -160,7 +173,9 @@ in QA. Register listeners before navigation.
   their verbatim quote + an honest exact/region/couldn't-verify anchor badge; they enter the dataset (cell value /
   Convert / any export) **only** on a human **accept**, with precision derived from the local anchor (never the model's
   claim) and `origin='assisted'` in the provenance. **Draft from PDF** is egress-gated (disabled + 403 with AI off, no
-  genai-host request); a fully-filled row makes no provider call. No opaque score is shown on a candidate.
+  genai-host request); a fully-filled row makes no provider call. **Draft all un-filled rows** is sequential,
+  progress-visible, partial-failure-tolerant batch-propose only — it skips existing candidates and never bulk-accepts.
+  No opaque score is shown on a candidate.
 
 ## Deposit
 

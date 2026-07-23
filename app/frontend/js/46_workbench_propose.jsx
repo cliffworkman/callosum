@@ -4,11 +4,13 @@
 // candidate NEVER enters the trusted cell until the human clicks ✓ — facts ≠ candidates (PRINCIPLES).
 
 // The per-row "Draft from PDF →" control: only rendered inside the paper_id != null branch in 45_workbench.jsx.
-function WbDraftButton({ row, aiReady, busy, onDraft }) {
+function WbDraftButton({ row, aiReady, busy, disabled, onDraft }) {
   return (
-    <button className="wb-draft" disabled={!aiReady || busy}
-      title={aiReady
-        ? "Ask the AI to propose values from this paper's PDF — you verify each one before it's saved"
+    <button className="wb-draft" disabled={!aiReady || busy || disabled}
+      title={disabled
+        ? "Another drafting request is in progress"
+        : aiReady
+          ? "Ask the AI to propose values from this paper's PDF — you verify each one before it's saved"
         : "Turn on \"Allow AI features\" in Settings to let the AI draft values from this paper's PDF"}
       onClick={onDraft}>{busy ? "Drafting…" : "✨ Draft from PDF →"}</button>
   );

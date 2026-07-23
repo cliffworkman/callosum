@@ -59,6 +59,20 @@ def test_every_js_chunk_is_included():
         assert text in raw, f"{chunk.name} is missing from the assembled frontend"
 
 
+def test_workbench_batch_drafting_preserves_candidate_review_gate():
+    src = (FRONTEND_DIR / "js" / "45_workbench.jsx").read_text(encoding="utf-8")
+    css = (FRONTEND_DIR / "styles.css").read_text(encoding="utf-8")
+    assert "function workbenchDraftableRows(project)" in src
+    assert "!(row.proposals || []).length" in src  # never replace candidates already awaiting review
+    assert "Draft all un-filled rows →" in src
+    assert 'label: "Drafting rows"' in src and "draftBatch.current" in src
+    batch_body = src.split("const draftAll = async () => {", 1)[1].split("const acceptProposal", 1)[0]
+    assert "for (let i = 0; i < targets.length; i += 1)" in batch_body
+    assert "await requestDraft(row)" in batch_body  # sequential, bounded provider load
+    assert "/accept" not in batch_body  # batching proposes only; every candidate still needs an individual choice
+    assert ".wb-gridwrap { overflow-x: auto; flex: 0 0 auto; }" in css  # table stays visible in the mobile flex pane
+
+
 def test_workspace_menubar_structure_present():
     raw = assemble_jsx()
     # The registry + menu bar + workspace pane are wired (inc 280).

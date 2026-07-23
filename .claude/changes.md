@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 346 — LibreOffice partial refresh commands + bibliography-panel drift fix -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 347 — Workbench batch drafting + candidate-review invariants -->
+## 2026-07-23 — Increment 347: Workbench "Draft all un-filled rows" (backlog #36)
+
+- **Files:** `app/frontend/js/45_workbench.jsx`, `46_workbench_propose.jsx`, `styles.css`,
+  `callosum-app.html`, `tests/test_frontend_assembly.py`, route 65, served help, backlog/CLAUDE/increment notes.
+- **What:** added a project-level **Draft all un-filled rows** action that composes the existing per-row
+  candidate endpoint sequentially. Eligibility is conservative: paper-linked, at least one empty structured
+  cell, and no existing live candidates (so a batch never replaces work awaiting review). It shows determinate
+  row progress, continues past failures, names failed rows, reports candidate coverage, and has no accept path
+  at all — every amber candidate still requires its own accept/edit/reject choice. The headed experience pass
+  also found and fixed a pre-existing mobile bug: `.wb-gridwrap` shrank to 0px in the flex pane and clipped the
+  whole table; it is now a non-shrinking internal horizontal scroller.
+- **Why:** closes the first of backlog #36's two remaining near-term assisted-extraction improvements while
+  preserving the funnel's load-bearing "AI proposes, human filters" boundary.
+- **Verify:** targeted frontend tests + QA surface map; headed seeded-fixture passes at 1440px/375px (including an
+  intercepted provider partial-failure run: existing candidate skipped, call concurrency 1, later row continued,
+  trusted cells empty, zero accept requests); full gate in `INCREMENT-347-NOTES.md`.
+- **Revert:** `git revert` this commit; rebuild `callosum-app.html` via `python tools/build_frontend.py`.
+
 ## 2026-07-23 — Increment 346: LibreOffice independent citation/bibliography refresh (P1 item #13)
 
 - **Files:** `adapters/libreoffice/callosum_cite.py`, `selftest_uno.py`, `oxt/Addons.xcu`,

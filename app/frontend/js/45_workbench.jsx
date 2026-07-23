@@ -10,6 +10,19 @@ const WB_DESIGNS = [
   { key: "correlation", label: "Correlation (→ Fisher's z)" },
 ];
 
+// Batch drafting never replaces candidates already waiting for review. It only selects paper-linked rows with
+// at least one genuinely empty structured cell; free-text moderator/notes columns remain human-entered.
+function workbenchDraftableRows(project) {
+  const structured = (project.template || []).filter(f => f.type === "number" || f.type === "choice");
+  return (project.rows || []).filter(row =>
+    row.paper_id != null &&
+    !(row.proposals || []).length &&
+    structured.some(f => {
+      const value = (row.cells[f.key] || {}).value;
+      return value == null || !String(value).trim();
+    }));
+}
+
 function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureApplied }) {
   const [projects, setProjects] = useState([]);
   const [project, setProject] = useState(null); // the full view, or null on the picker
@@ -22,10 +35,12 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   const [convMsg, setConvMsg] = useState(""); // transient "Converted k of N" summary after Convert-all
   const [aiStatus, setAiStatus] = useState(null); // GET /settings — gates the Draft button
   const [aiErr, setAiErr] = useState("");
+  const [draftMsg, setDraftMsg] = useState("");
   const [draftingRow, setDraftingRow] = useState(null);
+  const [draftBatch, setDraftBatch] = useState(null); // {current,total}; sequential to bound provider load
 
   const loadProjects = async () => { const r = await api("/workbench/projects"); if (r.ok) setProjects(r.data); };
-  const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setAiErr(""); setProject(r.data); } };
+  const openProject = async (id) => { const r = await api("/workbench/projects/" + id); if (r.ok) { setConvMsg(""); setAiErr(""); setDraftMsg(""); setProject(r.data); } };
 
   useEffect(() => { if (active && !project) loadProjects(); }, [active]);
   // AI readiness for the "Draft from PDF" funnel (the existing AI-surface pattern — 20_synthesis.jsx). A cloud
@@ -92,22 +107,61 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
 
   const aiReady = !!aiStatus && (aiStatus.provider === "local" || (aiStatus.data_egress_enabled && aiStatus.api_key_set));
 
-  // Draft candidates for a row's empty structured cells (one blocking egress-gated call). The proposals ride back on
-  // the row; nothing enters a trusted cell until the human accepts (facts ≠ candidates).
-  const draftRow = async (row) => {
-    setAiErr(""); setDraftingRow(row.id);
+  // One shared request primitive for single + batch drafting. It only stores candidates on the row; nothing enters a
+  // trusted cell until the human accepts (facts ≠ candidates).
+  const requestDraft = async (row) => {
     const r = await apiPost(`/workbench/rows/${row.id}/propose`, {});
-    setDraftingRow(null);
-    if (!r.ok) { setAiErr(r.error || "Couldn't draft from the PDF."); return; }
+    if (!r.ok) return { ok: false, error: r.error || "Couldn't draft from the PDF." };
     const props = r.data.proposals || [];
-    setProject(p => ({ ...p, rows: p.rows.map(x => x.id === row.id ? { ...x, proposals: props } : x) }));
-    if (!props.length) setAiErr("No empty structured cells to draft — clear or add a cell first.");
-    else if (r.data.truncated) setAiErr("Note: this PDF is long, so only its first part was sent to the AI.");
+    setProject(p => p ? ({ ...p, rows: p.rows.map(x => x.id === row.id ? { ...x, proposals: props } : x) }) : p);
+    return { ok: true, count: props.length, truncated: !!r.data.truncated };
+  };
+  const draftRow = async (row) => {
+    setAiErr(""); setDraftMsg(""); setDraftingRow(row.id);
+    const result = await requestDraft(row);
+    setDraftingRow(null);
+    if (!result.ok) { setAiErr(result.error); return; }
+    if (!result.count) setAiErr("No empty structured cells to draft — clear or add a cell first.");
+    else if (result.truncated) setAiErr("Note: this PDF is long, so only its first part was sent to the AI.");
+  };
+  const draftAll = async () => {
+    const targets = workbenchDraftableRows(project);
+    if (!targets.length) return;
+    setAiErr(""); setDraftMsg(""); setDraftBatch({ current: 0, total: targets.length });
+    let candidates = 0;
+    let rowsWithCandidates = 0;
+    let truncated = 0;
+    const failures = [];
+    for (let i = 0; i < targets.length; i += 1) {
+      const row = targets[i];
+      setDraftingRow(row.id);
+      const result = await requestDraft(row);
+      if (result.ok) {
+        candidates += result.count;
+        if (result.count) rowsWithCandidates += 1;
+        if (result.truncated) truncated += 1;
+      } else {
+        failures.push(row.paper_title || row.label || `Row ${i + 1}`);
+      }
+      setDraftBatch({ current: i + 1, total: targets.length });
+    }
+    setDraftingRow(null); setDraftBatch(null);
+    setDraftMsg(
+      `Drafted ${candidates} candidate${candidates === 1 ? "" : "s"} across ${rowsWithCandidates} of ` +
+      `${targets.length} row${targets.length === 1 ? "" : "s"}. Review and accept or reject each candidate individually.`);
+    const notes = [];
+    if (truncated) notes.push(`${truncated} long PDF${truncated === 1 ? " was" : "s were"} truncated.`);
+    if (failures.length) {
+      const names = failures.slice(0, 4).join(", ");
+      notes.push(`${failures.length} row${failures.length === 1 ? "" : "s"} couldn't be drafted: ${names}` +
+        (failures.length > 4 ? ` +${failures.length - 4} more.` : "."));
+    }
+    if (notes.length) setAiErr(notes.join(" "));
   };
   const acceptProposal = async (proposal, value) => {
     const r = await apiPost(`/workbench/proposals/${proposal.id}/accept`, value === undefined ? {} : { value });
     if (!r.ok) { setAiErr(r.error || "Couldn't accept the candidate."); return; }
-    setConvMsg(""); setProject(r.data);
+    setConvMsg(""); setDraftMsg(""); setProject(r.data);
     // Honest note when editing dropped an exact-passage anchor to region (invariant #2): the highlight marked the
     // ORIGINAL number, so a value you changed can't keep claiming it. Only fires when it actually downgraded.
     setAiErr(value !== undefined && proposal.anchor_state === "exact"
@@ -116,7 +170,7 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   };
   const rejectProposal = async (proposal) => {
     const r = await apiPost(`/workbench/proposals/${proposal.id}/reject`, {});
-    if (r.ok) setProject(r.data); else setAiErr(r.error || "Couldn't reject the candidate.");
+    if (r.ok) { setDraftMsg(""); setProject(r.data); } else setAiErr(r.error || "Couldn't reject the candidate.");
   };
   // Verify a candidate against the source BEFORE accepting (invariant #2): exact draws the rect; region scrolls to
   // the located page with an approximate-location note; unanchored — the quote was NOT found, so the model's page is
@@ -230,14 +284,26 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
   // --- render: a project ----------------------------------------------------------------------------------------
   const fields = project.template;
   const convertedCount = project.rows.filter(r => r.converted).length;
+  const draftableCount = workbenchDraftableRows(project).length;
   const exportUrl = (fmt) => `/workbench/projects/${project.id}/export?format=${fmt}`;
   return (
     <div className="wb-pane">
       <div className="wb-head">
-        <button className="btn-link" onClick={() => { setProject(null); loadProjects(); }}>← Projects</button>
+        <button className="btn-link" disabled={!!draftBatch || draftingRow != null}
+          onClick={() => { setProject(null); loadProjects(); }}>← Projects</button>
         <input className="wb-name" defaultValue={project.name} key={"name" + project.id}
           onBlur={e => e.target.value.trim() && apiPatch("/workbench/projects/" + project.id, { name: e.target.value.trim() })} />
         <span className="wb-meta">{project.design.replace(/_/g, " ")}</span>
+        {project.rows.length > 0 &&
+          <button className="btn-link" disabled={!aiReady || !!draftBatch || draftingRow != null || !draftableCount}
+            title={!aiReady
+              ? "Turn on Allow AI features in Settings to draft candidates from linked PDFs"
+              : draftableCount
+                ? `Draft empty structured cells in ${draftableCount} linked row${draftableCount === 1 ? "" : "s"}; existing candidates are skipped`
+                : "No eligible rows: link a paper, leave a structured cell empty, and review any existing candidates first"}
+            onClick={draftAll}>
+            {draftBatch ? `Drafting ${draftBatch.current} / ${draftBatch.total}…` : "Draft all un-filled rows →"}
+          </button>}
         {project.rows.length > 0 &&
           <button className="btn-link" title="Convert every row that has valid inputs" onClick={convertAll}>Convert all →</button>}
         {project.rows.length > 0 &&
@@ -257,8 +323,11 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
         key={"proto" + project.id} onBlur={e => apiPatch("/workbench/projects/" + project.id, { protocol_note: e.target.value })} />
       {convMsg && <div className="wb-note">{convMsg}</div>}
       {err && <div className="axis-err">{err}</div>}
+      {draftMsg && <div className="wb-note">{draftMsg}</div>}
       {aiErr && <div className="wb-note wb-ai-note">{aiErr}</div>}
-      {draftingRow && <ProgressBar />}
+      {draftBatch
+        ? <ProgressBar progress={{ label: "Drafting rows", current: draftBatch.current, total: draftBatch.total }} />
+        : draftingRow && <ProgressBar label="Drafting candidate values…" />}
 
       <div className="wb-gridwrap">
         <table className="wb-grid">
@@ -277,7 +346,9 @@ function WorkbenchPane({ active, onOpenPdf, capture, onArmCapture, onCaptureAppl
                   {row.paper_id != null
                     ? <div className="wb-src-linked">
                         <button className="btn-link" title="Open the PDF" onClick={() => onOpenPdf({ id: row.paper_id, title: row.paper_title })}>{row.paper_title || ("Paper " + row.paper_id)}</button>
-                        <WbDraftButton row={row} aiReady={aiReady} busy={draftingRow === row.id} onDraft={() => draftRow(row)} />
+                        <WbDraftButton row={row} aiReady={aiReady} busy={draftingRow === row.id}
+                          disabled={!!draftBatch || (draftingRow != null && draftingRow !== row.id)}
+                          onDraft={() => draftRow(row)} />
                       </div>
                     : <input className="wb-label" defaultValue={row.label || ""} placeholder="(label)" key={"lbl" + row.id}
                         onBlur={e => apiPatch("/workbench/rows/" + row.id, { label: e.target.value })} />}
