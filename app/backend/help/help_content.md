@@ -1254,6 +1254,12 @@ explicitly: Callosum preserves the manuscript's identity, workflow, Library link
 matching root-relative file identities. It refuses a folder that already belongs to another WIP instead of
 guessing which records to merge.
 
+WIP search includes titles, manuscript types, target journals, and notes. Its own facets cover stage, workspace
+state, manuscript type, journal, deadline, recent filesystem activity, open tasks, unresolved findings, stale
+checks, and an unavailable or unselected primary file. Sort by last modified, title, stage, deadline, creation,
+open tasks, or unresolved findings. These controls retain their state while you switch between Library and WIP;
+Library-only reference filters never appear in WIP.
+
 Double-click a WIP card to open its manuscript workspace:
 
 - **Overview** edits its display title, stage, type, target journal, deadline, and notes.

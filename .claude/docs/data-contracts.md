@@ -66,6 +66,12 @@ so an unchanged relative file keeps its `wip_files` identity. A target path alre
 a conflict, never an implicit merge. `GET /wip/papers/{paper_id}` is the reverse relationship projection used by
 Library Details; opening it hydrates the canonical manuscript record without changing the selected paper record.
 
+`GET /wip/manuscripts` projects `open_task_count`, `unresolved_finding_count`, `stale_check_count`, and
+`missing_primary_file` from workflow/provenance rows in the listing query. Open tasks exclude complete/cancelled;
+unresolved findings use the same open/acknowledged/deferred lifecycle as run validity; stale checks apply the exact
+snapshot-vs-current-primary identity rules. WIP-specific filters and count sorts operate on those projections and
+never reuse bibliographic Library facets.
+
 ## PDF Text And Coordinates
 
 `chunks` stores extracted text spans with `paper_id`, `attachment_id`, page range, optional character offsets, `bbox_json`, `bbox_coordinate_system`, extraction metadata, chunking metadata, source attachment checksum, and creation time.

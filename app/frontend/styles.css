@@ -1718,6 +1718,14 @@
   /* WIP manuscript collection — Library geometry with an explicit unpublished-work token family + text badge. */
   .wip-browser .pane-head { border-top: 2px solid var(--wip); }
   .wip-mode-label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 11px; }
+  .wip-query { display: grid; gap: 6px; }
+  .wip-facets { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+  .wip-facets input, .wip-facets select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius);
+    background: var(--panel); color: var(--ink); font: 11px var(--sans); padding: 5px 7px;
+  }
+  .wip-facets input { flex: 1 1 150px; }
+  .wip-facets select { flex: 0 1 auto; }
   .wip-roots { margin-top: 6px; }
   .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
   .wip-roots-summary span:first-child { margin-right: auto; }
@@ -1880,6 +1888,7 @@
   .app.mobile .wip-section-add, .app.mobile .wip-task-add, .app.mobile .wip-reference-add {
     grid-template-columns: minmax(0, 1fr);
   }
+  .app.mobile .wip-facets { align-items: stretch; display: grid; grid-template-columns: minmax(0, 1fr); }
   .app.mobile .wip-section-row {
     grid-template-columns: minmax(90px, 1fr) 120px 24px 24px 24px;
   }

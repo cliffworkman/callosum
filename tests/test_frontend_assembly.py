@@ -277,6 +277,11 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
     assert "onRelinked={wip.reload}" in raw
     assert "title: manuscript.display_title || manuscript.derived_title || tab.title" in raw
     assert 'role="button" tabIndex={0}' in raw
+    assert "function WipFilters({ wip })" in raw
+    assert 'params.set("has_open_tasks", "true")' in raw
+    assert "Unresolved findings" in raw
+    assert "Missing primary" in raw
+    assert "manuscript.stale_check_count" in raw
     assert "No tool result is implied by a content checkpoint." in raw
     assert 'const wipModeActive = activeTab === "wip" || !!activeWipTab' in raw
     assert 'kind: "manuscript", entity: activeWipManuscript || null' in raw

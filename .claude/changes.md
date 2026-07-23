@@ -9,7 +9,20 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 354 — WIP relink and reverse navigation -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 355 — manuscript-specific WIP facets -->
+## 2026-07-23 — Increment 355: Manuscript-specific WIP facets and count sorts
+
+- **Files:** WIP listing query/router, dedicated WIP query/facet frontend module, card status counts, tests, served
+  help, data/security contracts, generated frontend, and QA route 75.
+- **What:** WIP now searches title/type/journal/notes and filters stage, lifecycle state, type, journal, deadline,
+  modified date, open tasks, unresolved findings, stale checks, and missing primary file. Cards expose actionable
+  counts, and users can sort by open tasks or unresolved findings.
+- **Architecture:** one SQL projection computes task/finding/stale/primary state for the collection; the dedicated
+  WIP facet schema preserves Library interaction grammar without importing irrelevant reference controls.
+- **Verify:** focused WIP/frontend/health suites (**65 passed**), frontend rebuild, Ruff, 600-line budget, and QA map
+  (**293/293 API surfaces**). Full-suite and browser results are recorded in the increment note.
+- **Revert:** `git revert` this commit. No migration or destructive data change is involved.
+
 ## 2026-07-23 — Increment 354: Stable WIP relink and reverse navigation
 
 - **Files:** WIP discovery/repository/router, Overview relink control, Library Details relationship navigation,

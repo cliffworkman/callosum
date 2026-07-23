@@ -1742,6 +1742,14 @@
   /* WIP manuscript collection — Library geometry with an explicit unpublished-work token family + text badge. */
   .wip-browser .pane-head { border-top: 2px solid var(--wip); }
   .wip-mode-label { display: inline-flex; align-items: center; gap: 6px; color: var(--ink-3); font-size: 11px; }
+  .wip-query { display: grid; gap: 6px; }
+  .wip-facets { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+  .wip-facets input, .wip-facets select {
+    min-width: 0; border: 1px solid var(--line-2); border-radius: var(--radius);
+    background: var(--panel); color: var(--ink); font: 11px var(--sans); padding: 5px 7px;
+  }
+  .wip-facets input { flex: 1 1 150px; }
+  .wip-facets select { flex: 0 1 auto; }
   .wip-roots { margin-top: 6px; }
   .wip-roots-summary { display: flex; align-items: center; gap: 8px; color: var(--ink-3); font-size: 11px; }
   .wip-roots-summary span:first-child { margin-right: auto; }
@@ -1904,6 +1912,7 @@
   .app.mobile .wip-section-add, .app.mobile .wip-task-add, .app.mobile .wip-reference-add {
     grid-template-columns: minmax(0, 1fr);
   }
+  .app.mobile .wip-facets { align-items: stretch; display: grid; grid-template-columns: minmax(0, 1fr); }
   .app.mobile .wip-section-row {
     grid-template-columns: minmax(90px, 1fr) 120px 24px 24px 24px;
   }
@@ -8628,105 +8637,6 @@ ${(p.abstract || "").trim().toLowerCase()}`;
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleString([], { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
   }
-  function useWipWorkspace({ enabled }) {
-    const [state, setState] = useState({ status: "idle", manuscripts: [], roots: [], error: null });
-    const [query, setQuery] = useState("");
-    const [stage, setStage] = useState("");
-    const [workspaceState, setWorkspaceState] = useState("active");
-    const [sort, setSort] = useState(() => _loadLayout("callosum.wip.sort", "activity"));
-    const [selectedId, setSelectedId] = useState(null);
-    const [refresh, setRefresh] = useState(0);
-    const [scanning, setScanning] = useState(false);
-    const load = useCallback(async () => {
-      if (!enabled) return;
-      setState((prev) => ({ ...prev, status: prev.manuscripts.length ? "ready" : "loading", error: null }));
-      const params = new URLSearchParams();
-      if (query.trim()) params.set("query", query.trim());
-      if (stage) params.set("stage", stage);
-      if (workspaceState) params.set("state", workspaceState);
-      params.set("sort", sort);
-      const [items, roots] = await Promise.all([api("/wip/manuscripts?" + params), api("/wip/watch-roots")]);
-      if (!items.ok || !roots.ok) {
-        setState((prev) => ({ ...prev, status: "error", error: items.error || roots.error || "Could not load WIP." }));
-        return;
-      }
-      setState({ status: "ready", manuscripts: items.data || [], roots: roots.data || [], error: null });
-    }, [enabled, query, stage, workspaceState, sort, refresh]);
-    useEffect(() => {
-      load();
-    }, [load]);
-    const pollScan = useCallback(async (jobId) => {
-      for (let attempt = 0; attempt < 80; attempt += 1) {
-        const result = await api(`/wip/scan/${jobId}`);
-        if (!result.ok || result.data && ["done", "error"].includes(result.data.status)) {
-          setScanning(false);
-          setRefresh((n) => n + 1);
-          return result;
-        }
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-      setScanning(false);
-      return { ok: false, error: "The WIP scan is still running." };
-    }, []);
-    const rescan = useCallback(async () => {
-      if (!enabled || scanning) return;
-      setScanning(true);
-      const result = await apiPost("/wip/rescan", {});
-      if (!result.ok) {
-        setScanning(false);
-        return result;
-      }
-      return pollScan(result.data.job_id);
-    }, [enabled, scanning, pollScan]);
-    useEffect(() => {
-      if (!enabled) return void 0;
-      rescan();
-      const onFocus = () => rescan();
-      window.addEventListener("focus", onFocus);
-      return () => window.removeEventListener("focus", onFocus);
-    }, [enabled]);
-    const addRoot = useCallback(async (values) => {
-      const result = await apiPost("/wip/watch-roots", values);
-      if (!result.ok) return result;
-      setRefresh((n) => n + 1);
-      setScanning(true);
-      const scan = await apiPost(`/wip/watch-roots/${result.data.id}/scan`, {});
-      if (!scan.ok) {
-        setScanning(false);
-        return scan;
-      }
-      return pollScan(scan.data.job_id);
-    }, [pollScan]);
-    const updateManuscript = useCallback(async (id, values) => {
-      const result = await apiPatch(`/wip/manuscripts/${id}`, values);
-      if (result.ok) setRefresh((n) => n + 1);
-      return result;
-    }, []);
-    const selected = state.manuscripts.find((item) => item.id === selectedId) || null;
-    return {
-      ...state,
-      enabled,
-      query,
-      setQuery,
-      stage,
-      setStage,
-      workspaceState,
-      setWorkspaceState,
-      sort,
-      setSort: (value) => {
-        setSort(value);
-        _saveLayout("callosum.wip.sort", value);
-      },
-      selectedId,
-      setSelectedId,
-      selected,
-      scanning,
-      rescan,
-      addRoot,
-      updateManuscript,
-      reload: () => setRefresh((n) => n + 1)
-    };
-  }
   function WipRootSetup({ roots, scanning, onAdd, onRescan }) {
     const [expanded, setExpanded] = useState(false);
     const [path, setPath] = useState("");
@@ -8778,31 +8688,11 @@ ${(p.abstract || "").trim().toLowerCase()}`;
       },
       /* @__PURE__ */ React.createElement("div", { className: "wip-card-heading" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), /* @__PURE__ */ React.createElement("p", { className: "paper-title" }, manuscript.display_title)),
       /* @__PURE__ */ React.createElement("div", { className: "paper-meta" }, /* @__PURE__ */ React.createElement("span", null, wipStageLabel(manuscript.stage)), manuscript.manuscript_type && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", manuscript.manuscript_type.replace(/-/g, " ")), manuscript.target_journal && /* @__PURE__ */ React.createElement("span", null, "\xB7 ", manuscript.target_journal)),
-      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "wip-stage" }, wipStageLabel(manuscript.stage)), /* @__PURE__ */ React.createElement("span", { className: "chip" }, manuscript.file_count, " file", manuscript.file_count === 1 ? "" : "s"), manuscript.missing_file_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, manuscript.missing_file_count, " missing"), manuscript.state === "missing" && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, "folder missing"), /* @__PURE__ */ React.createElement("span", { className: "wip-modified" }, wipWhen(manuscript.last_filesystem_activity_at)))
+      /* @__PURE__ */ React.createElement("div", { className: "paper-foot" }, /* @__PURE__ */ React.createElement("span", { className: "wip-stage" }, wipStageLabel(manuscript.stage)), /* @__PURE__ */ React.createElement("span", { className: "chip" }, manuscript.file_count, " file", manuscript.file_count === 1 ? "" : "s"), manuscript.open_task_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "chip" }, manuscript.open_task_count, " open task", manuscript.open_task_count === 1 ? "" : "s"), manuscript.unresolved_finding_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, manuscript.unresolved_finding_count, " finding", manuscript.unresolved_finding_count === 1 ? "" : "s"), manuscript.stale_check_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, manuscript.stale_check_count, " stale check", manuscript.stale_check_count === 1 ? "" : "s"), manuscript.missing_file_count > 0 && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, manuscript.missing_file_count, " missing"), manuscript.missing_primary_file && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, "primary file missing"), manuscript.state === "missing" && /* @__PURE__ */ React.createElement("span", { className: "wip-warning" }, "folder missing"), /* @__PURE__ */ React.createElement("span", { className: "wip-modified" }, wipWhen(manuscript.last_filesystem_activity_at)))
     );
   }
   function WipBrowser({ wip, onOpen }) {
-    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body wip-browser" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Work in progress"), /* @__PURE__ */ React.createElement("span", { className: "wip-mode-label" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), " Unpublished manuscripts")), /* @__PURE__ */ React.createElement(WipRootSetup, { roots: wip.roots, scanning: wip.scanning, onAdd: wip.addRoot, onRescan: wip.rescan }), /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
-      "input",
-      {
-        placeholder: "Search manuscript title, journal, or notes\u2026",
-        value: wip.query,
-        onChange: (event) => wip.setQuery(event.target.value),
-        spellCheck: false
-      }
-    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: wip.stage, onChange: (event) => wip.setStage(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All stages"), WIP_STAGES.map((item) => /* @__PURE__ */ React.createElement("option", { key: item[0], value: item[0] }, item[1]))), /* @__PURE__ */ React.createElement(
-      "select",
-      {
-        className: "lib-sort",
-        value: wip.workspaceState,
-        onChange: (event) => wip.setWorkspaceState(event.target.value)
-      },
-      /* @__PURE__ */ React.createElement("option", { value: "active" }, "Active"),
-      /* @__PURE__ */ React.createElement("option", { value: "paused" }, "Paused"),
-      /* @__PURE__ */ React.createElement("option", { value: "archived" }, "Archived"),
-      /* @__PURE__ */ React.createElement("option", { value: "missing" }, "Missing"),
-      /* @__PURE__ */ React.createElement("option", { value: "" }, "All states")
-    ), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: wip.sort, onChange: (event) => wip.setSort(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "activity" }, "Last modified"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "stage" }, "Stage"), /* @__PURE__ */ React.createElement("option", { value: "deadline" }, "Deadline"), /* @__PURE__ */ React.createElement("option", { value: "created" }, "Created"))), wip.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, wip.manuscripts.length, " shown")), wip.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, "Loading work in progress\u2026"), wip.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load WIP."), /* @__PURE__ */ React.createElement("br", null), wip.error), wip.status === "ready" && wip.manuscripts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, wip.roots.length ? "No manuscripts match this view." : "Add a manuscript location."), wip.roots.length ? "Change the stage or state filters, or rescan the watched locations." : "Choose one manuscript folder, or a parent whose immediate subfolders are manuscripts."), wip.status === "ready" && wip.manuscripts.map((item) => /* @__PURE__ */ React.createElement(
+    return /* @__PURE__ */ React.createElement("div", { className: "pane-list-body wip-browser" }, /* @__PURE__ */ React.createElement("div", { className: "pane-head" }, /* @__PURE__ */ React.createElement("div", { className: "lib-head" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Work in progress"), /* @__PURE__ */ React.createElement("span", { className: "wip-mode-label" }, /* @__PURE__ */ React.createElement("span", { className: "wip-badge" }, "WIP"), " Unpublished manuscripts")), /* @__PURE__ */ React.createElement(WipRootSetup, { roots: wip.roots, scanning: wip.scanning, onAdd: wip.addRoot, onRescan: wip.rescan }), /* @__PURE__ */ React.createElement(WipFilters, { wip }), wip.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "list-meta" }, wip.manuscripts.length, " shown")), wip.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "state" }, "Loading work in progress\u2026"), wip.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "errbox" }, /* @__PURE__ */ React.createElement("b", null, "Can't load WIP."), /* @__PURE__ */ React.createElement("br", null), wip.error), wip.status === "ready" && wip.manuscripts.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "state" }, /* @__PURE__ */ React.createElement("div", { className: "big" }, wip.roots.length ? "No manuscripts match this view." : "Add a manuscript location."), wip.roots.length ? "Change the stage or state filters, or rescan the watched locations." : "Choose one manuscript folder, or a parent whose immediate subfolders are manuscripts."), wip.status === "ready" && wip.manuscripts.map((item) => /* @__PURE__ */ React.createElement(
       WipCard,
       {
         key: item.id,
@@ -9180,6 +9070,228 @@ ${(p.abstract || "").trim().toLowerCase()}`;
         onChange: (event) => setPath(event.target.value)
       }
     ), /* @__PURE__ */ React.createElement("button", { className: "btn-primary", disabled: busy || !path.trim() }, busy ? "Relinking\u2026" : "Relink")), error && /* @__PURE__ */ React.createElement("div", { className: "wip-root-error" }, error));
+  }
+  const WIP_EMPTY_FILTERS = {
+    manuscriptType: "",
+    targetJournal: "",
+    deadline: "",
+    modifiedDays: "",
+    hasOpenTasks: false,
+    hasUnresolvedFindings: false,
+    hasStaleChecks: false,
+    missingPrimary: false
+  };
+  function useWipWorkspace({ enabled }) {
+    const [state, setState] = useState({ status: "idle", manuscripts: [], roots: [], error: null });
+    const [query, setQuery] = useState("");
+    const [stage, setStage] = useState("");
+    const [workspaceState, setWorkspaceState] = useState("active");
+    const [sort, setSort] = useState(() => _loadLayout("callosum.wip.sort", "activity"));
+    const [filters, setFilters] = useState(WIP_EMPTY_FILTERS);
+    const [selectedId, setSelectedId] = useState(null);
+    const [refresh, setRefresh] = useState(0);
+    const [scanning, setScanning] = useState(false);
+    const load = useCallback(async () => {
+      if (!enabled) return;
+      setState((prev) => ({ ...prev, status: prev.manuscripts.length ? "ready" : "loading", error: null }));
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("query", query.trim());
+      if (stage) params.set("stage", stage);
+      if (workspaceState) params.set("state", workspaceState);
+      if (filters.manuscriptType.trim()) params.set("manuscript_type", filters.manuscriptType.trim());
+      if (filters.targetJournal.trim()) params.set("target_journal", filters.targetJournal.trim());
+      if (filters.deadline) params.set("deadline", filters.deadline);
+      if (filters.modifiedDays) params.set("modified_days", filters.modifiedDays);
+      if (filters.hasOpenTasks) params.set("has_open_tasks", "true");
+      if (filters.hasUnresolvedFindings) params.set("has_unresolved_findings", "true");
+      if (filters.hasStaleChecks) params.set("has_stale_checks", "true");
+      if (filters.missingPrimary) params.set("missing_primary", "true");
+      params.set("sort", sort);
+      const [items, roots] = await Promise.all([api("/wip/manuscripts?" + params), api("/wip/watch-roots")]);
+      if (!items.ok || !roots.ok) {
+        setState((prev) => ({ ...prev, status: "error", error: items.error || roots.error || "Could not load WIP." }));
+        return;
+      }
+      setState({ status: "ready", manuscripts: items.data || [], roots: roots.data || [], error: null });
+    }, [enabled, query, stage, workspaceState, sort, filters, refresh]);
+    useEffect(() => {
+      load();
+    }, [load]);
+    const pollScan = useCallback(async (jobId) => {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        const result = await api(`/wip/scan/${jobId}`);
+        if (!result.ok || result.data && ["done", "error"].includes(result.data.status)) {
+          setScanning(false);
+          setRefresh((n) => n + 1);
+          return result;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      setScanning(false);
+      return { ok: false, error: "The WIP scan is still running." };
+    }, []);
+    const rescan = useCallback(async () => {
+      if (!enabled || scanning) return;
+      setScanning(true);
+      const result = await apiPost("/wip/rescan", {});
+      if (!result.ok) {
+        setScanning(false);
+        return result;
+      }
+      return pollScan(result.data.job_id);
+    }, [enabled, scanning, pollScan]);
+    useEffect(() => {
+      if (!enabled) return void 0;
+      rescan();
+      const onFocus = () => rescan();
+      window.addEventListener("focus", onFocus);
+      return () => window.removeEventListener("focus", onFocus);
+    }, [enabled]);
+    const addRoot = useCallback(async (values) => {
+      const result = await apiPost("/wip/watch-roots", values);
+      if (!result.ok) return result;
+      setRefresh((n) => n + 1);
+      setScanning(true);
+      const scan = await apiPost(`/wip/watch-roots/${result.data.id}/scan`, {});
+      if (!scan.ok) {
+        setScanning(false);
+        return scan;
+      }
+      return pollScan(scan.data.job_id);
+    }, [pollScan]);
+    const updateManuscript = useCallback(async (id, values) => {
+      const result = await apiPatch(`/wip/manuscripts/${id}`, values);
+      if (result.ok) setRefresh((n) => n + 1);
+      return result;
+    }, []);
+    const selected = state.manuscripts.find((item) => item.id === selectedId) || null;
+    return {
+      ...state,
+      enabled,
+      query,
+      setQuery,
+      stage,
+      setStage,
+      workspaceState,
+      setWorkspaceState,
+      sort,
+      filters,
+      setFilters,
+      setSort: (value) => {
+        setSort(value);
+        _saveLayout("callosum.wip.sort", value);
+      },
+      selectedId,
+      setSelectedId,
+      selected,
+      scanning,
+      rescan,
+      addRoot,
+      updateManuscript,
+      reload: () => setRefresh((n) => n + 1)
+    };
+  }
+  function WipFilterToggle({ active, label, onClick }) {
+    return /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        className: "lib-facet-toggle" + (active ? " on" : ""),
+        "aria-pressed": active,
+        onClick
+      },
+      label
+    );
+  }
+  function WipFilters({ wip }) {
+    const patch = (values) => wip.setFilters((current) => ({ ...current, ...values }));
+    const active = Object.values(wip.filters).some(Boolean);
+    return /* @__PURE__ */ React.createElement("div", { className: "wip-query" }, /* @__PURE__ */ React.createElement("div", { className: "searchbar" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        placeholder: "Search manuscript title, type, journal, or notes\u2026",
+        value: wip.query,
+        onChange: (event) => wip.setQuery(event.target.value),
+        spellCheck: false
+      }
+    ), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: wip.stage, onChange: (event) => wip.setStage(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "All stages"), WIP_STAGES.map((item) => /* @__PURE__ */ React.createElement("option", { key: item[0], value: item[0] }, item[1]))), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        className: "lib-sort",
+        value: wip.workspaceState,
+        onChange: (event) => wip.setWorkspaceState(event.target.value)
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "active" }, "Active"),
+      /* @__PURE__ */ React.createElement("option", { value: "paused" }, "Paused"),
+      /* @__PURE__ */ React.createElement("option", { value: "archived" }, "Archived"),
+      /* @__PURE__ */ React.createElement("option", { value: "missing" }, "Missing folder"),
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "All states")
+    ), /* @__PURE__ */ React.createElement("span", { className: "lib-sort-label" }, "Sort"), /* @__PURE__ */ React.createElement("select", { className: "lib-sort", value: wip.sort, onChange: (event) => wip.setSort(event.target.value) }, /* @__PURE__ */ React.createElement("option", { value: "activity" }, "Last modified"), /* @__PURE__ */ React.createElement("option", { value: "title" }, "Title"), /* @__PURE__ */ React.createElement("option", { value: "stage" }, "Stage"), /* @__PURE__ */ React.createElement("option", { value: "deadline" }, "Deadline"), /* @__PURE__ */ React.createElement("option", { value: "created" }, "Created"), /* @__PURE__ */ React.createElement("option", { value: "open_tasks" }, "Open tasks"), /* @__PURE__ */ React.createElement("option", { value: "unresolved_findings" }, "Unresolved findings"))), /* @__PURE__ */ React.createElement("div", { className: "wip-facets" }, /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        "aria-label": "Filter by manuscript type",
+        placeholder: "Manuscript type",
+        value: wip.filters.manuscriptType,
+        onChange: (event) => patch({ manuscriptType: event.target.value })
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        "aria-label": "Filter by target journal",
+        placeholder: "Target journal",
+        value: wip.filters.targetJournal,
+        onChange: (event) => patch({ targetJournal: event.target.value })
+      }
+    ), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        "aria-label": "Filter by deadline",
+        value: wip.filters.deadline,
+        onChange: (event) => patch({ deadline: event.target.value })
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "Any deadline"),
+      /* @__PURE__ */ React.createElement("option", { value: "overdue" }, "Overdue"),
+      /* @__PURE__ */ React.createElement("option", { value: "next-30-days" }, "Next 30 days"),
+      /* @__PURE__ */ React.createElement("option", { value: "none" }, "No deadline")
+    ), /* @__PURE__ */ React.createElement(
+      "select",
+      {
+        "aria-label": "Filter by modified date",
+        value: wip.filters.modifiedDays,
+        onChange: (event) => patch({ modifiedDays: event.target.value })
+      },
+      /* @__PURE__ */ React.createElement("option", { value: "" }, "Modified anytime"),
+      /* @__PURE__ */ React.createElement("option", { value: "7" }, "Past 7 days"),
+      /* @__PURE__ */ React.createElement("option", { value: "30" }, "Past 30 days"),
+      /* @__PURE__ */ React.createElement("option", { value: "90" }, "Past 90 days")
+    ), /* @__PURE__ */ React.createElement(
+      WipFilterToggle,
+      {
+        label: "Open tasks",
+        active: wip.filters.hasOpenTasks,
+        onClick: () => patch({ hasOpenTasks: !wip.filters.hasOpenTasks })
+      }
+    ), /* @__PURE__ */ React.createElement(
+      WipFilterToggle,
+      {
+        label: "Unresolved findings",
+        active: wip.filters.hasUnresolvedFindings,
+        onClick: () => patch({ hasUnresolvedFindings: !wip.filters.hasUnresolvedFindings })
+      }
+    ), /* @__PURE__ */ React.createElement(
+      WipFilterToggle,
+      {
+        label: "Stale checks",
+        active: wip.filters.hasStaleChecks,
+        onClick: () => patch({ hasStaleChecks: !wip.filters.hasStaleChecks })
+      }
+    ), /* @__PURE__ */ React.createElement(
+      WipFilterToggle,
+      {
+        label: "Missing primary",
+        active: wip.filters.missingPrimary,
+        onClick: () => patch({ missingPrimary: !wip.filters.missingPrimary })
+      }
+    ), active && /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => wip.setFilters(WIP_EMPTY_FILTERS) }, "Clear filters")));
   }
   function AxisEditModal({ mode, axisId, initialTitle, initialDescription, initialTerms, onClose, onSaved }) {
     const [title, setTitle] = useState(initialTitle || "");

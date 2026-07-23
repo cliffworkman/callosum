@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from sqlalchemy import Connection, case, delete, func, insert, or_, select, update
+from sqlalchemy import Connection, and_, case, delete, func, insert, or_, select, update
 
-from app.backend.persistence.schema import wip_activity_events, wip_files, wip_manuscripts, wip_watch_roots
+from app.backend.persistence.schema import (
+    wip_activity_events,
+    wip_files,
+    wip_findings,
+    wip_manuscripts,
+    wip_snapshots,
+    wip_tasks,
+    wip_tool_runs,
+    wip_watch_roots,
+)
 from app.backend.wip.discovery import DiscoveredManuscript, ScanInspection
 from app.backend.wip.paths import path_key
 
@@ -230,6 +239,14 @@ def list_manuscripts(
     query: str = "",
     state: str | None = None,
     stage: str | None = None,
+    manuscript_type: str | None = None,
+    target_journal: str | None = None,
+    deadline: str | None = None,
+    modified_days: int | None = None,
+    has_open_tasks: bool | None = None,
+    has_unresolved_findings: bool | None = None,
+    has_stale_checks: bool | None = None,
+    missing_primary: bool | None = None,
     sort: str = "activity",
 ) -> list[dict]:
     file_counts = (
@@ -241,17 +258,82 @@ def list_manuscripts(
         .group_by(wip_files.c.manuscript_id)
         .subquery()
     )
+    task_counts = (
+        select(wip_tasks.c.manuscript_id, func.count(wip_tasks.c.id).label("open_task_count"))
+        .where(wip_tasks.c.status.in_(("open", "in-progress", "blocked", "deferred")))
+        .group_by(wip_tasks.c.manuscript_id)
+        .subquery()
+    )
+    finding_counts = (
+        select(wip_findings.c.manuscript_id, func.count(wip_findings.c.id).label("unresolved_finding_count"))
+        .where(wip_findings.c.disposition.in_(("open", "acknowledged", "deferred")))
+        .group_by(wip_findings.c.manuscript_id)
+        .subquery()
+    )
+    primary = wip_files.alias("wip_primary_file")
+    stale = or_(
+        primary.c.id.is_(None),
+        primary.c.id != wip_tool_runs.c.file_id,
+        primary.c.existence_state != "available",
+        primary.c.whole_file_hash.is_(None),
+        and_(
+            primary.c.whole_file_hash != wip_snapshots.c.whole_file_hash,
+            or_(
+                primary.c.extracted_from_whole_hash.is_(None),
+                primary.c.extracted_from_whole_hash != primary.c.whole_file_hash,
+                primary.c.extracted_text_hash.is_(None),
+                primary.c.extracted_text_hash != wip_snapshots.c.extracted_text_hash,
+            ),
+        ),
+    )
+    stale_counts = (
+        select(wip_tool_runs.c.manuscript_id, func.count(wip_tool_runs.c.id).label("stale_check_count"))
+        .join(wip_snapshots, wip_snapshots.c.id == wip_tool_runs.c.snapshot_id)
+        .outerjoin(
+            primary,
+            and_(primary.c.manuscript_id == wip_tool_runs.c.manuscript_id, primary.c.is_primary.is_(True)),
+        )
+        .where(stale)
+        .group_by(wip_tool_runs.c.manuscript_id)
+        .subquery()
+    )
+    current_primary = wip_files.alias("wip_current_primary")
+    open_tasks = func.coalesce(task_counts.c.open_task_count, 0)
+    unresolved = func.coalesce(finding_counts.c.unresolved_finding_count, 0)
+    stale_checks = func.coalesce(stale_counts.c.stale_check_count, 0)
+    missing_primary_file = or_(
+        current_primary.c.id.is_(None),
+        current_primary.c.existence_state != "available",
+    )
     stmt = select(
         wip_manuscripts,
         func.coalesce(file_counts.c.file_count, 0).label("file_count"),
         func.coalesce(file_counts.c.missing_file_count, 0).label("missing_file_count"),
-    ).outerjoin(file_counts, file_counts.c.manuscript_id == wip_manuscripts.c.id)
+        open_tasks.label("open_task_count"),
+        unresolved.label("unresolved_finding_count"),
+        stale_checks.label("stale_check_count"),
+        missing_primary_file.label("missing_primary_file"),
+    )
+    stmt = (
+        stmt.outerjoin(file_counts, file_counts.c.manuscript_id == wip_manuscripts.c.id)
+        .outerjoin(task_counts, task_counts.c.manuscript_id == wip_manuscripts.c.id)
+        .outerjoin(finding_counts, finding_counts.c.manuscript_id == wip_manuscripts.c.id)
+        .outerjoin(stale_counts, stale_counts.c.manuscript_id == wip_manuscripts.c.id)
+        .outerjoin(
+            current_primary,
+            and_(
+                current_primary.c.manuscript_id == wip_manuscripts.c.id,
+                current_primary.c.is_primary.is_(True),
+            ),
+        )
+    )
     if query.strip():
         needle = f"%{query.strip()}%"
         stmt = stmt.where(
             or_(
                 wip_manuscripts.c.derived_title.ilike(needle),
                 wip_manuscripts.c.title_override.ilike(needle),
+                wip_manuscripts.c.manuscript_type.ilike(needle),
                 wip_manuscripts.c.target_journal.ilike(needle),
                 wip_manuscripts.c.notes.ilike(needle),
             )
@@ -260,11 +342,36 @@ def list_manuscripts(
         stmt = stmt.where(wip_manuscripts.c.state == state)
     if stage:
         stmt = stmt.where(wip_manuscripts.c.stage == stage)
+    if manuscript_type:
+        stmt = stmt.where(wip_manuscripts.c.manuscript_type.ilike(f"%{manuscript_type}%"))
+    if target_journal:
+        stmt = stmt.where(wip_manuscripts.c.target_journal.ilike(f"%{target_journal}%"))
+    today = date.today()
+    if deadline == "overdue":
+        stmt = stmt.where(wip_manuscripts.c.deadline < today)
+    elif deadline == "next-30-days":
+        stmt = stmt.where(wip_manuscripts.c.deadline.between(today, today + timedelta(days=30)))
+    elif deadline == "none":
+        stmt = stmt.where(wip_manuscripts.c.deadline.is_(None))
+    if modified_days:
+        cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=modified_days)
+        stmt = stmt.where(wip_manuscripts.c.last_filesystem_activity_at >= cutoff)
+    for value, count in (
+        (has_open_tasks, open_tasks),
+        (has_unresolved_findings, unresolved),
+        (has_stale_checks, stale_checks),
+    ):
+        if value is not None:
+            stmt = stmt.where(count > 0 if value else count == 0)
+    if missing_primary is not None:
+        stmt = stmt.where(missing_primary_file if missing_primary else ~missing_primary_file)
     order = {
         "title": func.coalesce(wip_manuscripts.c.title_override, wip_manuscripts.c.derived_title).asc(),
         "created": wip_manuscripts.c.created_at.desc(),
         "deadline": wip_manuscripts.c.deadline.asc().nullslast(),
         "stage": wip_manuscripts.c.stage.asc(),
+        "open_tasks": open_tasks.desc(),
+        "unresolved_findings": unresolved.desc(),
     }.get(sort, wip_manuscripts.c.last_filesystem_activity_at.desc().nullslast())
     return [_manuscript_dict(row) for row in conn.execute(stmt.order_by(order, wip_manuscripts.c.id)).mappings()]
 

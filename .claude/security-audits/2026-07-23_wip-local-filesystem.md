@@ -1,6 +1,6 @@
 # Security audit — WIP local filesystem workspace
 
-**Status:** PASS for increments 351–354
+**Status:** PASS for increments 351–355
 **Date:** 2026-07-23
 **Scope:** WIP watch roots, manuscript/file discovery, local file open/reveal, manuscript extraction, and all
 `/wip/*` API routes.
@@ -28,6 +28,8 @@
 - [x] Missing files/folders become explicit states; no scan deletes workspace metadata.
 - [x] WIP tables are absent from `sync.changeset.SYNCABLE`.
 - [x] No WIP code calls an LLM or external provider.
+- [x] WIP search/facet/count projections query only local metadata and content hashes; they neither read full
+      manuscript text nor create a new egress path.
 - [x] File hashing is local and bounded to 256 MiB per file; scans are capped at 5,000 files and depth 20.
 - [x] Primary-file extraction accepts only an explicit supported-format allowlist, is capped at 256 MiB (plain text
       at 32 MiB), persists no full manuscript text/file bytes, and bounds checkpoint context to 6 × 500 characters.

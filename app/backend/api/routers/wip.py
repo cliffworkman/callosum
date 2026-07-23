@@ -224,10 +224,34 @@ def manuscripts_list(
     query: str = "",
     state: Literal["active", "paused", "archived", "missing"] | None = None,
     stage: str | None = None,
-    sort: Literal["activity", "title", "created", "deadline", "stage"] = "activity",
+    manuscript_type: str | None = None,
+    target_journal: str | None = None,
+    deadline: Literal["overdue", "next-30-days", "none"] | None = None,
+    modified_days: Literal["7", "30", "90"] | None = None,
+    has_open_tasks: bool | None = None,
+    has_unresolved_findings: bool | None = None,
+    has_stale_checks: bool | None = None,
+    missing_primary: bool | None = None,
+    sort: Literal[
+        "activity", "title", "created", "deadline", "stage", "open_tasks", "unresolved_findings"
+    ] = "activity",
 ) -> list[dict]:
     with request.app.state.engine.connect() as conn:
-        return list_manuscripts(conn, query=query, state=state, stage=stage, sort=sort)
+        return list_manuscripts(
+            conn,
+            query=query,
+            state=state,
+            stage=stage,
+            manuscript_type=manuscript_type,
+            target_journal=target_journal,
+            deadline=deadline,
+            modified_days=int(modified_days) if modified_days else None,
+            has_open_tasks=has_open_tasks,
+            has_unresolved_findings=has_unresolved_findings,
+            has_stale_checks=has_stale_checks,
+            missing_primary=missing_primary,
+            sort=sort,
+        )
 
 
 @router.get("/manuscripts/{manuscript_id}")
