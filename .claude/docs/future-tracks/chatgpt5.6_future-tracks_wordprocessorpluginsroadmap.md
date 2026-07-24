@@ -204,6 +204,13 @@ explicit HTTPS-only action with private/local DNS and connected-peer rejection, 
 bounds, and the same duplicate/update confirmation. Still open: full upstream-schema/update provenance,
 duplication, and visual/source editing.
 
+**Schema/provenance/update/duplication shipped in increment 369 (2026-07-24):** all imports validate locally
+against the official CSL 1.0.2 RELAX NG schema and Schematron macro rules before citeproc. Personal styles retain
+their local-file, repository, URL, or copy source plus install/update/check timestamps in a fail-soft local
+sidecar. Remote update checks run only on explicit request, include installed custom parents, and apply the exact
+preflighted chain after confirmation. **Duplicate** gives bundled, independent, or dependent styles a new
+standalone personal identity and preserves source lineage. Still open: visual/source editing.
+
 Required functionality:
 
 Search styles by journal, publisher, discipline, acronym, or style name

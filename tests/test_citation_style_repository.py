@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 
 from app.backend.api.app import create_app
 from app.backend.api.routers import citations as citations_router
-from app.backend.citations import style_store
+from app.backend.citations import style_lifecycle, style_provenance, style_store
 from app.backend.citations.style_repository import (
     MAX_CSL_BYTES,
     REPOSITORY_INDEX_URL,
@@ -18,6 +18,7 @@ from app.backend.citations.style_repository import (
     install_prepared_style,
     install_repository_style,
     install_style_from_url,
+    prepare_repository_style,
     prepare_style_from_url,
     search_repository_styles,
 )
@@ -127,6 +128,41 @@ def test_repository_install_preflights_and_installs_parent_chain() -> None:
     assert [item["full_title"] for item in result["dependencies"]] == ["Testing Base"]
     assert style_store.style_exists(result["style"]["id"])
     assert style_store.style_exists(result["dependencies"][0]["id"])
+    child_source = style_provenance.provenance_for(result["style"]["id"])
+    parent_source = style_provenance.provenance_for(result["dependencies"][0]["id"])
+    assert child_source["source_type"] == "repository"
+    assert child_source["repository_id"] == "journal-of-testing"
+    assert parent_source["repository_id"] == "testing-base"
+
+
+def test_repository_update_check_includes_installed_custom_parent() -> None:
+    child = _dependent_csl("journal-of-testing", "Journal of Testing", "testing-base").encode()
+    parent = _independent_csl("testing-base", "Testing Base").encode()
+    mapping = {
+        REPOSITORY_INDEX_URL: _catalog(),
+        "https://www.zotero.org/styles/journal-of-testing": child,
+        "https://www.zotero.org/styles/testing-base": parent,
+    }
+    install_repository_style("journal-of-testing", fetcher=_fetcher(mapping))
+    mapping["https://www.zotero.org/styles/testing-base"] = parent.replace(
+        b'<layout suffix=".">',
+        b'<layout prefix="[" suffix="].">',
+    )
+
+    prepared = prepare_repository_style(
+        "journal-of-testing",
+        fetcher=_fetcher(mapping),
+        refresh_installed_parents=True,
+    )
+    assert prepared["action"] == "update_available"
+    applied = install_prepared_style(
+        prepared["token"],
+        mode="repository",
+        source="journal-of-testing",
+        replace=True,
+    )
+    assert applied["action"] == "updated"
+    assert applied["dependencies"][0]["full_title"] == "Testing Base"
 
 
 def test_url_install_supports_guarded_dependency_fetch() -> None:
@@ -148,6 +184,7 @@ def test_url_install_supports_guarded_dependency_fetch() -> None:
     assert result["action"] == "installed"
     assert result["style"]["full_title"] == "Remote Journal"
     assert result["dependencies"][0]["full_title"] == "Remote Base"
+    assert style_provenance.provenance_for(result["style"]["id"])["source_url"] == root_url
 
 
 def test_remote_preflight_installs_the_exact_cached_candidate_without_refetch() -> None:
@@ -174,6 +211,41 @@ def test_remote_preflight_installs_the_exact_cached_candidate_without_refetch() 
     assert result["action"] == "installed"
     assert result["style"]["full_title"] == "Prepared Style"
     assert calls == [root_url]
+    assert style_provenance.provenance_for(result["style"]["id"])["source_type"] == "url"
+
+
+def test_remote_update_check_is_explicit_and_preserves_preflight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root_url = "https://styles.example.test/update.csl"
+    xml = _independent_csl("update-style", "Update Style").encode()
+    installed = install_style_from_url(
+        root_url,
+        fetcher=_fetcher({root_url: xml}),
+        resolver=lambda host, port: ["93.184.216.34"],
+    )["style"]
+    calls: list[str] = []
+
+    def prepare(url: str, *, refresh_installed_parents: bool = False):
+        calls.append(url)
+        assert refresh_installed_parents is True
+        return {
+            "token": "exact-byte-token",
+            "action": "update_available",
+            "style": {"id": installed["id"], "full_title": installed["full_title"]},
+            "dependencies": [],
+            "upstream_updated": "2026-07-25T00:00:00+00:00",
+        }
+
+    monkeypatch.setattr(style_lifecycle, "prepare_style_from_url", prepare)
+    assert calls == []
+    checked = style_lifecycle.check_style_update(installed["id"])
+    assert calls == [root_url]
+    assert checked["status"] == "update_available"
+    assert checked["install"]["preflight_token"] == "exact-byte-token"
+    assert checked["install"]["body"] == {"url": root_url}
+    assert checked["checked_at"]
+    assert style_provenance.provenance_for(installed["id"])["last_checked_at"] == checked["checked_at"]
 
 
 @pytest.mark.parametrize(

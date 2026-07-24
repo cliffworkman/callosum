@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api.app import create_app
-from app.backend.citations import render, style_store
+from app.backend.citations import render, style_provenance, style_store
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 
@@ -59,7 +59,7 @@ CUSTOM_CSL = """<?xml version="1.0" encoding="utf-8"?>
 
 def _dependent_csl(parent: str) -> str:
     return f"""<?xml version="1.0" encoding="utf-8"?>
-<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-GB">
+<style xmlns="http://purl.org/net/xbiblio/csl" version="1.0" default-locale="en-GB">
   <info>
     <title>Callosum Dependent Test Style</title>
     <id>https://example.test/styles/callosum-dependent-test</id>
@@ -196,6 +196,9 @@ def test_install_custom_style_catalog_preview_and_render(temp_db_url: str) -> No
     assert style["full_title"] == "Callosum Test Style"
     assert style["custom"] is True and style["source"] == "custom"
     assert style["canonical_id"] == "https://example.test/styles/callosum-test-style"
+    assert style["provenance"]["source_type"] == "local_file"
+    assert style["provenance"]["source_name"] == "callosum-test.csl"
+    assert style["provenance"]["installed_at"]
     assert (style_store.custom_styles_dir() / f"{style['id']}.csl").is_file()
 
     assert [row["id"] for row in client.get("/citations/styles?q=hermetic psychology").json()["styles"]] == [
@@ -333,6 +336,7 @@ def test_custom_style_removal_protects_default_and_cleans_preferences(temp_db_ur
     assert style_id not in data["favorite_style_ids"]
     assert style_id not in data["recent_style_ids"]
     assert not style_store.style_exists(style_id)
+    assert style_provenance.provenance_for(style_id) is None
 
     pid = _make_paper(temp_db_url)
     assert (
@@ -446,6 +450,62 @@ def test_custom_style_validation_failures(
     assert response.status_code == 422
     if detail:
         assert detail in str(response.json()["detail"])
+
+
+@pytest.mark.parametrize(
+    ("csl", "detail"),
+    [
+        (
+            CUSTOM_CSL.replace('<layout prefix="("', '<layout unsupported="yes" prefix="("'),
+            "CSL 1.0.2 schema validation failed",
+        ),
+        (
+            CUSTOM_CSL.replace('<text variable="title" prefix=". "/>', '<text macro="missing-macro"/>'),
+            "CSL macro validation failed",
+        ),
+    ],
+)
+def test_custom_style_full_schema_and_macro_validation(
+    temp_db_url: str,
+    csl: str,
+    detail: str,
+) -> None:
+    response = TestClient(create_app(db_url=temp_db_url)).post(
+        "/citations/styles/install",
+        json={"filename": "invalid.csl", "csl": csl},
+    )
+    assert response.status_code == 422
+    assert detail in str(response.json()["detail"])
+
+
+def test_duplicate_style_creates_independent_personal_copy(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    dependent = client.post(
+        "/citations/styles/install",
+        json={"filename": "dependent.csl", "csl": _dependent_csl("http://www.zotero.org/styles/apa")},
+    ).json()["install"]["style"]
+
+    response = client.post(
+        f"/citations/styles/{dependent['id']}/duplicate",
+        json={"title": "Editable Journal Copy"},
+    )
+    assert response.status_code == 200, response.text
+    copied = response.json()["install"]["style"]
+    assert copied["id"] != dependent["id"]
+    assert copied["full_title"] == "Editable Journal Copy"
+    assert copied["independent"] is True
+    assert copied["parent_style"] is None
+    assert copied["canonical_id"].startswith("https://callosum.local/styles/")
+    assert copied["provenance"]["source_type"] == "duplicate"
+    assert copied["provenance"]["source_style_id"] == dependent["id"]
+    assert style_store.style_exists(dependent["id"])
+    assert (
+        client.post(
+            "/citations/styles/preview",
+            json={"style": copied["id"], "locale": "en-US"},
+        ).status_code
+        == 200
+    )
 
 
 def test_custom_style_cannot_replace_bundled_style(temp_db_url: str) -> None:

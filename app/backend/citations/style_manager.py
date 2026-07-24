@@ -13,7 +13,7 @@ from typing import Any
 from urllib.parse import urlparse
 
 from app.backend import app_settings
-from app.backend.citations import style_store
+from app.backend.citations import style_provenance, style_store
 from app.backend.citations.render import (
     DEFAULT_LOCALE,
     DEFAULT_STYLE,
@@ -22,6 +22,7 @@ from app.backend.citations.render import (
     render_document,
     validate_style_xml,
 )
+from app.backend.citations.style_validator import validate_csl_schema
 
 _CSL_NS = style_store.CSL_NS
 _MAX_RECENTS = 8
@@ -155,6 +156,9 @@ def _style_metadata(
             *(field.replace("_", " ") for field in fields),
         ]
     ).casefold()
+    provenance = (style_provenance.provenance_for(style_id) if custom else {"source_type": "bundled"}) or {
+        "source_type": "personal"
+    }
     return {
         "id": style_id,
         "title": (manifest or {}).get("title") or title,
@@ -170,6 +174,7 @@ def _style_metadata(
         "installed": True,
         "custom": custom,
         "source": "custom" if custom else "bundled",
+        "provenance": provenance,
         "canonical_id": canonical,
         "updated": _text(info, "updated"),
         "_searchable": searchable,
@@ -366,21 +371,25 @@ def _parse_candidate(
         citation = root.find("csl:citation", _CSL_NS)
         if citation is None or citation.find("csl:layout", _CSL_NS) is None:
             raise ValueError("An independent CSL style needs a citation layout")
+    validate_csl_schema(xml)
+    if not parent:
         validate_style_xml(xml)
     return root, title, canonical, parent, xml, preferred_id
 
 
 def candidate_source_metadata(filename: str, xml: str) -> dict[str, str | None]:
     """Validate one fetched candidate and expose only the identity needed to resolve its parent chain."""
-    _, title, canonical, parent, normalized_xml, _ = _parse_candidate(
+    root, title, canonical, parent, normalized_xml, _ = _parse_candidate(
         filename,
         xml,
         allow_uninstalled_parent=True,
     )
+    info = root.find("csl:info", _CSL_NS)
     return {
         "title": title,
         "canonical_id": canonical,
         "parent_canonical_id": parent,
+        "updated": _text(info, "updated") or None,
         "csl": normalized_xml,
     }
 
@@ -438,7 +447,13 @@ def inspect_style_install(
     return inspection
 
 
-def install_style(filename: str, xml: str, *, replace: bool = False) -> dict[str, Any]:
+def install_style(
+    filename: str,
+    xml: str,
+    *,
+    replace: bool = False,
+    provenance: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Validate and atomically install or update one local CSL file."""
     inspection, normalized_xml = _inspect_candidate(filename, xml)
     action = inspection["action"]
@@ -446,12 +461,26 @@ def install_style(filename: str, xml: str, *, replace: bool = False) -> dict[str
     title = inspection["style"]["full_title"]
     if action == "update_available" and not replace:
         raise StyleUpdateRequired(style_id, title)
-    if action == "ready":
+    prior_xml: str | None = None
+    if action == "update_available":
+        prior_path = style_store.style_path(style_id)
+        prior_xml = prior_path.read_text(encoding="utf-8") if prior_path else None
+    if action in {"ready", "update_available"}:
         style_store.write_custom_style(style_id, normalized_xml)
-        action = "installed"
-    elif action == "update_available":
-        style_store.write_custom_style(style_id, normalized_xml)
-        action = "updated"
+        final_action = "installed" if action == "ready" else "updated"
+        if provenance:
+            try:
+                style_provenance.record_install(style_id, **provenance)
+            except Exception:
+                if prior_xml is None:
+                    try:
+                        style_store.remove_custom_style(style_id)
+                    except (FileNotFoundError, OSError, ValueError):
+                        pass
+                else:
+                    style_store.write_custom_style(style_id, prior_xml)
+                raise
+        action = final_action
     style = next((row for row in list_catalog_styles() if row["id"] == style_id), None)
     if style is None:
         raise RuntimeError("The CSL style was written but could not be reopened")
@@ -506,4 +535,8 @@ def remove_style(style_id: str) -> dict[str, Any]:
             except OSError:
                 pass
         raise
+    try:
+        style_provenance.remove_provenance(style_id)
+    except OSError:
+        pass
     return catalog_response()

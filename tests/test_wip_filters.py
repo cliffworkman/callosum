@@ -41,28 +41,40 @@ def test_wip_facets_counts_and_count_sorts_use_workflow_state(temp_db_url: str, 
     alpha_id = rows["Alpha"]["id"]
     beta_id = rows["Beta"]["id"]
 
-    assert client.patch(
-        f"/wip/manuscripts/{alpha_id}",
-        json={
-            "manuscript_type": "systematic-review",
-            "target_journal": "Journal of Tests",
-            "deadline": (date.today() - timedelta(days=1)).isoformat(),
-            "stage": "drafting",
-        },
-    ).status_code == 200
-    assert client.patch(
-        f"/wip/manuscripts/{beta_id}",
-        json={"deadline": (date.today() + timedelta(days=10)).isoformat()},
-    ).status_code == 200
-    assert client.post(
-        f"/wip/manuscripts/{alpha_id}/tasks",
-        json={"title": "Resolve the analysis"},
-    ).status_code == 201
+    assert (
+        client.patch(
+            f"/wip/manuscripts/{alpha_id}",
+            json={
+                "manuscript_type": "systematic-review",
+                "target_journal": "Journal of Tests",
+                "deadline": (date.today() - timedelta(days=1)).isoformat(),
+                "stage": "drafting",
+            },
+        ).status_code
+        == 200
+    )
+    assert (
+        client.patch(
+            f"/wip/manuscripts/{beta_id}",
+            json={"deadline": (date.today() + timedelta(days=10)).isoformat()},
+        ).status_code
+        == 200
+    )
+    assert (
+        client.post(
+            f"/wip/manuscripts/{alpha_id}/tasks",
+            json={"title": "Resolve the analysis"},
+        ).status_code
+        == 201
+    )
     alpha_file = client.get(f"/wip/manuscripts/{alpha_id}/files").json()[0]
-    assert client.patch(
-        f"/wip/manuscripts/{alpha_id}/files/{alpha_file['id']}",
-        json={"is_primary": True},
-    ).status_code == 200
+    assert (
+        client.patch(
+            f"/wip/manuscripts/{alpha_id}/files/{alpha_file['id']}",
+            json={"is_primary": True},
+        ).status_code
+        == 200
+    )
     assert client.post(f"/wip/manuscripts/{alpha_id}/checks/statcheck", json={}).status_code == 200
 
     (parent / "Alpha" / "draft.md").write_text("Results changed.", encoding="utf-8")

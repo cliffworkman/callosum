@@ -310,8 +310,12 @@ the Principles + A-A gates before build.)*
   **Repository** search downloads the bounded fixed CSL/Zotero index and matches title/acronym/format/discipline
   locally; install preflights and resolves dependent-style parents. **Import URL** is an explicit HTTPS-only
   fetch with private/local destination, redirect, connected-peer, size, and dependency-depth guards; both paths
-  reuse duplicate/update confirmation and the local CSL/citeproc validator. **Still open under #9:**
-  full-schema/update provenance, duplication, and visual/source editing.
+  reuse duplicate/update confirmation and the local CSL/citeproc validator. **Inc 369 completed the pre-editor
+  lifecycle (2026-07-24):** every import now passes the official CSL 1.0.2 RELAX NG schema plus Schematron macro
+  rules; local/repository/URL/copy provenance and timestamps persist beside personal styles; update checks are
+  explicit-only, dependency-aware, and apply the exact preflighted bytes; and **Duplicate** creates a new
+  standalone personal style with a new canonical identity while retaining its source lineage. **Still open under
+  #9:** visual/source editing.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (custom CSL lifecycle/repository/editing, broader note-placement conversion, more bibliography

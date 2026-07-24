@@ -282,6 +282,69 @@ function CitationStylesSettings() {
     }
   };
 
+  const duplicateSelected = async () => {
+    if (!selected) return;
+    const proposed = `${selected.full_title || selected.title} - Copy`;
+    const title = window.prompt("Name the independent personal copy:", proposed);
+    if (title === null) return;
+    if (!title.trim()) { setMsg("Enter a name for the personal copy."); return; }
+    setBusy(true); setMsg("");
+    const r = await apiPost(
+      `/citations/styles/${encodeURIComponent(selected.id)}/duplicate`,
+      { title: title.trim() },
+    );
+    setBusy(false);
+    if (!r.ok) { setMsg("Couldn't duplicate citation style: " + (r.error || "error")); return; }
+    setCatalog(r.data);
+    setSelectedId(r.data.install.style.id);
+    setView("installed");
+    setQuery("");
+    setMsg(`${r.data.install.style.full_title} created as an independent personal style.`);
+  };
+
+  const checkSelectedUpdate = async () => {
+    if (!selected || !["repository", "url"].includes(selected.provenance?.source_type)) return;
+    setBusy(true); setMsg("");
+    const checked = await apiPost(
+      `/citations/styles/${encodeURIComponent(selected.id)}/check-update`,
+      {},
+    );
+    if (!checked.ok) {
+      setBusy(false);
+      setMsg("Couldn't check citation style: " + (checked.error || "error"));
+      return;
+    }
+    setCatalog(checked.data);
+    const update = checked.data.update;
+    if (update.status === "current") {
+      setBusy(false);
+      setMsg(`${selected.full_title || selected.title} is current as of this check.`);
+      return;
+    }
+    const confirmed = window.confirm(
+      `An update is available for ${selected.full_title || selected.title}. Replace the installed version?`
+    );
+    if (!confirmed) {
+      setBusy(false);
+      setMsg("Citation style update left uninstalled.");
+      return;
+    }
+    const result = await postRemoteStyle(update.install.path, {
+      ...update.install.body,
+      replace: true,
+      preflight_token: update.install.preflight_token,
+    });
+    setBusy(false);
+    if (!result.ok) {
+      const detail = typeof result.error === "string"
+        ? result.error : (result.error && result.error.message) || "update failed";
+      setMsg("Couldn't update citation style: " + detail);
+      return;
+    }
+    setCatalog(result.data);
+    setMsg(`${result.data.install.style.full_title} updated.`);
+  };
+
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let visible = catalog ? catalog.styles.filter(style => {
     const haystack = [
@@ -423,6 +486,14 @@ function CitationStylesSettings() {
                 </button>
               </div>
               {selected.summary && <p className="citation-style-summary">{selected.summary}</p>}
+              {selected.custom &&
+                <p className="citation-style-summary">
+                  Source: {citationStyleProvenanceLabel(selected, catalog)}
+                  {selected.provenance.source_url &&
+                    <> · <a href={selected.provenance.source_url} target="_blank" rel="noreferrer">View source</a></>}
+                  {selected.provenance.installed_at && ` · Installed ${citationStyleDateLabel(selected.provenance.installed_at)}`}
+                  {selected.provenance.last_checked_at && ` · Checked ${citationStyleDateLabel(selected.provenance.last_checked_at)}`}
+                </p>}
               {selected.fields.length > 0 &&
                 <div className="citation-style-fields">{selected.fields.map(field =>
                   <span key={field}>{field.replaceAll("_", " ")}</span>)}</div>}
@@ -441,9 +512,16 @@ function CitationStylesSettings() {
               <span className="settings-sub citation-style-default-note">
                 New word-processor documents inherit this application default. Existing documents keep their embedded style and locale.
               </span>
-              {selected.custom &&
-                <>
-                  <div className="citation-style-personal-actions">
+              <div className="citation-style-personal-actions">
+                <button type="button" className="btn" disabled={busy} onClick={duplicateSelected}>
+                  Duplicate
+                </button>
+                {["repository", "url"].includes(selected.provenance?.source_type) &&
+                  <button type="button" className="btn" disabled={busy} onClick={checkSelectedUpdate}>
+                    {busy ? "Checking…" : "Check for updates"}
+                  </button>}
+                {selected.custom &&
+                  <>
                     <button type="button" className="btn" disabled={busy} onClick={downloadSelected}>
                       Download .csl
                     </button>
@@ -453,12 +531,12 @@ function CitationStylesSettings() {
                       onClick={removeSelected}>
                       Remove
                     </button>
-                  </div>
-                  {selected.application_default &&
-                    <span className="settings-sub citation-style-default-note">
-                      Choose another application default before removing this style.
-                    </span>}
-                </>}
+                  </>}
+              </div>
+              {selected.custom && selected.application_default &&
+                <span className="settings-sub citation-style-default-note">
+                  Choose another application default before removing this style.
+                </span>}
               <div className="citation-style-preview" aria-live="polite">
                 <p className="eyebrow">Preview (example references)</p>
                 {preview.status === "loading" && <div className="settings-note">Rendering preview…</div>}

@@ -1910,14 +1910,13 @@ def spike_style_manager(ctx, base):
     <link href="https://example.test/styles/callosum-native-test" rel="self"/>
     <updated>2026-07-24T00:00:00+00:00</updated>
     <category citation-format="author-date"/>
-    <category field="testing"/>
   </info>
   <citation><layout prefix="[" suffix="]"><text variable="title"/></layout></citation>
   <bibliography><layout><text variable="title"/></layout></bibliography>
 </style>"""
     installed = cc._post_json(
         f"{base}/citations/styles/install",
-        {"filename": "callosum-native-test.csl", "csl": custom_csl},
+        {"filename": "callosum-native-test.csl", "csl": custom_csl, "replace": True},
     )["install"]
     custom_id = installed["style"]["id"]
     custom_rows = cc.style_catalog(base, "Native Test")["styles"]

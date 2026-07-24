@@ -22,6 +22,11 @@ Formatted citations and bibliographies are rendered by **citeproc-js**, the refe
 The styles and locales implement the **Citation Style Language** open standard. See the CSL project:
 <https://citationstyles.org/>.
 
+### Official CSL 1.0.2 validation schemas — MIT
+Local style installation validates against the official CSL 1.0.2 RELAX NG schema and Schematron macro rules
+from <https://github.com/citation-style-language/schema>. The generated XML schema, Schematron file, and complete
+MIT license are preserved under `app/backend/citations/csl/schema/`.
+
 ### Bundled CSL styles + locales — CC-BY-SA
 The styles under `app/backend/citations/csl/styles/` and locales under `…/csl/locales/` are from the CSL
 community repositories (<https://github.com/citation-style-language/styles>,
@@ -219,7 +224,7 @@ with each project). Grouped by license:
 
 **Python (backend, `requirements.txt`):**
 - **MIT** — FastAPI, SQLAlchemy, Alembic
-- **BSD-3-Clause** — Starlette, Uvicorn, httpx, scikit-learn, NumPy, SciPy
+- **BSD-3-Clause** — Starlette, Uvicorn, httpx, lxml, scikit-learn, NumPy, SciPy
 - **Apache-2.0** — sentence-transformers; google-genai (the optional Gemini client)
 - **Apache-2.0 / MIT** (dual) — sqlite-vec
 - **AGPL-3.0** (open edition; also offered commercially by Artifex) — **PyMuPDF** (`fitz`). Its copyleft is one

@@ -9,7 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 368 — CSL repository search/install and guarded URL import -->
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 369 — CSL schema, provenance, update checks, and duplication -->
+## 2026-07-24 — Increment 369: CSL schema, provenance, update checks, and duplication (P1 item #9)
+
+- **Files:** official local schema assets/validator, provenance/preflight/fetch/lifecycle modules, citation APIs,
+  Settings manager + generated app, dependencies/notices, citation/frontend/Writer tests, help/README,
+  QA/security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** every imported style now passes official CSL 1.0.2 RELAX NG + Schematron macro validation.
+  Personal styles visibly retain local/repository/URL/copy provenance. Remote checks are user-triggered,
+  dependency-aware, and install exact preflighted bytes. **Duplicate** creates a standalone personal copy with a
+  new canonical identity while preserving source lineage.
+- **Verification:** changed-surface citation/repository/frontend/help tests **129 passed**; frontend build, Ruff,
+  line budget, offline lock check, and QA surface map clean (**306/306 API**, no new frontend gaps). Playwright
+  covered independent duplication plus live URL provenance/update checks at desktop/mobile widths with zero
+  console errors or horizontal overflow. Real Writer passed the shared style-manager contract; the broader
+  adapter harness later reached phase 6 before its eight-minute ceiling. Full project suite:
+  **1548 passed, 1 skipped**.
+- **Revert:** `git revert` this commit and rebuild the frontend with `python tools/build_frontend.py`.
+
 ## 2026-07-24 — Increment 368: CSL repository search/install and guarded URL import (P1 item #9)
 
 - **Files:** repository fetch/search/install module, citation candidate/parser/API, Settings manager + generated

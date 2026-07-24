@@ -377,7 +377,7 @@
   .citation-style-actions .btn { flex: 0 0 auto; }
   .citation-style-actions .settings-input { display: block; margin-top: 3px; }
   .citation-style-default-note { max-width: none; }
-  .citation-style-personal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .citation-style-personal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 10px; }
   .citation-style-preview { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
   .citation-style-preview > .eyebrow { margin-top: 0; }
   .citation-style-preview-block { margin-top: 9px; color: var(--ink); font-family: var(--serif); font-size: 12px; line-height: 1.5; }

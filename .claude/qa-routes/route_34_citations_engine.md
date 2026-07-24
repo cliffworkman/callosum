@@ -28,6 +28,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Personal-style lifecycle is local and guarded (inc 367).** Export returns only the selected validated
   `custom-*` CSL with a constrained portable id marker. Removal cannot accept a path, remove a bundled/default
   style, or orphan an installed dependent. Neither operation may make an external request.
+- **Imported-style validation and copies are portable (inc 369).** Installed CSL satisfies the official local
+  1.0.2 schema and macro rules. A duplicate receives a new canonical identity and resolves as independent even
+  when its source was dependent; the source style remains unchanged.
 
 ## Adversarial checklist
 
@@ -65,8 +68,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    installed-parent removal → 409 with no mutation; bundled/unknown removal → 409/404. After choosing another
    default and removing dependents first, deletion succeeds, cleans Favorites/Recent, and subsequent render by
    the removed id → 422.
-9. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
-10. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
+9. Duplicate (`POST /citations/styles/{style_id}/duplicate`) a bundled style and a dependent personal style.
+   Confirm each result has a distinct canonical id, is independent, renders through both citation endpoints, and
+   leaves its source untouched. A missing source → 404; an empty/oversized title fails cleanly.
+10. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
+11. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
 
 ## Pass criteria
 

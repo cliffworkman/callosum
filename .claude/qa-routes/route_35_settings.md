@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /settings, /settings/providers, /settings/providers/{pid}, /settings/test-key, /settings/repair-summary-cache, /settings/access-token, /access/recover, /citations/styles*, /integrations/libreoffice/*, /integrations/word/*
-fe: 35_settings.jsx, 35b_providers.jsx, 35d_citation_styles.jsx, 01_recovery.jsx
+fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35d_citation_styles.jsx, 01_recovery.jsx
 -->
 
 # ROUTE 35 - Settings
@@ -43,6 +43,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   answers or connected peers, an unsafe redirect hop, excessive redirects/dependency depth, and bodies above
   1000 KB. Both paths must preflight a complete dependent-style parent chain before writing and reuse the exact
   duplicate/update confirmation. Any library/PDF/manuscript text in an external request is **Critical**.
+- **CSL lifecycle provenance is inspectable and explicit (inc 369).** Every import must pass the official local
+  CSL 1.0.2 schema plus macro-reference validation. Personal detail shows local/repository/URL/copy source and
+  available timestamps. No update request may occur until **Check for updates** is pressed; a confirmed update
+  consumes the exact preflighted chain and includes an installed custom parent. **Duplicate** must create a new
+  independent style/canonical id without mutating its source. A dependent copy that still requires its parent,
+  hidden background update request, or unlabelled remote source is High.
 - **LibreOffice install is local-only (inc 162).** The plugin install/download builds + opens a FIXED bundled `.oxt`; it must fire **no egress** (no genai/external host) and must degrade gracefully (`{opened:false}` + a download fallback), never 500. A request to any external host from the install path is **Critical**.
 - **Remote access is OFF by default + token-gated (inc 168).** On a clean instance, `GET /settings` reports
   `remote_access_enabled:false`; the gate is a no-op (the data API works with no token). Enabling without a token →
@@ -111,6 +117,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    through the same update confirmation. Direct API negatives: HTTP, credentials, fragment, non-443 port,
    loopback/private literal, a hostname resolving or connecting privately, redirect to private, oversized body,
    dependency cycle/depth, invalid CSL, and bundled canonical duplicate all fail before persistence.
+   Confirm a schema-invalid attribute and missing macro produce specific local validation errors. Select local,
+   repository, URL, and duplicated styles and verify the displayed source/timestamps. Reload to prove provenance
+   persistence; corrupt the provenance sidecar and verify the catalog fails soft as source-not-recorded. Confirm
+   merely opening/searching/previewing sends no update request. Press **Check for updates** on a remote style:
+   current and available states name the check, and accepting an update consumes its preflight token without a
+   second fetch. Duplicate bundled, independent-personal, and dependent styles; each copy gets a new canonical id,
+   selects immediately, previews, and is independent while the original remains unchanged.
    Desktop/mobile flows complete with zero console/page errors. Installed-only operations have zero external
    requests; repository/URL operations have only the explicit expected requests and send no library content.
 10. **Local maintenance.** Click **Repair synthesis cache** (`POST /settings/repair-summary-cache`). It must report scanned and removed row counts, fire no external request, and not delete saved summaries, verified citations, chunks, or evidence records. A response that claims to "verify" or improve synthesis quality is a wording bug: this only deletes malformed cached AI draft rows.

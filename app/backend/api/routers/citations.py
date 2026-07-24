@@ -225,7 +225,12 @@ def citation_style_preferences(payload: StylePreferencesRequest) -> dict[str, An
 @router.post("/citations/styles/install")
 def citation_style_install(payload: StyleInstallRequest) -> dict[str, Any]:
     try:
-        result = install_style(payload.filename, payload.csl, replace=payload.replace)
+        result = install_style(
+            payload.filename,
+            payload.csl,
+            replace=payload.replace,
+            provenance={"source_type": "local_file", "source_name": payload.filename},
+        )
         return {**catalog_response(), "install": result}
     except StyleUpdateRequired as exc:
         raise HTTPException(
