@@ -502,8 +502,8 @@ def spike_incremental_rendering(ctx, base, p1, p2):
 
 
 def spike_note_style_footnotes(ctx, base, p1, p2):
-    """P1 item #10 foundation: note styles create, scan, render, edit-target, delete, and flatten real footnotes."""
-    log("spike (P1 #10): note-style citations in real Writer footnotes")
+    """P1 item #10: note styles create/manage real Writer footnotes and endnotes with native note indexes."""
+    log("spike (P1 #10): note-style citations in real Writer footnotes and endnotes")
     doc = new_writer(ctx)
     text = doc.getText()
     text.createTextCursorByRange(text.getStart()).setString("First XXX0. Second XXX1. Third XXX2.\n")
@@ -562,7 +562,63 @@ def spike_note_style_footnotes(ctx, base, p1, p2):
         [doc.getFootnotes().getByIndex(index).getString() for index in range(2)] == static_note_text,
         "flatten did not preserve static rendered note text",
     )
-    log("spike (P1 #10): OK — real footnotes, note indexes, shortened repeat, safe delete/style/flatten")
+
+    end_doc = new_writer(ctx)
+    end_text = end_doc.getText()
+    end_text.createTextCursorByRange(end_text.getStart()).setString("End one END0. End two END1. End three END2.\n")
+    cc._set_pref(end_doc, "chicago-notes-bibliography", "en-US")
+    check(cc.note_placement(end_doc) == "footnote", "fresh document did not default note placement to footnotes")
+    cc.set_note_placement(end_doc, "endnote")
+    check(cc.note_placement(end_doc) == "endnote", "endnote placement did not persist in the document")
+
+    def endnote_cursor(needle):
+        sd = end_doc.createSearchDescriptor()
+        sd.SearchString = needle
+        found = end_doc.findFirst(sd)
+        cursor = end_text.createTextCursorByRange(found)
+        cursor.setString("")
+        cursor.collapseToStart()
+        return cursor
+
+    for index, paper_id in enumerate((p1, p2, p1)):
+        cc.insert_citation(end_doc, paper_id, base, cursor=endnote_cursor(f"END{index}"))
+
+    end_fields = cc.scan_citations_in_order(end_doc)
+    check(end_doc.getFootnotes().getCount() == 0, "endnote placement unexpectedly created a footnote")
+    check(end_doc.getEndnotes().getCount() == 3, "endnote placement did not create three Writer endnotes")
+    check([field["placement"] for field in end_fields] == ["endnote"] * 3, "endnote marks were misclassified")
+    check([field["noteIndex"] for field in end_fields] == [1, 2, 3], "Writer endnote indexes did not reach scan order")
+    check(
+        end_fields[0]["_mark"].getAnchor().getString() != end_fields[2]["_mark"].getAnchor().getString(),
+        "repeated Chicago endnote was not shortened",
+    )
+
+    old_placement = cc.note_placement(end_doc)
+    try:
+        cc.set_note_placement(end_doc, "footnote")
+    except ValueError as exc:
+        check("Automatic conversion" in str(exc), f"wrong endnote-to-footnote placement error: {exc}")
+    else:
+        raise AssertionError("endnote-to-footnote placement change was silently accepted")
+    check(cc.note_placement(end_doc) == old_placement, "rejected placement change mutated the document preference")
+
+    end_view = end_doc.getCurrentController().getViewCursor()
+    end_view.gotoRange(end_fields[1]["_mark"].getAnchor().getStart(), False)
+    selected_endnote = cc.mark_at_cursor(end_doc)
+    check(
+        selected_endnote is not None and selected_endnote["citationID"] == end_fields[1]["citationID"],
+        "cursor lookup failed in endnote",
+    )
+    endnote_static_text = [field["_mark"].getAnchor().getString() for field in end_fields]
+    check(cc.flatten(end_doc) == 3, "flatten did not unlink all endnote citations")
+    check(
+        [end_doc.getEndnotes().getByIndex(index).getString() for index in range(3)] == endnote_static_text,
+        "flatten did not preserve static rendered endnote text",
+    )
+    log(
+        "spike (P1 #10): OK — real footnotes/endnotes, note indexes, shortened repeats, "
+        "safe placement/style/delete/flatten"
+    )
 
 
 def spike_mark_at_cursor(ctx, base, p1, p2):

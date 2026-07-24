@@ -142,8 +142,9 @@ native Writer status-bar progress and can be cancelled with **Esc**; a cancellat
 refresh rather than leaving mixed formatting. Full-document citeproc context is preserved, but Writer now skips
 citation fields and managed bibliography text whose rendered output is already current. Selecting the bundled
 **Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
-first/subsequent notes from the complete note sequence; existing inline documents are never silently converted.
-See `adapters/`'s per-tool READMEs for setup.
+first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
+to native Writer endnotes, as a setting saved with the document. Existing inline documents and existing notes
+are never silently converted. See `adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 

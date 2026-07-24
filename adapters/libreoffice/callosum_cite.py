@@ -93,11 +93,14 @@ CSL_LOCATOR_LABELS = (
 )
 PREF_STYLE = "CallosumStyle"  # document user-property: chosen CSL style id
 PREF_LOCALE = "CallosumLocale"  # document user-property: chosen locale
+PREF_NOTE_PLACEMENT = "CallosumNotePlacement"  # document user-property: footnote or endnote for note-family styles
 # P1 item #11 (backlog #33/#34): bibliography editing — each a JSON-encoded list of paper_id strings.
 PREF_BIB_EXCLUDE = "CallosumBibExclude"  # cited works omitted from the bibliography (e.g. personal comms)
 PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works included in the bibliography
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
+DEFAULT_NOTE_PLACEMENT = "footnote"
+NOTE_PLACEMENTS = ("footnote", "endnote")
 DEFAULT_BASE = "http://127.0.0.1:8080"
 HTTP_TIMEOUT = 20
 PROGRESS_MIN_WORK = 20  # roughly ten full-document citation updates; avoid flashing UI for small documents
@@ -552,6 +555,42 @@ def _set_pref(doc, style: str, locale: str) -> None:
             props.addProperty(name, REMOVABLE, value)
 
 
+def note_placement(doc) -> str:
+    """Document-level placement for newly inserted note-style citations; corrupt/legacy values fail to footnotes."""
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    value = (_user_prop(props, PREF_NOTE_PLACEMENT) or DEFAULT_NOTE_PLACEMENT).strip().lower()
+    return value if value in NOTE_PLACEMENTS else DEFAULT_NOTE_PLACEMENT
+
+
+def normalize_note_placement(value: str) -> str:
+    placement = str(value or "").strip().lower()
+    if placement not in NOTE_PLACEMENTS:
+        raise ValueError("Note placement must be 'footnote' or 'endnote'.")
+    return placement
+
+
+def set_note_placement(doc, placement: str) -> None:
+    """Persist the placement for future note citations without silently relocating existing live fields."""
+    from com.sun.star.beans.PropertyAttribute import REMOVABLE
+
+    placement = normalize_note_placement(placement)
+    existing = {
+        field.get("placement", "inline")
+        for field in scan_citations_in_order(doc)
+        if field.get("placement", "inline") != "inline"
+    }
+    if existing and existing != {placement}:
+        raise ValueError(
+            f"This document already contains live Callosum citations in {', '.join(sorted(existing))}. "
+            "Automatic conversion between footnotes and endnotes is not available yet."
+        )
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    if props.getPropertySetInfo().hasPropertyByName(PREF_NOTE_PLACEMENT):
+        props.setPropertyValue(PREF_NOTE_PLACEMENT, placement)
+    else:
+        props.addProperty(PREF_NOTE_PLACEMENT, REMOVABLE, placement)
+
+
 def bib_auto_enabled(doc) -> bool:
     """Whether the bibliography auto-rebuilds on refresh (P0 phase 7). Default True — only an explicit "0"
     (set via `set_bib_auto`) pauses it, so a fresh/never-touched document keeps today's behavior unchanged."""
@@ -923,17 +962,23 @@ def _citation_context(doc, mark, notes: list[dict]) -> dict:
     return {"placement": "unsupported", "noteIndex": 0, "_note": None}
 
 
-def citation_placement_error(fields: list[dict], family: str) -> str | None:
+def citation_placement_error(
+    fields: list[dict],
+    family: str,
+    expected_note_placement: str = DEFAULT_NOTE_PLACEMENT,
+) -> str | None:
     """Explain a style/Writer-context mismatch rather than silently rendering notes inline (or vice versa)."""
     placements = {field.get("placement", "inline") for field in fields}
     if not placements:
         return None
     if family == "note":
-        if placements == {"footnote"}:
+        expected_note_placement = normalize_note_placement(expected_note_placement)
+        if placements == {expected_note_placement}:
             return None
         return (
-            "This note style requires every live Callosum citation to be in a Writer footnote. "
-            "Automatic conversion of existing inline citations and endnotes is not available yet."
+            f"This note style is configured to use Writer {expected_note_placement}s, but the existing live "
+            f"citations are in {', '.join(sorted(placements))}. Automatic conversion between inline citations, "
+            "footnotes, and endnotes is not available yet."
         )
     if placements == {"inline"}:
         return None
@@ -950,8 +995,9 @@ def _insert_mark(doc, text, cursor, payload: dict, rnd: str) -> None:
     text.insertTextContent(cursor, mark, True)  # absorb=True → the mark wraps the placeholder range
 
 
-def _insert_note_mark(doc, cursor, payload: dict, rnd: str) -> None:
-    """Insert one live citation into a real Writer footnote anchored at the requested main-text position."""
+def _insert_note_mark(doc, cursor, payload: dict, rnd: str, placement: str) -> None:
+    """Insert one live citation into a real Writer footnote/endnote anchored at the main-text position."""
+    placement = normalize_note_placement(placement)
     main_text = doc.getText()
     if cursor is None:
         try:
@@ -963,7 +1009,8 @@ def _insert_note_mark(doc, cursor, payload: dict, rnd: str) -> None:
     except Exception as exc:
         raise ValueError("Place the cursor in the main document text before inserting a note citation.") from exc
     main_cursor.collapseToStart()
-    note = doc.createInstance("com.sun.star.text.Footnote")
+    note_service = "com.sun.star.text.Footnote" if placement == "footnote" else "com.sun.star.text.Endnote"
+    note = doc.createInstance(note_service)
     main_text.insertTextContent(main_cursor, note, False)
     _insert_mark(doc, note, note.createTextCursor(), payload, rnd)
 
@@ -985,7 +1032,7 @@ def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, curs
     payload = {"items": records}
     style, _locale = _get_pref(doc)
     if style_family(base, style) == "note":
-        _insert_note_mark(doc, cursor, payload, rnd)
+        _insert_note_mark(doc, cursor, payload, rnd, note_placement(doc))
     else:
         text = doc.getText()
         if cursor is None:
@@ -1279,7 +1326,7 @@ def refresh(
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
-    placement_error = citation_placement_error(fields, style_family(base, style))
+    placement_error = citation_placement_error(fields, style_family(base, style), note_placement(doc))
     if placement_error:
         raise ValueError(placement_error)
     expected_signature = render_input_signature(fields)
@@ -1637,7 +1684,7 @@ def set_style(doc, style: str, locale: str, base: str = DEFAULT_BASE) -> None:
     families = {entry["id"]: entry["family"] for entry in styles}
     if style not in families:
         raise ValueError(f"Unknown style '{style}'. Available: {', '.join(sorted(families))}")
-    placement_error = citation_placement_error(scan_citations_in_order(doc), families[style])
+    placement_error = citation_placement_error(scan_citations_in_order(doc), families[style], note_placement(doc))
     if placement_error:
         raise ValueError(placement_error)
     _set_pref(doc, style, locale or DEFAULT_LOCALE)
@@ -1810,6 +1857,52 @@ def _input_box(doc, title: str, prompt: str, default: str = "") -> str | None:
     value = dialog.getControl("edit").getModel().Text if result == 1 else None
     dialog.dispose()
     return value
+
+
+def _choice_box(
+    doc,
+    title: str,
+    prompt: str,
+    options: tuple[tuple[str, str], ...],
+    current_value: str,
+) -> str | None:
+    """Small modal dropdown for a bounded setting; returns its stable value or None when cancelled."""
+    smgr = _component_ctx().ServiceManager
+    ctx = _component_ctx()
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 220, 72, title
+    label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+    label.PositionX, label.PositionY, label.Width, label.Height, label.Label = 6, 6, 208, 18, prompt
+    dm.insertByName("lbl", label)
+    choices = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    choices.PositionX, choices.PositionY, choices.Width, choices.Height = 6, 26, 208, 28
+    choices.Dropdown = True
+    choices.StringItemList = tuple(option[0] for option in options)
+    dm.insertByName("choices", choices)
+    ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = 130, 52, 40, 14, "OK", 1
+    dm.insertByName("ok", ok)
+    cancel = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    cancel.PositionX, cancel.PositionY, cancel.Width, cancel.Height, cancel.Label, cancel.PushButtonType = (
+        174,
+        52,
+        40,
+        14,
+        "Cancel",
+        2,
+    )
+    dm.insertByName("cancel", cancel)
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+    control = dialog.getControl("choices")
+    selected = next((index for index, option in enumerate(options) if option[1] == current_value), 0)
+    control.selectItemPos(selected, True)
+    result = dialog.execute()
+    position = control.getSelectedItemPos() if result == 1 else -1
+    dialog.dispose()
+    return options[position][1] if 0 <= position < len(options) else None
 
 
 _SUGGEST_CAVEAT = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
@@ -1986,6 +2079,20 @@ def set_style_interactive(doc, base: str) -> None:
         return
     loc = _input_box(doc, "Locale", "Locale (en-US / en-GB):", locale) or DEFAULT_LOCALE
     set_style(doc, chosen.strip(), loc.strip(), base)
+
+
+def set_note_placement_interactive(doc, _base: str) -> None:
+    chosen = _choice_box(
+        doc,
+        "Note placement",
+        "Where should new note-style citations appear?",
+        (("Footnotes", "footnote"), ("Endnotes", "endnote")),
+        note_placement(doc),
+    )
+    if chosen is None:
+        return
+    set_note_placement(doc, chosen)
+    _msgbox(f"New note-style citations will be inserted as {chosen}s.")
 
 
 def flatten_interactive(doc) -> None:
@@ -2459,6 +2566,7 @@ _ACTIONS = {
     "refreshBibliography": refresh_bibliography,
     "refreshPending": refresh_pending,
     "setStyle": set_style_interactive,
+    "setNotePlacement": set_note_placement_interactive,
     "flatten": lambda doc, base: flatten_interactive(doc),
     "prepareSubmissionCopy": lambda doc, base: prepare_submission_copy_interactive(doc),
     "insertStatement": insert_statement,
@@ -2543,6 +2651,10 @@ def CallosumSetStyle(*_args):
     _macro("setStyle")
 
 
+def CallosumSetNotePlacement(*_args):
+    _macro("setNotePlacement")
+
+
 def CallosumFlatten(*_args):
     _macro("flatten")
 
@@ -2613,6 +2725,7 @@ g_exportedScripts = (
     CallosumRefreshCurrentSection,
     CallosumRefreshBibliography,
     CallosumSetStyle,
+    CallosumSetNotePlacement,
     CallosumFlatten,
     CallosumInsertStatement,
     CallosumSetServerUrl,

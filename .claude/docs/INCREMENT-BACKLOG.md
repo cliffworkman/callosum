@@ -277,11 +277,15 @@ the Principles + A-A gates before build.)*
   documents are not silently converted: incompatible inline↔note style switches fail before document or
   preference mutation. Cursor lookup, edit, delete, section refresh, flatten, footnote renumbering after deletion,
   and grouped sources inside one live note cluster are covered by the same field model and real-Writer proof.
-  **Still open under #10:** endnote insertion/selection, deliberate inline↔note conversion, multiple independent
-  live citation clusters mixed with user prose inside one note, and broader ibid/near-note style/context coverage.
+  **Inc 363 added endnote placement (2026-07-23):** the new document-level **Note placement…** selector chooses
+  native Writer footnotes or endnotes for future note-style citations and persists that choice with the document.
+  Endnotes use Writer's ordered endnote collection for real one-based citeproc note indexes. Changing placement
+  with incompatible live notes fails before preference mutation. **Still open under #10 after inc 363:**
+  deliberate inline↔note and footnote↔endnote conversion, multiple independent live citation clusters mixed with
+  user prose inside one note, and broader ibid/near-note style/context coverage.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
+  not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note-placement conversion, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
   keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,

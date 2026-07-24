@@ -609,19 +609,40 @@ def test_style_manifest_and_family_are_validated(monkeypatch) -> None:
 
 
 @pytest.mark.parametrize(
-    ("family", "placements", "has_error"),
+    ("raw", "expected"),
+    [("footnote", "footnote"), ("FOOTNOTE", "footnote"), (" endnote ", "endnote")],
+)
+def test_normalize_note_placement(raw: str, expected: str) -> None:
+    assert cc.normalize_note_placement(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "margin", "inline"])
+def test_normalize_note_placement_rejects_unknown_values(raw: str) -> None:
+    with pytest.raises(ValueError, match="footnote.*endnote"):
+        cc.normalize_note_placement(raw)
+
+
+@pytest.mark.parametrize(
+    ("family", "placements", "expected_note_placement", "has_error"),
     [
-        ("note", ["footnote"], False),
-        ("note", ["inline"], True),
-        ("note", ["footnote", "inline"], True),
-        ("author-date", ["inline"], False),
-        ("numeric", ["footnote"], True),
-        ("note", [], False),
+        ("note", ["footnote"], "footnote", False),
+        ("note", ["endnote"], "endnote", False),
+        ("note", ["endnote"], "footnote", True),
+        ("note", ["inline"], "footnote", True),
+        ("note", ["footnote", "inline"], "footnote", True),
+        ("author-date", ["inline"], "footnote", False),
+        ("numeric", ["footnote"], "footnote", True),
+        ("note", [], "endnote", False),
     ],
 )
-def test_citation_placement_error(family: str, placements: list[str], has_error: bool) -> None:
+def test_citation_placement_error(
+    family: str,
+    placements: list[str],
+    expected_note_placement: str,
+    has_error: bool,
+) -> None:
     fields = [{"placement": placement} for placement in placements]
-    assert (cc.citation_placement_error(fields, family) is not None) is has_error
+    assert (cc.citation_placement_error(fields, family, expected_note_placement) is not None) is has_error
 
 
 def test_order_by_comparator_sorts_into_document_order() -> None:
@@ -1021,6 +1042,12 @@ def test_auto_refresh_preferences_default_on_and_explicit_zero_disables() -> Non
     assert cc.bib_auto_enabled(_PanelDoc({}))
     assert not cc.cite_auto_enabled(_PanelDoc({}, {cc.PREF_CITE_AUTO: "0"}))
     assert not cc.bib_auto_enabled(_PanelDoc({}, {cc.PREF_BIB_AUTO: "0"}))
+
+
+def test_note_placement_defaults_and_corrupt_values_fail_to_footnotes() -> None:
+    assert cc.note_placement(_PanelDoc({})) == "footnote"
+    assert cc.note_placement(_PanelDoc({}, {cc.PREF_NOTE_PLACEMENT: "endnote"})) == "endnote"
+    assert cc.note_placement(_PanelDoc({}, {cc.PREF_NOTE_PLACEMENT: "margin"})) == "footnote"
 
 
 def test_dirty_state_defaults_clean_and_reads_each_persisted_flag() -> None:

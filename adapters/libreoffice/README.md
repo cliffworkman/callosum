@@ -79,9 +79,11 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
    the whole document re-renders. The choice is saved in the document. With
    `chicago-notes-bibliography`, each new citation is inserted into a real Writer footnote and citeproc receives
-   the one-based note sequence, so first and subsequent notes render correctly. Callosum refuses an incompatible
-   style switch before changing the document or its saved preference: automatic conversion between existing
-   inline citations and notes, and endnote placement, are not supported yet.
+   the one-based note sequence, so first and subsequent notes render correctly. Use **Note placement…** to choose
+   **Footnotes** (the default) or **Endnotes** for new note-style citations; the choice is saved in the document.
+   Callosum refuses an incompatible style or placement switch before changing the document or its saved
+   preference: automatic conversion between existing inline citations, footnotes, and endnotes is not supported
+   yet.
 6. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
    copy** with citations converted to static text; your open document is **never changed**. Names the copy
    `<your-document>-submission-copy.odt` by default (always ODF for now) and tells you exactly where it saved.
@@ -149,7 +151,8 @@ It still defaults to the document end on first use; move it anywhere with **Inse
 ## How it works (for the curious)
 Each citation is a Writer **ReferenceMark** whose name carries the cited work's CSL-JSON payload (base64-encoded);
 the visible marked text is the rendered citation. For note styles, that ReferenceMark lives inside a real Writer
-**Footnote** text object; the adapter derives its one-based `noteIndex` from Writer's ordered footnote collection.
+**Footnote** or **Endnote** text object; the adapter derives its one-based `noteIndex` from Writer's corresponding
+ordered note collection.
 On refresh the adapter scans every mark in document/note order, POSTs the ordered set to callosum's
 `POST /citations/render-document`, and writes the position-aware result back. All formatting happens in
 callosum's bundled citeproc engine, so the output is identical to the in-app "Cite as…" and to the future
@@ -182,6 +185,6 @@ mechanism. A CSL style that defines its own `<citation><sort>` (4 of the 7 bundl
 harvard-cite-them-right) will re-sort a grouped citation's items regardless of the order you arrange them in —
 the composer's preview always shows the real result, so you'll see this rather than be surprised by it.
 **Prepare submission copy…** always saves ODF (`.odt`) for now, regardless of your document's original format;
-note styles currently insert footnotes only (no endnote selector, automatic inline↔note conversion, or multiple
-separate live citation clusters mixed with user prose inside one note); no Track-Changes-corruption handling.
-Word (Office.js) and Google Docs are the next two adapters.
+note styles do not yet automatically convert existing inline↔note or footnote↔endnote fields, or support multiple
+separate live citation clusters mixed with user prose inside one note; no Track-Changes-corruption handling. Word
+(Office.js) and Google Docs are the next two adapters.

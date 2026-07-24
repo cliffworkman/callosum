@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 362** (see Increment workflow) with **1486 pytest tests
+It is currently at **Increment 363** (see Increment workflow) with **1495 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -44,7 +44,8 @@ the full per-increment narrative for all other increments now lives in the reloc
   `citeproc` is an npm dep (`package.json`); see `THIRD-PARTY-NOTICES.md`. **inc 108** ships the **first adapter**:
   a LibreOffice (UNO) cite-while-you-write macro (`adapters/libreoffice/`) that places ReferenceMark live fields +
   rides `render-document`; **inc 362** adds native Writer footnotes for note-family styles and a validated
-  one-based `noteIndex` to the shared render contract so citeproc can distinguish first/subsequent notes.
+  one-based `noteIndex` to the shared render contract so citeproc can distinguish first/subsequent notes;
+  **inc 363** adds a document-level footnote/endnote selector and native Writer endnote insertion.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

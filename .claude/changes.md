@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 363 — LibreOffice footnote/endnote placement -->
+## 2026-07-23 — Increment 363: LibreOffice native endnotes and persistent note placement (P1 item #10)
+
+- **Files:** LibreOffice adapter/menu/selftest/README/OXT version (0.12.0 → 0.13.0), adapter/OXT tests,
+  root README, served help, security audit, backlog/CLAUDE/increment notes.
+- **What changed:** **Note placement…** now presents a bounded Footnotes/Endnotes selector saved in the Writer
+  document. Note-family insertion creates the corresponding native Writer service, and both placements feed
+  their real one-based collection index to citeproc for first/subsequent-note behavior.
+- **Safety:** the default remains footnotes. A placement change with incompatible live notes is rejected before
+  the saved property changes; existing inline citations, footnotes, and endnotes are never silently relocated.
+- **Verification:** focused adapter/OXT/install tests and the installed 0.13.0 real-Writer selftest cover three
+  native endnotes, shortened repeat rendering, cursor lookup inside an endnote, refused conversion, and flatten
+  preserving static endnote text. Focused suite: **105 passed**; full project suite:
+  **1495 passed, 1 skipped**.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 362 — LibreOffice note citations in real Writer footnotes -->
 ## 2026-07-23 — Increment 362: LibreOffice note citations, footnote foundation (P1 item #10)
 
