@@ -280,12 +280,19 @@ the Principles + A-A gates before build.)*
   **Inc 363 added endnote placement (2026-07-23):** the new document-level **Note placement…** selector chooses
   native Writer footnotes or endnotes for future note-style citations and persists that choice with the document.
   Endnotes use Writer's ordered endnote collection for real one-based citeproc note indexes. Changing placement
-  with incompatible live notes fails before preference mutation. **Still open under #10 after inc 363:**
-  deliberate inline↔note and footnote↔endnote conversion, multiple independent live citation clusters mixed with
-  user prose inside one note, and broader ibid/near-note style/context coverage.
+  with incompatible live notes fails before preference mutation.
+  **Inc 364 added explicit safe placement conversion (2026-07-23):** **Convert citation placement…** inventories
+  the complete document, previews source/target/count, fully renders the target sequence before mutation, and
+  converts eligible inline↔footnote↔endnote fields while preserving citation identities and order. The user can
+  apply one verified Writer Undo step or save a separate converted `.odt` copy with the open document restored
+  exactly. Mixed placement, tracked changes, malformed fields, duplicate IDs, damaged bibliography bounds,
+  multiple clusters per note, and notes containing user prose fail closed. Writer Undo/Redo, injected rollback,
+  and copy isolation are proven against the installed OXT. **Still open under #10 after inc 364:** safe semantics
+  for multiple independent live clusters mixed with prose inside one note, tracked-change conversion, and broader
+  ibid/near-note style/context coverage.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note-placement conversion, more bibliography
+  not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, broader note-placement conversion, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
   keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,

@@ -137,6 +137,12 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <node oor:name="m05b" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?convertCitationPlacement</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Convert citation placement…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m06" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?flatten</value></prop>
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Flatten to static text</value></prop>

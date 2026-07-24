@@ -81,20 +81,23 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    `chicago-notes-bibliography`, each new citation is inserted into a real Writer footnote and citeproc receives
    the one-based note sequence, so first and subsequent notes render correctly. Use **Note placement…** to choose
    **Footnotes** (the default) or **Endnotes** for new note-style citations; the choice is saved in the document.
-   Callosum refuses an incompatible style or placement switch before changing the document or its saved
-   preference: automatic conversion between existing inline citations, footnotes, and endnotes is not supported
-   yet.
-6. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
+   Callosum refuses an incompatible style or placement switch before changing the document or its saved preference.
+6. **Convert citation placement…** — explicitly convert all eligible live citations between inline text,
+   footnotes, and endnotes while choosing the target style. The preview names the source, target, and citation
+   count. Apply it to this document as one Writer Undo step, or save a separate converted `.odt` copy while the
+   open document remains unchanged. Conversion refuses mixed placements, tracked changes, malformed fields,
+   multiple live clusters in one note, or any source note containing user prose.
+7. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
    copy** with citations converted to static text; your open document is **never changed**. Names the copy
    `<your-document>-submission-copy.odt` by default (always ODF for now) and tells you exactly where it saved.
-7. **Flatten to static text** — the advanced option: convert the live citation fields to plain text **in this
+8. **Flatten to static text** — the advanced option: convert the live citation fields to plain text **in this
    document** directly. **One-way:** after flattening, the citations no longer update. Prefer **Prepare
    submission copy…** unless you specifically want to keep editing the flattened version yourself.
-8. **Insert CRediT statement** — insert the **CRediT contribution statement** you built + staged in callosum
+9. **Insert CRediT statement** — insert the **CRediT contribution statement** you built + staged in callosum
    (Theory → CRediT statement → **Send to LibreOffice**) at the cursor, as plain static text. A contributorship
    statement is prose the author asserts, not a live citation field, so it is inserted as literal text (no
    ReferenceMark, unaffected by refresh/flatten). If nothing is staged, the macro tells you to build one first.
-9. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
+10. **Server URL…** — point the plugin at callosum if you run it on a non-default port (stored in `~/.callosum/`).
 
 **Acting on an existing citation** — place the cursor **inside** the citation first (all show an honest
 message if it isn't):
@@ -185,6 +188,7 @@ mechanism. A CSL style that defines its own `<citation><sort>` (4 of the 7 bundl
 harvard-cite-them-right) will re-sort a grouped citation's items regardless of the order you arrange them in —
 the composer's preview always shows the real result, so you'll see this rather than be surprised by it.
 **Prepare submission copy…** always saves ODF (`.odt`) for now, regardless of your document's original format;
-note styles do not yet automatically convert existing inline↔note or footnote↔endnote fields, or support multiple
-separate live citation clusters mixed with user prose inside one note; no Track-Changes-corruption handling. Word
-(Office.js) and Google Docs are the next two adapters.
+placement conversion intentionally does not support multiple separate live citation clusters in one note, notes
+mixed with user prose, mixed source placements, or tracked changes. Accept/reject changes or simplify those notes
+before converting. Converted copies are always ODF (`.odt`). Word (Office.js) and Google Docs are the next two
+adapters.

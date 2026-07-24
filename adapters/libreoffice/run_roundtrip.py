@@ -254,8 +254,8 @@ def main() -> int:
         try:
             return subprocess.run(
                 [str(LO_PYTHON), str(SELFTEST), f"http://127.0.0.1:{PORT_HTTP}", str(p1), str(p2), str(PORT_UNO)],
-                timeout=300,  # inc 157: the suggest step adds retrieval + a first-call NLI load; inc 327 (phase 9)
-                # added 4 more documents' worth of round-trips, so 180s no longer has enough headroom
+                timeout=480,  # inc 157 added retrieval/NLI; inc 327 added 4 documents; inc 364 adds conversion
+                # Undo/Redo/rollback/copy round-trips, so the previous 300s ceiling no longer has enough headroom
             ).returncode
         except subprocess.TimeoutExpired:
             print("SELFTEST TIMED OUT", flush=True)

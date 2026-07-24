@@ -94,6 +94,7 @@ CSL_LOCATOR_LABELS = (
 PREF_STYLE = "CallosumStyle"  # document user-property: chosen CSL style id
 PREF_LOCALE = "CallosumLocale"  # document user-property: chosen locale
 PREF_NOTE_PLACEMENT = "CallosumNotePlacement"  # document user-property: footnote or endnote for note-family styles
+CONVERSION_STATE_PREFIX = "CALLOSUM_CONVERSION_STATE"
 # P1 item #11 (backlog #33/#34): bibliography editing — each a JSON-encoded list of paper_id strings.
 PREF_BIB_EXCLUDE = "CallosumBibExclude"  # cited works omitted from the bibliography (e.g. personal comms)
 PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works included in the bibliography
@@ -116,6 +117,8 @@ CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".callosum", "libreoffice.js
 _DISPATCH_CTX = None
 _DOCUMENT_OBSERVERS: dict[str, object] = {}
 _OBSERVATION_SUPPRESSIONS: dict[str, int] = {}
+_CONVERSION_UNDO_LISTENERS: dict[str, object] = {}
+_CONVERSION_BIBLIOGRAPHIES: dict[str, dict[tuple[str, ...], tuple[bool, bool, str]]] = {}
 
 
 class RefreshCancelled(RuntimeError):
@@ -531,9 +534,8 @@ def csl_record_row(record: dict) -> str:
 
 
 def _get_pref(doc) -> tuple[str, str]:
-    props = doc.getDocumentProperties().getUserDefinedProperties()
-    style = _user_prop(props, PREF_STYLE) or DEFAULT_STYLE
-    locale = _user_prop(props, PREF_LOCALE) or DEFAULT_LOCALE
+    style = _effective_user_prop(doc, PREF_STYLE) or DEFAULT_STYLE
+    locale = _effective_user_prop(doc, PREF_LOCALE) or DEFAULT_LOCALE
     return style, locale
 
 
@@ -544,21 +546,76 @@ def _user_prop(props, name: str) -> str | None:
         return None
 
 
-def _set_pref(doc, style: str, locale: str) -> None:
+def _decode_conversion_state_name(name: str) -> dict[str, str | None] | None:
+    prefix = CONVERSION_STATE_PREFIX + " "
+    if not isinstance(name, str) or not name.startswith(prefix):
+        return None
+    try:
+        payload = base64.urlsafe_b64decode(name[len(prefix) :].encode("ascii")).decode("utf-8")
+        state = json.loads(payload)
+    except (ValueError, UnicodeError, json.JSONDecodeError):
+        return None
+    return state if isinstance(state, dict) else None
+
+
+def _conversion_state_marks(doc) -> list:
+    marks = doc.getReferenceMarks()
+    return [
+        marks.getByName(name)
+        for name in marks.getElementNames()
+        if isinstance(name, str) and name.startswith(CONVERSION_STATE_PREFIX + " ")
+    ]
+
+
+def _conversion_state(doc) -> dict[str, str | None] | None:
+    marks = _conversion_state_marks(doc)
+    return _decode_conversion_state_name(marks[0].Name) if len(marks) == 1 else None
+
+
+def _conversion_state_name(values: dict[str, str | None]) -> str:
+    payload = json.dumps(values, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return CONVERSION_STATE_PREFIX + " " + base64.urlsafe_b64encode(payload).decode("ascii")
+
+
+def _effective_user_prop(doc, name: str) -> str | None:
+    state = _conversion_state(doc)
+    if state is not None and name in state:
+        value = state[name]
+        return str(value) if value is not None else None
+    props = doc.getDocumentProperties().getUserDefinedProperties()
+    return _user_prop(props, name)
+
+
+def _set_user_prop_value(doc, name: str, value: str | None) -> None:
+    """Set/remove one document preference, preserving an active undoable conversion-state overlay."""
+    state_marks = _conversion_state_marks(doc)
+    state = _conversion_state(doc)
+    if state is not None and len(state_marks) == 1 and name in _CONVERSION_PREFS:
+        state[name] = value
+        state_marks[0].Name = _conversion_state_name(state)
+        return
+
     from com.sun.star.beans.PropertyAttribute import REMOVABLE
 
     props = doc.getDocumentProperties().getUserDefinedProperties()
+    exists = props.getPropertySetInfo().hasPropertyByName(name)
+    if value is None:
+        if exists:
+            props.removeProperty(name)
+    elif exists:
+        props.setPropertyValue(name, value)
+    else:
+        props.addProperty(name, REMOVABLE, value)
+
+
+def _set_pref(doc, style: str, locale: str) -> None:
     for name, value in ((PREF_STYLE, style), (PREF_LOCALE, locale)):
-        if props.getPropertySetInfo().hasPropertyByName(name):
-            props.setPropertyValue(name, value)
-        else:
-            props.addProperty(name, REMOVABLE, value)
+        _set_user_prop_value(doc, name, value)
 
 
 def note_placement(doc) -> str:
     """Document-level placement for newly inserted note-style citations; corrupt/legacy values fail to footnotes."""
-    props = doc.getDocumentProperties().getUserDefinedProperties()
-    value = (_user_prop(props, PREF_NOTE_PLACEMENT) or DEFAULT_NOTE_PLACEMENT).strip().lower()
+    value = (_effective_user_prop(doc, PREF_NOTE_PLACEMENT) or DEFAULT_NOTE_PLACEMENT).strip().lower()
     return value if value in NOTE_PLACEMENTS else DEFAULT_NOTE_PLACEMENT
 
 
@@ -571,8 +628,6 @@ def normalize_note_placement(value: str) -> str:
 
 def set_note_placement(doc, placement: str) -> None:
     """Persist the placement for future note citations without silently relocating existing live fields."""
-    from com.sun.star.beans.PropertyAttribute import REMOVABLE
-
     placement = normalize_note_placement(placement)
     existing = {
         field.get("placement", "inline")
@@ -582,13 +637,9 @@ def set_note_placement(doc, placement: str) -> None:
     if existing and existing != {placement}:
         raise ValueError(
             f"This document already contains live Callosum citations in {', '.join(sorted(existing))}. "
-            "Automatic conversion between footnotes and endnotes is not available yet."
+            "Use Convert citation placement to relocate them deliberately."
         )
-    props = doc.getDocumentProperties().getUserDefinedProperties()
-    if props.getPropertySetInfo().hasPropertyByName(PREF_NOTE_PLACEMENT):
-        props.setPropertyValue(PREF_NOTE_PLACEMENT, placement)
-    else:
-        props.addProperty(PREF_NOTE_PLACEMENT, REMOVABLE, placement)
+    _set_user_prop_value(doc, PREF_NOTE_PLACEMENT, placement)
 
 
 def bib_auto_enabled(doc) -> bool:
@@ -603,14 +654,7 @@ def set_bib_auto(doc, enabled: bool) -> None:
 
 
 def _set_bool_prop(doc, name: str, enabled: bool) -> None:
-    from com.sun.star.beans.PropertyAttribute import REMOVABLE
-
-    props = doc.getDocumentProperties().getUserDefinedProperties()
-    value = "1" if enabled else "0"
-    if props.getPropertySetInfo().hasPropertyByName(name):
-        props.setPropertyValue(name, value)
-    else:
-        props.addProperty(name, REMOVABLE, value)
+    _set_user_prop_value(doc, name, "1" if enabled else "0")
 
 
 def cite_auto_enabled(doc) -> bool:
@@ -625,8 +669,7 @@ def set_cite_auto(doc, enabled: bool) -> None:
 
 def dirty_state(doc) -> tuple[bool, bool]:
     """Return `(citations_pending, bibliography_pending)` from the document-local refresh flags."""
-    props = doc.getDocumentProperties().getUserDefinedProperties()
-    return _user_prop(props, PREF_CITE_DIRTY) == "1", _user_prop(props, PREF_BIB_DIRTY) == "1"
+    return _effective_user_prop(doc, PREF_CITE_DIRTY) == "1", _effective_user_prop(doc, PREF_BIB_DIRTY) == "1"
 
 
 def _document_uid(doc) -> str:
@@ -1668,6 +1711,140 @@ def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
     text.insertTextContent(cursor, end_mark, False)  # placed AFTER the content — no bookmark-gravity ambiguity
 
 
+def _write_bibliography_for_conversion(doc, entries: list[str]) -> None:
+    """Use the proven bounded rebuild; the conversion Undo listener restores its exact before/after snapshot."""
+    _write_bibliography(doc, entries)
+
+
+def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> None:
+    """Re-wrap Writer-restored bibliography text without changing a character."""
+    text = doc.getText()
+    bookmarks = doc.getBookmarks()
+    reserved = [
+        name
+        for name in bookmarks.getElementNames()
+        if name == BIB_BOOKMARK
+        or name.startswith(BIB_BOOKMARK + " Copy ")
+        or name == BIB_BOOKMARK_END
+        or name.startswith(BIB_BOOKMARK_END + " Copy ")
+    ]
+    fallback = (
+        text.createTextCursorByRange(bookmarks.getByName(reserved[0]).getAnchor().getStart())
+        if reserved
+        else text.createTextCursorByRange(text.getEnd())
+    )
+    for name in reserved:
+        current = doc.getBookmarks()
+        if current.hasByName(name):
+            text.removeTextContent(current.getByName(name))
+    want_start, want_end, contents = signature
+    if not (want_start and want_end):
+        return
+
+    if contents:
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = contents
+        found = doc.findFirst(descriptor)
+        if found is None or doc.findNext(found.getEnd(), descriptor) is not None:
+            raise RuntimeError("Writer restored bibliography text ambiguously; its managed bookmarks were not changed.")
+        start_cursor = text.createTextCursorByRange(found.getStart())
+        end_cursor = text.createTextCursorByRange(found.getEnd())
+    else:
+        start_cursor = fallback
+        end_cursor = fallback
+    start_mark = doc.createInstance("com.sun.star.text.Bookmark")
+    start_mark.Name = BIB_BOOKMARK
+    text.insertTextContent(start_cursor, start_mark, False)
+    end_mark = doc.createInstance("com.sun.star.text.Bookmark")
+    end_mark.Name = BIB_BOOKMARK_END
+    text.insertTextContent(end_cursor, end_mark, False)
+
+
+def _conversion_state_key(doc) -> tuple[str, ...]:
+    return tuple(mark.Name for mark in _conversion_state_marks(doc))
+
+
+def _ensure_conversion_undo_listener(doc):
+    uid = _document_uid(doc)
+    if uid in _CONVERSION_UNDO_LISTENERS:
+        return _CONVERSION_UNDO_LISTENERS[uid]
+
+    import unohelper
+    from com.sun.star.document import XUndoManagerListener
+
+    undo = doc.getUndoManager()
+
+    class ConversionUndoListener(unohelper.Base, XUndoManagerListener):
+        def _restore(self, event):
+            if getattr(event, "UndoActionTitle", "") != "Convert Callosum citation placement":
+                return
+            signature = _CONVERSION_BIBLIOGRAPHIES.get(uid, {}).get(_conversion_state_key(doc))
+            if signature is None:
+                return
+            undo.lock()
+            try:
+                with suspend_document_observation(doc):
+                    _restore_managed_bibliography(doc, signature)
+            finally:
+                undo.unlock()
+
+        def actionUndone(self, event):
+            self._restore(event)
+
+        def actionRedone(self, event):
+            self._restore(event)
+
+        def undoActionAdded(self, _event):
+            pass
+
+        def allActionsCleared(self, _event):
+            _CONVERSION_BIBLIOGRAPHIES.pop(uid, None)
+
+        def redoActionsCleared(self, _event):
+            pass
+
+        def enteredContext(self, _event):
+            pass
+
+        def enteredHiddenContext(self, _event):
+            pass
+
+        def leftContext(self, _event):
+            pass
+
+        def leftHiddenContext(self, _event):
+            pass
+
+        def cancelledContext(self, _event):
+            pass
+
+        def resetAll(self, _event):
+            _CONVERSION_BIBLIOGRAPHIES.pop(uid, None)
+
+        def disposing(self, _event):
+            _CONVERSION_UNDO_LISTENERS.pop(uid, None)
+            _CONVERSION_BIBLIOGRAPHIES.pop(uid, None)
+
+    listener = ConversionUndoListener()
+    undo.addUndoManagerListener(listener)
+    _CONVERSION_UNDO_LISTENERS[uid] = listener
+    return listener
+
+
+def _register_conversion_bibliographies(
+    doc,
+    before_key: tuple[str, ...],
+    before: tuple[bool, bool, str],
+    after_key: tuple[str, ...] | None = None,
+    after: tuple[bool, bool, str] | None = None,
+) -> None:
+    _ensure_conversion_undo_listener(doc)
+    states = _CONVERSION_BIBLIOGRAPHIES.setdefault(_document_uid(doc), {})
+    states[before_key] = before
+    if after_key is not None and after is not None:
+        states[after_key] = after
+
+
 def _has_text(text) -> bool:
     return bool(text.getString().strip())
 
@@ -1689,6 +1866,291 @@ def set_style(doc, style: str, locale: str, base: str = DEFAULT_BASE) -> None:
         raise ValueError(placement_error)
     _set_pref(doc, style, locale or DEFAULT_LOCALE)
     _auto_refresh(doc, base)
+
+
+_CONVERSION_PREFS = (PREF_STYLE, PREF_LOCALE, PREF_NOTE_PLACEMENT, PREF_CITE_DIRTY, PREF_BIB_DIRTY)
+
+
+def conversion_target_placement(family: str, requested_note_placement: str = DEFAULT_NOTE_PLACEMENT) -> str:
+    """Map a CSL family + bounded note choice to the Writer context the converted fields must occupy."""
+    return normalize_note_placement(requested_note_placement) if family == "note" else "inline"
+
+
+def _document_has_redlines(doc) -> bool:
+    try:
+        return doc.getRedlines().getCount() > 0
+    except Exception:
+        return False
+
+
+def placement_conversion_error(doc, fields: list[dict], target_placement: str) -> str | None:
+    """Fail closed on document structures the first conversion slice cannot relocate without guessing."""
+    if not fields:
+        return "No live Callosum citations were found in this document."
+    target_placement = normalize_note_placement(target_placement) if target_placement != "inline" else target_placement
+    placements = {field.get("placement", "unsupported") for field in fields}
+    if len(placements) != 1 or not placements <= {"inline", *NOTE_PLACEMENTS}:
+        return "Citation placement is mixed or unsupported; conversion requires one consistent source placement."
+    source_placement = next(iter(placements))
+    if source_placement == target_placement:
+        return f"All live citations are already in {target_placement} placement."
+    state_marks = _conversion_state_marks(doc)
+    if len(state_marks) > 1 or (state_marks and _decode_conversion_state_name(state_marks[0].Name) is None):
+        return "Repair malformed Callosum conversion state before converting citation placement."
+    if _document_has_redlines(doc):
+        return "Accept or reject tracked changes before converting citation placement."
+
+    names = doc.getReferenceMarks().getElementNames()
+    for name in names:
+        if isinstance(name, str) and name.startswith(MARK_PREFIX + " "):
+            decoded = decode_mark_name(name)
+            if decoded is None or decoded.get("unsupported"):
+                return "Repair malformed or newer-schema Callosum citation fields before converting placement."
+    citation_ids = [field["citationID"] for field in fields]
+    if len(set(citation_ids)) != len(citation_ids):
+        return "Repair duplicate Callosum citation IDs before converting placement."
+
+    has_start, has_end, _text = _managed_bibliography_signature(doc)
+    if has_start != has_end:
+        return "Repair the damaged managed bibliography before converting citation placement."
+
+    if source_placement in NOTE_PLACEMENTS:
+        note_keys = [(field["placement"], field["noteIndex"]) for field in fields]
+        if len(set(note_keys)) != len(note_keys):
+            return "Conversion requires exactly one live citation cluster in each source note."
+        all_marks = [doc.getReferenceMarks().getByName(name) for name in names]
+        for field in fields:
+            note = field.get("_note")
+            mark = field["_mark"]
+            if note is None or note.getString() != mark.getAnchor().getString():
+                return "Conversion cannot move a note that also contains user prose."
+            if any(other.Name != mark.Name and _range_belongs_to_text(note, other.getAnchor()) for other in all_marks):
+                return "Conversion requires each source note to contain only one Callosum citation field."
+    return None
+
+
+def _conversion_user_props(doc) -> dict[str, str | None]:
+    return {name: _effective_user_prop(doc, name) for name in _CONVERSION_PREFS}
+
+
+def _replace_conversion_state(doc, values: dict[str, str | None]) -> None:
+    """Replace the zero-width state mark; Writer natively includes the change in its current Undo context."""
+    text = doc.getText()
+    for mark in _conversion_state_marks(doc):
+        mark.getAnchor().getText().removeTextContent(mark)
+    marker = doc.createInstance("com.sun.star.text.ReferenceMark")
+    marker.Name = _conversion_state_name(values)
+    cursor = text.createTextCursorByRange(text.getStart())
+    cursor.collapseToStart()
+    text.insertTextContent(cursor, marker, False)
+
+
+def _conversion_snapshot(doc) -> tuple:
+    fields = scan_citations_in_order(doc)
+    return (
+        doc.getText().getString(),
+        tuple(
+            (
+                field["_mark"].Name,
+                field["citationID"],
+                field["placement"],
+                field["noteIndex"],
+                field["_mark"].getAnchor().getString(),
+            )
+            for field in fields
+        ),
+        tuple(note.getString() for note in _collection_items(doc.getFootnotes())),
+        tuple(note.getString() for note in _collection_items(doc.getEndnotes())),
+        _managed_bibliography_signature(doc),
+        tuple(_conversion_user_props(doc).items()),
+        tuple(mark.Name for mark in _conversion_state_marks(doc)),
+    )
+
+
+def _conversion_snapshot_differences(before: tuple, after: tuple) -> str:
+    labels = ("main text", "citation fields", "footnotes", "endnotes", "bibliography", "preferences", "state mark")
+    return ", ".join(label for label, old, new in zip(labels, before, after, strict=True) if old != new)
+
+
+def _insert_named_rendered_mark(doc, text, cursor, name: str, rendered: str) -> None:
+    cursor.setString(rendered)
+    mark = doc.createInstance("com.sun.star.text.ReferenceMark")
+    mark.Name = name
+    text.insertTextContent(cursor, mark, True)
+
+
+def _relocate_mark(doc, name: str, rendered: str, target_placement: str) -> None:
+    """Move one isolated live field to main text/a native note while preserving its encoded identity."""
+    mark = doc.getReferenceMarks().getByName(name)
+    context = _citation_context(doc, mark, _note_containers(doc))
+    source_placement = context["placement"]
+    main_text = doc.getText()
+    if source_placement == "inline":
+        source_text = mark.getAnchor().getText()
+        source_cursor = source_text.createTextCursorByRange(mark.getAnchor())
+        source_text.removeTextContent(mark)
+        source_cursor.setString("")
+        main_cursor = main_text.createTextCursorByRange(source_cursor)
+    elif source_placement in NOTE_PLACEMENTS:
+        note = context["_note"]
+        main_cursor = main_text.createTextCursorByRange(note.getAnchor())
+        main_cursor.collapseToStart()
+        main_text.removeTextContent(note)
+    else:
+        raise ValueError("The citation moved into an unsupported Writer text context during conversion.")
+    main_cursor.collapseToStart()
+
+    if target_placement == "inline":
+        _insert_named_rendered_mark(doc, main_text, main_cursor, name, rendered)
+        return
+    target_placement = normalize_note_placement(target_placement)
+    service = "com.sun.star.text.Footnote" if target_placement == "footnote" else "com.sun.star.text.Endnote"
+    note = doc.createInstance(service)
+    main_text.insertTextContent(main_cursor, note, False)
+    _insert_named_rendered_mark(doc, note, note.createTextCursor(), name, rendered)
+
+
+def _conversion_render_response(
+    doc,
+    fields: list[dict],
+    target_style: str,
+    locale: str,
+    target_placement: str,
+    base: str,
+) -> dict:
+    projected = [
+        {
+            "citationID": field["citationID"],
+            "items": field["items"],
+            "noteIndex": index if target_placement in NOTE_PLACEMENTS else 0,
+        }
+        for index, field in enumerate(fields, start=1)
+    ]
+    cited_ids = {_paper_id_from_item(item) for field in fields for item in field["items"]}
+    uncited_items = []
+    for paper_id in _get_id_list(doc, PREF_BIB_UNCITED):
+        if paper_id in cited_ids:
+            continue
+        try:
+            uncited_items.append(stamp_item_id(fetch_csl(base, paper_id), paper_id))
+        except ValueError:
+            continue
+    exclude_ids = [f"callosum-{paper_id}" for paper_id in _get_id_list(doc, PREF_BIB_EXCLUDE)]
+    return render_document(
+        base,
+        build_render_request(
+            projected,
+            target_style,
+            locale,
+            uncited_items=uncited_items,
+            bibliography_exclude_ids=exclude_ids,
+        ),
+    )
+
+
+def convert_citation_placement(
+    doc,
+    target_style: str,
+    locale: str,
+    target_note_placement: str = DEFAULT_NOTE_PLACEMENT,
+    base: str = DEFAULT_BASE,
+) -> dict:
+    """Explicit, transactional placement/style conversion for the narrow unambiguous Writer subset."""
+    styles = list_styles(base)
+    families = {entry["id"]: entry["family"] for entry in styles}
+    if target_style not in families:
+        raise ValueError(f"Unknown style '{target_style}'. Available: {', '.join(sorted(families))}")
+    target_placement = conversion_target_placement(families[target_style], target_note_placement)
+    fields = scan_citations_in_order(doc)
+    current_style, _current_locale = _get_pref(doc)
+    current_family = next((entry["family"] for entry in styles if entry["id"] == current_style), None)
+    if current_family is None:
+        raise ValueError(f"Current citation style '{current_style}' is not available.")
+    current_error = citation_placement_error(fields, current_family, note_placement(doc))
+    if current_error:
+        raise ValueError(f"Repair the current citation placement before converting. {current_error}")
+    eligibility_error = placement_conversion_error(doc, fields, target_placement)
+    if eligibility_error:
+        raise ValueError(eligibility_error)
+
+    response = _conversion_render_response(doc, fields, target_style, locale, target_placement, base)
+    rendered = {citation["citationID"]: citation.get("text", "") for citation in response.get("citations", [])}
+    if any(not rendered.get(field["citationID"]) for field in fields):
+        raise RuntimeError("The target style did not render every citation; the document was not changed.")
+    bibliography_entries = response.get("bibliography_text", "").splitlines()
+    write_bibliography = bib_auto_enabled(doc)
+    before_snapshot = _conversion_snapshot(doc)
+    before_state_key = _conversion_state_key(doc)
+    before_bibliography = before_snapshot[4]
+    expected_names = [field["_mark"].Name for field in fields]
+    relocation_plan = [(field["_mark"].Name, field["citationID"]) for field in fields]
+    before_props = _conversion_user_props(doc)
+    after_props = dict(before_props)
+    after_props.update(
+        {
+            PREF_STYLE: target_style,
+            PREF_LOCALE: locale or DEFAULT_LOCALE,
+            PREF_CITE_DIRTY: "0",
+            PREF_BIB_DIRTY: "0" if write_bibliography else "1",
+        }
+    )
+    if target_placement in NOTE_PLACEMENTS:
+        after_props[PREF_NOTE_PLACEMENT] = target_placement
+
+    undo = doc.getUndoManager()
+    undo.enterUndoContext("Convert Callosum citation placement")
+    try:
+        _replace_conversion_state(doc, after_props)
+        for name, citation_id in reversed(relocation_plan):
+            _relocate_mark(doc, name, rendered[citation_id], target_placement)
+        if write_bibliography:
+            _write_bibliography_for_conversion(doc, bibliography_entries)
+
+        converted = scan_citations_in_order(doc)
+        expected_indexes = list(range(1, len(fields) + 1)) if target_placement in NOTE_PLACEMENTS else [0] * len(fields)
+        if (
+            [field["_mark"].Name for field in converted] != expected_names
+            or [field["placement"] for field in converted] != [target_placement] * len(fields)
+            or [field["noteIndex"] for field in converted] != expected_indexes
+            or any(field["_mark"].getAnchor().getString() != rendered[field["citationID"]] for field in converted)
+            or _conversion_user_props(doc) != after_props
+            or (write_bibliography and not bibliography_render_is_current(doc, bibliography_entries))
+        ):
+            raise RuntimeError("Post-conversion identity or structure verification failed.")
+    except Exception as exc:
+        undo.leaveUndoContext()
+        _register_conversion_bibliographies(doc, before_state_key, before_bibliography)
+        try:
+            undo.undo()
+        except Exception as rollback_exc:
+            raise RuntimeError(
+                "Citation conversion failed and Writer could not undo the conversion. "
+                "Close without saving and reopen the document."
+            ) from rollback_exc
+        rollback_snapshot = _conversion_snapshot(doc)
+        if rollback_snapshot != before_snapshot:
+            differences = _conversion_snapshot_differences(before_snapshot, rollback_snapshot)
+            raise RuntimeError(
+                "Citation conversion failed and automatic rollback did not fully restore the document. "
+                f"Close without saving and reopen it. Unrestored: {differences}."
+            ) from exc
+        raise
+    else:
+        undo.leaveUndoContext()
+        _register_conversion_bibliographies(
+            doc,
+            before_state_key,
+            before_bibliography,
+            _conversion_state_key(doc),
+            _managed_bibliography_signature(doc),
+        )
+        _sync_dirty_infobar(doc)
+    return {
+        "count": len(fields),
+        "source_placement": fields[0]["placement"],
+        "target_placement": target_placement,
+        "style": target_style,
+    }
 
 
 def flatten(doc) -> int:
@@ -2093,6 +2555,146 @@ def set_note_placement_interactive(doc, _base: str) -> None:
         return
     set_note_placement(doc, chosen)
     _msgbox(f"New note-style citations will be inserted as {chosen}s.")
+
+
+def _default_conversion_copy_name(doc) -> str:
+    url = doc.getURL()
+    if url:
+        path = urllib.parse.unquote(urllib.parse.urlparse(url).path)
+        base_name = os.path.splitext(os.path.basename(path))[0]
+        if base_name:
+            return f"{base_name}-converted.odt"
+    return "callosum-converted.odt"
+
+
+def _store_odt_copy(doc, save_url: str) -> None:
+    from com.sun.star.beans import PropertyValue
+
+    filt = PropertyValue()
+    filt.Name, filt.Value = "FilterName", "writer8"
+    doc.storeToURL(save_url, (filt,))
+
+
+def save_converted_copy(
+    doc,
+    filename: str,
+    target_style: str,
+    locale: str,
+    target_note_placement: str = DEFAULT_NOTE_PLACEMENT,
+    base: str = DEFAULT_BASE,
+) -> tuple[dict, str]:
+    """Save an ODF copy with converted live fields, then verified-undo the open document conversion."""
+    if not filename or not filename.strip():
+        raise ValueError("A filename is required for the converted copy.")
+    before = _conversion_snapshot(doc)
+    result = convert_citation_placement(doc, target_style, locale, target_note_placement, base)
+    save_url = _submission_copy_url(doc, filename.strip())
+    try:
+        _store_odt_copy(doc, save_url)
+    except Exception as save_exc:
+        doc.getUndoManager().undo()
+        doc.getUndoManager().clearRedo()
+        if _conversion_snapshot(doc) != before:
+            raise RuntimeError(
+                "Saving the converted copy failed and the open document did not fully restore. "
+                "Close without saving and reopen it."
+            ) from save_exc
+        raise
+    doc.getUndoManager().undo()
+    doc.getUndoManager().clearRedo()
+    if _conversion_snapshot(doc) != before:
+        raise RuntimeError(
+            "The converted copy was saved, but the open document did not fully restore. "
+            "Close without saving and reopen it."
+        )
+    return result, save_url
+
+
+def convert_citation_placement_interactive(doc, base: str) -> None:
+    fields = scan_citations_in_order(doc)
+    if not fields:
+        _msgbox("No live Callosum citations were found in this document.")
+        return
+    styles = list_styles(base)
+    current_style, current_locale = _get_pref(doc)
+    chosen_style = _choice_box(
+        doc,
+        "Convert citation placement",
+        "Target citation style:",
+        tuple((style["title"], style["id"]) for style in styles),
+        current_style,
+    )
+    if chosen_style is None:
+        return
+    family = next(style["family"] for style in styles if style["id"] == chosen_style)
+    chosen_note_placement = note_placement(doc)
+    if family == "note":
+        chosen_note_placement = _choice_box(
+            doc,
+            "Convert citation placement",
+            "Place converted note citations in:",
+            (("Footnotes", "footnote"), ("Endnotes", "endnote")),
+            chosen_note_placement,
+        )
+        if chosen_note_placement is None:
+            return
+    target = conversion_target_placement(family, chosen_note_placement)
+    source = fields[0]["placement"]
+    _msgbox(
+        f"Ready to convert {len(fields)} live citation(s) from {source} to {target} placement using "
+        f"{chosen_style}. Ambiguous notes, user prose, mixed placement, and tracked changes will be refused."
+    )
+    mode = _choice_box(
+        doc,
+        "Convert citation placement",
+        "Apply this conversion to:",
+        (("This document (one Undo step)", "document"), ("A separate .odt copy", "copy")),
+        "document",
+    )
+    if mode is None:
+        return
+
+    if mode == "copy":
+        filename = _input_box(
+            doc,
+            "Save converted copy",
+            "Save the converted ODF copy as:",
+            _default_conversion_copy_name(doc),
+        )
+        if not filename or not filename.strip():
+            return
+        try:
+            result, save_url = save_converted_copy(
+                doc,
+                filename,
+                chosen_style,
+                current_locale,
+                chosen_note_placement,
+                base,
+            )
+        except Exception as exc:
+            _msgbox(f"Could not save the converted copy: {exc}")
+            return
+        _msgbox(
+            f"Saved a converted copy with {result['count']} citation(s).\n\n"
+            f"Your open document is unchanged.\n{save_url}"
+        )
+        return
+    try:
+        result = convert_citation_placement(
+            doc,
+            chosen_style,
+            current_locale,
+            chosen_note_placement,
+            base,
+        )
+    except Exception as exc:
+        _msgbox(f"Could not convert citation placement: {exc}\n\nThe document was not changed.")
+        return
+    _msgbox(
+        f"Converted {result['count']} citation(s) from {result['source_placement']} to "
+        f"{result['target_placement']} placement. Use Writer Undo to restore the original document."
+    )
 
 
 def flatten_interactive(doc) -> None:
@@ -2567,6 +3169,7 @@ _ACTIONS = {
     "refreshPending": refresh_pending,
     "setStyle": set_style_interactive,
     "setNotePlacement": set_note_placement_interactive,
+    "convertCitationPlacement": convert_citation_placement_interactive,
     "flatten": lambda doc, base: flatten_interactive(doc),
     "prepareSubmissionCopy": lambda doc, base: prepare_submission_copy_interactive(doc),
     "insertStatement": insert_statement,
@@ -2655,6 +3258,10 @@ def CallosumSetNotePlacement(*_args):
     _macro("setNotePlacement")
 
 
+def CallosumConvertCitationPlacement(*_args):
+    _macro("convertCitationPlacement")
+
+
 def CallosumFlatten(*_args):
     _macro("flatten")
 
@@ -2726,6 +3333,7 @@ g_exportedScripts = (
     CallosumRefreshBibliography,
     CallosumSetStyle,
     CallosumSetNotePlacement,
+    CallosumConvertCitationPlacement,
     CallosumFlatten,
     CallosumInsertStatement,
     CallosumSetServerUrl,

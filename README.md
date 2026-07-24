@@ -143,8 +143,10 @@ refresh rather than leaving mixed formatting. Full-document citeproc context is 
 citation fields and managed bibliography text whose rendered output is already current. Selecting the bundled
 **Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
 first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
-to native Writer endnotes, as a setting saved with the document. Existing inline documents and existing notes
-are never silently converted. See `adapters/`'s per-tool READMEs for setup.
+to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately
+converts an eligible document between inline citations, footnotes, and endnotes after previewing the count and
+target style. Apply it as one Writer Undo step or save a separate converted `.odt` copy; ambiguous note content,
+mixed placement, and tracked changes are refused rather than guessed. See `adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 

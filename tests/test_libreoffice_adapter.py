@@ -623,6 +623,44 @@ def test_normalize_note_placement_rejects_unknown_values(raw: str) -> None:
 
 
 @pytest.mark.parametrize(
+    ("family", "requested", "expected"),
+    [
+        ("author-date", "footnote", "inline"),
+        ("numeric", "endnote", "inline"),
+        ("note", "footnote", "footnote"),
+        ("note", "endnote", "endnote"),
+    ],
+)
+def test_conversion_target_placement(family: str, requested: str, expected: str) -> None:
+    assert cc.conversion_target_placement(family, requested) == expected
+
+
+def test_conversion_state_name_round_trip() -> None:
+    values = {
+        cc.PREF_STYLE: "chicago-notes-bibliography",
+        cc.PREF_LOCALE: "en-US",
+        cc.PREF_NOTE_PLACEMENT: "endnote",
+        cc.PREF_CITE_DIRTY: "0",
+        cc.PREF_BIB_DIRTY: None,
+    }
+    name = cc._conversion_state_name(values)
+
+    assert name.startswith(cc.CONVERSION_STATE_PREFIX + " ")
+    assert cc._decode_conversion_state_name(name) == values
+    assert cc._decode_conversion_state_name(cc.CONVERSION_STATE_PREFIX + " invalid") is None
+
+
+def test_placement_conversion_rejects_empty_same_and_mixed_without_mutation() -> None:
+    assert "No live" in cc.placement_conversion_error(None, [], "footnote")
+    assert "already" in cc.placement_conversion_error(None, [{"placement": "inline"}], "inline")
+    assert "mixed" in cc.placement_conversion_error(
+        None,
+        [{"placement": "inline"}, {"placement": "footnote"}],
+        "endnote",
+    )
+
+
+@pytest.mark.parametrize(
     ("family", "placements", "expected_note_placement", "has_error"),
     [
         ("note", ["footnote"], "footnote", False),

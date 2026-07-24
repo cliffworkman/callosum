@@ -45,7 +45,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   a LibreOffice (UNO) cite-while-you-write macro (`adapters/libreoffice/`) that places ReferenceMark live fields +
   rides `render-document`; **inc 362** adds native Writer footnotes for note-family styles and a validated
   one-based `noteIndex` to the shared render contract so citeproc can distinguish first/subsequent notes;
-  **inc 363** adds a document-level footnote/endnote selector and native Writer endnote insertion.
+  **inc 363** adds a document-level footnote/endnote selector and native Writer endnote insertion; **inc 364**
+  adds explicit, fail-closed inline/footnote/endnote conversion with verified one-step Undo/Redo and separate-copy
+  isolation.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

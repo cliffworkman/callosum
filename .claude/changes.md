@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 364 — LibreOffice explicit citation placement conversion -->
+## 2026-07-23 — Increment 364: LibreOffice explicit citation placement conversion (P1 item #10)
+
+- **Files:** LibreOffice adapter/menu/selftest/round-trip harness/README/OXT version (0.13.0 → 0.14.0),
+  adapter/OXT tests, root README, served help, security audit, backlog/CLAUDE/increment notes.
+- **What changed:** **Convert citation placement…** inventories and pre-renders an eligible Writer document, then
+  preserves every live citation identity while relocating inline citations, footnotes, or endnotes to the chosen
+  style/placement. Users preview source/target/count and choose one Writer Undo step or a separate converted
+  `.odt` copy.
+- **Safety:** mixed/unsupported placement, tracked changes, malformed/newer fields, duplicate citation IDs,
+  damaged bibliography bounds, multiple clusters in one note, and notes containing user prose are refused before
+  mutation. Conversion snapshots and verifies fields, native notes, bibliography, and preferences; failure rolls
+  back and verifies the original. A zero-width document state mark and a scoped Writer Undo listener keep
+  preferences and bibliography boundaries synchronized across Undo/Redo.
+- **Verification:** focused adapter/OXT/install suite: **111 passed**. The installed 0.14.0 OXT's real Writer
+  selftest completed with **SELFTEST OK**, including inline→footnote→endnote→inline conversion, exact one-step
+  Undo/Redo, prose refusal, injected rollback, and converted-copy isolation. Full project suite:
+  **1501 passed, 1 skipped**.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 363 — LibreOffice footnote/endnote placement -->
 ## 2026-07-23 — Increment 363: LibreOffice native endnotes and persistent note placement (P1 item #10)
 

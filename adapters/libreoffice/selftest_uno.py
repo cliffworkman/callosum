@@ -621,6 +621,152 @@ def spike_note_style_footnotes(ctx, base, p1, p2):
     )
 
 
+def spike_note_placement_conversion(ctx, base, p1, p2):
+    """P1 #10 conversion: native relocation, custom property Undo/Redo, rollback, refusal, and copy isolation."""
+    import tempfile
+
+    log("spike (P1 #10): explicit inline/footnote/endnote conversion")
+
+    def inline_fixture():
+        fixture = new_writer(ctx)
+        body = fixture.getText()
+        body.createTextCursorByRange(body.getStart()).setString("First CV0. Second CV1. Third CV2.\n")
+        cc._set_pref(fixture, "apa", "en-US")
+        for index, paper_id in enumerate((p1, p2, p1)):
+            sd = fixture.createSearchDescriptor()
+            sd.SearchString = f"CV{index}"
+            found = fixture.findFirst(sd)
+            cursor = body.createTextCursorByRange(found)
+            cursor.setString("")
+            cursor.collapseToStart()
+            cc.insert_citation(fixture, paper_id, base, cursor=cursor)
+        return fixture
+
+    doc = inline_fixture()
+    before = cc._conversion_snapshot(doc)
+    original_names = [field["_mark"].Name for field in cc.scan_citations_in_order(doc)]
+    result = cc.convert_citation_placement(doc, "chicago-notes-bibliography", "en-US", "footnote", base)
+    converted = cc.scan_citations_in_order(doc)
+    check(result["source_placement"] == "inline" and result["target_placement"] == "footnote", f"bad result: {result}")
+    check(doc.getFootnotes().getCount() == 3, "inline-to-footnote conversion did not create three footnotes")
+    check([field["placement"] for field in converted] == ["footnote"] * 3, "converted fields are not footnotes")
+    check([field["_mark"].Name for field in converted] == original_names, "conversion changed citation identities")
+    check(cc._get_pref(doc) == ("chicago-notes-bibliography", "en-US"), "conversion did not persist target style")
+
+    undo = doc.getUndoManager()
+    check(undo.getCurrentUndoActionTitle() == "Convert Callosum citation placement", "conversion is not one undo step")
+    undo.undo()
+    after_undo = cc._conversion_snapshot(doc)
+    check(
+        after_undo == before,
+        "Writer Undo did not restore inline fields and metadata exactly: "
+        + cc._conversion_snapshot_differences(before, after_undo),
+    )
+    undo.redo()
+    redone = cc.scan_citations_in_order(doc)
+    check([field["placement"] for field in redone] == ["footnote"] * 3, "Writer Redo did not restore footnotes")
+    check(cc._get_pref(doc)[0] == "chicago-notes-bibliography", "Writer Redo did not restore target style")
+
+    cc.convert_citation_placement(doc, "chicago-notes-bibliography", "en-US", "endnote", base)
+    endnotes = cc.scan_citations_in_order(doc)
+    check(doc.getFootnotes().getCount() == 0 and doc.getEndnotes().getCount() == 3, "footnote-to-endnote failed")
+    check([field["placement"] for field in endnotes] == ["endnote"] * 3, "converted notes are not endnotes")
+    check([field["_mark"].Name for field in endnotes] == original_names, "footnote-to-endnote changed identities")
+
+    cc.convert_citation_placement(doc, "apa", "en-US", "endnote", base)
+    inline_again = cc.scan_citations_in_order(doc)
+    check(doc.getEndnotes().getCount() == 0, "endnote-to-inline left native endnotes behind")
+    check([field["placement"] for field in inline_again] == ["inline"] * 3, "endnote-to-inline failed")
+    check([field["_mark"].Name for field in inline_again] == original_names, "endnote-to-inline changed identities")
+    check(cc._get_pref(doc) == ("apa", "en-US"), "endnote-to-inline did not persist APA")
+
+    prose_doc = new_writer(ctx)
+    prose_text = prose_doc.getText()
+    prose_text.setString("One PROSE.\n")
+    cc._set_pref(prose_doc, "chicago-notes-bibliography", "en-US")
+    sd = prose_doc.createSearchDescriptor()
+    sd.SearchString = "PROSE"
+    prose_cursor = prose_text.createTextCursorByRange(prose_doc.findFirst(sd))
+    prose_cursor.setString("")
+    cc.insert_citation(prose_doc, p1, base, cursor=prose_cursor)
+    prose_note = prose_doc.getFootnotes().getByIndex(0)
+    prose_note.insertString(prose_note.getEnd(), " user-authored explanation", False)
+    prose_before = cc._conversion_snapshot(prose_doc)
+    try:
+        cc.convert_citation_placement(prose_doc, "apa", "en-US", "footnote", base)
+    except ValueError as exc:
+        check("user prose" in str(exc), f"wrong prose refusal: {exc}")
+    else:
+        raise AssertionError("conversion silently moved a note containing user prose")
+    check(cc._conversion_snapshot(prose_doc) == prose_before, "prose refusal mutated the document")
+
+    rollback_doc = inline_fixture()
+    rollback_before = cc._conversion_snapshot(rollback_doc)
+    original_relocate = cc._relocate_mark
+    calls = {"n": 0}
+
+    def fail_second(doc_, name, rendered, target):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            raise RuntimeError("injected conversion failure")
+        return original_relocate(doc_, name, rendered, target)
+
+    cc._relocate_mark = fail_second
+    try:
+        try:
+            cc.convert_citation_placement(
+                rollback_doc,
+                "chicago-notes-bibliography",
+                "en-US",
+                "footnote",
+                base,
+            )
+        except RuntimeError as exc:
+            check("injected conversion failure" in str(exc), f"wrong injected error: {exc}")
+        else:
+            raise AssertionError("injected conversion failure did not propagate")
+    finally:
+        cc._relocate_mark = original_relocate
+    check(cc._conversion_snapshot(rollback_doc) == rollback_before, "conversion rollback did not restore exactly")
+
+    fd, source_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    source_url = uno.systemPathToFileUrl(source_path)
+    copy_path = os.path.join(os.path.dirname(source_path), "callosum-converted-copy.odt")
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeAsURL(source_url, (filt,))
+        copy_before = cc._conversion_snapshot(doc)
+        copy_result, copy_url = cc.save_converted_copy(
+            doc,
+            os.path.basename(copy_path),
+            "chicago-notes-bibliography",
+            "en-US",
+            "footnote",
+            base,
+        )
+        check(copy_result["count"] == 3 and copy_url == uno.systemPathToFileUrl(copy_path), "bad copy result")
+        check(cc._conversion_snapshot(doc) == copy_before, "converted-copy flow changed the open document")
+        reopened = load_doc(ctx, copy_url)
+        copied_fields = cc.scan_citations_in_order(reopened)
+        check([field["placement"] for field in copied_fields] == ["footnote"] * 3, "saved copy is not converted")
+        check(cc._get_pref(reopened)[0] == "chicago-notes-bibliography", "saved copy lost target style")
+        reopened.close(False)
+    finally:
+        for path in (copy_path, source_path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    log(
+        "spike (P1 #10): OK — inline/footnote/endnote conversion, one-step Undo/Redo, "
+        "verified rollback/prose refusal, isolated copy"
+    )
+
+
 def spike_mark_at_cursor(ctx, base, p1, p2):
     """P0 phase 4: `mark_at_cursor` is the first "which ONE existing citation is the user pointing at" lookup —
     every prior action either inserted new or operated over all marks. Confirms, against real UNO, that moving
@@ -1887,6 +2033,9 @@ def main():
 
         # P1 item #10: note styles create and manage real Writer footnotes with real citeproc note indexes.
         spike_note_style_footnotes(ctx, base, p1, p2)
+
+        # P1 item #10: explicit, rollback-safe placement conversion and separate-copy isolation.
+        spike_note_placement_conversion(ctx, base, p1, p2)
 
         # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
         spike_mark_at_cursor(ctx, base, p1, p2)
