@@ -6,6 +6,8 @@ for the pinned citeproc version + bundled style files, so we assert concrete sub
 
 from __future__ import annotations
 
+import hashlib
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -189,7 +191,8 @@ def test_install_custom_style_catalog_preview_and_render(temp_db_url: str) -> No
     installed = data["install"]
     assert installed["action"] == "installed"
     style = installed["style"]
-    assert style["id"].startswith("custom-")
+    expected_hash = hashlib.sha256(style["canonical_id"].encode("utf-8")).hexdigest()[:8]
+    assert style["id"] == f"custom-callosum-test-style-{expected_hash}"
     assert style["full_title"] == "Callosum Test Style"
     assert style["custom"] is True and style["source"] == "custom"
     assert style["canonical_id"] == "https://example.test/styles/callosum-test-style"
@@ -258,6 +261,127 @@ def test_custom_style_duplicate_and_explicit_update(temp_db_url: str) -> None:
     assert updated.json()["install"]["action"] == "updated"
     assert updated.json()["install"]["style"]["id"] == style_id
     assert updated.json()["install"]["style"]["full_title"] == "Callosum Test Style Updated"
+
+
+def test_custom_style_export_preserves_legacy_id_on_another_device(
+    temp_db_url: str,
+    tmp_path,
+    monkeypatch,
+) -> None:
+    legacy_id = "custom-legacy-callosum-test"
+    style_store.write_custom_style(legacy_id, CUSTOM_CSL)
+    client = TestClient(create_app(db_url=temp_db_url))
+
+    exported = client.get(f"/citations/styles/{legacy_id}/export")
+    assert exported.status_code == 200, exported.text
+    assert exported.headers["content-type"].startswith("application/vnd.citationstyles.style+xml")
+    assert exported.headers["content-disposition"] == f'attachment; filename="{legacy_id}.csl"'
+    assert f"<!-- callosum-style-id: {legacy_id} -->" in exported.text
+    assert "callosum-style-id:" not in (style_store.custom_styles_dir() / f"{legacy_id}.csl").read_text(
+        encoding="utf-8"
+    )
+
+    monkeypatch.setenv("CALLOSUM_SETTINGS_PATH", str(tmp_path / "other-device" / "app-settings.json"))
+    reimported = client.post(
+        "/citations/styles/install",
+        json={"filename": f"{legacy_id}.csl", "csl": exported.text},
+    )
+    assert reimported.status_code == 200, reimported.text
+    assert reimported.json()["install"]["style"]["id"] == legacy_id
+    stored = style_store.custom_styles_dir() / f"{legacy_id}.csl"
+    assert stored.read_text(encoding="utf-8") == CUSTOM_CSL
+
+    duplicate = client.post(
+        "/citations/styles/install",
+        json={"filename": f"{legacy_id}.csl", "csl": exported.text},
+    )
+    assert duplicate.status_code == 200
+    assert duplicate.json()["install"]["action"] == "already_installed"
+
+
+def test_custom_style_removal_protects_default_and_cleans_preferences(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    installed = client.post(
+        "/citations/styles/install",
+        json={"filename": "test.csl", "csl": CUSTOM_CSL},
+    ).json()["install"]["style"]
+    style_id = installed["id"]
+    client.put(
+        "/citations/styles/preferences",
+        json={
+            "style": style_id,
+            "locale": "en-US",
+            "favorite": True,
+            "set_default": True,
+            "mark_used": True,
+        },
+    )
+
+    refused = client.delete(f"/citations/styles/{style_id}")
+    assert refused.status_code == 409
+    assert "Choose another application default" in refused.json()["detail"]
+    assert style_store.style_exists(style_id)
+
+    client.put(
+        "/citations/styles/preferences",
+        json={"style": "apa", "locale": "en-US", "set_default": True, "mark_used": True},
+    )
+    removed = client.delete(f"/citations/styles/{style_id}")
+    assert removed.status_code == 200, removed.text
+    data = removed.json()
+    assert style_id not in {style["id"] for style in data["styles"]}
+    assert style_id not in data["favorite_style_ids"]
+    assert style_id not in data["recent_style_ids"]
+    assert not style_store.style_exists(style_id)
+
+    pid = _make_paper(temp_db_url)
+    assert (
+        client.post(
+            "/citations/render",
+            json={"paper_ids": [pid], "style": style_id},
+        ).status_code
+        == 422
+    )
+
+
+def test_custom_style_removal_refuses_bundled_missing_and_installed_parent(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/citations/styles/apa/export").status_code == 409
+    assert client.delete("/citations/styles/apa").status_code == 409
+    assert client.get("/citations/styles/custom-missing/export").status_code == 404
+    assert client.delete("/citations/styles/custom-missing").status_code == 404
+
+    parent = client.post(
+        "/citations/styles/install",
+        json={"filename": "parent.csl", "csl": CUSTOM_CSL},
+    ).json()["install"]["style"]
+    dependent = client.post(
+        "/citations/styles/install",
+        json={
+            "filename": "dependent.csl",
+            "csl": _dependent_csl("https://example.test/styles/callosum-test-style"),
+        },
+    ).json()["install"]["style"]
+    refused = client.delete(f"/citations/styles/{parent['id']}")
+    assert refused.status_code == 409
+    assert dependent["id"] in refused.json()["detail"]
+    assert client.delete(f"/citations/styles/{dependent['id']}").status_code == 200
+    assert client.delete(f"/citations/styles/{parent['id']}").status_code == 200
+
+
+def test_custom_style_rejects_malformed_or_misplaced_portable_marker(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    malformed = CUSTOM_CSL.replace(
+        "  <info>",
+        "  <info>\n    <!-- callosum-style-id: custom-spoof -->",
+    )
+    response = client.post(
+        "/citations/styles/validate",
+        json={"filename": "spoof.csl", "csl": malformed},
+    )
+    assert response.status_code == 200
+    assert response.json()["valid"] is False
+    assert "malformed or misplaced" in response.json()["error"]
 
 
 def test_custom_dependent_style_resolves_installed_parent(temp_db_url: str) -> None:

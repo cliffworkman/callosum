@@ -50,7 +50,8 @@ the full per-increment narrative for all other increments now lives in the reloc
   isolation; **inc 365** adds the shared citation-style catalog/search/preview/preferences manager and makes blank
   Writer documents inherit its application default while existing documents retain embedded style/locale;
   **inc 366** validates and atomically installs local custom/dependent CSL styles outside the repository, making
-  them first-class across the same browser, API, and Writer paths.
+  them first-class across the same browser, API, and Writer paths; **inc 367** adds portable personal-style export
+  with stable cross-device ids and guarded removal that protects defaults and installed dependents.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

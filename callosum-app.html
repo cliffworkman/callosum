@@ -395,6 +395,7 @@
   .citation-style-actions .btn { flex: 0 0 auto; }
   .citation-style-actions .settings-input { display: block; margin-top: 3px; }
   .citation-style-default-note { max-width: none; }
+  .citation-style-personal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
   .citation-style-preview { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
   .citation-style-preview > .eyebrow { margin-top: 0; }
   .citation-style-preview-block { margin-top: 9px; color: var(--ink); font-family: var(--serif); font-size: 12px; line-height: 1.5; }
@@ -15520,7 +15521,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setInstallBusy(true);
       setMsg("");
       try {
-        if (file.size > 1e6) {
+        if (file.size > 1000180) {
           setMsg("Couldn't install citation style: the file is larger than 1000 KB.");
           return;
         }
@@ -15575,6 +15576,52 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setMsg("Couldn't read the selected CSL file.");
       } finally {
         setInstallBusy(false);
+      }
+    };
+    const downloadSelected = async () => {
+      if (!selected || !selected.custom) return;
+      setBusy(true);
+      setMsg("");
+      try {
+        const response = await fetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}/export`);
+        if (!response.ok) {
+          const data = await response.json().catch(() => null);
+          setMsg("Couldn't export citation style: " + (data && data.detail || `HTTP ${response.status}`));
+          return;
+        }
+        _downloadBlob(await response.blob(), `${selected.id}.csl`);
+        setMsg(`${selected.full_title || selected.title} exported.`);
+      } catch (error) {
+        setMsg(`Couldn't reach the ${API_LABEL}. Is uvicorn running?`);
+      } finally {
+        setBusy(false);
+      }
+    };
+    const removeSelected = async () => {
+      if (!selected || !selected.custom || selected.application_default) return;
+      const confirmed = window.confirm(
+        `Remove ${selected.full_title || selected.title}? Existing documents that use it will not render until the same CSL style is reinstalled. Export a copy first. This cannot be undone.`
+      );
+      if (!confirmed) return;
+      setBusy(true);
+      setMsg("");
+      try {
+        const response = await fetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}`, {
+          method: "DELETE",
+          headers: { "Accept": "application/json" }
+        });
+        const data = await response.json().catch(() => null);
+        if (!response.ok) {
+          setMsg("Couldn't remove citation style: " + (data && data.detail || `HTTP ${response.status}`));
+          return;
+        }
+        setCatalog(data);
+        setSelectedId(data.default_style || data.styles[0] && data.styles[0].id || "");
+        setMsg(`${selected.full_title || selected.title} removed.`);
+      } catch (error) {
+        setMsg(`Couldn't reach the ${API_LABEL}. Is uvicorn running?`);
+      } finally {
+        setBusy(false);
       }
     };
     const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -15697,7 +15744,17 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: () => update({ set_default: true, mark_used: true }, "Application default saved.")
       },
       selected.application_default ? "Application default" : "Use as application default"
-    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)));
+    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), selected.custom && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-personal-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: downloadSelected }, "Download .csl"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-ghost danger",
+        disabled: busy || selected.application_default,
+        title: selected.application_default ? "Choose another application default before removing this style" : "",
+        onClick: removeSelected
+      },
+      "Remove"
+    )), selected.application_default && /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "Choose another application default before removing this style.")), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");

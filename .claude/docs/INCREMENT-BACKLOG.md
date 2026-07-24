@@ -303,8 +303,11 @@ the Principles + A-A gates before build.)*
   first-class across search/preview/preferences/single/document render and Writer. Exact duplicates do not write;
   changed canonical duplicates require explicit update confirmation; bundled styles are immutable; installed
   canonical parents support dependent styles. The installed 0.16.0 OXT proves personal-style discovery, preview,
-  default inheritance, embedding, and application. **Still open under #9:** personal-style removal/export and
-  portability, CSL repository search/install, URL import, full-schema/update provenance, and visual/source editing.
+  default inheritance, embedding, and application. **Inc 367 added personal-style removal/export/portability
+  (2026-07-24):** downloaded `.csl` files preserve exact Callosum ids across devices, while new unmarked installs
+  derive deterministic hashed ids. Removal warns about existing documents, protects bundled/default/parent styles,
+  and cleans Favorites/Recent state. **Still open under #9:** CSL repository search/install, URL import,
+  full-schema/update provenance, duplication, and visual/source editing.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (custom CSL lifecycle/repository/editing, broader note-placement conversion, more bibliography

@@ -189,6 +189,13 @@ bundled styles cannot be replaced. Personal and dependent styles become first-cl
 preferences, previews, rendering APIs, and Writer. Still open: removal/export/portability, repository search,
 explicit URL import, full-schema/update provenance, duplication, and visual/source editing.
 
+**Removal/export/portability shipped in increment 367 (2026-07-24):** personal styles download as valid `.csl`
+files carrying a constrained Callosum id marker, so an export reinstalled on another device retains the exact
+document-facing style id. New unmarked imports use deterministic canonical-id hashes. Removal is explicit, warns
+that existing documents require reinstallation, refuses bundled/application-default styles and installed
+parents, and cleans local Favorites/Recent state. Still open: repository search, explicit URL import, full-schema/
+update provenance, duplication, and visual/source editing.
+
 Required functionality:
 
 Search styles by journal, publisher, discipline, acronym, or style name

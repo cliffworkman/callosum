@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Connection
 
@@ -39,11 +39,14 @@ from app.backend.citations.render import (
 from app.backend.citations.style_manager import (
     MAX_CSL_BYTES,
     MAX_STYLE_QUERY,
+    StyleRemovalRefused,
     StyleUpdateRequired,
     catalog_response,
+    export_style,
     inspect_style_install,
     install_style,
     preview_style,
+    remove_style,
     update_style_preferences,
 )
 from app.backend.citations.suggest import MAX_TEXT_LEN, Suggestion, suggest_citations
@@ -76,7 +79,7 @@ class StylePreferencesRequest(BaseModel):
 
 class StyleInstallRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
-    csl: str = Field(min_length=1, max_length=MAX_CSL_BYTES)
+    csl: str = Field(min_length=1, max_length=MAX_CSL_BYTES + style_store.PORTABLE_MARKER_MAX_BYTES)
     replace: bool = False
 
 
@@ -226,6 +229,35 @@ def citation_style_validate(payload: StyleInstallRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         return {**catalog_response(), "valid": False, "error": str(exc)}
+
+
+@router.get("/citations/styles/{style_id}/export")
+def citation_style_export(style_id: str) -> Response:
+    try:
+        xml = export_style(style_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=422, detail="The personal citation style could not be read") from exc
+    return Response(
+        content=xml,
+        media_type="application/vnd.citationstyles.style+xml",
+        headers={"Content-Disposition": f'attachment; filename="{style_id}.csl"'},
+    )
+
+
+@router.delete("/citations/styles/{style_id}")
+def citation_style_remove(style_id: str) -> dict[str, Any]:
+    try:
+        return remove_style(style_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except StyleRemovalRefused as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (OSError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/citations/render")

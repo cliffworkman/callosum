@@ -71,7 +71,7 @@ function CitationStylesSettings() {
     if (!file) return;
     setInstallBusy(true); setMsg("");
     try {
-      if (file.size > 1000000) {
+      if (file.size > 1000180) {
         setMsg("Couldn't install citation style: the file is larger than 1000 KB.");
         return;
       }
@@ -129,6 +129,53 @@ function CitationStylesSettings() {
       setMsg("Couldn't read the selected CSL file.");
     } finally {
       setInstallBusy(false);
+    }
+  };
+
+  const downloadSelected = async () => {
+    if (!selected || !selected.custom) return;
+    setBusy(true); setMsg("");
+    try {
+      const response = await fetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}/export`);
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setMsg("Couldn't export citation style: " + ((data && data.detail) || `HTTP ${response.status}`));
+        return;
+      }
+      _downloadBlob(await response.blob(), `${selected.id}.csl`);
+      setMsg(`${selected.full_title || selected.title} exported.`);
+    } catch (error) {
+      setMsg(`Couldn't reach the ${API_LABEL}. Is uvicorn running?`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeSelected = async () => {
+    if (!selected || !selected.custom || selected.application_default) return;
+    const confirmed = window.confirm(
+      `Remove ${selected.full_title || selected.title}? Existing documents that use it will not render until ` +
+      "the same CSL style is reinstalled. Export a copy first. This cannot be undone."
+    );
+    if (!confirmed) return;
+    setBusy(true); setMsg("");
+    try {
+      const response = await fetch(API_BASE + `/citations/styles/${encodeURIComponent(selected.id)}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) {
+        setMsg("Couldn't remove citation style: " + ((data && data.detail) || `HTTP ${response.status}`));
+        return;
+      }
+      setCatalog(data);
+      setSelectedId(data.default_style || (data.styles[0] && data.styles[0].id) || "");
+      setMsg(`${selected.full_title || selected.title} removed.`);
+    } catch (error) {
+      setMsg(`Couldn't reach the ${API_LABEL}. Is uvicorn running?`);
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -236,6 +283,24 @@ function CitationStylesSettings() {
               <span className="settings-sub citation-style-default-note">
                 New word-processor documents inherit this application default. Existing documents keep their embedded style and locale.
               </span>
+              {selected.custom &&
+                <>
+                  <div className="citation-style-personal-actions">
+                    <button type="button" className="btn" disabled={busy} onClick={downloadSelected}>
+                      Download .csl
+                    </button>
+                    <button type="button" className="btn btn-ghost danger"
+                      disabled={busy || selected.application_default}
+                      title={selected.application_default ? "Choose another application default before removing this style" : ""}
+                      onClick={removeSelected}>
+                      Remove
+                    </button>
+                  </div>
+                  {selected.application_default &&
+                    <span className="settings-sub citation-style-default-note">
+                      Choose another application default before removing this style.
+                    </span>}
+                </>}
               <div className="citation-style-preview" aria-live="polite">
                 <p className="eyebrow">Preview (example references)</p>
                 {preview.status === "loading" && <div className="settings-note">Rendering preview…</div>}

@@ -97,6 +97,10 @@ class StyleUpdateRequired(ValueError):
         self.title = title
 
 
+class StyleRemovalRefused(ValueError):
+    pass
+
+
 def _style_metadata(
     style_id: str,
     path,
@@ -291,12 +295,13 @@ def preview_style(style_id: str, locale: str) -> dict[str, Any]:
     }
 
 
-def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str | None]:
+def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str | None, str, str | None]:
     clean_name = str(filename or "").replace("\\", "/").rsplit("/", 1)[-1]
     if not clean_name.casefold().endswith(".csl"):
         raise ValueError("Choose a .csl citation style file")
     if not isinstance(xml, str) or not xml.strip():
         raise ValueError("The CSL file is empty")
+    xml, preferred_id = style_store.strip_portable_marker(xml)
     if len(xml.encode("utf-8")) > MAX_CSL_BYTES:
         raise ValueError(f"The CSL file is too large (max {MAX_CSL_BYTES // 1000} KB)")
     folded = xml.casefold()
@@ -349,12 +354,11 @@ def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str
         if citation is None or citation.find("csl:layout", _CSL_NS) is None:
             raise ValueError("An independent CSL style needs a citation layout")
         validate_style_xml(xml)
-    return root, title, canonical, parent
+    return root, title, canonical, parent, xml, preferred_id
 
 
-def inspect_style_install(filename: str, xml: str) -> dict[str, Any]:
-    """Validate a candidate and report the non-mutating install action it would require."""
-    _, title, canonical, _ = _parse_candidate(filename, xml)
+def _inspect_candidate(filename: str, xml: str) -> tuple[dict[str, Any], str]:
+    _, title, canonical, _, normalized_xml, preferred_id = _parse_candidate(filename, xml)
     existing = style_store.canonical_index().get(canonical)
     if existing is not None:
         style_id, path, custom = existing
@@ -364,12 +368,13 @@ def inspect_style_install(filename: str, xml: str) -> dict[str, Any]:
             current = path.read_text(encoding="utf-8")
         except OSError as exc:
             raise ValueError("The installed CSL style could not be read") from exc
-        if current == xml:
+        current, _ = style_store.strip_portable_marker(current)
+        if current == normalized_xml:
             action = "already_installed"
         else:
             action = "update_available"
     else:
-        style_id = style_store.custom_style_id(canonical)
+        style_id = style_store.custom_style_id(canonical, preferred_id)
         action = "ready"
     return {
         "action": action,
@@ -378,24 +383,81 @@ def inspect_style_install(filename: str, xml: str) -> dict[str, Any]:
             "full_title": title,
             "canonical_id": canonical,
         },
-    }
+    }, normalized_xml
+
+
+def inspect_style_install(filename: str, xml: str) -> dict[str, Any]:
+    """Validate a candidate and report the non-mutating install action it would require."""
+    inspection, _ = _inspect_candidate(filename, xml)
+    return inspection
 
 
 def install_style(filename: str, xml: str, *, replace: bool = False) -> dict[str, Any]:
     """Validate and atomically install or update one local CSL file."""
-    inspection = inspect_style_install(filename, xml)
+    inspection, normalized_xml = _inspect_candidate(filename, xml)
     action = inspection["action"]
     style_id = inspection["style"]["id"]
     title = inspection["style"]["full_title"]
     if action == "update_available" and not replace:
         raise StyleUpdateRequired(style_id, title)
     if action == "ready":
-        style_store.write_custom_style(style_id, xml)
+        style_store.write_custom_style(style_id, normalized_xml)
         action = "installed"
     elif action == "update_available":
-        style_store.write_custom_style(style_id, xml)
+        style_store.write_custom_style(style_id, normalized_xml)
         action = "updated"
     style = next((row for row in list_catalog_styles() if row["id"] == style_id), None)
     if style is None:
         raise RuntimeError("The CSL style was written but could not be reopened")
     return {"action": action, "style": style}
+
+
+def export_style(style_id: str) -> str:
+    """Export one personal style with its portable Callosum id marker."""
+    return style_store.export_style_xml(style_id)
+
+
+def remove_style(style_id: str) -> dict[str, Any]:
+    """Remove one non-default personal style without orphaning installed dependents."""
+    path = style_store.style_path(style_id)
+    if path is None:
+        raise FileNotFoundError(f"unknown citation style: {style_id}")
+    if style_id in style_store.BUILTIN_STYLE_IDS:
+        raise StyleRemovalRefused("Bundled citation styles cannot be removed")
+    prefs = style_preferences()
+    if prefs["default_style"] == style_id:
+        raise StyleRemovalRefused("Choose another application default before removing this personal style")
+    canonical = style_store.canonical_id(path)
+    dependents: list[str] = []
+    for candidate_id, candidate_path, _ in style_store.installed_style_paths():
+        if candidate_id == style_id:
+            continue
+        try:
+            if style_store.parent_canonical_id(candidate_path) == canonical:
+                dependents.append(candidate_id)
+        except (OSError, ET.ParseError, ValueError):
+            continue
+    if dependents:
+        raise StyleRemovalRefused("Remove dependent citation styles first: " + ", ".join(sorted(dependents)))
+    data = app_settings.load_settings()
+    original = dict(data)
+    preferences_changed = False
+    for key in ("citation_favorite_styles", "citation_recent_styles"):
+        values = data.get(key)
+        if isinstance(values, list):
+            cleaned = [item for item in values if item != style_id]
+            if cleaned != values:
+                data[key] = cleaned
+                preferences_changed = True
+    if preferences_changed:
+        app_settings.save_settings(data)
+    try:
+        style_store.remove_custom_style(style_id)
+    except (OSError, ValueError):
+        if preferences_changed:
+            try:
+                app_settings.save_settings(original)
+            except OSError:
+                pass
+        raise
+    return catalog_response()

@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 367 — personal CSL export, portability, and removal -->
+## 2026-07-24 — Increment 367: Personal CSL export, portability, and guarded removal (P1 item #9)
+
+- **Files:** citation style store/manager/API, Settings manager + generated app, citation/frontend tests, root
+  README, served help, QA routes, security audit, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** personal styles now expose **Download .csl** and **Remove**. Exports remain standard CSL XML
+  while carrying a constrained Callosum marker that preserves the exact document-facing local id when imported on
+  another device. New unmarked styles derive deterministic canonical-id hashes.
+- **Safety:** bundled and application-default styles cannot be removed; an installed parent cannot be removed
+  before its dependents. The UI warns that existing documents require the same CSL to be reinstalled, recommends
+  exporting first, and requires confirmation. Successful removal cleans Favorites/Recent state.
+- **Verification:** changed-surface tests **55 passed**; frontend/help **63 passed**; Playwright covered
+  download/default guard/cancel-confirm/re-import/mobile with zero console errors or overflow; Writer
+  **SELFTEST OK**; QA **299/299 API**; full project suite **1528 passed, 1 skipped**.
+- **Revert:** `git revert` this commit and rebuild the frontend with `python tools/build_frontend.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 366 — local custom CSL installation -->
 ## 2026-07-24 — Increment 366: Local custom CSL installation (P1 item #9)
 

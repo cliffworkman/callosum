@@ -25,6 +25,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Installed style XML is server-owned (inc 366).** Runtime style ids resolve only to bundled files or
   server-generated `custom-*` files under the local settings directory. A request-supplied id/path/URL must never
   select arbitrary XML. The Node sidecar receives validated XML from Python and performs no network request.
+- **Personal-style lifecycle is local and guarded (inc 367).** Export returns only the selected validated
+  `custom-*` CSL with a constrained portable id marker. Removal cannot accept a path, remove a bundled/default
+  style, or orphan an installed dependent. Neither operation may make an external request.
 
 ## Adversarial checklist
 
@@ -54,8 +57,16 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    duplicate and `update_available` for changed content under the same canonical CSL id, without writing. A direct
    changed install without `replace:true` remains 409. A dependent style resolves only through an installed
    canonical parent. Bundled canonical ids cannot be replaced.
-7. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
-8. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
+7. Export the personal style (`GET /citations/styles/{style_id}/export`): confirm a `.csl` attachment with the
+   exact portable `callosum-style-id` marker, no private path, and no mutation. Reinstall it against a clean local
+   settings directory and confirm the same id plus `already_installed` on an exact repeat. A malformed/misplaced
+   marker fails validation. Bundled/unknown export → 409/404.
+8. Remove the personal style (`DELETE /citations/styles/{style_id}`). Confirm application-default and
+   installed-parent removal → 409 with no mutation; bundled/unknown removal → 409/404. After choosing another
+   default and removing dependents first, deletion succeeds, cleans Favorites/Recent, and subsequent render by
+   the removed id → 422.
+9. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
+10. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
 
 ## Pass criteria
 

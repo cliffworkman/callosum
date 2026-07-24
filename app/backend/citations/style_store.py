@@ -21,6 +21,11 @@ CSL_NAMESPACE = "http://purl.org/net/xbiblio/csl"
 CSL_NS = {"csl": CSL_NAMESPACE}
 MAX_CSL_BYTES = 1_000_000
 STYLE_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,119}$")
+PORTABLE_MARKER_MAX_BYTES = 180
+_PORTABLE_MARKER = re.compile(
+    r"\A(?P<prefix>\ufeff?\s*(?:<\?xml[^>]*\?>\s*)?)"
+    r"<!-- callosum-style-id: (?P<style_id>custom-[a-z0-9][a-z0-9-]{0,112}) -->\s*"
+)
 
 BUILTIN_STYLES: list[dict[str, str]] = [
     {"id": "apa", "title": "APA (7th edition)", "family": "author-date"},
@@ -149,16 +154,50 @@ def render_style_xml(style_id: str) -> str:
     raise ValueError("citation style dependency chain is too deep")
 
 
-def custom_style_id(canonical: str) -> str:
+def strip_portable_marker(xml: str) -> tuple[str, str | None]:
+    """Remove Callosum's export-only id marker and return its constrained preferred local id."""
+    match = _PORTABLE_MARKER.match(xml)
+    if match is None:
+        if "callosum-style-id:" in xml:
+            raise ValueError("The Callosum style-id marker is malformed or misplaced")
+        return xml, None
+    normalized = match.group("prefix") + xml[match.end() :]
+    return normalized, match.group("style_id")
+
+
+def export_style_xml(style_id: str) -> str:
+    """Return a custom style with a portable local-id marker in the XML prolog."""
+    path = style_path(style_id)
+    if path is None:
+        raise FileNotFoundError(f"unknown citation style: {style_id}")
+    if style_id in BUILTIN_STYLE_IDS:
+        raise ValueError("Bundled citation styles cannot be exported as personal styles")
+    xml, _ = strip_portable_marker(path.read_text(encoding="utf-8"))
+    declaration = re.match(r"\A(\ufeff?\s*<\?xml[^>]*\?>)(\s*)", xml)
+    marker = f"<!-- callosum-style-id: {style_id} -->"
+    if declaration is None:
+        return f"{marker}\n{xml}"
+    return f"{declaration.group(1)}\n{marker}{declaration.group(2)}{xml[declaration.end() :]}"
+
+
+def custom_style_id(canonical: str, preferred: str | None = None) -> str:
     parsed = urlparse(canonical)
     raw = parsed.path.rstrip("/").rsplit("/", 1)[-1] or parsed.netloc or "style"
     slug = re.sub(r"[^a-z0-9]+", "-", raw.casefold()).strip("-")[:80] or "style"
-    candidate = f"custom-{slug}"
     used = installed_style_ids()
-    if candidate not in used:
-        return candidate
-    suffix = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:8]
-    return f"{candidate[:110]}-{suffix}"
+    if (
+        preferred
+        and preferred.startswith("custom-")
+        and STYLE_ID_PATTERN.fullmatch(preferred)
+        and preferred not in used
+    ):
+        return preferred
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    for length in (8, 12, 16, 24, 32):
+        candidate = f"custom-{slug[: 111 - length]}-{digest[:length]}"
+        if candidate not in used:
+            return candidate
+    raise ValueError("Could not allocate a unique custom style id")
 
 
 def write_custom_style(style_id: str, xml: str) -> Path:
@@ -171,3 +210,12 @@ def write_custom_style(style_id: str, xml: str) -> Path:
     tmp.write_text(xml, encoding="utf-8")
     os.replace(tmp, path)
     return path
+
+
+def remove_custom_style(style_id: str) -> None:
+    if style_id in BUILTIN_STYLE_IDS:
+        raise ValueError("Bundled citation styles cannot be removed")
+    path = style_path(style_id)
+    if path is None or not style_id.startswith("custom-"):
+        raise FileNotFoundError(f"unknown personal citation style: {style_id}")
+    path.unlink()

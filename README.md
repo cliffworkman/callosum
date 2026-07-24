@@ -151,8 +151,10 @@ mixed placement, and tracked changes are refused rather than guessed. A shared l
 previews; keep favorites, recents, locale, and an application default; and install a local `.csl` file. Imported
 styles are validated locally against both bounded CSL structure and the real citeproc engine before Callosum
 stores them. Re-importing the same canonical style detects an exact duplicate or asks before applying an update;
-bundled styles cannot be replaced. New word-processor documents inherit the application default, while existing
-documents keep their embedded style and locale. See `adapters/`'s per-tool READMEs for setup.
+bundled styles cannot be replaced. Personal styles can be downloaded as portable `.csl` backups and explicitly
+removed when they are not the application default or an installed style's parent. New word-processor documents
+inherit the application default, while existing documents keep their embedded style and locale. See `adapters/`'s
+per-tool READMEs for setup.
 
 ## Security note
 

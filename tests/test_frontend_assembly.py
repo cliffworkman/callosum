@@ -965,6 +965,11 @@ def test_citation_style_manager_surface_and_deep_link():
     assert 'apiPut("/citations/styles/preferences"' in raw
     assert '"/citations/styles/validate"' in raw
     assert '"/citations/styles/install"' in raw
+    assert "/export`" in raw
+    assert 'method: "DELETE"' in raw
+    assert "Download .csl" in raw
+    assert "Existing documents that use it will not render" in raw
+    assert "Choose another application default before removing this style." in raw
     assert 'placeholder="Journal, discipline, acronym, or style name"' in raw
     assert 'accept=".csl,application/xml,text/xml"' in raw
     assert "window.confirm(" in raw
