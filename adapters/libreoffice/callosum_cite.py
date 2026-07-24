@@ -98,6 +98,7 @@ CONVERSION_STATE_PREFIX = "CALLOSUM_CONVERSION_STATE"
 # P1 item #11 (backlog #33/#34): bibliography editing — each a JSON-encoded list of paper_id strings.
 PREF_BIB_EXCLUDE = "CallosumBibExclude"  # cited works omitted from the bibliography (e.g. personal comms)
 PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works included in the bibliography
+PREF_BIB_HEADING = "CallosumBibHeading"  # custom per-document heading; absent/blank means "References"
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_NOTE_PLACEMENT = "footnote"
@@ -107,6 +108,7 @@ HTTP_TIMEOUT = 20
 PROGRESS_MIN_WORK = 20  # roughly ten full-document citation updates; avoid flashing UI for small documents
 PLACEHOLDER = "{citation}"  # transient visible text before the first render
 BIB_HEADING = "References"
+BIB_HEADING_MAX = 120
 # Where the extension persists the (optional) server URL — outside LibreOffice's read-only extension package, in the
 # OS user home (the same `~/.callosum/` callosum uses for app-settings). Lets the .oxt point at a non-default port
 # without editing source. Pure file I/O (no UNO), so it's unit-testable with a temp path.
@@ -1268,16 +1270,33 @@ def incremental_citation_plan(
     ]
 
 
-def rendered_bibliography_text(entries: list[str]) -> str:
+def normalize_bibliography_heading(value: str | None) -> str:
+    """Bound one user-authored Writer heading; blank deliberately restores the default."""
+    heading = str(value or "").strip()
+    if not heading:
+        return BIB_HEADING
+    if len(heading) > BIB_HEADING_MAX:
+        raise ValueError(f"Bibliography heading must be {BIB_HEADING_MAX} characters or fewer.")
+    if not heading.isprintable():
+        raise ValueError("Bibliography heading must be a single line without control characters.")
+    return heading
+
+
+def bibliography_heading(doc) -> str:
+    """Return the validated per-document heading used for every managed bibliography rebuild."""
+    return normalize_bibliography_heading(_effective_user_prop(doc, PREF_BIB_HEADING))
+
+
+def rendered_bibliography_text(entries: list[str], heading: str = BIB_HEADING) -> str:
     """The exact plain-text contents `_write_bibliography` places between the managed bookmark pair."""
     body = "\n".join(entries)
-    return f"{BIB_HEADING}\n{body}\n" if entries else ""
+    return f"{normalize_bibliography_heading(heading)}\n{body}\n" if entries else ""
 
 
 def bibliography_render_is_current(doc, entries: list[str]) -> bool:
     """Whether an intact managed bibliography already contains the requested rendered plain text."""
     has_start, has_end, current = _managed_bibliography_signature(doc)
-    return has_start and has_end and current == rendered_bibliography_text(entries)
+    return has_start and has_end and current == rendered_bibliography_text(entries, bibliography_heading(doc))
 
 
 def mark_at_cursor(doc) -> dict | None:
@@ -1579,6 +1598,19 @@ def refresh_bibliography(doc, base: str = DEFAULT_BASE) -> dict:
     return refresh(doc, base, update_citations=False, update_bibliography=True)
 
 
+def set_bibliography_heading(doc, heading: str | None, base: str = DEFAULT_BASE) -> str:
+    """Persist and immediately apply one per-document bibliography heading, restoring state on failure."""
+    normalized = normalize_bibliography_heading(heading)
+    previous = _effective_user_prop(doc, PREF_BIB_HEADING)
+    _set_user_prop_value(doc, PREF_BIB_HEADING, None if normalized == BIB_HEADING else normalized)
+    try:
+        refresh_bibliography(doc, base)
+    except Exception:
+        _set_user_prop_value(doc, PREF_BIB_HEADING, previous)
+        raise
+    return normalized
+
+
 def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:
     """Refresh exactly the surfaces named by the persisted dirty flags, regardless of automatic-mode settings."""
     citations_pending, bibliography_pending = dirty_state(doc)
@@ -1780,7 +1812,7 @@ def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
     start_mark.Name = BIB_BOOKMARK
     text.insertTextContent(cursor, start_mark, False)  # zero-width; cursor stays put
     if entries:
-        text.insertString(cursor, BIB_HEADING + "\n", False)
+        text.insertString(cursor, bibliography_heading(doc) + "\n", False)
         text.insertString(cursor, "\n".join(entries) + "\n", False)
     end_mark = doc.createInstance("com.sun.star.text.Bookmark")
     end_mark.Name = BIB_BOOKMARK_END
@@ -3211,6 +3243,24 @@ def insert_bibliography_here_interactive(doc, base: str) -> None:
     )
 
 
+def set_bibliography_heading_interactive(doc, base: str) -> None:
+    """Prompt for the document's bibliography heading; blank restores the default."""
+    try:
+        current = bibliography_heading(doc)
+    except ValueError:
+        current = BIB_HEADING
+    value = _input_box(
+        doc,
+        "Bibliography heading",
+        f"Heading ({BIB_HEADING_MAX} characters maximum; blank restores {BIB_HEADING}):",
+        current,
+    )
+    if value is None:
+        return
+    heading = set_bibliography_heading(doc, value, base)
+    _msgbox(f'Bibliography heading is now "{heading}".')
+
+
 def toggle_bib_auto_interactive(doc, base: str) -> None:
     """Flip whether the bibliography auto-rebuilds on refresh (P0 phase 7) — citations still update either way;
     this only pauses/resumes the bibliography block itself."""
@@ -3505,6 +3555,7 @@ _ACTIONS = {
     "splitCitation": split_citation_interactive,
     "openInCallosum": open_in_callosum,
     "insertBibliographyHere": insert_bibliography_here_interactive,
+    "setBibliographyHeading": set_bibliography_heading_interactive,
     "toggleCiteAuto": toggle_cite_auto_interactive,
     "toggleBibAuto": toggle_bib_auto_interactive,
     "diagnostics": document_diagnostics_interactive,
@@ -3623,6 +3674,10 @@ def CallosumInsertBibliographyHere(*_args):
     _macro("insertBibliographyHere")
 
 
+def CallosumSetBibliographyHeading(*_args):
+    _macro("setBibliographyHeading")
+
+
 def CallosumToggleBibAuto(*_args):
     _macro("toggleBibAuto")
 
@@ -3668,6 +3723,7 @@ g_exportedScripts = (
     CallosumSplitCitation,
     CallosumOpenInCallosum,
     CallosumInsertBibliographyHere,
+    CallosumSetBibliographyHeading,
     CallosumToggleCiteAuto,
     CallosumToggleBibAuto,
     CallosumPrepareSubmissionCopy,

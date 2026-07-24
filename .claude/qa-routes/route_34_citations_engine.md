@@ -98,6 +98,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     redline retains its identity/type/description/range text/context, Track Changes remains enabled, and Writer
     Undo/Redo preserves both. Add a tracked insertion inside a live citation and confirm conversion refuses
     before mutation. Repeat with an unreadable or managed-bibliography-overlapping redline → fail closed.
+15. **Manual Writer bibliography heading:** pause automatic bibliography rebuilding, choose **Bibliography
+    heading…**, enter `Works Cited`, and confirm only the bounded heading changes immediately while citations,
+    entries, trailing prose, and the paused setting remain intact. Save/reopen and confirm the heading persists.
+    Submit a blank heading and confirm **References** returns. Oversized or multiline/control-character input
+    must fail without changing either the document property or managed bibliography.
 
 ## Pass criteria
 

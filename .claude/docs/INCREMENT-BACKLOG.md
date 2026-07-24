@@ -270,6 +270,11 @@ the Principles + A-A gates before build.)*
   entry; real Writer proved `0/0` writes when current, `1/0` for one stale citation, and `0/1` for a stale
   bibliography. Explicit bibliography moves and damaged or manually edited managed ranges still force rebuilds.
   **P1 item #13 is complete.**
+  **P1 item #11 continued (inc 374, 2026-07-24):** Writer now has a per-document **Bibliography heading…**
+  command. A bounded, single-line plain-text value is persisted in the ODT, applied immediately through the
+  explicit bibliography-only refresh even when automatic rebuilding is paused, survives save/reopen, and resets
+  to **References** on blank input. Failure restores the prior property; invalid input mutates nothing.
+  Categories, chapter/section bibliographies, and hyperlink controls remain.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection
@@ -344,6 +349,9 @@ the Principles + A-A gates before build.)*
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.
+  **UX follow-up (deadline writer, inc 374):** expose the current ON/OFF state of automatic bibliography
+  rebuilding instead of a state-blind toggle, and consider an explicit **Restore References** affordance in the
+  heading dialog. The shipped blank-to-reset path is documented and unblocked; these are discoverability polish.
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
   verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
   tool; build only if a one-click install becomes worth the ongoing maintenance cost.

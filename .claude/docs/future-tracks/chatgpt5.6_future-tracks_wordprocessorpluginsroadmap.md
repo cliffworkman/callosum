@@ -256,7 +256,7 @@ Tracked-change-aware placement conversion that preserves unrelated redlines and 
 
 Zotero, RefWorks, Paperpile, EndNote, Citavi, and SmartCite all support at least some note-based workflows.
 
-11. Add bibliography editing controls
+11. Add bibliography editing controls — IN PROGRESS (incs 345, 374)
 
 Users should be able to:
 
@@ -271,6 +271,12 @@ Optionally hyperlink titles or DOIs
 Update or freeze only the bibliography
 
 Zotero permits inclusion of uncited items and exclusion of cited items. EndNote supports categorized bibliographies. Citavi and SmartCite support chapter or section bibliographies.
+
+**Continued in increment 374 (2026-07-24):** LibreOffice now stores a bounded custom bibliography heading in
+the document, applies it through an explicit bibliography-only refresh even when automatic rebuilding is paused,
+persists it through save/reopen, and treats blank input as a deliberate reset to **References**. Include-uncited,
+exclude-cited, bibliography-only refresh, and freeze controls shipped earlier; categories, chapter/section
+bibliographies, and hyperlink controls remain.
 
 12. Add a persistent "Citations in this document" panel
 

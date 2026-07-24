@@ -277,14 +277,52 @@ def test_bibliography_render_comparison_requires_intact_exact_managed_text(monke
     entries = ["A reference.", "B reference."]
     expected = "References\nA reference.\nB reference.\n"
     assert cc.rendered_bibliography_text(entries) == expected
+    assert cc.rendered_bibliography_text(entries, "Works Cited") == "Works Cited\nA reference.\nB reference.\n"
     assert cc.rendered_bibliography_text([]) == ""
 
+    monkeypatch.setattr(cc, "bibliography_heading", lambda doc: "References")
     monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, True, expected))
     assert cc.bibliography_render_is_current(object(), entries)
     monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, False, expected))
     assert not cc.bibliography_render_is_current(object(), entries)
     monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, True, expected + "manual edit"))
     assert not cc.bibliography_render_is_current(object(), entries)
+
+
+def test_bibliography_heading_validation_is_bounded_single_line() -> None:
+    assert cc.normalize_bibliography_heading(None) == "References"
+    assert cc.normalize_bibliography_heading("   ") == "References"
+    assert cc.normalize_bibliography_heading("  Works Cited  ") == "Works Cited"
+    with pytest.raises(ValueError, match="120 characters"):
+        cc.normalize_bibliography_heading("x" * 121)
+    with pytest.raises(ValueError, match="single line"):
+        cc.normalize_bibliography_heading("Works\nCited")
+
+
+def test_set_bibliography_heading_refreshes_explicitly_and_rolls_back_on_failure(monkeypatch) -> None:
+    state = {"value": "Old heading"}
+    calls = []
+
+    monkeypatch.setattr(cc, "_effective_user_prop", lambda _doc, _name: state["value"])
+
+    def set_value(_doc, name, value):
+        assert name == cc.PREF_BIB_HEADING
+        state["value"] = value
+
+    monkeypatch.setattr(cc, "_set_user_prop_value", set_value)
+    monkeypatch.setattr(cc, "refresh_bibliography", lambda doc, base: calls.append((doc, base)))
+    doc = object()
+    assert cc.set_bibliography_heading(doc, "Works Cited", "http://x") == "Works Cited"
+    assert state["value"] == "Works Cited"
+    assert calls == [(doc, "http://x")]
+
+    assert cc.set_bibliography_heading(doc, "Works Cited", "http://x") == "Works Cited"
+    assert calls == [(doc, "http://x"), (doc, "http://x")]
+
+    monkeypatch.setattr(cc, "refresh_bibliography", lambda _doc, _base: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError, match="boom"):
+        cc.set_bibliography_heading(doc, "Sources", "http://x")
+    assert state["value"] == "Works Cited"
 
 
 def test_empty_incremental_delta_creates_no_undo_context() -> None:

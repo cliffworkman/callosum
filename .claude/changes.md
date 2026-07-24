@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 374 — per-document Writer bibliography heading -->
+## 2026-07-24 — Increment 374: Per-document Writer bibliography heading (P1 item #11)
+
+- **Files:** LibreOffice heading preference/writer/menu/installed OXT/real-UNO fixture, adapter/OXT tests,
+  README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Bibliography heading…** accepts one bounded printable line, stores it in the Writer
+  document, and immediately rebuilds only the managed bibliography even when automatic bibliography rebuilding
+  is paused. Reapplying the saved heading repairs a stale managed block. Blank input removes the custom property
+  and restores **References**.
+- **Integrity:** the heading remains inside the established start/end bookmark pair and is inserted as plain
+  Writer text. Invalid input mutates nothing; a render/Writer failure restores the prior document property.
+- **Writer proof:** installed OXT **0.19.0** changed `References` to `Works Cited` with automatic rebuilding
+  paused, persisted through save/reopen, rejected oversized/multiline input, and reset cleanly to the default
+  without changing the paused setting. The first harness launch hit its known pre-selftest UNO-port startup
+  flake; an exact clean retry completed **SELFTEST OK**.
+- **Experience:** a deadline-writer walkthrough found the core path direct. Follow-ups record visible automatic-
+  rebuild state and a more explicit restore-default affordance.
+- **Verification:** LibreOffice adapter/OXT **121 passed**; real Writer **SELFTEST OK**. Full project suite
+  **1566 passed, 1 skipped**.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 373 — tracked-change-aware Writer conversion -->
 ## 2026-07-24 — Increment 373: Tracked-change-aware placement conversion (P1 item #10 complete)
 

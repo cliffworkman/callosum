@@ -1832,6 +1832,85 @@ def spike_bibliography_editing(ctx, base, p1, p2):
     log("spike (P1 #11): OK — bibliography exclude persisted + reported, in-text citation untouched")
 
 
+def spike_custom_bibliography_heading(ctx, base, p1):
+    """P1 item #11: a bounded per-document bibliography heading survives refresh/reopen and resets safely."""
+    import tempfile
+
+    log("spike (P1 #11): per-document bibliography heading")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.setString("Claim HEADING-CITE.\n")
+    descriptor = doc.createSearchDescriptor()
+    descriptor.SearchString = "HEADING-CITE"
+    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(doc.findFirst(descriptor)))
+    check(cc.BIB_HEADING in text.getString(), "default bibliography heading was not rendered")
+
+    cc.set_bib_auto(doc, False)
+    heading = cc.set_bibliography_heading(doc, "Works Cited", base)
+    check(heading == "Works Cited", f"wrong normalized heading: {heading!r}")
+    check(not cc.bib_auto_enabled(doc), "explicit heading change enabled automatic bibliography rebuilding")
+    body = text.getString()
+    check("Works Cited\n" in body and f"{cc.BIB_HEADING}\n" not in body, "custom heading did not replace the default")
+    entries = cc.render_document(
+        base,
+        cc.build_render_request(cc.scan_citations_in_order(doc), "apa", "en-US"),
+    )["bibliography_text"].splitlines()
+    check(cc.bibliography_render_is_current(doc, entries), "custom-heading bibliography was not current")
+    cc._write_bibliography(doc, ["MANUALLY EDITED BIBLIOGRAPHY"])
+    cc.set_bibliography_heading(doc, "Works Cited", base)
+    check(
+        cc.bibliography_render_is_current(doc, entries),
+        "reapplying the saved heading did not repair a stale managed bibliography",
+    )
+    check(not cc.bib_auto_enabled(doc), "same-heading repair enabled automatic bibliography rebuilding")
+
+    before_invalid = (text.getString(), cc._effective_user_prop(doc, cc.PREF_BIB_HEADING))
+    for invalid in ("x" * (cc.BIB_HEADING_MAX + 1), "Works\nCited"):
+        try:
+            cc.set_bibliography_heading(doc, invalid, base)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"invalid bibliography heading was accepted: {invalid!r}")
+        check(
+            (text.getString(), cc._effective_user_prop(doc, cc.PREF_BIB_HEADING)) == before_invalid,
+            "invalid bibliography heading mutated Writer or its document preference",
+        )
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        save_url = uno.systemPathToFileUrl(save_path)
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+        reopened = load_doc(ctx, save_url)
+        check(cc.bibliography_heading(reopened) == "Works Cited", "custom heading did not survive save/reopen")
+        check("Works Cited\n" in reopened.getText().getString(), "reopened bibliography lost its custom heading")
+        check(not cc.bib_auto_enabled(reopened), "save/reopen changed the paused bibliography preference")
+
+        reset = cc.set_bibliography_heading(reopened, "", base)
+        reopened_body = reopened.getText().getString()
+        check(reset == cc.BIB_HEADING, f"blank heading did not restore the default: {reset!r}")
+        check(
+            f"{cc.BIB_HEADING}\n" in reopened_body and "Works Cited\n" not in reopened_body,
+            "default heading was not restored visibly",
+        )
+        check(
+            cc._effective_user_prop(reopened, cc.PREF_BIB_HEADING) is None,
+            "default heading should remove the custom document property",
+        )
+        reopened.close(False)
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+    log("spike (P1 #11): OK — custom/default headings refresh and round-trip without changing auto mode")
+
+
 def spike_partial_refresh_controls(ctx, base, p1):
     """P1 item #13: citation-only and bibliography-only refreshes mutate exactly the requested surface.
 
@@ -2403,6 +2482,9 @@ def main():
 
         # 20) P1 item #11 (backlog #33/#34): bibliography editing -- exclude a cited work, include an uncited one.
         spike_bibliography_editing(ctx, base, p1, p2)
+
+        # P1 item #11: custom per-document bibliography heading, including save/reopen and default reset.
+        spike_custom_bibliography_heading(ctx, base, p1)
 
         # 21) P1 item #13: explicit partial refreshes for large documents.
         spike_partial_refresh_controls(ctx, base, p1)

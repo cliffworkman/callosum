@@ -133,15 +133,18 @@ message if it isn't):
 **Bibliography controls:**
 15. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
     the "move" action: invoking it again elsewhere moves the block there.
-16. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+16. **Bibliography heading…** — choose a heading for this document, such as **Works Cited**. It is bounded to
+    one plain-text line, saved in the Writer file, and applied immediately even when automatic bibliography
+    rebuilding is paused. Submit a blank heading to restore **References**.
+17. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
-17. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+18. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
     written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
-18. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
+19. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
     it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
     cited work or **Add uncited work(s)…** (for further reading). It is a snapshot at the moment you open it —
@@ -158,7 +161,8 @@ and the Infobar; it never renders or contacts the Callosum server until you choo
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
 `CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
-`CallosumInsertBibliographyHere`, `CallosumToggleCiteAuto`, `CallosumToggleBibAuto`, `CallosumDiagnostics`,
+`CallosumInsertBibliographyHere`, `CallosumSetBibliographyHeading`, `CallosumToggleCiteAuto`,
+`CallosumToggleBibAuto`, `CallosumDiagnostics`,
 `CallosumCitationsPanel` — are also runnable from the Python macro dialog if you installed by hand.)
 
 The bibliography is a **bounded** managed block (a start/end bookmark pair) — a refresh only ever rebuilds
@@ -179,6 +183,9 @@ status-bar progress yields between completed units, **Esc** raises a cooperative
 and the same verified rollback used for write failures restores every field if any unit had already changed.
 Before opening that transaction, the adapter compares the full render with each live field and the exact bounded
 bibliography text; unchanged managed surfaces are left byte-for-byte untouched.
+The managed heading is a bounded per-document user property; blank means the default **References**. It is
+inserted through Writer's plain-text API as part of the same bounded bibliography block, never interpreted as
+markup.
 
 ## Testing
 Real UNO mutation logic (inserting/editing marks, the bibliography rebuild, flatten, …) isn't meaningfully
