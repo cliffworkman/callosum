@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /citations*
-fe: 25_detail.jsx
+fe: 25_detail.jsx, 35d_citation_styles.jsx, 37_cite.jsx
 -->
 
 # ROUTE 34 - Citations engine
@@ -19,6 +19,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Egress gate.** With egress unset, any request to a `generativelanguage`/Gemini/genai host is **Critical**.
 - **Coordinate honesty.** `exact` -> bbox rect; `region` -> scroll + note; `null` -> page-open, no rect. An approximate/absent location shown as an exact highlight is **Critical**.
 - **Signal not verdict.** No hidden composite score; no "bad papers" accusation. Filters + visible counts only.
+- **Style previews are fixed-example-only (inc 365).** `POST /citations/styles/preview` renders bundled fictional
+  records through local citeproc. A preview request must never include or retrieve library text and must fire no
+  external request.
 
 ## Adversarial checklist
 
@@ -30,11 +33,20 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 ## Steps
 
-1. Open "Cite as..." for a seeded paper. Confirm styles load (`GET /citations/styles`).
+1. Open "Cite as..." for a seeded paper. Confirm styles load (`GET /citations/styles`) with stable ids plus parsed
+   CSL metadata, locales, favorite/recent state, and a valid application default. Search by full name, acronym,
+   journal/discipline term, and no-match; query length above 120 → 422.
 2. Switch styles and render (`POST /citations/render`). Confirm preview updates, copy succeeds, and missing CSL fields degrade cleanly.
 3. Render a bibliography/document export (`POST /citations/render-document`) using multiple selected papers. Confirm ordering, escaping, and selected style are honored. With `chicago-notes-bibliography`, send ordered clusters with `noteIndex` 1, 2, and 3 (repeat the first source at 3); confirm the repeated note uses citeproc's subsequent-note form rather than repeating the first-note form.
-4. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
-5. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
+4. Preview APA, IEEE, and Chicago notes (`POST /citations/styles/preview`) with en-US/en-GB. Confirm the response
+   contains formatted citation/note/bibliography examples for the fixed fictional records, including first and
+   subsequent note positions where applicable. Unknown style/locale → 422; unavailable engine → 503; rendering
+   failure → 502.
+5. Update (`PUT /citations/styles/preferences`) the application default, locale, favorite, and recent style.
+   Reload and confirm bounded persistence, deduplicated recents, and that recording a document style does not
+   implicitly replace the application default. Unknown style/locale → 422.
+6. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
+7. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
 
 ## Pass criteria
 

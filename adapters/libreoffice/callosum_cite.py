@@ -374,6 +374,13 @@ def _post_json(url: str, body: dict, timeout: int = HTTP_TIMEOUT):
         return json.loads(r.read().decode("utf-8"))
 
 
+def _put_json(url: str, body: dict, timeout: int = HTTP_TIMEOUT):
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="PUT")
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # noqa: S310 (fixed 127.0.0.1 base; local only)
+        return json.loads(r.read().decode("utf-8"))
+
+
 def fetch_csl(base: str, paper_id: int | str) -> dict:
     """Fetch a library paper's canonical CSL-JSON via the inc-70 export endpoint; returns one CSL record.
 
@@ -401,15 +408,52 @@ def list_style_ids(base: str) -> set[str]:
     return {style["id"] for style in list_styles(base)}
 
 
-def list_styles(base: str) -> list[dict[str, str]]:
-    """Validated style manifest from Callosum's local citation engine."""
-    data = _get_json(f"{base}/citations/styles")
+def style_catalog(base: str, query: str = "") -> dict:
+    """Validated searchable catalog + application preferences from Callosum's local citation engine."""
+    url = f"{base}/citations/styles"
+    if query.strip():
+        url += "?" + urllib.parse.urlencode({"q": query.strip()})
+    data = _get_json(url)
     styles = data.get("styles", []) if isinstance(data, dict) else []
-    return [
-        {"id": style["id"], "family": style["family"], "title": str(style.get("title") or style["id"])}
+    validated = [
+        {
+            "id": style["id"],
+            "family": style["family"],
+            "title": str(style.get("title") or style["id"]),
+            "citation_format": str(style.get("citation_format") or style["family"]),
+            "fields": [str(field) for field in style.get("fields", []) if isinstance(field, str)],
+            "favorite": bool(style.get("favorite", False)),
+            "recent_rank": style.get("recent_rank") if isinstance(style.get("recent_rank"), int) else None,
+            "application_default": bool(style.get("application_default", False)),
+        }
         for style in styles
         if isinstance(style, dict) and isinstance(style.get("id"), str) and isinstance(style.get("family"), str)
     ]
+    locales = data.get("locales", []) if isinstance(data, dict) else []
+    locales = [locale for locale in locales if isinstance(locale, str) and locale]
+    return {
+        "styles": validated,
+        "locales": locales or [DEFAULT_LOCALE],
+        "default_style": str(data.get("default_style") or DEFAULT_STYLE) if isinstance(data, dict) else DEFAULT_STYLE,
+        "default_locale": str(data.get("default_locale") or DEFAULT_LOCALE)
+        if isinstance(data, dict)
+        else DEFAULT_LOCALE,
+    }
+
+
+def list_styles(base: str, query: str = "") -> list[dict]:
+    return style_catalog(base, query)["styles"]
+
+
+def preview_style(base: str, style: str, locale: str) -> dict:
+    return _post_json(f"{base}/citations/styles/preview", {"style": style, "locale": locale})
+
+
+def record_style_use(base: str, style: str, locale: str) -> dict:
+    return _put_json(
+        f"{base}/citations/styles/preferences",
+        {"style": style, "locale": locale, "mark_used": True},
+    )
 
 
 def style_family(base: str, style_id: str) -> str:
@@ -533,9 +577,18 @@ def csl_record_row(record: dict) -> str:
 # ── UNO layer (lazy `import uno`; driven by the macro entry points + the headless self-test) ───────────────
 
 
-def _get_pref(doc) -> tuple[str, str]:
-    style = _effective_user_prop(doc, PREF_STYLE) or DEFAULT_STYLE
-    locale = _effective_user_prop(doc, PREF_LOCALE) or DEFAULT_LOCALE
+def _get_pref(doc, base: str | None = None) -> tuple[str, str]:
+    style = _effective_user_prop(doc, PREF_STYLE)
+    locale = _effective_user_prop(doc, PREF_LOCALE)
+    if base is not None and (not style or not locale):
+        try:
+            catalog = style_catalog(base)
+            style = style or catalog["default_style"]
+            locale = locale or catalog["default_locale"]
+        except Exception:
+            pass
+    style = style or DEFAULT_STYLE
+    locale = locale or DEFAULT_LOCALE
     return style, locale
 
 
@@ -1073,7 +1126,9 @@ def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, curs
     records = _build_records(items, base)
     rnd = _new_rnd(doc)
     payload = {"items": records}
-    style, _locale = _get_pref(doc)
+    style, locale = _get_pref(doc, base)
+    if not _effective_user_prop(doc, PREF_STYLE) or not _effective_user_prop(doc, PREF_LOCALE):
+        _set_pref(doc, style, locale)
     if style_family(base, style) == "note":
         _insert_note_mark(doc, cursor, payload, rnd, note_placement(doc))
     else:
@@ -1367,7 +1422,7 @@ def refresh(
     bibliography is rebuilt only when its exact plain text changed (or an explicit cursor move was requested).
     An empty delta creates no UndoManager entry.
     """
-    style, locale = _get_pref(doc)
+    style, locale = _get_pref(doc, base)
     fields = scan_citations_in_order(doc)
     placement_error = citation_placement_error(fields, style_family(base, style), note_placement(doc))
     if placement_error:
@@ -1866,6 +1921,8 @@ def set_style(doc, style: str, locale: str, base: str = DEFAULT_BASE) -> None:
         raise ValueError(placement_error)
     _set_pref(doc, style, locale or DEFAULT_LOCALE)
     _auto_refresh(doc, base)
+    with contextlib.suppress(Exception):
+        record_style_use(base, style, locale or DEFAULT_LOCALE)
 
 
 _CONVERSION_PREFS = (PREF_STYLE, PREF_LOCALE, PREF_NOTE_PLACEMENT, PREF_CITE_DIRTY, PREF_BIB_DIRTY)
@@ -2062,7 +2119,7 @@ def convert_citation_placement(
         raise ValueError(f"Unknown style '{target_style}'. Available: {', '.join(sorted(families))}")
     target_placement = conversion_target_placement(families[target_style], target_note_placement)
     fields = scan_citations_in_order(doc)
-    current_style, _current_locale = _get_pref(doc)
+    current_style, _current_locale = _get_pref(doc, base)
     current_family = next((entry["family"] for entry in styles if entry["id"] == current_style), None)
     if current_family is None:
         raise ValueError(f"Current citation style '{current_style}' is not available.")
@@ -2535,12 +2592,76 @@ def insert_citation_interactive(doc, base: str) -> None:
 
 
 def set_style_interactive(doc, base: str) -> None:
-    style, locale = _get_pref(doc)
-    chosen = _input_box(doc, "Citation style", "CSL style id (e.g. apa, ieee, nature):", style)
-    if not chosen:
+    catalog = style_catalog(base)
+    style, locale = _get_pref(doc, base)
+    query = _input_box(
+        doc,
+        "Citation style",
+        "Search by journal, discipline, acronym, or style name (blank shows all):",
+    )
+    if query is None:
         return
-    loc = _input_box(doc, "Locale", "Locale (en-US / en-GB):", locale) or DEFAULT_LOCALE
-    set_style(doc, chosen.strip(), loc.strip(), base)
+    styles = list_styles(base, query)
+    if not styles:
+        _msgbox("No installed citation styles match that search.")
+        return
+    chosen = _choice_box(
+        doc,
+        "Citation style",
+        f"Document style (application default: {catalog['default_style']}):",
+        tuple((style_search_row(entry), entry["id"]) for entry in styles),
+        style,
+    )
+    if chosen is None:
+        return
+    chosen_locale = _choice_box(
+        doc,
+        "Citation style",
+        "Preview and document locale:",
+        tuple(
+            (
+                "English (United States)" if item == "en-US" else "English (United Kingdom)",
+                item,
+            )
+            for item in catalog["locales"]
+        ),
+        locale,
+    )
+    if chosen_locale is None:
+        return
+    preview = preview_style(base, chosen, chosen_locale)
+    citations = preview.get("citations", [])
+    bibliography = str(preview.get("bibliography_text") or "This style does not produce a bibliography.")
+    preview_text = str(citations[0]) if citations else "(No citation preview.)"
+    if len(bibliography) > 900:
+        bibliography = bibliography[:897].rstrip() + "…"
+    _msgbox(
+        f"Example citation\n{preview_text}\n\nExample bibliography\n{bibliography}\n\n"
+        "These are fictional example references."
+    )
+    action = _choice_box(
+        doc,
+        "Citation style",
+        "What would you like to do?",
+        (
+            ("Apply to this document", "apply"),
+            ("Open the full style manager in Callosum", "manager"),
+        ),
+        "apply",
+    )
+    if action == "manager":
+        webbrowser.open(f"{base}/#citation-styles")
+    elif action == "apply":
+        set_style(doc, chosen, chosen_locale, base)
+
+
+def style_search_row(style: dict) -> str:
+    """Compact Writer pick-list row from one validated catalog entry."""
+    star = "★ " if style.get("favorite") else ""
+    format_label = "notes" if style.get("family") == "note" else str(style.get("citation_format") or "in-text")
+    fields = ", ".join(str(field).replace("_", " ") for field in style.get("fields", [])[:3])
+    detail = " · ".join(part for part in (format_label.replace("-", " "), fields) if part)
+    return f"{star}{style['title']} — {detail}" if detail else f"{star}{style['title']}"
 
 
 def set_note_placement_interactive(doc, _base: str) -> None:
@@ -2616,7 +2737,7 @@ def convert_citation_placement_interactive(doc, base: str) -> None:
         _msgbox("No live Callosum citations were found in this document.")
         return
     styles = list_styles(base)
-    current_style, current_locale = _get_pref(doc)
+    current_style, current_locale = _get_pref(doc, base)
     chosen_style = _choice_box(
         doc,
         "Convert citation placement",

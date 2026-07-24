@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Connection
 
@@ -29,14 +29,18 @@ from app.backend.citations.beyond_library import (
 from app.backend.citations.render import (
     DEFAULT_LOCALE,
     DEFAULT_STYLE,
-    LOCALES,
     MAX_CLUSTERS,
     MAX_ITEMS_PER_CLUSTER,
     STYLE_IDS,
     CitationEngineUnavailable,
-    list_styles,
     render_document,
     render_papers,
+)
+from app.backend.citations.style_manager import (
+    MAX_STYLE_QUERY,
+    catalog_response,
+    preview_style,
+    update_style_preferences,
 )
 from app.backend.citations.suggest import MAX_TEXT_LEN, Suggestion, suggest_citations
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
@@ -51,6 +55,19 @@ class RenderCitationsRequest(BaseModel):
     paper_ids: list[int] = Field(min_length=1, max_length=5000)
     style: str = DEFAULT_STYLE
     locale: str = DEFAULT_LOCALE
+
+
+class StylePreviewRequest(BaseModel):
+    style: str = DEFAULT_STYLE
+    locale: str = DEFAULT_LOCALE
+
+
+class StylePreferencesRequest(BaseModel):
+    style: str
+    locale: str = DEFAULT_LOCALE
+    favorite: bool | None = None
+    set_default: bool = False
+    mark_used: bool = False
 
 
 # CSL's fixed locator-label vocabulary (CSL 1.0.2 term list — confirmed against the bundled locale XML; no
@@ -136,13 +153,38 @@ class RenderDocumentRequest(BaseModel):
 
 
 @router.get("/citations/styles")
-def citation_styles() -> dict[str, Any]:
-    return {
-        "styles": list_styles(),
-        "locales": list(LOCALES),
-        "default_style": DEFAULT_STYLE,
-        "default_locale": DEFAULT_LOCALE,
-    }
+def citation_styles(q: str = Query(default="", max_length=MAX_STYLE_QUERY)) -> dict[str, Any]:
+    try:
+        return catalog_response(q)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/citations/styles/preview")
+def citation_style_preview(payload: StylePreviewRequest) -> dict[str, Any]:
+    try:
+        return preview_style(payload.style, payload.locale)
+    except CitationEngineUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+@router.put("/citations/styles/preferences")
+def citation_style_preferences(payload: StylePreferencesRequest) -> dict[str, Any]:
+    try:
+        update_style_preferences(
+            payload.style,
+            payload.locale,
+            favorite=payload.favorite,
+            set_default=payload.set_default,
+            mark_used=payload.mark_used,
+        )
+        return catalog_response()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post("/citations/render")

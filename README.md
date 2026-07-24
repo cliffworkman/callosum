@@ -146,7 +146,11 @@ first/subsequent notes from the complete note sequence. **Note placement…** ca
 to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately
 converts an eligible document between inline citations, footnotes, and endnotes after previewing the count and
 target style. Apply it as one Writer Undo step or save a separate converted `.odt` copy; ambiguous note content,
-mixed placement, and tracked changes are refused rather than guessed. See `adapters/`'s per-tool READMEs for setup.
+mixed placement, and tracked changes are refused rather than guessed. A shared local citation-style catalog in
+**Settings → Citation styles** lets you search by style, journal, discipline, or acronym; inspect real fixed-example
+previews; and keep favorites, recents, locale, and an application default. New word-processor documents inherit
+that default, while existing documents keep their embedded style and locale. See `adapters/`'s per-tool READMEs
+for setup.
 
 ## Security note
 

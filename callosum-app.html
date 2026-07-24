@@ -366,6 +366,40 @@
   .settings-publisher-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
   .settings-publisher-controls > .settings-field { display: flex; flex-direction: column; }
   .settings-publisher-controls .tags-srcfilter { margin-top: auto; }
+  .citation-style-manager { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.7fr); gap: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .citation-style-browser, .citation-style-detail { min-width: 0; }
+  .citation-style-browser { display: flex; flex-direction: column; gap: 8px; }
+  .citation-style-views { display: flex; gap: 4px; }
+  .citation-style-views button { flex: 1; border: 1px solid var(--line-2); background: var(--panel); color: var(--ink-2); border-radius: var(--radius-sm); padding: 5px 8px; font: inherit; font-size: 11px; cursor: pointer; }
+  .citation-style-views button.active { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .citation-style-list { min-height: 224px; max-height: 330px; overflow-y: auto; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .citation-style-list-row { min-height: 46px; display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: stretch; border-bottom: 1px solid var(--line); }
+  .citation-style-list-row:last-child { border-bottom: 0; }
+  .citation-style-list-row.selected { background: var(--sel); }
+  .citation-style-select { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; border: 0; background: transparent; color: var(--ink); padding: 7px 9px; text-align: left; cursor: pointer; }
+  .citation-style-select span { overflow-wrap: anywhere; font-size: 12px; }
+  .citation-style-select small { color: var(--ink-3); font-size: 10.5px; text-transform: capitalize; }
+  .citation-style-favorite { align-self: center; width: 30px; height: 30px; border: 0; background: transparent; color: var(--ink-3); font-size: 17px; cursor: pointer; }
+  .citation-style-favorite:hover, .citation-style-favorite.on { color: var(--accent); }
+  .citation-style-favorite.detail { flex: none; }
+  .citation-style-detail { padding-left: 24px; border-left: 1px solid var(--line); }
+  .citation-style-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .citation-style-detail h3 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 600; }
+  .citation-style-meta, .citation-style-fields { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
+  .citation-style-meta span, .citation-style-fields span { border-radius: var(--radius-pill); background: var(--panel-2); color: var(--ink-2); padding: 2px 7px; font-size: 9.5px; text-transform: capitalize; }
+  .citation-style-meta .citation-style-default { background: var(--accent-soft); color: var(--accent); }
+  .citation-style-summary { margin: 10px 0 0; color: var(--ink-2); font-size: 11.5px; line-height: 1.45; }
+  .citation-style-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-top: 12px; }
+  .citation-style-actions .settings-field-label { flex: 1 1 210px; margin: 0; }
+  .citation-style-actions .btn { flex: 0 0 auto; }
+  .citation-style-actions .settings-input { display: block; margin-top: 3px; }
+  .citation-style-default-note { max-width: none; }
+  .citation-style-preview { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .citation-style-preview > .eyebrow { margin-top: 0; }
+  .citation-style-preview-block { margin-top: 9px; color: var(--ink); font-family: var(--serif); font-size: 12px; line-height: 1.5; }
+  .citation-style-preview-block .settings-field-label { font-family: var(--sans); }
+  .citation-style-bibliography { white-space: pre-wrap; }
+  .citation-style-empty { padding: 16px 9px; color: var(--ink-3); font-size: 11.5px; }
   .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .settings-section .settings-sub { max-width: none; }
   .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
@@ -1647,6 +1681,9 @@
   .app.mobile .pane-tabs-checklists { grid-template-columns: 1fr; }
   .app.mobile .settings-axis-controls { grid-template-columns: 1fr; }
   .app.mobile .settings-publisher-controls { grid-template-columns: 1fr; }
+  .app.mobile .citation-style-manager { grid-template-columns: 1fr; }
+  .app.mobile .citation-style-detail { padding: 18px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+  .app.mobile .citation-style-actions { align-items: stretch; flex-direction: column; }
   .app.mobile .settings-openurl-row { grid-template-columns: minmax(0, 1fr) auto; }
   .app.mobile .settings-openurl-row .settings-field-label { grid-column: 1 / -1; }
   .app.mobile .settings-ai-controls { grid-template-columns: 1fr; }
@@ -14790,8 +14827,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const signedIn = !!(acct && acct.signed_in);
     return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Account"), /* @__PURE__ */ React.createElement("div", { className: "settings-field" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Account sign in (Optional.)", /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "Callosum works fully offline with no account. Requires an ", /* @__PURE__ */ React.createElement("b", null, "ORCID iD"), " \u2014 signing in verifies your identity and enables cross-device sync. ", /* @__PURE__ */ React.createElement("b", null, "Identity only"), " \u2014 your library, PDFs, and notes never leave your machine.")), signedIn ? /* @__PURE__ */ React.createElement("div", { className: "settings-account-row" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: busy, onClick: signOut }, busy ? "Signing out\u2026" : "Sign out"), /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Signed in", acct.display_name ? " as " + acct.display_name : acct.email ? " as " + acct.email : "", acct.orcid ? " \xB7 ORCID " + acct.orcid : "", acct.is_superuser ? " \xB7 superuser" : "", ".")) : acct && acct.configured ? /* @__PURE__ */ React.createElement("div", { className: "settings-keyrow" }, /* @__PURE__ */ React.createElement("button", { className: "btn btn-primary", disabled: busy, onClick: signIn }, busy ? "Starting\u2026" : "Sign in")) : /* @__PURE__ */ React.createElement("div", { className: "settings-sub" }, "Sign-in isn't set up on this Callosum yet \u2014 the account service is configured by whoever runs this instance.")), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg));
   }
-  function SettingsCard({ title, children }) {
-    return /* @__PURE__ */ React.createElement("section", { className: "settings-card" }, /* @__PURE__ */ React.createElement("h2", { className: "settings-card-title" }, title), children);
+  function SettingsCard({ title, children, id }) {
+    return /* @__PURE__ */ React.createElement("section", { className: "settings-card", id }, /* @__PURE__ */ React.createElement("h2", { className: "settings-card-title" }, title), children);
   }
   function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDefault, axisCutoffDefault, onAxisCutoffDefault, onMyPubsRefreshed, onRetractionRan }) {
     const dark = theme === "dark";
@@ -14828,7 +14865,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChange: (e) => onAxisCutoffDefault(Number(e.target.value)),
         "aria-label": "Default axis cutoff"
       }
-    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null))))));
+    ), /* @__PURE__ */ React.createElement("span", { className: "settings-cutoff-val" }, Number(axisCutoffDefault).toFixed(2))), /* @__PURE__ */ React.createElement("span", { className: "settings-sub" }, "The assigned-vs-uncertain threshold a new axis's re-score starts at (you can still adjust it per axis). Higher = stricter.")))), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(AcquisitionSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LocalMaintenanceSettings, { onRetractionRan })), /* @__PURE__ */ React.createElement("div", { className: "settings-section settings-section-wide" }, /* @__PURE__ */ React.createElement(PublishersSettings, null)))), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Citation styles", id: "citation-styles" }, /* @__PURE__ */ React.createElement(CitationStylesSettings, null)), /* @__PURE__ */ React.createElement(SettingsCard, { title: "Integrations" }, /* @__PURE__ */ React.createElement("div", { className: "settings-sections-grid settings-sections-grid-3" }, /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(LibreOfficeSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(WordSettings, null)), /* @__PURE__ */ React.createElement("div", { className: "settings-section" }, /* @__PURE__ */ React.createElement(RemoteAccessSettings, null))))));
   }
   function MyPubsSettings({ onRefreshed }) {
     const [name, setName] = useState("");
@@ -15410,6 +15447,160 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       loadConflictCount();
     }, onResolved: loadConflictCount }));
   }
+  function CitationStylesSettings() {
+    const [catalog, setCatalog] = useState(null);
+    const [selectedId, setSelectedId] = useState("");
+    const [locale, setLocale] = useState("en-US");
+    const [query, setQuery] = useState("");
+    const [view, setView] = useState("installed");
+    const [preview, setPreview] = useState({ status: "idle" });
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const load = async () => {
+      const r = await api("/citations/styles");
+      if (!r.ok) {
+        setMsg("Couldn't load citation styles: " + (r.error || "error"));
+        return;
+      }
+      setCatalog(r.data);
+      setSelectedId((current) => (r.data.styles || []).some((style) => style.id === current) ? current : r.data.default_style || r.data.styles[0] && r.data.styles[0].id || "");
+      setLocale(r.data.default_locale || "en-US");
+    };
+    useEffect(() => {
+      load();
+      if (window.location.hash === "#citation-styles") {
+        requestAnimationFrame(() => document.getElementById("citation-styles")?.scrollIntoView({ block: "start" }));
+      }
+    }, []);
+    const selected = catalog && catalog.styles.find((style) => style.id === selectedId);
+    useEffect(() => {
+      if (!selectedId) return;
+      let live = true;
+      setPreview({ status: "loading" });
+      apiPost("/citations/styles/preview", { style: selectedId, locale }).then((r) => {
+        if (!live) return;
+        setPreview(r.ok ? { status: "ready", data: r.data } : { status: "error", error: r.error || "error" });
+      });
+      return () => {
+        live = false;
+      };
+    }, [selectedId, locale]);
+    const update = async (body, success) => {
+      setBusy(true);
+      setMsg("");
+      const r = await apiPut("/citations/styles/preferences", { style: selectedId, locale, ...body });
+      setBusy(false);
+      if (!r.ok) {
+        setMsg("Couldn't update citation styles: " + (r.error || "error"));
+        return;
+      }
+      setCatalog(r.data);
+      setMsg(success);
+    };
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let visible = catalog ? catalog.styles.filter((style) => {
+      const haystack = [
+        style.id,
+        style.title,
+        style.full_title,
+        style.short_title,
+        style.summary,
+        style.citation_format,
+        ...style.fields || []
+      ].join(" ").replaceAll("_", " ").toLowerCase();
+      return words.every((word) => haystack.includes(word));
+    }) : [];
+    if (view === "favorites") visible = visible.filter((style) => style.favorite);
+    if (view === "recent") visible = visible.filter((style) => style.recent_rank != null).sort((a, b) => a.recent_rank - b.recent_rank);
+    return /* @__PURE__ */ React.createElement("div", { className: "citation-style-manager" }, /* @__PURE__ */ React.createElement("div", { className: "citation-style-browser" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label", htmlFor: "citation-style-search" }, "Find a citation style"), /* @__PURE__ */ React.createElement(
+      "input",
+      {
+        id: "citation-style-search",
+        className: "settings-input",
+        type: "search",
+        placeholder: "Journal, discipline, acronym, or style name",
+        value: query,
+        onChange: (event) => setQuery(event.target.value)
+      }
+    ), /* @__PURE__ */ React.createElement("div", { className: "citation-style-views", "aria-label": "Citation style view" }, [
+      ["installed", "Installed"],
+      ["favorites", `Favorites${catalog && catalog.favorite_style_ids.length ? ` (${catalog.favorite_style_ids.length})` : ""}`],
+      ["recent", "Recent"]
+    ].map(([id, label]) => /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        key: id,
+        type: "button",
+        className: view === id ? "active" : "",
+        "aria-pressed": view === id,
+        onClick: () => setView(id)
+      },
+      label
+    ))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-list", role: "listbox", "aria-label": "Installed citation styles" }, visible.map((style) => /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "citation-style-list-row" + (style.id === selectedId ? " selected" : ""),
+        key: style.id
+      },
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "citation-style-select",
+          role: "option",
+          "aria-selected": style.id === selectedId,
+          onClick: () => setSelectedId(style.id)
+        },
+        /* @__PURE__ */ React.createElement("span", null, style.title),
+        /* @__PURE__ */ React.createElement("small", null, style.family === "note" ? "Notes" : style.citation_format.replaceAll("-", " "))
+      ),
+      /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "citation-style-favorite" + (style.favorite ? " on" : ""),
+          title: style.favorite ? "Remove from favorites" : "Add to favorites",
+          "aria-label": `${style.favorite ? "Remove" : "Add"} ${style.title} ${style.favorite ? "from" : "to"} favorites`,
+          disabled: busy,
+          onClick: () => {
+            setSelectedId(style.id);
+            setBusy(true);
+            setMsg("");
+            apiPut("/citations/styles/preferences", {
+              style: style.id,
+              locale,
+              favorite: !style.favorite
+            }).then((r) => {
+              setBusy(false);
+              if (r.ok) setCatalog(r.data);
+              else setMsg("Couldn't update favorites: " + (r.error || "error"));
+            });
+          }
+        },
+        style.favorite ? "\u2605" : "\u2606"
+      )
+    )), catalog && visible.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "No styles match this view and search."))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-detail" }, selected ? /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-detail-head" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h3", null, selected.full_title || selected.title), /* @__PURE__ */ React.createElement("div", { className: "citation-style-meta" }, /* @__PURE__ */ React.createElement("span", null, selected.family === "note" ? "Note style" : selected.citation_format.replaceAll("-", " ")), /* @__PURE__ */ React.createElement("span", null, selected.independent ? "Independent CSL" : `Depends on ${selected.parent_style}`), selected.application_default && /* @__PURE__ */ React.createElement("span", { className: "citation-style-default" }, "Application default"))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "citation-style-favorite detail" + (selected.favorite ? " on" : ""),
+        title: selected.favorite ? "Remove from favorites" : "Add to favorites",
+        "aria-label": selected.favorite ? "Remove selected style from favorites" : "Add selected style to favorites",
+        disabled: busy,
+        onClick: () => update({ favorite: !selected.favorite }, selected.favorite ? "Removed from favorites." : "Added to favorites.")
+      },
+      selected.favorite ? "\u2605" : "\u2606"
+    )), selected.summary && /* @__PURE__ */ React.createElement("p", { className: "citation-style-summary" }, selected.summary), selected.fields.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "citation-style-fields" }, selected.fields.map((field) => /* @__PURE__ */ React.createElement("span", { key: field }, field.replaceAll("_", " ")))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-actions" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Preview locale", /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: locale, onChange: (event) => setLocale(event.target.value) }, (catalog.locales || []).map((item) => /* @__PURE__ */ React.createElement("option", { key: item, value: item }, item === "en-US" ? "English (United States)" : "English (United Kingdom)")))), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn btn-primary",
+        disabled: busy || selected.application_default,
+        onClick: () => update({ set_default: true, mark_used: true }, "Application default saved.")
+      },
+      selected.application_default ? "Application default" : "Use as application default"
+    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)));
+  }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");
     const [axisId, setAxisId] = useState("");
@@ -15655,7 +15846,10 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [style, setStyle] = useState("apa");
     useEffect(() => {
       api("/citations/styles").then((r) => {
-        if (r.ok) setStyles(r.data.styles || []);
+        if (r.ok) {
+          setStyles(r.data.styles || []);
+          setStyle(r.data.default_style || "apa");
+        }
       });
     }, []);
     const run = () => {
@@ -16127,7 +16321,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [wipTabs, setWipTabs] = useState([]);
     const [selectedPaperTab, setSelectedPaperTab] = useState(null);
     const [activeTab, setActiveTab] = useState("library");
-    const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
+    const [activeWorkspace, setActiveWorkspace] = useState(() => window.location.hash === "#citation-styles" ? "settings" : _loadLayout("callosum.workspace", "library"));
     const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
     const selectWorkspace = useCallback((id) => {
       setActiveWorkspace((prev) => {

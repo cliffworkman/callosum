@@ -167,7 +167,12 @@ function CitePane({ ctx }) {
   const [state, setState] = useState({ status: "idle" });
   const [styles, setStyles] = useState([]);   // inc 159: formatted-citation styles (inc-106 engine)
   const [style, setStyle] = useState("apa");
-  useEffect(() => { api("/citations/styles").then(r => { if (r.ok) setStyles(r.data.styles || []); }); }, []);
+  useEffect(() => { api("/citations/styles").then(r => {
+    if (r.ok) {
+      setStyles(r.data.styles || []);
+      setStyle(r.data.default_style || "apa");
+    }
+  }); }, []);
   const run = () => {
     const trimmed = text.trim();
     if (!trimmed) return;

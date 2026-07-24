@@ -27,7 +27,8 @@ function App() {
   // inc 280: the top-level "what am I doing" workspace (menu bar, 04b_workspaces.jsx). `activeTab` above is now the
   // Library workspace's sub-tab (the list | an open PDF). The active workspace persists across reloads; a
   // library-list navigation (filter/focus, via gotoLibrary) also switches to the Library workspace.
-  const [activeWorkspace, setActiveWorkspace] = useState(() => _loadLayout("callosum.workspace", "library"));
+  const [activeWorkspace, setActiveWorkspace] = useState(() =>
+    window.location.hash === "#citation-styles" ? "settings" : _loadLayout("callosum.workspace", "library"));
   const [workspaceTabRequest, setWorkspaceTabRequest] = useState(null);
   const selectWorkspace = useCallback((id) => {
     // leaving Settings re-reads egress state in the panes (inc 148), the old modal-close behavior.

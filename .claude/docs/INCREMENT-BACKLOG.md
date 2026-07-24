@@ -290,9 +290,19 @@ the Principles + A-A gates before build.)*
   and copy isolation are proven against the installed OXT. **Still open under #10 after inc 364:** safe semantics
   for multiple independent live clusters mixed with prose inside one note, tracked-change conversion, and broader
   ibid/near-note style/context coverage.
+  **P1 item #9 started (inc 365, 2026-07-24):** a shared citation-style manager now parses descriptive metadata
+  from the bundled CSL XML, supports bounded search by style/journal/discipline/acronym/name, and owns local
+  application-default, locale, favorites, and bounded-recents preferences. Settings exposes a full-width
+  Installed/Favorites/Recent browser with real fixed-fictional-example citeproc previews. LibreOffice's
+  **Citation style…** uses the same catalog/search/preview/preferences contract instead of asking for a raw CSL
+  id. Blank Writer documents inherit the application default on first citation; existing documents retain their
+  embedded style/locale, and a successful document style change records a recent without replacing the
+  application default. The installed 0.15.0 OXT proves inheritance, preview, search, and recents against real
+  Writer. **Still open under #9:** installing additional/custom CSL styles, visual/source editing, and CSL
+  import/export.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, broader note-placement conversion, more bibliography
+  not left to drift like the composer's verification did). Remaining P1 (custom CSL installation/editing/import-export, broader note-placement conversion, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
   keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,

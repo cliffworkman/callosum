@@ -608,6 +608,63 @@ def test_style_manifest_and_family_are_validated(monkeypatch) -> None:
         cc.style_family("http://x", "missing")
 
 
+def test_style_catalog_preserves_preferences_and_search_metadata(monkeypatch) -> None:
+    seen = []
+
+    def get_json(url):
+        seen.append(url)
+        return {
+            "styles": [
+                {
+                    "id": "apa",
+                    "title": "APA",
+                    "family": "author-date",
+                    "citation_format": "author-date",
+                    "fields": ["psychology", 7],
+                    "favorite": True,
+                    "recent_rank": 0,
+                    "application_default": True,
+                }
+            ],
+            "locales": ["en-US", "en-GB", None],
+            "default_style": "apa",
+            "default_locale": "en-GB",
+        }
+
+    monkeypatch.setattr(cc, "_get_json", get_json)
+    catalog = cc.style_catalog("http://x", "social science")
+    assert seen == ["http://x/citations/styles?q=social+science"]
+    assert catalog["default_style"] == "apa" and catalog["default_locale"] == "en-GB"
+    assert catalog["locales"] == ["en-US", "en-GB"]
+    assert catalog["styles"][0] == {
+        "id": "apa",
+        "title": "APA",
+        "family": "author-date",
+        "citation_format": "author-date",
+        "fields": ["psychology"],
+        "favorite": True,
+        "recent_rank": 0,
+        "application_default": True,
+    }
+    assert cc.style_search_row(catalog["styles"][0]) == "★ APA — author date · psychology"
+
+
+def test_record_style_use_updates_only_recent_state(monkeypatch) -> None:
+    seen = {}
+
+    def put_json(url, body):
+        seen.update(url=url, body=body)
+        return {"default_style": "apa", "recent_style_ids": ["ieee"]}
+
+    monkeypatch.setattr(cc, "_put_json", put_json)
+    result = cc.record_style_use("http://x", "ieee", "en-GB")
+    assert seen == {
+        "url": "http://x/citations/styles/preferences",
+        "body": {"style": "ieee", "locale": "en-GB", "mark_used": True},
+    }
+    assert result["default_style"] == "apa"
+
+
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [("footnote", "footnote"), ("FOOTNOTE", "footnote"), (" endnote ", "endnote")],
@@ -1086,6 +1143,25 @@ def test_note_placement_defaults_and_corrupt_values_fail_to_footnotes() -> None:
     assert cc.note_placement(_PanelDoc({})) == "footnote"
     assert cc.note_placement(_PanelDoc({}, {cc.PREF_NOTE_PLACEMENT: "endnote"})) == "endnote"
     assert cc.note_placement(_PanelDoc({}, {cc.PREF_NOTE_PLACEMENT: "margin"})) == "footnote"
+
+
+def test_unstyled_document_inherits_application_style_without_overriding_embedded_style(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cc,
+        "style_catalog",
+        lambda base: {
+            "styles": [],
+            "locales": ["en-US", "en-GB"],
+            "default_style": "ieee",
+            "default_locale": "en-GB",
+        },
+    )
+    assert cc._get_pref(_PanelDoc({}), "http://x") == ("ieee", "en-GB")
+    assert cc._get_pref(_PanelDoc({}, {cc.PREF_STYLE: "apa"}), "http://x") == ("apa", "en-GB")
+    assert cc._get_pref(
+        _PanelDoc({}, {cc.PREF_STYLE: "apa", cc.PREF_LOCALE: "en-US"}),
+        "http://x",
+    ) == ("apa", "en-US")
 
 
 def test_dirty_state_defaults_clean_and_reads_each_persisted_flag() -> None:

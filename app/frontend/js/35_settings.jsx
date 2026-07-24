@@ -423,9 +423,9 @@ function AccountSettings() {
   );
 }
 
-function SettingsCard({ title, children }) {
+function SettingsCard({ title, children, id }) {
   return (
-    <section className="settings-card">
+    <section className="settings-card" id={id}>
       <h2 className="settings-card-title">{title}</h2>
       {children}
     </section>
@@ -499,6 +499,10 @@ function SettingsView({ theme, onTheme, hideUncertainDefault, onHideUncertainDef
             <div className="settings-section"><LocalMaintenanceSettings onRetractionRan={onRetractionRan} /></div>
             <div className="settings-section settings-section-wide"><PublishersSettings /></div>
           </div>
+        </SettingsCard>
+
+        <SettingsCard title="Citation styles" id="citation-styles">
+          <CitationStylesSettings />
         </SettingsCard>
 
         <SettingsCard title="Integrations">

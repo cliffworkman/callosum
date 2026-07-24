@@ -176,6 +176,13 @@ Priority 1: full competitor parity
 
 The plugin should not require users to know CSL IDs.
 
+**Started in increment 365 (2026-07-24):** the shared local catalog now searches bundled styles by descriptive
+metadata, distinguishes dependent/independent styles, previews representative fictional references through real
+citeproc, and persists favorites, recents, locale, and application default. Settings provides the full manager;
+LibreOffice uses the same catalog and lets users open it. Blank documents inherit the application default while
+existing documents retain their embedded style/locale. Still open below: repository installation, local/URL
+import, validation/update handling, visual/source editing, duplication, and custom export.
+
 Required functionality:
 
 Search styles by journal, publisher, discipline, acronym, or style name

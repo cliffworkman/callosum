@@ -597,7 +597,7 @@ def spike_note_style_footnotes(ctx, base, p1, p2):
     try:
         cc.set_note_placement(end_doc, "footnote")
     except ValueError as exc:
-        check("Automatic conversion" in str(exc), f"wrong endnote-to-footnote placement error: {exc}")
+        check("Convert citation placement" in str(exc), f"wrong endnote-to-footnote placement error: {exc}")
     else:
         raise AssertionError("endnote-to-footnote placement change was silently accepted")
     check(cc.note_placement(end_doc) == old_placement, "rejected placement change mutated the document preference")
@@ -1893,6 +1893,35 @@ def spike_document_lifecycle_observer(ctx, base, p1, p2):
     log("spike (P1 #13): OK — reopen state was immediate; native move detected; prose edit ignored")
 
 
+def spike_style_manager(ctx, base):
+    """P1 item #9: Writer consumes the shared searchable catalog/default/preview contract."""
+    log("spike (P1 #9): shared citation style manager contract")
+    catalog = cc.style_catalog(base, "psychology")
+    check([style["id"] for style in catalog["styles"]] == ["apa"], "Writer style search did not match CSL fields")
+    preview = cc.preview_style(base, "apa", "en-US")
+    check(preview.get("example_only") is True, "style preview was not marked as example-only")
+    check("Rivera & Chen, 2024" in preview["citations"][0], "Writer style preview did not use citeproc output")
+
+    cc._put_json(
+        f"{base}/citations/styles/preferences",
+        {"style": "ieee", "locale": "en-GB", "set_default": True},
+    )
+    blank = new_writer(ctx)
+    try:
+        check(cc._get_pref(blank, base) == ("ieee", "en-GB"), "new Writer document did not inherit app default")
+        check(
+            cc._effective_user_prop(blank, cc.PREF_STYLE) is None,
+            "reading the application default prematurely embedded a document style",
+        )
+    finally:
+        blank.close(False)
+        cc._put_json(
+            f"{base}/citations/styles/preferences",
+            {"style": "apa", "locale": "en-US", "set_default": True},
+        )
+    log("spike (P1 #9): OK — catalog search, preview, and new-document default")
+
+
 def main():
     base, p1, p2, port = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
     id1, id2 = f"callosum-{p1}", f"callosum-{p2}"
@@ -1900,6 +1929,7 @@ def main():
     ctx = connect(port)
     log("connected; cleaning + opening Writer")
     close_open_docs(ctx)
+    spike_style_manager(ctx, base)
     doc = new_writer(ctx)
     log("Writer open")
     try:
@@ -1914,6 +1944,8 @@ def main():
         text.createTextCursorByRange(text.getStart()).setString("Claim one AAA. Claim two BBB.\n")
         log("set_style ieee")
         cc.set_style(doc, "ieee", "en-US", base)
+        ieee_style = next(style for style in cc.style_catalog(base)["styles"] if style["id"] == "ieee")
+        check(ieee_style["recent_rank"] == 0, "successful Writer style change was not recorded in Recents")
         log("insert p1 @AAA")
         cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find_range("AAA")))
         log("insert p2 @BBB")

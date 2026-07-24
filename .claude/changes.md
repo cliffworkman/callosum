@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 365 — shared citation-style manager -->
+## 2026-07-24 — Increment 365: Shared citation-style manager (P1 item #9)
+
+- **Files:** citation style manager/API/tests, Settings/Cite frontend + generated app, LibreOffice
+  adapter/composer/selftest/README/OXT version (0.14.0 → 0.15.0), root README, served help, QA routes, security
+  audit, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** the bundled CSL XML now drives one searchable descriptive catalog with real fixed-example
+  citeproc previews, locale, Favorites, Recent, and a local application default. Settings exposes the full
+  manager and a `#citation-styles` deep link; LibreOffice **Citation style…** searches/previews the same data
+  instead of requesting a raw CSL id.
+- **Document semantics:** blank Writer documents inherit the application default on first citation, without
+  premature property mutation. Existing documents keep their embedded style/locale. Applying a document style
+  records a Recent entry only after refresh succeeds and never replaces the application default.
+- **Verification:** focused API/frontend/LibreOffice suite: **193 passed**. Playwright at `375x812` and
+  `1440x900` confirmed deep linking, search, Favorites/Recent/default, IEEE preview, responsive wrapping, zero
+  overflow, and zero console/page errors. The installed 0.15.0 OXT completed the real-Writer fixture with
+  **SELFTEST OK**. Full project suite: **1508 passed, 1 skipped**.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 364 — LibreOffice explicit citation placement conversion -->
 ## 2026-07-23 — Increment 364: LibreOffice explicit citation placement conversion (P1 item #10)
 

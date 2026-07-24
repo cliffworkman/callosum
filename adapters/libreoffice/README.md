@@ -75,13 +75,16 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    changes. Bibliography auto-rebuilding is controlled separately. Whenever a Callosum operation leaves citation
    formatting or the bibliography pending, Writer shows a non-dismissible **Callosum refresh pending** bar naming
    the stale surface(s); **Refresh pending** updates exactly those surfaces and removes the bar.
-5. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
-   `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
-   the whole document re-renders. The choice is saved in the document. With
-   `chicago-notes-bibliography`, each new citation is inserted into a real Writer footnote and citeproc receives
-   the one-based note sequence, so first and subsequent notes render correctly. Use **Note placement…** to choose
-   **Footnotes** (the default) or **Endnotes** for new note-style citations; the choice is saved in the document.
-   Callosum refuses an incompatible style or placement switch before changing the document or its saved preference.
+5. **Citation style…** — search the shared local catalog by style, journal, discipline, acronym, or name; choose
+   from descriptive results; select a locale; and inspect a real fixed-example citation + bibliography preview
+   before applying. Favorites, recents, and the application default live in **Callosum → Settings → Citation
+   styles**. A new Writer document inherits that application default on its first citation; an existing document
+   keeps its own embedded style and locale. Applying a choice re-renders the whole document and records the style
+   in Recents. With Chicago notes and bibliography, each new citation is inserted into a real Writer footnote and
+   citeproc receives the one-based note sequence, so first and subsequent notes render correctly. Use **Note
+   placement…** to choose **Footnotes** (the default) or **Endnotes** for new note-style citations; the choice is
+   saved in the document. Callosum refuses an incompatible style or placement switch before changing the document
+   or its saved preference.
 6. **Convert citation placement…** — explicitly convert all eligible live citations between inline text,
    footnotes, and endnotes while choosing the target style. The preview names the source, target, and citation
    count. Apply it to this document as one Writer Undo step, or save a separate converted `.odt` copy while the

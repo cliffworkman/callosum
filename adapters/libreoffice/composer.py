@@ -363,7 +363,7 @@ def run_composer_dialog(doc, base: str, existing_items: list[dict] | None = None
             record = dict(it["record"])
             record.update(_item_overrides(it))
             records.append(record)
-        style, locale = cc._get_pref(doc)
+        style, locale = cc._get_pref(doc, base)
         req = cc.build_render_request([{"citationID": "preview", "items": records}], style, locale)
         try:
             resp = cc.render_document(base, req)

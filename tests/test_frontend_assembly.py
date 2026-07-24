@@ -957,6 +957,23 @@ def test_open_paper_deep_link():
     assert "window.history.replaceState(null," in raw
 
 
+def test_citation_style_manager_surface_and_deep_link():
+    raw = assemble_jsx()
+    assert "function CitationStylesSettings()" in raw
+    assert 'api("/citations/styles")' in raw
+    assert 'apiPost("/citations/styles/preview"' in raw
+    assert 'apiPut("/citations/styles/preferences"' in raw
+    assert 'placeholder="Journal, discipline, acronym, or style name"' in raw
+    assert '["installed", "Installed"]' in raw
+    assert "Use as application default" in raw
+    assert "Existing documents keep their embedded style and locale." in raw
+    assert 'window.location.hash === "#citation-styles" ? "settings"' in raw
+    assert '<SettingsCard title="Citation styles" id="citation-styles">' in raw
+    css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
+    assert ".citation-style-manager {" in css
+    assert ".app.mobile .citation-style-manager { grid-template-columns: 1fr; }" in css
+
+
 def test_built_artifact_is_in_sync():
     """callosum-app.html must equal the live assembly — i.e. it was rebuilt after the last source
     edit (CLAUDE.md: re-run tools/build_frontend.py after editing app/frontend/)."""

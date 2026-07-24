@@ -67,6 +67,75 @@ def test_styles_endpoint(temp_db_url: str) -> None:
     ids = {s["id"] for s in d["styles"]}
     assert {"apa", "ieee", "modern-language-association", "chicago-author-date"} <= ids
     assert d["default_style"] == "apa" and "en-US" in d["locales"]
+    apa = next(style for style in d["styles"] if style["id"] == "apa")
+    assert "psychology" in apa["fields"]
+    assert apa["citation_format"] == "author-date"
+    assert apa["independent"] is True and apa["installed"] is True
+
+
+def test_style_catalog_searches_csl_metadata(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert [style["id"] for style in client.get("/citations/styles?q=psychology").json()["styles"]] == ["apa"]
+    assert [style["id"] for style in client.get("/citations/styles?q=MLA").json()["styles"]] == [
+        "modern-language-association"
+    ]
+    assert [style["id"] for style in client.get("/citations/styles?q=numeric science").json()["styles"]] == ["nature"]
+    assert client.get("/citations/styles", params={"q": "x" * 121}).status_code == 422
+
+
+def test_style_preview_uses_fixed_examples(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post("/citations/styles/preview", json={"style": "apa", "locale": "en-US"})
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["example_only"] is True
+    assert "Rivera & Chen, 2024" in data["citations"][0]
+    assert "An example study of collaborative writing" in data["bibliography_text"]
+    assert client.post("/citations/styles/preview", json={"style": "missing", "locale": "en-US"}).status_code == 422
+    assert client.post("/citations/styles/preview", json={"style": "apa", "locale": "fr-FR"}).status_code == 422
+
+
+def test_style_preferences_persist_default_favorites_and_recents(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.put(
+        "/citations/styles/preferences",
+        json={
+            "style": "ieee",
+            "locale": "en-GB",
+            "favorite": True,
+            "set_default": True,
+            "mark_used": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["default_style"] == "ieee"
+    assert data["default_locale"] == "en-GB"
+    assert data["favorite_style_ids"] == ["ieee"]
+    assert data["recent_style_ids"] == ["ieee"]
+    ieee = next(style for style in data["styles"] if style["id"] == "ieee")
+    assert ieee["favorite"] is True and ieee["recent_rank"] == 0 and ieee["application_default"] is True
+
+    client.put(
+        "/citations/styles/preferences",
+        json={"style": "apa", "locale": "en-US", "mark_used": True},
+    )
+    data = client.get("/citations/styles").json()
+    assert data["default_style"] == "ieee"  # using a document style does not change the application default
+    assert data["recent_style_ids"] == ["apa", "ieee"]
+
+    data = client.put(
+        "/citations/styles/preferences",
+        json={"style": "ieee", "locale": "en-GB", "favorite": False},
+    ).json()
+    assert data["favorite_style_ids"] == []
+    assert (
+        client.put(
+            "/citations/styles/preferences",
+            json={"style": "missing", "locale": "en-US"},
+        ).status_code
+        == 422
+    )
 
 
 def test_render_validation(temp_db_url: str) -> None:
