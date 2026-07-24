@@ -59,9 +59,12 @@ def test_oxt_xml_well_formed_and_wires_the_dispatcher(tmp_path) -> None:
     with zipfile.ZipFile(oxt) as z:
         for entry in ("description.xml", "META-INF/manifest.xml", "Addons.xcu", "Jobs.xcu"):
             ET.fromstring(z.read(entry))  # raises on malformed XML
+        description = ET.fromstring(z.read("description.xml"))
         addons = z.read("Addons.xcu").decode("utf-8")
         jobs = z.read("Jobs.xcu").decode("utf-8")
         manifest = z.read("META-INF/manifest.xml").decode("utf-8")
+    version = description.find("{http://openoffice.org/extensions/description/2006}version")
+    assert version is not None and version.get("value") == "0.17.0"
     assert "service:com.callosum.cite.Dispatcher?suggest" in addons
     assert "callosum_addon.py" in manifest and "uno-component;type=Python" in manifest
     assert "Jobs.xcu" in manifest and "configuration-data" in manifest

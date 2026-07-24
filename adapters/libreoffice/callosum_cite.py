@@ -1091,8 +1091,26 @@ def _insert_mark(doc, text, cursor, payload: dict, rnd: str) -> None:
     text.insertTextContent(cursor, mark, True)  # absorb=True → the mark wraps the placeholder range
 
 
+def _note_insertion_text(doc, cursor, placement: str):
+    """Return the existing configured note at ``cursor``, or None when the cursor is in main text."""
+    placement = normalize_note_placement(placement)
+    for context in _note_containers(doc):
+        note = context["_note"]
+        if not _range_belongs_to_text(note, cursor):
+            continue
+        if context["placement"] != placement:
+            raise ValueError(
+                f"The cursor is in a Writer {context['placement']}, but this document is configured to use "
+                f"{placement}s for note-style citations."
+            )
+        return note
+    if _range_belongs_to_text(doc.getText(), cursor):
+        return None
+    raise ValueError("Place the cursor in the main document text or an existing configured note.")
+
+
 def _insert_note_mark(doc, cursor, payload: dict, rnd: str, placement: str) -> None:
-    """Insert one live citation into a real Writer footnote/endnote anchored at the main-text position."""
+    """Insert into an existing configured note at the caret, or create a new note from a main-text caret."""
     placement = normalize_note_placement(placement)
     main_text = doc.getText()
     if cursor is None:
@@ -1100,10 +1118,13 @@ def _insert_note_mark(doc, cursor, payload: dict, rnd: str, placement: str) -> N
             cursor = doc.getCurrentController().getViewCursor().getStart()
         except Exception:
             cursor = main_text.getEnd()
-    try:
-        main_cursor = main_text.createTextCursorByRange(cursor)
-    except Exception as exc:
-        raise ValueError("Place the cursor in the main document text before inserting a note citation.") from exc
+    existing_note = _note_insertion_text(doc, cursor, placement)
+    if existing_note is not None:
+        note_cursor = existing_note.createTextCursorByRange(cursor)
+        note_cursor.collapseToStart()
+        _insert_mark(doc, existing_note, note_cursor, payload, rnd)
+        return
+    main_cursor = main_text.createTextCursorByRange(cursor)
     main_cursor.collapseToStart()
     note_service = "com.sun.star.text.Footnote" if placement == "footnote" else "com.sun.star.text.Endnote"
     note = doc.createInstance(note_service)

@@ -719,6 +719,82 @@ def spike_note_style_positions(ctx, base, p1, p2):
     log("spike (P1 #10): OK — exact ibid/locator/near/far branches and native note-index gaps")
 
 
+def spike_multiple_citations_in_prose_notes(ctx, base, p1, p2):
+    """P1 item #10: add/manage independent live clusters at a caret inside prose-bearing native notes."""
+    log("spike (P1 #10): multiple independent live clusters mixed with user prose in one note")
+    for placement, getter in (("footnote", "getFootnotes"), ("endnote", "getEndnotes")):
+        doc = new_writer(ctx)
+        text = doc.getText()
+        text.setString(f"One shared {placement} NOTE.\n")
+        cc._set_pref(doc, "chicago-notes-bibliography", "en-US")
+        cc.set_note_placement(doc, placement)
+
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = "NOTE"
+        found = doc.findFirst(descriptor)
+        cursor = text.createTextCursorByRange(found)
+        cursor.setString("")
+        cursor.collapseToStart()
+        cc.insert_citation(doc, p1, base, cursor=cursor)
+
+        notes = getattr(doc, getter)()
+        check(notes.getCount() == 1, f"initial {placement} citation did not create one native note")
+        note = notes.getByIndex(0)
+        note.insertString(note.getEnd(), " supports the first point; compare ", False)
+        view = doc.getCurrentController().getViewCursor()
+        view.gotoRange(note.getEnd(), False)
+        cc.insert_citation(doc, p2, base)
+        note.insertString(note.getEnd(), " for a contrasting account.", False)
+
+        fields = cc.scan_citations_in_order(doc)
+        check(len(fields) == 2, f"{placement} did not retain two independent live clusters")
+        check([field["placement"] for field in fields] == [placement, placement], f"wrong {placement} contexts")
+        check([field["noteIndex"] for field in fields] == [1, 1], f"{placement} clusters did not share note index 1")
+        check(
+            fields[0]["citationID"] != fields[1]["citationID"],
+            f"{placement} clusters unexpectedly shared one citation identity",
+        )
+        shared_text = note.getString()
+        check(
+            "supports the first point; compare" in shared_text and "for a contrasting account." in shared_text,
+            f"{placement} prose was not retained around the two citations",
+        )
+        cc.refresh(doc, base)
+        check(note.getString() == shared_text, f"idempotent refresh rewrote current {placement} prose or citations")
+
+        before_conversion = cc._conversion_snapshot(doc)
+        try:
+            cc.convert_citation_placement(doc, "apa", "en-US", placement, base)
+        except ValueError as exc:
+            check("exactly one live citation cluster" in str(exc), f"wrong grouped-note refusal: {exc}")
+        else:
+            raise AssertionError(f"conversion silently moved a prose-bearing multi-cluster {placement}")
+        check(
+            cc._conversion_snapshot(doc) == before_conversion,
+            f"refused {placement} conversion changed the document",
+        )
+
+        first = cc.scan_citations_in_order(doc)[0]
+        cc.delete_citation(doc, first)
+        cc.refresh(doc, base)
+        remaining = cc.scan_citations_in_order(doc)
+        check(len(remaining) == 1 and notes.getCount() == 1, f"deleting one cluster removed the shared {placement}")
+        check(
+            "supports the first point; compare" in note.getString(), f"deleting one cluster removed {placement} prose"
+        )
+
+        cc.delete_citation(doc, remaining[0])
+        cc.refresh(doc, base)
+        check(not cc.scan_citations_in_order(doc), f"last live cluster survived deletion from {placement}")
+        check(notes.getCount() == 1, f"deleting the last cluster removed a prose-bearing {placement}")
+        check(
+            "supports the first point; compare" in note.getString()
+            and "for a contrasting account." in note.getString(),
+            f"deleting the last cluster removed prose from {placement}",
+        )
+    log("spike (P1 #10): OK — shared footnote/endnote authoring, refresh, refusal, and deletion")
+
+
 def spike_note_placement_conversion(ctx, base, p1, p2):
     """P1 #10 conversion: native relocation, custom property Undo/Redo, rollback, refusal, and copy isolation."""
     import tempfile
@@ -2196,6 +2272,9 @@ def main():
 
         # P1 item #10: exact imported-style position branches, including gaps from ordinary Writer notes.
         spike_note_style_positions(ctx, base, p1, p2)
+
+        # P1 item #10: add/manage multiple independent live clusters inside prose-bearing native notes.
+        spike_multiple_citations_in_prose_notes(ctx, base, p1, p2)
 
         # P1 item #10: explicit, rollback-safe placement conversion and separate-copy isolation.
         spike_note_placement_conversion(ctx, base, p1, p2)

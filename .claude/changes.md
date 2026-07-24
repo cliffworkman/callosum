@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 372 — prose-mixed Writer note citations -->
+## 2026-07-24 — Increment 372: Multiple live citations inside prose-bearing Writer notes (P1 item #10)
+
+- **Files:** LibreOffice insertion classifier/installed OXT/real-UNO fixture and runner, adapter/OXT tests,
+  README/help, QA, security, backlog/CLAUDE/increment notes.
+- **What changed:** **Add citation…** at a caret inside an existing configured footnote/endnote now inserts a
+  second independent live ReferenceMark there. A main-text caret still creates a new native note; a caret in the
+  wrong note placement or unsupported text fails before mutation.
+- **Integrity:** refresh and per-cluster deletion preserve prose before, between, and after live citations.
+  Deleting the last citation retains a prose-bearing note. Placement conversion remains deliberately fail-closed
+  for prose-bearing or multi-cluster notes.
+- **Writer proof:** installed OXT **0.17.0** exercised the real menu-path caret for both footnotes and endnotes,
+  including shared native note index, idempotent refresh, conversion refusal, and staged deletion. The bounded
+  selftest ceiling increased from 480 to 720 seconds so the expanded suite completes without dropping scenarios.
+- **Verification:** LibreOffice adapter/OXT **111 passed**; real Writer **SELFTEST OK**. Full project suite
+  **1556 passed, 1 skipped**.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 371 — exact note-position context -->
 ## 2026-07-24 — Increment 371: Exact ibid and near-note context (P1 item #10)
 

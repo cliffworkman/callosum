@@ -679,6 +679,35 @@ def test_normalize_note_placement_rejects_unknown_values(raw: str) -> None:
         cc.normalize_note_placement(raw)
 
 
+class _InsertionDoc:
+    def __init__(self, main_text) -> None:
+        self._main_text = main_text
+
+    def getText(self):
+        return self._main_text
+
+
+def test_note_insertion_text_accepts_main_or_matching_note_and_rejects_other_contexts(monkeypatch) -> None:
+    main_text, footnote, endnote, unsupported = object(), object(), object(), object()
+    doc = _InsertionDoc(main_text)
+    monkeypatch.setattr(
+        cc,
+        "_note_containers",
+        lambda _doc: [
+            {"placement": "footnote", "_note": footnote},
+            {"placement": "endnote", "_note": endnote},
+        ],
+    )
+    monkeypatch.setattr(cc, "_range_belongs_to_text", lambda text, cursor: text is cursor)
+
+    assert cc._note_insertion_text(doc, main_text, "footnote") is None
+    assert cc._note_insertion_text(doc, footnote, "footnote") is footnote
+    with pytest.raises(ValueError, match="endnote.*footnotes"):
+        cc._note_insertion_text(doc, endnote, "footnote")
+    with pytest.raises(ValueError, match="main document text"):
+        cc._note_insertion_text(doc, unsupported, "footnote")
+
+
 @pytest.mark.parametrize(
     ("family", "requested", "expected"),
     [

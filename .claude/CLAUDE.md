@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 371** (see Increment workflow) with **1555 pytest tests
+It is currently at **Increment 372** (see Increment workflow) with **1556 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -59,7 +59,10 @@ the full per-increment narrative for all other increments now lives in the reloc
   local source editor for independent personal styles with unsaved citeproc preview, stable canonical identity,
   exact-revision conflict protection, and local edit provenance; **inc 371** hardens the ordered note-index
   contract and proves imported-style ibid, locator-aware ibid, near-note, and far-subsequent behavior against
-  native Writer footnote numbering, including gaps from ordinary user-authored notes.
+  native Writer footnote numbering, including gaps from ordinary user-authored notes; **inc 372** lets Add
+  citation place another independent live cluster at a caret inside an existing configured footnote/endnote,
+  preserving user prose through refresh and per-cluster deletion while unsafe placement conversion still
+  refuses without mutation.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**

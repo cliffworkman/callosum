@@ -45,6 +45,9 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    Select an assembled item and click **Options…** to set a **locator** (page/chapter/section/… — the fixed CSL
    vocabulary), a **prefix**/**suffix** (e.g. "see …"), or **suppress the author**/show **author only** — each is
    per-occurrence (this citation only; your library record is never touched), and the preview updates live.
+   For a note style, place the caret in the main document to create a new configured footnote/endnote, or place
+   it inside an existing configured note to add another independent live citation there. User prose before,
+   between, and after those citations remains ordinary Writer text.
 2. **Suggest citation** — **select (highlight)** the sentence you're writing (or place the cursor in it): callosum
    ranks **your library** by relevance to that sentence and shows a pick-list — each row gives the paper's **stance**
    (supports / contrasts / mentions the claim), a **match** score, and a **quote** preview (the evidence). Pick one
@@ -91,7 +94,8 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    footnotes, and endnotes while choosing the target style. The preview names the source, target, and citation
    count. Apply it to this document as one Writer Undo step, or save a separate converted `.odt` copy while the
    open document remains unchanged. Conversion refuses mixed placements, tracked changes, malformed fields,
-   multiple live clusters in one note, or any source note containing user prose.
+   multiple live clusters in one note, or any source note containing user prose; this refusal does not alter the
+   document.
 7. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
    copy** with citations converted to static text; your open document is **never changed**. Names the copy
    `<your-document>-submission-copy.odt` by default (always ODF for now) and tells you exactly where it saved.
@@ -110,7 +114,9 @@ message if it isn't):
    this citation's current sources and their locator/prefix/suffix/suppress-author options. Add or remove
    sources, reorder them (**Move ↑ / ↓**), change any source's **Options…**, then click **Update**. The
    citation's identity is preserved — this changes what it contains, not which citation it is.
-11. **Delete citation** — removes the citation entirely, both the field and its rendered text.
+11. **Delete citation** — removes the citation entirely, both the field and its rendered text. Deleting one of
+    several citations in a note leaves the other live citations and prose in place; deleting the last live
+    citation leaves a prose-bearing note intact.
 12. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
     single grouped citation, e.g. two separate `(Smith, 2020)` `(Jones, 2021)` become one
     `(Smith, 2020; Jones, 2021)`. Any text between the two originals (a comma, "and", …) is left in place — use

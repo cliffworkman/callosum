@@ -293,8 +293,14 @@ the Principles + A-A gates before build.)*
   public API and installed OXT. Real Writer proved native indexes `1,2,3,4,5,8`, where two ordinary user-authored
   footnotes create the gap that changes near-note to far-subsequent without being altered. The shared render
   contract now rejects mixed zero/positive and descending note-index sequences while preserving equal indexes
-  for multiple clusters in one note. **Still open under #10 after inc 371:** safe semantics for multiple
-  independent live clusters mixed with prose inside one note, and tracked-change conversion.
+  for multiple clusters in one note. **Inc 372 completed prose-mixed multi-cluster notes (2026-07-24):**
+  **Add citation…** at a caret inside an existing configured footnote/endnote inserts another independent live
+  ReferenceMark into that note instead of trying to create a nested note. Refresh and deletion operate on each
+  cluster independently while preserving surrounding prose; deleting the final live cluster retains a
+  prose-bearing native note. Wrong-placement and unsupported-text carets fail before mutation. Placement
+  conversion continues to refuse prose-bearing or multi-cluster notes without mutation because lossless target
+  semantics are not yet defined. The installed 0.17.0 OXT proves both footnotes and endnotes.
+  **Still open under #10 after inc 372:** tracked-change placement conversion.
   **P1 item #9 started (inc 365, 2026-07-24):** a shared citation-style manager now parses descriptive metadata
   from the bundled CSL XML, supports bounded search by style/journal/discipline/acronym/name, and owns local
   application-default, locale, favorites, and bounded-recents preferences. Settings exposes a full-width
@@ -335,6 +341,9 @@ the Principles + A-A gates before build.)*
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
   verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
   tool; build only if a one-click install becomes worth the ongoing maintenance cost.
+  **Future goal (recorded 2026-07-24): approximate feature parity for Microsoft Word and Google Docs.**
+  Treat this as a later cross-editor adaptation track, not a requirement to hold the active LibreOffice work
+  open; preserve each host's native interaction model rather than requiring pixel- or command-for-command parity.
 - **#35 My Publications — Layer 4.** Grounded prospection: citation gaps, emerging citing-topics, candidate
   collaborators (LLM narration over graph data only). Not started.
 - **#36 Meta-analysis — the assisted-extraction funnel's next escalations.** The consumer-side reporting auditor,

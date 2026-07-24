@@ -88,6 +88,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     dependent conversion, invalid/oversized CSL, and citeproc failure all fail without mutation or egress.
 11. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
 12. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
+13. **Manual Writer adapter check:** select Chicago notes, insert one citation from the main document, type prose
+    after it inside the native note, put the caret later in that same note, and use **Add citation…** again.
+    Confirm one native note contains two independently editable live fields with the same one-based note index,
+    separated by intact prose. Refresh, delete the first citation, then delete the second: prose and the note
+    remain. Attempt placement conversion before deletion and confirm it refuses without changing the document.
 
 ## Pass criteria
 
