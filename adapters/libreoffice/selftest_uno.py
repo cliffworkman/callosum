@@ -941,6 +941,85 @@ def spike_note_placement_conversion(ctx, base, p1, p2):
     )
 
 
+def spike_tracked_change_placement_conversion(ctx, base, p1, p2):
+    """P1 item #10: preserve unrelated Writer redlines and refuse redlines inside managed citation content."""
+    log("spike (P1 #10): tracked-change-aware citation placement conversion")
+
+    def tracked_fixture():
+        fixture = new_writer(ctx)
+        body = fixture.getText()
+        body.setString("First TC0. Second TC1. Closing prose.\n")
+        cc._set_pref(fixture, "apa", "en-US")
+        for index, paper_id in enumerate((p1, p2)):
+            descriptor = fixture.createSearchDescriptor()
+            descriptor.SearchString = f"TC{index}"
+            found = fixture.findFirst(descriptor)
+            cursor = body.createTextCursorByRange(found)
+            cursor.setString("")
+            cursor.collapseToStart()
+            cc.insert_citation(fixture, paper_id, base, cursor=cursor)
+
+        ordinary_note = fixture.createInstance("com.sun.star.text.Footnote")
+        body.insertTextContent(body.createTextCursorByRange(body.getEnd()), ordinary_note, False)
+        ordinary_note.setString("Ordinary note.")
+
+        fixture.RecordChanges = True
+        descriptor = fixture.createSearchDescriptor()
+        descriptor.SearchString = "First"
+        insert_at = body.createTextCursorByRange(fixture.findFirst(descriptor).getEnd())
+        body.insertString(insert_at, " carefully", False)
+        descriptor.SearchString = "Closing"
+        body.createTextCursorByRange(fixture.findFirst(descriptor)).setString("")
+        ordinary_note.insertString(ordinary_note.getEnd(), " Tracked note edit.", False)
+        return fixture, ordinary_note
+
+    doc, ordinary_note = tracked_fixture()
+    before = cc._conversion_snapshot(doc)
+    before_redlines = cc._tracked_changes_signature(doc)
+    check(len(before_redlines) == 3, f"expected three unrelated tracked changes, got {before_redlines}")
+    result = cc.convert_citation_placement(doc, "chicago-notes-bibliography", "en-US", "footnote", base)
+    fields = cc.scan_citations_in_order(doc)
+    check([field["placement"] for field in fields] == ["footnote", "footnote"], "tracked conversion did not finish")
+    check(result["tracked_changes_preserved"] == 3, f"wrong preserved redline count: {result}")
+    check(doc.RecordChanges is True, "conversion did not restore Track Changes recording")
+    check(cc._tracked_changes_signature(doc) == before_redlines, "conversion changed unrelated tracked changes")
+    check("Tracked note edit." in ordinary_note.getString(), "conversion changed an unrelated tracked note")
+
+    undo = doc.getUndoManager()
+    undo.undo()
+    check(doc.RecordChanges is True, "Writer Undo changed the Track Changes recording state")
+    check(cc._conversion_snapshot(doc) == before, "Writer Undo did not restore tracked conversion exactly")
+    undo.redo()
+    check(doc.RecordChanges is True, "Writer Redo changed the Track Changes recording state")
+    check(cc._tracked_changes_signature(doc) == before_redlines, "Writer Redo changed unrelated tracked changes")
+
+    conflict = new_writer(ctx)
+    conflict_text = conflict.getText()
+    conflict_text.setString("Conflict TRACKED-CITE.\n")
+    cc._set_pref(conflict, "apa", "en-US")
+    descriptor = conflict.createSearchDescriptor()
+    descriptor.SearchString = "TRACKED-CITE"
+    cursor = conflict_text.createTextCursorByRange(conflict.findFirst(descriptor))
+    cursor.setString("")
+    cursor.collapseToStart()
+    cc.insert_citation(conflict, p1, base, cursor=cursor)
+    conflict.RecordChanges = True
+    mark = cc.scan_citations_in_order(conflict)[0]["_mark"]
+    inside = conflict_text.createTextCursorByRange(mark.getAnchor().getStart())
+    inside.goRight(1, False)
+    conflict_text.insertString(inside, "X", False)
+    conflict_before = cc._conversion_snapshot(conflict)
+    try:
+        cc.convert_citation_placement(conflict, "chicago-notes-bibliography", "en-US", "footnote", base)
+    except ValueError as exc:
+        check("overlap a live citation" in str(exc), f"wrong tracked-citation refusal: {exc}")
+    else:
+        raise AssertionError("conversion silently moved a citation containing a tracked change")
+    check(conflict.RecordChanges is True, "refused conversion changed Track Changes recording")
+    check(cc._conversion_snapshot(conflict) == conflict_before, "tracked-citation refusal mutated the document")
+    log("spike (P1 #10): OK — unrelated redlines preserved; managed overlap refused before mutation")
+
+
 def spike_mark_at_cursor(ctx, base, p1, p2):
     """P0 phase 4: `mark_at_cursor` is the first "which ONE existing citation is the user pointing at" lookup —
     every prior action either inserted new or operated over all marks. Confirms, against real UNO, that moving
@@ -2278,6 +2357,9 @@ def main():
 
         # P1 item #10: explicit, rollback-safe placement conversion and separate-copy isolation.
         spike_note_placement_conversion(ctx, base, p1, p2)
+
+        # P1 item #10: preserve unrelated tracked changes and refuse managed-range conflicts.
+        spike_tracked_change_placement_conversion(ctx, base, p1, p2)
 
         # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
         spike_mark_at_cursor(ctx, base, p1, p2)

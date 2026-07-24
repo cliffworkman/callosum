@@ -9,6 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 373 — tracked-change-aware Writer conversion -->
+## 2026-07-24 — Increment 373: Tracked-change-aware placement conversion (P1 item #10 complete)
+
+- **Files:** LibreOffice redline preflight/conversion transaction/installed OXT/real-UNO fixture, adapter/OXT
+  tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** placement conversion now uses Writer's exact `RedlineStart`/`RedlineEnd` ranges to distinguish
+  unrelated tracked changes from changes overlapping content Callosum must mutate. Unrelated main-text and
+  ordinary-note redlines are preserved; managed overlap or an unreadable range refuses before mutation.
+- **Integrity:** recording is paused only during the atomic conversion and restored to its original state.
+  Stable redline identity, type, author/comment, description, selected text, and container context are included
+  in post-conversion and rollback verification.
+- **Writer proof:** installed OXT **0.18.0** preserved three insertion/deletion/note redlines through conversion
+  and Writer Undo/Redo with Track Changes still enabled, then refused a tracked insertion inside a live citation
+  without mutation.
+- **Verification:** LibreOffice adapter/OXT **119 passed**; real Writer **SELFTEST OK**. Full project suite
+  **1564 passed, 1 skipped**.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 372 — prose-mixed Writer note citations -->
 ## 2026-07-24 — Increment 372: Multiple live citations inside prose-bearing Writer notes (P1 item #10)
 

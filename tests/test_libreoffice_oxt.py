@@ -64,7 +64,7 @@ def test_oxt_xml_well_formed_and_wires_the_dispatcher(tmp_path) -> None:
         jobs = z.read("Jobs.xcu").decode("utf-8")
         manifest = z.read("META-INF/manifest.xml").decode("utf-8")
     version = description.find("{http://openoffice.org/extensions/description/2006}version")
-    assert version is not None and version.get("value") == "0.17.0"
+    assert version is not None and version.get("value") == "0.18.0"
     assert "service:com.callosum.cite.Dispatcher?suggest" in addons
     assert "callosum_addon.py" in manifest and "uno-component;type=Python" in manifest
     assert "Jobs.xcu" in manifest and "configuration-data" in manifest

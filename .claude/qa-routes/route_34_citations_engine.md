@@ -93,6 +93,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     Confirm one native note contains two independently editable live fields with the same one-based note index,
     separated by intact prose. Refresh, delete the first citation, then delete the second: prose and the note
     remain. Attempt placement conversion before deletion and confirm it refuses without changing the document.
+14. **Manual Writer tracked-change conversion:** create tracked prose insertion and deletion outside live
+    citations plus a tracked edit in an ordinary note. Convert inline citations to footnotes. Confirm every
+    redline retains its identity/type/description/range text/context, Track Changes remains enabled, and Writer
+    Undo/Redo preserves both. Add a tracked insertion inside a live citation and confirm conversion refuses
+    before mutation. Repeat with an unreadable or managed-bibliography-overlapping redline → fail closed.
 
 ## Pass criteria
 

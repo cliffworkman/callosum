@@ -240,11 +240,9 @@ Mendeley supports searching, installing, and importing custom styles by URL. Pap
 
 The visual style editor belongs primarily in the Callosum application, not inside the LibreOffice modal system. The plugin should launch or communicate with it.
 
-10. Support note styles properly
+10. Support note styles properly — COMPLETE (incs 362–364, 371–373)
 
-Callosum currently supports only in-text styles.
-
-Add:
+Callosum now supports:
 
 Footnote citations
 Endnote citations where supported
@@ -254,6 +252,7 @@ Prefix and suffix prose in notes
 Ibid and subsequent-note behavior through citeproc
 Switching an existing document between note and in-text styles
 Detection of citations inserted in the wrong context
+Tracked-change-aware placement conversion that preserves unrelated redlines and refuses managed-range conflicts
 
 Zotero, RefWorks, Paperpile, EndNote, Citavi, and SmartCite all support at least some note-based workflows.
 

@@ -747,6 +747,73 @@ def test_placement_conversion_rejects_empty_same_and_mixed_without_mutation() ->
 
 
 @pytest.mark.parametrize(
+    ("first", "second", "expected"),
+    [
+        ((1, 3), (2, 4), True),
+        ((1, 2), (2, 4), False),
+        ((2, 2), (1, 3), True),
+        ((3, 3), (1, 3), True),
+        ((4, 4), (1, 3), False),
+    ],
+)
+def test_ordered_ranges_overlap_treats_collapsed_boundaries_conservatively(
+    first: tuple[int, int],
+    second: tuple[int, int],
+    expected: bool,
+) -> None:
+    def compare(first_position, second_position):
+        return second_position - first_position
+
+    assert cc._ordered_ranges_overlap(compare, *first, *second) is expected
+
+
+class _PositionText:
+    @staticmethod
+    def createTextCursorByRange(range_):
+        return range_
+
+    @staticmethod
+    def compareRegionStarts(first, second):
+        return second - first
+
+
+def test_tracked_change_conversion_error_allows_unrelated_and_rejects_managed_overlap(monkeypatch) -> None:
+    text = _PositionText()
+    monkeypatch.setattr(cc, "_conversion_managed_ranges", lambda _doc, _fields: [(text, 10, 20, "a live citation")])
+    monkeypatch.setattr(cc, "_redline_ranges", lambda _doc: [{"text": text, "start": 1, "end": 5}])
+    assert cc._tracked_change_conversion_error(object(), [{}]) is None
+
+    monkeypatch.setattr(cc, "_redline_ranges", lambda _doc: [{"text": text, "start": 12, "end": 13}])
+    assert "overlap a live citation" in cc._tracked_change_conversion_error(object(), [{}])
+
+    monkeypatch.setattr(cc, "_redline_ranges", lambda _doc: (_ for _ in ()).throw(ValueError("unreadable")))
+    assert "could not locate" in cc._tracked_change_conversion_error(object(), [{}])
+
+
+def test_suspend_and_restore_record_changes_preserves_original_state() -> None:
+    doc = SimpleNamespace(RecordChanges=True)
+    assert cc._suspend_record_changes(doc) is True
+    assert doc.RecordChanges is False
+    cc._restore_record_changes(doc, True)
+    assert doc.RecordChanges is True
+
+    doc.RecordChanges = False
+    assert cc._suspend_record_changes(doc) is False
+    cc._restore_record_changes(doc, False)
+    assert doc.RecordChanges is False
+
+
+def test_suspend_record_changes_fails_closed_when_state_is_unreadable() -> None:
+    class _UnreadableTracking:
+        @property
+        def RecordChanges(self):
+            raise RuntimeError("unavailable")
+
+    with pytest.raises(RuntimeError, match="did not expose"):
+        cc._suspend_record_changes(_UnreadableTracking())
+
+
+@pytest.mark.parametrize(
     ("family", "placements", "expected_note_placement", "has_error"),
     [
         ("note", ["footnote"], "footnote", False),

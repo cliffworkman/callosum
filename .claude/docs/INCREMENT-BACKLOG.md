@@ -285,9 +285,9 @@ the Principles + A-A gates before build.)*
   the complete document, previews source/target/count, fully renders the target sequence before mutation, and
   converts eligible inline↔footnote↔endnote fields while preserving citation identities and order. The user can
   apply one verified Writer Undo step or save a separate converted `.odt` copy with the open document restored
-  exactly. Mixed placement, tracked changes, malformed fields, duplicate IDs, damaged bibliography bounds,
-  multiple clusters per note, and notes containing user prose fail closed. Writer Undo/Redo, injected rollback,
-  and copy isolation are proven against the installed OXT.
+  exactly. Mixed placement, malformed fields, duplicate IDs, damaged bibliography bounds, multiple clusters per
+  note, notes containing user prose, and — through inc 372 — any tracked changes fail closed. Writer Undo/Redo,
+  injected rollback, and copy isolation are proven against the installed OXT.
   **Inc 371 completed the broader note-position coverage (2026-07-24):** a schema-valid imported diagnostic note
   style proves exact first, ibid, ibid-with-locator, near-note, and far-subsequent citeproc branches through the
   public API and installed OXT. Real Writer proved native indexes `1,2,3,4,5,8`, where two ordinary user-authored
@@ -300,7 +300,13 @@ the Principles + A-A gates before build.)*
   prose-bearing native note. Wrong-placement and unsupported-text carets fail before mutation. Placement
   conversion continues to refuse prose-bearing or multi-cluster notes without mutation because lossless target
   semantics are not yet defined. The installed 0.17.0 OXT proves both footnotes and endnotes.
-  **Still open under #10 after inc 372:** tracked-change placement conversion.
+  **Inc 373 completed tracked-change placement conversion (2026-07-24):** Writer's `RedlineStart`/
+  `RedlineEnd` ranges are compared against every live citation, source citation note/anchor, conversion-state
+  point, and managed-bibliography range the transaction may mutate. Unrelated insertion/deletion/ordinary-note
+  redlines retain their stable identity, type, description, selected text, and container context across
+  conversion and Writer Undo/Redo. Recording is paused only inside the atomic conversion and restored to its
+  original state. Managed-range overlap or an unreadable redline range refuses before mutation. The installed
+  0.18.0 OXT proves preservation and refusal against real Writer. **P1 item #10 is complete.**
   **P1 item #9 started (inc 365, 2026-07-24):** a shared citation-style manager now parses descriptive metadata
   from the bundled CSL XML, supports bounded search by style/journal/discipline/acronym/name, and owns local
   application-default, locale, favorites, and bounded-recents preferences. Settings exposes a full-width
@@ -332,8 +338,8 @@ the Principles + A-A gates before build.)*
   rejects stale exact revisions rather than overwriting another edit. **P1 item #9 is complete.**
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (broader note-placement conversion, more bibliography
-  editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
+  not left to drift like the composer's verification did). Remaining P1 (more bibliography editing controls —
+  categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
   keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement

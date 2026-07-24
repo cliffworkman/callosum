@@ -93,9 +93,12 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
 6. **Convert citation placement…** — explicitly convert all eligible live citations between inline text,
    footnotes, and endnotes while choosing the target style. The preview names the source, target, and citation
    count. Apply it to this document as one Writer Undo step, or save a separate converted `.odt` copy while the
-   open document remains unchanged. Conversion refuses mixed placements, tracked changes, malformed fields,
-   multiple live clusters in one note, or any source note containing user prose; this refusal does not alter the
-   document.
+   open document remains unchanged. Unrelated Writer tracked changes are preserved exactly, including their
+   identity, type, description, range text, and main-text/note context; Track Changes recording returns to its
+   original state. Conversion refuses mixed placements, malformed fields, multiple live clusters in one note,
+   source notes containing user prose, or tracked changes that overlap a live citation, source citation note or
+   anchor, Callosum conversion state, or the managed bibliography. A range Writer cannot expose safely is also
+   refused. Refusal does not alter the document.
 7. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
    copy** with citations converted to static text; your open document is **never changed**. Names the copy
    `<your-document>-submission-copy.odt` by default (always ODF for now) and tells you exactly where it saved.
@@ -201,6 +204,6 @@ harvard-cite-them-right) will re-sort a grouped citation's items regardless of t
 the composer's preview always shows the real result, so you'll see this rather than be surprised by it.
 **Prepare submission copy…** always saves ODF (`.odt`) for now, regardless of your document's original format;
 placement conversion intentionally does not support multiple separate live citation clusters in one note, notes
-mixed with user prose, mixed source placements, or tracked changes. Accept/reject changes or simplify those notes
-before converting. Converted copies are always ODF (`.odt`). Word (Office.js) and Google Docs are the next two
-adapters.
+mixed with user prose, mixed source placements, or tracked changes that overlap content the conversion must
+mutate. Accept/reject conflicting changes or simplify those notes before converting. Converted copies are always
+ODF (`.odt`). Word (Office.js) and Google Docs are the next two adapters.

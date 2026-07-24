@@ -1954,11 +1954,173 @@ def conversion_target_placement(family: str, requested_note_placement: str = DEF
     return normalize_note_placement(requested_note_placement) if family == "note" else "inline"
 
 
-def _document_has_redlines(doc) -> bool:
+def _redline_items(doc) -> list:
+    """Materialize Writer redlines through their guaranteed XEnumerationAccess contract."""
+    redlines = doc.getRedlines()
+    if hasattr(redlines, "createEnumeration"):
+        enumeration = redlines.createEnumeration()
+        items = []
+        while enumeration.hasMoreElements():
+            items.append(enumeration.nextElement())
+        return items
+    return _collection_items(redlines)
+
+
+def _redline_ranges(doc) -> list[dict]:
+    """Return validated Writer-owned start/end ranges for every tracked change."""
+    records = []
+    for redline in _redline_items(doc):
+        try:
+            start = redline.getPropertyValue("RedlineStart")
+            end = redline.getPropertyValue("RedlineEnd")
+            text = start.getText()
+            if not _range_belongs_to_text(text, end):
+                raise ValueError("redline endpoints use different Writer text containers")
+        except Exception as exc:
+            raise ValueError("Writer did not expose a comparable range for every tracked change.") from exc
+        records.append({"redline": redline, "text": text, "start": start, "end": end})
+    return records
+
+
+def _ordered_ranges_overlap(compare, first_start, first_end, second_start, second_end) -> bool:
+    """Compare half-open Writer spans; a collapsed point conflicts when it touches the other span."""
+    first_collapsed = compare(first_start, first_end) == 0
+    second_collapsed = compare(second_start, second_end) == 0
+    left_order = compare(first_start, second_end)
+    right_order = compare(second_start, first_end)
+    if first_collapsed or second_collapsed:
+        return left_order >= 0 and right_order >= 0
+    return left_order > 0 and right_order > 0
+
+
+def _conversion_managed_ranges(doc, fields: list[dict]) -> list[tuple[object, object, object, str]]:
+    """Text spans/points that placement conversion can remove, replace, or insert into."""
+    main_text = doc.getText()
+    ranges = []
+    for field in fields:
+        mark = field["_mark"]
+        if field["placement"] == "inline":
+            anchor = mark.getAnchor()
+            ranges.append((main_text, anchor.getStart(), anchor.getEnd(), "a live citation"))
+            continue
+        note = field["_note"]
+        ranges.append((note, note.getStart(), note.getEnd(), "a source citation note"))
+        note_anchor = note.getAnchor()
+        ranges.append((main_text, note_anchor.getStart(), note_anchor.getEnd(), "a source citation note anchor"))
+
+    state_marks = _conversion_state_marks(doc)
+    state_anchor = state_marks[0].getAnchor() if state_marks else main_text.getStart()
+    ranges.append((main_text, state_anchor.getStart(), state_anchor.getEnd(), "Callosum conversion state"))
+
+    if bib_auto_enabled(doc):
+        bookmarks = doc.getBookmarks()
+        if bookmarks.hasByName(BIB_BOOKMARK) and bookmarks.hasByName(BIB_BOOKMARK_END):
+            start = bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart()
+            end = bookmarks.getByName(BIB_BOOKMARK_END).getAnchor().getEnd()
+        else:
+            start = end = main_text.getEnd()
+        ranges.append((main_text, start, end, "the managed bibliography"))
+    return ranges
+
+
+def _tracked_change_conversion_error(doc, fields: list[dict]) -> str | None:
     try:
-        return doc.getRedlines().getCount() > 0
+        redlines = _redline_ranges(doc)
     except Exception:
-        return False
+        return (
+            "Callosum could not locate every tracked change safely. Accept or reject tracked changes before "
+            "converting citation placement."
+        )
+    if not redlines:
+        return None
+    for record in redlines:
+        text = record["text"]
+        for _managed_text, start, end, label in _conversion_managed_ranges(doc, fields):
+            if not _range_belongs_to_text(text, start) or not _range_belongs_to_text(text, end):
+                continue
+            try:
+                overlaps = _ordered_ranges_overlap(
+                    text.compareRegionStarts,
+                    record["start"],
+                    record["end"],
+                    start,
+                    end,
+                )
+            except Exception:
+                return (
+                    "Callosum could not compare every tracked change safely. Accept or reject tracked changes "
+                    "before converting citation placement."
+                )
+            if overlaps:
+                return f"Accept or reject tracked changes that overlap {label} before converting citation placement."
+    return None
+
+
+def _redline_property(redline, name: str) -> str:
+    try:
+        value = redline.getPropertyValue(name)
+    except Exception:
+        return ""
+    return "" if value is None else str(value)
+
+
+def _redline_container_label(doc, range_) -> str:
+    if _range_belongs_to_text(doc.getText(), range_):
+        return "main"
+    for note in _note_containers(doc):
+        if _range_belongs_to_text(note["_note"], range_):
+            return note["placement"]
+    return "other"
+
+
+def _tracked_changes_signature(doc) -> tuple:
+    """Stable semantic signature used to prove conversion did not alter unrelated redlines."""
+    rows = []
+    for record in _redline_ranges(doc):
+        cursor = record["text"].createTextCursorByRange(record["start"])
+        cursor.gotoRange(record["end"], True)
+        redline = record["redline"]
+        rows.append(
+            (
+                _redline_property(redline, "RedlineIdentifier"),
+                _redline_property(redline, "RedlineType"),
+                _redline_property(redline, "RedlineAuthor"),
+                _redline_property(redline, "RedlineComment"),
+                _redline_property(redline, "RedlineDescription"),
+                _redline_container_label(doc, record["start"]),
+                cursor.getString(),
+            )
+        )
+    return tuple(sorted(rows))
+
+
+def _suspend_record_changes(doc) -> bool:
+    """Disable recording for one atomic Callosum conversion; return the original state."""
+    try:
+        enabled = bool(doc.RecordChanges)
+    except Exception as exc:
+        raise RuntimeError(
+            "Writer did not expose the Track Changes recording state; the document was not changed."
+        ) from exc
+    if enabled:
+        try:
+            doc.RecordChanges = False
+        except Exception as exc:
+            raise RuntimeError("Writer would not pause Track Changes; the document was not changed.") from exc
+        if bool(doc.RecordChanges):
+            raise RuntimeError("Writer would not pause Track Changes; the document was not changed.")
+    return enabled
+
+
+def _restore_record_changes(doc, enabled: bool) -> None:
+    if not enabled:
+        return
+    try:
+        doc.RecordChanges = True
+    except Exception as exc:
+        raise RuntimeError("Writer did not restore Track Changes after citation conversion.") from exc
+    if not bool(doc.RecordChanges):
+        raise RuntimeError("Writer did not restore Track Changes after citation conversion.")
 
 
 def placement_conversion_error(doc, fields: list[dict], target_placement: str) -> str | None:
@@ -1975,9 +2137,6 @@ def placement_conversion_error(doc, fields: list[dict], target_placement: str) -
     state_marks = _conversion_state_marks(doc)
     if len(state_marks) > 1 or (state_marks and _decode_conversion_state_name(state_marks[0].Name) is None):
         return "Repair malformed Callosum conversion state before converting citation placement."
-    if _document_has_redlines(doc):
-        return "Accept or reject tracked changes before converting citation placement."
-
     names = doc.getReferenceMarks().getElementNames()
     for name in names:
         if isinstance(name, str) and name.startswith(MARK_PREFIX + " "):
@@ -2004,7 +2163,7 @@ def placement_conversion_error(doc, fields: list[dict], target_placement: str) -
                 return "Conversion cannot move a note that also contains user prose."
             if any(other.Name != mark.Name and _range_belongs_to_text(note, other.getAnchor()) for other in all_marks):
                 return "Conversion requires each source note to contain only one Callosum citation field."
-    return None
+    return _tracked_change_conversion_error(doc, fields)
 
 
 def _conversion_user_props(doc) -> dict[str, str | None]:
@@ -2042,11 +2201,21 @@ def _conversion_snapshot(doc) -> tuple:
         _managed_bibliography_signature(doc),
         tuple(_conversion_user_props(doc).items()),
         tuple(mark.Name for mark in _conversion_state_marks(doc)),
+        _tracked_changes_signature(doc),
     )
 
 
 def _conversion_snapshot_differences(before: tuple, after: tuple) -> str:
-    labels = ("main text", "citation fields", "footnotes", "endnotes", "bibliography", "preferences", "state mark")
+    labels = (
+        "main text",
+        "citation fields",
+        "footnotes",
+        "endnotes",
+        "bibliography",
+        "preferences",
+        "state mark",
+        "tracked changes",
+    )
     return ", ".join(label for label, old, new in zip(labels, before, after, strict=True) if old != new)
 
 
@@ -2160,6 +2329,7 @@ def convert_citation_placement(
     before_snapshot = _conversion_snapshot(doc)
     before_state_key = _conversion_state_key(doc)
     before_bibliography = before_snapshot[4]
+    before_redlines = before_snapshot[7]
     expected_names = [field["_mark"].Name for field in fields]
     relocation_plan = [(field["_mark"].Name, field["citationID"]) for field in fields]
     before_props = _conversion_user_props(doc)
@@ -2176,7 +2346,12 @@ def convert_citation_placement(
         after_props[PREF_NOTE_PLACEMENT] = target_placement
 
     undo = doc.getUndoManager()
-    undo.enterUndoContext("Convert Callosum citation placement")
+    tracking_was_enabled = _suspend_record_changes(doc)
+    try:
+        undo.enterUndoContext("Convert Callosum citation placement")
+    except Exception:
+        _restore_record_changes(doc, tracking_was_enabled)
+        raise
     try:
         _replace_conversion_state(doc, after_props)
         for name, citation_id in reversed(relocation_plan):
@@ -2193,8 +2368,10 @@ def convert_citation_placement(
             or any(field["_mark"].getAnchor().getString() != rendered[field["citationID"]] for field in converted)
             or _conversion_user_props(doc) != after_props
             or (write_bibliography and not bibliography_render_is_current(doc, bibliography_entries))
+            or _tracked_changes_signature(doc) != before_redlines
         ):
             raise RuntimeError("Post-conversion identity or structure verification failed.")
+        _restore_record_changes(doc, tracking_was_enabled)
     except Exception as exc:
         undo.leaveUndoContext()
         _register_conversion_bibliographies(doc, before_state_key, before_bibliography)
@@ -2205,6 +2382,8 @@ def convert_citation_placement(
                 "Citation conversion failed and Writer could not undo the conversion. "
                 "Close without saving and reopen the document."
             ) from rollback_exc
+        finally:
+            _restore_record_changes(doc, tracking_was_enabled)
         rollback_snapshot = _conversion_snapshot(doc)
         if rollback_snapshot != before_snapshot:
             differences = _conversion_snapshot_differences(before_snapshot, rollback_snapshot)
@@ -2228,6 +2407,7 @@ def convert_citation_placement(
         "source_placement": fields[0]["placement"],
         "target_placement": target_placement,
         "style": target_style,
+        "tracked_changes_preserved": len(before_redlines),
     }
 
 
@@ -2784,7 +2964,8 @@ def convert_citation_placement_interactive(doc, base: str) -> None:
     source = fields[0]["placement"]
     _msgbox(
         f"Ready to convert {len(fields)} live citation(s) from {source} to {target} placement using "
-        f"{chosen_style}. Ambiguous notes, user prose, mixed placement, and tracked changes will be refused."
+        f"{chosen_style}. Ambiguous notes, user prose, mixed placement, and tracked changes that overlap managed "
+        "citation or bibliography content will be refused; unrelated tracked changes will be preserved."
     )
     mode = _choice_box(
         doc,
@@ -2819,6 +3000,7 @@ def convert_citation_placement_interactive(doc, base: str) -> None:
             return
         _msgbox(
             f"Saved a converted copy with {result['count']} citation(s).\n\n"
+            f"Preserved {result['tracked_changes_preserved']} tracked change(s).\n"
             f"Your open document is unchanged.\n{save_url}"
         )
         return
@@ -2835,7 +3017,8 @@ def convert_citation_placement_interactive(doc, base: str) -> None:
         return
     _msgbox(
         f"Converted {result['count']} citation(s) from {result['source_placement']} to "
-        f"{result['target_placement']} placement. Use Writer Undo to restore the original document."
+        f"{result['target_placement']} placement. Preserved {result['tracked_changes_preserved']} tracked change(s). "
+        "Use Writer Undo to restore the original document."
     )
 
 
