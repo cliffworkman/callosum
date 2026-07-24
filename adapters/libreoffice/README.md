@@ -65,7 +65,9 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    before the first heading is a preamble section; a document without headings is one section. Large refreshes
    show progress in Writer's status bar; press **Esc** to cancel. If cancellation arrives after writing begins,
    the complete refresh is rolled back. A citation changed while formatting is underway is never overwritten by
-   the now-stale render — Callosum stops and asks you to refresh again.
+   the now-stale render — Callosum stops and asks you to refresh again. Callosum always gives citeproc the full
+   ordered document, then updates only citation fields whose visible result changed and rebuilds the bounded
+   bibliography only when its managed text changed. An already-current refresh creates no Writer undo entry.
 4. **Toggle automatic citation formatting** — switch to manual refresh mode for a large document. Citation
    inserts and edits remain structured live fields, but their visible text waits for **Refresh / renumber +
    bibliography** or **Refresh citations only**. New inserts visibly show `{citation}` while pending. Turning
@@ -147,6 +149,8 @@ result back. All formatting happens in callosum's bundled citeproc engine, so th
 "Cite as…" and to the future Word/Google-Docs adapters. Large Writer updates are one UndoManager transaction:
 status-bar progress yields between completed units, **Esc** raises a cooperative cancellation at a checkpoint,
 and the same verified rollback used for write failures restores every field if any unit had already changed.
+Before opening that transaction, the adapter compares the full render with each live field and the exact bounded
+bibliography text; unchanged managed surfaces are left byte-for-byte untouched.
 
 ## Testing
 Real UNO mutation logic (inserting/editing marks, the bibliography rebuild, flatten, …) isn't meaningfully

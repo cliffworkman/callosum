@@ -933,6 +933,33 @@ def render_input_signature(fields: list[dict]) -> tuple[tuple[str, str, str], ..
     return tuple((field["_mark"].Name, field["citationID"], field["_mark"].getAnchor().getString()) for field in fields)
 
 
+def incremental_citation_plan(
+    fields: list[dict],
+    rendered: dict[str, str],
+    citation_names: set[str] | None = None,
+) -> list[tuple[str, str]]:
+    """Plan writes only for targeted fields whose current visible text differs from citeproc's full render."""
+    return [
+        (field["_mark"].Name, rendered[field["citationID"]])
+        for field in fields
+        if rendered.get(field["citationID"])
+        and (citation_names is None or field["_mark"].Name in citation_names)
+        and field["_mark"].getAnchor().getString() != rendered[field["citationID"]]
+    ]
+
+
+def rendered_bibliography_text(entries: list[str]) -> str:
+    """The exact plain-text contents `_write_bibliography` places between the managed bookmark pair."""
+    body = "\n".join(entries)
+    return f"{BIB_HEADING}\n{body}\n" if entries else ""
+
+
+def bibliography_render_is_current(doc, entries: list[str]) -> bool:
+    """Whether an intact managed bibliography already contains the requested rendered plain text."""
+    has_start, has_end, current = _managed_bibliography_signature(doc)
+    return has_start and has_end and current == rendered_bibliography_text(entries)
+
+
 def mark_at_cursor(doc) -> dict | None:
     """Find the citation whose ReferenceMark anchor contains the current view-cursor position (the start of the
     current selection, or the collapsed caret) — the shared primitive Edit Citation / Delete Citation / merge /
@@ -1073,6 +1100,11 @@ def refresh(
     at the next checkpoint; if any write already occurred, `_transactional_apply` rolls the entire UndoManager
     group back. Because yielding to Writer can admit a document event, the exact ordered render input is checked
     again before mutation and a stale response is discarded.
+
+    Incremental rendering still sends the complete ordered document to citeproc, then compares its output with
+    the live managed surfaces. Only citation anchors whose visible text changed are recreated; an intact bounded
+    bibliography is rebuilt only when its exact plain text changed (or an explicit cursor move was requested).
+    An empty delta creates no UndoManager entry.
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
@@ -1104,14 +1136,18 @@ def refresh(
             except ValueError:
                 continue  # a manually-included paper no longer in the library -- skip silently, not a hard failure
         if not fields and not uncited_items:
+            apply_bibliography = write_bibliography and (
+                bib_cursor is not None or not bibliography_render_is_current(doc, [])
+            )
             _transactional_apply(
                 doc,
                 [],
                 [],
                 bib_cursor=bib_cursor,
-                write_bibliography=write_bibliography,
+                write_bibliography=apply_bibliography,
                 progress=progress,
             )
+            progress.update(progress.total, "Callosum: refresh complete")
             set_dirty_state(
                 doc,
                 citations=False if update_citations and citation_names is None else None,
@@ -1135,27 +1171,23 @@ def refresh(
                 "Run Refresh again."
             )
         rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
-        # Capture (mark name, new text) BEFORE any edit. Recreating a mark mutates the ReferenceMarks collection and
-        # invalidates other held mark references, so we keep only immutable names here and re-fetch each mark fresh.
-        plan = (
-            [
-                (field["_mark"].Name, rendered[field["citationID"]])
-                for field in fields
-                if rendered.get(field["citationID"])
-                and (citation_names is None or field["_mark"].Name in citation_names)
-            ]
-            if update_citations
-            else []
+        # Capture immutable names only for fields whose visible render changed. Recreating one mark invalidates
+        # other held mark references, so `_transactional_apply` re-fetches each planned name fresh.
+        plan = incremental_citation_plan(fields, rendered, citation_names) if update_citations else []
+        bibliography_entries = response.get("bibliography_text", "").splitlines()
+        apply_bibliography = write_bibliography and (
+            bib_cursor is not None or not bibliography_render_is_current(doc, bibliography_entries)
         )
         _transactional_apply(
             doc,
             plan,
-            response.get("bibliography_text", "").splitlines(),
+            bibliography_entries,
             bib_cursor=bib_cursor,
-            write_bibliography=write_bibliography,
+            write_bibliography=apply_bibliography,
             progress=progress,
             progress_offset=len(fields),
         )
+        progress.update(progress.total, "Callosum: refresh complete")
         set_dirty_state(
             doc,
             citations=False if update_citations and citation_names is None else None,
@@ -1290,6 +1322,12 @@ def _transactional_apply(
     unit. Cancellation is an ordinary exception to this transaction, so the same verified rollback path handles
     it rather than maintaining a second recovery mechanism.
     """
+    if write_bibliography is None:
+        should_write_bibliography = bib_cursor is not None or bib_auto_enabled(doc)
+    else:
+        should_write_bibliography = write_bibliography
+    if not plan and not should_write_bibliography:
+        return
     names = [name for name, _ in plan]
     before = _snapshot_marks(doc, names)
     undo = doc.getUndoManager()
@@ -1305,10 +1343,6 @@ def _transactional_apply(
                     progress_offset + index,
                     f"Callosum: updated citation {index} of {len(plan)}",
                 )
-        if write_bibliography is None:
-            should_write_bibliography = bib_cursor is not None or bib_auto_enabled(doc)
-        else:
-            should_write_bibliography = write_bibliography
         if should_write_bibliography:
             if progress is not None:
                 progress.update(progress_offset + len(plan), "Callosum: updating the bibliography")

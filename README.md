@@ -139,7 +139,9 @@ bibliography. It can also refresh the current heading-defined section, including
 rewriting citations elsewhere. Pending state returns as soon as a saved document opens, and native Writer
 citation moves are detected without treating ordinary prose edits as citation changes. Large refreshes show
 native Writer status-bar progress and can be cancelled with **Esc**; a cancellation rolls back the complete
-refresh rather than leaving mixed formatting. See `adapters/`'s per-tool READMEs for setup.
+refresh rather than leaving mixed formatting. Full-document citeproc context is preserved, but Writer now skips
+citation fields and managed bibliography text whose rendered output is already current. See `adapters/`'s
+per-tool READMEs for setup.
 
 ## Security note
 

@@ -9,7 +9,24 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 360 — LibreOffice refresh progress and cancellation -->
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 361 — LibreOffice incremental write-back -->
+## 2026-07-23 — Increment 361: LibreOffice incremental write-back (P1 item #13)
+
+- **Files:** LibreOffice adapter/selftest/README/OXT version (0.10.0 → 0.11.0), adapter tests, root README,
+  served help, security audit, backlog/CLAUDE/increment notes.
+- **What changed:** citeproc still renders the complete ordered manuscript for correct numbering,
+  disambiguation, and bibliography membership, but Writer now compares that output with the live managed
+  ranges and writes only citation anchors whose visible result changed. The managed bibliography is rebuilt
+  only when its exact bounded text changed.
+- **Integrity:** an explicit bibliography move still rewrites/repositions it, and a missing/damaged bookmark
+  pair or manual edit forces a rebuild. A fully current refresh opens no Writer UndoManager context. Requested
+  dirty flags clear after an exact comparison proves that surface current, even when no mutation is needed.
+- **Verification:** targeted adapter/OXT/install suite: **89 passed**. The installed OXT's real-Writer selftest
+  measured exactly `0 citations / 0 bibliography` mutations for an identical refresh, `1 / 0` for one stale
+  citation, and `0 / 1` for a stale bibliography, then completed the legacy suite (`SELFTEST OK`). Full-suite
+  results are in the increment note.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 ## 2026-07-23 — Increment 360: LibreOffice refresh progress and cancellation (P1 item #13)
 
 - **Files:** LibreOffice adapter/component/selftest/README/OXT version (0.9.0 → 0.10.0), adapter tests, root

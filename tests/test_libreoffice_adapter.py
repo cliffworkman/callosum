@@ -259,6 +259,42 @@ def test_render_input_signature_tracks_identity_order_and_visible_text() -> None
     assert cc.render_input_signature(list(reversed(fields))) != cc.render_input_signature(fields)
 
 
+def test_incremental_citation_plan_skips_current_and_untargeted_fields() -> None:
+    current = SimpleNamespace(Name="mark-a", getAnchor=lambda: _FakeAnchor("(A, 2020)"))
+    changed = SimpleNamespace(Name="mark-b", getAnchor=lambda: _FakeAnchor("STALE"))
+    fields = [
+        {"citationID": "c1", "_mark": current},
+        {"citationID": "c2", "_mark": changed},
+    ]
+    rendered = {"c1": "(A, 2020)", "c2": "(B, 2021)"}
+
+    assert cc.incremental_citation_plan(fields, rendered) == [("mark-b", "(B, 2021)")]
+    assert cc.incremental_citation_plan(fields, rendered, {"mark-a"}) == []
+    assert cc.incremental_citation_plan(fields, rendered, {"mark-b"}) == [("mark-b", "(B, 2021)")]
+
+
+def test_bibliography_render_comparison_requires_intact_exact_managed_text(monkeypatch) -> None:
+    entries = ["A reference.", "B reference."]
+    expected = "References\nA reference.\nB reference.\n"
+    assert cc.rendered_bibliography_text(entries) == expected
+    assert cc.rendered_bibliography_text([]) == ""
+
+    monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, True, expected))
+    assert cc.bibliography_render_is_current(object(), entries)
+    monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, False, expected))
+    assert not cc.bibliography_render_is_current(object(), entries)
+    monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, True, expected + "manual edit"))
+    assert not cc.bibliography_render_is_current(object(), entries)
+
+
+def test_empty_incremental_delta_creates_no_undo_context() -> None:
+    class NoTransactionDoc:
+        def getUndoManager(self):
+            pytest.fail("an empty delta must not open an UndoManager context")
+
+    cc._transactional_apply(NoTransactionDoc(), [], [], write_bibliography=False)
+
+
 def test_partial_refresh_wrappers_select_only_the_requested_surface(monkeypatch) -> None:
     calls = []
 

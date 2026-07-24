@@ -263,12 +263,18 @@ the Principles + A-A gates before build.)*
   a temporary Escape listener cancels at the next checkpoint. Cancellation after mutation begins travels through
   the existing verified UndoManager rollback, so no mixed-format document commits. Because progress yields to
   Writer events, the ordered field identity/value is rechecked after rendering; a concurrent citation edit makes
-  the response stale and aborts before write-back. Only incremental rendering remains open within #13.
+  the response stale and aborts before write-back. **Inc 361 completed #13 with incremental write-back:** citeproc
+  still receives the complete ordered manuscript, preserving numeric renumbering, author-date disambiguation, and
+  bibliography membership, while Writer mutates only citation anchors whose visible result changed and rebuilds
+  the bounded bibliography only when its exact managed text changed. An identical refresh creates no UndoManager
+  entry; real Writer proved `0/0` writes when current, `1/0` for one stale citation, and `0/1` for a stale
+  bibliography. Explicit bibliography moves and damaged or manually edited managed ranges still force rebuilds.
+  **P1 item #13 is complete.**
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography
-  editing controls — categories/chapter bibliographies/hyperlinked entries, remaining refresh/performance
-  controls, portability, journal abbreviations, keyboard/accessibility) **and P2
+  editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
+  keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,
   pre-submission citation-integrity preflight, Citavi-style evidence-card insertion, open-science statement
   insertion, cross-manager conversion) — see the roadmap doc for the full prioritized list + a test plan.

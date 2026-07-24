@@ -436,6 +436,71 @@ def spike_refresh_progress_cancellation(ctx, base, p1, p2):
     log("spike (P1 #13): OK — native progress, full cancellation rollback, stale response rejected")
 
 
+def spike_incremental_rendering(ctx, base, p1, p2):
+    """P1 item #13: full-document citeproc context produces only the Writer mutations whose output changed."""
+    log("spike (P1 #13): incremental citation/bibliography write-back")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("First XXX0. Second XXX1. Third XXX2.\n")
+    cc._set_pref(doc, "ieee", "en-US")
+
+    def find_range(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        return doc.findFirst(sd)
+
+    for index, paper_id in enumerate((p1, p2, p1)):
+        cc.insert_citation(doc, paper_id, base, cursor=text.createTextCursorByRange(find_range(f"XXX{index}")))
+    fields = cc.scan_citations_in_order(doc)
+    check(len(fields) == 3, f"incremental fixture expected 3 fields, found {len(fields)}")
+    check(
+        cc.bibliography_render_is_current(
+            doc,
+            cc.render_document(
+                base,
+                cc.build_render_request(fields, "ieee", "en-US"),
+            )["bibliography_text"].splitlines(),
+        ),
+        "incremental fixture bibliography was not current",
+    )
+
+    original_replace = cc._replace_mark_text
+    original_write_bibliography = cc._write_bibliography
+    calls = {"citations": 0, "bibliography": 0}
+
+    def tracked_replace(doc_, mark, rendered):
+        calls["citations"] += 1
+        return original_replace(doc_, mark, rendered)
+
+    def tracked_bibliography(doc_, entries, cursor=None):
+        calls["bibliography"] += 1
+        return original_write_bibliography(doc_, entries, cursor=cursor)
+
+    cc._replace_mark_text = tracked_replace
+    cc._write_bibliography = tracked_bibliography
+    try:
+        cc.refresh(doc, base)
+        check(calls == {"citations": 0, "bibliography": 0}, f"identical refresh mutated Writer: {calls}")
+
+        first = cc.scan_citations_in_order(doc)[0]["_mark"]
+        original_replace(doc, first, "STALE CITATION")
+        calls.update(citations=0, bibliography=0)
+        cc.refresh(doc, base)
+        check(calls == {"citations": 1, "bibliography": 0}, f"one stale citation produced wrong delta: {calls}")
+
+        original_write_bibliography(doc, ["STALE BIBLIOGRAPHY"])
+        calls.update(citations=0, bibliography=0)
+        cc.refresh_bibliography(doc, base)
+        check(
+            calls == {"citations": 0, "bibliography": 1},
+            f"one stale bibliography produced wrong delta: {calls}",
+        )
+    finally:
+        cc._replace_mark_text = original_replace
+        cc._write_bibliography = original_write_bibliography
+    log("spike (P1 #13): OK — identical=0 writes; stale citation=1; stale bibliography=1")
+
+
 def spike_mark_at_cursor(ctx, base, p1, p2):
     """P0 phase 4: `mark_at_cursor` is the first "which ONE existing citation is the user pointing at" lookup —
     every prior action either inserted new or operated over all marks. Confirms, against real UNO, that moving
@@ -1696,6 +1761,9 @@ def main():
 
         # P1 item #13: large-refresh status, cooperative Escape cancellation, and stale render protection.
         spike_refresh_progress_cancellation(ctx, base, p1, p2)
+
+        # P1 item #13: full citeproc context with citation/bibliography delta-only Writer mutations.
+        spike_incremental_rendering(ctx, base, p1, p2)
 
         # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
         spike_mark_at_cursor(ctx, base, p1, p2)
