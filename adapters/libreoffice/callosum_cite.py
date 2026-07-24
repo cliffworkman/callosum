@@ -264,14 +264,23 @@ def build_render_request(
 ) -> dict:
     """Turn ordered citation fields into the `/citations/render-document` body.
 
-    Each field is ``{"citationID": <rnd>, "items": [<CSL-JSON>, …]}`` (in document order). `uncited_items`/
-    `bibliography_exclude_ids` (P1 item #11, backlog #33/#34) are both optional — omitted entirely, they're
-    empty lists, matching the backend's own additive/optional contract.
+    Each field is ``{"citationID": <rnd>, "items": [<CSL-JSON>, …], "noteIndex": <0 or Writer note number>}``
+    (in document order). Zero is the established in-text sentinel; note-style fields carry the one-based Writer
+    footnote number citeproc needs for first/subsequent/ibid state. `uncited_items`/
+    `bibliography_exclude_ids` (P1 item #11, backlog #33/#34) are both optional — omitted entirely, they're empty
+    lists, matching the backend's own additive/optional contract.
     """
     return {
         "style": style,
         "locale": locale,
-        "citations": [{"citationID": f["citationID"], "items": f["items"]} for f in fields],
+        "citations": [
+            {
+                "citationID": f["citationID"],
+                "items": f["items"],
+                "noteIndex": int(f.get("noteIndex", 0)),
+            }
+            for f in fields
+        ],
         "uncited_items": uncited_items or [],
         "bibliography_exclude_ids": bibliography_exclude_ids or [],
     }
@@ -383,8 +392,26 @@ def render_document(base: str, request: dict) -> dict:
 
 
 def list_style_ids(base: str) -> set[str]:
+    return {style["id"] for style in list_styles(base)}
+
+
+def list_styles(base: str) -> list[dict[str, str]]:
+    """Validated style manifest from Callosum's local citation engine."""
     data = _get_json(f"{base}/citations/styles")
-    return {s["id"] for s in data.get("styles", [])}
+    styles = data.get("styles", []) if isinstance(data, dict) else []
+    return [
+        {"id": style["id"], "family": style["family"], "title": str(style.get("title") or style["id"])}
+        for style in styles
+        if isinstance(style, dict) and isinstance(style.get("id"), str) and isinstance(style.get("family"), str)
+    ]
+
+
+def style_family(base: str, style_id: str) -> str:
+    """Return the selected style's declared family; fail closed on a missing/malformed manifest entry."""
+    for style in list_styles(base):
+        if style["id"] == style_id:
+            return style["family"]
+    raise ValueError(f"Unknown citation style '{style_id}'.")
 
 
 SUGGEST_TIMEOUT = 90  # suggest does local ML work (embed + NLI); the first call loads the models — give it room
@@ -845,6 +872,102 @@ def current_query_text(doc) -> str:
     return str(para.getString() or "").strip()
 
 
+def _collection_items(collection) -> list:
+    """Materialize a UNO XIndexAccess collection without assuming Python iteration support."""
+    return [collection.getByIndex(index) for index in range(collection.getCount())]
+
+
+def _note_containers(doc) -> list[dict]:
+    """Writer footnote/endnote text containers with their one-based index in the respective collection."""
+    out = []
+    for placement, getter in (("footnote", "getFootnotes"), ("endnote", "getEndnotes")):
+        try:
+            notes = _collection_items(getattr(doc, getter)())
+        except Exception:
+            notes = []
+        out.extend(
+            {
+                "placement": placement,
+                "noteIndex": index,
+                "_note": note,
+                "_reference_id": getattr(note, "ReferenceId", None),
+            }
+            for index, note in enumerate(notes, start=1)
+        )
+    return out
+
+
+def _range_belongs_to_text(text, range_) -> bool:
+    """Use XText.createTextCursorByRange as Writer's authoritative same-text-context check."""
+    try:
+        text.createTextCursorByRange(range_)
+        return True
+    except Exception:
+        return False
+
+
+def _citation_context(doc, mark, notes: list[dict]) -> dict:
+    """Classify a citation mark as main-text, footnote, endnote, or an unsupported Writer text context."""
+    anchor = mark.getAnchor()
+    if not hasattr(anchor, "getText"):
+        # Small duck-typed unit fakes predate note support; real UNO XTextRange anchors always expose getText().
+        return {"placement": "inline", "noteIndex": 0, "_note": None}
+    container = anchor.getText()
+    reference_id = getattr(container, "ReferenceId", None)
+    candidates = [note for note in notes if reference_id is not None and note["_reference_id"] == reference_id]
+    for note in candidates or notes:
+        if _range_belongs_to_text(note["_note"], anchor):
+            return note
+    if _range_belongs_to_text(doc.getText(), anchor):
+        return {"placement": "inline", "noteIndex": 0, "_note": None}
+    return {"placement": "unsupported", "noteIndex": 0, "_note": None}
+
+
+def citation_placement_error(fields: list[dict], family: str) -> str | None:
+    """Explain a style/Writer-context mismatch rather than silently rendering notes inline (or vice versa)."""
+    placements = {field.get("placement", "inline") for field in fields}
+    if not placements:
+        return None
+    if family == "note":
+        if placements == {"footnote"}:
+            return None
+        return (
+            "This note style requires every live Callosum citation to be in a Writer footnote. "
+            "Automatic conversion of existing inline citations and endnotes is not available yet."
+        )
+    if placements == {"inline"}:
+        return None
+    return (
+        "This in-text style requires every live Callosum citation to be in the main document text. "
+        "Automatic conversion of existing note citations is not available yet."
+    )
+
+
+def _insert_mark(doc, text, cursor, payload: dict, rnd: str) -> None:
+    cursor.setString(PLACEHOLDER)  # transient visible text; the mark absorbs this range
+    mark = doc.createInstance("com.sun.star.text.ReferenceMark")
+    mark.Name = encode_mark_name(payload, rnd)
+    text.insertTextContent(cursor, mark, True)  # absorb=True → the mark wraps the placeholder range
+
+
+def _insert_note_mark(doc, cursor, payload: dict, rnd: str) -> None:
+    """Insert one live citation into a real Writer footnote anchored at the requested main-text position."""
+    main_text = doc.getText()
+    if cursor is None:
+        try:
+            cursor = doc.getCurrentController().getViewCursor().getStart()
+        except Exception:
+            cursor = main_text.getEnd()
+    try:
+        main_cursor = main_text.createTextCursorByRange(cursor)
+    except Exception as exc:
+        raise ValueError("Place the cursor in the main document text before inserting a note citation.") from exc
+    main_cursor.collapseToStart()
+    note = doc.createInstance("com.sun.star.text.Footnote")
+    main_text.insertTextContent(main_cursor, note, False)
+    _insert_mark(doc, note, note.createTextCursor(), payload, rnd)
+
+
 def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, cursor=None) -> str:
     """Insert a live citation ReferenceMark wrapping ONE OR MORE works at the cursor, then re-render the
     document (Phase 5a/5b, backlog #33/#34 — generalizes the original single-item `insert_citation`, now a thin
@@ -860,13 +983,14 @@ def insert_citation_items(doc, items: list[dict], base: str = DEFAULT_BASE, curs
     records = _build_records(items, base)
     rnd = _new_rnd(doc)
     payload = {"items": records}
-    text = doc.getText()
-    if cursor is None:
-        cursor = _insertion_cursor(doc)
-    cursor.setString(PLACEHOLDER)  # transient visible text; the mark absorbs this range
-    mark = doc.createInstance("com.sun.star.text.ReferenceMark")
-    mark.Name = encode_mark_name(payload, rnd)
-    text.insertTextContent(cursor, mark, True)  # absorb=True → the mark wraps the placeholder range
+    style, _locale = _get_pref(doc)
+    if style_family(base, style) == "note":
+        _insert_note_mark(doc, cursor, payload, rnd)
+    else:
+        text = doc.getText()
+        if cursor is None:
+            cursor = _insertion_cursor(doc)
+        _insert_mark(doc, text, cursor, payload, rnd)
     _auto_refresh(doc, base)
     return rnd
 
@@ -910,27 +1034,57 @@ def _our_marks(doc) -> list:
 def scan_citations_in_order(doc) -> list[dict]:
     """Full-document scan → citation fields in document order.
 
-    Each field: ``{"citationID": rnd, "items": [...], "_mark": <ReferenceMark>}``. Ordering is by the mark's
-    anchor start via `XTextRangeCompare.compareRegionStarts` (not the unordered name collection — the spec's
-    full-scan-tolerant contract, so later weak-iterator targets aren't blocked).
+    Each field includes its Writer placement and citeproc ``noteIndex`` in addition to the live mark. Main-text
+    citations are ordered by their anchors as before. Note citations are ordered by Writer's own footnote
+    collection, then by anchor within a shared note, so citeproc receives the real note sequence rather than the
+    unordered global ReferenceMark collection.
     """
-    text = doc.getText()
+    notes = _note_containers(doc)
     fields = []
     for mark in _our_marks(doc):
         decoded = decode_mark_name(mark.Name)
         if decoded is None or decoded.get("unsupported"):
             continue  # ours but a schema version this adapter doesn't understand — leave untouched, never guess
-        fields.append({"citationID": decoded["rnd"], "items": decoded["items"], "_mark": mark})
+        context = _citation_context(doc, mark, notes)
+        fields.append(
+            {
+                "citationID": decoded["rnd"],
+                "items": decoded["items"],
+                "_mark": mark,
+                **context,
+            }
+        )
 
-    def _compare(a, b) -> int:
-        return text.compareRegionStarts(a["_mark"].getAnchor(), b["_mark"].getAnchor())
+    def _ordered_in_text(group: list[dict], text) -> list[dict]:
+        def _compare(a, b) -> int:
+            return text.compareRegionStarts(a["_mark"].getAnchor(), b["_mark"].getAnchor())
 
-    return order_by_comparator(fields, _compare)
+        return order_by_comparator(group, _compare)
+
+    ordered = _ordered_in_text([field for field in fields if field["placement"] == "inline"], doc.getText())
+    for placement in ("footnote", "endnote"):
+        placed = [field for field in fields if field["placement"] == placement]
+        for note_index in sorted({field["noteIndex"] for field in placed}):
+            group = [field for field in placed if field["noteIndex"] == note_index]
+            ordered.extend(_ordered_in_text(group, group[0]["_note"]))
+    ordered.extend(
+        sorted((field for field in fields if field["placement"] == "unsupported"), key=lambda f: f["_mark"].Name)
+    )
+    return ordered
 
 
-def render_input_signature(fields: list[dict]) -> tuple[tuple[str, str, str], ...]:
-    """Identity, order, and visible value of the live fields that produced one render request."""
-    return tuple((field["_mark"].Name, field["citationID"], field["_mark"].getAnchor().getString()) for field in fields)
+def render_input_signature(fields: list[dict]) -> tuple[tuple[str, str, str, str, int], ...]:
+    """Identity, order, Writer context, and visible value of the live fields that produced one render request."""
+    return tuple(
+        (
+            field["_mark"].Name,
+            field["citationID"],
+            field["_mark"].getAnchor().getString(),
+            field.get("placement", "inline"),
+            int(field.get("noteIndex", 0)),
+        )
+        for field in fields
+    )
 
 
 def incremental_citation_plan(
@@ -973,18 +1127,32 @@ def mark_at_cursor(doc) -> dict | None:
     unsupported future schema version — `scan_citations_in_order` already excludes both, so reusing it here
     means this function never needs its own decode/skip logic to drift out of sync with that one).
     """
-    text = doc.getText()
     try:
         cursor_range = doc.getCurrentController().getViewCursor().getStart()
     except Exception:
         return None
     for field in scan_citations_in_order(doc):
         anchor = field["_mark"].getAnchor()
+        text = anchor.getText()
+        if not _range_belongs_to_text(text, cursor_range):
+            continue
         if (
             text.compareRegionStarts(anchor.getStart(), cursor_range) >= 0
             and text.compareRegionStarts(cursor_range, anchor.getEnd()) >= 0
         ):
             return field
+    return None
+
+
+def _main_document_position(doc, range_):
+    """Map a caret inside a footnote/endnote back to that note's anchor in the main Writer text."""
+    if not hasattr(range_, "getText"):
+        return range_  # compact outline-unit-test ranges; real UNO XTextRange always exposes getText()
+    if _range_belongs_to_text(doc.getText(), range_):
+        return range_
+    for note in _note_containers(doc):
+        if _range_belongs_to_text(note["_note"], range_):
+            return note["_note"].getAnchor()
     return None
 
 
@@ -997,7 +1165,9 @@ def _current_outline_section_bounds(doc) -> tuple[object, object] | None:
     """
     text = doc.getText()
     try:
-        cursor = doc.getCurrentController().getViewCursor().getStart()
+        cursor = _main_document_position(doc, doc.getCurrentController().getViewCursor().getStart())
+        if cursor is None:
+            return None
         enumeration = text.createEnumeration()
     except Exception:
         return None
@@ -1049,7 +1219,8 @@ def current_section_citation_names(doc) -> set[str] | None:
     text = doc.getText()
     names = set()
     for field in scan_citations_in_order(doc):
-        anchor_start = field["_mark"].getAnchor().getStart()
+        note = field.get("_note")
+        anchor_start = note.getAnchor().getStart() if note is not None else field["_mark"].getAnchor().getStart()
         try:
             inside = (
                 text.compareRegionStarts(start, anchor_start) >= 0 and text.compareRegionStarts(anchor_start, end) > 0
@@ -1108,6 +1279,9 @@ def refresh(
     """
     style, locale = _get_pref(doc)
     fields = scan_citations_in_order(doc)
+    placement_error = citation_placement_error(fields, style_family(base, style))
+    if placement_error:
+        raise ValueError(placement_error)
     expected_signature = render_input_signature(fields)
     # P1 item #11 (backlog #33/#34): bibliography editing. Both lists are read-only inputs to this render; the
     # panel (citations_panel.py) is what actually persists them via _set_id_list.
@@ -1371,7 +1545,7 @@ def _replace_mark_text(doc, mark, new_text: str) -> None:
     place, then re-wrap a fresh same-named mark (the payload/`rnd` is preserved → the citationID stays stable).
     The text is written as **plain text** (`setString`), never an HTML/markup path.
     """
-    text = doc.getText()
+    text = mark.getAnchor().getText()
     name = mark.Name
     cursor = text.createTextCursorByRange(mark.getAnchor())  # spans the marked range
     text.removeTextContent(mark)  # remove the old mark boundary; the text + cursor range survive
@@ -1459,9 +1633,13 @@ def _PARAGRAH_BREAK():
 
 def set_style(doc, style: str, locale: str, base: str = DEFAULT_BASE) -> None:
     """Validate and persist the style, then follow the document's automatic refresh preferences."""
-    valid = list_style_ids(base)
-    if style not in valid:
-        raise ValueError(f"Unknown style '{style}'. Available: {', '.join(sorted(valid))}")
+    styles = list_styles(base)
+    families = {entry["id"]: entry["family"] for entry in styles}
+    if style not in families:
+        raise ValueError(f"Unknown style '{style}'. Available: {', '.join(sorted(families))}")
+    placement_error = citation_placement_error(scan_citations_in_order(doc), families[style])
+    if placement_error:
+        raise ValueError(placement_error)
     _set_pref(doc, style, locale or DEFAULT_LOCALE)
     _auto_refresh(doc, base)
 
@@ -1479,9 +1657,10 @@ def flatten(doc) -> int:
     names = [n for n in doc.getReferenceMarks().getElementNames() if decode_mark_name(n) is not None]
     for name in names:
         mark = doc.getReferenceMarks().getByName(name)
-        cursor = text.createTextCursorByRange(mark.getAnchor())
+        mark_text = mark.getAnchor().getText()
+        cursor = mark_text.createTextCursorByRange(mark.getAnchor())
         rendered = cursor.getString()
-        text.removeTextContent(mark)
+        mark_text.removeTextContent(mark)
         cursor.setString(rendered)  # re-insert the rendered citation as static text (mark is gone)
     bookmarks = doc.getBookmarks()
     for bookmark_name in (BIB_BOOKMARK, BIB_BOOKMARK_END):  # P0 phase 7: now a start/end PAIR, not just a start
@@ -1500,18 +1679,21 @@ def delete_citation(doc, field: dict) -> None:
     happening sometimes and not other times depending on the exact call shape, so clearing explicitly is the
     one path that is correct either way.
     """
-    text = doc.getText()
     mark = field["_mark"]
+    text = mark.getAnchor().getText()
     cursor = text.createTextCursorByRange(mark.getAnchor())
     text.removeTextContent(mark)
     cursor.setString("")
+    note = field.get("_note")
+    if note is not None and not str(note.getString() or "").strip():
+        note.getAnchor().getText().removeTextContent(note)
 
 
 def _rewrap_mark_payload(doc, mark, payload: dict, rnd: str) -> None:
     """Replace `mark` with a fresh mark (new rnd + payload) wrapping a transient PLACEHOLDER at the same
     position — used when a citation's ITEM SET changes (merge/split), as opposed to `_replace_mark_text` (same
     payload, new rendered text). Caller must `refresh()` afterward to render real text into the placeholder."""
-    text = doc.getText()
+    text = mark.getAnchor().getText()
     cursor = text.createTextCursorByRange(mark.getAnchor())
     text.removeTextContent(mark)
     cursor.setString(PLACEHOLDER)
@@ -1541,8 +1723,8 @@ def split_citation(doc, field: dict) -> None:
 
     Known v1 limitation: a fixed separator is used — there's no composer yet (Phase 5) to let the user choose.
     """
-    text = doc.getText()
     mark = field["_mark"]
+    text = mark.getAnchor().getText()
     cursor = text.createTextCursorByRange(mark.getAnchor())
     text.removeTextContent(mark)
     cursor.setString("")
@@ -1925,6 +2107,9 @@ def _merge_adjacent_interactive(doc, base: str, direction: str) -> None:
     if current is None:
         _msgbox("Place your cursor inside a citation to merge it.")
         return
+    if current.get("placement") != "inline":
+        _msgbox("Use Edit citation to add or reorder multiple sources within a note citation.")
+        return
     fields = scan_citations_in_order(doc)
     idx = next((i for i, f in enumerate(fields) if f["_mark"].Name == current["_mark"].Name), None)
     if idx is None:
@@ -1953,6 +2138,9 @@ def split_citation_interactive(doc, base: str) -> None:
         return
     if len(field["items"]) < 2:
         _msgbox("This citation has only one source — nothing to split.")
+        return
+    if field.get("placement") != "inline":
+        _msgbox("Use Edit citation to add or remove sources within a note citation.")
         return
     split_citation(doc, field)
     _auto_refresh(doc, base)

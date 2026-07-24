@@ -11,7 +11,7 @@
 //  #11/backlog #33/#34) — POSITION-AWARE rendering of a document's ordered citation clusters (numeric
 //  renumbering, author-date disambiguation) via citeproc's rebuildProcessorState; the word-processor adapter spine:
 //    stdin  : { "mode": "document", "style", "locale",
-//               "citations": [ { "citationID", "items": [ <CSL-JSON item with `id`, plus optional
+//               "citations": [ { "citationID", "noteIndex"?, "items": [ <CSL-JSON item with `id`, plus optional
 //                 locator/label/prefix/suffix/"suppress-author"/"author-only">, ... ] }, ... ],   // doc order
 //               "uncited_items": [ <CSL-JSON item with `id`>, ... ],       // bibliography-only, no in-text cite
 //               "bibliography_exclude_ids": [ <id>, ... ] }               // cited, but omitted from the bibliography
@@ -116,7 +116,9 @@ function main() {
       return {
         citationID: String(c.citationID || "c" + i),
         citationItems: (Array.isArray(c.items) ? c.items : []).map(buildCitationItem),
-        properties: { noteIndex: 0 },
+        // A real one-based Writer note number lets note styles derive first/subsequent/ibid state. Existing
+        // in-text adapters omit it and retain citeproc-js's established zero sentinel.
+        properties: { noteIndex: Number.isInteger(c.noteIndex) ? c.noteIndex : 0 },
       };
     });
     let rebuilt;

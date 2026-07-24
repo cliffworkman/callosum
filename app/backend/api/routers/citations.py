@@ -111,6 +111,9 @@ class CitationItem(BaseModel):
 class CitationCluster(BaseModel):
     citationID: str | None = None
     items: list[CitationItem] = Field(min_length=1, max_length=MAX_ITEMS_PER_CLUSTER)
+    # CSL note styles use the real note number for first/subsequent/ibid position state. Zero remains the
+    # backwards-compatible in-text/default value for every existing adapter.
+    noteIndex: int = Field(default=0, ge=0, le=MAX_CLUSTERS, strict=True)
 
 
 class UncitedItem(BaseModel):

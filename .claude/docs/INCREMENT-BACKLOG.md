@@ -270,6 +270,15 @@ the Principles + A-A gates before build.)*
   entry; real Writer proved `0/0` writes when current, `1/0` for one stale citation, and `0/1` for a stale
   bibliography. Explicit bibliography moves and damaged or manually edited managed ranges still force rebuilds.
   **P1 item #13 is complete.**
+  **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
+  `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
+  render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection
+  order, and citeproc therefore renders first/subsequent notes from the complete note sequence. Existing inline
+  documents are not silently converted: incompatible inline↔note style switches fail before document or
+  preference mutation. Cursor lookup, edit, delete, section refresh, flatten, footnote renumbering after deletion,
+  and grouped sources inside one live note cluster are covered by the same field model and real-Writer proof.
+  **Still open under #10:** endnote insertion/selection, deliberate inline↔note conversion, multiple independent
+  live citation clusters mixed with user prose inside one note, and broader ibid/near-note style/context coverage.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
   not left to drift like the composer's verification did). Remaining P1 (real CSL style manager, note/footnote styles, more bibliography

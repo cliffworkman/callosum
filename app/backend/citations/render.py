@@ -179,11 +179,13 @@ def render_document(
 ) -> dict[str, Any]:
     """Position-aware render of a document's ORDERED citation clusters — the word-processor adapter contract.
 
-    Each cluster is ``{"citationID"?: str, "items": [<CSL-JSON dict, each with an `id`>]}``, passed in **document
-    order**. Unlike :func:`render_papers` (isolated per-item), this renders the whole set coherently — numeric
-    styles renumber `[1][2][3]` by appearance, author-date styles disambiguate (`2020a`/`2020b`) across the
-    document. Self-contained: it renders from the **passed CSL-JSON payloads** (each document field carries its
-    own), so it needs no library lookup. Returns per-cluster in-text (text + sanitized HTML) + the bibliography.
+    Each cluster is ``{"citationID"?: str, "items": [<CSL-JSON dict, each with an `id`>], "noteIndex"?: int}``,
+    passed in **document order**. Unlike :func:`render_papers` (isolated per-item), this renders the whole set
+    coherently — numeric styles renumber `[1][2][3]` by appearance, author-date styles disambiguate
+    (`2020a`/`2020b`), and note styles receive their real one-based Writer note number for first/subsequent/ibid
+    position state. In-text callers omit ``noteIndex`` and retain the original zero default. Self-contained: it
+    renders from the **passed CSL-JSON payloads** (each document field carries its own), so it needs no library
+    lookup. Returns per-cluster in-text (text + sanitized HTML) + the bibliography.
 
     ``uncited_items`` (P1 item #11, backlog #33/#34) are bibliography-only entries — a "further reading" work
     with no in-text citation mark — via citeproc-js's own ``updateUncitedItems``. ``bibliography_exclude_ids``
@@ -218,7 +220,18 @@ def render_document(
             item.setdefault("type", "article-journal")  # citeproc requires a type
             out_items.append(item)
             total_items += 1
-        clusters.append({"citationID": str(c.get("citationID") or f"c{i}"), "items": out_items})
+        raw_note_index = c.get("noteIndex", 0)
+        if not isinstance(raw_note_index, int) or isinstance(raw_note_index, bool):
+            raise ValueError("citation noteIndex must be an integer")
+        if raw_note_index < 0 or raw_note_index > MAX_CLUSTERS:
+            raise ValueError(f"citation noteIndex must be between 0 and {MAX_CLUSTERS}")
+        clusters.append(
+            {
+                "citationID": str(c.get("citationID") or f"c{i}"),
+                "items": out_items,
+                "noteIndex": raw_note_index,
+            }
+        )
     if total_items > MAX_ITEMS:
         raise ValueError(f"too many items to render at once (max {MAX_ITEMS})")
 

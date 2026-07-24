@@ -6,6 +6,7 @@ for the pinned citeproc version + bundled style files, so we assert concrete sub
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api.app import create_app
@@ -180,6 +181,33 @@ def test_render_document_validation(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     bad = client.post("/citations/render-document", json={"style": "not-a-style", "citations": [_cluster("A", "a")]})
     assert bad.status_code == 422
+
+
+def test_render_document_note_indexes_reach_citeproc(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    citations = [
+        {**_cluster("first", "a"), "noteIndex": 1},
+        {**_cluster("other", "b"), "noteIndex": 2},
+        {**_cluster("subsequent", "a"), "noteIndex": 3},
+    ]
+    r = client.post(
+        "/citations/render-document",
+        json={"style": "chicago-notes-bibliography", "citations": citations},
+    )
+    assert r.status_code == 200, r.text
+    by_id = {c["citationID"]: c["text"] for c in r.json()["citations"]}
+    assert "Vaswani" in by_id["first"]
+    assert by_id["subsequent"] != by_id["first"]
+
+
+@pytest.mark.parametrize("note_index", [-1, 5001, 1.5, True])
+def test_render_document_rejects_invalid_note_index(temp_db_url: str, note_index: object) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    r = client.post(
+        "/citations/render-document",
+        json={"style": "chicago-notes-bibliography", "citations": [{**_cluster("A", "a"), "noteIndex": note_index}]},
+    )
+    assert r.status_code == 422
 
 
 # ── per-occurrence cite properties (P0 phase 3, backlog #33/#34): locator/prefix/suffix/suppress-author/

@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-23 inc 362 — LibreOffice note citations in real Writer footnotes -->
+## 2026-07-23 — Increment 362: LibreOffice note citations, footnote foundation (P1 item #10)
+
+- **Files:** shared document-render request/sidecar, LibreOffice adapter/selftest/README/OXT version
+  (0.11.0 → 0.12.0), API/adapter tests, root README, served help, QA route, security audit,
+  backlog/CLAUDE/increment notes.
+- **What changed:** the document-render contract accepts a strict optional `noteIndex`; note styles receive
+  real one-based Writer note positions. Selecting bundled Chicago notes and bibliography inserts each new
+  citation as a live ReferenceMark inside a native Writer footnote. Note fields remain editable, refreshable,
+  deletable, flattenable, and correctly renumbered after a footnote is removed.
+- **Safety:** existing inline documents are never silently converted. Switching between incompatible inline
+  and note families, encountering endnotes, or mixing placements fails visibly before the document or saved
+  preference changes. Merge/split remains inline-only; grouped sources in one note use Edit citation.
+- **Verification:** focused API and adapter tests plus the installed OXT's real-Writer selftest prove
+  first/subsequent Chicago note rendering, cursor lookup inside a footnote, refused incompatible style changes,
+  delete/renumber, and flatten preserving static note text. Combined focused suite: **119 passed**; full project
+  suite: **1486 passed, 1 skipped**.
+- **Revert:** `git revert` this commit; rebuild the `.oxt` via `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-23 inc 361 — LibreOffice incremental write-back -->
 ## 2026-07-23 — Increment 361: LibreOffice incremental write-back (P1 item #13)
 

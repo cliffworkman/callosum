@@ -32,15 +32,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 
 1. Open "Cite as..." for a seeded paper. Confirm styles load (`GET /citations/styles`).
 2. Switch styles and render (`POST /citations/render`). Confirm preview updates, copy succeeds, and missing CSL fields degrade cleanly.
-3. Render a bibliography/document export (`POST /citations/render-document`) using multiple selected papers. Confirm ordering, escaping, and selected style are honored.
-4. Try an unknown style, no selected papers, and malformed paper id state. Confirm validation messaging and no crash.
+3. Render a bibliography/document export (`POST /citations/render-document`) using multiple selected papers. Confirm ordering, escaping, and selected style are honored. With `chicago-notes-bibliography`, send ordered clusters with `noteIndex` 1, 2, and 3 (repeat the first source at 3); confirm the repeated note uses citeproc's subsequent-note form rather than repeating the first-note form.
+4. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
 5. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
 
 ## Pass criteria
 
 - Style list, citation preview, copy, and document render complete.
 - 0 console/page errors and 0 genai-host requests.
-- Bad inputs fail cleanly; output is visibly tied to the selected style.
+- Bad inputs fail cleanly; output is visibly tied to the selected style and note position.
 - Mobile viewport has no horizontal overflow.
 
 ## Deposit

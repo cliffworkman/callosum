@@ -253,8 +253,8 @@ def test_render_input_signature_tracks_identity_order_and_visible_text() -> None
         {"citationID": "c2", "_mark": second},
     ]
     assert cc.render_input_signature(fields) == (
-        ("mark-a", "c1", "(A, 2020)"),
-        ("mark-b", "c2", "(B, 2021)"),
+        ("mark-a", "c1", "(A, 2020)", "inline", 0),
+        ("mark-b", "c2", "(B, 2021)", "inline", 0),
     )
     assert cc.render_input_signature(list(reversed(fields))) != cc.render_input_signature(fields)
 
@@ -567,13 +567,13 @@ def test_stamp_item_id_is_stable_and_nondestructive() -> None:
 def test_build_render_request_shape() -> None:
     fields = [
         {"citationID": "c1", "items": [{"id": "callosum-1"}], "_mark": object()},
-        {"citationID": "c2", "items": [{"id": "callosum-2"}], "_mark": object()},
+        {"citationID": "c2", "items": [{"id": "callosum-2"}], "noteIndex": 4, "_mark": object()},
     ]
     req = cc.build_render_request(fields, "ieee", "en-US")
     assert req["style"] == "ieee" and req["locale"] == "en-US"
     assert req["citations"] == [
-        {"citationID": "c1", "items": [{"id": "callosum-1"}]},
-        {"citationID": "c2", "items": [{"id": "callosum-2"}]},
+        {"citationID": "c1", "items": [{"id": "callosum-1"}], "noteIndex": 0},
+        {"citationID": "c2", "items": [{"id": "callosum-2"}], "noteIndex": 4},
     ]
     assert "_mark" not in req["citations"][0]  # internal handle never sent to the server
     # P1 item #11 (backlog #33/#34): omitted entirely -> empty lists, matching the backend's additive contract.
@@ -587,6 +587,41 @@ def test_build_render_request_bibliography_editing_fields() -> None:
     )
     assert req["uncited_items"] == [{"id": "callosum-9"}]
     assert req["bibliography_exclude_ids"] == ["callosum-5"]
+
+
+def test_style_manifest_and_family_are_validated(monkeypatch) -> None:
+    monkeypatch.setattr(
+        cc,
+        "_get_json",
+        lambda url: {
+            "styles": [
+                {"id": "apa", "title": "APA", "family": "author-date"},
+                {"id": "chicago-notes", "title": "Chicago", "family": "note"},
+                {"id": 7, "family": "note"},
+                "malformed",
+            ]
+        },
+    )
+    assert cc.list_style_ids("http://x") == {"apa", "chicago-notes"}
+    assert cc.style_family("http://x", "chicago-notes") == "note"
+    with pytest.raises(ValueError, match="Unknown citation style"):
+        cc.style_family("http://x", "missing")
+
+
+@pytest.mark.parametrize(
+    ("family", "placements", "has_error"),
+    [
+        ("note", ["footnote"], False),
+        ("note", ["inline"], True),
+        ("note", ["footnote", "inline"], True),
+        ("author-date", ["inline"], False),
+        ("numeric", ["footnote"], True),
+        ("note", [], False),
+    ],
+)
+def test_citation_placement_error(family: str, placements: list[str], has_error: bool) -> None:
+    fields = [{"placement": placement} for placement in placements]
+    assert (cc.citation_placement_error(fields, family) is not None) is has_error
 
 
 def test_order_by_comparator_sorts_into_document_order() -> None:

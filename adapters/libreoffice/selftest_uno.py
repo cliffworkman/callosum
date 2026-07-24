@@ -501,6 +501,70 @@ def spike_incremental_rendering(ctx, base, p1, p2):
     log("spike (P1 #13): OK — identical=0 writes; stale citation=1; stale bibliography=1")
 
 
+def spike_note_style_footnotes(ctx, base, p1, p2):
+    """P1 item #10 foundation: note styles create, scan, render, edit-target, delete, and flatten real footnotes."""
+    log("spike (P1 #10): note-style citations in real Writer footnotes")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.createTextCursorByRange(text.getStart()).setString("First XXX0. Second XXX1. Third XXX2.\n")
+    cc._set_pref(doc, "chicago-notes-bibliography", "en-US")
+
+    def insertion_cursor(needle):
+        sd = doc.createSearchDescriptor()
+        sd.SearchString = needle
+        found = doc.findFirst(sd)
+        cursor = text.createTextCursorByRange(found)
+        cursor.setString("")
+        cursor.collapseToStart()
+        return cursor
+
+    for index, paper_id in enumerate((p1, p2, p1)):
+        cc.insert_citation(doc, paper_id, base, cursor=insertion_cursor(f"XXX{index}"))
+
+    fields = cc.scan_citations_in_order(doc)
+    check(doc.getFootnotes().getCount() == 3, "note style did not create three Writer footnotes")
+    check(len(fields) == 3, f"note-style fixture expected 3 citation fields, found {len(fields)}")
+    check([field["placement"] for field in fields] == ["footnote"] * 3, "note marks were not classified as footnotes")
+    check([field["noteIndex"] for field in fields] == [1, 2, 3], "Writer footnote indexes did not reach scan order")
+    request = cc.build_render_request(fields, "chicago-notes-bibliography", "en-US")
+    check([cluster["noteIndex"] for cluster in request["citations"]] == [1, 2, 3], "note indexes left request shape")
+    first_text = fields[0]["_mark"].getAnchor().getString()
+    repeated_text = fields[2]["_mark"].getAnchor().getString()
+    check(first_text and repeated_text and first_text != repeated_text, "subsequent Chicago note was not shortened")
+    check(first_text not in text.getString(), "rendered note citation leaked into the main document text")
+
+    view = doc.getCurrentController().getViewCursor()
+    view.gotoRange(fields[1]["_mark"].getAnchor().getStart(), False)
+    selected = cc.mark_at_cursor(doc)
+    check(
+        selected is not None and selected["citationID"] == fields[1]["citationID"], "cursor lookup failed in footnote"
+    )
+
+    old_pref = cc._get_pref(doc)
+    try:
+        cc.set_style(doc, "apa", "en-US", base)
+    except ValueError as exc:
+        check("Automatic conversion" in str(exc), f"wrong note-to-inline style error: {exc}")
+    else:
+        raise AssertionError("note-to-inline style switch was silently accepted")
+    check(cc._get_pref(doc) == old_pref, "rejected note-to-inline switch changed document preferences")
+
+    cc.delete_citation(doc, fields[1])
+    cc.refresh(doc, base)
+    remaining = cc.scan_citations_in_order(doc)
+    check(doc.getFootnotes().getCount() == 2, "deleting an otherwise-empty note citation left an empty footnote")
+    check([field["noteIndex"] for field in remaining] == [1, 2], "remaining footnotes did not renumber after delete")
+
+    static_note_text = [field["_mark"].getAnchor().getString() for field in remaining]
+    check(cc.flatten(doc) == 2, "flatten did not unlink both remaining note citations")
+    check(doc.getReferenceMarks().getCount() == 0, "flatten left live ReferenceMarks in note bodies")
+    check(
+        [doc.getFootnotes().getByIndex(index).getString() for index in range(2)] == static_note_text,
+        "flatten did not preserve static rendered note text",
+    )
+    log("spike (P1 #10): OK — real footnotes, note indexes, shortened repeat, safe delete/style/flatten")
+
+
 def spike_mark_at_cursor(ctx, base, p1, p2):
     """P0 phase 4: `mark_at_cursor` is the first "which ONE existing citation is the user pointing at" lookup —
     every prior action either inserted new or operated over all marks. Confirms, against real UNO, that moving
@@ -1764,6 +1828,9 @@ def main():
 
         # P1 item #13: full citeproc context with citation/bibliography delta-only Writer mutations.
         spike_incremental_rendering(ctx, base, p1, p2)
+
+        # P1 item #10: note styles create and manage real Writer footnotes with real citeproc note indexes.
+        spike_note_style_footnotes(ctx, base, p1, p2)
 
         # 8) P0 phase 4 (backlog #33/#34): mark_at_cursor — the shared "which existing citation is this" lookup.
         spike_mark_at_cursor(ctx, base, p1, p2)

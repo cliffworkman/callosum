@@ -3,8 +3,8 @@
 Cite-while-you-write in **LibreOffice Writer**, backed by callosum's citation engine. The adapter is a thin
 *field-placer*: it never formats citations itself — it places live fields, reads the full ordered citation set out
 of your document, and writes back the in-text citations + bibliography that callosum renders (with correct numeric
-renumbering and author-date disambiguation). Everything is **local** — the macro talks only to your callosum
-server on `127.0.0.1`.
+renumbering, author-date disambiguation, and real Writer footnotes for note styles). Everything is **local** —
+the macro talks only to your callosum server on `127.0.0.1`.
 
 This is **v2** (inc 162): a one-click **extension** (`.oxt`) that adds a **Callosum** menu + toolbar to Writer, so
 you never touch the macro dialog. It covers the core loop — **add citation** (search your library), **suggest-and-cite**
@@ -77,7 +77,11 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    the stale surface(s); **Refresh pending** updates exactly those surfaces and removes the bar.
 5. **Citation style…** — pick a CSL style id (`apa`, `ieee`, `nature`, `modern-language-association`,
    `chicago-author-date`, `chicago-notes-bibliography`, `harvard-cite-them-right`) and a locale (`en-US`/`en-GB`);
-   the whole document re-renders. The choice is saved in the document.
+   the whole document re-renders. The choice is saved in the document. With
+   `chicago-notes-bibliography`, each new citation is inserted into a real Writer footnote and citeproc receives
+   the one-based note sequence, so first and subsequent notes render correctly. Callosum refuses an incompatible
+   style switch before changing the document or its saved preference: automatic conversion between existing
+   inline citations and notes, and endnote placement, are not supported yet.
 6. **Prepare submission copy…** (recommended) — the safe way to hand off for submission: saves a **separate
    copy** with citations converted to static text; your open document is **never changed**. Names the copy
    `<your-document>-submission-copy.odt` by default (always ODF for now) and tells you exactly where it saved.
@@ -100,7 +104,8 @@ message if it isn't):
 12. **Merge with next / previous citation** — combines the citation at the cursor with the adjacent one into a
     single grouped citation, e.g. two separate `(Smith, 2020)` `(Jones, 2021)` become one
     `(Smith, 2020; Jones, 2021)`. Any text between the two originals (a comma, "and", …) is left in place — use
-    **Edit citation…** afterward if you want to add locators/prefixes to the now-combined result.
+    **Edit citation…** afterward if you want to add locators/prefixes to the now-combined result. Merge and split
+    operate on inline citations only; use **Edit citation…** to add multiple sources to one note citation.
 13. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
     by `"; "`.
 14. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
@@ -143,10 +148,12 @@ It still defaults to the document end on first use; move it anywhere with **Inse
 
 ## How it works (for the curious)
 Each citation is a Writer **ReferenceMark** whose name carries the cited work's CSL-JSON payload (base64-encoded);
-the visible marked text is the rendered citation. On refresh the adapter scans every such mark **in document
-order**, POSTs the ordered set to callosum's `POST /citations/render-document`, and writes the position-aware
-result back. All formatting happens in callosum's bundled citeproc engine, so the output is identical to the in-app
-"Cite as…" and to the future Word/Google-Docs adapters. Large Writer updates are one UndoManager transaction:
+the visible marked text is the rendered citation. For note styles, that ReferenceMark lives inside a real Writer
+**Footnote** text object; the adapter derives its one-based `noteIndex` from Writer's ordered footnote collection.
+On refresh the adapter scans every mark in document/note order, POSTs the ordered set to callosum's
+`POST /citations/render-document`, and writes the position-aware result back. All formatting happens in
+callosum's bundled citeproc engine, so the output is identical to the in-app "Cite as…" and to the future
+Word/Google-Docs adapters. Large Writer updates are one UndoManager transaction:
 status-bar progress yields between completed units, **Esc** raises a cooperative cancellation at a checkpoint,
 and the same verified rollback used for write failures restores every field if any unit had already changed.
 Before opening that transaction, the adapter compares the full render with each live field and the exact bounded
@@ -175,5 +182,6 @@ mechanism. A CSL style that defines its own `<citation><sort>` (4 of the 7 bundl
 harvard-cite-them-right) will re-sort a grouped citation's items regardless of the order you arrange them in —
 the composer's preview always shows the real result, so you'll see this rather than be surprised by it.
 **Prepare submission copy…** always saves ODF (`.odt`) for now, regardless of your document's original format;
-in-text styles only (footnote/note styles later); no Track-Changes-corruption handling. Word (Office.js) and
-Google Docs are the next two adapters.
+note styles currently insert footnotes only (no endnote selector, automatic inline↔note conversion, or multiple
+separate live citation clusters mixed with user prose inside one note); no Track-Changes-corruption handling.
+Word (Office.js) and Google Docs are the next two adapters.
