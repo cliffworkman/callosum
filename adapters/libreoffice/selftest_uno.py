@@ -621,6 +621,104 @@ def spike_note_style_footnotes(ctx, base, p1, p2):
     )
 
 
+def spike_note_style_positions(ctx, base, p1, p2):
+    """P1 item #10: exact citeproc ibid, near-note, and far-subsequent state from native Writer indexes."""
+    log("spike (P1 #10): exact ibid/near-note/subsequent positions through an imported note style")
+    position_csl = """<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="note" version="1.0">
+  <info>
+    <title>Callosum Writer Note Position Test</title>
+    <id>https://example.test/styles/callosum-writer-note-position-test</id>
+    <link href="https://example.test/styles/callosum-writer-note-position-test" rel="self"/>
+    <updated>2026-07-24T00:00:00+00:00</updated>
+    <category citation-format="note"/>
+  </info>
+  <citation near-note-distance="2">
+    <layout delimiter="; ">
+      <choose>
+        <if position="ibid-with-locator">
+          <text value="IBID-WITH-LOCATOR"/>
+          <text variable="locator" prefix=":"/>
+        </if>
+        <else-if position="ibid"><text value="IBID"/></else-if>
+        <else-if position="subsequent">
+          <choose>
+            <if position="near-note"><text value="NEAR"/></if>
+            <else><text value="SUBSEQUENT"/></else>
+          </choose>
+        </else-if>
+        <else>
+          <text value="FIRST"/>
+          <text variable="title" prefix=":"/>
+        </else>
+      </choose>
+    </layout>
+  </citation>
+  <bibliography><layout><text variable="title"/></layout></bibliography>
+</style>"""
+    installed = cc._post_json(
+        f"{base}/citations/styles/install",
+        {"filename": "callosum-writer-note-position-test.csl", "csl": position_csl, "replace": True},
+    )["install"]
+    style_id = installed["style"]["id"]
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.setString("First N1. Ibid N2. New locator N3. Other N4. Near N5. User U6. User U7. Far N8.\n")
+    cc._set_pref(doc, style_id, "en-US")
+
+    def insertion_cursor(needle):
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = needle
+        found = doc.findFirst(descriptor)
+        check(found is not None, f"missing note-position fixture marker {needle}")
+        cursor = text.createTextCursorByRange(found)
+        cursor.setString("")
+        cursor.collapseToStart()
+        return cursor
+
+    cc.insert_citation_items(
+        doc,
+        [{"paper_id": p1, "locator": "10", "label": "page"}],
+        base,
+        insertion_cursor("N1"),
+    )
+    cc.insert_citation_items(
+        doc,
+        [{"paper_id": p1, "locator": "10", "label": "page"}],
+        base,
+        insertion_cursor("N2"),
+    )
+    cc.insert_citation_items(
+        doc,
+        [{"paper_id": p1, "locator": "11", "label": "page"}],
+        base,
+        insertion_cursor("N3"),
+    )
+    cc.insert_citation(doc, p2, base, cursor=insertion_cursor("N4"))
+    cc.insert_citation(doc, p1, base, cursor=insertion_cursor("N5"))
+    for marker, body in (("U6", "ordinary user note one"), ("U7", "ordinary user note two")):
+        note = doc.createInstance("com.sun.star.text.Footnote")
+        text.insertTextContent(insertion_cursor(marker), note, False)
+        note.setString(body)
+    cc.insert_citation(doc, p1, base, cursor=insertion_cursor("N8"))
+
+    fields = cc.scan_citations_in_order(doc)
+    check([field["noteIndex"] for field in fields] == [1, 2, 3, 4, 5, 8], "ordinary notes did not create index gaps")
+    rendered = [field["_mark"].getAnchor().getString() for field in fields]
+    check(rendered[0].startswith("FIRST:"), f"first note position was {rendered[0]!r}")
+    check(rendered[1] == "IBID", f"same-locator ibid position was {rendered[1]!r}")
+    check(rendered[2] == "IBID-WITH-LOCATOR:11", f"changed-locator ibid position was {rendered[2]!r}")
+    check(rendered[3].startswith("FIRST:"), f"intervening source first position was {rendered[3]!r}")
+    check(rendered[4] == "NEAR", f"near-note position was {rendered[4]!r}")
+    check(rendered[5] == "SUBSEQUENT", f"far subsequent-note position was {rendered[5]!r}")
+    check(
+        [doc.getFootnotes().getByIndex(index).getString() for index in (5, 6)]
+        == ["ordinary user note one", "ordinary user note two"],
+        "position-aware refresh changed ordinary Writer footnotes",
+    )
+    log("spike (P1 #10): OK — exact ibid/locator/near/far branches and native note-index gaps")
+
+
 def spike_note_placement_conversion(ctx, base, p1, p2):
     """P1 #10 conversion: native relocation, custom property Undo/Redo, rollback, refusal, and copy isolation."""
     import tempfile
@@ -2095,6 +2193,9 @@ def main():
 
         # P1 item #10: note styles create and manage real Writer footnotes with real citeproc note indexes.
         spike_note_style_footnotes(ctx, base, p1, p2)
+
+        # P1 item #10: exact imported-style position branches, including gaps from ordinary Writer notes.
+        spike_note_style_positions(ctx, base, p1, p2)
 
         # P1 item #10: explicit, rollback-safe placement conversion and separate-copy isolation.
         spike_note_placement_conversion(ctx, base, p1, p2)

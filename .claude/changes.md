@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 371 — exact note-position context -->
+## 2026-07-24 — Increment 371: Exact ibid and near-note context (P1 item #10)
+
+- **Files:** shared citation renderer, citation tests, LibreOffice real-UNO fixture/README, served help, QA,
+  security, backlog/CLAUDE/increment notes.
+- **What changed:** the shared document renderer now rejects mixed inline/note and descending note-index
+  sequences before citeproc while preserving equal positive indexes for multiple clusters in one note. A
+  schema-valid imported note style proves exact first, ibid, locator-aware ibid, near-note, and far-subsequent
+  branches.
+- **Writer proof:** the installed OXT produced those exact branches from native note indexes `1,2,3,4,5,8`.
+  Two ordinary user-authored footnotes created the gap that changed a near note into a far subsequent note, and
+  refresh left both ordinary notes untouched.
+- **Verification:** citation engine **56 passed**; LibreOffice adapter/OXT **110 passed**; real Writer
+  **SELFTEST OK**. Full project suite **1555 passed, 1 skipped**.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 370 — revision-safe CSL source editing -->
 ## 2026-07-24 — Increment 370: Revision-safe CSL source editing (P1 item #9 complete)
 

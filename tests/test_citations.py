@@ -56,6 +56,48 @@ CUSTOM_CSL = """<?xml version="1.0" encoding="utf-8"?>
 </style>
 """
 
+NOTE_POSITION_CSL = """<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="note" version="1.0">
+  <info>
+    <title>Callosum Note Position Test</title>
+    <id>https://example.test/styles/callosum-note-position-test</id>
+    <link href="https://example.test/styles/callosum-note-position-test" rel="self"/>
+    <updated>2026-07-24T00:00:00+00:00</updated>
+    <category citation-format="note"/>
+  </info>
+  <citation near-note-distance="2">
+    <layout delimiter="; ">
+      <choose>
+        <if position="ibid-with-locator">
+          <text value="IBID-WITH-LOCATOR"/>
+          <text variable="locator" prefix=":"/>
+        </if>
+        <else-if position="ibid">
+          <text value="IBID"/>
+        </else-if>
+        <else-if position="subsequent">
+          <choose>
+            <if position="near-note">
+              <text value="NEAR"/>
+            </if>
+            <else>
+              <text value="SUBSEQUENT"/>
+            </else>
+          </choose>
+        </else-if>
+        <else>
+          <text value="FIRST"/>
+          <text variable="title" prefix=":"/>
+        </else>
+      </choose>
+    </layout>
+  </citation>
+  <bibliography>
+    <layout><text variable="title"/></layout>
+  </bibliography>
+</style>
+"""
+
 
 def _dependent_csl(parent: str) -> str:
     return f"""<?xml version="1.0" encoding="utf-8"?>
@@ -802,6 +844,47 @@ def test_render_document_note_indexes_reach_citeproc(temp_db_url: str) -> None:
     assert by_id["subsequent"] != by_id["first"]
 
 
+def test_imported_note_style_renders_exact_ibid_near_and_subsequent_positions(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    installed = client.post(
+        "/citations/styles/install",
+        json={"filename": "callosum-note-position-test.csl", "csl": NOTE_POSITION_CSL},
+    )
+    assert installed.status_code == 200, installed.text
+    style_id = installed.json()["install"]["style"]["id"]
+
+    def note(cid: str, item_key: str, note_index: int, locator: str | None = None) -> dict:
+        item = {**_DOC_ITEMS[item_key]}
+        if locator is not None:
+            item.update({"locator": locator, "label": "page"})
+        return {"citationID": cid, "items": [item], "noteIndex": note_index}
+
+    rendered = client.post(
+        "/citations/render-document",
+        json={
+            "style": style_id,
+            "citations": [
+                note("first", "a", 1, "10"),
+                note("ibid", "a", 2, "10"),
+                note("ibid-locator", "a", 3, "11"),
+                note("intervening", "b", 4),
+                note("near", "a", 5),
+                note("far", "a", 8),
+            ],
+        },
+    )
+    assert rendered.status_code == 200, rendered.text
+    by_id = {citation["citationID"]: citation["text"] for citation in rendered.json()["citations"]}
+    assert by_id == {
+        "first": "FIRST:Attention",
+        "ibid": "IBID",
+        "ibid-locator": "IBID-WITH-LOCATOR:11",
+        "intervening": "FIRST:BERT",
+        "near": "NEAR",
+        "far": "SUBSEQUENT",
+    }
+
+
 @pytest.mark.parametrize("note_index", [-1, 5001, 1.5, True])
 def test_render_document_rejects_invalid_note_index(temp_db_url: str, note_index: object) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
@@ -810,6 +893,47 @@ def test_render_document_rejects_invalid_note_index(temp_db_url: str, note_index
         json={"style": "chicago-notes-bibliography", "citations": [{**_cluster("A", "a"), "noteIndex": note_index}]},
     )
     assert r.status_code == 422
+
+
+@pytest.mark.parametrize(
+    "note_indexes",
+    [
+        [0, 1],
+        [1, 0],
+        [2, 1],
+    ],
+)
+def test_render_document_rejects_mixed_or_descending_note_indexes(temp_db_url: str, note_indexes: list[int]) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    citations = [
+        {**_cluster(f"c{position}", "a"), "noteIndex": note_index} for position, note_index in enumerate(note_indexes)
+    ]
+    response = client.post(
+        "/citations/render-document",
+        json={"style": "chicago-notes-bibliography", "citations": citations},
+    )
+    assert response.status_code == 422
+
+
+def test_render_document_allows_multiple_clusters_in_one_note(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    response = client.post(
+        "/citations/render-document",
+        json={
+            "style": "chicago-notes-bibliography",
+            "citations": [
+                {**_cluster("first", "a"), "noteIndex": 1},
+                {**_cluster("same-note", "b"), "noteIndex": 1},
+                {**_cluster("next-note", "a"), "noteIndex": 2},
+            ],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert [citation["citationID"] for citation in response.json()["citations"]] == [
+        "first",
+        "same-note",
+        "next-note",
+    ]
 
 
 # ── per-occurrence cite properties (P0 phase 3, backlog #33/#34): locator/prefix/suffix/suppress-author/

@@ -287,9 +287,14 @@ the Principles + A-A gates before build.)*
   apply one verified Writer Undo step or save a separate converted `.odt` copy with the open document restored
   exactly. Mixed placement, tracked changes, malformed fields, duplicate IDs, damaged bibliography bounds,
   multiple clusters per note, and notes containing user prose fail closed. Writer Undo/Redo, injected rollback,
-  and copy isolation are proven against the installed OXT. **Still open under #10 after inc 364:** safe semantics
-  for multiple independent live clusters mixed with prose inside one note, tracked-change conversion, and broader
-  ibid/near-note style/context coverage.
+  and copy isolation are proven against the installed OXT.
+  **Inc 371 completed the broader note-position coverage (2026-07-24):** a schema-valid imported diagnostic note
+  style proves exact first, ibid, ibid-with-locator, near-note, and far-subsequent citeproc branches through the
+  public API and installed OXT. Real Writer proved native indexes `1,2,3,4,5,8`, where two ordinary user-authored
+  footnotes create the gap that changes near-note to far-subsequent without being altered. The shared render
+  contract now rejects mixed zero/positive and descending note-index sequences while preserving equal indexes
+  for multiple clusters in one note. **Still open under #10 after inc 371:** safe semantics for multiple
+  independent live clusters mixed with prose inside one note, and tracked-change conversion.
   **P1 item #9 started (inc 365, 2026-07-24):** a shared citation-style manager now parses descriptive metadata
   from the bundled CSL XML, supports bounded search by style/journal/discipline/acronym/name, and owns local
   application-default, locale, favorites, and bounded-recents preferences. Settings exposes a full-width

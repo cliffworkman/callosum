@@ -229,6 +229,11 @@ def render_document(
                 "noteIndex": raw_note_index,
             }
         )
+    note_indexes = [cluster["noteIndex"] for cluster in clusters]
+    if any(note_indexes) and any(note_index == 0 for note_index in note_indexes):
+        raise ValueError("citation noteIndex values must be either all zero or all positive")
+    if any(current < previous for previous, current in zip(note_indexes, note_indexes[1:], strict=False)):
+        raise ValueError("positive citation noteIndex values must follow document order")
     if total_items > MAX_ITEMS:
         raise ValueError(f"too many items to render at once (max {MAX_ITEMS})")
 

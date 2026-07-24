@@ -49,7 +49,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    CSL metadata, locales, favorite/recent state, and a valid application default. Search by full name, acronym,
    journal/discipline term, and no-match; query length above 120 → 422.
 2. Switch styles and render (`POST /citations/render`). Confirm preview updates, copy succeeds, and missing CSL fields degrade cleanly.
-3. Render a bibliography/document export (`POST /citations/render-document`) using multiple selected papers. Confirm ordering, escaping, and selected style are honored. With `chicago-notes-bibliography`, send ordered clusters with `noteIndex` 1, 2, and 3 (repeat the first source at 3); confirm the repeated note uses citeproc's subsequent-note form rather than repeating the first-note form.
+3. Render a bibliography/document export (`POST /citations/render-document`) using multiple selected papers.
+   Confirm ordering, escaping, and selected style are honored. With `chicago-notes-bibliography`, send ordered
+   clusters with `noteIndex` 1, 2, and 3 (repeat the first source at 3); confirm the repeated note uses citeproc's
+   subsequent-note form rather than repeating the first-note form. Install a schema-valid diagnostic note style
+   with `near-note-distance="2"` and assert exact first, ibid, ibid-with-locator, near-note, and far-subsequent
+   outputs for indexes `1,2,3,4,5,8`. Mixed zero/positive and descending indexes → 422; equal positive indexes
+   remain valid for multiple clusters in one note.
 4. Preview APA, IEEE, and Chicago notes (`POST /citations/styles/preview`) with en-US/en-GB. Confirm the response
    contains formatted citation/note/bibliography examples for the fixed fictional records, including first and
    subsequent note positions where applicable. Unknown style/locale → 422; unavailable engine → 503; rendering

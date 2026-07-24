@@ -82,10 +82,11 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
    appear in Writer's search and preview. A new Writer document inherits that application default on its first
    citation; an existing document keeps its own embedded style and locale. Applying a choice re-renders the whole
    document and records the style in Recents. With Chicago notes and bibliography, each new citation is inserted
-   into a real Writer footnote and citeproc receives the one-based note sequence, so first and subsequent notes
-   render correctly. Use **Note placement…** to choose **Footnotes** (the default) or **Endnotes** for new
-   note-style citations; the choice is saved in the document. Callosum refuses an incompatible style or placement
-   switch before changing the document or its saved preference.
+   into a real Writer footnote and citeproc receives the native one-based note sequence, so first, ibid,
+   locator-aware ibid, near-note, and later subsequent-note forms follow the selected style. Ordinary Writer
+   notes count in that sequence without being changed. Use **Note placement…** to choose **Footnotes** (the
+   default) or **Endnotes** for new note-style citations; the choice is saved in the document. Callosum refuses
+   an incompatible style or placement switch before changing the document or its saved preference.
 6. **Convert citation placement…** — explicitly convert all eligible live citations between inline text,
    footnotes, and endnotes while choosing the target style. The preview names the source, target, and citation
    count. Apply it to this document as one Writer Undo step, or save a separate converted `.odt` copy while the
@@ -159,7 +160,8 @@ It still defaults to the document end on first use; move it anywhere with **Inse
 Each citation is a Writer **ReferenceMark** whose name carries the cited work's CSL-JSON payload (base64-encoded);
 the visible marked text is the rendered citation. For note styles, that ReferenceMark lives inside a real Writer
 **Footnote** or **Endnote** text object; the adapter derives its one-based `noteIndex` from Writer's corresponding
-ordered note collection.
+ordered note collection. This includes ordinary user-authored notes, so citeproc's near-note distance follows
+the numbers visible in the manuscript rather than a citation-only counter.
 On refresh the adapter scans every mark in document/note order, POSTs the ordered set to callosum's
 `POST /citations/render-document`, and writes the position-aware result back. All formatting happens in
 callosum's bundled citeproc engine, so the output is identical to the in-app "Cite as…" and to the future
