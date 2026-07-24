@@ -9,6 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 375 — Writer citation-to-bibliography links -->
+## 2026-07-24 — Increment 375: Writer citation-to-bibliography links (P1 item #11)
+
+- **Files:** citation render metadata, Writer entry bookmarks/link preference/transaction/conversion, menu/OXT,
+  pure and installed-Writer tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Toggle citation-to-bibliography links** persists an opt-in Writer-document setting and links
+  each unambiguous single-work citation to its own stable managed bibliography entry. Grouped and excluded
+  citations stay plain rather than choosing an arbitrary destination.
+- **Integrity:** the render API change is additive; target names accept only adapter-owned numeric paper ids;
+  bibliography targets remain inside the bounded managed block; disabling removes only Callosum internal links
+  and preserves external/manual hyperlinks. Text and URL mutations share the existing verified transaction.
+- **Writer proof:** installed OXT **0.20.0** toggled links on/off, preserved two distinct single-work targets,
+  kept a grouped citation unlinked, and round-tripped preference/targets/links through `.odt` save/reopen.
+- **Experience:** a deadline-writer walkthrough found the navigation useful. Help and confirmation copy now
+  explain follow-link behavior and external-link preservation; checked state and grouped-source choice remain
+  explicit follow-ups.
+- **Verification:** **197 focused tests**; installed Writer focused spike and full matrix **SELFTEST OK**; full
+  suite **1568 passed, 1 skipped**; Ruff/format, line budget, QA surface map, OXT packaging, and security clean.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 374 — per-document Writer bibliography heading -->
 ## 2026-07-24 — Increment 374: Per-document Writer bibliography heading (P1 item #11)
 

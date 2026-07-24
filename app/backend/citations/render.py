@@ -266,12 +266,16 @@ def render_document(
             {"citationID": str(c.get("citationID", "")), "text": _to_text(html), "html": _safe_html(html)}
         )
     bib = data.get("bibliography", []) or []
+    bib_entry_ids = data.get("bibliography_entry_ids", []) or []
+    if len(bib_entry_ids) != len(bib) or not all(isinstance(ids, list) for ids in bib_entry_ids):
+        bib_entry_ids = [[] for _entry in bib]
     return {
         "style": style,
         "locale": locale,
         "citations": out_citations,
         "bibliography_text": "\n".join(_to_text(e) for e in bib),
         "bibliography_html": [_safe_html(e) for e in bib],
+        "bibliography_entry_ids": [[str(item_id) for item_id in ids] for ids in bib_entry_ids],
     }
 
 

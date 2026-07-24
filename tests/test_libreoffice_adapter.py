@@ -259,7 +259,7 @@ def test_render_input_signature_tracks_identity_order_and_visible_text() -> None
     assert cc.render_input_signature(list(reversed(fields))) != cc.render_input_signature(fields)
 
 
-def test_incremental_citation_plan_skips_current_and_untargeted_fields() -> None:
+def test_incremental_citation_plan_skips_current_and_untargeted_fields(monkeypatch) -> None:
     current = SimpleNamespace(Name="mark-a", getAnchor=lambda: _FakeAnchor("(A, 2020)"))
     changed = SimpleNamespace(Name="mark-b", getAnchor=lambda: _FakeAnchor("STALE"))
     fields = [
@@ -268,9 +268,16 @@ def test_incremental_citation_plan_skips_current_and_untargeted_fields() -> None
     ]
     rendered = {"c1": "(A, 2020)", "c2": "(B, 2021)"}
 
-    assert cc.incremental_citation_plan(fields, rendered) == [("mark-b", "(B, 2021)")]
+    assert cc.incremental_citation_plan(fields, rendered) == [("mark-b", "(B, 2021)", "")]
     assert cc.incremental_citation_plan(fields, rendered, {"mark-a"}) == []
-    assert cc.incremental_citation_plan(fields, rendered, {"mark-b"}) == [("mark-b", "(B, 2021)")]
+    assert cc.incremental_citation_plan(fields, rendered, {"mark-b"}) == [("mark-b", "(B, 2021)", "")]
+
+    monkeypatch.setattr(cc, "_mark_hyperlink_url", lambda mark: "#old" if mark.Name == "mark-a" else "")
+    desired = {"mark-a": "#new", "mark-b": ""}
+    assert cc.incremental_citation_plan(fields, rendered, desired_links=desired) == [
+        ("mark-a", "(A, 2020)", "#new"),
+        ("mark-b", "(B, 2021)", ""),
+    ]
 
 
 def test_bibliography_render_comparison_requires_intact_exact_managed_text(monkeypatch) -> None:
@@ -287,6 +294,39 @@ def test_bibliography_render_comparison_requires_intact_exact_managed_text(monke
     assert not cc.bibliography_render_is_current(object(), entries)
     monkeypatch.setattr(cc, "_managed_bibliography_signature", lambda doc: (True, True, expected + "manual edit"))
     assert not cc.bibliography_render_is_current(object(), entries)
+
+
+def test_bibliography_targets_and_citation_links_are_stable_and_unambiguous() -> None:
+    assert cc.bibliography_entry_bookmark("callosum-42") == "CALLOSUM_BIB_ENTRY_42"
+    assert cc.bibliography_entry_bookmark("external-42") is None
+    assert cc.bibliography_entry_bookmark("callosum-not-a-number") is None
+
+    def mark(name, hyperlink=""):
+        return SimpleNamespace(Name=name, hyperlink=hyperlink)
+
+    single = mark("single")
+    grouped = mark("grouped", "#CALLOSUM_BIB_ENTRY_9")
+    excluded = mark("excluded", "https://example.test/manual")
+    fields = [
+        {"_mark": single, "items": [{"id": "callosum-1"}]},
+        {"_mark": grouped, "items": [{"id": "callosum-1"}, {"id": "callosum-2"}]},
+        {"_mark": excluded, "items": [{"id": "callosum-3"}]},
+    ]
+    original = cc._mark_hyperlink_url
+    cc._mark_hyperlink_url = lambda current: current.hyperlink
+    try:
+        assert cc.desired_citation_links(fields, {"callosum-1", "callosum-2"}, True) == {
+            "single": "#CALLOSUM_BIB_ENTRY_1",
+            "grouped": "",
+            "excluded": "https://example.test/manual",
+        }
+        assert cc.desired_citation_links(fields, {"callosum-1"}, False) == {
+            "single": "",
+            "grouped": "",
+            "excluded": "https://example.test/manual",
+        }
+    finally:
+        cc._mark_hyperlink_url = original
 
 
 def test_bibliography_heading_validation_is_bounded_single_line() -> None:
@@ -323,6 +363,26 @@ def test_set_bibliography_heading_refreshes_explicitly_and_rolls_back_on_failure
     with pytest.raises(RuntimeError, match="boom"):
         cc.set_bibliography_heading(doc, "Sources", "http://x")
     assert state["value"] == "Works Cited"
+
+
+def test_set_bibliography_links_refreshes_explicitly_and_rolls_back_on_failure(monkeypatch) -> None:
+    state = {"value": None}
+    calls = []
+    monkeypatch.setattr(cc, "_effective_user_prop", lambda _doc, _name: state["value"])
+    monkeypatch.setattr(cc, "_set_user_prop_value", lambda _doc, _name, value: state.update(value=value))
+    monkeypatch.setattr(cc, "refresh", lambda doc, base, **kwargs: calls.append((doc, base, kwargs)))
+    doc = object()
+
+    assert cc.set_bibliography_links(doc, True, "http://x")
+    assert state["value"] == "1"
+    assert calls == [
+        (doc, "http://x", {"update_citations": True, "update_bibliography": True}),
+    ]
+
+    monkeypatch.setattr(cc, "refresh", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
+    with pytest.raises(RuntimeError, match="boom"):
+        cc.set_bibliography_links(doc, False, "http://x")
+    assert state["value"] == "1"
 
 
 def test_empty_incremental_delta_creates_no_undo_context() -> None:

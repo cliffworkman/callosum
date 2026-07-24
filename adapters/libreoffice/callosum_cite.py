@@ -42,6 +42,7 @@ BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the START of the mana
 # never touches text.getEnd(), replacing the old "bookmark to document end" design that could silently destroy
 # any user text placed after the bibliography.
 BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
+BIB_ENTRY_PREFIX = "CALLOSUM_BIB_ENTRY_"  # stable internal-link targets, one per rendered bibliography item
 PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
 PREF_CITE_AUTO = "CallosumCiteAuto"  # document user-property: "0" pauses automatic citation formatting (P1 #13)
 PREF_CITE_DIRTY = "CallosumCiteDirty"  # "1" means visible citation text needs an explicit refresh (P1 #13)
@@ -99,6 +100,7 @@ CONVERSION_STATE_PREFIX = "CALLOSUM_CONVERSION_STATE"
 PREF_BIB_EXCLUDE = "CallosumBibExclude"  # cited works omitted from the bibliography (e.g. personal comms)
 PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works included in the bibliography
 PREF_BIB_HEADING = "CallosumBibHeading"  # custom per-document heading; absent/blank means "References"
+PREF_BIB_LINKS = "CallosumBibLinks"  # "1" hyperlinks unambiguous one-work citations to their bibliography entry
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_NOTE_PLACEMENT = "footnote"
@@ -1259,14 +1261,25 @@ def incremental_citation_plan(
     fields: list[dict],
     rendered: dict[str, str],
     citation_names: set[str] | None = None,
-) -> list[tuple[str, str]]:
-    """Plan writes only for targeted fields whose current visible text differs from citeproc's full render."""
+    desired_links: dict[str, str] | None = None,
+) -> list[tuple[str, str, str]]:
+    """Plan targeted writes whose rendered text or managed bibliography link differs from the desired state."""
     return [
-        (field["_mark"].Name, rendered[field["citationID"]])
+        (
+            field["_mark"].Name,
+            rendered[field["citationID"]],
+            (desired_links or {}).get(field["_mark"].Name, ""),
+        )
         for field in fields
         if rendered.get(field["citationID"])
         and (citation_names is None or field["_mark"].Name in citation_names)
-        and field["_mark"].getAnchor().getString() != rendered[field["citationID"]]
+        and (
+            field["_mark"].getAnchor().getString() != rendered[field["citationID"]]
+            or (
+                desired_links is not None
+                and _mark_hyperlink_url(field["_mark"]) != desired_links.get(field["_mark"].Name, "")
+            )
+        )
     ]
 
 
@@ -1297,6 +1310,58 @@ def bibliography_render_is_current(doc, entries: list[str]) -> bool:
     """Whether an intact managed bibliography already contains the requested rendered plain text."""
     has_start, has_end, current = _managed_bibliography_signature(doc)
     return has_start and has_end and current == rendered_bibliography_text(entries, bibliography_heading(doc))
+
+
+def bibliography_entry_bookmark(item_id: str) -> str | None:
+    """Map an adapter-owned CSL id to a stable, Writer-safe bibliography target name."""
+    value = str(item_id)
+    prefix = "callosum-"
+    suffix = value[len(prefix) :] if value.startswith(prefix) else ""
+    return f"{BIB_ENTRY_PREFIX}{suffix}" if suffix.isdigit() else None
+
+
+def _bibliography_target_names(entry_ids: list[list[str]]) -> set[str]:
+    return {name for ids in entry_ids for item_id in ids if (name := bibliography_entry_bookmark(item_id)) is not None}
+
+
+def _existing_bibliography_target_names(doc) -> set[str]:
+    return {name for name in doc.getBookmarks().getElementNames() if name.startswith(BIB_ENTRY_PREFIX)}
+
+
+def bibliography_targets_are_current(doc, entry_ids: list[list[str]]) -> bool:
+    """Whether Writer contains exactly the stable internal-link targets represented by this citeproc render."""
+    return _existing_bibliography_target_names(doc) == _bibliography_target_names(entry_ids)
+
+
+def bibliography_links_enabled(doc) -> bool:
+    """Internal citation-to-bibliography links are opt-in and persist with the Writer document."""
+    return _effective_user_prop(doc, PREF_BIB_LINKS) == "1"
+
+
+def _mark_hyperlink_url(mark) -> str:
+    """Read the uniform hyperlink URL over one ReferenceMark anchor; mixed/unreadable formatting is unmanaged."""
+    try:
+        anchor = mark.getAnchor()
+        cursor = anchor.getText().createTextCursorByRange(anchor)
+        return str(cursor.getPropertyValue("HyperLinkURL") or "")
+    except Exception:
+        return ""
+
+
+def desired_citation_links(fields: list[dict], available_ids: set[str], enabled: bool) -> dict[str, str]:
+    """Manage only Callosum internal links; grouped/excluded citations stay plain and external links survive."""
+    links = {}
+    for field in fields:
+        current_url = _mark_hyperlink_url(field["_mark"])
+        url = "" if current_url.startswith(f"#{BIB_ENTRY_PREFIX}") else current_url
+        items = field.get("items") or []
+        if enabled and len(items) == 1:
+            item_id = str(items[0].get("id", ""))
+            target = bibliography_entry_bookmark(item_id)
+            if target is not None and item_id in available_ids:
+                url = f"#{target}"
+        links[field["_mark"].Name] = url
+    return links
 
 
 def mark_at_cursor(doc) -> dict | None:
@@ -1530,17 +1595,30 @@ def refresh(
                 "Run Refresh again."
             )
         rendered = {c["citationID"]: c.get("text", "") for c in response.get("citations", [])}
-        # Capture immutable names only for fields whose visible render changed. Recreating one mark invalidates
-        # other held mark references, so `_transactional_apply` re-fetches each planned name fresh.
-        plan = incremental_citation_plan(fields, rendered, citation_names) if update_citations else []
         bibliography_entries = response.get("bibliography_text", "").splitlines()
+        bibliography_entry_ids = response.get("bibliography_entry_ids", [])
+        if len(bibliography_entry_ids) != len(bibliography_entries):
+            bibliography_entry_ids = [[] for _entry in bibliography_entries]
         apply_bibliography = write_bibliography and (
-            bib_cursor is not None or not bibliography_render_is_current(doc, bibliography_entries)
+            bib_cursor is not None
+            or not bibliography_render_is_current(doc, bibliography_entries)
+            or not bibliography_targets_are_current(doc, bibliography_entry_ids)
         )
+        available_ids = {
+            str(item_id)
+            for ids in bibliography_entry_ids
+            for item_id in ids
+            if apply_bibliography or doc.getBookmarks().hasByName(bibliography_entry_bookmark(item_id) or "\0")
+        }
+        links = desired_citation_links(fields, available_ids, bibliography_links_enabled(doc))
+        # Capture immutable names only for fields whose visible render or managed link changed. Recreating one
+        # mark invalidates other held mark references, so `_transactional_apply` re-fetches every name fresh.
+        plan = incremental_citation_plan(fields, rendered, citation_names, links) if update_citations else []
         _transactional_apply(
             doc,
             plan,
             bibliography_entries,
+            bib_entry_ids=bibliography_entry_ids,
             bib_cursor=bib_cursor,
             write_bibliography=apply_bibliography,
             progress=progress,
@@ -1611,6 +1689,18 @@ def set_bibliography_heading(doc, heading: str | None, base: str = DEFAULT_BASE)
     return normalized
 
 
+def set_bibliography_links(doc, enabled: bool, base: str = DEFAULT_BASE) -> bool:
+    """Persist and immediately apply citation-to-bibliography links, restoring the preference on failure."""
+    previous = _effective_user_prop(doc, PREF_BIB_LINKS)
+    _set_user_prop_value(doc, PREF_BIB_LINKS, "1" if enabled else None)
+    try:
+        refresh(doc, base, update_citations=True, update_bibliography=True)
+    except Exception:
+        _set_user_prop_value(doc, PREF_BIB_LINKS, previous)
+        raise
+    return enabled
+
+
 def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:
     """Refresh exactly the surfaces named by the persisted dirty flags, regardless of automatic-mode settings."""
     citations_pending, bibliography_pending = dirty_state(doc)
@@ -1665,12 +1755,23 @@ def _snapshot_marks(doc, names: list[str]) -> dict[str, str]:
     return {name: marks.getByName(name).getAnchor().getString() for name in names if marks.hasByName(name)}
 
 
+def _snapshot_mark_states(doc, names: list[str]) -> dict[str, tuple[str, str]]:
+    """Rollback oracle for both visible citation text and the managed internal hyperlink."""
+    marks = doc.getReferenceMarks()
+    return {
+        name: (marks.getByName(name).getAnchor().getString(), _mark_hyperlink_url(marks.getByName(name)))
+        for name in names
+        if marks.hasByName(name)
+    }
+
+
 def _transactional_apply(
     doc,
-    plan: list[tuple[str, str]],
+    plan: list[tuple[str, str, str]],
     bib_entries: list[str],
     bib_cursor=None,
     *,
+    bib_entry_ids: list[list[str]] | None = None,
     write_bibliography: bool | None = None,
     progress: _RefreshProgress | None = None,
     progress_offset: int = 0,
@@ -1700,16 +1801,26 @@ def _transactional_apply(
         should_write_bibliography = write_bibliography
     if not plan and not should_write_bibliography:
         return
-    names = [name for name, _ in plan]
-    before = _snapshot_marks(doc, names)
+    names = [name for name, _text, _url in plan]
+    before = _snapshot_mark_states(doc, names)
     undo = doc.getUndoManager()
     if progress is not None:
         progress.update(progress_offset, "Callosum: applying citation formatting")
     undo.enterUndoContext("Callosum refresh")
     try:
-        for index, (name, text_out) in enumerate(plan, 1):
-            mark = doc.getReferenceMarks().getByName(name)  # fresh handle each time (never a stale ref)
-            _replace_mark_text(doc, mark, text_out)
+        for index, (name, text_out, hyperlink_url) in enumerate(plan, 1):
+            marks = doc.getReferenceMarks()
+            if not marks.hasByName(name):
+                remaining = [candidate for candidate in names[index - 1 :] if marks.hasByName(candidate)]
+                raise RuntimeError(
+                    f"Citation mark disappeared before update {index} of {len(plan)}; "
+                    f"{len(remaining)} planned mark(s) remain available."
+                )
+            mark = marks.getByName(name)  # fresh handle each time (never a stale ref)
+            if mark.getAnchor().getString() != text_out:
+                _replace_mark_text(doc, mark, text_out)
+                mark = doc.getReferenceMarks().getByName(name)
+            _set_mark_hyperlink(mark, hyperlink_url)
             if progress is not None:
                 progress.update(
                     progress_offset + index,
@@ -1718,13 +1829,13 @@ def _transactional_apply(
         if should_write_bibliography:
             if progress is not None:
                 progress.update(progress_offset + len(plan), "Callosum: updating the bibliography")
-            _write_bibliography(doc, bib_entries, cursor=bib_cursor)
+            _write_bibliography(doc, bib_entries, entry_ids=bib_entry_ids, cursor=bib_cursor)
             if progress is not None:
                 progress.update(progress_offset + len(plan) + 1, "Callosum: refresh complete")
     except Exception as exc:
         undo.leaveUndoContext()
         undo.undo()
-        after = _snapshot_marks(doc, names)
+        after = _snapshot_mark_states(doc, names)
         if after != before:
             raise RuntimeError(
                 "callosum refresh failed partway through, and the automatic rollback did not fully restore the "
@@ -1753,7 +1864,14 @@ def _replace_mark_text(doc, mark, new_text: str) -> None:
     text.insertTextContent(cursor, fresh, True)  # absorb=True → re-wrap the new text
 
 
-def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
+def _set_mark_hyperlink(mark, hyperlink_url: str) -> None:
+    """Apply or remove Callosum's internal link over the whole live citation anchor."""
+    anchor = mark.getAnchor()
+    cursor = anchor.getText().createTextCursorByRange(anchor)
+    cursor.setPropertyValue("HyperLinkURL", hyperlink_url)
+
+
+def _write_bibliography(doc, entries: list[str], entry_ids: list[list[str]] | None = None, cursor=None) -> None:
     """(Re)build the BOUNDED managed bibliography block — a `BIB_BOOKMARK` (start) / `BIB_BOOKMARK_END` (end)
     bookmark PAIR delimits the exact managed range (P0 phase 7, backlog #33/#34). Clearing + rebuilding NEVER
     touches `text.getEnd()` — the verified data-loss fix for the old "bookmark to document end" design: any
@@ -1771,6 +1889,10 @@ def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
     """
     text = doc.getText()
     bookmarks = doc.getBookmarks()
+    for target_name in _existing_bibliography_target_names(doc):
+        current = doc.getBookmarks()
+        if current.hasByName(target_name):
+            text.removeTextContent(current.getByName(target_name))
     has_start = bookmarks.hasByName(BIB_BOOKMARK)
     has_end = bookmarks.hasByName(BIB_BOOKMARK_END)
     if cursor is not None:
@@ -1813,15 +1935,19 @@ def _write_bibliography(doc, entries: list[str], cursor=None) -> None:
     text.insertTextContent(cursor, start_mark, False)  # zero-width; cursor stays put
     if entries:
         text.insertString(cursor, bibliography_heading(doc) + "\n", False)
-        text.insertString(cursor, "\n".join(entries) + "\n", False)
+        aligned_ids = entry_ids if entry_ids is not None and len(entry_ids) == len(entries) else [[] for _ in entries]
+        for entry, ids in zip(entries, aligned_ids, strict=True):
+            for item_id in ids:
+                target_name = bibliography_entry_bookmark(item_id)
+                if target_name is None:
+                    continue
+                target = doc.createInstance("com.sun.star.text.Bookmark")
+                target.Name = target_name
+                text.insertTextContent(cursor, target, False)
+            text.insertString(cursor, entry + "\n", False)
     end_mark = doc.createInstance("com.sun.star.text.Bookmark")
     end_mark.Name = BIB_BOOKMARK_END
     text.insertTextContent(cursor, end_mark, False)  # placed AFTER the content — no bookmark-gravity ambiguity
-
-
-def _write_bibliography_for_conversion(doc, entries: list[str]) -> None:
-    """Use the proven bounded rebuild; the conversion Undo listener restores its exact before/after snapshot."""
-    _write_bibliography(doc, entries)
 
 
 def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> None:
@@ -2225,6 +2351,7 @@ def _conversion_snapshot(doc) -> tuple:
                 field["placement"],
                 field["noteIndex"],
                 field["_mark"].getAnchor().getString(),
+                _mark_hyperlink_url(field["_mark"]),
             )
             for field in fields
         ),
@@ -2357,6 +2484,9 @@ def convert_citation_placement(
     if any(not rendered.get(field["citationID"]) for field in fields):
         raise RuntimeError("The target style did not render every citation; the document was not changed.")
     bibliography_entries = response.get("bibliography_text", "").splitlines()
+    bibliography_entry_ids = response.get("bibliography_entry_ids", [])
+    if len(bibliography_entry_ids) != len(bibliography_entries):
+        bibliography_entry_ids = [[] for _entry in bibliography_entries]
     write_bibliography = bib_auto_enabled(doc)
     before_snapshot = _conversion_snapshot(doc)
     before_state_key = _conversion_state_key(doc)
@@ -2379,9 +2509,12 @@ def convert_citation_placement(
 
     undo = doc.getUndoManager()
     tracking_was_enabled = _suspend_record_changes(doc)
+    transaction_scope = contextlib.ExitStack()
+    transaction_scope.enter_context(suspend_document_observation(doc))
     try:
         undo.enterUndoContext("Convert Callosum citation placement")
     except Exception:
+        transaction_scope.close()
         _restore_record_changes(doc, tracking_was_enabled)
         raise
     try:
@@ -2389,20 +2522,51 @@ def convert_citation_placement(
         for name, citation_id in reversed(relocation_plan):
             _relocate_mark(doc, name, rendered[citation_id], target_placement)
         if write_bibliography:
-            _write_bibliography_for_conversion(doc, bibliography_entries)
+            _write_bibliography(doc, bibliography_entries, bibliography_entry_ids)
+        available_ids = {
+            str(item_id)
+            for ids in bibliography_entry_ids
+            for item_id in ids
+            if write_bibliography or doc.getBookmarks().hasByName(bibliography_entry_bookmark(item_id) or "\0")
+        }
+        converted_fields = scan_citations_in_order(doc)
+        converted_links = desired_citation_links(
+            converted_fields,
+            available_ids,
+            bibliography_links_enabled(doc),
+        )
+        for field in converted_fields:
+            _set_mark_hyperlink(field["_mark"], converted_links[field["_mark"].Name])
 
-        converted = scan_citations_in_order(doc)
+        # A document observer loaded through LibreOffice's installed extension can run from a separate Python
+        # module instance, outside this module's in-memory suppression map. Reassert the committed current-state
+        # overlay after every structural edit so that callback cannot leave a successful conversion marked dirty.
+        _replace_conversion_state(doc, after_props)
+        converted = converted_fields
         expected_indexes = list(range(1, len(fields) + 1)) if target_placement in NOTE_PLACEMENTS else [0] * len(fields)
-        if (
-            [field["_mark"].Name for field in converted] != expected_names
-            or [field["placement"] for field in converted] != [target_placement] * len(fields)
-            or [field["noteIndex"] for field in converted] != expected_indexes
-            or any(field["_mark"].getAnchor().getString() != rendered[field["citationID"]] for field in converted)
-            or _conversion_user_props(doc) != after_props
-            or (write_bibliography and not bibliography_render_is_current(doc, bibliography_entries))
-            or _tracked_changes_signature(doc) != before_redlines
-        ):
-            raise RuntimeError("Post-conversion identity or structure verification failed.")
+        verification_failures = []
+        if [field["_mark"].Name for field in converted] != expected_names:
+            verification_failures.append("citation identities")
+        if [field["placement"] for field in converted] != [target_placement] * len(fields):
+            verification_failures.append("citation placements")
+        if [field["noteIndex"] for field in converted] != expected_indexes:
+            verification_failures.append("note order")
+        if any(field["_mark"].getAnchor().getString() != rendered[field["citationID"]] for field in converted):
+            verification_failures.append("rendered citation text")
+        actual_props = _conversion_user_props(doc)
+        if actual_props != after_props:
+            mismatched_props = ", ".join(
+                f"{name}={actual_props.get(name)!r} (expected {after_props.get(name)!r})"
+                for name in _CONVERSION_PREFS
+                if actual_props.get(name) != after_props.get(name)
+            )
+            verification_failures.append(f"document preferences ({mismatched_props})")
+        if write_bibliography and not bibliography_render_is_current(doc, bibliography_entries):
+            verification_failures.append("bibliography")
+        if _tracked_changes_signature(doc) != before_redlines:
+            verification_failures.append("tracked changes")
+        if verification_failures:
+            raise RuntimeError("Post-conversion verification failed: " + ", ".join(verification_failures) + ".")
         _restore_record_changes(doc, tracking_was_enabled)
     except Exception as exc:
         undo.leaveUndoContext()
@@ -2416,6 +2580,7 @@ def convert_citation_placement(
             ) from rollback_exc
         finally:
             _restore_record_changes(doc, tracking_was_enabled)
+            transaction_scope.close()
         rollback_snapshot = _conversion_snapshot(doc)
         if rollback_snapshot != before_snapshot:
             differences = _conversion_snapshot_differences(before_snapshot, rollback_snapshot)
@@ -2425,7 +2590,10 @@ def convert_citation_placement(
             ) from exc
         raise
     else:
-        undo.leaveUndoContext()
+        try:
+            undo.leaveUndoContext()
+        finally:
+            transaction_scope.close()
         _register_conversion_bibliographies(
             doc,
             before_state_key,
@@ -3261,6 +3429,19 @@ def set_bibliography_heading_interactive(doc, base: str) -> None:
     _msgbox(f'Bibliography heading is now "{heading}".')
 
 
+def toggle_bibliography_links_interactive(doc, base: str) -> None:
+    """Toggle internal navigation for citation clusters with exactly one bibliography entry."""
+    enabled = set_bibliography_links(doc, not bibliography_links_enabled(doc), base)
+    _msgbox(
+        f"Citation-to-bibliography links are now {'ON' if enabled else 'OFF'}."
+        + (
+            " Single-work citations now open their bibliography entry; grouped citations remain unlinked."
+            if enabled
+            else " Citation fields remain live; Callosum's internal links are removed and other hyperlinks are unchanged."
+        )
+    )
+
+
 def toggle_bib_auto_interactive(doc, base: str) -> None:
     """Flip whether the bibliography auto-rebuilds on refresh (P0 phase 7) — citations still update either way;
     this only pauses/resumes the bibliography block itself."""
@@ -3556,6 +3737,7 @@ _ACTIONS = {
     "openInCallosum": open_in_callosum,
     "insertBibliographyHere": insert_bibliography_here_interactive,
     "setBibliographyHeading": set_bibliography_heading_interactive,
+    "toggleBibliographyLinks": toggle_bibliography_links_interactive,
     "toggleCiteAuto": toggle_cite_auto_interactive,
     "toggleBibAuto": toggle_bib_auto_interactive,
     "diagnostics": document_diagnostics_interactive,
@@ -3678,6 +3860,10 @@ def CallosumSetBibliographyHeading(*_args):
     _macro("setBibliographyHeading")
 
 
+def CallosumToggleBibliographyLinks(*_args):
+    _macro("toggleBibliographyLinks")
+
+
 def CallosumToggleBibAuto(*_args):
     _macro("toggleBibAuto")
 
@@ -3724,6 +3910,7 @@ g_exportedScripts = (
     CallosumOpenInCallosum,
     CallosumInsertBibliographyHere,
     CallosumSetBibliographyHeading,
+    CallosumToggleBibliographyLinks,
     CallosumToggleCiteAuto,
     CallosumToggleBibAuto,
     CallosumPrepareSubmissionCopy,

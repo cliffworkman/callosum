@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 374** (see Increment workflow) with **1566 pytest tests
+It is currently at **Increment 375** (see Increment workflow) with **1568 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -65,7 +65,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   refuses without mutation; **inc 373** completes P1 note-style item #10 with tracked-change-aware placement
   conversion that preserves unrelated Writer redlines and refuses managed-range conflicts before mutation;
   **inc 374** adds a bounded per-document Writer bibliography heading with explicit paused-mode refresh,
-  save/reopen persistence, failure rollback, and blank reset to `References`.
+  save/reopen persistence, failure rollback, and blank reset to `References`; **inc 375** adds opt-in
+  document-local links from unambiguous single-work citations to stable managed bibliography-entry bookmarks,
+  preserving grouped citations and unrelated external links across refresh, placement conversion, and reopen.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
@@ -436,7 +438,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 374). Each increment of real work
+callosum is built in **numbered increments** (currently at 375). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

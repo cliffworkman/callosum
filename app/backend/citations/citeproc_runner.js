@@ -15,7 +15,8 @@
 //                 locator/label/prefix/suffix/"suppress-author"/"author-only">, ... ] }, ... ],   // doc order
 //               "uncited_items": [ <CSL-JSON item with `id`>, ... ],       // bibliography-only, no in-text cite
 //               "bibliography_exclude_ids": [ <id>, ... ] }               // cited, but omitted from the bibliography
-//    stdout : { "citations": [ { "citationID", "html" }, ... ], "bibliography": [ "<entry>", ... ] }
+//    stdout : { "citations": [ { "citationID", "html" }, ... ], "bibliography": [ "<entry>", ... ],
+//               "bibliography_entry_ids": [ [<id>, ...], ... ] }
 //
 //  On failure either mode writes { "error": "<message>" } to stdout and exits non-zero.
 
@@ -148,6 +149,7 @@ function main() {
     (rebuilt || []).forEach(function (r) { byId[r[0]] = r[2]; });  // [citationID, noteIndex, renderedString]
     const outCitations = clusters.map(function (c) { return { citationID: c.citationID, html: byId[c.citationID] || "" }; });
     let bibliography = [];
+    let bibliographyEntryIds = [];
     try {
       // P1 item #11: exclude specific CITED works from the bibliography (e.g. a personal communication) while
       // their in-text citation still renders — citeproc-js's own field-filter bibsection (confirmed in the
@@ -159,10 +161,20 @@ function main() {
         : undefined;
       const bib = engine.makeBibliography(bibsection);
       bibliography = bib && bib[1] ? bib[1].map(function (s) { return String(s).trim(); }) : [];
+      bibliographyEntryIds = bib && bib[0] && Array.isArray(bib[0].entry_ids)
+        ? bib[0].entry_ids.map(function (ids) {
+          return (Array.isArray(ids) ? ids : []).map(String);
+        })
+        : [];
     } catch (e) {
       bibliography = [];  // some styles have no bibliography layout
+      bibliographyEntryIds = [];
     }
-    process.stdout.write(JSON.stringify({ citations: outCitations, bibliography: bibliography }));
+    process.stdout.write(JSON.stringify({
+      citations: outCitations,
+      bibliography: bibliography,
+      bibliography_entry_ids: bibliographyEntryIds,
+    }));
     return;
   }
 

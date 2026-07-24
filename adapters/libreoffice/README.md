@@ -136,15 +136,19 @@ message if it isn't):
 16. **Bibliography heading…** — choose a heading for this document, such as **Works Cited**. It is bounded to
     one plain-text line, saved in the Writer file, and applied immediately even when automatic bibliography
     rebuilding is paused. Submit a blank heading to restore **References**.
-17. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+17. **Toggle citation-to-bibliography links** — turn document-local navigation on or off. Each single-work
+    citation links to its own managed bibliography entry and the setting survives save/reopen. Grouped citations
+    stay plain because one cluster has several possible destinations; excluded works have no entry and stay
+    plain. Turning the feature off removes only Callosum's internal links, not an external link you added.
+18. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
-18. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+19. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
     written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
-19. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
+20. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
     it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
     cited work or **Add uncited work(s)…** (for further reading). It is a snapshot at the moment you open it —
@@ -161,7 +165,8 @@ and the Infobar; it never renders or contacts the Callosum server until you choo
 `CallosumSetStyle`, `CallosumFlatten`, `CallosumPrepareSubmissionCopy`, `CallosumInsertStatement`,
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
 `CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
-`CallosumInsertBibliographyHere`, `CallosumSetBibliographyHeading`, `CallosumToggleCiteAuto`,
+`CallosumInsertBibliographyHere`, `CallosumSetBibliographyHeading`, `CallosumToggleBibliographyLinks`,
+`CallosumToggleCiteAuto`,
 `CallosumToggleBibAuto`, `CallosumDiagnostics`,
 `CallosumCitationsPanel` — are also runnable from the Python macro dialog if you installed by hand.)
 

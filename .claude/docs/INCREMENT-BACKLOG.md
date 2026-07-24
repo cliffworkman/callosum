@@ -274,7 +274,11 @@ the Principles + A-A gates before build.)*
   command. A bounded, single-line plain-text value is persisted in the ODT, applied immediately through the
   explicit bibliography-only refresh even when automatic rebuilding is paused, survives save/reopen, and resets
   to **References** on blank input. Failure restores the prior property; invalid input mutates nothing.
-  Categories, chapter/section bibliographies, and hyperlink controls remain.
+  **Inc 375 adds opt-in citation-to-bibliography navigation:** citeproc's ordered entry ids become stable managed
+  Writer bookmarks, and unambiguous single-work citations link to their own entry. Links/targets persist through
+  save/reopen and placement conversion; grouped/excluded citations stay plain, and unrelated external links are
+  preserved when toggling off. Categories, chapter/section bibliographies, title/DOI links, and a per-source
+  grouped-citation chooser remain.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection
@@ -352,6 +356,9 @@ the Principles + A-A gates before build.)*
   **UX follow-up (deadline writer, inc 374):** expose the current ON/OFF state of automatic bibliography
   rebuilding instead of a state-blind toggle, and consider an explicit **Restore References** affordance in the
   heading dialog. The shipped blank-to-reset path is documented and unblocked; these are discoverability polish.
+  **UX follow-up (deadline writer, inc 375):** expose a checked ON/OFF state for citation-to-bibliography links;
+  the current state-blind toggle is functional but requires testing a citation after reopen. A later grouped-
+  citation source chooser belongs with the remaining per-source hyperlink work.
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
   verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
   tool; build only if a one-click install becomes worth the ongoing maintenance cost.

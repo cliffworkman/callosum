@@ -256,7 +256,7 @@ Tracked-change-aware placement conversion that preserves unrelated redlines and 
 
 Zotero, RefWorks, Paperpile, EndNote, Citavi, and SmartCite all support at least some note-based workflows.
 
-11. Add bibliography editing controls — IN PROGRESS (incs 345, 374)
+11. Add bibliography editing controls — IN PROGRESS (incs 345, 374, 375)
 
 Users should be able to:
 
@@ -277,6 +277,13 @@ the document, applies it through an explicit bibliography-only refresh even when
 persists it through save/reopen, and treats blank input as a deliberate reset to **References**. Include-uncited,
 exclude-cited, bibliography-only refresh, and freeze controls shipped earlier; categories, chapter/section
 bibliographies, and hyperlink controls remain.
+
+**Continued in increment 375 (2026-07-24):** citeproc's ordered bibliography entry ids now reach Writer without
+changing the existing text/HTML response fields. Each rendered entry receives a stable managed bookmark, and an
+opt-in document setting links an unambiguous single-work citation to that entry. The preference, targets, and
+links survive save/reopen and placement conversion; grouped or excluded citations remain plain rather than
+choosing an arbitrary target, and toggling off removes only Callosum internal links. Categorized and
+chapter/section bibliographies, title/DOI links, and per-source grouped-citation navigation remain.
 
 12. Add a persistent "Citations in this document" panel
 

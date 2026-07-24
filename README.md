@@ -140,7 +140,9 @@ rewriting citations elsewhere. Pending state returns as soon as a saved document
 citation moves are detected without treating ordinary prose edits as citation changes. Large refreshes show
 native Writer status-bar progress and can be cancelled with **Esc**; a cancellation rolls back the complete
 refresh rather than leaving mixed formatting. Full-document citeproc context is preserved, but Writer now skips
-citation fields and managed bibliography text whose rendered output is already current. Selecting the bundled
+citation fields and managed bibliography text whose rendered output is already current. An opt-in document
+setting links each unambiguous single-work citation to its managed bibliography entry and survives save/reopen;
+grouped citations remain plain rather than choosing an arbitrary source. Selecting the bundled
 **Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
 first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
 to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately

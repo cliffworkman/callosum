@@ -103,6 +103,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     entries, trailing prose, and the paused setting remain intact. Save/reopen and confirm the heading persists.
     Submit a blank heading and confirm **References** returns. Oversized or multiline/control-character input
     must fail without changing either the document property or managed bibliography.
+16. **Manual Writer citation-to-bibliography links:** create two single-work citations plus one grouped citation,
+    choose **Toggle citation-to-bibliography links**, and confirm each single-work citation has a document-local
+    destination at its own rendered bibliography entry while the grouped citation stays plain. Exclude one cited
+    work and confirm its link/target disappear without affecting the other. Save/reopen, refresh, and convert
+    citation placement; links and targets must remain coherent. Toggle the feature off and confirm Callosum
+    internal links are removed while an unrelated external hyperlink remains unchanged.
 
 ## Pass criteria
 

@@ -776,6 +776,7 @@ def test_render_document_ieee_numbering_and_renumber(temp_db_url: str) -> None:
     by_id = {c["citationID"]: c["text"] for c in d["citations"]}
     assert by_id == {"A": "[1]", "B": "[2]", "C": "[3]"}
     assert len(d["bibliography_text"].splitlines()) == 3
+    assert d["bibliography_entry_ids"] == [["a"], ["b"], ["c"]]
 
     # Reverse the document order → the SAME citation renumbers by its new position.
     r2 = client.post(
@@ -1034,6 +1035,7 @@ def test_render_document_uncited_item_appears_in_bibliography_with_no_in_text_ci
     assert len(d["citations"]) == 1  # only the actually-cited cluster gets an in-text render
     assert "Radford" in d["bibliography_text"]  # the uncited item ("c") still appears in the bibliography
     assert "Vaswani" in d["bibliography_text"]
+    assert sorted(item_id for ids in d["bibliography_entry_ids"] for item_id in ids) == ["a", "c"]
 
 
 def test_render_document_bibliography_exclude_removes_entry_but_keeps_in_text_citation(temp_db_url: str) -> None:
@@ -1052,6 +1054,7 @@ def test_render_document_bibliography_exclude_removes_entry_but_keeps_in_text_ci
     assert "Devlin" in by_id["B"]  # the excluded work's in-text citation still renders
     assert "Devlin" not in d["bibliography_text"]  # but it's gone from the bibliography
     assert "Vaswani" in d["bibliography_text"]  # the non-excluded work is unaffected
+    assert d["bibliography_entry_ids"] == [["a"]]
 
 
 def test_render_document_uncited_item_missing_id_rejected(temp_db_url: str) -> None:

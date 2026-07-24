@@ -254,8 +254,8 @@ def main() -> int:
         try:
             return subprocess.run(
                 [str(LO_PYTHON), str(SELFTEST), f"http://127.0.0.1:{PORT_HTTP}", str(p1), str(p2), str(PORT_UNO)],
-                timeout=720,  # inc 372 adds real footnote/endnote caret, refresh, refusal, and deletion round-trips
-                # to the already broad conversion/lifecycle suite; retain a bounded ceiling without skipping proof
+                timeout=1500,  # the cumulative style/note/conversion/lifecycle suite now exceeds 12 minutes on
+                # Windows; retain a bounded ceiling without skipping the installed-Writer proof
             ).returncode
         except subprocess.TimeoutExpired:
             print("SELFTEST TIMED OUT", flush=True)

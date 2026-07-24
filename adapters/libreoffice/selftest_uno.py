@@ -472,9 +472,9 @@ def spike_incremental_rendering(ctx, base, p1, p2):
         calls["citations"] += 1
         return original_replace(doc_, mark, rendered)
 
-    def tracked_bibliography(doc_, entries, cursor=None):
+    def tracked_bibliography(doc_, entries, entry_ids=None, cursor=None):
         calls["bibliography"] += 1
-        return original_write_bibliography(doc_, entries, cursor=cursor)
+        return original_write_bibliography(doc_, entries, entry_ids=entry_ids, cursor=cursor)
 
     cc._replace_mark_text = tracked_replace
     cc._write_bibliography = tracked_bibliography
@@ -1911,6 +1911,132 @@ def spike_custom_bibliography_heading(ctx, base, p1):
     log("spike (P1 #11): OK — custom/default headings refresh and round-trip without changing auto mode")
 
 
+def spike_bibliography_links(ctx, base, p1, p2):
+    """P1 item #11: stable bibliography targets and opt-in single-work citation links survive an ODT round-trip."""
+    import tempfile
+
+    log("spike (P1 #11): citation-to-bibliography links")
+    doc = new_writer(ctx)
+    text = doc.getText()
+    text.setString("Single AAA. Single BBB. Group CCC. External LINK.\n")
+
+    def insertion(needle):
+        descriptor = doc.createSearchDescriptor()
+        descriptor.SearchString = needle
+        return text.createTextCursorByRange(doc.findFirst(descriptor))
+
+    cc.insert_citation(doc, p1, base, cursor=insertion("AAA"))
+    cc.insert_citation(doc, p2, base, cursor=insertion("BBB"))
+    cc.insert_citation_items(doc, [{"paper_id": p1}, {"paper_id": p2}], base, cursor=insertion("CCC"))
+    insertion("LINK").setPropertyValue("HyperLinkURL", "https://example.test/manual")
+    check(not cc.bibliography_links_enabled(doc), "bibliography links must default off")
+
+    cc.set_bibliography_links(doc, True, base)
+    fields = cc.scan_citations_in_order(doc)
+    expected_targets = {
+        cc.bibliography_entry_bookmark(f"callosum-{p1}"),
+        cc.bibliography_entry_bookmark(f"callosum-{p2}"),
+    }
+    check(
+        expected_targets <= set(doc.getBookmarks().getElementNames()),
+        "bibliography entry targets were not created",
+    )
+    check(
+        cc._mark_hyperlink_url(fields[0]["_mark"]) == f"#{cc.bibliography_entry_bookmark(f'callosum-{p1}')}",
+        "first single-work citation did not link to its entry",
+    )
+    check(
+        cc._mark_hyperlink_url(fields[1]["_mark"]) == f"#{cc.bibliography_entry_bookmark(f'callosum-{p2}')}",
+        "second single-work citation did not link to its entry",
+    )
+    check(cc._mark_hyperlink_url(fields[2]["_mark"]) == "", "grouped citation must remain unlinked")
+
+    cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, [p1])
+    cc.refresh(doc, base)
+    excluded_fields = cc.scan_citations_in_order(doc)
+    check(
+        cc.bibliography_entry_bookmark(f"callosum-{p1}") not in doc.getBookmarks().getElementNames(),
+        "excluded work kept a bibliography target",
+    )
+    check(cc._mark_hyperlink_url(excluded_fields[0]["_mark"]) == "", "excluded work kept a citation link")
+    check(
+        cc._mark_hyperlink_url(excluded_fields[1]["_mark"]) == f"#{cc.bibliography_entry_bookmark(f'callosum-{p2}')}",
+        "excluding one work disturbed another citation link",
+    )
+    cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, [])
+    cc.refresh(doc, base)
+
+    cc.set_bibliography_links(doc, False, base)
+    check(
+        all(cc._mark_hyperlink_url(field["_mark"]) == "" for field in cc.scan_citations_in_order(doc)),
+        "turning links off left a hyperlink on a citation",
+    )
+    check(
+        insertion("LINK").getPropertyValue("HyperLinkURL") == "https://example.test/manual",
+        "turning links off changed an unrelated external hyperlink",
+    )
+    cc.set_bibliography_links(doc, True, base)
+
+    fd, save_path = tempfile.mkstemp(suffix=".odt")
+    os.close(fd)
+    try:
+        from com.sun.star.beans import PropertyValue
+
+        save_url = uno.systemPathToFileUrl(save_path)
+        filt = PropertyValue()
+        filt.Name, filt.Value = "FilterName", "writer8"
+        doc.storeToURL(save_url, (filt,))
+        reopened = load_doc(ctx, save_url)
+        reopened_fields = cc.scan_citations_in_order(reopened)
+        check(cc.bibliography_links_enabled(reopened), "link preference did not survive save/reopen")
+        check(
+            expected_targets <= set(reopened.getBookmarks().getElementNames()),
+            "bibliography targets did not survive save/reopen",
+        )
+        reopened_descriptor = reopened.createSearchDescriptor()
+        reopened_descriptor.SearchString = "LINK"
+        reopened_link = reopened.getText().createTextCursorByRange(reopened.findFirst(reopened_descriptor))
+        check(
+            reopened_link.getPropertyValue("HyperLinkURL") == "https://example.test/manual",
+            "unrelated external hyperlink did not survive save/reopen",
+        )
+        check(
+            cc._mark_hyperlink_url(reopened_fields[0]["_mark"])
+            == f"#{cc.bibliography_entry_bookmark(f'callosum-{p1}')}",
+            "citation hyperlink did not survive save/reopen",
+        )
+        check(cc._mark_hyperlink_url(reopened_fields[2]["_mark"]) == "", "grouped citation gained a link on reopen")
+        cc.convert_citation_placement(
+            reopened,
+            "chicago-notes-bibliography",
+            "en-US",
+            "footnote",
+            base,
+        )
+        converted_fields = cc.scan_citations_in_order(reopened)
+        check(
+            cc._mark_hyperlink_url(converted_fields[0]["_mark"])
+            == f"#{cc.bibliography_entry_bookmark(f'callosum-{p1}')}",
+            "placement conversion lost the first single-work link",
+        )
+        check(
+            cc._mark_hyperlink_url(converted_fields[1]["_mark"])
+            == f"#{cc.bibliography_entry_bookmark(f'callosum-{p2}')}",
+            "placement conversion lost the second single-work link",
+        )
+        check(
+            cc._mark_hyperlink_url(converted_fields[2]["_mark"]) == "",
+            "placement conversion linked a grouped citation",
+        )
+        reopened.close(False)
+    finally:
+        try:
+            os.remove(save_path)
+        except OSError:
+            pass
+    log("spike (P1 #11): OK — single-work links/targets toggle and round-trip; grouped citation stays plain")
+
+
 def spike_partial_refresh_controls(ctx, base, p1):
     """P1 item #13: citation-only and bibliography-only refreshes mutate exactly the requested surface.
 
@@ -2292,6 +2418,10 @@ def main():
     log("connected; cleaning + opening Writer")
     close_open_docs(ctx)
     spike_style_manager(ctx, base)
+    if os.environ.get("CALLOSUM_UNO_SPIKE") == "bibliography-links":
+        spike_bibliography_links(ctx, base, p1, p2)
+        print("SELFTEST OK", flush=True)
+        return 0
     doc = new_writer(ctx)
     log("Writer open")
     try:
@@ -2485,6 +2615,9 @@ def main():
 
         # P1 item #11: custom per-document bibliography heading, including save/reopen and default reset.
         spike_custom_bibliography_heading(ctx, base, p1)
+
+        # P1 item #11: stable bibliography targets + opt-in links for unambiguous single-work citations.
+        spike_bibliography_links(ctx, base, p1, p2)
 
         # 21) P1 item #13: explicit partial refreshes for large documents.
         spike_partial_refresh_controls(ctx, base, p1)
