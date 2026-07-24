@@ -7,8 +7,11 @@ function CitationStylesSettings() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState("installed");
   const [preview, setPreview] = useState({ status: "idle" });
+  const [repository, setRepository] = useState({ status: "idle", styles: [] });
+  const [urlInput, setUrlInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [installBusy, setInstallBusy] = useState(false);
+  const [remoteBusy, setRemoteBusy] = useState("");
   const [msg, setMsg] = useState("");
   const fileInputRef = useRef(null);
 
@@ -30,7 +33,7 @@ function CitationStylesSettings() {
 
   const selected = catalog && catalog.styles.find(style => style.id === selectedId);
   useEffect(() => {
-    if (!selectedId) return;
+    if (!selectedId || view === "repository") return;
     let live = true;
     setPreview({ status: "loading" });
     apiPost("/citations/styles/preview", { style: selectedId, locale }).then(r => {
@@ -38,7 +41,7 @@ function CitationStylesSettings() {
       setPreview(r.ok ? { status: "ready", data: r.data } : { status: "error", error: r.error || "error" });
     });
     return () => { live = false; };
-  }, [selectedId, locale]);
+  }, [selectedId, locale, view]);
 
   const update = async (body, success) => {
     setBusy(true); setMsg("");
@@ -132,6 +135,106 @@ function CitationStylesSettings() {
     }
   };
 
+  const postRemoteStyle = async (path, body) => {
+    try {
+      const response = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await response.json().catch(() => null);
+      return {
+        ok: response.ok,
+        status: response.status,
+        data,
+        error: data && data.detail ? data.detail : `HTTP ${response.status}`,
+      };
+    } catch (error) {
+      return { ok: false, status: 0, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+    }
+  };
+
+  const installRemoteStyle = async (path, body, busyId) => {
+    setRemoteBusy(busyId); setMsg("");
+    try {
+      const validation = await postRemoteStyle(path.replace("/install", "/validate"), body);
+      if (!validation.ok) {
+        const detail = typeof validation.error === "string"
+          ? validation.error : (validation.error && validation.error.message) || "validation failed";
+        setMsg("Couldn't validate citation style: " + detail);
+        return;
+      }
+      if (!validation.data.valid) {
+        setMsg("Couldn't install citation style: " + validation.data.error);
+        return;
+      }
+      const pending = validation.data.install;
+      if (pending.action === "already_installed") {
+        setCatalog(validation.data);
+        setSelectedId(pending.style.id);
+        setView("installed");
+        setQuery("");
+        setRepository({ status: "idle", styles: [] });
+        setMsg(`${pending.style.full_title || pending.style.title} is already installed.`);
+        return;
+      }
+      let replace = false;
+      if (pending.action === "update_available") {
+        const confirmed = window.confirm(
+          `${pending.style.full_title} is already installed with different CSL content. Replace the installed version?`
+        );
+        if (!confirmed) { setMsg("Citation style update cancelled."); return; }
+        replace = true;
+      }
+      const result = await postRemoteStyle(path, {
+        ...body,
+        replace,
+        preflight_token: pending.token,
+      });
+      if (!result.ok) {
+        const detail = typeof result.error === "string"
+          ? result.error : (result.error && result.error.message) || "download failed";
+        setMsg("Couldn't install citation style: " + detail);
+        return;
+      }
+      const installed = result.data.install;
+      setCatalog(result.data);
+      setSelectedId(installed.style.id);
+      setView("installed");
+      setQuery("");
+      setRepository({ status: "idle", styles: [] });
+      setMsg(installed.action === "updated"
+        ? `${installed.style.full_title} saved.`
+        : installed.action === "already_installed"
+          ? `${installed.style.full_title} is already installed.`
+          : `${installed.style.full_title} installed.`);
+    } finally {
+      setRemoteBusy("");
+    }
+  };
+
+  const searchRepository = async (event) => {
+    event.preventDefault();
+    const value = query.trim();
+    if (value.length < 2) return;
+    setRepository({ status: "loading", styles: [] }); setMsg("");
+    const r = await api("/citations/styles/repository/search?q=" + encodeURIComponent(value));
+    if (!r.ok) {
+      setRepository({ status: "error", styles: [] });
+      setMsg("Couldn't search citation styles: " + (r.error || "error"));
+      return;
+    }
+    setRepository({ status: "ready", styles: r.data.styles || [], data: r.data });
+  };
+
+  const installUrl = async (event) => {
+    event.preventDefault();
+    const url = urlInput.trim();
+    if (!url) return;
+    await installRemoteStyle("/citations/styles/url/install", { url }, "url");
+    setUrlInput("");
+  };
+
   const downloadSelected = async () => {
     if (!selected || !selected.custom) return;
     setBusy(true); setMsg("");
@@ -200,52 +303,107 @@ function CitationStylesSettings() {
           onClick={() => fileInputRef.current && fileInputRef.current.click()}>
           {installBusy ? "Validating…" : "Install .csl"}
         </button>
+        <form className="citation-style-url-form" onSubmit={installUrl}>
+          <input className="settings-input" type="url" aria-label="Citation style URL"
+            placeholder="https://…/style.csl" value={urlInput}
+            onChange={event => setUrlInput(event.target.value)} />
+          <button type="submit" className="btn" disabled={!urlInput.trim() || !!remoteBusy}>
+            {remoteBusy === "url" ? "Importing…" : "Import URL"}
+          </button>
+        </form>
       </div>
       <div className="citation-style-browser">
         <label className="settings-field-label" htmlFor="citation-style-search">Find a citation style</label>
-        <input id="citation-style-search" className="settings-input" type="search"
-          placeholder="Journal, discipline, acronym, or style name"
-          value={query} onChange={event => setQuery(event.target.value)} />
+        <form className="citation-style-search-form" onSubmit={searchRepository}>
+          <input id="citation-style-search" className="settings-input" type="search"
+            placeholder="Journal, discipline, acronym, or style name"
+            value={query} onChange={event => setQuery(event.target.value)} />
+          {view === "repository" &&
+            <button type="submit" className="btn" disabled={query.trim().length < 2 || repository.status === "loading"}>
+              {repository.status === "loading" ? "Searching…" : "Search"}
+            </button>}
+        </form>
         <div className="citation-style-views" aria-label="Citation style view">
           {[
             ["installed", "Installed"],
             ["favorites", `Favorites${catalog && catalog.favorite_style_ids.length ? ` (${catalog.favorite_style_ids.length})` : ""}`],
             ["recent", "Recent"],
+            ["repository", "Repository"],
           ].map(([id, label]) =>
             <button key={id} type="button" className={view === id ? "active" : ""}
               aria-pressed={view === id} onClick={() => setView(id)}>{label}</button>)}
         </div>
-        <div className="citation-style-list" role="listbox" aria-label="Installed citation styles">
-          {visible.map(style =>
-            <div className={"citation-style-list-row" + (style.id === selectedId ? " selected" : "")}
-              key={style.id}>
-              <button type="button" className="citation-style-select" role="option"
-                aria-selected={style.id === selectedId} onClick={() => setSelectedId(style.id)}>
-                <span>{style.title}</span>
-                <small>{style.family === "note" ? "Notes" : style.citation_format.replaceAll("-", " ")}</small>
-              </button>
-              <button type="button" className={"citation-style-favorite" + (style.favorite ? " on" : "")}
-                title={style.favorite ? "Remove from favorites" : "Add to favorites"}
-                aria-label={`${style.favorite ? "Remove" : "Add"} ${style.title} ${style.favorite ? "from" : "to"} favorites`}
-                disabled={busy} onClick={() => {
-                  setSelectedId(style.id);
-                  setBusy(true); setMsg("");
-                  apiPut("/citations/styles/preferences", {
-                    style: style.id, locale, favorite: !style.favorite,
-                  }).then(r => {
-                    setBusy(false);
-                    if (r.ok) setCatalog(r.data);
-                    else setMsg("Couldn't update favorites: " + (r.error || "error"));
-                  });
-                }}>{style.favorite ? "★" : "☆"}</button>
-            </div>)}
-          {catalog && visible.length === 0 &&
-            <div className="citation-style-empty">No styles match this view and search.</div>}
+        <div className="citation-style-list" role="listbox"
+          aria-label={view === "repository" ? "CSL repository styles" : "Installed citation styles"}>
+          {view === "repository"
+            ? <>
+                {repository.styles.map(style =>
+                  <div className="citation-style-list-row repository" key={style.repository_id}>
+                    <div className="citation-style-select">
+                      <span>{style.title}</span>
+                      <small>{[
+                        style.short_title,
+                        style.citation_format.replaceAll("-", " "),
+                        ...(style.fields || []).map(field => field.replaceAll("_", " ")),
+                      ].filter(Boolean).join(" · ")}</small>
+                    </div>
+                    <button type="button" className="btn" disabled={!!remoteBusy || !!style.installed_id}
+                      onClick={() => installRemoteStyle(
+                        "/citations/styles/repository/install",
+                        { repository_id: style.repository_id },
+                        style.repository_id,
+                      )}>
+                      {style.installed_id ? "Installed" : remoteBusy === style.repository_id ? "Installing…" : "Install"}
+                    </button>
+                  </div>)}
+                {repository.status === "ready" && repository.styles.length === 0 &&
+                  <div className="citation-style-empty">No repository styles match this search.</div>}
+                {repository.status === "idle" &&
+                  <div className="citation-style-empty">No repository search yet.</div>}
+              </>
+            : <>
+                {visible.map(style =>
+                  <div className={"citation-style-list-row" + (style.id === selectedId ? " selected" : "")}
+                    key={style.id}>
+                    <button type="button" className="citation-style-select" role="option"
+                      aria-selected={style.id === selectedId} onClick={() => setSelectedId(style.id)}>
+                      <span>{style.title}</span>
+                      <small>{style.family === "note" ? "Notes" : style.citation_format.replaceAll("-", " ")}</small>
+                    </button>
+                    <button type="button" className={"citation-style-favorite" + (style.favorite ? " on" : "")}
+                      title={style.favorite ? "Remove from favorites" : "Add to favorites"}
+                      aria-label={`${style.favorite ? "Remove" : "Add"} ${style.title} ${style.favorite ? "from" : "to"} favorites`}
+                      disabled={busy} onClick={() => {
+                        setSelectedId(style.id);
+                        setBusy(true); setMsg("");
+                        apiPut("/citations/styles/preferences", {
+                          style: style.id, locale, favorite: !style.favorite,
+                        }).then(r => {
+                          setBusy(false);
+                          if (r.ok) setCatalog(r.data);
+                          else setMsg("Couldn't update favorites: " + (r.error || "error"));
+                        });
+                      }}>{style.favorite ? "★" : "☆"}</button>
+                  </div>)}
+                {catalog && visible.length === 0 &&
+                  <div className="citation-style-empty">No styles match this view and search.</div>}
+              </>}
         </div>
       </div>
 
       <div className="citation-style-detail">
-        {selected
+        {view === "repository"
+          ? <div className="citation-style-repository-detail">
+              <h3>CSL repository</h3>
+              <div className="citation-style-meta">
+                <span>{repository.status === "ready" ? `${repository.styles.length} results` : "Remote catalog"}</span>
+              </div>
+              <p className="citation-style-summary">
+                Styles are provided by the{" "}
+                <a href="https://citationstyles.org/" target="_blank" rel="noreferrer">Citation Style Language project</a>.
+              </p>
+            </div>
+          : selected
           ? <>
               <div className="citation-style-detail-head">
                 <div>

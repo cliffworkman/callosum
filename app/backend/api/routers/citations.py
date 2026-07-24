@@ -49,6 +49,16 @@ from app.backend.citations.style_manager import (
     remove_style,
     update_style_preferences,
 )
+from app.backend.citations.style_repository import (
+    MAX_URL_LENGTH,
+    StyleFetchError,
+    install_prepared_style,
+    install_repository_style,
+    install_style_from_url,
+    prepare_repository_style,
+    prepare_style_from_url,
+    search_repository_styles,
+)
 from app.backend.citations.suggest import MAX_TEXT_LEN, Suggestion, suggest_citations
 from app.backend.embeddings.models import DEFAULT_EMBEDDING_MODEL, EmbeddingModel, SentenceTransformerEmbeddingModel
 from app.backend.embeddings.vector_store import SQLiteVecVectorStore, VectorStore
@@ -81,6 +91,18 @@ class StyleInstallRequest(BaseModel):
     filename: str = Field(min_length=1, max_length=255)
     csl: str = Field(min_length=1, max_length=MAX_CSL_BYTES + style_store.PORTABLE_MARKER_MAX_BYTES)
     replace: bool = False
+
+
+class RepositoryStyleInstallRequest(BaseModel):
+    repository_id: str = Field(min_length=1, max_length=200)
+    replace: bool = False
+    preflight_token: str | None = Field(default=None, max_length=64)
+
+
+class UrlStyleInstallRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=MAX_URL_LENGTH)
+    replace: bool = False
+    preflight_token: str | None = Field(default=None, max_length=64)
 
 
 # CSL's fixed locator-label vocabulary (CSL 1.0.2 term list — confirmed against the bundled locale XML; no
@@ -229,6 +251,90 @@ def citation_style_validate(payload: StyleInstallRequest) -> dict[str, Any]:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (ValueError, RuntimeError) as exc:
         return {**catalog_response(), "valid": False, "error": str(exc)}
+
+
+@router.get("/citations/styles/repository/search")
+def citation_style_repository_search(q: str = Query(min_length=2, max_length=MAX_STYLE_QUERY)) -> dict[str, Any]:
+    try:
+        return search_repository_styles(q)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except StyleFetchError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+
+def _remote_style_response(result: dict[str, Any]) -> dict[str, Any]:
+    return {**catalog_response(), "install": result}
+
+
+def _remote_style_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, StyleUpdateRequired):
+        return HTTPException(
+            status_code=409,
+            detail={
+                "code": "update_available",
+                "style_id": exc.style_id,
+                "title": exc.title,
+                "message": str(exc),
+            },
+        )
+    if isinstance(exc, StyleFetchError):
+        return HTTPException(status_code=502, detail=str(exc))
+    if isinstance(exc, CitationEngineUnavailable):
+        return HTTPException(status_code=503, detail=str(exc))
+    return HTTPException(status_code=422, detail=str(exc))
+
+
+@router.post("/citations/styles/repository/validate")
+def citation_style_repository_validate(payload: RepositoryStyleInstallRequest) -> dict[str, Any]:
+    try:
+        return {**catalog_response(), "valid": True, "install": prepare_repository_style(payload.repository_id)}
+    except (StyleFetchError, CitationEngineUnavailable, ValueError, RuntimeError) as exc:
+        return {**catalog_response(), "valid": False, "error": str(exc)}
+
+
+@router.post("/citations/styles/repository/install")
+def citation_style_repository_install(payload: RepositoryStyleInstallRequest) -> dict[str, Any]:
+    try:
+        if payload.preflight_token:
+            result = install_prepared_style(
+                payload.preflight_token,
+                mode="repository",
+                source=payload.repository_id,
+                replace=payload.replace,
+            )
+        else:
+            result = install_repository_style(payload.repository_id, replace=payload.replace)
+        return _remote_style_response(
+            result,
+        )
+    except (StyleUpdateRequired, StyleFetchError, CitationEngineUnavailable, ValueError, RuntimeError) as exc:
+        raise _remote_style_error(exc) from exc
+
+
+@router.post("/citations/styles/url/validate")
+def citation_style_url_validate(payload: UrlStyleInstallRequest) -> dict[str, Any]:
+    try:
+        return {**catalog_response(), "valid": True, "install": prepare_style_from_url(payload.url)}
+    except (StyleFetchError, CitationEngineUnavailable, ValueError, RuntimeError) as exc:
+        return {**catalog_response(), "valid": False, "error": str(exc)}
+
+
+@router.post("/citations/styles/url/install")
+def citation_style_url_install(payload: UrlStyleInstallRequest) -> dict[str, Any]:
+    try:
+        if payload.preflight_token:
+            result = install_prepared_style(
+                payload.preflight_token,
+                mode="url",
+                source=payload.url.strip(),
+                replace=payload.replace,
+            )
+        else:
+            result = install_style_from_url(payload.url, replace=payload.replace)
+        return _remote_style_response(result)
+    except (StyleUpdateRequired, StyleFetchError, CitationEngineUnavailable, ValueError, RuntimeError) as exc:
+        raise _remote_style_error(exc) from exc
 
 
 @router.get("/citations/styles/{style_id}/export")

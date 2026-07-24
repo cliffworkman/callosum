@@ -295,7 +295,13 @@ def preview_style(style_id: str, locale: str) -> dict[str, Any]:
     }
 
 
-def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str | None, str, str | None]:
+def _parse_candidate(
+    filename: str,
+    xml: str,
+    *,
+    available_parent_canonicals: frozenset[str] = frozenset(),
+    allow_uninstalled_parent: bool = False,
+) -> tuple[ET.Element, str, str, str | None, str, str | None]:
     clean_name = str(filename or "").replace("\\", "/").rsplit("/", 1)[-1]
     if not clean_name.casefold().endswith(".csl"):
         raise ValueError("Choose a .csl citation style file")
@@ -323,8 +329,7 @@ def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str
         stack.extend((child, depth + 1) for child in node)
     if root.tag != f"{{{style_store.CSL_NAMESPACE}}}style":
         raise ValueError("The root element must be a CSL <style> in the CSL namespace")
-    if root.get("class") not in {"in-text", "note"}:
-        raise ValueError("The CSL style class must be in-text or note")
+    style_class = root.get("class")
     version = (root.get("version") or "").strip()
     if not version.startswith("1.0"):
         raise ValueError("The CSL style version must be CSL 1.0.x")
@@ -347,9 +352,17 @@ def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str
         None,
     )
     if parent:
-        if parent not in style_store.canonical_index():
+        if style_class not in {None, "in-text", "note"}:
+            raise ValueError("The CSL style class must be in-text or note")
+        if (
+            not allow_uninstalled_parent
+            and parent not in style_store.canonical_index()
+            and parent not in available_parent_canonicals
+        ):
             raise ValueError(f"This dependent CSL style requires an uninstalled parent: {parent}")
     else:
+        if style_class not in {"in-text", "note"}:
+            raise ValueError("The CSL style class must be in-text or note")
         citation = root.find("csl:citation", _CSL_NS)
         if citation is None or citation.find("csl:layout", _CSL_NS) is None:
             raise ValueError("An independent CSL style needs a citation layout")
@@ -357,8 +370,32 @@ def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str
     return root, title, canonical, parent, xml, preferred_id
 
 
-def _inspect_candidate(filename: str, xml: str) -> tuple[dict[str, Any], str]:
-    _, title, canonical, _, normalized_xml, preferred_id = _parse_candidate(filename, xml)
+def candidate_source_metadata(filename: str, xml: str) -> dict[str, str | None]:
+    """Validate one fetched candidate and expose only the identity needed to resolve its parent chain."""
+    _, title, canonical, parent, normalized_xml, _ = _parse_candidate(
+        filename,
+        xml,
+        allow_uninstalled_parent=True,
+    )
+    return {
+        "title": title,
+        "canonical_id": canonical,
+        "parent_canonical_id": parent,
+        "csl": normalized_xml,
+    }
+
+
+def _inspect_candidate(
+    filename: str,
+    xml: str,
+    *,
+    available_parent_canonicals: frozenset[str] = frozenset(),
+) -> tuple[dict[str, Any], str]:
+    _, title, canonical, _, normalized_xml, preferred_id = _parse_candidate(
+        filename,
+        xml,
+        available_parent_canonicals=available_parent_canonicals,
+    )
     existing = style_store.canonical_index().get(canonical)
     if existing is not None:
         style_id, path, custom = existing
@@ -386,9 +423,18 @@ def _inspect_candidate(filename: str, xml: str) -> tuple[dict[str, Any], str]:
     }, normalized_xml
 
 
-def inspect_style_install(filename: str, xml: str) -> dict[str, Any]:
+def inspect_style_install(
+    filename: str,
+    xml: str,
+    *,
+    available_parent_canonicals: frozenset[str] = frozenset(),
+) -> dict[str, Any]:
     """Validate a candidate and report the non-mutating install action it would require."""
-    inspection, _ = _inspect_candidate(filename, xml)
+    inspection, _ = _inspect_candidate(
+        filename,
+        xml,
+        available_parent_canonicals=available_parent_canonicals,
+    )
     return inspection
 
 

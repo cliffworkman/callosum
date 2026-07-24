@@ -9,6 +9,22 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 368 — CSL repository search/install and guarded URL import -->
+## 2026-07-24 — Increment 368: CSL repository search/install and guarded URL import (P1 item #9)
+
+- **Files:** repository fetch/search/install module, citation candidate/parser/API, Settings manager + generated
+  app, citation/frontend tests, root README, served help, QA routes, security audit, roadmap/backlog/CLAUDE/notes.
+- **What changed:** **Repository** searches the public CSL/Zotero catalog on explicit submit, then installs a
+  result and any required parent through the existing personal-style lifecycle. **Import URL** adds a separate
+  explicit HTTPS download beside local `.csl` install. Both reuse exact duplicate/update confirmation.
+- **Privacy/security:** repository query matching is local after a fixed-host bounded catalog fetch. Arbitrary URL
+  import rejects non-HTTPS/non-443 destinations, credentials/fragments, private/local DNS answers and connected
+  peers, unsafe redirects, oversized/non-UTF-8 bodies, dependency cycles/depth, and invalid CSL before writing.
+- **Verification:** repository/API **15 passed**; frontend/help **78 passed**; live isolated repository
+  search/install; Playwright desktop/mobile with zero console errors; Writer **SELFTEST OK**; QA **304/304 API**;
+  full project suite **1543 passed, 1 skipped**.
+- **Revert:** `git revert` this commit and rebuild the frontend with `python tools/build_frontend.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 367 — personal CSL export, portability, and removal -->
 ## 2026-07-24 — Increment 367: Personal CSL export, portability, and guarded removal (P1 item #9)
 

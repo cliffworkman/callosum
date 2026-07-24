@@ -196,6 +196,14 @@ that existing documents require reinstallation, refuses bundled/application-defa
 parents, and cleans local Favorites/Recent state. Still open: repository search, explicit URL import, full-schema/
 update provenance, duplication, and visual/source editing.
 
+**Repository and URL import shipped in increment 368 (2026-07-24):** Settings searches the public CSL/Zotero
+catalog on explicit submit, matching journal/style title, acronym, citation format, and discipline locally after
+one bounded fixed-host catalog fetch. A result installs through the existing personal-style validator; dependent
+styles fetch and preflight their bounded canonical parent chain before any write. **Import URL** is a separate
+explicit HTTPS-only action with private/local DNS and connected-peer rejection, guarded redirects, byte/depth
+bounds, and the same duplicate/update confirmation. Still open: full upstream-schema/update provenance,
+duplication, and visual/source editing.
+
 Required functionality:
 
 Search styles by journal, publisher, discipline, acronym, or style name

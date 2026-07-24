@@ -36,6 +36,13 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   **Remove** warns that existing documents require reinstallation and is disabled for the application default.
   The backend also refuses bundled styles and parents of installed dependents. Any external request or arbitrary
   filesystem read/delete is **Critical**.
+- **Repository/URL CSL import is explicit and guarded (inc 368).** Installed/Favorites/Recent search and preview
+  remain zero-egress. **Repository** may fetch only the fixed Zotero catalog/style host after an explicit Search
+  or Install; the typed query is matched locally and must not be transmitted to Zotero. **Import URL** may fetch
+  only after its explicit submit and must reject non-HTTPS/non-443 URLs, credentials/fragments, private/local DNS
+  answers or connected peers, an unsafe redirect hop, excessive redirects/dependency depth, and bodies above
+  1000 KB. Both paths must preflight a complete dependent-style parent chain before writing and reuse the exact
+  duplicate/update confirmation. Any library/PDF/manuscript text in an external request is **Critical**.
 - **LibreOffice install is local-only (inc 162).** The plugin install/download builds + opens a FIXED bundled `.oxt`; it must fire **no egress** (no genai/external host) and must degrade gracefully (`{opened:false}` + a download fallback), never 500. A request to any external host from the install path is **Critical**.
 - **Remote access is OFF by default + token-gated (inc 168).** On a clean instance, `GET /settings` reports
   `remote_access_enabled:false`; the gate is a no-op (the data API works with no token). Enabling without a token →
@@ -96,7 +103,16 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    warning: the style disappears, Favorites/Recent are cleaned, and the UI selects the application default.
    Removing a parent with an installed dependent reports that the dependent must be removed first. The warning
    explicitly says existing documents will not render until the same CSL style is reinstalled and recommends
-   exporting first. Desktop/mobile flows complete with zero console/page errors and zero external requests.
+   exporting first. Open **Repository**, search for `Journal of Experimental Psychology`, and confirm the only
+   external request is the fixed catalog fetch: the query text must not occur in any outbound URL/body. Install a
+   dependent journal result and confirm the requested style appears as Personal together with any non-bundled
+   parent, then previews through that parent. Repeat the search within six hours and confirm the in-memory catalog
+   avoids another fetch. Use **Import URL** with a valid independent style and with a dependent style; both install
+   through the same update confirmation. Direct API negatives: HTTP, credentials, fragment, non-443 port,
+   loopback/private literal, a hostname resolving or connecting privately, redirect to private, oversized body,
+   dependency cycle/depth, invalid CSL, and bundled canonical duplicate all fail before persistence.
+   Desktop/mobile flows complete with zero console/page errors. Installed-only operations have zero external
+   requests; repository/URL operations have only the explicit expected requests and send no library content.
 10. **Local maintenance.** Click **Repair synthesis cache** (`POST /settings/repair-summary-cache`). It must report scanned and removed row counts, fire no external request, and not delete saved summaries, verified citations, chunks, or evidence records. A response that claims to "verify" or improve synthesis quality is a wording bug: this only deletes malformed cached AI draft rows.
 11. **Metadata access (inc 158).** Under **Metadata access**, save a **Contact email** (e.g. `you@example.com`); `GET /settings` reports `contact_email` + `contact_email_source: "ui"`. Submit `not-an-email` → **422**, nothing persisted. The email is NOT a secret (it IS returned by `GET /settings` — it's the polite-pool contact for Crossref/OpenAlex/Retraction Watch), but saving it must fire **no genai request**. Clear it → reverts to empty.
 12. **LibreOffice plugin (inc 162).** Under **LibreOffice plugin**, confirm the section renders (Install plugin button + Download .oxt link + the "restart Writer / app must be running" note). The **Download .oxt** link (`GET /integrations/libreoffice/plugin.oxt`) serves a non-empty `.oxt` (a zip). Clicking **Install** (`POST /integrations/libreoffice/install`) returns 200 with `{opened: …, detail}` and fires **no genai/external request** (it only opens a local file handler); on a headless runner where no handler exists it must report `opened:false` with a download fallback, not crash.

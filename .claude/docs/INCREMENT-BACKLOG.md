@@ -306,7 +306,11 @@ the Principles + A-A gates before build.)*
   default inheritance, embedding, and application. **Inc 367 added personal-style removal/export/portability
   (2026-07-24):** downloaded `.csl` files preserve exact Callosum ids across devices, while new unmarked installs
   derive deterministic hashed ids. Removal warns about existing documents, protects bundled/default/parent styles,
-  and cleans Favorites/Recent state. **Still open under #9:** CSL repository search/install, URL import,
+  and cleans Favorites/Recent state. **Inc 368 added repository and URL import (2026-07-24):** explicit
+  **Repository** search downloads the bounded fixed CSL/Zotero index and matches title/acronym/format/discipline
+  locally; install preflights and resolves dependent-style parents. **Import URL** is an explicit HTTPS-only
+  fetch with private/local destination, redirect, connected-peer, size, and dependency-depth guards; both paths
+  reuse duplicate/update confirmation and the local CSL/citeproc validator. **Still open under #9:**
   full-schema/update provenance, duplication, and visual/source editing.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —

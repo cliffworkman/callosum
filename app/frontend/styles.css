@@ -343,7 +343,10 @@
   .settings-publisher-controls > .settings-field { display: flex; flex-direction: column; }
   .settings-publisher-controls .tags-srcfilter { margin-top: auto; }
   .citation-style-manager { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.7fr); gap: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
-  .citation-style-install-row { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+  .citation-style-install-row { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(260px, 520px); justify-content: end; gap: 8px; }
+  .citation-style-install-row > .btn { min-height: 33px; }
+  .citation-style-url-form, .citation-style-search-form { min-width: 0; display: flex; gap: 8px; }
+  .citation-style-url-form .settings-input, .citation-style-search-form .settings-input { min-width: 0; flex: 1; }
   .citation-style-browser, .citation-style-detail { min-width: 0; }
   .citation-style-browser { display: flex; flex-direction: column; gap: 8px; }
   .citation-style-views { display: flex; gap: 4px; }
@@ -353,6 +356,9 @@
   .citation-style-list-row { min-height: 46px; display: grid; grid-template-columns: minmax(0, 1fr) 34px; align-items: stretch; border-bottom: 1px solid var(--line); }
   .citation-style-list-row:last-child { border-bottom: 0; }
   .citation-style-list-row.selected { background: var(--sel); }
+  .citation-style-list-row.repository { grid-template-columns: minmax(0, 1fr) auto; gap: 8px; padding-right: 7px; }
+  .citation-style-list-row.repository > .citation-style-select { cursor: default; }
+  .citation-style-list-row.repository > .btn { align-self: center; min-width: 68px; }
   .citation-style-select { min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; border: 0; background: transparent; color: var(--ink); padding: 7px 9px; text-align: left; cursor: pointer; }
   .citation-style-select span { overflow-wrap: anywhere; font-size: 12px; }
   .citation-style-select small { color: var(--ink-3); font-size: 10.5px; text-transform: capitalize; }
@@ -1660,8 +1666,11 @@
   .app.mobile .settings-axis-controls { grid-template-columns: 1fr; }
   .app.mobile .settings-publisher-controls { grid-template-columns: 1fr; }
   .app.mobile .citation-style-manager { grid-template-columns: 1fr; }
+  .app.mobile .citation-style-install-row { grid-template-columns: 1fr; justify-content: stretch; }
+  .app.mobile .citation-style-install-row > .btn { justify-self: start; }
   .app.mobile .citation-style-detail { padding: 18px 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .app.mobile .citation-style-actions { align-items: stretch; flex-direction: column; }
+  .app.mobile .citation-style-actions .settings-field-label { flex: 0 0 auto; }
   .app.mobile .settings-openurl-row { grid-template-columns: minmax(0, 1fr) auto; }
   .app.mobile .settings-openurl-row .settings-field-label { grid-column: 1 / -1; }
   .app.mobile .settings-ai-controls { grid-template-columns: 1fr; }

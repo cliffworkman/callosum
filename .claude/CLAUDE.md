@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 366** (see Increment workflow) with **1524 pytest tests
+It is currently at **Increment 368** (see Increment workflow) with **1543 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -51,7 +51,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   Writer documents inherit its application default while existing documents retain embedded style/locale;
   **inc 366** validates and atomically installs local custom/dependent CSL styles outside the repository, making
   them first-class across the same browser, API, and Writer paths; **inc 367** adds portable personal-style export
-  with stable cross-device ids and guarded removal that protects defaults and installed dependents.
+  with stable cross-device ids and guarded removal that protects defaults and installed dependents; **inc 368**
+  adds on-demand search/install from the public CSL/Zotero catalog plus explicit guarded HTTPS URL import,
+  resolving and preflighting dependent-style parent chains before any write.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
