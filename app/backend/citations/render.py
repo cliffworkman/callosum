@@ -170,6 +170,7 @@ def render_document(
     *,
     style: str,
     locale: str,
+    style_xml: str | None = None,
     uncited_items: Sequence[Mapping[str, Any]] = (),
     bibliography_exclude_ids: Sequence[str] = (),
 ) -> dict[str, Any]:
@@ -189,7 +190,7 @@ def render_document(
     citation still renders, via citeproc-js's own ``makeBibliography({exclude: [...]})`` field filter — both are
     real, already-supported citeproc-js mechanisms, just not previously wired through this endpoint.
     """
-    if not style_store.style_exists(style):
+    if style_xml is None and not style_store.style_exists(style):
         raise ValueError(f"unknown style: {style}")
     if locale not in LOCALES:
         locale = DEFAULT_LOCALE
@@ -241,16 +242,17 @@ def render_document(
         out_uncited.append(item)
     exclude_ids = [str(x) for x in bibliography_exclude_ids]
 
-    data = _run(
-        {
-            "mode": "document",
-            "style": style,
-            "locale": locale,
-            "citations": clusters,
-            "uncited_items": out_uncited,
-            "bibliography_exclude_ids": exclude_ids,
-        }
-    )
+    request = {
+        "mode": "document",
+        "style": style,
+        "locale": locale,
+        "citations": clusters,
+        "uncited_items": out_uncited,
+        "bibliography_exclude_ids": exclude_ids,
+    }
+    if style_xml is not None:
+        request["style_xml"] = style_xml
+    data = _run(request)
 
     out_citations: list[dict[str, Any]] = []
     for c in data.get("citations", []):

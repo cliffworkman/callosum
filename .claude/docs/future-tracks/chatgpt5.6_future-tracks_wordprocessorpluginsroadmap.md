@@ -211,6 +211,12 @@ sidecar. Remote update checks run only on explicit request, include installed cu
 preflighted chain after confirmation. **Duplicate** gives bundled, independent, or dependent styles a new
 standalone personal identity and preserves source lineage. Still open: visual/source editing.
 
+**Source editing shipped in increment 370 (2026-07-24):** independent personal styles open in a two-pane source
+editor with a rendered fixed-fictional-example draft preview. Bundled and dependent styles use **Duplicate to
+edit**, producing an independent copy before the editor opens. Save preserves the installed and canonical ids,
+repeats official schema, macro, and citeproc validation, records the local edit, writes atomically, and rejects a
+stale exact revision rather than overwriting it. This completes Priority 1 item #9.
+
 Required functionality:
 
 Search styles by journal, publisher, discipline, acronym, or style name

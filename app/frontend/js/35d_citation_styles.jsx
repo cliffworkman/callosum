@@ -12,6 +12,7 @@ function CitationStylesSettings() {
   const [busy, setBusy] = useState(false);
   const [installBusy, setInstallBusy] = useState(false);
   const [remoteBusy, setRemoteBusy] = useState("");
+  const [editorStyle, setEditorStyle] = useState(null);
   const [msg, setMsg] = useState("");
   const fileInputRef = useRef(null);
 
@@ -282,7 +283,7 @@ function CitationStylesSettings() {
     }
   };
 
-  const duplicateSelected = async () => {
+  const duplicateSelected = async (openEditor = false) => {
     if (!selected) return;
     const proposed = `${selected.full_title || selected.title} - Copy`;
     const title = window.prompt("Name the independent personal copy:", proposed);
@@ -299,6 +300,7 @@ function CitationStylesSettings() {
     setSelectedId(r.data.install.style.id);
     setView("installed");
     setQuery("");
+    if (openEditor) setEditorStyle(r.data.install.style);
     setMsg(`${r.data.install.style.full_title} created as an independent personal style.`);
   };
 
@@ -493,6 +495,7 @@ function CitationStylesSettings() {
                     <> · <a href={selected.provenance.source_url} target="_blank" rel="noreferrer">View source</a></>}
                   {selected.provenance.installed_at && ` · Installed ${citationStyleDateLabel(selected.provenance.installed_at)}`}
                   {selected.provenance.last_checked_at && ` · Checked ${citationStyleDateLabel(selected.provenance.last_checked_at)}`}
+                  {selected.provenance.locally_modified_at && ` · Edited ${citationStyleDateLabel(selected.provenance.locally_modified_at)}`}
                 </p>}
               {selected.fields.length > 0 &&
                 <div className="citation-style-fields">{selected.fields.map(field =>
@@ -513,8 +516,13 @@ function CitationStylesSettings() {
                 New word-processor documents inherit this application default. Existing documents keep their embedded style and locale.
               </span>
               <div className="citation-style-personal-actions">
-                <button type="button" className="btn" disabled={busy} onClick={duplicateSelected}>
-                  Duplicate
+                {selected.custom && selected.independent &&
+                  <button type="button" className="btn" disabled={busy} onClick={() => setEditorStyle(selected)}>
+                    Edit source
+                  </button>}
+                <button type="button" className="btn" disabled={busy}
+                  onClick={() => duplicateSelected(!(selected.custom && selected.independent))}>
+                  {selected.custom && selected.independent ? "Duplicate" : "Duplicate to edit"}
                 </button>
                 {["repository", "url"].includes(selected.provenance?.source_type) &&
                   <button type="button" className="btn" disabled={busy} onClick={checkSelectedUpdate}>
@@ -562,6 +570,17 @@ function CitationStylesSettings() {
           : <div className="citation-style-empty">Select a citation style to inspect it.</div>}
         {msg && <div className="settings-note">{msg}</div>}
       </div>
+      {editorStyle &&
+        <CitationStyleEditorModal style={editorStyle} locale={locale} onClose={() => setEditorStyle(null)}
+          onSaved={data => {
+            setCatalog(data);
+            setSelectedId(data.editor.source.style_id);
+            setPreview({ status: "ready", data: data.editor.preview });
+            setEditorStyle(null);
+            setMsg(data.editor.saved
+              ? `${data.editor.source.full_title} saved.`
+              : "Citation style source is unchanged.");
+          }} />}
     </div>
   );
 }

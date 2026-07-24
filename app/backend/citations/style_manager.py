@@ -300,6 +300,25 @@ def preview_style(style_id: str, locale: str) -> dict[str, Any]:
     }
 
 
+def preview_style_xml(style_xml: str, locale: str) -> dict[str, Any]:
+    """Render the fixed fictional preview against a validated, not-yet-saved independent style."""
+    if locale not in LOCALES:
+        raise ValueError(f"unknown locale: {locale}")
+    rendered = render_document(
+        _PREVIEW_CITATIONS,
+        style="custom-editor-preview",
+        locale=locale,
+        style_xml=style_xml,
+    )
+    return {
+        "style": "custom-editor-preview",
+        "locale": locale,
+        "example_only": True,
+        "citations": [item["text"] for item in rendered["citations"]],
+        "bibliography_text": rendered["bibliography_text"],
+    }
+
+
 def _parse_candidate(
     filename: str,
     xml: str,

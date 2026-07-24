@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /citations*
-fe: 25_detail.jsx, 35d_citation_styles.jsx, 37_cite.jsx
+fe: 25_detail.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 37_cite.jsx
 -->
 
 # ROUTE 34 - Citations engine
@@ -31,6 +31,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Imported-style validation and copies are portable (inc 369).** Installed CSL satisfies the official local
   1.0.2 schema and macro rules. A duplicate receives a new canonical identity and resolves as independent even
   when its source was dependent; the source style remains unchanged.
+- **Source edits preserve installed identity (inc 370).** Editing is limited to independent personal styles.
+  Unsaved preview uses request-supplied validated XML without writing it. Save preserves both the local style id
+  and canonical CSL id, uses an exact revision precondition, and atomically retains the prior file on failure.
 
 ## Adversarial checklist
 
@@ -71,8 +74,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 9. Duplicate (`POST /citations/styles/{style_id}/duplicate`) a bundled style and a dependent personal style.
    Confirm each result has a distinct canonical id, is independent, renders through both citation endpoints, and
    leaves its source untouched. A missing source → 404; an empty/oversized title fails cleanly.
-10. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
-11. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
+10. Read an independent personal style (`GET /citations/styles/{style_id}/source`) and retain its SHA-256
+    revision. Validate edited XML (`POST .../source/validate`) and confirm the returned fictional preview reflects
+    the unsaved layout without changing the installed file. Save (`PUT .../source`) with the exact revision and
+    confirm the stable local/canonical ids, changed render output, edit provenance, and atomic persistence.
+    Reuse the stale revision -> 409 and no overwrite. Bundled/dependent source access, changed canonical id,
+    dependent conversion, invalid/oversized CSL, and citeproc failure all fail without mutation or egress.
+11. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
+12. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
 
 ## Pass criteria
 

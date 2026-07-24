@@ -9,7 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 369 — CSL schema, provenance, update checks, and duplication -->
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 370 — revision-safe CSL source editing -->
+## 2026-07-24 — Increment 370: Revision-safe CSL source editing (P1 item #9 complete)
+
+- **Files:** citation source editor/manager/render/provenance/API, Settings editor + generated app, citation and
+  frontend tests, help/README, QA/security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** independent personal styles now open in a full two-pane CSL source editor. Users can validate
+  and render a fixed-example draft before saving. Bundled and dependent styles expose **Duplicate to edit**, so
+  edits always begin from a standalone personal copy.
+- **Integrity:** save retains the local and canonical style ids, repeats bounded official-schema, macro, and
+  citeproc validation, uses an exact source revision to prevent lost updates, writes atomically, rolls back if
+  provenance fails, and records the local edit timestamp. Validation and editing are local and use no library
+  text.
+- **Verification:** editor race/boundary tests **2 passed**; frontend/help **63 passed**; Playwright covered
+  duplicate-to-edit, unsaved preview, save/persistence/provenance, dirty discard, and desktop/375px layouts with
+  zero current-page console errors or overflow. QA **309/309 API**; line budget/lint/build/lock clean. The real
+  Writer harness exercised shared style/render calls through phase 6, then met its existing timeout ceiling.
+  Full project suite **1550 passed, 1 skipped**.
+- **Revert:** `git revert` this commit and rebuild the frontend with `python tools/build_frontend.py`.
+
 ## 2026-07-24 — Increment 369: CSL schema, provenance, update checks, and duplication (P1 item #9)
 
 - **Files:** official local schema assets/validator, provenance/preflight/fetch/lifecycle modules, citation APIs,

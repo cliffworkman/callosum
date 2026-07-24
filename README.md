@@ -158,8 +158,11 @@ inherit the application default, while existing documents keep their embedded st
 required parent; **Import URL** performs an explicit, HTTPS-only remote import with private-network and size
 guards. Repository queries are matched locally after the fixed catalog download and never include library or
 manuscript text. Personal styles retain visible local/repository/URL/copy provenance; remote update checks run
-only when requested, and **Duplicate** creates a standalone personal copy before editing. See `adapters/`'s
-per-tool READMEs for setup.
+only when requested, and **Duplicate** creates a standalone personal copy before editing. Independent personal
+styles open in a local CSL source editor with a rendered draft preview; bundled and dependent styles must first
+be duplicated. Saving preserves the style's canonical identity, revalidates it, and refuses to overwrite a newer
+revision. Documents using that personal style receive the saved formatting on their next refresh. See
+`adapters/`'s per-tool READMEs for setup.
 
 ## Security note
 

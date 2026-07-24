@@ -314,11 +314,14 @@ the Principles + A-A gates before build.)*
   lifecycle (2026-07-24):** every import now passes the official CSL 1.0.2 RELAX NG schema plus Schematron macro
   rules; local/repository/URL/copy provenance and timestamps persist beside personal styles; update checks are
   explicit-only, dependency-aware, and apply the exact preflighted bytes; and **Duplicate** creates a new
-  standalone personal style with a new canonical identity while retaining its source lineage. **Still open under
-  #9:** visual/source editing.
+  standalone personal style with a new canonical identity while retaining its source lineage. **Inc 370 completed
+  P1 item #9 (2026-07-24):** independent personal styles open in a two-pane CSL source editor with an unsaved,
+  fixed-fictional-example citeproc preview. Bundled and dependent styles use **Duplicate to edit**. Saving keeps
+  the canonical identity, repeats full validation, records local modification provenance, writes atomically, and
+  rejects stale exact revisions rather than overwriting another edit. **P1 item #9 is complete.**
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (custom CSL lifecycle/repository/editing, broader note-placement conversion, more bibliography
+  not left to drift like the composer's verification did). Remaining P1 (broader note-placement conversion, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
   keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,

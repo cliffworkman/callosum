@@ -408,6 +408,15 @@
   .citation-style-preview-block .settings-field-label { font-family: var(--sans); }
   .citation-style-bibliography { white-space: pre-wrap; }
   .citation-style-empty { padding: 16px 9px; color: var(--ink-3); font-size: 11.5px; }
+  .axis-modal.citation-style-editor-modal { width: min(1040px, calc(100vw - 48px)); max-height: 92vh; overflow: hidden; display: flex; flex-direction: column; }
+  .citation-style-editor-title { color: var(--ink-2); font-size: 11.5px; margin-bottom: 10px; overflow-wrap: anywhere; }
+  .citation-style-editor-grid { min-height: 0; display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(280px, .65fr); gap: 16px; flex: 1; }
+  .citation-style-editor-source { min-width: 0; min-height: 0; display: flex; flex-direction: column; margin: 0; }
+  .citation-style-editor-source textarea { min-height: 440px; height: min(62vh, 620px); resize: none; margin-top: 5px; font-family: var(--mono); font-size: 11px; line-height: 1.45; white-space: pre; overflow: auto; tab-size: 2; }
+  .citation-style-editor-output { min-width: 0; overflow: auto; border-left: 1px solid var(--line); padding-left: 16px; }
+  .citation-style-editor-output > .settings-field-label { display: block; }
+  .citation-style-editor-preview { padding-bottom: 12px; }
+  .citation-style-editor-actions { flex: none; justify-content: flex-end; margin-top: 12px; }
   .settings-subsection { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
   .settings-section .settings-sub { max-width: none; }
   .settings-ai-controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 24px; margin-top: 14px; }
@@ -1695,6 +1704,10 @@
   .app.mobile .citation-style-detail { padding: 18px 0 0; border-left: 0; border-top: 1px solid var(--line); }
   .app.mobile .citation-style-actions { align-items: stretch; flex-direction: column; }
   .app.mobile .citation-style-actions .settings-field-label { flex: 0 0 auto; }
+  .app.mobile .citation-style-editor-modal { width: calc(100vw - 16px); max-height: calc(100vh - 16px); padding: 12px; }
+  .app.mobile .citation-style-editor-grid { grid-template-columns: 1fr; overflow-y: auto; }
+  .app.mobile .citation-style-editor-source textarea { min-height: 360px; height: 46vh; }
+  .app.mobile .citation-style-editor-output { border-left: 0; border-top: 1px solid var(--line); padding: 12px 0 0; }
   .app.mobile .settings-openurl-row { grid-template-columns: minmax(0, 1fr) auto; }
   .app.mobile .settings-openurl-row .settings-field-label { grid-column: 1 / -1; }
   .app.mobile .settings-ai-controls { grid-template-columns: 1fr; }
@@ -15478,6 +15491,117 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const date = new Date(value);
     return Number.isNaN(date.getTime()) ? "" : date.toLocaleDateString();
   }
+  function CitationStyleEditorPreview({ preview, family }) {
+    if (!preview) return /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Validate to render this draft.");
+    return /* @__PURE__ */ React.createElement("div", { className: "citation-style-editor-preview" }, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.citations[0])), family === "note" && preview.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.bibliography_text || "This style does not produce a bibliography.")));
+  }
+  function CitationStyleEditorModal({ style, locale, onClose, onSaved }) {
+    const [loaded, setLoaded] = useState(null);
+    const [source, setSource] = useState("");
+    const [preview, setPreview] = useState(null);
+    const [status, setStatus] = useState("loading");
+    const [error, setError] = useState("");
+    const dirty = !!loaded && source !== loaded.csl;
+    useEffect(() => {
+      let live = true;
+      setStatus("loading");
+      setError("");
+      api(`/citations/styles/${encodeURIComponent(style.id)}/source`).then((result) => {
+        if (!live) return;
+        if (!result.ok) {
+          setStatus("error");
+          setError("Couldn't open citation style source: " + (result.error || "error"));
+          return;
+        }
+        setLoaded(result.data);
+        setSource(result.data.csl);
+        setStatus("ready");
+      });
+      return () => {
+        live = false;
+      };
+    }, [style.id]);
+    const close = () => {
+      if (dirty && !window.confirm("Discard unsaved citation-style changes?")) return;
+      onClose();
+    };
+    const validate = async () => {
+      setStatus("validating");
+      setError("");
+      const result = await apiPost(
+        `/citations/styles/${encodeURIComponent(style.id)}/source/validate`,
+        { csl: source, locale }
+      );
+      if (!result.ok) {
+        setStatus("error");
+        setError("Couldn't validate citation style: " + (result.error || "error"));
+        return;
+      }
+      setSource(result.data.normalized_csl);
+      setPreview(result.data.preview);
+      setStatus("validated");
+    };
+    const save = async () => {
+      if (!loaded) return;
+      setStatus("saving");
+      setError("");
+      const result = await apiPut(
+        `/citations/styles/${encodeURIComponent(style.id)}/source`,
+        { csl: source, expected_revision: loaded.revision, locale }
+      );
+      if (!result.ok) {
+        setStatus("error");
+        setError("Couldn't save citation style: " + (result.error || "error"));
+        return;
+      }
+      onSaved(result.data);
+    };
+    return /* @__PURE__ */ React.createElement(
+      "div",
+      {
+        className: "axis-modal-overlay",
+        role: "dialog",
+        "aria-modal": "true",
+        "aria-labelledby": "citation-style-editor-title",
+        onClick: close
+      },
+      /* @__PURE__ */ React.createElement("div", { className: "axis-modal citation-style-editor-modal", onClick: (event) => event.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { className: "axis-modal-head" }, /* @__PURE__ */ React.createElement("span", { id: "citation-style-editor-title" }, "Edit citation style"), /* @__PURE__ */ React.createElement("button", { type: "button", className: "axis-link", "aria-label": "Close citation style editor", onClick: close }, "\xD7")), /* @__PURE__ */ React.createElement("div", { className: "citation-style-editor-title" }, style.full_title || style.title), /* @__PURE__ */ React.createElement("div", { className: "citation-style-editor-grid" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label citation-style-editor-source" }, "CSL source", /* @__PURE__ */ React.createElement(
+        "textarea",
+        {
+          className: "settings-input",
+          "aria-label": "CSL source",
+          spellCheck: false,
+          value: source,
+          maxLength: 1e6,
+          disabled: !loaded || status === "saving",
+          onChange: (event) => {
+            setSource(event.target.value);
+            setPreview(null);
+            setStatus("ready");
+            setError("");
+          }
+        }
+      )), /* @__PURE__ */ React.createElement("section", { className: "citation-style-editor-output", "aria-label": "Draft preview" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Draft preview"), /* @__PURE__ */ React.createElement(CitationStyleEditorPreview, { preview, family: style.family }))), error && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, error), !error && status === "validated" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Draft is valid and previewed."), /* @__PURE__ */ React.createElement("div", { className: "axis-form-actions citation-style-editor-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", onClick: close }, "Cancel"), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn",
+          disabled: !loaded || status === "validating" || status === "saving",
+          onClick: validate
+        },
+        status === "validating" ? "Validating\u2026" : "Validate & preview"
+      ), /* @__PURE__ */ React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "btn btn-primary",
+          disabled: !loaded || !dirty || status === "validating" || status === "saving",
+          onClick: save
+        },
+        status === "saving" ? "Saving\u2026" : "Save"
+      )))
+    );
+  }
   function CitationStylesSettings() {
     const [catalog, setCatalog] = useState(null);
     const [selectedId, setSelectedId] = useState("");
@@ -15490,6 +15614,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
     const [busy, setBusy] = useState(false);
     const [installBusy, setInstallBusy] = useState(false);
     const [remoteBusy, setRemoteBusy] = useState("");
+    const [editorStyle, setEditorStyle] = useState(null);
     const [msg, setMsg] = useState("");
     const fileInputRef = useRef(null);
     const load = async () => {
@@ -15751,7 +15876,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         setBusy(false);
       }
     };
-    const duplicateSelected = async () => {
+    const duplicateSelected = async (openEditor = false) => {
       if (!selected) return;
       const proposed = `${selected.full_title || selected.title} - Copy`;
       const title = window.prompt("Name the independent personal copy:", proposed);
@@ -15775,6 +15900,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       setSelectedId(r.data.install.style.id);
       setView("installed");
       setQuery("");
+      if (openEditor) setEditorStyle(r.data.install.style);
       setMsg(`${r.data.install.style.full_title} created as an independent personal style.`);
     };
     const checkSelectedUpdate = async () => {
@@ -15966,7 +16092,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: () => update({ favorite: !selected.favorite }, selected.favorite ? "Removed from favorites." : "Added to favorites.")
       },
       selected.favorite ? "\u2605" : "\u2606"
-    )), selected.summary && /* @__PURE__ */ React.createElement("p", { className: "citation-style-summary" }, selected.summary), selected.custom && /* @__PURE__ */ React.createElement("p", { className: "citation-style-summary" }, "Source: ", citationStyleProvenanceLabel(selected, catalog), selected.provenance.source_url && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("a", { href: selected.provenance.source_url, target: "_blank", rel: "noreferrer" }, "View source")), selected.provenance.installed_at && ` \xB7 Installed ${citationStyleDateLabel(selected.provenance.installed_at)}`, selected.provenance.last_checked_at && ` \xB7 Checked ${citationStyleDateLabel(selected.provenance.last_checked_at)}`), selected.fields.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "citation-style-fields" }, selected.fields.map((field) => /* @__PURE__ */ React.createElement("span", { key: field }, field.replaceAll("_", " ")))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-actions" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Preview locale", /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: locale, onChange: (event) => setLocale(event.target.value) }, (catalog.locales || []).map((item) => /* @__PURE__ */ React.createElement("option", { key: item, value: item }, item === "en-US" ? "English (United States)" : "English (United Kingdom)")))), /* @__PURE__ */ React.createElement(
+    )), selected.summary && /* @__PURE__ */ React.createElement("p", { className: "citation-style-summary" }, selected.summary), selected.custom && /* @__PURE__ */ React.createElement("p", { className: "citation-style-summary" }, "Source: ", citationStyleProvenanceLabel(selected, catalog), selected.provenance.source_url && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("a", { href: selected.provenance.source_url, target: "_blank", rel: "noreferrer" }, "View source")), selected.provenance.installed_at && ` \xB7 Installed ${citationStyleDateLabel(selected.provenance.installed_at)}`, selected.provenance.last_checked_at && ` \xB7 Checked ${citationStyleDateLabel(selected.provenance.last_checked_at)}`, selected.provenance.locally_modified_at && ` \xB7 Edited ${citationStyleDateLabel(selected.provenance.locally_modified_at)}`), selected.fields.length > 0 && /* @__PURE__ */ React.createElement("div", { className: "citation-style-fields" }, selected.fields.map((field) => /* @__PURE__ */ React.createElement("span", { key: field }, field.replaceAll("_", " ")))), /* @__PURE__ */ React.createElement("div", { className: "citation-style-actions" }, /* @__PURE__ */ React.createElement("label", { className: "settings-field-label" }, "Preview locale", /* @__PURE__ */ React.createElement("select", { className: "settings-input", value: locale, onChange: (event) => setLocale(event.target.value) }, (catalog.locales || []).map((item) => /* @__PURE__ */ React.createElement("option", { key: item, value: item }, item === "en-US" ? "English (United States)" : "English (United Kingdom)")))), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -15975,7 +16101,16 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: () => update({ set_default: true, mark_used: true }, "Application default saved.")
       },
       selected.application_default ? "Application default" : "Use as application default"
-    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-personal-actions" }, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: duplicateSelected }, "Duplicate"), ["repository", "url"].includes(selected.provenance?.source_type) && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: checkSelectedUpdate }, busy ? "Checking\u2026" : "Check for updates"), selected.custom && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: downloadSelected }, "Download .csl"), /* @__PURE__ */ React.createElement(
+    )), /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "New word-processor documents inherit this application default. Existing documents keep their embedded style and locale."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-personal-actions" }, selected.custom && selected.independent && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: () => setEditorStyle(selected) }, "Edit source"), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        type: "button",
+        className: "btn",
+        disabled: busy,
+        onClick: () => duplicateSelected(!(selected.custom && selected.independent))
+      },
+      selected.custom && selected.independent ? "Duplicate" : "Duplicate to edit"
+    ), ["repository", "url"].includes(selected.provenance?.source_type) && /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: checkSelectedUpdate }, busy ? "Checking\u2026" : "Check for updates"), selected.custom && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("button", { type: "button", className: "btn", disabled: busy, onClick: downloadSelected }, "Download .csl"), /* @__PURE__ */ React.createElement(
       "button",
       {
         type: "button",
@@ -15985,7 +16120,21 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onClick: removeSelected
       },
       "Remove"
-    ))), selected.custom && selected.application_default && /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "Choose another application default before removing this style."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)));
+    ))), selected.custom && selected.application_default && /* @__PURE__ */ React.createElement("span", { className: "settings-sub citation-style-default-note" }, "Choose another application default before removing this style."), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview", "aria-live": "polite" }, /* @__PURE__ */ React.createElement("p", { className: "eyebrow" }, "Preview (example references)"), preview.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, "Rendering preview\u2026"), preview.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "settings-note settings-note-err" }, "Preview unavailable: ", preview.error), preview.status === "ready" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, selected.family === "note" ? "First note" : "Citation"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[0])), selected.family === "note" && preview.data.citations[1] && /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Subsequent note"), /* @__PURE__ */ React.createElement("div", null, preview.data.citations[1])), /* @__PURE__ */ React.createElement("div", { className: "citation-style-preview-block" }, /* @__PURE__ */ React.createElement("span", { className: "settings-field-label" }, "Bibliography"), /* @__PURE__ */ React.createElement("div", { className: "citation-style-bibliography" }, preview.data.bibliography_text || "This style does not produce a bibliography."))))) : /* @__PURE__ */ React.createElement("div", { className: "citation-style-empty" }, "Select a citation style to inspect it."), msg && /* @__PURE__ */ React.createElement("div", { className: "settings-note" }, msg)), editorStyle && /* @__PURE__ */ React.createElement(
+      CitationStyleEditorModal,
+      {
+        style: editorStyle,
+        locale,
+        onClose: () => setEditorStyle(null),
+        onSaved: (data) => {
+          setCatalog(data);
+          setSelectedId(data.editor.source.style_id);
+          setPreview({ status: "ready", data: data.editor.preview });
+          setEditorStyle(null);
+          setMsg(data.editor.saved ? `${data.editor.source.full_title} saved.` : "Citation style source is unchanged.");
+        }
+      }
+    ));
   }
   function GapsModal({ onClose, onChanged }) {
     const [direction, setDirection] = useState("backward");

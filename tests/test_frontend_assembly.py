@@ -960,6 +960,7 @@ def test_open_paper_deep_link():
 def test_citation_style_manager_surface_and_deep_link():
     raw = assemble_jsx()
     assert "function CitationStylesSettings()" in raw
+    assert "function CitationStyleEditorModal(" in raw
     assert 'api("/citations/styles")' in raw
     assert 'apiPost("/citations/styles/preview"' in raw
     assert 'apiPut("/citations/styles/preferences"' in raw
@@ -968,6 +969,12 @@ def test_citation_style_manager_surface_and_deep_link():
     assert "/export`" in raw
     assert 'method: "DELETE"' in raw
     assert "Download .csl" in raw
+    assert "/source/validate`" in raw
+    assert "expected_revision: loaded.revision" in raw
+    assert "Validate & preview" in raw
+    assert "Edit source" in raw and "Duplicate to edit" in raw
+    assert "Discard unsaved citation-style changes?" in raw
+    assert "locally_modified_at" in raw
     assert "Existing documents that use it will not render" in raw
     assert "Choose another application default before removing this style." in raw
     assert 'placeholder="Journal, discipline, acronym, or style name"' in raw
@@ -982,6 +989,8 @@ def test_citation_style_manager_surface_and_deep_link():
     css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
     assert ".citation-style-manager {" in css
     assert ".citation-style-install-row {" in css
+    assert ".axis-modal.citation-style-editor-modal {" in css
+    assert ".app.mobile .citation-style-editor-grid { grid-template-columns: 1fr;" in css
     assert ".app.mobile .citation-style-manager { grid-template-columns: 1fr; }" in css
 
 

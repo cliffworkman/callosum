@@ -1,6 +1,6 @@
 <!-- qa-coverage
 api: /settings, /settings/providers, /settings/providers/{pid}, /settings/test-key, /settings/repair-summary-cache, /settings/access-token, /access/recover, /citations/styles*, /integrations/libreoffice/*, /integrations/word/*
-fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35d_citation_styles.jsx, 01_recovery.jsx
+fe: 35_settings.jsx, 35b_providers.jsx, 35ca_citation_style_provenance.jsx, 35cb_citation_style_editor.jsx, 35d_citation_styles.jsx, 01_recovery.jsx
 -->
 
 # ROUTE 35 - Settings
@@ -43,6 +43,10 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   answers or connected peers, an unsafe redirect hop, excessive redirects/dependency depth, and bodies above
   1000 KB. Both paths must preflight a complete dependent-style parent chain before writing and reuse the exact
   duplicate/update confirmation. Any library/PDF/manuscript text in an external request is **Critical**.
+- **Personal-style source editing is local and revision-safe (inc 370).** Only independent personal styles may
+  be edited directly; bundled and dependent styles must first be duplicated. Validation and draft preview use
+  the unsaved XML locally, never library text or egress. Save must preserve the canonical CSL id, re-run schema,
+  macro, and citeproc validation, and reject a stale exact revision rather than overwrite another edit.
 - **CSL lifecycle provenance is inspectable and explicit (inc 369).** Every import must pass the official local
   CSL 1.0.2 schema plus macro-reference validation. Personal detail shows local/repository/URL/copy source and
   available timestamps. No update request may occur until **Check for updates** is pressed; a confirmed update
@@ -124,6 +128,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    current and available states name the check, and accepting an update consumes its preflight token without a
    second fetch. Duplicate bundled, independent-personal, and dependent styles; each copy gets a new canonical id,
    selects immediately, previews, and is independent while the original remains unchanged.
+   Select an independent personal style and click **Edit source**. Change its title and citation affixes, then
+   **Validate & preview**: the fictional preview changes but the installed catalog and source remain unchanged.
+   Save and confirm the same local style id and canonical CSL id remain selected, the edited title/output persist
+   after reload, and the source reports its local edit timestamp. Make an out-of-band second save using the
+   original revision and confirm 409 with no overwrite. Changing the canonical `<id>`, introducing schema-invalid
+   CSL, or making the style dependent fails before persistence. Bundled and dependent styles offer
+   **Duplicate to edit** instead; the new independent copy opens in the editor while the source remains unchanged.
+   Close a dirty editor and cancel the warning to keep editing, then discard it and confirm no mutation.
    Desktop/mobile flows complete with zero console/page errors. Installed-only operations have zero external
    requests; repository/URL operations have only the explicit expected requests and send no library content.
 10. **Local maintenance.** Click **Repair synthesis cache** (`POST /settings/repair-summary-cache`). It must report scanned and removed row counts, fire no external request, and not delete saved summaries, verified citations, chunks, or evidence records. A response that claims to "verify" or improve synthesis quality is a wording bug: this only deletes malformed cached AI draft rows.

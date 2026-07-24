@@ -508,6 +508,120 @@ def test_duplicate_style_creates_independent_personal_copy(temp_db_url: str) -> 
     )
 
 
+def test_personal_style_source_editor_validates_previews_and_saves(
+    temp_db_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    installed = client.post(
+        "/citations/styles/install",
+        json={"filename": "editable.csl", "csl": CUSTOM_CSL},
+    ).json()["install"]["style"]
+    style_id = installed["id"]
+    source = client.get(f"/citations/styles/{style_id}/source")
+    assert source.status_code == 200, source.text
+    loaded = source.json()
+    assert loaded["csl"] == CUSTOM_CSL
+    assert len(loaded["revision"]) == 64
+
+    edited = CUSTOM_CSL.replace("Callosum Test Style", "Callosum Edited Style").replace(
+        '<layout prefix="(" suffix=")">', '<layout prefix="[" suffix="]">'
+    )
+    validated = client.post(
+        f"/citations/styles/{style_id}/source/validate",
+        json={"csl": edited, "locale": "en-US"},
+    )
+    assert validated.status_code == 200, validated.text
+    assert validated.json()["preview"]["citations"][0].startswith("[")
+    assert style_store.style_path(style_id).read_text(encoding="utf-8") == CUSTOM_CSL
+
+    saved = client.put(
+        f"/citations/styles/{style_id}/source",
+        json={
+            "csl": edited,
+            "expected_revision": loaded["revision"],
+            "locale": "en-US",
+        },
+    )
+    assert saved.status_code == 200, saved.text
+    data = saved.json()
+    assert data["editor"]["saved"] is True
+    assert data["editor"]["preview"]["citations"][0].startswith("[")
+    edited_style = next(style for style in data["styles"] if style["id"] == style_id)
+    assert edited_style["full_title"] == "Callosum Edited Style"
+    assert edited_style["canonical_id"] == installed["canonical_id"]
+    assert edited_style["provenance"]["source_type"] == "local_file"
+    assert edited_style["provenance"]["locally_modified_at"]
+    assert data["editor"]["source"]["revision"] != loaded["revision"]
+
+    stale = client.put(
+        f"/citations/styles/{style_id}/source",
+        json={
+            "csl": edited.replace("Callosum Edited Style", "Stale Edit"),
+            "expected_revision": loaded["revision"],
+            "locale": "en-US",
+        },
+    )
+    assert stale.status_code == 409
+    assert "changed after this editor was opened" in stale.json()["detail"]
+
+    from app.backend.citations import style_editor
+
+    current = client.get(f"/citations/styles/{style_id}/source").json()
+    concurrent = edited.replace("Callosum Edited Style", "Concurrent Edit")
+    real_preview = style_editor.preview_style_xml
+
+    def mutate_during_preview(style_xml: str, locale: str) -> dict:
+        style_store.write_custom_style(style_id, concurrent)
+        return real_preview(style_xml, locale)
+
+    monkeypatch.setattr(style_editor, "preview_style_xml", mutate_during_preview)
+    raced = client.put(
+        f"/citations/styles/{style_id}/source",
+        json={
+            "csl": edited.replace("Callosum Edited Style", "Racing Edit"),
+            "expected_revision": current["revision"],
+            "locale": "en-US",
+        },
+    )
+    assert raced.status_code == 409
+    assert "changed during validation" in raced.json()["detail"]
+    assert style_store.style_path(style_id).read_text(encoding="utf-8") == concurrent
+
+
+def test_personal_style_source_editor_preserves_editability_boundary(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert client.get("/citations/styles/apa/source").status_code == 409
+
+    dependent = client.post(
+        "/citations/styles/install",
+        json={"filename": "dependent.csl", "csl": _dependent_csl("http://www.zotero.org/styles/apa")},
+    ).json()["install"]["style"]
+    refused = client.get(f"/citations/styles/{dependent['id']}/source")
+    assert refused.status_code == 409
+    assert "Duplicate this dependent" in refused.json()["detail"]
+
+    installed = client.post(
+        "/citations/styles/install",
+        json={"filename": "editable.csl", "csl": CUSTOM_CSL},
+    ).json()["install"]["style"]
+    source = client.get(f"/citations/styles/{installed['id']}/source").json()
+    changed_id = CUSTOM_CSL.replace(
+        "https://example.test/styles/callosum-test-style",
+        "https://example.test/styles/different-identity",
+    )
+    response = client.put(
+        f"/citations/styles/{installed['id']}/source",
+        json={
+            "csl": changed_id,
+            "expected_revision": source["revision"],
+            "locale": "en-US",
+        },
+    )
+    assert response.status_code == 422
+    assert "CSL id cannot change" in response.json()["detail"]
+    assert style_store.canonical_id(style_store.style_path(installed["id"])) == installed["canonical_id"]
+
+
 def test_custom_style_cannot_replace_bundled_style(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     bundled = CUSTOM_CSL.replace(

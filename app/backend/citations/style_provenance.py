@@ -12,7 +12,7 @@ from typing import Any
 from app.backend.citations import style_store
 
 _VERSION = 1
-_SOURCE_TYPES = {"local_file", "repository", "url", "duplicate"}
+_SOURCE_TYPES = {"local_file", "repository", "url", "duplicate", "personal"}
 _lock = threading.RLock()
 
 
@@ -44,6 +44,7 @@ def _clean_record(value: object) -> dict[str, Any] | None:
         "installed_at": 40,
         "updated_at": 40,
         "last_checked_at": 40,
+        "locally_modified_at": 40,
         "upstream_updated": 80,
     }
     for key, maximum in limits.items():
@@ -148,6 +149,26 @@ def record_check(style_id: str, *, upstream_updated: str | None = None) -> dict[
         styles[style_id] = record
         _write_unlocked(styles)
         return dict(record)
+
+
+def record_edit(style_id: str) -> dict[str, Any]:
+    """Keep original lineage while marking that the installed XML now has local edits."""
+    if not style_id.startswith("custom-") or not style_store.STYLE_ID_PATTERN.fullmatch(style_id):
+        raise ValueError("invalid personal citation style")
+    now = _now()
+    with _lock:
+        styles = _load_unlocked()
+        record = styles.get(style_id) or {
+            "source_type": "personal",
+            "installed_at": now,
+        }
+        record["updated_at"] = now
+        record["locally_modified_at"] = now
+        cleaned = _clean_record(record)
+        assert cleaned is not None
+        styles[style_id] = cleaned
+        _write_unlocked(styles)
+        return dict(cleaned)
 
 
 def remove_provenance(style_id: str) -> None:
