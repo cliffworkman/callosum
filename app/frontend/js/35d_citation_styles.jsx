@@ -8,7 +8,9 @@ function CitationStylesSettings() {
   const [view, setView] = useState("installed");
   const [preview, setPreview] = useState({ status: "idle" });
   const [busy, setBusy] = useState(false);
+  const [installBusy, setInstallBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const fileInputRef = useRef(null);
 
   const load = async () => {
     const r = await api("/citations/styles");
@@ -47,6 +49,89 @@ function CitationStylesSettings() {
     setMsg(success);
   };
 
+  const postStyleFile = async (path, filename, csl, replace = false) => {
+    try {
+      const response = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, csl, replace }),
+      });
+      const data = await response.json().catch(() => null);
+      return response.ok
+        ? { ok: true, data }
+        : { ok: false, error: data && data.detail ? data.detail : `HTTP ${response.status}` };
+    } catch (error) {
+      return { ok: false, error: `Could not reach the ${API_LABEL}. Is uvicorn running?` };
+    }
+  };
+
+  const installFile = async (event) => {
+    const file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (!file) return;
+    setInstallBusy(true); setMsg("");
+    try {
+      if (file.size > 1000000) {
+        setMsg("Couldn't install citation style: the file is larger than 1000 KB.");
+        return;
+      }
+      const csl = await file.text();
+      if (!csl.trim()) {
+        setMsg("Couldn't install citation style: the file is empty.");
+        return;
+      }
+      const validation = await postStyleFile("/citations/styles/validate", file.name, csl);
+      if (!validation.ok) {
+        const detail = typeof validation.error === "string"
+          ? validation.error : (validation.error && validation.error.message) || "validation failed";
+        setMsg("Couldn't validate citation style: " + detail);
+        return;
+      }
+      if (!validation.data.valid) {
+        setMsg("Couldn't install citation style: " + validation.data.error);
+        return;
+      }
+      const pending = validation.data.install;
+      if (pending.action === "already_installed") {
+        setCatalog(validation.data);
+        setSelectedId(pending.style.id);
+        setView("installed");
+        setQuery("");
+        setMsg(`${pending.style.full_title} is already installed.`);
+        return;
+      }
+      let replace = false;
+      if (pending.action === "update_available") {
+        const confirmed = window.confirm(
+          `${pending.style.full_title} is already installed with different CSL content. Replace the installed version?`
+        );
+        if (!confirmed) { setMsg("Citation style update cancelled."); return; }
+        replace = true;
+      }
+      const result = await postStyleFile("/citations/styles/install", file.name, csl, replace);
+      if (!result.ok) {
+        const detail = typeof result.error === "string"
+          ? result.error : (result.error && result.error.message) || "validation failed";
+        setMsg("Couldn't install citation style: " + detail);
+        return;
+      }
+      const installed = result.data.install;
+      setCatalog(result.data);
+      setSelectedId(installed.style.id);
+      setView("installed");
+      setQuery("");
+      setMsg(installed.action === "updated"
+        ? `${installed.style.full_title} saved.`
+        : installed.action === "already_installed"
+          ? `${installed.style.full_title} is already installed.`
+          : `${installed.style.full_title} installed.`);
+    } catch (error) {
+      setMsg("Couldn't read the selected CSL file.");
+    } finally {
+      setInstallBusy(false);
+    }
+  };
+
   const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
   let visible = catalog ? catalog.styles.filter(style => {
     const haystack = [
@@ -61,6 +146,14 @@ function CitationStylesSettings() {
 
   return (
     <div className="citation-style-manager">
+      <div className="citation-style-install-row">
+        <input ref={fileInputRef} type="file" accept=".csl,application/xml,text/xml"
+          onChange={installFile} hidden />
+        <button type="button" className="btn" disabled={installBusy}
+          onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+          {installBusy ? "Validating…" : "Install .csl"}
+        </button>
+      </div>
       <div className="citation-style-browser">
         <label className="settings-field-label" htmlFor="citation-style-search">Find a citation style</label>
         <input id="citation-style-search" className="settings-input" type="search"
@@ -113,6 +206,7 @@ function CitationStylesSettings() {
                   <div className="citation-style-meta">
                     <span>{selected.family === "note" ? "Note style" : selected.citation_format.replaceAll("-", " ")}</span>
                     <span>{selected.independent ? "Independent CSL" : `Depends on ${selected.parent_style}`}</span>
+                    {selected.custom && <span>Personal style</span>}
                     {selected.application_default && <span className="citation-style-default">Application default</span>}
                   </div>
                 </div>

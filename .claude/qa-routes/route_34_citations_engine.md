@@ -22,6 +22,9 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 - **Style previews are fixed-example-only (inc 365).** `POST /citations/styles/preview` renders bundled fictional
   records through local citeproc. A preview request must never include or retrieve library text and must fire no
   external request.
+- **Installed style XML is server-owned (inc 366).** Runtime style ids resolve only to bundled files or
+  server-generated `custom-*` files under the local settings directory. A request-supplied id/path/URL must never
+  select arbitrary XML. The Node sidecar receives validated XML from Python and performs no network request.
 
 ## Adversarial checklist
 
@@ -45,8 +48,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
 5. Update (`PUT /citations/styles/preferences`) the application default, locale, favorite, and recent style.
    Reload and confirm bounded persistence, deduplicated recents, and that recording a document style does not
    implicitly replace the application default. Unknown style/locale → 422.
-6. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
-7. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
+6. Install a valid local style (`POST /citations/styles/install`) and use its server-generated `custom-*` id with
+   both `/citations/render` and `/citations/render-document`. Confirm output follows the custom layout and the
+   style remains available after app restart. Validation preflight returns `already_installed` for an exact
+   duplicate and `update_available` for changed content under the same canonical CSL id, without writing. A direct
+   changed install without `replace:true` remains 409. A dependent style resolves only through an installed
+   canonical parent. Bundled canonical ids cannot be replaced.
+7. Try an unknown style, no selected papers, malformed paper id state, and `noteIndex` values that are negative, above 5000, fractional, or boolean. Confirm validation messaging/422 responses and no crash.
+8. Confirm no citation surface presents papers as good/bad or ranked by hidden score.
 
 ## Pass criteria
 

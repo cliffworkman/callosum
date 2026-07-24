@@ -343,6 +343,7 @@
   .settings-publisher-controls > .settings-field { display: flex; flex-direction: column; }
   .settings-publisher-controls .tags-srcfilter { margin-top: auto; }
   .citation-style-manager { display: grid; grid-template-columns: minmax(280px, .8fr) minmax(0, 1.7fr); gap: 24px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .citation-style-install-row { grid-column: 1 / -1; display: flex; justify-content: flex-end; }
   .citation-style-browser, .citation-style-detail { min-width: 0; }
   .citation-style-browser { display: flex; flex-direction: column; gap: 8px; }
   .citation-style-views { display: flex; gap: 4px; }

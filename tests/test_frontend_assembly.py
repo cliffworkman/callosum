@@ -963,7 +963,12 @@ def test_citation_style_manager_surface_and_deep_link():
     assert 'api("/citations/styles")' in raw
     assert 'apiPost("/citations/styles/preview"' in raw
     assert 'apiPut("/citations/styles/preferences"' in raw
+    assert '"/citations/styles/validate"' in raw
+    assert '"/citations/styles/install"' in raw
     assert 'placeholder="Journal, discipline, acronym, or style name"' in raw
+    assert 'accept=".csl,application/xml,text/xml"' in raw
+    assert "window.confirm(" in raw
+    assert "Personal style" in raw
     assert '["installed", "Installed"]' in raw
     assert "Use as application default" in raw
     assert "Existing documents keep their embedded style and locale." in raw
@@ -971,6 +976,7 @@ def test_citation_style_manager_surface_and_deep_link():
     assert '<SettingsCard title="Citation styles" id="citation-styles">' in raw
     css = Path("app/frontend/styles.css").read_text(encoding="utf-8")
     assert ".citation-style-manager {" in css
+    assert ".citation-style-install-row {" in css
     assert ".app.mobile .citation-style-manager { grid-template-columns: 1fr; }" in css
 
 

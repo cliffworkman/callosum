@@ -10,7 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.backend.api.app import create_app
-from app.backend.citations import render
+from app.backend.citations import render, style_store
 from app.backend.persistence.database import make_engine
 from app.backend.persistence.repository import create_paper
 
@@ -27,6 +27,46 @@ PAPER_CSL = {
     "volume": "30",
     "page": "5998-6008",
 }
+
+CUSTOM_CSL = """<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0">
+  <info>
+    <title>Callosum Test Style</title>
+    <id>https://example.test/styles/callosum-test-style</id>
+    <link href="https://example.test/styles/callosum-test-style" rel="self"/>
+    <updated>2026-07-24T00:00:00+00:00</updated>
+    <category citation-format="author-date"/>
+    <category field="psychology"/>
+    <summary>A custom style used only by the hermetic test suite.</summary>
+  </info>
+  <citation>
+    <layout prefix="(" suffix=")">
+      <names variable="author"><name form="short"/></names>
+      <date variable="issued" prefix=", "><date-part name="year"/></date>
+    </layout>
+  </citation>
+  <bibliography>
+    <layout suffix=".">
+      <names variable="author"><name/></names>
+      <text variable="title" prefix=". "/>
+    </layout>
+  </bibliography>
+</style>
+"""
+
+
+def _dependent_csl(parent: str) -> str:
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0" default-locale="en-GB">
+  <info>
+    <title>Callosum Dependent Test Style</title>
+    <id>https://example.test/styles/callosum-dependent-test</id>
+    <link href="https://example.test/styles/callosum-dependent-test" rel="self"/>
+    <link href="{parent}" rel="independent-parent"/>
+    <updated>2026-07-24T00:00:00+00:00</updated>
+  </info>
+</style>
+"""
 
 
 def _make_paper(temp_db_url: str) -> int:
@@ -136,6 +176,201 @@ def test_style_preferences_persist_default_favorites_and_recents(temp_db_url: st
         ).status_code
         == 422
     )
+
+
+def test_install_custom_style_catalog_preview_and_render(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    response = client.post(
+        "/citations/styles/install",
+        json={"filename": "callosum-test.csl", "csl": CUSTOM_CSL},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    installed = data["install"]
+    assert installed["action"] == "installed"
+    style = installed["style"]
+    assert style["id"].startswith("custom-")
+    assert style["full_title"] == "Callosum Test Style"
+    assert style["custom"] is True and style["source"] == "custom"
+    assert style["canonical_id"] == "https://example.test/styles/callosum-test-style"
+    assert (style_store.custom_styles_dir() / f"{style['id']}.csl").is_file()
+
+    assert [row["id"] for row in client.get("/citations/styles?q=hermetic psychology").json()["styles"]] == [
+        style["id"]
+    ]
+    preferences = client.put(
+        "/citations/styles/preferences",
+        json={
+            "style": style["id"],
+            "locale": "en-GB",
+            "favorite": True,
+            "set_default": True,
+            "mark_used": True,
+        },
+    )
+    assert preferences.status_code == 200, preferences.text
+    assert preferences.json()["default_style"] == style["id"]
+    assert preferences.json()["favorite_style_ids"] == [style["id"]]
+    assert preferences.json()["recent_style_ids"] == [style["id"]]
+    preview = client.post(
+        "/citations/styles/preview",
+        json={"style": style["id"], "locale": "en-US"},
+    )
+    assert preview.status_code == 200, preview.text
+    assert "Rivera" in preview.json()["citations"][0]
+
+    pid = _make_paper(temp_db_url)
+    rendered = client.post(
+        "/citations/render",
+        json={"paper_ids": [pid], "style": style["id"], "locale": "en-US"},
+    )
+    assert rendered.status_code == 200, rendered.text
+    assert rendered.json()["items"][0]["in_text"] == "(Vaswani, Shazeer, Parmar, 2017)"
+
+
+def test_custom_style_duplicate_and_explicit_update(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    first = client.post("/citations/styles/install", json={"filename": "test.csl", "csl": CUSTOM_CSL}).json()
+    style_id = first["install"]["style"]["id"]
+
+    duplicate = client.post("/citations/styles/install", json={"filename": "test.csl", "csl": CUSTOM_CSL})
+    assert duplicate.status_code == 200
+    assert duplicate.json()["install"]["action"] == "already_installed"
+
+    changed = CUSTOM_CSL.replace("Callosum Test Style", "Callosum Test Style Updated")
+    preflight = client.post("/citations/styles/validate", json={"filename": "test.csl", "csl": changed})
+    assert preflight.status_code == 200
+    assert preflight.json()["valid"] is True
+    assert preflight.json()["install"]["action"] == "update_available"
+    conflict = client.post("/citations/styles/install", json={"filename": "test.csl", "csl": changed})
+    assert conflict.status_code == 409
+    assert conflict.json()["detail"] == {
+        "code": "update_available",
+        "style_id": style_id,
+        "title": "Callosum Test Style Updated",
+        "message": "Callosum Test Style Updated is already installed with different CSL content",
+    }
+    updated = client.post(
+        "/citations/styles/install",
+        json={"filename": "test.csl", "csl": changed, "replace": True},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()["install"]["action"] == "updated"
+    assert updated.json()["install"]["style"]["id"] == style_id
+    assert updated.json()["install"]["style"]["full_title"] == "Callosum Test Style Updated"
+
+
+def test_custom_dependent_style_resolves_installed_parent(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    dependent = _dependent_csl("http://www.zotero.org/styles/apa")
+    installed = client.post(
+        "/citations/styles/install",
+        json={"filename": "dependent.csl", "csl": dependent},
+    )
+    assert installed.status_code == 200, installed.text
+    style = installed.json()["install"]["style"]
+    assert style["independent"] is False
+    assert style["parent_style"] == "apa"
+    preview = client.post(
+        "/citations/styles/preview",
+        json={"style": style["id"], "locale": "en-GB"},
+    )
+    assert preview.status_code == 200, preview.text
+    assert "Rivera & Chen, 2024" in preview.json()["citations"][0]
+
+    missing = _dependent_csl("https://example.test/styles/not-installed").replace(
+        "callosum-dependent-test", "callosum-missing-parent"
+    )
+    response = client.post(
+        "/citations/styles/install",
+        json={"filename": "missing-parent.csl", "csl": missing},
+    )
+    assert response.status_code == 422
+    assert "uninstalled parent" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    ("filename", "csl", "detail"),
+    [
+        ("style.xml", CUSTOM_CSL, "Choose a .csl"),
+        ("style.csl", "", None),
+        ("style.csl", "<style>", "Invalid XML"),
+        ("style.csl", "<!DOCTYPE style><style/>", "DTD or entity"),
+        ("style.csl", "<style>" + ("<x>" * 101) + ("</x>" * 101) + "</style>", "nested too deeply"),
+        ("style.csl", CUSTOM_CSL.replace("<title>Callosum Test Style</title>", ""), "needs a title"),
+        (
+            "style.csl",
+            CUSTOM_CSL.replace("https://example.test/styles/callosum-test-style", "not-a-url"),
+            "must be an http(s) URL",
+        ),
+        ("style.csl", CUSTOM_CSL.replace('class="in-text"', 'class="invalid"'), "class must be"),
+        (
+            "style.csl",
+            CUSTOM_CSL.replace("<citation>", "<citation-missing>").replace("</citation>", "</citation-missing>"),
+            "needs a citation layout",
+        ),
+    ],
+)
+def test_custom_style_validation_failures(
+    temp_db_url: str,
+    filename: str,
+    csl: str,
+    detail: str | None,
+) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    response = client.post("/citations/styles/install", json={"filename": filename, "csl": csl})
+    assert response.status_code == 422
+    if detail:
+        assert detail in str(response.json()["detail"])
+
+
+def test_custom_style_cannot_replace_bundled_style(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    bundled = CUSTOM_CSL.replace(
+        "https://example.test/styles/callosum-test-style",
+        "http://www.zotero.org/styles/apa",
+    )
+    response = client.post(
+        "/citations/styles/install",
+        json={"filename": "pretend-apa.csl", "csl": bundled, "replace": True},
+    )
+    assert response.status_code == 422
+    assert "bundled style" in response.json()["detail"]
+
+
+def test_custom_style_payload_is_bounded(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    response = client.post(
+        "/citations/styles/install",
+        json={"filename": "oversized.csl", "csl": "x" * (style_store.MAX_CSL_BYTES + 1)},
+    )
+    assert response.status_code == 422
+
+
+def test_custom_style_validation_preflight_reports_expected_errors_without_http_failure(temp_db_url: str) -> None:
+    client = TestClient(create_app(db_url=temp_db_url))
+    response = client.post(
+        "/citations/styles/validate",
+        json={"filename": "broken.csl", "csl": "<not-csl/>"},
+    )
+    assert response.status_code == 200
+    assert response.json()["valid"] is False
+    assert "CSL <style>" in response.json()["error"]
+
+
+def test_locally_tampered_custom_style_fails_soft(temp_db_url: str) -> None:
+    directory = style_store.custom_styles_dir()
+    directory.mkdir(parents=True)
+    (directory / "custom-tampered.csl").write_text("<not-valid", encoding="utf-8")
+    client = TestClient(create_app(db_url=temp_db_url))
+    assert "custom-tampered" not in {style["id"] for style in client.get("/citations/styles").json()["styles"]}
+    pid = _make_paper(temp_db_url)
+    response = client.post(
+        "/citations/render",
+        json={"paper_ids": [pid], "style": "custom-tampered"},
+    )
+    assert response.status_code == 422
+    assert "invalid XML" in response.json()["detail"]
 
 
 def test_render_validation(temp_db_url: str) -> None:

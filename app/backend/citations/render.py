@@ -18,21 +18,14 @@ from html.parser import HTMLParser
 from typing import Any
 
 from app.backend.api.startup import PROJECT_ROOT
+from app.backend.citations import style_store
 
 _RUNNER = PROJECT_ROOT / "app" / "backend" / "citations" / "citeproc_runner.js"
 _CITEPROC = PROJECT_ROOT / "node_modules" / "citeproc"
 
-# Curated bundled styles — each `id` matches `csl/styles/<id>.csl`. The id set is an ALLOWLIST (rule #3/#4):
-# only these ids reach the sidecar / filesystem. Add a style = add the .csl file + an entry here.
-STYLES: list[dict[str, str]] = [
-    {"id": "apa", "title": "APA (7th edition)", "family": "author-date"},
-    {"id": "modern-language-association", "title": "MLA (9th edition)", "family": "author-date"},
-    {"id": "chicago-author-date", "title": "Chicago (author-date, 18th)", "family": "author-date"},
-    {"id": "chicago-notes-bibliography", "title": "Chicago (notes & bibliography, 18th)", "family": "note"},
-    {"id": "harvard-cite-them-right", "title": "Harvard — Cite Them Right (12th)", "family": "author-date"},
-    {"id": "ieee", "title": "IEEE", "family": "numeric"},
-    {"id": "nature", "title": "Nature", "family": "numeric"},
-]
+# Re-export the bundled manifest for compatibility. Runtime validation uses style_store so local custom styles
+# become first-class without turning user input into a path.
+STYLES = style_store.BUILTIN_STYLES
 STYLE_IDS = {s["id"] for s in STYLES}
 LOCALES = ("en-US", "en-GB")
 DEFAULT_STYLE = "apa"
@@ -107,9 +100,12 @@ def _run(request: dict[str, Any]) -> dict[str, Any]:
         raise CitationEngineUnavailable(
             "Formatted-citation rendering needs Node + citeproc. Run `npm install` at the project root."
         )
+    payload = dict(request)
+    if "style_xml" not in payload and payload.get("style"):
+        payload["style_xml"] = style_store.render_style_xml(str(payload["style"]))
     result = subprocess.run(
         [node, str(_RUNNER)],
-        input=json.dumps(request),
+        input=json.dumps(payload),
         capture_output=True,
         text=True,
         encoding="utf-8",
@@ -128,7 +124,7 @@ def render_papers(papers: Sequence[Mapping[str, Any]], *, style: str, locale: st
 
     Returns per-item in-text + reference (plain text + sanitized HTML) and the combined bibliography.
     """
-    if style not in STYLE_IDS:
+    if not style_store.style_exists(style):
         raise ValueError(f"unknown style: {style}")
     if locale not in LOCALES:
         locale = DEFAULT_LOCALE
@@ -193,7 +189,7 @@ def render_document(
     citation still renders, via citeproc-js's own ``makeBibliography({exclude: [...]})`` field filter — both are
     real, already-supported citeproc-js mechanisms, just not previously wired through this endpoint.
     """
-    if style not in STYLE_IDS:
+    if not style_store.style_exists(style):
         raise ValueError(f"unknown style: {style}")
     if locale not in LOCALES:
         locale = DEFAULT_LOCALE
@@ -270,3 +266,24 @@ def render_document(
         "bibliography_text": "\n".join(_to_text(e) for e in bib),
         "bibliography_html": [_safe_html(e) for e in bib],
     }
+
+
+def validate_style_xml(style_xml: str) -> None:
+    """Ask the real citeproc engine to instantiate and render an independent candidate style."""
+    item = {
+        "id": "validation",
+        "type": "book",
+        "title": "A Citation Style Validation Example",
+        "author": [{"family": "Rivera", "given": "Maya"}],
+        "issued": {"date-parts": [[2024]]},
+        "publisher": "Example Press",
+    }
+    _run(
+        {
+            "items": [item],
+            "order": ["validation"],
+            "style": "custom-validation",
+            "locale": DEFAULT_LOCALE,
+            "style_xml": style_xml,
+        }
+    )

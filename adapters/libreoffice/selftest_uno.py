@@ -1902,16 +1902,47 @@ def spike_style_manager(ctx, base):
     check(preview.get("example_only") is True, "style preview was not marked as example-only")
     check("Rivera & Chen, 2024" in preview["citations"][0], "Writer style preview did not use citeproc output")
 
+    custom_csl = """<?xml version="1.0" encoding="utf-8"?>
+<style xmlns="http://purl.org/net/xbiblio/csl" class="in-text" version="1.0">
+  <info>
+    <title>Callosum Native Test Style</title>
+    <id>https://example.test/styles/callosum-native-test</id>
+    <link href="https://example.test/styles/callosum-native-test" rel="self"/>
+    <updated>2026-07-24T00:00:00+00:00</updated>
+    <category citation-format="author-date"/>
+    <category field="testing"/>
+  </info>
+  <citation><layout prefix="[" suffix="]"><text variable="title"/></layout></citation>
+  <bibliography><layout><text variable="title"/></layout></bibliography>
+</style>"""
+    installed = cc._post_json(
+        f"{base}/citations/styles/install",
+        {"filename": "callosum-native-test.csl", "csl": custom_csl},
+    )["install"]
+    custom_id = installed["style"]["id"]
+    custom_rows = cc.style_catalog(base, "Native Test")["styles"]
+    check([style["id"] for style in custom_rows] == [custom_id], "Writer did not discover the installed CSL style")
+    custom_preview = cc.preview_style(base, custom_id, "en-US")
+    check(
+        "An example study of collaborative writing" in custom_preview["citations"][0],
+        "installed CSL style did not render through Writer's preview contract",
+    )
+
     cc._put_json(
         f"{base}/citations/styles/preferences",
-        {"style": "ieee", "locale": "en-GB", "set_default": True},
+        {"style": custom_id, "locale": "en-GB", "set_default": True},
     )
     blank = new_writer(ctx)
     try:
-        check(cc._get_pref(blank, base) == ("ieee", "en-GB"), "new Writer document did not inherit app default")
+        check(cc._get_pref(blank, base) == (custom_id, "en-GB"), "new Writer document did not inherit custom default")
         check(
             cc._effective_user_prop(blank, cc.PREF_STYLE) is None,
             "reading the application default prematurely embedded a document style",
+        )
+        cc.set_style(blank, custom_id, "en-GB", base)
+        check(
+            cc._get_pref(blank, base) == (custom_id, "en-GB"),
+            "Writer did not embed and apply the installed CSL style",
         )
     finally:
         blank.close(False)
@@ -1919,7 +1950,7 @@ def spike_style_manager(ctx, base):
             f"{base}/citations/styles/preferences",
             {"style": "apa", "locale": "en-US", "set_default": True},
         )
-    log("spike (P1 #9): OK — catalog search, preview, and new-document default")
+    log("spike (P1 #9): OK — bundled/custom search, preview, and new-document default")
 
 
 def main():

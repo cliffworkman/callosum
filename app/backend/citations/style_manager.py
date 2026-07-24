@@ -9,24 +9,26 @@ from __future__ import annotations
 
 import re
 import xml.etree.ElementTree as ET
-from functools import lru_cache
 from typing import Any
+from urllib.parse import urlparse
 
 from app.backend import app_settings
-from app.backend.api.startup import PROJECT_ROOT
+from app.backend.citations import style_store
 from app.backend.citations.render import (
     DEFAULT_LOCALE,
     DEFAULT_STYLE,
     LOCALES,
-    STYLE_IDS,
     STYLES,
     render_document,
+    validate_style_xml,
 )
 
-_CSL_NS = {"csl": "http://purl.org/net/xbiblio/csl"}
-_STYLES_DIR = PROJECT_ROOT / "app" / "backend" / "citations" / "csl" / "styles"
+_CSL_NS = style_store.CSL_NS
 _MAX_RECENTS = 8
 MAX_STYLE_QUERY = 120
+MAX_CSL_BYTES = style_store.MAX_CSL_BYTES
+_MAX_CSL_ELEMENTS = 20_000
+_MAX_CSL_DEPTH = 100
 
 _PREVIEW_CITATIONS = (
     {
@@ -88,31 +90,59 @@ def _text(parent: ET.Element | None, name: str) -> str:
     return " ".join((node.text or "").split()) if node is not None else ""
 
 
-def _style_metadata(manifest: dict[str, str]) -> dict[str, Any]:
-    path = _STYLES_DIR / f"{manifest['id']}.csl"
-    root = ET.parse(path).getroot()
+class StyleUpdateRequired(ValueError):
+    def __init__(self, style_id: str, title: str) -> None:
+        super().__init__(f"{title} is already installed with different CSL content")
+        self.style_id = style_id
+        self.title = title
+
+
+def _style_metadata(
+    style_id: str,
+    path,
+    *,
+    custom: bool,
+    manifest: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    root = style_store.style_root(path)
     info = root.find("csl:info", _CSL_NS)
     categories = info.findall("csl:category", _CSL_NS) if info is not None else []
     fields = sorted({category.get("field", "") for category in categories if category.get("field")})
     citation_format = next(
         (category.get("citation-format", "") for category in categories if category.get("citation-format")),
-        manifest["family"],
+        "",
     )
-    parent = next(
+    parent_canonical = next(
         (
-            link.get("href", "").rsplit("/", 1)[-1]
+            (link.get("href") or "").strip()
             for link in (info.findall("csl:link", _CSL_NS) if info is not None else [])
             if link.get("rel") == "independent-parent"
         ),
         None,
     )
-    title = _text(info, "title") or manifest["title"]
+    parent_match = style_store.canonical_index().get(parent_canonical) if parent_canonical else None
+    parent = parent_match[0] if parent_match else (parent_canonical or "").rsplit("/", 1)[-1] or None
+    parent_root = style_store.style_root(parent_match[1]) if parent_match else None
+    parent_info = parent_root.find("csl:info", _CSL_NS) if parent_root is not None else None
+    parent_categories = parent_info.findall("csl:category", _CSL_NS) if parent_info is not None else []
+    parent_format = next(
+        (category.get("citation-format", "") for category in parent_categories if category.get("citation-format")),
+        "",
+    )
+    title = _text(info, "title") or (manifest or {}).get("title") or style_id
     short_title = _text(info, "title-short")
     summary = _text(info, "summary")
+    canonical = _text(info, "id")
+    style_class = parent_root.get("class") if parent_root is not None else root.get("class")
+    family = (
+        "note"
+        if style_class == "note"
+        else (manifest or {}).get("family") or citation_format or parent_format or "in-text"
+    )
     searchable = " ".join(
         [
-            manifest["id"],
-            manifest["title"],
+            style_id,
+            (manifest or {}).get("title", ""),
             title,
             short_title,
             summary,
@@ -122,23 +152,39 @@ def _style_metadata(manifest: dict[str, str]) -> dict[str, Any]:
         ]
     ).casefold()
     return {
-        **manifest,
+        "id": style_id,
+        "title": (manifest or {}).get("title") or title,
+        "family": family,
         "full_title": title,
         "short_title": short_title,
         "summary": summary,
-        "citation_format": citation_format,
+        "citation_format": citation_format or parent_format or family,
         "fields": fields,
         "independent": parent is None,
         "parent_style": parent,
         "default_locale": root.get("default-locale") or "",
         "installed": True,
+        "custom": custom,
+        "source": "custom" if custom else "bundled",
+        "canonical_id": canonical,
+        "updated": _text(info, "updated"),
         "_searchable": searchable,
     }
 
 
-@lru_cache(maxsize=1)
 def _catalog() -> tuple[dict[str, Any], ...]:
-    return tuple(_style_metadata(manifest) for manifest in STYLES)
+    manifests = {manifest["id"]: manifest for manifest in STYLES}
+    rows = []
+    for style_id, path, custom in style_store.installed_style_paths():
+        try:
+            rows.append(_style_metadata(style_id, path, custom=custom, manifest=manifests.get(style_id)))
+        except (OSError, ET.ParseError, ValueError):
+            continue
+    return tuple(rows)
+
+
+def _installed_ids() -> set[str]:
+    return {style["id"] for style in _catalog()}
 
 
 def list_catalog_styles(query: str = "") -> list[dict[str, Any]]:
@@ -154,9 +200,10 @@ def list_catalog_styles(query: str = "") -> list[dict[str, Any]]:
 def _valid_ids(value: object, *, limit: int | None = None) -> list[str]:
     if not isinstance(value, list):
         return []
+    installed = _installed_ids()
     out: list[str] = []
     for item in value:
-        if isinstance(item, str) and item in STYLE_IDS and item not in out:
+        if isinstance(item, str) and item in installed and item not in out:
             out.append(item)
             if limit is not None and len(out) >= limit:
                 break
@@ -165,10 +212,11 @@ def _valid_ids(value: object, *, limit: int | None = None) -> list[str]:
 
 def style_preferences() -> dict[str, Any]:
     data = app_settings.load_settings()
+    installed = _installed_ids()
     default_style = data.get("citation_default_style")
     default_locale = data.get("citation_default_locale")
     return {
-        "default_style": default_style if default_style in STYLE_IDS else DEFAULT_STYLE,
+        "default_style": default_style if default_style in installed else DEFAULT_STYLE,
         "default_locale": default_locale if default_locale in LOCALES else DEFAULT_LOCALE,
         "favorite_style_ids": _valid_ids(data.get("citation_favorite_styles")),
         "recent_style_ids": _valid_ids(data.get("citation_recent_styles"), limit=_MAX_RECENTS),
@@ -184,7 +232,7 @@ def update_style_preferences(
     mark_used: bool = False,
 ) -> dict[str, Any]:
     """Update one style's local state while preserving unrelated settings and bounding list growth."""
-    if style_id not in STYLE_IDS:
+    if style_id not in _installed_ids():
         raise ValueError(f"unknown style: {style_id}")
     if locale not in LOCALES:
         raise ValueError(f"unknown locale: {locale}")
@@ -229,7 +277,7 @@ def catalog_response(query: str = "") -> dict[str, Any]:
 
 def preview_style(style_id: str, locale: str) -> dict[str, Any]:
     """Render fixed, explicitly fictional examples through the real citeproc engine."""
-    if style_id not in STYLE_IDS:
+    if style_id not in _installed_ids():
         raise ValueError(f"unknown style: {style_id}")
     if locale not in LOCALES:
         raise ValueError(f"unknown locale: {locale}")
@@ -241,3 +289,113 @@ def preview_style(style_id: str, locale: str) -> dict[str, Any]:
         "citations": [item["text"] for item in rendered["citations"]],
         "bibliography_text": rendered["bibliography_text"],
     }
+
+
+def _parse_candidate(filename: str, xml: str) -> tuple[ET.Element, str, str, str | None]:
+    clean_name = str(filename or "").replace("\\", "/").rsplit("/", 1)[-1]
+    if not clean_name.casefold().endswith(".csl"):
+        raise ValueError("Choose a .csl citation style file")
+    if not isinstance(xml, str) or not xml.strip():
+        raise ValueError("The CSL file is empty")
+    if len(xml.encode("utf-8")) > MAX_CSL_BYTES:
+        raise ValueError(f"The CSL file is too large (max {MAX_CSL_BYTES // 1000} KB)")
+    folded = xml.casefold()
+    if "<!doctype" in folded or "<!entity" in folded:
+        raise ValueError("CSL files may not contain DTD or entity declarations")
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError as exc:
+        raise ValueError(f"Invalid XML: {exc}") from exc
+    count = 0
+    stack = [(root, 1)]
+    while stack:
+        node, depth = stack.pop()
+        count += 1
+        if count > _MAX_CSL_ELEMENTS:
+            raise ValueError(f"The CSL file has too many XML elements (max {_MAX_CSL_ELEMENTS})")
+        if depth > _MAX_CSL_DEPTH:
+            raise ValueError(f"The CSL XML is nested too deeply (max {_MAX_CSL_DEPTH} levels)")
+        stack.extend((child, depth + 1) for child in node)
+    if root.tag != f"{{{style_store.CSL_NAMESPACE}}}style":
+        raise ValueError("The root element must be a CSL <style> in the CSL namespace")
+    if root.get("class") not in {"in-text", "note"}:
+        raise ValueError("The CSL style class must be in-text or note")
+    version = (root.get("version") or "").strip()
+    if not version.startswith("1.0"):
+        raise ValueError("The CSL style version must be CSL 1.0.x")
+    info = root.find("csl:info", _CSL_NS)
+    title = _text(info, "title")
+    canonical = _text(info, "id")
+    if not title:
+        raise ValueError("The CSL <info> section needs a title")
+    if len(title) > 300:
+        raise ValueError("The CSL title is too long (max 300 characters)")
+    parsed = urlparse(canonical)
+    if len(canonical) > 500 or parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise ValueError("The CSL <info> id must be an http(s) URL")
+    parent = next(
+        (
+            (link.get("href") or "").strip()
+            for link in (info.findall("csl:link", _CSL_NS) if info is not None else [])
+            if link.get("rel") == "independent-parent"
+        ),
+        None,
+    )
+    if parent:
+        if parent not in style_store.canonical_index():
+            raise ValueError(f"This dependent CSL style requires an uninstalled parent: {parent}")
+    else:
+        citation = root.find("csl:citation", _CSL_NS)
+        if citation is None or citation.find("csl:layout", _CSL_NS) is None:
+            raise ValueError("An independent CSL style needs a citation layout")
+        validate_style_xml(xml)
+    return root, title, canonical, parent
+
+
+def inspect_style_install(filename: str, xml: str) -> dict[str, Any]:
+    """Validate a candidate and report the non-mutating install action it would require."""
+    _, title, canonical, _ = _parse_candidate(filename, xml)
+    existing = style_store.canonical_index().get(canonical)
+    if existing is not None:
+        style_id, path, custom = existing
+        if not custom:
+            raise ValueError(f"{title} duplicates a bundled style and cannot replace it")
+        try:
+            current = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise ValueError("The installed CSL style could not be read") from exc
+        if current == xml:
+            action = "already_installed"
+        else:
+            action = "update_available"
+    else:
+        style_id = style_store.custom_style_id(canonical)
+        action = "ready"
+    return {
+        "action": action,
+        "style": {
+            "id": style_id,
+            "full_title": title,
+            "canonical_id": canonical,
+        },
+    }
+
+
+def install_style(filename: str, xml: str, *, replace: bool = False) -> dict[str, Any]:
+    """Validate and atomically install or update one local CSL file."""
+    inspection = inspect_style_install(filename, xml)
+    action = inspection["action"]
+    style_id = inspection["style"]["id"]
+    title = inspection["style"]["full_title"]
+    if action == "update_available" and not replace:
+        raise StyleUpdateRequired(style_id, title)
+    if action == "ready":
+        style_store.write_custom_style(style_id, xml)
+        action = "installed"
+    elif action == "update_available":
+        style_store.write_custom_style(style_id, xml)
+        action = "updated"
+    style = next((row for row in list_catalog_styles() if row["id"] == style_id), None)
+    if style is None:
+        raise RuntimeError("The CSL style was written but could not be reopened")
+    return {"action": action, "style": style}

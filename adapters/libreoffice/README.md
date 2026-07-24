@@ -78,13 +78,14 @@ Start callosum, open a document in Writer, and use the **Callosum** menu / toolb
 5. **Citation style…** — search the shared local catalog by style, journal, discipline, acronym, or name; choose
    from descriptive results; select a locale; and inspect a real fixed-example citation + bibliography preview
    before applying. Favorites, recents, and the application default live in **Callosum → Settings → Citation
-   styles**. A new Writer document inherits that application default on its first citation; an existing document
-   keeps its own embedded style and locale. Applying a choice re-renders the whole document and records the style
-   in Recents. With Chicago notes and bibliography, each new citation is inserted into a real Writer footnote and
-   citeproc receives the one-based note sequence, so first and subsequent notes render correctly. Use **Note
-   placement…** to choose **Footnotes** (the default) or **Endnotes** for new note-style citations; the choice is
-   saved in the document. Callosum refuses an incompatible style or placement switch before changing the document
-   or its saved preference.
+   styles**, which can also validate and install local `.csl` files. Installed personal styles automatically
+   appear in Writer's search and preview. A new Writer document inherits that application default on its first
+   citation; an existing document keeps its own embedded style and locale. Applying a choice re-renders the whole
+   document and records the style in Recents. With Chicago notes and bibliography, each new citation is inserted
+   into a real Writer footnote and citeproc receives the one-based note sequence, so first and subsequent notes
+   render correctly. Use **Note placement…** to choose **Footnotes** (the default) or **Endnotes** for new
+   note-style citations; the choice is saved in the document. Callosum refuses an incompatible style or placement
+   switch before changing the document or its saved preference.
 6. **Convert citation placement…** — explicitly convert all eligible live citations between inline text,
    footnotes, and endnotes while choosing the target style. The preview names the source, target, and citation
    count. Apply it to this document as one Writer Undo step, or save a separate converted `.odt` copy while the

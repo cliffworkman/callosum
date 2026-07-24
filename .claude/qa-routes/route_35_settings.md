@@ -26,6 +26,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
   recents, locale, and application default must fire no external request. Preview text must be the named fictional
   examples, never library content. Changing the application default affects new documents only; an existing
   word-processor document must retain its embedded style and locale.
+- **Custom CSL install is local and bounded (inc 366).** `POST /citations/styles/validate` preflights text from
+  one local `.csl` file without writing; `POST /citations/styles/install` performs the explicit mutation. Neither
+  accepts a path or URL. DTD/entities, oversized/deep/overpopulated XML, invalid CSL metadata or layout, and
+  missing dependent parents must fail before persistence. Bundled styles are immutable. Any external request from
+  install/validation is **Critical**.
 - **LibreOffice install is local-only (inc 162).** The plugin install/download builds + opens a FIXED bundled `.oxt`; it must fire **no egress** (no genai/external host) and must degrade gracefully (`{opened:false}` + a download fallback), never 500. A request to any external host from the install path is **Critical**.
 - **Remote access is OFF by default + token-gated (inc 168).** On a clean instance, `GET /settings` reports
   `remote_access_enabled:false`; the gate is a no-op (the data API works with no token). Enabling without a token →
@@ -71,6 +76,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
    chosen style. Make IEEE the application default, reload, and confirm it remains selected and appears in Recent;
    changing the default must not mutate any existing document. Restore APA/en-US. At `375x812`, confirm the list,
    detail, preview, default action, and long labels remain reachable with no horizontal overflow.
+   Click **Install .csl** and choose a valid independent test style: confirm it appears as **Personal style**,
+   searches by title/field, previews through citeproc, can become the default/favorite/recent, and persists after
+   reload. Re-import the exact file → "already installed" with no rewrite. Change its title/content while retaining
+   its canonical `<id>` → an explicit replacement confirmation; cancel leaves the installed version unchanged,
+   confirm updates it under the same local id. Try a bundled canonical id, malformed XML, a non-CSL extension,
+   DTD/entity declarations, missing title/id/citation layout, an unknown dependent parent, and a file above
+   1000 KB: each fails with a specific reason and no new catalog row. Expected preflight failures create no
+   console error. A dependent style whose parent is installed may install and must preview through that parent.
 10. **Local maintenance.** Click **Repair synthesis cache** (`POST /settings/repair-summary-cache`). It must report scanned and removed row counts, fire no external request, and not delete saved summaries, verified citations, chunks, or evidence records. A response that claims to "verify" or improve synthesis quality is a wording bug: this only deletes malformed cached AI draft rows.
 11. **Metadata access (inc 158).** Under **Metadata access**, save a **Contact email** (e.g. `you@example.com`); `GET /settings` reports `contact_email` + `contact_email_source: "ui"`. Submit `not-an-email` → **422**, nothing persisted. The email is NOT a secret (it IS returned by `GET /settings` — it's the polite-pool contact for Crossref/OpenAlex/Retraction Watch), but saving it must fire **no genai request**. Clear it → reverts to empty.
 12. **LibreOffice plugin (inc 162).** Under **LibreOffice plugin**, confirm the section renders (Install plugin button + Download .oxt link + the "restart Writer / app must be running" note). The **Download .oxt** link (`GET /integrations/libreoffice/plugin.oxt`) serves a non-empty `.oxt` (a zip). Clicking **Install** (`POST /integrations/libreoffice/install`) returns 200 with `{opened: …, detail}` and fires **no genai/external request** (it only opens a local file handler); on a headless runner where no handler exists it must report `opened:false` with a download fallback, not crash.

@@ -298,11 +298,16 @@ the Principles + A-A gates before build.)*
   id. Blank Writer documents inherit the application default on first citation; existing documents retain their
   embedded style/locale, and a successful document style change records a recent without replacing the
   application default. The installed 0.15.0 OXT proves inheritance, preview, search, and recents against real
-  Writer. **Still open under #9:** installing additional/custom CSL styles, visual/source editing, and CSL
-  import/export.
+  Writer. **Inc 366 added local custom CSL installation (2026-07-24):** Settings validates bounded `.csl` XML
+  structurally and through real citeproc before an atomic write outside the repository. Personal styles are
+  first-class across search/preview/preferences/single/document render and Writer. Exact duplicates do not write;
+  changed canonical duplicates require explicit update confirmation; bundled styles are immutable; installed
+  canonical parents support dependent styles. The installed 0.16.0 OXT proves personal-style discovery, preview,
+  default inheritance, embedding, and application. **Still open under #9:** personal-style removal/export and
+  portability, CSL repository search/install, URL import, full-schema/update provenance, and visual/source editing.
   **Needs Cliff's own manual
   click-through soon** (flagged explicitly for #12/#11's panel buttons and #13's refresh/toggle menu commands —
-  not left to drift like the composer's verification did). Remaining P1 (custom CSL installation/editing/import-export, broader note-placement conversion, more bibliography
+  not left to drift like the composer's verification did). Remaining P1 (custom CSL lifecycle/repository/editing, broader note-placement conversion, more bibliography
   editing controls — categories/chapter bibliographies/hyperlinked entries, portability, journal abbreviations,
   keyboard/accessibility) **and P2
   leapfrog** (evidence-aware Suggest-Citation, manuscript-level citation-coverage audit,

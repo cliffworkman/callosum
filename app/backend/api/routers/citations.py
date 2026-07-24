@@ -19,6 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy import Connection
 
 from app.backend.api.dependencies import get_connection
+from app.backend.citations import style_store
 from app.backend.citations.beyond_library import (
     MAX_BEYOND_RESULTS,
     BeyondLibrarySuggestion,
@@ -31,14 +32,17 @@ from app.backend.citations.render import (
     DEFAULT_STYLE,
     MAX_CLUSTERS,
     MAX_ITEMS_PER_CLUSTER,
-    STYLE_IDS,
     CitationEngineUnavailable,
     render_document,
     render_papers,
 )
 from app.backend.citations.style_manager import (
+    MAX_CSL_BYTES,
     MAX_STYLE_QUERY,
+    StyleUpdateRequired,
     catalog_response,
+    inspect_style_install,
+    install_style,
     preview_style,
     update_style_preferences,
 )
@@ -68,6 +72,12 @@ class StylePreferencesRequest(BaseModel):
     favorite: bool | None = None
     set_default: bool = False
     mark_used: bool = False
+
+
+class StyleInstallRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=255)
+    csl: str = Field(min_length=1, max_length=MAX_CSL_BYTES)
+    replace: bool = False
 
 
 # CSL's fixed locator-label vocabulary (CSL 1.0.2 term list — confirmed against the bundled locale XML; no
@@ -187,9 +197,40 @@ def citation_style_preferences(payload: StylePreferencesRequest) -> dict[str, An
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
+@router.post("/citations/styles/install")
+def citation_style_install(payload: StyleInstallRequest) -> dict[str, Any]:
+    try:
+        result = install_style(payload.filename, payload.csl, replace=payload.replace)
+        return {**catalog_response(), "install": result}
+    except StyleUpdateRequired as exc:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "update_available",
+                "style_id": exc.style_id,
+                "title": exc.title,
+                "message": str(exc),
+            },
+        ) from exc
+    except CitationEngineUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/citations/styles/validate")
+def citation_style_validate(payload: StyleInstallRequest) -> dict[str, Any]:
+    try:
+        return {**catalog_response(), "valid": True, "install": inspect_style_install(payload.filename, payload.csl)}
+    except CitationEngineUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (ValueError, RuntimeError) as exc:
+        return {**catalog_response(), "valid": False, "error": str(exc)}
+
+
 @router.post("/citations/render")
 def render_citations(payload: RenderCitationsRequest, conn: Connection = Depends(get_connection)) -> dict[str, Any]:
-    if payload.style not in STYLE_IDS:
+    if not style_store.style_exists(payload.style):
         raise HTTPException(status_code=422, detail="Unknown citation style")
     rows = get_papers_for_export(conn, payload.paper_ids)
     if not rows:
@@ -206,7 +247,7 @@ def render_citations(payload: RenderCitationsRequest, conn: Connection = Depends
 
 @router.post("/citations/render-document")
 def render_citation_document(payload: RenderDocumentRequest) -> dict[str, Any]:
-    if payload.style not in STYLE_IDS:
+    if not style_store.style_exists(payload.style):
         raise HTTPException(status_code=422, detail="Unknown citation style")
     # by_alias=True: CitationItem's suppress_author/author_only dump as the hyphenated citeproc-cite property
     # names (P0 phase 3) — the wire shape render_document()/citeproc_runner.js expect, not the Python attribute.

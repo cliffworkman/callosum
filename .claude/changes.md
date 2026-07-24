@@ -9,6 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 366 — local custom CSL installation -->
+## 2026-07-24 — Increment 366: Local custom CSL installation (P1 item #9)
+
+- **Files:** custom style store + citation manager/render/sidecar/API, Settings manager + generated app, citation
+  and frontend tests, LibreOffice selftest/README/OXT version (0.15.0 → 0.16.0), root README, served help, QA
+  routes, security audit, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Settings → Citation styles → Install .csl** validates one local CSL file through bounded XML
+  checks and the real citeproc engine before an atomic write beside local settings. Personal styles become
+  first-class in search/detail/preview, favorites/recents/defaults, single/document rendering, and Writer.
+- **Integrity:** upload names/URLs never become paths; runtime ids are server-generated `custom-*` values.
+  Bundled styles are immutable. Exact re-imports do not rewrite; changed canonical duplicates require an explicit
+  update confirmation. Dependent styles require and resolve an installed canonical parent. Corrupt/symlinked
+  local files fail soft.
+- **UX:** a non-mutating validation preflight returns actionable expected failures and update state without failed
+  browser requests or console errors. The native file input is genuinely hidden; the single install command is
+  right-aligned and remains overflow-free on mobile.
+- **Verification:** focused API/frontend/LibreOffice suite: **209 passed**. Playwright covered valid install,
+  search/preview, duplicate, update, invalid input, desktop/mobile layout, and zero console/page errors. The
+  installed 0.16.0 OXT completed personal-style install/search/preview/inheritance/application plus the full
+  Writer fixture with **SELFTEST OK**. Full project suite: **1524 passed, 1 skipped**.
+- **Revert:** `git revert` this commit; rebuild the frontend and `.oxt` via `python tools/build_frontend.py` and
+  `python tools/build_libreoffice_oxt.py`.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 365 — shared citation-style manager -->
 ## 2026-07-24 — Increment 365: Shared citation-style manager (P1 item #9)
 

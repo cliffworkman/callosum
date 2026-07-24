@@ -65,9 +65,13 @@ function main() {
   const locale = typeof req.locale === "string" && req.locale ? req.locale : "en-US";
   const style = String(req.style || "");
   if (!/^[a-z0-9-]+$/.test(style)) fail("invalid style id");
-  const stylePath = path.join(STYLES_DIR, style + ".csl");
-  if (!fs.existsSync(stylePath)) fail("unknown style: " + style);
-  const styleXml = fs.readFileSync(stylePath, "utf8");
+  let styleXml = typeof req.style_xml === "string" ? req.style_xml : "";
+  if (styleXml.length > 1000000) fail("citation style is too large");
+  if (!styleXml) {
+    const stylePath = path.join(STYLES_DIR, style + ".csl");
+    if (!fs.existsSync(stylePath)) fail("unknown style: " + style);
+    styleXml = fs.readFileSync(stylePath, "utf8");
+  }
 
   const isDocument = req.mode === "document";
 

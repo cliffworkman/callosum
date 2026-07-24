@@ -180,8 +180,14 @@ The plugin should not require users to know CSL IDs.
 metadata, distinguishes dependent/independent styles, previews representative fictional references through real
 citeproc, and persists favorites, recents, locale, and application default. Settings provides the full manager;
 LibreOffice uses the same catalog and lets users open it. Blank documents inherit the application default while
-existing documents retain their embedded style/locale. Still open below: repository installation, local/URL
-import, validation/update handling, visual/source editing, duplication, and custom export.
+existing documents retain their embedded style/locale. That increment left repository installation, local/URL
+import, validation/update handling, visual/source editing, duplication, and custom export open.
+
+**Local import shipped in increment 366 (2026-07-24):** Settings installs a bounded local `.csl` only after
+structural checks and real citeproc validation. Exact duplicates and changed canonical updates are distinguished;
+bundled styles cannot be replaced. Personal and dependent styles become first-class in the shared catalog,
+preferences, previews, rendering APIs, and Writer. Still open: removal/export/portability, repository search,
+explicit URL import, full-schema/update provenance, duplication, and visual/source editing.
 
 Required functionality:
 
