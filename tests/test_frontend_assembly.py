@@ -297,9 +297,22 @@ def test_wip_is_a_distinct_library_level_context_and_never_leaks_stale_paper_sel
 
 def test_my_publications_workspace_loads_without_axis_card_button():
     raw = assemble_jsx()
-    assert "function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf })" in raw
+    assert (
+        "function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf, onLibraryChanged })"
+        in raw
+    )
     assert "const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null)" in raw
     assert 'const ax = (r.data || []).find(a => a.kind === "my_publications")' in raw
+
+
+def test_my_publications_citation_gaps_are_grounded_and_explicit_refresh():
+    raw = assemble_jsx()
+    assert "function MyPubsCitationGaps" in raw
+    assert 'api("/my-publications/citation-gaps")' in raw
+    assert 'apiPost("/my-publications/citation-gaps/refresh", {})' in raw
+    assert "Why this surfaced" in raw
+    assert "Shared references are a retrieval trail" in raw
+    assert "<MyPubsCitationGaps" in raw
     assert "axisId={resolvedAxisId}" in raw
     assert "axisRefresh={axisRefresh}" in raw
     assert 'title="Open the impact dashboard"' not in raw

@@ -100,6 +100,18 @@ gap_candidates = Table(
     Index("ix_gap_candidates_scope", "direction", "axis_id"),
 )
 
+# My Publications Layer-4 grounded prospection (inc 386): one bounded, explicit-refresh snapshot. Candidates
+# retain the exact shared references + confirmed own-publication rows that caused them to surface. A single JSON
+# snapshot keeps a genuine empty result distinguishable from "never computed" and makes replacement atomic.
+my_publication_citation_gap_cache = Table(
+    "my_publication_citation_gap_cache",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("candidates", JSON, nullable=False),
+    Column("coverage", JSON, nullable=False),
+    Column("computed_at", String(40), nullable=False),
+)
+
 # Overlooked-work lens persistent cache (backlog #37): one row per surfaced candidate, scoped by axis_id. A refresh
 # replaces all rows for an axis; GET /overlooked reads here. Identity-agnostic by construction — there is NO author
 # column (the lens measures the work's attention-vs-relevance, never who wrote it). `relevance` and `year_percentile`

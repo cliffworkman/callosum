@@ -2402,6 +2402,34 @@
   .domain-row.on .domain-fill { background: var(--accent-line); }
   .domain-label { position: relative; z-index: 1; flex: 1; font-size: 13px; color: var(--ink); font-weight: 500; }
   .domain-meta { position: relative; z-index: 1; font-size: 11.5px; color: var(--ink-2); white-space: nowrap; }
+  /* inc 386: My Publications Layer-4 grounded citation gaps. */
+  .mypubs-prospection { border-top: 1px solid var(--line); padding-top: 16px; margin-bottom: 18px; }
+  .mypubs-grounded-tag {
+    font-size: 10.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft);
+    border: 1px solid var(--accent-line); border-radius: var(--radius-pill); padding: 1px 7px; margin-left: 6px;
+  }
+  .mypubs-prospection-intro { max-width: 780px; margin: 0 0 10px; font-size: 12.5px; line-height: 1.5; color: var(--ink-2); }
+  .mypubs-gap-coverage {
+    font-size: 11.5px; line-height: 1.45; color: var(--ink-3); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 7px 10px; margin-bottom: 10px;
+  }
+  .mypubs-gap-coverage span { display: block; margin-top: 3px; }
+  .mypubs-gap-list { display: flex; flex-direction: column; }
+  .mypubs-gap-card { padding: 9px 0; border-bottom: 1px solid var(--line); }
+  .mypubs-gap-card-main { display: flex; align-items: center; gap: 10px; }
+  .mypubs-gap-card-copy { flex: 1; min-width: 0; }
+  .mypubs-gap-title {
+    display: block; color: var(--ink); font-family: var(--serif); font-size: 14px; font-weight: 600; text-decoration: none;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .mypubs-gap-title:hover { color: var(--accent); text-decoration: underline; }
+  .mypubs-gap-add { color: var(--verified); }
+  .mypubs-gap-add:hover:not(:disabled) { color: var(--verified); }
+  .mypubs-gap-evidence { margin-top: 6px; font-size: 11.5px; color: var(--ink-2); }
+  .mypubs-gap-evidence summary { cursor: pointer; color: var(--accent); width: fit-content; }
+  .mypubs-gap-anchor { margin: 6px 0 0 14px; line-height: 1.45; }
+  .mypubs-gap-anchor > a { color: var(--ink-2); font-weight: 600; }
+  .mypubs-gap-caveat { margin: 7px 0 0 14px; color: var(--ink-3); font-style: italic; }
   /* Star key publications (inc 84) — ★ uses --accent (selection), not amber (--flag is status). */
   .axis-star { border: none; background: none; cursor: pointer; font-size: 13px; line-height: 1; color: var(--ink-3); padding: 0 2px; }
   .axis-star:hover { color: var(--accent); }
@@ -13982,7 +14010,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       return /* @__PURE__ */ React.createElement("g", { key: b.label }, /* @__PURE__ */ React.createElement("rect", { className: "pubs-bar", x, y, width: barW, height: barH, rx: "2" }, /* @__PURE__ */ React.createElement("title", null, b.label, ": ", b.value)), /* @__PURE__ */ React.createElement("text", { className: "pubs-bar-count", x: x + barW / 2, y: y - 3, textAnchor: "middle" }, b.value), /* @__PURE__ */ React.createElement("text", { className: "pubs-bar-year", x: x + barW / 2, y: h - 5, textAnchor: "middle" }, "'" + String(b.label).slice(2)));
     }));
   }
-  function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf }) {
+  function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf, onLibraryChanged }) {
     const [data, setData] = useState({ status: "loading" });
     const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null);
     const [summary, setSummary] = useState("");
@@ -14238,7 +14266,7 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
       /* @__PURE__ */ React.createElement("span", { className: "domain-fill", style: { width: `${Math.round(d.citation_count / maxDomainCites * 100)}%` } }),
       /* @__PURE__ */ React.createElement("span", { className: "domain-label" }, d.label),
       /* @__PURE__ */ React.createElement("span", { className: "domain-meta" }, d.paper_count, "p \xB7 ", d.citation_count, " cites")
-    ), /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn domain-edit", title: "Rename this domain", onClick: () => startRename(i, d) }, "\u270E")))), /* @__PURE__ */ React.createElement("datalist", { id: "mypubs-axis-names" }, axisNames.map((n) => /* @__PURE__ */ React.createElement("option", { key: n, value: n }))))), /* @__PURE__ */ React.createElement("section", { className: "openalex-card" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "OpenAlex"), /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, asOf ? "as of " + asOf : "not yet refreshed")), /* @__PURE__ */ React.createElement("div", { className: "openalex-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " indexed \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in library", data.gap > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, data.gap, " not imported")), ((data.missing_works || []).length > 0 || (data.dismissed_works || []).length > 0) && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost openalex-review", onClick: () => setMissingOpen(true) }, (data.missing_works || []).length > 0 ? `Review ${data.missing_works.length} \u2192` : `Dismissed (${data.dismissed_works.length}) \u2192`)), data.openalex_extra && /* @__PURE__ */ React.createElement("div", { className: "mypubs-source openalex-stats" }, "2-yr mean citedness ", data.openalex_extra.two_year_mean_citedness, data.openalex_extra.affiliation ? ` \xB7 ${data.openalex_extra.affiliation}` : "", data.openalex_extra.openalex_author_id && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement(
+    ), /* @__PURE__ */ React.createElement("button", { className: "axis-icon-btn domain-edit", title: "Rename this domain", onClick: () => startRename(i, d) }, "\u270E")))), /* @__PURE__ */ React.createElement("datalist", { id: "mypubs-axis-names" }, axisNames.map((n) => /* @__PURE__ */ React.createElement("option", { key: n, value: n }))))), /* @__PURE__ */ React.createElement(MyPubsCitationGaps, { onSelectPaper, onLibraryChanged }), /* @__PURE__ */ React.createElement("section", { className: "openalex-card" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", null, "OpenAlex"), /* @__PURE__ */ React.createElement("span", { className: "mypubs-source" }, asOf ? "as of " + asOf : "not yet refreshed")), /* @__PURE__ */ React.createElement("div", { className: "openalex-gap" }, /* @__PURE__ */ React.createElement("b", null, data.indexed_works), " indexed \xB7 ", /* @__PURE__ */ React.createElement("b", null, data.in_library), " in library", data.gap > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-gap-nudge" }, data.gap, " not imported")), ((data.missing_works || []).length > 0 || (data.dismissed_works || []).length > 0) && /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost openalex-review", onClick: () => setMissingOpen(true) }, (data.missing_works || []).length > 0 ? `Review ${data.missing_works.length} \u2192` : `Dismissed (${data.dismissed_works.length}) \u2192`)), data.openalex_extra && /* @__PURE__ */ React.createElement("div", { className: "mypubs-source openalex-stats" }, "2-yr mean citedness ", data.openalex_extra.two_year_mean_citedness, data.openalex_extra.affiliation ? ` \xB7 ${data.openalex_extra.affiliation}` : "", data.openalex_extra.openalex_author_id && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", /* @__PURE__ */ React.createElement(
       "a",
       {
         className: "btn-link",
@@ -14257,6 +14285,97 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         onChanged: refetch
       }
     ), citing && /* @__PURE__ */ React.createElement(CitingModal, { workId: citing.workId, paperTitle: citing.title, onClose: () => setCiting(null) }));
+  }
+  function MyPubsCitationGaps({ onSelectPaper, onLibraryChanged }) {
+    const [state, setState] = useState({ status: "loading", candidates: [], coverage: null, computedAt: null });
+    const [refresh, setRefresh] = useState({ status: "idle" });
+    const [rowAction, setRowAction] = useState({});
+    const load = React.useCallback(() => {
+      api("/my-publications/citation-gaps").then((r) => {
+        if (r.ok) {
+          setState({
+            status: "ready",
+            candidates: r.data.candidates || [],
+            coverage: r.data.coverage || null,
+            computedAt: r.data.computed_at || null
+          });
+        } else setState({ status: "error", error: r.error, candidates: [], coverage: null, computedAt: null });
+      });
+    }, []);
+    useEffect(() => {
+      load();
+    }, [load]);
+    const runRefresh = async () => {
+      setRefresh({ status: "running" });
+      const started = await apiPost("/my-publications/citation-gaps/refresh", {});
+      if (!started.ok) {
+        setRefresh({ status: "error", error: started.error });
+        return;
+      }
+      const poll = (jobId) => api(`/my-publications/citation-gaps/refresh/${jobId}`).then((r) => {
+        if (!r.ok) {
+          setRefresh({ status: "error", error: r.error });
+          return;
+        }
+        if (r.data.status === "done") {
+          setRefresh({ status: "idle" });
+          load();
+        } else if (r.data.status === "error") {
+          setRefresh({ status: "error", error: r.data.detail || "Citation-gap refresh failed." });
+        } else setTimeout(() => poll(jobId), 1800);
+      });
+      poll(started.data.job_id);
+    };
+    const add = async (candidate) => {
+      setRowAction((prev) => ({ ...prev, [candidate.openalex_work_id]: "adding" }));
+      const r = await apiPost("/gaps/add", {
+        doi: candidate.doi,
+        openalex_work_id: candidate.openalex_work_id,
+        title: candidate.title
+      });
+      if (r.ok) {
+        if (onLibraryChanged) onLibraryChanged();
+        load();
+      } else {
+        setRowAction((prev) => ({ ...prev, [candidate.openalex_work_id]: r.error || "Add failed." }));
+      }
+    };
+    const dismiss = async (candidate) => {
+      setRowAction((prev) => ({ ...prev, [candidate.openalex_work_id]: "dismissing" }));
+      const r = await apiPost("/gaps/dismiss", {
+        openalex_work_id: candidate.openalex_work_id,
+        doi: candidate.doi
+      });
+      if (r.ok) load();
+      else setRowAction((prev) => ({ ...prev, [candidate.openalex_work_id]: r.error || "Dismiss failed." }));
+    };
+    const coverage = state.coverage;
+    const candidates = state.candidates || [];
+    const running = refresh.status === "running";
+    return /* @__PURE__ */ React.createElement("section", { className: "mypubs-prospection", "aria-labelledby": "mypubs-citation-gaps-title" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-summary-head" }, /* @__PURE__ */ React.createElement("span", { id: "mypubs-citation-gaps-title" }, "Citation gaps ", /* @__PURE__ */ React.createElement("span", { className: "mypubs-grounded-tag" }, "Grounded prospection")), /* @__PURE__ */ React.createElement("button", { className: "btn btn-ghost", disabled: running, onClick: runRefresh }, running ? "Scanning\u2026" : state.computedAt ? "\u21BB Refresh gaps" : "Find citation gaps")), /* @__PURE__ */ React.createElement("p", { className: "mypubs-prospection-intro" }, "Works that share reference anchors with several of your publications, while none of the scanned publications cites the candidate. Every suggestion shows the exact OpenAlex graph evidence."), running && /* @__PURE__ */ React.createElement(ProgressBar, { label: "Tracing shared references through OpenAlex\u2026" }), refresh.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, refresh.error), state.status === "error" && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, state.error), state.status === "loading" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Loading the local citation-gap snapshot\u2026"), state.computedAt && coverage && /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap-coverage" }, "Last refreshed ", new Date(state.computedAt).toLocaleString(), " \xB7 scanned ", coverage.checked, " of", " ", coverage.total, " confirmed publications", coverage.total > coverage.with_doi ? ` (${coverage.total - coverage.with_doi} had no DOI)` : "", " ", "\xB7 ", coverage.shared_anchor_count, " shared reference anchor", coverage.shared_anchor_count === 1 ? "" : "s", ".", coverage.publication_cap_reached && " The publication scan cap was reached.", /* @__PURE__ */ React.createElement("span", null, coverage.note)), !state.computedAt && state.status === "ready" && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "Not computed yet. Run an explicit scan when you want to query OpenAlex."), state.computedAt && !running && candidates.length === 0 && /* @__PURE__ */ React.createElement("div", { className: "axis-hint" }, "No grounded citation gaps surfaced at the current shared-reference threshold. This does not certify that the citation neighborhood is complete."), /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap-list" }, candidates.map((candidate) => {
+      const action = rowAction[candidate.openalex_work_id];
+      const busy = action === "adding" || action === "dismissing";
+      return /* @__PURE__ */ React.createElement("article", { className: "mypubs-gap-card", key: candidate.openalex_work_id }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap-card-main" }, /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap-card-copy" }, /* @__PURE__ */ React.createElement(
+        "a",
+        {
+          href: `https://openalex.org/${candidate.openalex_work_id}`,
+          target: "_blank",
+          rel: "noopener noreferrer",
+          className: "mypubs-gap-title"
+        },
+        candidate.title || candidate.doi || candidate.openalex_work_id,
+        " \u2197"
+      ), /* @__PURE__ */ React.createElement("div", { className: "gap-row-meta" }, /* @__PURE__ */ React.createElement("span", { className: "gap-count" }, candidate.shared_reference_count, " shared reference", candidate.shared_reference_count === 1 ? "" : "s", " across", " ", candidate.source_publication_count, " of your publications"), candidate.authors && candidate.authors.length > 0 && /* @__PURE__ */ React.createElement(React.Fragment, null, " \xB7 ", candidate.authors.slice(0, 3).join(", "), candidate.authors.length > 3 ? " et al." : ""), candidate.year ? ` \xB7 ${candidate.year}` : "")), /* @__PURE__ */ React.createElement("div", { className: "gap-row-actions" }, candidate.doi && /* @__PURE__ */ React.createElement("button", { className: "axis-link mypubs-gap-add", disabled: busy, onClick: () => add(candidate) }, action === "adding" ? "Adding\u2026" : "Add"), /* @__PURE__ */ React.createElement("button", { className: "axis-link", disabled: busy, onClick: () => dismiss(candidate) }, action === "dismissing" ? "Dismissing\u2026" : "Dismiss"))), action && !busy && /* @__PURE__ */ React.createElement("div", { className: "axis-err" }, action), /* @__PURE__ */ React.createElement("details", { className: "mypubs-gap-evidence" }, /* @__PURE__ */ React.createElement("summary", null, "Why this surfaced"), (candidate.evidence || []).map((item) => /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap-anchor", key: item.reference_openalex_work_id }, /* @__PURE__ */ React.createElement(
+        "a",
+        {
+          href: `https://openalex.org/${item.reference_openalex_work_id}`,
+          target: "_blank",
+          rel: "noopener noreferrer"
+        },
+        item.reference_title || item.reference_doi || item.reference_openalex_work_id,
+        " \u2197"
+      ), /* @__PURE__ */ React.createElement("span", null, " is cited by "), (item.source_papers || []).map((paper, index) => /* @__PURE__ */ React.createElement(React.Fragment, { key: paper.paper_id }, index > 0 && /* @__PURE__ */ React.createElement("span", null, ", "), /* @__PURE__ */ React.createElement("button", { className: "axis-link", onClick: () => onSelectPaper && onSelectPaper({ id: paper.paper_id, title: paper.title }) }, paper.title))))), /* @__PURE__ */ React.createElement("div", { className: "mypubs-gap-caveat" }, "Shared references are a retrieval trail, not proof that this work belongs in your bibliography.")));
+    })));
   }
   function MissingWorksModal({ open, onClose, missing, dismissed, onChanged }) {
     const [busy, setBusy] = useState(() => /* @__PURE__ */ new Set());
@@ -17282,7 +17401,8 @@ ${p.q.trim().toLowerCase()}` !== key)].slice(0, DISCOVER_SEARCH_HISTORY_LIMIT);
         axisRefresh,
         onSummarize: summarizePaperIds,
         onSelectPaper: setSelected,
-        onOpenPdf: openPdf
+        onOpenPdf: openPdf,
+        onLibraryChanged: () => setLibRefresh((n) => n + 1)
       }
     )), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "synthesis" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("synthesis"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "synthesis" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "discover" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("discover"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "discover" })), /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: activeWorkspace === "work" ? "flex" : "none" } }, /* @__PURE__ */ React.createElement(WorkspacePane, { ws: getWorkspace("work"), ctx: workspaceCtx, readOnly, wsActive: activeWorkspace === "work" })), activeWorkspace === "help" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(HelpView, null)), activeWorkspace === "settings" && /* @__PURE__ */ React.createElement("div", { className: "workspace-slot", style: { display: "flex" } }, /* @__PURE__ */ React.createElement(
       SettingsView,

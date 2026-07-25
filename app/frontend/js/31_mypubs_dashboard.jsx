@@ -39,7 +39,7 @@ function MyPubsBarChart({ bars, ariaLabel }) {
   );
 }
 
-function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf }) {
+function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOpenPdf, onLibraryChanged }) {
   const [data, setData] = useState({ status: "loading" });
   const [resolvedAxisId, setResolvedAxisId] = useState(axisId || null);
   const [summary, setSummary] = useState("");
@@ -313,6 +313,8 @@ function MyPubsDashboard({ axisId, axisRefresh, onSummarize, onSelectPaper, onOp
             <datalist id="mypubs-axis-names">{axisNames.map(n => <option key={n} value={n} />)}</datalist>
           </div>}
       </div>
+
+      <MyPubsCitationGaps onSelectPaper={onSelectPaper} onLibraryChanged={onLibraryChanged} />
 
       {/* OpenAlex card (r4, footer) — provenance + gap + richer stats + refresh + the missing-works modal trigger (#1/#6/#11/#12) */}
       <section className="openalex-card">

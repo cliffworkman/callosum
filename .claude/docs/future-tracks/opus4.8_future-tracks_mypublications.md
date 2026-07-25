@@ -167,6 +167,16 @@ LAYER 4 — Grounded prospection panel (bounded, kept separate from the impact-r
   ungrounded suggestions. Route narration through the grounded data and the caching/egress
   posture from the token-optimization pass.
 
+**Layer 4 slice 1 shipped in increment 386 (2026-07-25): grounded citation gaps.** An explicit dashboard
+refresh scans confirmed own publications with DOI metadata, identifies OpenAlex references shared by at least
+two, and follows those shared-reference neighborhoods to bounded external candidates. A candidate is excluded
+when any scanned own publication directly cites it, when it is already in the library, or when the user dismissed
+it. The atomic local snapshot preserves each shared reference plus the exact clickable own-publication sources;
+ordinary dashboard reads make no request. Visible shared-reference/source-publication counts order the candidates
+without an opaque score, and coverage text names OpenAlex/cap limits and refuses to treat an empty result as
+completeness. Domain-scoped caching is the recorded corpus-builder follow-up. Emerging citing-topics, candidate
+collaborators, and any narration remain open.
+
 CONSTRAINTS:
 - Additive. Reuse the LibraryFrame tabs, the library card, abstract_clustering, the axis model,
   and the summary generator. No parallel components.

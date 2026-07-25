@@ -50,7 +50,7 @@ def _decompose_compute(conn: Connection, *, model, author_client):
     profile = get_profile(conn)
     if not profile or not profile.get("openalex_author_id"):
         return {"status": "not-resolved"}, []
-    rows = _confirmed_member_rows(conn)
+    rows = confirmed_member_rows(conn)
     if len(rows) < MIN_DOMAIN_PAPERS:
         return {"status": "too-few", "count": len(rows)}, []
 
@@ -108,7 +108,7 @@ def _reapply_custom_labels(domains: list[dict[str, Any]], old_domains: Any) -> N
             used.add(best_i)
 
 
-def _confirmed_member_rows(conn: Connection) -> list:
+def confirmed_member_rows(conn: Connection) -> list:
     """Full paper rows for the my_publications axis's CONFIRMED in-library members — confidence IS NULL (manual)
     or >= CONFIRMED_CONFIDENCE; the 0.25 name-only candidates are excluded (don't characterize 'your domains'
     with unconfirmed papers)."""

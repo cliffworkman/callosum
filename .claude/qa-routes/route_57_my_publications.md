@@ -1,12 +1,12 @@
 <!-- qa-coverage
 api: /my-publications*
-fe: 31_mypubs_dashboard.jsx, 32_mypubs_missing.jsx, 33_mypubs_pubs.jsx, 34_mypubs_citing.jsx
+fe: 31_mypubs_dashboard.jsx, 31b_mypubs_citation_gaps.jsx, 32_mypubs_missing.jsx, 33_mypubs_pubs.jsx, 34_mypubs_citing.jsx
 -->
 
 # ROUTE 57 - My Publications
 
 **Tier:** 2 egress/external
-**Goal:** Exhaust profile, refresh, decisions, dashboard, domains, works import/dismiss, summary, starring, citing-paper import, and reset flows.
+**Goal:** Exhaust profile, refresh, decisions, dashboard, grounded citation gaps, domains, works import/dismiss, summary, starring, citing-paper import, and reset flows.
 
 ## Environment
 
@@ -38,13 +38,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Run hermetically by def
 6. Generate domains (`POST /my-publications/domains`, `GET /my-publications/domains/{job_id}`), rename a domain (`POST /my-publications/domains/rename`), and confirm labels are editable signals, not truth.
 7. Generate and edit public summary (`POST /my-publications/summary/generate`, `PUT /my-publications/summary`) with fake generator. Confirm provenance and user-edit state.
 8. Open citing works (`34_mypubs_citing.jsx`). Load citing list (`GET /my-publications/citing/{work_id}`) and import one (`POST /my-publications/citing/import`).
-9. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
+9. Before any citation-gap action, load `GET /my-publications/citation-gaps`; confirm an uncomputed local snapshot triggers no OpenAlex request. Run `POST /my-publications/citation-gaps/refresh`, poll `GET /my-publications/citation-gaps/refresh/{job_id}`, navigate away mid-job, and return. Confirm each candidate shows its visible shared-reference/source-publication counts; expand **Why this surfaced** and follow every shared reference plus own-publication evidence link. Add one DOI-backed candidate and dismiss another; re-read the cache and confirm both disappear without recomputation. Exercise a no-result fixture and verify it explicitly says this is not a certificate of completeness.
+10. Reset My Publications (`DELETE /my-publications`) only at the end of the disposable run; confirm dashboard returns to setup state.
 
 ## Pass criteria
 
 - Every My Publications panel and endpoint completes through the UI.
 - Hermetic default uses injected fake clients; no genai-host requests with egress unset.
-- Domains, stars, and summaries are transparent signals/user choices, never hidden verdicts.
+- Domains, stars, summaries, and citation gaps are transparent signals/user choices, never hidden verdicts.
+- Citation-gap reads are local; only explicit refresh calls OpenAlex. Every candidate reaches exact graph evidence, directly cited/existing works stay excluded, and coverage/caps remain visible.
 - Mobile viewport has no horizontal overflow.
 
 ## Deposit

@@ -418,7 +418,8 @@ function App() {
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "profile" ? "flex" : "none" }}>
         <MyPubsDashboard axisRefresh={axisRefresh}
-          onSummarize={summarizePaperIds} onSelectPaper={setSelected} onOpenPdf={openPdf} />
+          onSummarize={summarizePaperIds} onSelectPaper={setSelected} onOpenPdf={openPdf}
+          onLibraryChanged={() => setLibRefresh(n => n + 1)} />
       </div>
       <div className="workspace-slot" style={{ display: activeWorkspace === "synthesis" ? "flex" : "none" }}>
         <WorkspacePane ws={getWorkspace("synthesis")} ctx={workspaceCtx} readOnly={readOnly} wsActive={activeWorkspace === "synthesis"} />

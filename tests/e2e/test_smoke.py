@@ -197,6 +197,100 @@ def _walk_accordion_sections(page, pane_selector: str, label: str) -> None:
         _assert_tool_panes_do_not_overflow(page, f"{label} / {section_label}")
 
 
+def test_my_publications_grounded_citation_gap_reveals_source_evidence(server: str):
+    with sync_playwright() as p:
+        try:
+            browser = p.chromium.launch()
+        except Exception as exc:
+            pytest.skip(f"chromium not launchable: {exc}")
+        page = browser.new_page()
+        page.route(
+            "**/my-publications/dashboard",
+            lambda route: route.fulfill(
+                json={
+                    "status": "ok",
+                    "name": "Ada Lovelace",
+                    "as_of": "2026-07-25T12:00:00",
+                    "metrics": {"works_count": 2, "cited_by_count": 12, "h_index": 2, "i10_index": 1},
+                    "pubs_by_year": [],
+                    "counts_by_year": [],
+                    "indexed_works": 2,
+                    "in_library": 2,
+                    "gap": 0,
+                    "research_summary": None,
+                    "domains": [],
+                    "missing_works": [],
+                    "dismissed_works": [],
+                    "openalex_extra": None,
+                    "starred_count": 0,
+                    "starred_ids": [],
+                    "paper_citations": {},
+                }
+            ),
+        )
+        page.route(
+            "**/my-publications/citation-gaps",
+            lambda route: route.fulfill(
+                json={
+                    "computed_at": "2026-07-25T12:30:00+00:00",
+                    "coverage": {
+                        "checked": 2,
+                        "with_doi": 2,
+                        "total": 2,
+                        "shared_anchor_count": 1,
+                        "publication_cap_reached": False,
+                        "note": "OpenAlex coverage is partial.",
+                    },
+                    "candidates": [
+                        {
+                            "openalex_work_id": "W301",
+                            "doi": "10.3/gap",
+                            "title": "A grounded neighboring work",
+                            "authors": ["Grace Hopper"],
+                            "year": 2025,
+                            "shared_reference_count": 1,
+                            "source_publication_count": 2,
+                            "evidence": [
+                                {
+                                    "reference_openalex_work_id": "W201",
+                                    "reference_title": "The shared reference",
+                                    "reference_doi": "10.2/reference",
+                                    "source_papers": [
+                                        {"paper_id": 1, "title": "Own publication A"},
+                                        {"paper_id": 2, "title": "Own publication B"},
+                                    ],
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ),
+        )
+        page.route(
+            "**/axes",
+            lambda route: route.fulfill(json=[{"id": 7, "label": "My Publications", "kind": "my_publications"}]),
+        )
+        page.route("**/axes/7/clusters", lambda route: route.fulfill(json=[]))
+        errors = _mount_app(page, server)
+
+        page.get_by_role("tab", name="My Publications", exact=True).click()
+        panel = page.locator(".mypubs-prospection")
+        panel.wait_for()
+        assert "A grounded neighboring work" in panel.inner_text()
+        assert "1 shared reference across 2 of your publications" in panel.inner_text()
+        anchor = panel.locator(".mypubs-gap-anchor")
+        assert not anchor.is_visible()
+        panel.locator(".mypubs-gap-evidence summary").click()
+        assert anchor.is_visible() and "The shared reference" in anchor.inner_text()
+        assert page.get_by_role("button", name="Own publication A", exact=True).is_visible()
+        assert panel.locator('a[href="https://openalex.org/W301"]').count() == 1
+        page.set_viewport_size({"width": 375, "height": 812})
+        page.wait_for_timeout(120)
+        _assert_no_document_horizontal_overflow(page, "My Publications citation gaps / mobile")
+        assert errors == []
+        browser.close()
+
+
 def test_tool_panes_resist_visual_drift(server: str):
     with sync_playwright() as p:
         try:

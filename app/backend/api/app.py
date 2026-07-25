@@ -52,6 +52,7 @@ from app.backend.api.routers import (
     methods,
     methods_bayes,
     methods_retraction,
+    my_publication_gaps,
     my_publications,
     ocr,
     overlooked,
@@ -160,6 +161,7 @@ def create_app(
     api.state.wanted_jobs = JobStore()
     api.state.mypubs_jobs = JobStore()
     api.state.mypubs_domain_jobs = JobStore()
+    api.state.my_publication_gap_jobs = JobStore()
     api.state.library_scan_jobs = JobStore()
     api.state.library_scan_singleflight_lock = Lock()  # one scan/rescan writer at a time
     api.state.active_library_scan_job_id = None
@@ -280,6 +282,7 @@ def create_app(
     )  # before papers so "/papers/citation-context/*" wins over "/papers/{id}" (inc 232)
     api.include_router(wanted.router)
     api.include_router(my_publications.router)
+    api.include_router(my_publication_gaps.router)
     api.include_router(
         paper_enrich.router
     )  # /papers/{id}/re-resolve + /fill-metadata — split out of papers.py (inc 226)

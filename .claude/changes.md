@@ -9,7 +9,29 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 385 — Writer journal abbreviations -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 386 — My Publications grounded citation gaps -->
+## 2026-07-25 — Increment 386: My Publications grounded citation gaps
+
+- **Files:** bounded co-citation graph service, atomic snapshot schema/repository + migration 0052, async API,
+  dashboard evidence panel, browser/API/migration tests, help/QA/security/backlog/roadmap/CLAUDE/increment notes.
+- **What changed:** **My Publications → Citation gaps** explicitly scans OpenAlex for external works that cite
+  reference anchors shared by at least two confirmed own publications while excluding candidates any scanned
+  publication already cites. Every suggestion expands to the exact shared references and clickable own papers.
+- **Boundaries:** LLM-free; plain dashboard reads are local. Refresh caps the scan at 75 confirmed DOI-backed
+  publications, 20 shared anchors, 200 citing works per anchor through the existing adapter, 25 candidates, and
+  bounded evidence/string sizes. It states OpenAlex coverage limits and never treats an empty result as complete.
+- **Actions:** visible shared-reference/source-publication counts order candidates without an opaque score.
+  DOI-backed candidates use the existing metadata-only Add path; Dismiss uses reversible local gap preference
+  state. Failed refresh preserves the previous atomic snapshot.
+- **Experience:** a corpus-builder browser walkthrough found the evidence and next actions direct. Domain-scoped
+  prospection is the recorded next Layer-4 slice because it needs a scoped cache/API rather than cosmetic UI.
+  Persona-agent dispatch was unavailable under the session's no-delegation constraint.
+- **Verification:** focused backend/My-Pubs/gap/migration/frontend suite **114 passed**; Chromium smoke **4 passed**
+  plus a focused 375×812 check; QA surface map **312/312 API** and **1378/1399 frontend** (21 report-only);
+  full-suite count recorded in the increment notes.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 385 — Writer journal abbreviations -->
 ## 2026-07-25 — Increment 385: Writer journal-abbreviation controls
 
 - **Files:** local citation-render abbreviation policy/index, NLM refresh tool/provenance notice, Writer
