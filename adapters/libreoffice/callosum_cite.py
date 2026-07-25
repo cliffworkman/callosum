@@ -778,6 +778,13 @@ def _section_bibliography_signatures(doc) -> tuple[tuple[str, bool, bool, str], 
     return tuple(sorted(signatures))
 
 
+def _managed_bibliographies_signature(
+    doc,
+) -> tuple[tuple[bool, bool, str], tuple[tuple[str, bool, bool, str], ...]]:
+    """Snapshot the full and every heading-scoped managed bibliography range."""
+    return _managed_bibliography_signature(doc), _section_bibliography_signatures(doc)
+
+
 def document_structure_signature(
     doc,
 ) -> tuple[tuple[tuple[str, str], ...], tuple[tuple[bool, bool, str], tuple[tuple[str, bool, bool, str], ...]]]:
@@ -785,7 +792,7 @@ def document_structure_signature(
     citations = tuple(
         (field["_mark"].Name, field["_mark"].getAnchor().getString()) for field in scan_citations_in_order(doc)
     )
-    return citations, (_managed_bibliography_signature(doc), _section_bibliography_signatures(doc))
+    return citations, _managed_bibliographies_signature(doc)
 
 
 def structure_change_flags(
@@ -2825,6 +2832,86 @@ def _write_bibliography(
                 _set_bibliography_span_url(doc, offset + start, length, url, start_name)
 
 
+def _bibliography_in_place_compatible(
+    doc,
+    entries: list[str],
+    entry_categories: list[str | None],
+    start_name: str,
+    end_name: str,
+) -> bool:
+    """Whether old/new text share two safe boundary characters that conversion can leave untouched."""
+    bookmarks = doc.getBookmarks()
+    if not bookmarks.hasByName(start_name) or not bookmarks.hasByName(end_name):
+        return False
+    current = _bookmark_pair_signature(doc, start_name, end_name)[2]
+    target = bibliography_layout(entries, entry_categories, bibliography_heading(doc))[0]
+    return len(current) >= 2 and len(target) >= 2 and current[0] == target[0] and current[-1] == target[-1]
+
+
+def _rewrite_bibliography_in_place(
+    doc,
+    entries: list[str],
+    entry_ids: list[list[str]],
+    entry_links: list[list[tuple[int, int, str]]],
+    entry_categories: list[str | None],
+    external_links: bool,
+    *,
+    start_name: str = BIB_BOOKMARK,
+    end_name: str = BIB_BOOKMARK_END,
+    manage_targets: bool = True,
+) -> None:
+    """Replace a bounded bibliography's interior while retaining its native boundary objects for Undo."""
+    text = doc.getText()
+    bookmarks = doc.getBookmarks()
+    if not bookmarks.hasByName(start_name) or not bookmarks.hasByName(end_name):
+        raise RuntimeError("Writer lost a managed bibliography boundary before conversion.")
+    if manage_targets:
+        for target_name in _existing_bibliography_target_names(doc):
+            current = doc.getBookmarks()
+            if current.hasByName(target_name):
+                text.removeTextContent(current.getByName(target_name))
+
+    layout, offsets = bibliography_layout(entries, entry_categories, bibliography_heading(doc))
+    start = bookmarks.getByName(start_name).getAnchor().getStart()
+    end = bookmarks.getByName(end_name).getAnchor().getEnd()
+    if not _bibliography_in_place_compatible(doc, entries, entry_categories, start_name, end_name):
+        raise RuntimeError("Conversion cannot safely retain the boundaries of an empty managed bibliography.")
+    interior_start = text.createTextCursorByRange(start)
+    interior_end = text.createTextCursorByRange(end)
+    if not interior_start.goRight(1, False) or not interior_end.goLeft(1, False):
+        raise RuntimeError("Writer could not select the interior of a managed bibliography.")
+    interior_start.gotoRange(interior_end, True)
+    interior_start.setString(layout[1:-1])
+
+    current = doc.getBookmarks()
+    if not current.hasByName(start_name) or not current.hasByName(end_name):
+        raise RuntimeError("Writer removed a managed bibliography boundary during conversion.")
+    if _bookmark_pair_signature(doc, start_name, end_name)[2] != layout:
+        raise RuntimeError("Writer did not keep managed bibliography boundaries around the converted text.")
+    formatted = text.createTextCursorByRange(current.getByName(start_name).getAnchor().getStart())
+    formatted.gotoRange(current.getByName(end_name).getAnchor().getEnd(), True)
+    formatted.setPropertyValue("HyperLinkURL", "")
+
+    if manage_targets:
+        for offset, ids in zip(offsets, entry_ids, strict=True):
+            for item_id in ids:
+                target_name = bibliography_entry_bookmark(item_id)
+                if target_name is None:
+                    continue
+                target_cursor = text.createTextCursorByRange(
+                    doc.getBookmarks().getByName(start_name).getAnchor().getStart()
+                )
+                if offset and not target_cursor.goRight(offset, False):
+                    raise RuntimeError("Writer could not locate a converted bibliography entry target.")
+                target = doc.createInstance("com.sun.star.text.Bookmark")
+                target.Name = target_name
+                text.insertTextContent(target_cursor, target, False)
+    if external_links:
+        for offset, links in zip(offsets, entry_links, strict=True):
+            for start, length, url in links:
+                _set_bibliography_span_url(doc, offset + start, length, url, start_name)
+
+
 def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> None:
     """Re-wrap Writer-restored bibliography text without changing a character."""
     text = doc.getText()
@@ -2849,7 +2936,6 @@ def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> Non
     want_start, want_end, contents = signature
     if not (want_start and want_end):
         return
-
     if contents:
         descriptor = doc.createSearchDescriptor()
         descriptor.SearchString = contents
@@ -3053,6 +3139,10 @@ def _conversion_managed_ranges(doc, fields: list[dict]) -> list[tuple[object, ob
         else:
             start = end = main_text.getEnd()
         ranges.append((main_text, start, end, "the managed bibliography"))
+        for record in section_bibliography_records(doc)[0]:
+            start = bookmarks.getByName(record["start"]).getAnchor().getStart()
+            end = bookmarks.getByName(record["end"]).getAnchor().getEnd()
+            ranges.append((main_text, start, end, "a managed section bibliography"))
     return ranges
 
 
@@ -3183,6 +3273,12 @@ def placement_conversion_error(doc, fields: list[dict], target_placement: str) -
     has_start, has_end, _text = _managed_bibliography_signature(doc)
     if has_start != has_end:
         return "Repair the damaged managed bibliography before converting citation placement."
+    try:
+        _section_bibliographies, damaged_section_bibliographies = section_bibliography_records(doc)
+    except ValueError as exc:
+        return str(exc)
+    if damaged_section_bibliographies:
+        return "Repair damaged section bibliography bookmarks before converting citation placement."
 
     if source_placement in NOTE_PLACEMENTS:
         note_keys = [(field["placement"], field["noteIndex"]) for field in fields]
@@ -3203,15 +3299,44 @@ def _conversion_user_props(doc) -> dict[str, str | None]:
     return {name: _effective_user_prop(doc, name) for name in _CONVERSION_PREFS}
 
 
+def _conversion_state_cursor(doc):
+    """Choose a bounded main-text point outside every managed TextContent range/anchor."""
+    text = doc.getText()
+    occupied = []
+    for name in doc.getBookmarks().getElementNames():
+        anchor = doc.getBookmarks().getByName(name).getAnchor()
+        if _range_belongs_to_text(text, anchor):
+            occupied.append((anchor.getStart(), anchor.getEnd()))
+    for name in doc.getReferenceMarks().getElementNames():
+        if isinstance(name, str) and name.startswith(CONVERSION_STATE_PREFIX + " "):
+            continue
+        anchor = doc.getReferenceMarks().getByName(name).getAnchor()
+        if _range_belongs_to_text(text, anchor):
+            occupied.append((anchor.getStart(), anchor.getEnd()))
+    for note in _note_containers(doc):
+        anchor = note["_note"].getAnchor()
+        occupied.append((anchor.getStart(), anchor.getEnd()))
+
+    cursor = text.createTextCursorByRange(text.getStart())
+    cursor.collapseToStart()
+    for _offset in range(4097):
+        if not any(
+            _ordered_ranges_overlap(text.compareRegionStarts, cursor, cursor, start, end) for start, end in occupied
+        ):
+            return cursor
+        if not cursor.goRight(1, False):
+            break
+    raise RuntimeError("Writer has no safe bounded main-text position for Callosum conversion state.")
+
+
 def _replace_conversion_state(doc, values: dict[str, str | None]) -> None:
     """Replace the zero-width state mark; Writer natively includes the change in its current Undo context."""
     text = doc.getText()
+    cursor = _conversion_state_cursor(doc)
     for mark in _conversion_state_marks(doc):
         mark.getAnchor().getText().removeTextContent(mark)
     marker = doc.createInstance("com.sun.star.text.ReferenceMark")
     marker.Name = _conversion_state_name(values)
-    cursor = text.createTextCursorByRange(text.getStart())
-    cursor.collapseToStart()
     text.insertTextContent(cursor, marker, False)
 
 
@@ -3232,7 +3357,7 @@ def _conversion_snapshot(doc) -> tuple:
         ),
         tuple(note.getString() for note in _collection_items(doc.getFootnotes())),
         tuple(note.getString() for note in _collection_items(doc.getEndnotes())),
-        _managed_bibliography_signature(doc),
+        _managed_bibliographies_signature(doc),
         tuple(_conversion_user_props(doc).items()),
         tuple(mark.Name for mark in _conversion_state_marks(doc)),
         _tracked_changes_signature(doc),
@@ -3245,7 +3370,7 @@ def _conversion_snapshot_differences(before: tuple, after: tuple) -> str:
         "citation fields",
         "footnotes",
         "endnotes",
-        "bibliography",
+        "bibliographies",
         "preferences",
         "state mark",
         "tracked changes",
@@ -3338,11 +3463,8 @@ def convert_citation_placement(
 ) -> dict:
     """Explicit, transactional placement/style conversion for the narrow unambiguous Writer subset."""
     section_bibliographies, damaged_section_bibliographies = section_bibliography_records(doc)
-    if section_bibliographies or damaged_section_bibliographies:
-        raise ValueError(
-            "To keep citation-placement conversion safely undoable, remove section bibliographies first. "
-            "The document was not changed."
-        )
+    if damaged_section_bibliographies:
+        raise ValueError("Repair damaged section bibliography bookmarks before converting citation placement.")
     styles = list_styles(base)
     families = {entry["id"]: entry["family"] for entry in styles}
     if target_style not in families:
@@ -3383,9 +3505,38 @@ def convert_citation_placement(
     )
     external_links_enabled = bibliography_external_links_enabled(doc)
     write_bibliography = bib_auto_enabled(doc)
+    section_plans = (
+        _section_bibliography_plans(
+            doc,
+            fields,
+            bibliography_entries,
+            bibliography_entry_ids,
+            bibliography_entry_links,
+            bibliography_entry_categories,
+            external_links_enabled,
+        )
+        if write_bibliography
+        else []
+    )
+    incompatible_sections = [
+        section["id"]
+        for section in section_plans
+        if not _bibliography_in_place_compatible(
+            doc,
+            section["entries"],
+            section["entry_categories"],
+            section["start"],
+            section["end"],
+        )
+    ]
+    if incompatible_sections:
+        raise ValueError(
+            "Remove or refresh empty section bibliographies before converting citation placement; "
+            "Writer cannot preserve their boundaries through one-step Undo."
+        )
     before_snapshot = _conversion_snapshot(doc)
     before_state_key = _conversion_state_key(doc)
-    before_bibliography = before_snapshot[4]
+    before_bibliography = before_snapshot[4][0]
     before_redlines = before_snapshot[7]
     expected_names = [field["_mark"].Name for field in fields]
     relocation_plan = [(field["_mark"].Name, field["citationID"]) for field in fields]
@@ -3417,14 +3568,42 @@ def convert_citation_placement(
         for name, citation_id in reversed(relocation_plan):
             _relocate_mark(doc, name, rendered[citation_id], target_placement)
         if write_bibliography:
-            _write_bibliography(
+            if _bibliography_in_place_compatible(
                 doc,
                 bibliography_entries,
-                bibliography_entry_ids,
-                bibliography_entry_links,
                 bibliography_entry_categories,
-                external_links_enabled,
-            )
+                BIB_BOOKMARK,
+                BIB_BOOKMARK_END,
+            ):
+                _rewrite_bibliography_in_place(
+                    doc,
+                    bibliography_entries,
+                    bibliography_entry_ids,
+                    bibliography_entry_links,
+                    bibliography_entry_categories,
+                    external_links_enabled,
+                )
+            else:
+                _write_bibliography(
+                    doc,
+                    bibliography_entries,
+                    bibliography_entry_ids,
+                    bibliography_entry_links,
+                    bibliography_entry_categories,
+                    external_links_enabled,
+                )
+            for section in section_plans:
+                _rewrite_bibliography_in_place(
+                    doc,
+                    section["entries"],
+                    section["entry_ids"],
+                    section["entry_links"],
+                    section["entry_categories"],
+                    section["external_links"],
+                    start_name=section["start"],
+                    end_name=section["end"],
+                    manage_targets=False,
+                )
         available_ids = {
             str(item_id)
             for ids in bibliography_entry_ids
@@ -3477,6 +3656,16 @@ def convert_citation_placement(
             bibliography_entry_categories,
         ):
             verification_failures.append("bibliography DOI/URL links")
+        if write_bibliography and _section_bibliography_plans(
+            doc,
+            converted,
+            bibliography_entries,
+            bibliography_entry_ids,
+            bibliography_entry_links,
+            bibliography_entry_categories,
+            external_links_enabled,
+        ):
+            verification_failures.append("section bibliographies")
         if _tracked_changes_signature(doc) != before_redlines:
             verification_failures.append("tracked changes")
         if verification_failures:
@@ -3522,6 +3711,7 @@ def convert_citation_placement(
         "target_placement": target_placement,
         "style": target_style,
         "tracked_changes_preserved": len(before_redlines),
+        "section_bibliographies": len(section_bibliographies),
     }
 
 

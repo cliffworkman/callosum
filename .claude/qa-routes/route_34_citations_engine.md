@@ -145,9 +145,11 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     repair without changing prose or another block. A second insert in the same subtree, insertion from a note,
     a citation-free section, over 50 blocks, or damaged/foreign/copy-suffixed bookmark names must not mutate.
     Diagnostics reports complete/damaged blocks. Removal targets only the caret's subtree; flatten removes all
-    managed wrappers while preserving text. Placement conversion must refuse before HTTP/mutation until
-    multi-range Undo/Redo is verified. Inject a write failure and confirm every citation/full/section surface
-    returns to its exact prior signature.
+    managed wrappers while preserving text. Convert between APA inline citations and Chicago footnotes; confirm
+    the full bibliography and both non-empty section blocks update in one Writer Undo step, Undo/Redo restore exact
+    snapshots, and save-as-converted-copy leaves the open document unchanged. Inject the second range write failure
+    and confirm every citation/full/section surface returns to its exact prior signature. Damaged or empty section
+    blocks must refuse before mutation.
 
 ## Pass criteria
 

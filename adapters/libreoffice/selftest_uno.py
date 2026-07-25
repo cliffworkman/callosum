@@ -2140,6 +2140,7 @@ def spike_section_bibliographies(ctx, base, p1, p2):
 
     heading("Chapter One")
     heading("Chapter Two")
+    cc._set_pref(doc, "apa", "en-US")
     cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(find("SECTION-CITE-A")))
     cc.insert_citation(doc, p2, base, cursor=text.createTextCursorByRange(find("SECTION-CITE-B")))
     cc.set_bibliography_external_links(doc, True, base)
@@ -2214,22 +2215,105 @@ def spike_section_bibliographies(ctx, base, p1, p2):
         cc.diagnose_document(doc, base)["section_bibliographies"] == {"count": 2, "damaged": []},
         "diagnostics did not report the two intact section bibliographies",
     )
+
+    before_conversion = cc._conversion_snapshot(doc)
+    conversion = cc.convert_citation_placement(
+        doc,
+        "chicago-notes-bibliography",
+        "en-US",
+        "footnote",
+        base,
+    )
+    converted = cc._conversion_snapshot(doc)
+    check(conversion["section_bibliographies"] == 2, f"conversion reported the wrong section count: {conversion}")
+    check(
+        [field["placement"] for field in cc.scan_citations_in_order(doc)] == ["footnote", "footnote"],
+        "section-bibliography conversion did not create native footnotes",
+    )
+    converted_records, converted_damaged = cc.section_bibliography_records(doc)
+    check(
+        len(converted_records) == 2 and not converted_damaged,
+        "conversion lost a section bibliography: "
+        f"records={converted_records!r}, damaged={converted_damaged!r}, "
+        f"bookmarks={doc.getBookmarks().getElementNames()!r}",
+    )
+    undo = doc.getUndoManager()
+    check(
+        undo.getCurrentUndoActionTitle() == "Convert Callosum citation placement",
+        "multi-range conversion is not one Writer Undo step",
+    )
+    undo.undo()
+    after_undo = cc._conversion_snapshot(doc)
+    check(
+        after_undo == before_conversion,
+        "multi-range Writer Undo did not restore exactly: "
+        + cc._conversion_snapshot_differences(before_conversion, after_undo),
+    )
+    undo.redo()
+    after_redo = cc._conversion_snapshot(doc)
+    check(
+        after_redo == converted,
+        "multi-range Writer Redo did not restore exactly: "
+        + cc._conversion_snapshot_differences(converted, after_redo),
+    )
+
+    failure_before = cc._conversion_snapshot(doc)
+    original_rewrite = cc._rewrite_bibliography_in_place
+    write_calls = {"count": 0}
+
+    def fail_first_section(*args, **kwargs):
+        write_calls["count"] += 1
+        if write_calls["count"] == 2:
+            raise RuntimeError("injected section conversion failure")
+        return original_rewrite(*args, **kwargs)
+
+    cc._rewrite_bibliography_in_place = fail_first_section
     try:
-        cc.convert_citation_placement(doc, "chicago-notes-bibliography", "en-US", "footnote", base)
-    except ValueError as exc:
-        check("remove section bibliographies" in str(exc), f"conversion refusal was unclear: {exc}")
-    else:
-        raise AssertionError("placement conversion accepted section bibliographies before multi-range Undo support")
+        try:
+            cc.convert_citation_placement(doc, "apa", "en-US", "footnote", base)
+        except RuntimeError as exc:
+            check("injected section conversion failure" in str(exc), f"wrong multi-range rollback error: {exc}")
+        else:
+            raise AssertionError("injected section conversion failure did not propagate")
+    finally:
+        cc._rewrite_bibliography_in_place = original_rewrite
+    check(
+        cc._conversion_snapshot(doc) == failure_before,
+        "multi-range conversion rollback did not restore every section exactly",
+    )
 
     fd, save_path = tempfile.mkstemp(suffix=".odt")
     os.close(fd)
+    copy_path = os.path.splitext(save_path)[0] + "-converted.odt"
     try:
         from com.sun.star.beans import PropertyValue
 
         save_url = uno.systemPathToFileUrl(save_path)
         filt = PropertyValue()
         filt.Name, filt.Value = "FilterName", "writer8"
-        doc.storeToURL(save_url, (filt,))
+        doc.storeAsURL(save_url, (filt,))
+        copy_before = cc._conversion_snapshot(doc)
+        copy_result, copy_url = cc.save_converted_copy(
+            doc,
+            os.path.basename(copy_path),
+            "apa",
+            "en-US",
+            "footnote",
+            base,
+        )
+        check(copy_result["section_bibliographies"] == 2, f"converted-copy result lost section count: {copy_result}")
+        check(cc._conversion_snapshot(doc) == copy_before, "converted-copy flow changed the open multi-range document")
+        converted_copy = load_doc(ctx, copy_url)
+        check(
+            [field["placement"] for field in cc.scan_citations_in_order(converted_copy)] == ["inline", "inline"],
+            "converted section-bibliography copy did not use inline placement",
+        )
+        check(
+            len(cc.section_bibliography_records(converted_copy)[0]) == 2,
+            "converted section-bibliography copy lost a local block",
+        )
+        converted_copy.close(False)
+
         reopened = load_doc(ctx, save_url)
         reopened_records, reopened_damaged = cc.section_bibliography_records(reopened)
         check(
@@ -2238,10 +2322,9 @@ def spike_section_bibliographies(ctx, base, p1, p2):
         reopened_body = reopened.getText().getString()
         check(reopened_body.count("References\n") == 3, f"reopen lost a full/section bibliography: {reopened_body!r}")
 
-        descriptor = reopened.createSearchDescriptor()
-        descriptor.SearchString = "Chapter One"
-        heading_range = reopened.findFirst(descriptor)
-        reopened.getCurrentController().getViewCursor().gotoRange(heading_range.getStart(), False)
+        reopened_first = next(record for record in reopened_records if record["id"] == first_id)
+        scope_anchor = reopened.getBookmarks().getByName(reopened_first["scope"]).getAnchor()
+        reopened.getCurrentController().getViewCursor().gotoRange(scope_anchor.getStart(), False)
         check(cc.remove_section_bibliography(reopened) == first_id, "remove targeted the wrong section bibliography")
         check(
             len(cc.section_bibliography_records(reopened)[0]) == 1,
@@ -2249,11 +2332,15 @@ def spike_section_bibliographies(ctx, base, p1, p2):
         )
         reopened.close(False)
     finally:
-        try:
-            os.remove(save_path)
-        except OSError:
-            pass
-    log("spike (P1 #11): OK — two section blocks + full bibliography refresh, persist, diagnose, and remove safely")
+        for path in (copy_path, save_path):
+            try:
+                os.remove(path)
+            except OSError:
+                pass
+    log(
+        "spike (P1 #11): OK — two section blocks + full bibliography refresh, one-step conversion Undo/Redo, "
+        "rollback/copy isolation, persist, diagnose, and remove safely"
+    )
 
 
 def spike_bibliography_links(ctx, base, p1, p2):

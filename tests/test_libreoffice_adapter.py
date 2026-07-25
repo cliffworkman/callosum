@@ -1195,16 +1195,25 @@ def test_placement_conversion_rejects_empty_same_and_mixed_without_mutation() ->
     )
 
 
-def test_placement_conversion_refuses_section_bibliographies_before_fetching_styles(monkeypatch) -> None:
+def test_placement_conversion_accepts_complete_section_bibliographies_but_refuses_damage(monkeypatch) -> None:
     identifier = "a" * 32
     names = cc.section_bibliography_bookmarks(identifier)
     monkeypatch.setattr(cc, "section_bibliography_records", lambda _doc: ([{"id": identifier, **names}], []))
+
+    class StyleLookupReached(Exception):
+        pass
+
+    monkeypatch.setattr(cc, "list_styles", lambda _base: (_ for _ in ()).throw(StyleLookupReached()))
+    with pytest.raises(StyleLookupReached):
+        cc.convert_citation_placement(object(), "apa", "en-US")
+
+    monkeypatch.setattr(cc, "section_bibliography_records", lambda _doc: ([], [identifier]))
     monkeypatch.setattr(
         cc,
         "list_styles",
-        lambda _base: pytest.fail("conversion must refuse before an HTTP style lookup"),
+        lambda _base: pytest.fail("damaged section bibliographies must refuse before an HTTP style lookup"),
     )
-    with pytest.raises(ValueError, match="remove section bibliographies"):
+    with pytest.raises(ValueError, match="Repair damaged section bibliography"):
         cc.convert_citation_placement(object(), "apa", "en-US")
     monkeypatch.setattr(cc, "_get_pref", lambda _doc, _base: ("apa", "en-US"))
     monkeypatch.setattr(cc, "scan_citations_in_order", lambda _doc: [])
@@ -1216,7 +1225,6 @@ def test_placement_conversion_refuses_section_bibliographies_before_fetching_sty
         "render_document",
         lambda *_args, **_kwargs: pytest.fail("refresh must refuse before rendering"),
     )
-    monkeypatch.setattr(cc, "section_bibliography_records", lambda _doc: ([], [identifier]))
     with pytest.raises(ValueError, match="damaged section bibliography"):
         cc.refresh(object(), update_citations=False, update_bibliography=True)
 

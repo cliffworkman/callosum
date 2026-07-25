@@ -153,7 +153,9 @@ Writer headings can also own live local bibliographies: place the caret where th
 **Insert current-section bibliography here**. “Current section” means the nearest preceding Writer heading plus
 its nested lower-level headings, not a separately created Writer Section. The block contains only works cited there,
 updates with **Refresh bibliography only**, and can coexist with other section blocks and the full bibliography.
-**Remove bibliography for current section** removes only the block owned by the caret's section. Selecting the bundled
+Placement conversion updates every non-empty section block in the same verified Writer Undo step; damaged or empty
+section blocks fail before mutation. **Remove bibliography for current section** removes only the block owned by the
+caret's section. Selecting the bundled
 **Chicago notes and bibliography** style places each new citation in a real Writer footnote and renders
 first/subsequent notes from the complete note sequence. **Note placement…** can instead route new note citations
 to native Writer endnotes, as a setting saved with the document. **Convert citation placement…** deliberately

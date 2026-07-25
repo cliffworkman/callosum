@@ -321,6 +321,12 @@ independently. Section blocks deliberately do not duplicate full-bibliography in
 conversion currently refuses while section blocks exist; verified multi-range conversion Undo/Redo,
 bibliography-title links, and per-source grouped navigation remain.
 
+**Continued in increment 381 (2026-07-25):** placement conversion now updates the full bibliography plus every
+non-empty heading-scoped block inside one Writer Undo transaction. It retains each section's native boundary
+objects and replaces only the safe interior, so Undo/Redo, injected rollback, converted-copy isolation, and
+save/reopen preserve exact multi-range snapshots. Damaged or empty section blocks fail before mutation.
+Bibliography-title links and per-source grouped navigation remain.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

@@ -307,6 +307,12 @@ the Principles + A-A gates before build.)*
   remove independently. Strict random scope/start/end bookmark triples are capped at 50. Placement conversion
   currently refuses while section blocks exist; multi-range conversion Undo/Redo, bibliography-title links, and
   per-source grouped-citation navigation remain.
+  **Inc 381 completes section-aware placement conversion:** the full bibliography and every non-empty
+  heading-scoped block update inside the same verified Writer Undo transaction. Native Undo/Redo restore exact
+  citation, note, preference, full-bibliography, and section-bibliography snapshots; injected failure rolls every
+  range back, and converted-copy save/reopen leaves the source unchanged. Conversion rewrites only block interiors
+  so section boundary bookmarks remain native and stable. Damaged or empty section blocks refuse before mutation.
+  Bibliography-title links and per-source grouped-citation navigation remain.
   **UX follow-up (deadline author, inc 380):** add a list/jump-to surface and **Remove all section
   bibliographies** for long manuscripts; success feedback could name the owning heading and cited-work count.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled

@@ -9,6 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 381 — Writer section-bibliography placement conversion -->
+## 2026-07-25 — Increment 381: Writer section-bibliography placement conversion
+
+- **Files:** Writer conversion transaction/interior bibliography rewrite/state placement, installed-UNO fixture,
+  pure tests, OXT 0.26.0, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Convert citation placement…** now updates the full bibliography and every non-empty
+  heading-scoped bibliography in the same Writer Undo step as citation relocation.
+- **Native safety:** section scope/start/end objects remain attached; conversion replaces only the interior
+  between the unchanged first heading character and trailing newline. The hidden conversion-state ReferenceMark
+  chooses a bounded collision-free main-text point rather than displacing a scope marker at document start.
+- **Failure policy:** malformed/damaged section triples and empty/degenerate section blocks fail before mutation.
+  Injected failure on the second managed range rolls citations, notes, preferences, full text, and both section
+  blocks back exactly.
+- **Writer proof:** installed OXT **0.26.0** converted two APA inline chapters plus their local/full
+  bibliographies to Chicago footnotes, verified exact Undo/Redo, rollback, converted-copy isolation, reopen, and
+  independent removal: **SELFTEST OK**.
+- **Experience:** a deadline author can change manuscript style without deleting local chapter bibliographies;
+  the existing command and preview remain sufficient, with no new control or hidden destructive step.
+- **Verification:** focused adapter/OXT **135 passed**, focused adapter/OXT/install/help **153 passed**, installed
+  Writer focused spike and full matrix **SELFTEST OK**, full project suite **1582 passed, 1 skipped**, Ruff,
+  line budget, QA surface map, OXT packaging, and diff hygiene all pass.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-25 inc 380 — Writer heading-scoped bibliographies -->
 ## 2026-07-25 — Increment 380: Writer heading-scoped bibliographies (P1 item #11)
 
