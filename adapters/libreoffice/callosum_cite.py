@@ -48,6 +48,7 @@ BIB_ENTRY_PREFIX = "CALLOSUM_BIB_ENTRY_"  # stable internal-link targets, one pe
 SECTION_BIB_PREFIX = "CALLOSUM_SECTION_BIBLIOGRAPHY_"
 SECTION_BIB_KINDS = ("SCOPE", "START", "END")
 MAX_SECTION_BIBLIOGRAPHIES = 50
+MAX_CITATION_SOURCE_CHOICES = 50
 _SECTION_BIB_NAME = re.compile(rf"^{SECTION_BIB_PREFIX}([0-9a-f]{{32}})_({'|'.join(SECTION_BIB_KINDS)})$")
 MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20
 MAX_BIBLIOGRAPHY_EXTERNAL_URL = 2048
@@ -594,6 +595,28 @@ def csl_record_row(record: dict) -> str:
     if len(title) > SEARCH_TITLE_MAX:
         title = title[:SEARCH_TITLE_MAX] + "…"
     return f"{who} {year} — {title}"
+
+
+def citation_source_choices(items: list[dict], available_ids: set[str] | None = None) -> list[dict[str, str]]:
+    """Return bounded, de-duplicated Callosum sources for one citation.
+
+    ``available_ids`` optionally restricts the result to sources that currently have a stable full-bibliography
+    target. Foreign/malformed ids fail closed; section bibliographies never create duplicate targets.
+    """
+    choices = []
+    seen = set()
+    for item in items[:MAX_CITATION_SOURCE_CHOICES]:
+        if not isinstance(item, dict):
+            continue
+        item_id = str(item.get("id") or "")
+        paper_id = item_id[len("callosum-") :] if item_id.startswith("callosum-") else ""
+        if not paper_id.isdigit() or item_id in seen:
+            continue
+        seen.add(item_id)
+        if available_ids is not None and item_id not in available_ids:
+            continue
+        choices.append({"item_id": item_id, "paper_id": paper_id, "row": csl_record_row(item)})
+    return choices
 
 
 # ── UNO layer (lazy `import uno`; driven by the macro entry points + the headless self-test) ───────────────
@@ -3816,24 +3839,129 @@ def split_citation(doc, field: dict) -> None:
         cursor.collapseToEnd()
 
 
-def open_in_callosum(doc, base: str) -> None:
-    """Open the cited work's paper in the callosum web app for the citation at the cursor (P0 phase 6) — a
-    plain browser deep link, `{base}/?open_paper=<id>` (read by the frontend's own mount effect). Local-only:
-    the base is the user's own configured callosum server.
+def _choose_citation_source(
+    choices: list[dict[str, str]],
+    *,
+    title: str,
+    prompt: str,
+    action_label: str,
+) -> dict[str, str] | None:
+    """Show a bounded single-select source list; return the chosen source or None when cancelled."""
+    if not choices:
+        return None
+    smgr = _component_ctx().ServiceManager
+    ctx = _component_ctx()
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 360, 174, title
+    label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+    label.PositionX, label.PositionY, label.Width, label.Height, label.Label = 6, 6, 348, 24, prompt
+    label.MultiLine = True
+    dm.insertByName("lbl", label)
+    source_list = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    source_list.PositionX, source_list.PositionY, source_list.Width, source_list.Height = 6, 34, 348, 108
+    source_list.Dropdown = False
+    source_list.MultiSelection = False
+    source_list.StringItemList = tuple(choice["row"] for choice in choices)
+    dm.insertByName("sources", source_list)
+    ok = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    ok.PositionX, ok.PositionY, ok.Width, ok.Height, ok.Label, ok.PushButtonType = (
+        250,
+        150,
+        56,
+        16,
+        action_label,
+        1,
+    )
+    dm.insertByName("ok", ok)
+    cancel = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    cancel.PositionX, cancel.PositionY, cancel.Width, cancel.Height, cancel.Label, cancel.PushButtonType = (
+        310,
+        150,
+        44,
+        16,
+        "Cancel",
+        2,
+    )
+    dm.insertByName("cancel", cancel)
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+    control = dialog.getControl("sources")
+    control.selectItemPos(0, True)
+    result = dialog.execute()
+    position = control.getSelectedItemPos() if result == 1 else -1
+    dialog.dispose()
+    return choices[position] if 0 <= position < len(choices) else None
 
-    Known v1 limitation: for a grouped (multi-item) citation, only the FIRST item's paper opens — there's no
-    composer yet (Phase 5) to let the user pick a specific one among several.
-    """
+
+def go_to_bibliography_item(doc, item_id: str) -> bool:
+    """Move the Writer view cursor to one stable full-bibliography target, if it currently exists."""
+    target_name = bibliography_entry_bookmark(item_id)
+    bookmarks = doc.getBookmarks()
+    if target_name is None or not bookmarks.hasByName(target_name):
+        return False
+    try:
+        target = bookmarks.getByName(target_name).getAnchor().getStart()
+        doc.getCurrentController().getViewCursor().gotoRange(target, False)
+    except Exception:
+        return False
+    return True
+
+
+def go_to_bibliography_entry_interactive(doc, _base: str) -> None:
+    """Jump from the citation at the cursor to a selected source's deterministic full-bibliography target."""
+    field = mark_at_cursor(doc)
+    if field is None:
+        _msgbox("Place your cursor inside a citation to go to its bibliography entry.")
+        return
+    all_choices = citation_source_choices(field["items"])
+    bookmark_names = set(doc.getBookmarks().getElementNames())
+    available_ids = {
+        choice["item_id"] for choice in all_choices if bibliography_entry_bookmark(choice["item_id"]) in bookmark_names
+    }
+    choices = citation_source_choices(field["items"], available_ids)
+    if not choices:
+        _msgbox(
+            "No full-bibliography entry is available for this citation. "
+            "Build or refresh the full bibliography first; excluded works have no entry."
+        )
+        return
+    choice = choices[0]
+    if len(all_choices) > 1:
+        choice = _choose_citation_source(
+            choices,
+            title="Go to bibliography entry",
+            prompt="Choose a cited source that is present in the full bibliography.",
+            action_label="Go",
+        )
+        if choice is None:
+            return
+    if not go_to_bibliography_item(doc, choice["item_id"]):
+        _msgbox("That bibliography entry is no longer available. Refresh the bibliography and try again.")
+
+
+def open_in_callosum(doc, base: str) -> None:
+    """Open a selected cited work in the user's configured local Callosum app."""
     field = mark_at_cursor(doc)
     if field is None:
         _msgbox("Place your cursor inside a citation to open it in callosum.")
         return
-    item_id = str((field["items"][0] or {}).get("id") or "")
-    paper_id = item_id[len("callosum-") :] if item_id.startswith("callosum-") else ""
-    if not paper_id.isdigit():
+    choices = citation_source_choices(field["items"])
+    if not choices:
         _msgbox("Could not determine which paper this citation refers to.")
         return
-    webbrowser.open(f"{base}/?open_paper={paper_id}")
+    choice = choices[0]
+    if len(choices) > 1:
+        choice = _choose_citation_source(
+            choices,
+            title="Open cited work in callosum",
+            prompt="Choose which source in this grouped citation to open.",
+            action_label="Open",
+        )
+        if choice is None:
+            return
+    webbrowser.open(f"{base}/?open_paper={choice['paper_id']}")
 
 
 def _new_rnd(doc) -> str:
@@ -4885,6 +5013,7 @@ _ACTIONS = {
     "mergeWithPrevious": merge_with_previous_interactive,
     "splitCitation": split_citation_interactive,
     "openInCallosum": open_in_callosum,
+    "goToBibliographyEntry": go_to_bibliography_entry_interactive,
     "insertBibliographyHere": insert_bibliography_here_interactive,
     "insertSectionBibliography": insert_section_bibliography_interactive,
     "removeSectionBibliography": remove_section_bibliography_interactive,
@@ -5005,6 +5134,10 @@ def CallosumOpenInCallosum(*_args):
     _macro("openInCallosum")
 
 
+def CallosumGoToBibliographyEntry(*_args):
+    _macro("goToBibliographyEntry")
+
+
 def CallosumInsertBibliographyHere(*_args):
     _macro("insertBibliographyHere")
 
@@ -5073,6 +5206,7 @@ g_exportedScripts = (
     CallosumMergeWithPrevious,
     CallosumSplitCitation,
     CallosumOpenInCallosum,
+    CallosumGoToBibliographyEntry,
     CallosumInsertBibliographyHere,
     CallosumInsertSectionBibliography,
     CallosumRemoveSectionBibliography,

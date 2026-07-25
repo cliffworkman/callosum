@@ -127,33 +127,38 @@ message if it isn't):
     operate on inline citations only; use **Edit citation…** to add multiple sources to one note citation.
 13. **Split citation** — reverses a grouped citation back into that many separate single-work citations, joined
     by `"; "`.
-14. **Open in callosum** — opens the cited work's paper page in your callosum web app (a browser tab). For a
-    grouped citation, opens the **first** work only for now.
+14. **Open cited work in callosum…** — opens the cited work's paper page in your callosum web app (a browser
+    tab). A grouped citation first asks which source to open.
+15. **Go to bibliography entry…** — jumps to the cited work's stable entry in the full bibliography. A grouped
+    citation first asks which available source to use. Excluded works and documents without a built full
+    bibliography explain why no destination is available.
 
 **Bibliography controls:**
-15. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
+16. **Insert bibliography here** — (re)builds the bibliography at the cursor instead of its current location —
     the "move" action: invoking it again elsewhere moves the block there.
-16. **Bibliography heading…** — choose a heading for this document, such as **Works Cited**. It is bounded to
+17. **Bibliography heading…** — choose a heading for this document, such as **Works Cited**. It is bounded to
     one plain-text line, saved in the Writer file, and applied immediately even when automatic bibliography
     rebuilding is paused. Submit a blank heading to restore **References**.
-17. **Toggle citation-to-bibliography links** — turn document-local navigation on or off. Each single-work
+18. **Toggle citation-to-bibliography links** — turn document-local navigation on or off. Each single-work
     citation links to its own managed bibliography entry and the setting survives save/reopen. Grouped citations
     stay plain because one cluster has several possible destinations; excluded works have no entry and stay
-    plain. Turning the feature off removes only Callosum's internal links, not an external link you added.
-18. **Toggle bibliography title/DOI links** — make DOI or URL text that the selected style already prints
+    plain. Use **Go to bibliography entry…** to choose a specific source in a group; that explicit command works
+    whether visible citation links are on or off. Turning the feature off removes only Callosum's internal links,
+    not an external link you added.
+19. **Toggle bibliography title/DOI links** — make DOI or URL text that the selected style already prints
     clickable. If the style omits that identifier, Callosum instead links the uniquely matched rendered title to
     the source DOI (preferred) or URL. The opt-in setting is saved in the Writer file and applies immediately. It
     never adds text or guesses through ambiguous/transformed titles; invalid or unsafe destinations remain plain.
     Turning it off removes only these managed bibliography links, not hyperlinks outside the bibliography.
-19. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+20. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
-20. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+21. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
     written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
-21. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
+22. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
     it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
     cited work, **Add uncited work(s)…** (for further reading), or **Set category…**. Ctrl/Shift-select several

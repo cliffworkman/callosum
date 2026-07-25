@@ -319,6 +319,12 @@ the Principles + A-A gates before build.)*
   oversized, multi-source, or unsafe metadata stays plain. Full, categorized, and section bibliographies share
   the same bounded spans across refresh, conversion, and save/reopen. Per-source grouped-citation navigation
   remains.
+  **Inc 383 completes per-source grouped-citation navigation:** **Open cited work in callosum…** and the new
+  **Go to bibliography entry…** command present a bounded source chooser for grouped citations instead of
+  silently selecting the first source. Bibliography navigation uses only stable targets in the full bibliography,
+  omits excluded works, works independently of the visible-link preference, and survives save/reopen. Grouped
+  rendered text remains structurally plain. P1 item #11's remaining implementation scope is the recorded
+  long-manuscript section-bibliography list/jump/remove-all polish.
   **UX follow-up (deadline author, inc 380):** add a list/jump-to surface and **Remove all section
   bibliographies** for long manuscripts; success feedback could name the owning heading and cited-work count.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
@@ -398,9 +404,9 @@ the Principles + A-A gates before build.)*
   **UX follow-up (deadline writer, inc 374):** expose the current ON/OFF state of automatic bibliography
   rebuilding instead of a state-blind toggle, and consider an explicit **Restore References** affordance in the
   heading dialog. The shipped blank-to-reset path is documented and unblocked; these are discoverability polish.
-  **UX follow-up (deadline writer, inc 375):** expose a checked ON/OFF state for citation-to-bibliography links;
-  the current state-blind toggle is functional but requires testing a citation after reopen. A later grouped-
-  citation source chooser belongs with the remaining per-source hyperlink work.
+  **UX follow-up (deadline writer, incs 375/383):** expose a checked ON/OFF state for
+  citation-to-bibliography links; the current state-blind toggle is functional but requires testing a citation
+  after reopen. The grouped-source chooser itself is now shipped.
   **UX follow-up (deadline author, incs 376/382):** expose a checked ON/OFF state for bibliography title/DOI
   links alongside the inc-375 internal-link state. The shipped confirmation reports the applied link count and
   explains a zero-result bibliography instead of leaving an unchanged bibliography looking like failure.

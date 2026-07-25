@@ -21,7 +21,7 @@ papers along user-defined semantic axes, and generates citation-grounded summari
 **every sentence is checked back against the source and shown with its evidence** (quote,
 page, confidence).
 
-It is currently at **Increment 382** (see Increment workflow) with **1584 pytest tests
+It is currently at **Increment 383** (see Increment workflow) with **1585 pytest tests
 passing** (+ 1 skipped + the optional `mcp` suite; + opt-in browser smoke + the inc-120 Codex-driven QA route suite). It is a working MVP backed by a
 thorough planning suite in `.claude/docs/`.
 (Increments 109–116 — frontend/UX TDL items incl. the inc-110 PDF page-view — are journaled in `RECOVERY-LOG.md`;
@@ -80,7 +80,9 @@ the full per-increment narrative for all other increments now lives in the reloc
   **inc 381** adds one-step placement conversion across the full and every non-empty section bibliography with
   exact Undo/Redo, rollback, and converted-copy isolation; **inc 382** extends the opt-in bibliography web-link
   setting with a fail-plain title fallback when the active style omits visible DOI/URL text, using only one
-  source's safe DOI/URL and one uniquely matched rendered title without changing bibliography text.
+  source's safe DOI/URL and one uniquely matched rendered title without changing bibliography text; **inc 383**
+  adds a bounded grouped-source chooser for opening a specific cited work or jumping to its stable full-
+  bibliography entry, without making grouped rendered text structurally ambiguous.
 - **PDF:** PyMuPDF (`fitz`) for text + bbox extraction.
 - **LLM (selective, multi-provider — inc 149; unified editable roster — inc 256):** all generators route through
   one `app/backend/llm/providers.py::complete(config, prompt)` seam. The provider set is **one editable list**
@@ -451,7 +453,7 @@ follow-up to `INCREMENT-BACKLOG.md` (tagged to the persona it blocks) and record
 
 ## Increment workflow
 
-callosum is built in **numbered increments** (currently at 382). Each increment of real work
+callosum is built in **numbered increments** (currently at 383). Each increment of real work
 produces an `INCREMENT-NN-NOTES.md` in **`.claude/docs/increment-notes/`** (all notes, oldest→newest,
 live there) with this shape:
 

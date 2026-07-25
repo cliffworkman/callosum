@@ -108,7 +108,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     destination at its own rendered bibliography entry while the grouped citation stays plain. Exclude one cited
     work and confirm its link/target disappear without affecting the other. Save/reopen, refresh, and convert
     citation placement; links and targets must remain coherent. Toggle the feature off and confirm Callosum
-    internal links are removed while an unrelated external hyperlink remains unchanged.
+    internal links are removed while an unrelated external hyperlink remains unchanged. With the caret in the
+    grouped citation, choose **Go to bibliography entry…**, select its second source, and confirm Writer lands on
+    that source's full-bibliography entry even while visible links are off. Exclude that source and confirm it is
+    no longer offered; remove the full bibliography and confirm the command explains how to restore a destination.
+    Save/reopen and repeat the second-source jump. Use **Open cited work in callosum…** on the same group, choose
+    the second source, and confirm that paper—not the first—opens in Callosum.
 17. **Manual Writer bibliography title/DOI links:** first use a style that renders DOI or URL text, choose
     **Toggle bibliography title/DOI links**, and confirm only that already-rendered identifier becomes an external
     hyperlink. Switch to a style such as Nature that omits the identifier and confirm the exact rendered title

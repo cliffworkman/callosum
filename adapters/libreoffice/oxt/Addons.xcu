@@ -67,7 +67,13 @@
           </node>
           <node oor:name="m02e" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?openInCallosum</value></prop>
-            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Open in callosum</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Open cited work in callosum…</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
+          <node oor:name="m02g" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?goToBibliographyEntry</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Go to bibliography entry…</value></prop>
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>

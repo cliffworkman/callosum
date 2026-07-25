@@ -1169,14 +1169,18 @@ def spike_merge_and_split_citations(ctx, base, p1, p2):
     log(f"spike (phase 6): split OK — {len(split_fields)} single-item citations with ids {split_ids}")
 
 
-def spike_open_in_callosum(ctx, base, p1):
-    """P0 phase 6: open_in_callosum resolves the citation at the cursor and opens `{base}/?open_paper=<id>` —
-    monkeypatches `webbrowser.open` to capture the URL instead of actually launching a browser during the test."""
-    log("spike (phase 6): open_in_callosum resolves the correct paper id + URL")
+def spike_open_in_callosum(ctx, base, p1, p2):
+    """Per-source navigation: a grouped citation can open the specifically chosen Callosum paper."""
+    log("spike (P1 #11): grouped open_in_callosum resolves the chosen paper id + URL")
     doc = new_writer(ctx)
     text = doc.getText()
     text.createTextCursorByRange(text.getStart()).setString("A citation here.\n")
-    cc.insert_citation(doc, p1, base, cursor=text.createTextCursorByRange(text.getEnd()))
+    cc.insert_citation_items(
+        doc,
+        [{"paper_id": p1}, {"paper_id": p2}],
+        base,
+        cursor=text.createTextCursorByRange(text.getEnd()),
+    )
     marks = doc.getReferenceMarks()
     mark = next(marks.getByName(n) for n in marks.getElementNames() if cc.decode_mark_name(n))
     controller = doc.getCurrentController()
@@ -1185,14 +1189,19 @@ def spike_open_in_callosum(ctx, base, p1):
 
     captured = {}
     original_open = cc.webbrowser.open
+    original_choose = cc._choose_citation_source
     cc.webbrowser.open = lambda url: captured.update(url=url)
+    cc._choose_citation_source = lambda choices, **_kwargs: next(
+        choice for choice in choices if choice["paper_id"] == str(p2)
+    )
     try:
         cc.open_in_callosum(doc, base)
     finally:
         cc.webbrowser.open = original_open
+        cc._choose_citation_source = original_choose
     check("url" in captured, "open_in_callosum did not call webbrowser.open")
-    check(captured["url"] == f"{base}/?open_paper={p1}", f"unexpected URL: {captured['url']!r}")
-    log(f"spike (phase 6): OK — opened {captured['url']!r}")
+    check(captured["url"] == f"{base}/?open_paper={p2}", f"unexpected URL: {captured['url']!r}")
+    log(f"spike (P1 #11): OK — opened selected grouped source {captured['url']!r}")
 
 
 def spike_bounded_bibliography_preserves_trailing_text(ctx, base, p1):
@@ -2383,6 +2392,15 @@ def spike_bibliography_links(ctx, base, p1, p2):
         "second single-work citation did not link to its entry",
     )
     check(cc._mark_hyperlink_url(fields[2]["_mark"]) == "", "grouped citation must remain unlinked")
+    check(
+        cc.go_to_bibliography_item(doc, f"callosum-{p2}"),
+        "explicit bibliography navigation could not resolve the second grouped source",
+    )
+    target = doc.getBookmarks().getByName(cc.bibliography_entry_bookmark(f"callosum-{p2}")).getAnchor().getStart()
+    check(
+        text.compareRegionStarts(doc.getCurrentController().getViewCursor().getStart(), target) == 0,
+        "explicit bibliography navigation did not move the view cursor to the selected entry",
+    )
 
     cc.set_bibliography_external_links(doc, True, base)
     style, locale = cc._get_pref(doc, base)
@@ -2446,6 +2464,10 @@ def spike_bibliography_links(ctx, base, p1, p2):
         cc._mark_hyperlink_url(excluded_fields[1]["_mark"]) == f"#{cc.bibliography_entry_bookmark(f'callosum-{p2}')}",
         "excluding one work disturbed another citation link",
     )
+    check(
+        not cc.go_to_bibliography_item(doc, f"callosum-{p1}"),
+        "explicit bibliography navigation resolved an excluded work",
+    )
     cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, [])
     cc.refresh(doc, base)
 
@@ -2457,6 +2479,10 @@ def spike_bibliography_links(ctx, base, p1, p2):
     check(
         insertion("LINK").getPropertyValue("HyperLinkURL") == "https://example.test/manual",
         "turning links off changed an unrelated external hyperlink",
+    )
+    check(
+        cc.go_to_bibliography_item(doc, f"callosum-{p2}"),
+        "explicit bibliography navigation should not depend on the citation-link preference",
     )
     cc.set_bibliography_links(doc, True, base)
 
@@ -2476,6 +2502,21 @@ def spike_bibliography_links(ctx, base, p1, p2):
         check(
             expected_targets <= set(reopened.getBookmarks().getElementNames()),
             "bibliography targets did not survive save/reopen",
+        )
+        check(
+            cc.go_to_bibliography_item(reopened, f"callosum-{p2}"),
+            "explicit bibliography navigation did not survive save/reopen",
+        )
+        reopened_target = (
+            reopened.getBookmarks().getByName(cc.bibliography_entry_bookmark(f"callosum-{p2}")).getAnchor().getStart()
+        )
+        check(
+            reopened.getText().compareRegionStarts(
+                reopened.getCurrentController().getViewCursor().getStart(),
+                reopened_target,
+            )
+            == 0,
+            "reopened explicit navigation did not land on the selected entry",
         )
         reopened_descriptor = reopened.createSearchDescriptor()
         reopened_descriptor.SearchString = "LINK"
@@ -3099,7 +3140,7 @@ def main():
         # 9) P0 phase 6 (backlog #33/#34): delete / merge / split / open-in-callosum, all riding mark_at_cursor.
         spike_delete_citation(ctx, base, p1, p2)
         spike_merge_and_split_citations(ctx, base, p1, p2)
-        spike_open_in_callosum(ctx, base, p1)
+        spike_open_in_callosum(ctx, base, p1, p2)
 
         # 10) P0 phase 7 (backlog #33/#34): bounded bibliography, insert-at-cursor/move, auto-rebuild toggle.
         spike_bounded_bibliography_preserves_trailing_text(ctx, base, p1)

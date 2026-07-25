@@ -435,6 +435,31 @@ def test_bibliography_targets_and_citation_links_are_stable_and_unambiguous() ->
         cc._mark_hyperlink_url = original
 
 
+def test_citation_source_choices_are_bounded_deduplicated_and_fail_closed() -> None:
+    items = [
+        {
+            "id": "callosum-1",
+            "title": "First source",
+            "author": [{"family": "Alpha"}],
+            "issued": {"date-parts": [[2020]]},
+        },
+        {"id": "callosum-1", "title": "Duplicate"},
+        {"id": "external-2", "title": "Foreign"},
+        {"id": "callosum-nope", "title": "Malformed"},
+        {"id": "callosum-2", "title": "Second source"},
+    ]
+
+    assert cc.citation_source_choices(items) == [
+        {"item_id": "callosum-1", "paper_id": "1", "row": "Alpha 2020 — First source"},
+        {"item_id": "callosum-2", "paper_id": "2", "row": "— n.d. — Second source"},
+    ]
+    assert cc.citation_source_choices(items, {"callosum-2"}) == [
+        {"item_id": "callosum-2", "paper_id": "2", "row": "— n.d. — Second source"}
+    ]
+    many = [{"id": f"callosum-{index}", "title": str(index)} for index in range(100)]
+    assert len(cc.citation_source_choices(many)) == cc.MAX_CITATION_SOURCE_CHOICES
+
+
 def test_bibliography_external_link_metadata_is_bounded_and_fails_plain(monkeypatch) -> None:
     entries = ["A reference. https://doi.org/10.1234/example."]
     start = entries[0].index("https://")

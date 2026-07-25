@@ -9,7 +9,26 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 382 — Writer bibliography title links -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 383 — Writer grouped-citation navigation -->
+## 2026-07-25 — Increment 383: Writer grouped-citation navigation
+
+- **Files:** Writer citation-source chooser/navigation/actions, installed-UNO fixture, OXT 0.28.0, pure tests,
+  README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** grouped citations no longer silently open their first source. **Open cited work in
+  callosum…** asks which work to open, and **Go to bibliography entry…** jumps to the selected available source's
+  stable full-bibliography target. Single-source actions remain immediate.
+- **Failure policy:** only bounded, deduplicated numeric Callosum ids become choices. Excluded/missing entries are
+  unavailable and explained; grouped rendered text stays plain; explicit bibliography navigation works whether
+  visible citation links are on or off.
+- **Security / experience:** security audit passes. A deadline-author walkthrough found the actions and
+  recognition-based picker clear; the existing checked-toggle follow-up remains. A persona subagent was not used
+  because delegation was disabled.
+- **Verification:** focused adapter/OXT/install/help **158 passed**; installed Writer focused and full matrix
+  **SELFTEST OK**; full suite **1585 passed, 1 skipped**; Ruff, line budget, QA surface map, OXT packaging,
+  security audit, and diff hygiene pass.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 382 — Writer bibliography title links -->
 ## 2026-07-25 — Increment 382: Writer bibliography title links
 
 - **Files:** shared citation render metadata, Writer link wording/installed-UNO fixture, OXT 0.27.0, pure tests,

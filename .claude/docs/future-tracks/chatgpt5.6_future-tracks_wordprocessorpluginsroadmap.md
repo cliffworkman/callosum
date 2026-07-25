@@ -334,6 +334,13 @@ oversized, and multi-source titles remain plain. No rendered text changes. Full,
 bibliographies retain the bounded links through refresh, placement conversion, and save/reopen. Per-source
 grouped-citation navigation remains.
 
+**Continued in increment 383 (2026-07-25):** Writer now resolves grouped citations through a bounded source
+chooser. **Open cited work in callosum…** deep-links the selected source rather than silently choosing the first;
+**Go to bibliography entry…** navigates to the selected stable target in the full bibliography. Excluded or
+missing entries fail honestly, explicit navigation does not depend on visible citation links being enabled, and
+the targets survive save/reopen. Grouped rendered text remains plain because one cluster still has multiple
+destinations. The long-manuscript section-bibliography list/jump/remove-all follow-up remains.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:
