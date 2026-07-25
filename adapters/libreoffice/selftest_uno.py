@@ -2163,6 +2163,28 @@ def spike_section_bibliographies(ctx, base, p1, p2):
 
     records, damaged = cc.section_bibliography_records(doc)
     check(len(records) == 2 and not damaged, f"wrong section bibliography inventory: {records!r}, {damaged!r}")
+    summaries, summary_damage = cc.section_bibliography_summaries(doc)
+    check(not summary_damage, f"manager reported unexpected damage: {summary_damage!r}")
+    check(
+        [(summary["label"], summary["cited_work_count"]) for summary in summaries]
+        == [("Chapter One", 1), ("Chapter Two", 1)],
+        f"manager rows were not in heading order with accurate counts: {summaries!r}",
+    )
+    check(
+        [summary["row"] for summary in summaries] == ["Chapter One — 1 cited work", "Chapter Two — 1 cited work"],
+        f"manager row copy was wrong: {summaries!r}",
+    )
+    check(cc.go_to_section_bibliography(doc, second_id), "manager could not jump to the second section bibliography")
+    second_target = (
+        doc.getBookmarks()
+        .getByName(next(summary for summary in summaries if summary["id"] == second_id)["start"])
+        .getAnchor()
+        .getStart()
+    )
+    check(
+        text.compareRegionStarts(doc.getCurrentController().getViewCursor().getStart(), second_target) == 0,
+        "manager jump did not land at the second section bibliography",
+    )
     by_id = {record["id"]: record for record in records}
     first_text = cc._bookmark_pair_signature(doc, by_id[first_id]["start"], by_id[first_id]["end"])[2]
     second_text = cc._bookmark_pair_signature(doc, by_id[second_id]["start"], by_id[second_id]["end"])[2]
@@ -2330,14 +2352,126 @@ def spike_section_bibliographies(ctx, base, p1, p2):
         )
         reopened_body = reopened.getText().getString()
         check(reopened_body.count("References\n") == 3, f"reopen lost a full/section bibliography: {reopened_body!r}")
+        before_remove_sections = cc._section_bibliography_signatures(reopened)
+        before_remove_full = cc._managed_bibliography_signature(reopened)
+        before_remove_citations = [
+            (field["citationID"], field["_mark"].getAnchor().getString())
+            for field in cc.scan_citations_in_order(reopened)
+        ]
 
-        reopened_first = next(record for record in reopened_records if record["id"] == first_id)
-        scope_anchor = reopened.getBookmarks().getByName(reopened_first["scope"]).getAnchor()
-        reopened.getCurrentController().getViewCursor().gotoRange(scope_anchor.getStart(), False)
-        check(cc.remove_section_bibliography(reopened) == first_id, "remove targeted the wrong section bibliography")
+        def section_links_are_current():
+            current_fields = cc.scan_citations_in_order(reopened)
+            current_style, current_locale = cc._get_pref(reopened, base)
+            current_response = cc.render_document(
+                base,
+                cc.build_render_request(current_fields, current_style, current_locale),
+            )
+            current_entries = current_response["bibliography_text"].splitlines()
+            current_ids = current_response["bibliography_entry_ids"]
+            current_links = cc.normalize_bibliography_links(
+                current_entries,
+                current_response.get("bibliography_links"),
+            )
+            current_source = cc.categorize_bibliography_entries(
+                current_entries,
+                current_ids,
+                current_links,
+                cc.bibliography_categories(reopened),
+                cc.bibliography_category_order(reopened),
+            )
+            for current_record in cc.section_bibliography_records(reopened)[0]:
+                projected = cc.filter_bibliography_entries(
+                    *current_source,
+                    cc._section_bibliography_item_ids(reopened, current_fields, current_record),
+                )
+                projected_entries, _projected_ids, projected_links, projected_categories = projected
+                if not cc.bibliography_external_links_are_current(
+                    reopened,
+                    projected_entries,
+                    projected_links,
+                    True,
+                    projected_categories,
+                    start_name=current_record["start"],
+                ):
+                    return False
+            return True
+
+        original_delete = cc._delete_section_bibliography_record
+        delete_calls = {"count": 0}
+
+        def fail_second_remove(current_doc, record):
+            delete_calls["count"] += 1
+            if delete_calls["count"] == 2:
+                raise RuntimeError("injected remove-all failure")
+            return original_delete(current_doc, record)
+
+        cc._delete_section_bibliography_record = fail_second_remove
+        try:
+            try:
+                cc.remove_all_section_bibliographies(reopened, base)
+            except RuntimeError as exc:
+                check("injected remove-all failure" in str(exc), f"wrong remove-all rollback error: {exc}")
+            else:
+                raise AssertionError("injected remove-all failure did not propagate")
+        finally:
+            cc._delete_section_bibliography_record = original_delete
+        check(
+            cc._section_bibliography_signatures(reopened) == before_remove_sections,
+            "remove-all rollback did not restore both section bibliographies exactly",
+        )
+        check(section_links_are_current(), "remove-all rollback did not restore section bibliography links")
+
+        check(
+            cc.remove_section_bibliography_by_id(reopened, first_id, base) == first_id,
+            "manager remove-selected targeted the wrong section bibliography",
+        )
         check(
             len(cc.section_bibliography_records(reopened)[0]) == 1,
-            "section bibliography removal did not leave its peer",
+            "manager remove-selected did not leave its peer",
+        )
+        reopened_undo = reopened.getUndoManager()
+        check(
+            reopened_undo.getCurrentUndoActionTitle() == "Remove Callosum section bibliography",
+            "manager remove-selected was not one Writer Undo step",
+        )
+        reopened_undo.undo()
+        check(
+            cc._section_bibliography_signatures(reopened) == before_remove_sections,
+            "remove-selected Undo did not restore the removed section exactly",
+        )
+
+        removed_ids = cc.remove_all_section_bibliographies(reopened, base)
+        check(set(removed_ids) == {first_id, second_id}, f"remove-all returned wrong ids: {removed_ids!r}")
+        check(
+            cc.section_bibliography_records(reopened) == ([], []),
+            "remove-all left section bibliography bookmarks behind",
+        )
+        check(
+            reopened_undo.getCurrentUndoActionTitle() == "Remove all Callosum section bibliographies",
+            "remove-all was not one Writer Undo step",
+        )
+        check(
+            cc._managed_bibliography_signature(reopened) == before_remove_full,
+            "remove-all changed the full bibliography",
+        )
+        check(
+            [
+                (field["citationID"], field["_mark"].getAnchor().getString())
+                for field in cc.scan_citations_in_order(reopened)
+            ]
+            == before_remove_citations,
+            "remove-all changed live citations",
+        )
+        reopened_undo.undo()
+        check(
+            cc._section_bibliography_signatures(reopened) == before_remove_sections,
+            "remove-all Undo did not restore every section exactly",
+        )
+        check(section_links_are_current(), "remove-all Undo did not restore section bibliography links")
+        reopened_undo.redo()
+        check(
+            cc.section_bibliography_records(reopened) == ([], []),
+            "remove-all Redo did not remove every section again",
         )
         reopened.close(False)
     finally:
@@ -2348,7 +2482,7 @@ def spike_section_bibliographies(ctx, base, p1, p2):
                 pass
     log(
         "spike (P1 #11): OK — two section blocks + full bibliography refresh, one-step conversion Undo/Redo, "
-        "rollback/copy isolation, persist, diagnose, and remove safely"
+        "rollback/copy isolation, manager list/jump, remove-selected/all Undo/Redo, and persist safely"
     )
 
 

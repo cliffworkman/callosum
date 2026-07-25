@@ -142,6 +142,8 @@ _DOCUMENT_OBSERVERS: dict[str, object] = {}
 _OBSERVATION_SUPPRESSIONS: dict[str, int] = {}
 _CONVERSION_UNDO_LISTENERS: dict[str, object] = {}
 _CONVERSION_BIBLIOGRAPHIES: dict[str, dict[tuple[str, ...], tuple[bool, bool, str]]] = {}
+_SECTION_REMOVAL_UNDO_LISTENERS: dict[str, object] = {}
+_SECTION_REMOVAL_STATES: dict[str, dict[str, dict]] = {}
 
 
 class RefreshCancelled(RuntimeError):
@@ -1203,6 +1205,13 @@ def section_bibliography_records(doc) -> tuple[list[dict[str, str]], list[str]]:
     return complete, damaged
 
 
+def format_section_bibliography_row(label: str, cited_work_count: int) -> str:
+    """Format one bounded manager row without exposing bookmark identifiers."""
+    count = max(0, int(cited_work_count))
+    noun = "work" if count == 1 else "works"
+    return f"{label} — {count} cited {noun}"
+
+
 def filter_bibliography_entries(
     entries: list[str],
     entry_ids: list[list[str]],
@@ -1963,6 +1972,63 @@ def _section_bibliography_item_ids(doc, fields: list[dict], record: dict[str, st
     }
 
 
+def _section_bibliography_label_at(doc, position) -> str:
+    """Return the owning heading text, or an honest preamble/document fallback."""
+    text = doc.getText()
+    first_heading = None
+    try:
+        enumeration = text.createEnumeration()
+        while enumeration.hasMoreElements():
+            paragraph = enumeration.nextElement()
+            try:
+                start = paragraph.getStart()
+                level = int(paragraph.getPropertyValue("OutlineLevel"))
+            except Exception:
+                continue
+            if level <= 0:
+                continue
+            if first_heading is None:
+                first_heading = start
+            if text.compareRegionStarts(start, position) == 0:
+                value = " ".join(str(paragraph.getString() or "").split())
+                if not value:
+                    return "Untitled heading"
+                return value[:BIB_HEADING_MAX] + ("…" if len(value) > BIB_HEADING_MAX else "")
+    except Exception:
+        return "Section"
+    if first_heading is not None:
+        try:
+            if text.compareRegionStarts(position, first_heading) > 0:
+                return "Preamble"
+        except Exception:
+            pass
+    return "Document"
+
+
+def section_bibliography_summaries(doc) -> tuple[list[dict], list[str]]:
+    """Return complete blocks in document order with owning heading and unique cited-work count."""
+    records, damaged = section_bibliography_records(doc)
+    bookmarks = doc.getBookmarks()
+    text = doc.getText()
+    ordered = order_by_comparator(
+        records,
+        lambda first, second: text.compareRegionStarts(
+            bookmarks.getByName(first["scope"]).getAnchor().getStart(),
+            bookmarks.getByName(second["scope"]).getAnchor().getStart(),
+        ),
+    )
+    fields = scan_citations_in_order(doc)
+    summaries = []
+    for record in ordered:
+        position = bookmarks.getByName(record["scope"]).getAnchor().getStart()
+        label = _section_bibliography_label_at(doc, position)
+        count = len(_section_bibliography_item_ids(doc, fields, record))
+        summaries.append(
+            {**record, "label": label, "cited_work_count": count, "row": format_section_bibliography_row(label, count)}
+        )
+    return summaries, damaged
+
+
 def _section_bibliography_plans(
     doc,
     fields: list[dict],
@@ -2348,7 +2414,302 @@ def insert_section_bibliography(doc, base: str = DEFAULT_BASE) -> str | None:
     return identifier
 
 
-def remove_section_bibliography(doc) -> str | None:
+def _section_removal_key(doc) -> tuple[str, ...]:
+    """Identify the currently present strict section-bibliography ids, including damaged triples."""
+    return tuple(
+        sorted(
+            {
+                decoded[0]
+                for name in doc.getBookmarks().getElementNames()
+                if (decoded := decode_section_bibliography_bookmark(name)) is not None
+            }
+        )
+    )
+
+
+def _section_removal_snapshots(doc, records: list[dict[str, str]], base: str) -> list[dict]:
+    """Capture exact text plus an optional current render plan for link-preserving Undo restoration."""
+    snapshots = [
+        {
+            "record": dict(record),
+            "contents": _bookmark_pair_signature(doc, record["start"], record["end"])[2],
+            "plan": None,
+        }
+        for record in records
+    ]
+    try:
+        fields = scan_citations_in_order(doc)
+        response = refresh(doc, base, update_citations=False, update_bibliography=False)
+        entries = response.get("bibliography_text", "").splitlines()
+        entry_ids = response.get("bibliography_entry_ids", [])
+        if len(entry_ids) != len(entries):
+            entry_ids = [[] for _entry in entries]
+        entry_links = normalize_bibliography_links(entries, response.get("bibliography_links", []))
+        source = categorize_bibliography_entries(
+            entries,
+            entry_ids,
+            entry_links,
+            bibliography_categories(doc),
+            bibliography_category_order(doc),
+        )
+        external_links = bibliography_external_links_enabled(doc)
+        heading = bibliography_heading(doc)
+        for snapshot in snapshots:
+            record = snapshot["record"]
+            projected = filter_bibliography_entries(
+                *source,
+                _section_bibliography_item_ids(doc, fields, record),
+            )
+            projected_entries, projected_ids, projected_links, projected_categories = projected
+            if rendered_bibliography_text(projected_entries, heading, projected_categories) == snapshot["contents"]:
+                snapshot["plan"] = {
+                    "entries": projected_entries,
+                    "entry_ids": projected_ids,
+                    "entry_links": projected_links,
+                    "entry_categories": projected_categories,
+                    "external_links": external_links,
+                }
+    except Exception:
+        # Removal stays available offline. Native Undo can still restore the exact text/bookmarks; if Writer needs
+        # the listener fallback, it restores plain text and marks bibliography formatting pending.
+        pass
+    return snapshots
+
+
+def _restore_section_removal_snapshot(doc, snapshot: dict) -> bool:
+    """Restore one block after Writer Undo; return whether only plain-text recovery was available."""
+    record = snapshot["record"]
+    bookmarks = doc.getBookmarks()
+    if not all(bookmarks.hasByName(record[kind]) for kind in ("scope", "start", "end")):
+        raise RuntimeError("Writer Undo did not restore a removed section bibliography's bookmark triple.")
+    if _bookmark_pair_signature(doc, record["start"], record["end"])[2] == snapshot["contents"]:
+        return False
+    text = doc.getText()
+    cursor = text.createTextCursorByRange(bookmarks.getByName(record["start"]).getAnchor().getStart())
+    plan = snapshot.get("plan")
+    if plan is not None:
+        _write_bibliography(
+            doc,
+            plan["entries"],
+            entry_ids=plan["entry_ids"],
+            entry_links=plan["entry_links"],
+            entry_categories=plan["entry_categories"],
+            external_links=plan["external_links"],
+            cursor=cursor,
+            start_name=record["start"],
+            end_name=record["end"],
+            manage_targets=False,
+        )
+        return False
+
+    for kind in ("start", "end"):
+        current = doc.getBookmarks()
+        if current.hasByName(record[kind]):
+            text.removeTextContent(current.getByName(record[kind]))
+    start_mark = doc.createInstance("com.sun.star.text.Bookmark")
+    start_mark.Name = record["start"]
+    text.insertTextContent(cursor, start_mark, False)
+    cursor.setPropertyValue("HyperLinkURL", "")
+    text.insertString(cursor, snapshot["contents"], False)
+    end_mark = doc.createInstance("com.sun.star.text.Bookmark")
+    end_mark.Name = record["end"]
+    text.insertTextContent(cursor, end_mark, False)
+    return True
+
+
+def _ensure_section_removal_undo_listener(doc):
+    uid = _document_uid(doc)
+    if uid in _SECTION_REMOVAL_UNDO_LISTENERS:
+        return _SECTION_REMOVAL_UNDO_LISTENERS[uid]
+
+    import unohelper
+    from com.sun.star.document import XUndoManagerListener
+
+    undo = doc.getUndoManager()
+
+    class SectionRemovalUndoListener(unohelper.Base, XUndoManagerListener):
+        def _restore(self, event):
+            title = getattr(event, "UndoActionTitle", "")
+            if title not in {
+                "Remove Callosum section bibliography",
+                "Remove all Callosum section bibliographies",
+            }:
+                return
+            state = _SECTION_REMOVAL_STATES.get(uid, {})
+            refs = state.get("states", {}).get(_section_removal_key(doc))
+            if refs is None:
+                return
+            snapshots = [state["snapshots"][ref] for ref in refs]
+            undo.lock()
+            try:
+                with suspend_document_observation(doc):
+                    plain_recovery = False
+                    for snapshot in snapshots:
+                        plain_recovery = _restore_section_removal_snapshot(doc, snapshot) or plain_recovery
+                    if plain_recovery:
+                        set_dirty_state(doc, bibliography=True)
+            finally:
+                undo.unlock()
+
+        def actionUndone(self, event):
+            self._restore(event)
+
+        def actionRedone(self, event):
+            self._restore(event)
+
+        def undoActionAdded(self, _event):
+            pass
+
+        def allActionsCleared(self, _event):
+            _SECTION_REMOVAL_STATES.pop(uid, None)
+
+        def redoActionsCleared(self, _event):
+            pass
+
+        def enteredContext(self, _event):
+            pass
+
+        def enteredHiddenContext(self, _event):
+            pass
+
+        def leftContext(self, _event):
+            pass
+
+        def leftHiddenContext(self, _event):
+            pass
+
+        def cancelledContext(self, _event):
+            pass
+
+        def resetAll(self, _event):
+            _SECTION_REMOVAL_STATES.pop(uid, None)
+
+        def disposing(self, _event):
+            _SECTION_REMOVAL_UNDO_LISTENERS.pop(uid, None)
+            _SECTION_REMOVAL_STATES.pop(uid, None)
+
+    listener = SectionRemovalUndoListener()
+    undo.addUndoManagerListener(listener)
+    _SECTION_REMOVAL_UNDO_LISTENERS[uid] = listener
+    return listener
+
+
+def _register_section_removal_states(
+    doc,
+    before_key: tuple[str, ...],
+    before: list[dict],
+    after_key: tuple[str, ...],
+    after: list[dict],
+) -> None:
+    _ensure_section_removal_undo_listener(doc)
+    state = _SECTION_REMOVAL_STATES.setdefault(_document_uid(doc), {"snapshots": {}, "states": {}})
+
+    def intern(snapshots: list[dict]) -> tuple[tuple[str, str], ...]:
+        refs = []
+        for snapshot in snapshots:
+            ref = (snapshot["record"]["id"], snapshot["contents"])
+            state["snapshots"].setdefault(ref, snapshot)
+            refs.append(ref)
+        return tuple(refs)
+
+    state["states"][before_key] = intern(before)
+    state["states"][after_key] = intern(after)
+
+
+def _delete_section_bibliography_record(doc, record: dict[str, str]) -> None:
+    """Delete one already-validated section block inside the caller's Undo context."""
+    text = doc.getText()
+    bookmarks = doc.getBookmarks()
+    cursor = text.createTextCursorByRange(bookmarks.getByName(record["start"]).getAnchor().getStart())
+    cursor.gotoRange(bookmarks.getByName(record["end"]).getAnchor().getEnd(), True)
+    text.insertString(cursor, "", True)
+    for name in (record["scope"], record["start"], record["end"]):
+        current = doc.getBookmarks()
+        if current.hasByName(name):
+            text.removeTextContent(current.getByName(name))
+
+
+def _remove_section_bibliography_records(
+    doc,
+    records: list[dict[str, str]],
+    undo_title: str,
+    base: str,
+) -> list[str]:
+    """Remove validated blocks atomically and verify Writer's rollback if any deletion fails."""
+    if not records:
+        return []
+    current_records = {record["id"]: record for record in section_bibliography_records(doc)[0]}
+    selected = []
+    for requested in records:
+        current = current_records.get(requested["id"])
+        if current is None:
+            raise ValueError("A selected section bibliography is no longer available.")
+        selected.append(current)
+    all_records = list(current_records.values())
+    snapshots = _section_removal_snapshots(doc, all_records, base)
+    selected_ids = {record["id"] for record in selected}
+    before_key = _section_removal_key(doc)
+    after_key = tuple(identifier for identifier in before_key if identifier not in selected_ids)
+    after_snapshots = [snapshot for snapshot in snapshots if snapshot["record"]["id"] not in selected_ids]
+    _register_section_removal_states(doc, before_key, snapshots, after_key, after_snapshots)
+    before = {record["id"]: _bookmark_pair_signature(doc, record["start"], record["end"]) for record in selected}
+    undo = doc.getUndoManager()
+    undo.enterUndoContext(undo_title)
+    try:
+        for record in reversed(selected):
+            _delete_section_bibliography_record(doc, record)
+    except Exception as exc:
+        undo.leaveUndoContext()
+        undo.undo()
+        current = doc.getBookmarks()
+        rollback_failed = any(
+            not all(current.hasByName(record[kind]) for kind in ("scope", "start", "end"))
+            or _bookmark_pair_signature(doc, record["start"], record["end"]) != before[record["id"]]
+            for record in selected
+        )
+        if rollback_failed:
+            raise RuntimeError(
+                "Writer could not fully roll back the failed section-bibliography removal transaction. "
+                "Close without saving and reopen the document."
+            ) from exc
+        raise
+    else:
+        undo.leaveUndoContext()
+    return [record["id"] for record in selected]
+
+
+def remove_section_bibliography_by_id(doc, identifier: str, base: str = DEFAULT_BASE) -> str:
+    """Remove one complete section bibliography by its strict adapter-owned identifier."""
+    records = {record["id"]: record for record in section_bibliography_records(doc)[0]}
+    record = records.get(str(identifier))
+    if record is None:
+        raise ValueError("That section bibliography is no longer available.")
+    return _remove_section_bibliography_records(doc, [record], "Remove Callosum section bibliography", base)[0]
+
+
+def remove_all_section_bibliographies(doc, base: str = DEFAULT_BASE) -> list[str]:
+    """Remove every complete section block in one Writer Undo step; damaged triples fail closed."""
+    records, damaged = section_bibliography_records(doc)
+    if damaged:
+        raise ValueError("Repair damaged section bibliography bookmarks before removing all section bibliographies.")
+    return _remove_section_bibliography_records(doc, records, "Remove all Callosum section bibliographies", base)
+
+
+def go_to_section_bibliography(doc, identifier: str) -> bool:
+    """Move the Writer view cursor to one section bibliography's managed start marker."""
+    records = {record["id"]: record for record in section_bibliography_records(doc)[0]}
+    record = records.get(str(identifier))
+    if record is None:
+        return False
+    try:
+        target = doc.getBookmarks().getByName(record["start"]).getAnchor().getStart()
+        doc.getCurrentController().getViewCursor().gotoRange(target, False)
+    except Exception:
+        return False
+    return True
+
+
+def remove_section_bibliography(doc, base: str = DEFAULT_BASE) -> str | None:
     """Delete the managed bibliography for the caret's heading subtree without touching the full bibliography."""
     try:
         position = doc.getCurrentController().getViewCursor().getStart()
@@ -2361,36 +2722,7 @@ def remove_section_bibliography(doc) -> str | None:
     if record is None:
         _msgbox("No Callosum section bibliography was found in the current heading-defined section.")
         return None
-
-    text = doc.getText()
-    bookmarks = doc.getBookmarks()
-    before = _bookmark_pair_signature(doc, record["start"], record["end"])
-    undo = doc.getUndoManager()
-    undo.enterUndoContext("Remove Callosum section bibliography")
-    try:
-        cursor = text.createTextCursorByRange(bookmarks.getByName(record["start"]).getAnchor().getStart())
-        cursor.gotoRange(bookmarks.getByName(record["end"]).getAnchor().getEnd(), True)
-        cursor.setString("")
-        for name in (record["scope"], record["start"], record["end"]):
-            current = doc.getBookmarks()
-            if current.hasByName(name):
-                text.removeTextContent(current.getByName(name))
-    except Exception as exc:
-        undo.leaveUndoContext()
-        undo.undo()
-        current = doc.getBookmarks()
-        if (
-            not all(current.hasByName(record[kind]) for kind in ("scope", "start", "end"))
-            or _bookmark_pair_signature(doc, record["start"], record["end"]) != before
-        ):
-            raise RuntimeError(
-                "Writer could not fully roll back the failed section-bibliography removal. "
-                "Close without saving and reopen the document."
-            ) from exc
-        raise
-    else:
-        undo.leaveUndoContext()
-    return record["id"]
+    return remove_section_bibliography_by_id(doc, record["id"], base)
 
 
 def set_bibliography_heading(doc, heading: str | None, base: str = DEFAULT_BASE) -> str:
@@ -4062,6 +4394,100 @@ def _choice_box(
     return options[position][1] if 0 <= position < len(options) else None
 
 
+def _confirm_box(message: str, title: str = "callosum") -> bool:
+    """Ask an explicit yes/no question with No as the safe default."""
+    smgr = _component_ctx().ServiceManager
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", _component_ctx())
+    # QUERYBOX=4; BUTTONS_YES_NO=3; DEFAULT_BUTTON_2=512; MessageBoxResults.YES=2.
+    box = toolkit.createMessageBox(None, 4, 3 | 512, title, message)
+    result = box.execute()
+    box.dispose()
+    return result == 2
+
+
+def _section_bibliographies_dialog(
+    summaries: list[dict],
+    damaged_count: int,
+) -> tuple[str, str | None] | None:
+    """Return ``(go|remove|remove_all, id)`` from the bounded section-bibliography manager."""
+    import unohelper
+    from com.sun.star.awt import XActionListener
+
+    if not summaries:
+        return None
+    ctx = _component_ctx()
+    smgr = ctx.ServiceManager
+
+    class _ActionListener(unohelper.Base, XActionListener):
+        def __init__(self, callback):
+            self._callback = callback
+
+        def actionPerformed(self, event):
+            self._callback()
+
+        def disposing(self, event):
+            pass
+
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 420, 186, "Section bibliographies"
+    label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+    label.PositionX, label.PositionY, label.Width, label.Height = 6, 6, 408, 24
+    noun = "bibliography" if len(summaries) == 1 else "bibliographies"
+    label.Label = f"{len(summaries)} live section {noun}." + (
+        f" {damaged_count} damaged block(s) are not listed; use Document diagnostics."
+        if damaged_count
+        else " Select one to jump to or remove."
+    )
+    label.MultiLine = True
+    dm.insertByName("label", label)
+    section_list = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    section_list.PositionX, section_list.PositionY, section_list.Width, section_list.Height = 6, 34, 408, 116
+    section_list.MultiSelection = False
+    section_list.StringItemList = tuple(summary["row"] for summary in summaries)
+    dm.insertByName("sections", section_list)
+
+    for name, x, width, text in (
+        ("goto", 6, 60, "Go to"),
+        ("remove", 70, 92, "Remove selected"),
+        ("remove_all", 166, 78, "Remove all"),
+    ):
+        button = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+        button.PositionX, button.PositionY, button.Width, button.Height, button.Label = x, 160, width, 18, text
+        dm.insertByName(name, button)
+    close = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    close.PositionX, close.PositionY, close.Width, close.Height = 340, 160, 74, 18
+    close.Label, close.PushButtonType = "Close", 2
+    dm.insertByName("close", close)
+
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+    list_control = dialog.getControl("sections")
+    list_control.selectItemPos(0, True)
+    state = {"action": None, "identifier": None}
+
+    def choose(action: str) -> None:
+        position = list_control.getSelectedItemPos()
+        if action != "remove_all" and not 0 <= position < len(summaries):
+            _msgbox("Select one section bibliography first.", "Section bibliographies")
+            return
+        state["action"] = action
+        state["identifier"] = summaries[position]["id"] if action != "remove_all" else None
+        dialog.endExecute()
+
+    listeners = (
+        _ActionListener(lambda: choose("go")),
+        _ActionListener(lambda: choose("remove")),
+        _ActionListener(lambda: choose("remove_all")),
+    )
+    for control_name, listener in zip(("goto", "remove", "remove_all"), listeners, strict=True):
+        dialog.getControl(control_name).addActionListener(listener)
+    dialog.execute()
+    dialog.dispose()
+    return (str(state["action"]), state["identifier"]) if state["action"] in {"go", "remove", "remove_all"} else None
+
+
 _SUGGEST_CAVEAT = "Pick a paper to cite for the selected text — ranked by relevance; verify the source. You decide."
 
 
@@ -4652,13 +5078,76 @@ def insert_section_bibliography_interactive(doc, base: str) -> None:
     """Insert a live bibliography at the caret containing only works cited in its heading subtree."""
     identifier = insert_section_bibliography(doc, base)
     if identifier is not None:
-        _msgbox("Section bibliography inserted. Refresh bibliography updates it together with the full bibliography.")
+        summaries, _damaged = section_bibliography_summaries(doc)
+        summary = next((item for item in summaries if item["id"] == identifier), None)
+        detail = summary["row"] if summary is not None else "current section"
+        _msgbox(
+            f"Section bibliography inserted: {detail}. "
+            "Refresh bibliography updates it together with the full bibliography."
+        )
 
 
-def remove_section_bibliography_interactive(doc, _base: str) -> None:
+def remove_section_bibliography_interactive(doc, base: str) -> None:
     """Remove the live bibliography owned by the caret's heading subtree."""
-    if remove_section_bibliography(doc) is not None:
-        _msgbox("Section bibliography removed; citations and the full bibliography were not changed.")
+    summaries, _damaged = section_bibliography_summaries(doc)
+    by_id = {summary["id"]: summary for summary in summaries}
+    identifier = remove_section_bibliography(doc, base)
+    if identifier is not None:
+        label = by_id.get(identifier, {}).get("label", "current section")
+        _msgbox(f"Section bibliography for “{label}” removed; citations and the full bibliography were not changed.")
+
+
+def manage_section_bibliographies_interactive(doc, base: str) -> None:
+    """List, jump to, remove, or atomically remove all complete section bibliographies."""
+    while True:
+        summaries, damaged = section_bibliography_summaries(doc)
+        if not summaries:
+            message = "No complete Callosum section bibliographies were found."
+            if damaged:
+                message += (
+                    f" {len(damaged)} damaged block(s) remain; use Document diagnostics before inserting replacements."
+                )
+            _msgbox(message, "Section bibliographies")
+            return
+        choice = _section_bibliographies_dialog(summaries, len(damaged))
+        if choice is None:
+            return
+        action, identifier = choice
+        if action == "go":
+            if identifier is None or not go_to_section_bibliography(doc, identifier):
+                _msgbox("That section bibliography is no longer available.", "Section bibliographies")
+            return
+        if action == "remove":
+            summary = next((item for item in summaries if item["id"] == identifier), None)
+            if summary is None:
+                _msgbox("That section bibliography is no longer available.", "Section bibliographies")
+                continue
+            remove_section_bibliography_by_id(doc, summary["id"], base)
+            _msgbox(
+                f"Section bibliography for “{summary['label']}” removed. "
+                "Citations and the full bibliography were not changed.",
+                "Section bibliographies",
+            )
+            continue
+        if damaged:
+            _msgbox(
+                "Remove all is unavailable while damaged section-bibliography bookmarks remain. "
+                "Run Document diagnostics first.",
+                "Section bibliographies",
+            )
+            continue
+        if not _confirm_box(
+            f"Remove all {len(summaries)} section bibliographies in one Writer Undo step?\n\n"
+            "Citations and the full bibliography will not change.",
+            "Remove all section bibliographies",
+        ):
+            continue
+        removed = remove_all_section_bibliographies(doc, base)
+        _msgbox(
+            f"Removed {len(removed)} section bibliographies. Citations and the full bibliography were not changed.",
+            "Section bibliographies",
+        )
+        return
 
 
 def set_bibliography_heading_interactive(doc, base: str) -> None:
@@ -5017,6 +5506,7 @@ _ACTIONS = {
     "insertBibliographyHere": insert_bibliography_here_interactive,
     "insertSectionBibliography": insert_section_bibliography_interactive,
     "removeSectionBibliography": remove_section_bibliography_interactive,
+    "manageSectionBibliographies": manage_section_bibliographies_interactive,
     "setBibliographyHeading": set_bibliography_heading_interactive,
     "toggleBibliographyLinks": toggle_bibliography_links_interactive,
     "toggleBibliographyExternalLinks": toggle_bibliography_external_links_interactive,
@@ -5150,6 +5640,10 @@ def CallosumRemoveSectionBibliography(*_args):
     _macro("removeSectionBibliography")
 
 
+def CallosumManageSectionBibliographies(*_args):
+    _macro("manageSectionBibliographies")
+
+
 def CallosumSetBibliographyHeading(*_args):
     _macro("setBibliographyHeading")
 
@@ -5210,6 +5704,7 @@ g_exportedScripts = (
     CallosumInsertBibliographyHere,
     CallosumInsertSectionBibliography,
     CallosumRemoveSectionBibliography,
+    CallosumManageSectionBibliographies,
     CallosumSetBibliographyHeading,
     CallosumToggleBibliographyLinks,
     CallosumToggleBibliographyExternalLinks,

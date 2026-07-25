@@ -325,8 +325,15 @@ the Principles + A-A gates before build.)*
   omits excluded works, works independently of the visible-link preference, and survives save/reopen. Grouped
   rendered text remains structurally plain. P1 item #11's remaining implementation scope is the recorded
   long-manuscript section-bibliography list/jump/remove-all polish.
-  **UX follow-up (deadline author, inc 380):** add a list/jump-to surface and **Remove all section
-  bibliographies** for long manuscripts; success feedback could name the owning heading and cited-work count.
+  **Inc 384 completes P1 item #11 and the active LibreOffice adapter close-out:** **Section bibliographies…**
+  lists complete blocks in document order by owning heading and unique cited-work count, jumps to one, removes a
+  selected block, or confirms atomic remove-all. Remove-all and selected removal each form one Writer Undo step;
+  a runtime recovery layer repairs Writer's observed empty-range Undo edge case, preserving managed links when a
+  current local render plan is available and otherwise restoring plain text with an honest pending-refresh flag.
+  Damaged triples remain visible as a count and disable bulk removal. The full bibliography and citations never
+  change.
+  **UX follow-up (deadline author, inc 380) — CLOSED inc 384:** list/jump, remove-all, owning heading, and
+  cited-work count are shipped.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection

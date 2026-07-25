@@ -181,6 +181,11 @@ message if it isn't):
     **Remove bibliography for current section** deletes only that managed block. Citation-placement conversion
     updates the full and every non-empty section bibliography in one verified Writer Undo step; damaged or empty
     section blocks refuse before mutation.
+  - **Section bibliographies…** lists every complete block in document order as its owning heading plus unique
+    cited-work count. **Go to** jumps to the selected block; **Remove selected** deletes only that block; and
+    **Remove all** requires confirmation and commits one Writer Undo step without changing citations or the full
+    bibliography. Undo/Redo restores managed text and links. Damaged blocks are reported but never guessed at;
+    use **Document diagnostics…** before bulk removal.
 
 The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
 returns as soon as Writer opens the document. The installed extension also watches the ordered live citation

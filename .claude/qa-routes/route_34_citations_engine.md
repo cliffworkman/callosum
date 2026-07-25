@@ -156,7 +156,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     the full bibliography and both non-empty section blocks update in one Writer Undo step, Undo/Redo restore exact
     snapshots, and save-as-converted-copy leaves the open document unchanged. Inject the second range write failure
     and confirm every citation/full/section surface returns to its exact prior signature. Damaged or empty section
-    blocks must refuse before mutation.
+    blocks must refuse before mutation. Open **Section bibliographies…** and confirm rows follow document order
+    with owning heading and unique cited-work count. Jump to the second block; remove the first and confirm its
+    peer/full bibliography/citations survive. Cancel **Remove all** with no mutation, then confirm it and verify
+    every section block is removed in one Writer Undo step. Undo/Redo must restore/remove exact text, bookmarks,
+    and managed DOI/title links. Inject failure on the second removal and confirm the runtime recovery restores
+    both blocks exactly. A damaged triple must be reported, omitted from the list, and disable bulk removal.
 
 ## Pass criteria
 

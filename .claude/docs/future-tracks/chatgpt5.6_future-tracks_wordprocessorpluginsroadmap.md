@@ -256,7 +256,7 @@ Tracked-change-aware placement conversion that preserves unrelated redlines and 
 
 Zotero, RefWorks, Paperpile, EndNote, Citavi, and SmartCite all support at least some note-based workflows.
 
-11. Add bibliography editing controls — IN PROGRESS (incs 345, 374, 375)
+11. Add bibliography editing controls — COMPLETE (incs 345, 374–384)
 
 Users should be able to:
 
@@ -340,6 +340,13 @@ chooser. **Open cited work in callosum…** deep-links the selected source rathe
 missing entries fail honestly, explicit navigation does not depend on visible citation links being enabled, and
 the targets survive save/reopen. Grouped rendered text remains plain because one cluster still has multiple
 destinations. The long-manuscript section-bibliography list/jump/remove-all follow-up remains.
+
+**Completed in increment 384 (2026-07-25):** **Section bibliographies…** provides the remaining long-manuscript
+manager: document-ordered heading/count rows, jump, selected removal, and confirmed remove-all. Selected and bulk
+removal are one Writer Undo step and leave citations/full bibliography unchanged. A runtime recovery listener
+handles Writer's empirically observed empty-range Undo behavior, restoring exact managed text and links when the
+current local render plan is available; offline fallback restores plain text and marks bibliography formatting
+pending. Damaged triples fail closed. This completes Priority 1 item #11.
 
 12. Add a persistent "Citations in this document" panel
 

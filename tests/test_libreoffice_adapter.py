@@ -365,6 +365,13 @@ def test_section_bibliography_bookmark_names_are_strict_and_inventory_damage() -
         cc.section_bibliography_records(SimpleNamespace(getBookmarks=lambda: excessive_bookmarks))
 
 
+def test_section_bibliography_manager_rows_name_counts_plainly() -> None:
+    assert cc.format_section_bibliography_row("Methods", 0) == "Methods — 0 cited works"
+    assert cc.format_section_bibliography_row("Results", 1) == "Results — 1 cited work"
+    assert cc.format_section_bibliography_row("Discussion", 12) == "Discussion — 12 cited works"
+    assert cc.format_section_bibliography_row("Appendix", -2) == "Appendix — 0 cited works"
+
+
 def test_filter_bibliography_entries_projects_section_membership_without_reordering() -> None:
     entries = ["Alpha.", "Beta and Gamma.", "Delta."]
     entry_ids = [["callosum-1"], ["callosum-2", "callosum-3"], ["callosum-4"]]

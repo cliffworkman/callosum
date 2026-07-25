@@ -9,7 +9,28 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 383 — Writer grouped-citation navigation -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 384 — Writer section-bibliography manager -->
+## 2026-07-25 — Increment 384: Writer section-bibliography manager
+
+- **Files:** Writer section inventory/manager/removal Undo recovery, installed-UNO fixture, OXT 0.29.0, pure
+  tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Section bibliographies…** lists complete blocks in document order by owning heading and
+  unique cited-work count, jumps to one, removes a selected block, or confirms removal of all blocks.
+- **Safety finding:** injected failure proved native Writer Undo could restore a deleted bookmark pair while
+  leaving its text range empty. A bounded runtime listener repairs Undo/Redo/rollback from interned per-block
+  snapshots and preserves managed links when the current local render plan is available; offline fallback
+  restores exact plain text and marks bibliography formatting pending.
+- **Boundaries:** selected and bulk removal are one Writer Undo step and never change citations, heading prose,
+  or the full bibliography. Damaged triples are reported and disable bulk removal.
+- **Experience:** heading/count rows replace opaque bookmark hunting; Remove all is count-specific with No as the
+  safe default. A persona subagent was not used because delegation was disabled.
+- **Verification:** focused adapter/OXT/install/help **159 passed**; installed Writer focused and full matrix
+  **SELFTEST OK**; full suite **1586 passed, 1 skipped**; Ruff/format, line budget, QA surface map, OXT
+  packaging, security audit, and diff hygiene pass.
+- **Status:** P1 bibliography item #11 and the active LibreOffice adapter close-out are complete.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 383 — Writer grouped-citation navigation -->
 ## 2026-07-25 — Increment 383: Writer grouped-citation navigation
 
 - **Files:** Writer citation-source chooser/navigation/actions, installed-UNO fixture, OXT 0.28.0, pure tests,
