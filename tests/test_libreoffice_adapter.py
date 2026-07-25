@@ -320,6 +320,20 @@ def test_categorized_bibliography_preserves_style_order_within_deterministic_gro
     )
     assert cc.rendered_bibliography_text(grouped_entries, categories=categories) == expected
 
+    custom = cc.categorize_bibliography_entries(
+        entries,
+        entry_ids,
+        entry_links,
+        {"1": "Methods", "3": "Theory"},
+        ["Theory", "Methods"],
+    )
+    assert custom[0] == ["Gamma.", "Alpha.", "Beta."]
+    assert custom[3] == ["Theory", "Methods", cc.BIBLIOGRAPHY_UNCATEGORIZED]
+    assert cc.ordered_bibliography_categories(
+        ["Theory", "Results", "Methods"],
+        ["Theory"],
+    ) == ["Theory", "Methods", "Results"]
+
 
 def test_categorized_bibliography_degrades_to_original_layout_without_applicable_assignments() -> None:
     entries = ["Alpha.", "Beta."]
@@ -411,6 +425,23 @@ def test_bibliography_category_metadata_is_bounded_and_case_canonicalized() -> N
         user_props={cc.PREF_BIB_CATEGORIES: "x" * (cc.MAX_BIBLIOGRAPHY_CATEGORY_METADATA + 1)},
     )
     assert cc.bibliography_categories(oversized) == {}
+    ordered = _PanelDoc(
+        {},
+        user_props={cc.PREF_BIB_CATEGORY_ORDER: '["Theory","Methods"]'},
+    )
+    assert cc.bibliography_category_order(ordered) == ["Theory", "Methods"]
+    duplicate = _PanelDoc(
+        {},
+        user_props={cc.PREF_BIB_CATEGORY_ORDER: '["Theory","theory"]'},
+    )
+    assert cc.bibliography_category_order(duplicate) == []
+    excessive_order = _PanelDoc(
+        {},
+        user_props={
+            cc.PREF_BIB_CATEGORY_ORDER: "x" * (cc.MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA + 1),
+        },
+    )
+    assert cc.bibliography_category_order(excessive_order) == []
 
 
 def test_set_bibliography_span_url_selects_only_declared_range() -> None:
@@ -581,6 +612,42 @@ def test_set_bibliography_categories_batches_reuses_case_and_rolls_back_on_failu
         cc.set_bibliography_categories(doc, ["2", "3"], "Theory", "http://x")
     assert state == {"1": "Methods", "2": "Methods", "3": "Methods", "4": "Methods"}
     assert writes[-1] == state
+
+
+def test_set_bibliography_category_order_refreshes_once_resets_and_restores_exact_property(monkeypatch) -> None:
+    state = {"value": '["Methods","Theory"]'}
+    writes = []
+    refreshes = []
+    monkeypatch.setattr(cc, "_effective_user_prop", lambda _doc, _name: state["value"])
+
+    def set_value(_doc, name, value):
+        assert name == cc.PREF_BIB_CATEGORY_ORDER
+        state["value"] = value
+        writes.append(value)
+
+    monkeypatch.setattr(cc, "_set_user_prop_value", set_value)
+    monkeypatch.setattr(
+        cc,
+        "refresh_bibliography",
+        lambda doc, base: refreshes.append((doc, base)) or {"bibliography_text": "Entry"},
+    )
+    doc = object()
+    assert cc.set_bibliography_category_order(doc, ["Theory", "Methods"], "http://x") == ["Theory", "Methods"]
+    assert state["value"] == '["Theory", "Methods"]'
+    assert refreshes == [(doc, "http://x")]
+    assert cc.set_bibliography_category_order(doc, [], "http://x") == []
+    assert state["value"] is None
+
+    state["value"] = '{"corrupt":"but exact"}'
+    monkeypatch.setattr(
+        cc,
+        "refresh_bibliography",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        cc.set_bibliography_category_order(doc, ["Methods"], "http://x")
+    assert state["value"] == '{"corrupt":"but exact"}'
+    assert writes[-1] == '{"corrupt":"but exact"}'
 
 
 def test_citations_panel_category_picker_reuses_labels_and_handles_mixed_selection() -> None:

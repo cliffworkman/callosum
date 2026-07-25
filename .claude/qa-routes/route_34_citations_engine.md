@@ -128,6 +128,15 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     and failure rollback remain coherent. Remove one assignment, then remove the final batch and confirm the
     exact ordinary uncategorized layout returns. Oversized, multiline/control, over-1,000-work batch,
     reserved **Other references**, excessive, corrupt, or nonnumeric-id metadata must fail without mutation.
+19. **Manual Writer category order:** with at least three named bibliography categories, open **Category
+    order…**, move the last group to the first position, and Save. Confirm category headings follow that order,
+    citeproc order inside each group is unchanged, and **Other references** remains last. Save/reopen, refresh,
+    move the bibliography, and convert citation placement; order, entry targets, and DOI/URL links must remain
+    coherent. Create a new category and confirm it follows configured groups alphabetically until repositioned.
+    Cancel must mutate nothing. Choose **Reset alphabetical**, then Save; confirm alphabetical order returns and
+    the custom property is removed. With fewer than two categories, the action must explain the requirement.
+    Oversized, duplicate, blank, control-character, reserved-label, non-list, or over-50-label metadata must
+    degrade to alphabetical or fail before mutation; a refresh failure must restore the exact prior property.
 
 ## Pass criteria
 

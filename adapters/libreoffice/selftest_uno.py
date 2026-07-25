@@ -1955,6 +1955,16 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
     theory = body.index("Theory\n", vaswani)
     devlin = body.index("Devlin", theory)
     check(methods < vaswani < theory < devlin, f"category grouping/order was not rendered: {body!r}")
+    check(
+        cc.set_bibliography_category_order(doc, ["Theory", "Methods"], base) == ["Theory", "Methods"],
+        "custom category order returned the wrong projection",
+    )
+    body = text.getString()
+    theory = body.index("Theory\n")
+    devlin = body.index("Devlin", theory)
+    methods = body.index("Methods\n", devlin)
+    vaswani = body.index("Vaswani", methods)
+    check(theory < devlin < methods < vaswani, f"custom category order was not rendered: {body!r}")
 
     style, locale = cc._get_pref(doc, base)
     fields = cc.scan_citations_in_order(doc)
@@ -1967,8 +1977,9 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
         raw_ids,
         raw_links,
         cc.bibliography_categories(doc),
+        cc.bibliography_category_order(doc),
     )
-    check(categories == ["Methods", "Theory"], f"wrong category alignment: {categories}")
+    check(categories == ["Theory", "Methods"], f"wrong custom category alignment: {categories}")
     check(cc.bibliography_render_is_current(doc, entries, categories), "categorized bibliography was not current")
     check(
         cc.bibliography_external_links_are_current(doc, entries, links, True, categories),
@@ -2006,6 +2017,10 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
             cc.bibliography_categories(reopened) == {p1: "Methods", p2: "Theory"},
             "category assignments did not survive save/reopen",
         )
+        check(
+            cc.bibliography_category_order(reopened) == ["Theory", "Methods"],
+            "custom category order did not survive save/reopen",
+        )
         check("Methods\n" in reopened.getText().getString(), "category headings did not survive save/reopen")
         cc.convert_citation_placement(
             reopened,
@@ -2025,6 +2040,7 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
             converted_response["bibliography_entry_ids"],
             cc.normalize_bibliography_links(converted_raw, converted_response.get("bibliography_links")),
             cc.bibliography_categories(reopened),
+            cc.bibliography_category_order(reopened),
         )
         converted_entries, _converted_ids, converted_links, converted_categories = converted
         check(
@@ -2042,6 +2058,16 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
             "placement conversion lost categorized bibliography DOI links",
         )
 
+        check(
+            cc.set_bibliography_category_order(reopened, [], base) == [],
+            "alphabetical category reset returned the wrong projection",
+        )
+        reset_body = reopened.getText().getString()
+        check(
+            reset_body.index("Methods\n") < reset_body.index("Theory\n"),
+            "reset did not restore alphabetical category order",
+        )
+        check(cc.bibliography_category_order(reopened) == [], "reset did not remove custom category order metadata")
         check(
             cc.set_bibliography_categories(reopened, [p1, p2], "Synthesis", base) == {p1: "Synthesis", p2: "Synthesis"},
             "batch category reassignment returned the wrong projection",
@@ -2072,7 +2098,7 @@ def spike_categorized_bibliography(ctx, base, p1, p2):
             os.remove(save_path)
         except OSError:
             pass
-    log("spike (P1 #11): OK — categories batch/reuse, group/reorder, link, persist, and clear safely")
+    log("spike (P1 #11): OK — categories batch/reuse, custom-order/reset, link, persist, and clear safely")
 
 
 def spike_bibliography_links(ctx, base, p1, p2):

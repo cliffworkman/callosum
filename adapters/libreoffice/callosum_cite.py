@@ -49,6 +49,7 @@ MAX_BIBLIOGRAPHY_CATEGORY_ASSIGNMENTS = 1000
 MAX_BIBLIOGRAPHY_CATEGORIES = 50
 BIBLIOGRAPHY_CATEGORY_MAX = 80
 MAX_BIBLIOGRAPHY_CATEGORY_METADATA = 131_072
+MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA = 8_192
 MAX_BIBLIOGRAPHY_CATEGORY_PAPER_ID = 20
 BIBLIOGRAPHY_UNCATEGORIZED = "Other references"
 PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
@@ -111,6 +112,7 @@ PREF_BIB_HEADING = "CallosumBibHeading"  # custom per-document heading; absent/b
 PREF_BIB_LINKS = "CallosumBibLinks"  # "1" hyperlinks unambiguous one-work citations to their bibliography entry
 PREF_BIB_EXTERNAL_LINKS = "CallosumBibExternalLinks"  # "1" links DOI/URL text rendered by the current CSL style
 PREF_BIB_CATEGORIES = "CallosumBibCategories"  # JSON object: Callosum paper id -> document-local category label
+PREF_BIB_CATEGORY_ORDER = "CallosumBibCategoryOrder"  # JSON list: explicit document-local category precedence
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_NOTE_PLACEMENT = "footnote"
@@ -1055,6 +1057,68 @@ def _set_bibliography_categories(doc, assignments: dict[str, str]) -> None:
     _set_user_prop_value(doc, PREF_BIB_CATEGORIES, value)
 
 
+def bibliography_category_order(doc) -> list[str]:
+    """Read one bounded explicit category order; corrupt metadata degrades to the alphabetical default."""
+    raw = _effective_user_prop(doc, PREF_BIB_CATEGORY_ORDER)
+    if not raw:
+        return []
+    if not isinstance(raw, str) or len(raw) > MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA:
+        return []
+    try:
+        decoded = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    if not isinstance(decoded, list) or len(decoded) > MAX_BIBLIOGRAPHY_CATEGORIES:
+        return []
+    order: list[str] = []
+    seen: set[str] = set()
+    for raw_category in decoded:
+        if not isinstance(raw_category, str):
+            return []
+        try:
+            category = normalize_bibliography_category(raw_category)
+        except ValueError:
+            return []
+        if category is None or category.casefold() in seen:
+            return []
+        seen.add(category.casefold())
+        order.append(category)
+    return order
+
+
+def _set_bibliography_category_order(doc, categories: list[str] | tuple[str, ...]) -> list[str]:
+    """Validate and persist explicit category precedence, removing the property for alphabetical order."""
+    if len(categories) > MAX_BIBLIOGRAPHY_CATEGORIES:
+        raise ValueError(f"A document can order at most {MAX_BIBLIOGRAPHY_CATEGORIES} bibliography categories.")
+    order: list[str] = []
+    seen: set[str] = set()
+    for raw_category in categories:
+        if not isinstance(raw_category, str):
+            raise ValueError("Bibliography category order labels must be text.")
+        category = normalize_bibliography_category(raw_category)
+        if category is None:
+            raise ValueError("Bibliography category order cannot contain a blank label.")
+        folded = category.casefold()
+        if folded in seen:
+            raise ValueError("Bibliography category order cannot contain duplicate labels.")
+        seen.add(folded)
+        order.append(category)
+    value = json.dumps(order, ensure_ascii=False) if order else None
+    if value is not None and len(value) > MAX_BIBLIOGRAPHY_CATEGORY_ORDER_METADATA:
+        raise ValueError("Bibliography category order metadata is too large for one Writer document.")
+    _set_user_prop_value(doc, PREF_BIB_CATEGORY_ORDER, value)
+    return order
+
+
+def ordered_bibliography_categories(categories: list[str], configured_order: list[str]) -> list[str]:
+    """Order active categories by explicit precedence, then alphabetically for any new/unranked labels."""
+    rank = {category.casefold(): index for index, category in enumerate(configured_order)}
+    return sorted(
+        categories,
+        key=lambda category: (rank.get(category.casefold(), len(rank)), category.casefold()),
+    )
+
+
 def _insertion_cursor(doc):
     """A text cursor at the current insertion point (view cursor), else the document end."""
     text = doc.getText()
@@ -1389,6 +1453,7 @@ def categorize_bibliography_entries(
     entry_ids: list[list[str]],
     entry_links: list[list[tuple[int, int, str]]],
     assignments: dict[str, str],
+    category_order: list[str] | None = None,
 ) -> tuple[list[str], list[list[str]], list[list[tuple[int, int, str]]], list[str | None]]:
     """Group citeproc-sorted entries by category while preserving citeproc order within every group."""
     if len(entry_ids) != len(entries):
@@ -1402,7 +1467,10 @@ def categorize_bibliography_entries(
         categories.append(assigned[0] if assigned and assigned[0] is not None and len(set(assigned)) == 1 else None)
     if not any(categories):
         return entries, entry_ids, entry_links, [None for _entry in entries]
-    order = sorted({category for category in categories if category is not None}, key=str.casefold)
+    order = ordered_bibliography_categories(
+        list({category for category in categories if category is not None}),
+        category_order or [],
+    )
     grouped_indexes = [
         index
         for category in [*order, None]
@@ -1850,6 +1918,7 @@ def refresh(
                 bibliography_entry_ids,
                 bibliography_entry_links,
                 bibliography_categories(doc),
+                bibliography_category_order(doc),
             )
         )
         external_links_enabled = bibliography_external_links_enabled(doc)
@@ -2032,6 +2101,22 @@ def set_bibliography_category(
 ) -> str | None:
     """Backward-compatible single-work wrapper around the transactional batch category setter."""
     return set_bibliography_categories(doc, [paper_id], category, base)[str(paper_id)]
+
+
+def set_bibliography_category_order(
+    doc,
+    categories: list[str] | tuple[str, ...],
+    base: str = DEFAULT_BASE,
+) -> list[str]:
+    """Persist category precedence and rebuild once, restoring the exact previous property on failure."""
+    previous = _effective_user_prop(doc, PREF_BIB_CATEGORY_ORDER)
+    order = _set_bibliography_category_order(doc, categories)
+    try:
+        refresh_bibliography(doc, base)
+    except Exception:
+        _set_user_prop_value(doc, PREF_BIB_CATEGORY_ORDER, previous)
+        raise
+    return order
 
 
 def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:
@@ -2886,6 +2971,7 @@ def convert_citation_placement(
             bibliography_entry_ids,
             bibliography_entry_links,
             bibliography_categories(doc),
+            bibliography_category_order(doc),
         )
     )
     external_links_enabled = bibliography_external_links_enabled(doc)

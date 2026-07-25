@@ -306,6 +306,13 @@ validates the bounded paper-id batch, then writes metadata and refreshes the bib
 complete prior map if refresh fails. Custom category ordering, chapter/section bibliographies,
 bibliography-title links, and per-source grouped navigation remain.
 
+**Continued in increment 379 (2026-07-25):** **Category order…** gives active Writer bibliography groups an
+explicit document-local precedence with Move up/down, alphabetical reset, Save, and Cancel. Unranked or newly
+created groups follow configured groups alphabetically, citeproc order remains stable within each group, and
+**Other references** remains last. The bounded setting survives refresh, placement conversion, and save/reopen;
+reset removes it, and refresh failure restores the exact prior property. Chapter/section bibliographies,
+bibliography-title links, and per-source grouped navigation remain.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

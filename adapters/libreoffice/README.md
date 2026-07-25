@@ -163,6 +163,10 @@ message if it isn't):
     each group. Once any visible work is categorized, unassigned entries remain visible under **Other
     references**; removing the final assignment restores the ordinary uncategorized bibliography. It is a
     snapshot at the moment you open it — reopen after editing to refresh.
+    **Category order…** opens the active category list with **Move ↑ / ↓**, **Reset alphabetical**, Save, and
+    Cancel. The custom order is saved in the Writer file; newly created categories that have not been positioned
+    yet follow the saved groups alphabetically, and **Other references** always remains last. Reset plus Save
+    removes the custom-order property and rebuilds immediately.
 
 The pending-refresh flags are saved inside the document. If you save and reopen while work is pending, the bar
 returns as soon as Writer opens the document. The installed extension also watches the ordered live citation

@@ -12,6 +12,7 @@ architecture shift from read-only to read-write, flagged here rather than silent
 Increment 377 also assigns or removes one document-local category for the selected work. Categories group the
 single managed bibliography without changing CSL records or citation text. Increment 378 makes that control
 multi-select and reuses existing category labels, so a manuscript-scale batch needs one transactional refresh.
+Increment 379 adds explicit category precedence with a reorder/reset dialog.
 
 A **snapshot at open time, re-fetched after each edit** — not a live-refreshing panel that tracks ongoing
 document edits made outside it: every dialog in this codebase is modal (`.execute()`), and nothing here has
@@ -92,6 +93,127 @@ def _category_picker_options(
         )
     )
     return tuple(options), current
+
+
+def run_category_order_dialog(doc, base: str) -> bool:
+    """Reorder active document categories, or reset to the alphabetical default; return whether Save was used."""
+    import unohelper
+    from com.sun.star.awt import XActionListener
+
+    alphabetical = sorted(set(cc.bibliography_categories(doc).values()), key=str.casefold)
+    if len(alphabetical) < 2:
+        cc._msgbox("Create at least two bibliography categories before setting a custom order.")
+        return False
+    current = cc.ordered_bibliography_categories(alphabetical, cc.bibliography_category_order(doc))
+
+    ctx = cc._component_ctx()
+    smgr = ctx.ServiceManager
+
+    class _ActionListener(unohelper.Base, XActionListener):
+        def __init__(self, callback):
+            self._callback = callback
+
+        def actionPerformed(self, event):
+            self._callback()
+
+        def disposing(self, event):
+            pass
+
+    dm = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialogModel", ctx)
+    dm.Width, dm.Height, dm.Title = 280, 190, "Bibliography category order"
+
+    label = dm.createInstance("com.sun.star.awt.UnoControlFixedTextModel")
+    label.PositionX, label.PositionY, label.Width, label.Height, label.Label = (
+        6,
+        6,
+        268,
+        14,
+        "Move categories into document order. Unassigned works remain last.",
+    )
+    dm.insertByName("label", label)
+
+    category_list = dm.createInstance("com.sun.star.awt.UnoControlListBoxModel")
+    category_list.PositionX, category_list.PositionY, category_list.Width, category_list.Height = 6, 24, 190, 116
+    dm.insertByName("categories", category_list)
+
+    up_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    up_btn.PositionX, up_btn.PositionY, up_btn.Width, up_btn.Height, up_btn.Label = 202, 24, 72, 18, "Move ↑"
+    dm.insertByName("move_up", up_btn)
+
+    down_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    down_btn.PositionX, down_btn.PositionY, down_btn.Width, down_btn.Height, down_btn.Label = (
+        202,
+        46,
+        72,
+        18,
+        "Move ↓",
+    )
+    dm.insertByName("move_down", down_btn)
+
+    reset_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    reset_btn.PositionX, reset_btn.PositionY, reset_btn.Width, reset_btn.Height, reset_btn.Label = (
+        6,
+        148,
+        110,
+        18,
+        "Reset alphabetical",
+    )
+    dm.insertByName("reset", reset_btn)
+
+    save_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    save_btn.PositionX, save_btn.PositionY, save_btn.Width, save_btn.Height = 180, 166, 44, 18
+    save_btn.Label, save_btn.PushButtonType = "Save", 1
+    dm.insertByName("save", save_btn)
+
+    cancel_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    cancel_btn.PositionX, cancel_btn.PositionY, cancel_btn.Width, cancel_btn.Height = 228, 166, 46, 18
+    cancel_btn.Label, cancel_btn.PushButtonType = "Cancel", 2
+    dm.insertByName("cancel", cancel_btn)
+
+    dialog = smgr.createInstanceWithContext("com.sun.star.awt.UnoControlDialog", ctx)
+    dialog.setModel(dm)
+    toolkit = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx)
+    dialog.createPeer(toolkit, None)
+    list_ctrl = dialog.getControl("categories")
+    state = {"order": list(current)}
+
+    def refresh_list(selected: int = 0):
+        list_ctrl.getModel().StringItemList = tuple(state["order"])
+        if state["order"]:
+            list_ctrl.selectItemPos(max(0, min(selected, len(state["order"]) - 1)), True)
+
+    def do_move(delta: int):
+        position = list_ctrl.getSelectedItemPos()
+        if position is None or position < 0 or position >= len(state["order"]):
+            return
+        new_position = position + delta
+        if new_position < 0 or new_position >= len(state["order"]):
+            return
+        state["order"][position], state["order"][new_position] = (
+            state["order"][new_position],
+            state["order"][position],
+        )
+        refresh_list(new_position)
+
+    def do_reset():
+        state["order"] = list(alphabetical)
+        refresh_list()
+
+    refresh_list()
+    dialog.getControl("move_up").addActionListener(_ActionListener(lambda: do_move(-1)))
+    dialog.getControl("move_down").addActionListener(_ActionListener(lambda: do_move(1)))
+    dialog.getControl("reset").addActionListener(_ActionListener(do_reset))
+    result = dialog.execute()
+    dialog.dispose()
+    if result != 1:
+        return False
+    order = [] if state["order"] == alphabetical else state["order"]
+    try:
+        cc.set_bibliography_category_order(doc, order, base)
+    except Exception:
+        cc.set_dirty_state(doc, bibliography=True)
+        raise
+    return True
 
 
 def run_citations_panel(doc, base: str):
@@ -176,6 +298,16 @@ def run_citations_panel(doc, base: str):
     )
     add_uncited_btn.Label = "Add uncited work(s)…"
     dm.insertByName("add_uncited", add_uncited_btn)
+
+    category_order_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
+    category_order_btn.PositionX, category_order_btn.PositionY, category_order_btn.Width, category_order_btn.Height = (
+        140,
+        266,
+        116,
+        18,
+    )
+    category_order_btn.Label = "Category order…"
+    dm.insertByName("category_order", category_order_btn)
 
     close_btn = dm.createInstance("com.sun.star.awt.UnoControlButtonModel")
     close_btn.PositionX, close_btn.PositionY, close_btn.Width, close_btn.Height = 340, 266, 74, 18
@@ -294,11 +426,16 @@ def run_citations_panel(doc, base: str):
         state["chosen"] = selected[0]["mark"]
         dialog.endExecute()
 
+    def do_category_order():
+        if run_category_order_dialog(doc, base):
+            _reload()
+
     _apply_filter()
     filter_ctrl.addTextListener(_TextChangeListener(_apply_filter))
     dialog.getControl("goto").addActionListener(_ActionListener(do_goto))
     dialog.getControl("exclude").addActionListener(_ActionListener(do_toggle_exclude))
     dialog.getControl("category").addActionListener(_ActionListener(do_set_category))
+    dialog.getControl("category_order").addActionListener(_ActionListener(do_category_order))
     dialog.getControl("add_uncited").addActionListener(_ActionListener(do_add_uncited))
 
     dialog.execute()

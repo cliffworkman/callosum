@@ -296,6 +296,11 @@ the Principles + A-A gates before build.)*
   start on a no-op placeholder; one batch performs one metadata write and one bibliography refresh, restoring
   the complete previous map on failure. Custom category ordering, chapter/section bibliographies,
   bibliography-title links, and per-source grouped-citation navigation remain.
+  **Inc 379 adds custom category ordering:** **Category order…** lists active groups and provides Move up/down,
+  alphabetical reset, Save, and Cancel. Bounded document-local precedence survives refresh, conversion, and
+  save/reopen; unranked/new groups follow configured groups alphabetically, **Other references** stays last, and
+  reset removes the property. Chapter/section bibliographies, bibliography-title links, and per-source
+  grouped-citation navigation remain.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection

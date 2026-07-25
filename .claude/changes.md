@@ -9,7 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
-<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 378 — Writer batch bibliography categories -->
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 379 — Writer custom bibliography category order -->
+## 2026-07-25 — Increment 379: Writer custom bibliography category order (P1 item #11)
+
+- **Files:** Writer category-order metadata/rendering/document-citations panel, installed-UNO fixture, OXT
+  0.24.0, pure tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Category order…** exposes active groups with Move up/down, alphabetical reset, Save, and
+  Cancel. Configured groups lead; new/unranked groups follow alphabetically; **Other references** remains last.
+- **Integrity:** the order is a separate validated document property (8 KiB raw, 50 unique printable labels,
+  80 characters each). Corrupt data degrades to alphabetical. Save refreshes once; failure restores the exact
+  previous property. Reset removes the property.
+- **Writer proof:** installed OXT **0.24.0** reversed groups, preserved per-group citeproc order and DOI links,
+  round-tripped through `.odt`, survived placement conversion, and reset to alphabetical.
+- **Experience:** a deadline-author found the control discoverable in the category-management panel, repeated
+  moves straightforward, Save/Cancel staging clear, and Other-last behavior expected. Boundary-button feedback
+  and a stronger "Save to apply" reset hint remain polish.
+- **Verification:** focused adapter/OXT **132 passed**; installed Writer focused spike and full matrix
+  **SELFTEST OK**; full project suite **1579 passed, 1 skipped**; Ruff, line-budget, QA-surface, OXT-package,
+  and diff-hygiene gates pass.
+- **Revert:** `git revert` this commit.
+
+<!-- HELP-DOCS-SYNCED-PREVIOUS: 2026-07-25 inc 378 — Writer batch bibliography categories -->
 ## 2026-07-25 — Increment 378: Writer batch bibliography categories (P1 item #11)
 
 - **Files:** Writer category transaction/document-citations panel, installed-UNO fixture, OXT 0.23.0, pure
