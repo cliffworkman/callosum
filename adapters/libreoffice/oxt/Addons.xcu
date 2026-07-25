@@ -131,6 +131,12 @@
             <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
             <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
           </node>
+          <node oor:name="m04j" oor:op="replace">
+            <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?toggleBibliographyExternalLinks</value></prop>
+            <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Toggle bibliography DOI/URL links</value></prop>
+            <prop oor:name="Target" oor:type="xs:string"><value>_self</value></prop>
+            <prop oor:name="Context" oor:type="xs:string"><value>com.sun.star.text.TextDocument</value></prop>
+          </node>
           <node oor:name="m04b" oor:op="replace">
             <prop oor:name="URL" oor:type="xs:string"><value>service:com.callosum.cite.Dispatcher?toggleBibAuto</value></prop>
             <prop oor:name="Title" oor:type="xs:string"><value xml:lang="en-US">Toggle automatic bibliography rebuild</value></prop>

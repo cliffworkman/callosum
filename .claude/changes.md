@@ -9,6 +9,25 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-24 inc 376 — Writer bibliography DOI/URL links -->
+## 2026-07-24 — Increment 376: Writer bibliography DOI/URL links (P1 item #11)
+
+- **Files:** local citeproc render metadata, Writer preference/bounded formatting/conversion, menu/OXT 0.21.0,
+  real-UNO fixture, pure tests, README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Toggle bibliography DOI/URL links** makes only DOI/URL text already rendered by the active
+  CSL style clickable. The setting is opt-in, document-local, persistent, and does not invent missing text.
+- **Integrity:** only capped, non-overlapping HTTP(S) spans with a hostname and no credentials are accepted;
+  malformed metadata fails plain. Existing render fields remain unchanged, no destination is fetched
+  automatically, and disabling preserves exact bibliography text plus hyperlinks outside the managed block.
+- **Writer proof:** installed OXT **0.21.0** preserved the links through refresh, save/reopen, bibliography
+  movement, and citation placement conversion, then removed only the managed bibliography links on disable.
+- **Experience:** a deadline-author walkthrough found the path direct but zero-link styles ambiguous. The ON
+  confirmation now reports the link count or explains that the current style prints no DOI/URL; checked state
+  and bibliography-title links remain explicit follow-ups.
+- **Verification:** **206 focused tests**; installed Writer focused spike and full matrix **SELFTEST OK**; full
+  suite **1573 passed, 1 skipped**; Ruff/format, line budget, QA surface map, OXT packaging, and security clean.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-24 inc 375 — Writer citation-to-bibliography links -->
 ## 2026-07-24 — Increment 375: Writer citation-to-bibliography links (P1 item #11)
 

@@ -279,6 +279,12 @@ the Principles + A-A gates before build.)*
   save/reopen and placement conversion; grouped/excluded citations stay plain, and unrelated external links are
   preserved when toggling off. Categories, chapter/section bibliographies, title/DOI links, and a per-source
   grouped-citation chooser remain.
+  **Inc 376 adds opt-in bibliography DOI/URL links:** DOI and URL text already emitted by the active CSL style
+  becomes clickable through validated, bounded citeproc-declared spans. The setting survives save/reopen,
+  refresh, bibliography moves, and citation placement conversion; disabling it preserves rendered text and
+  hyperlinks outside the managed bibliography. It neither invents missing identifiers nor accepts unsafe URL
+  schemes. Categories, chapter/section bibliographies, bibliography-title links, and per-source grouped-citation
+  navigation remain.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
   `chicago-notes-bibliography` style now inserts each new citation into a real Writer footnote. The shared
   render contract accepts a validated one-based `noteIndex`, Writer scans footnotes in their native collection
@@ -359,6 +365,10 @@ the Principles + A-A gates before build.)*
   **UX follow-up (deadline writer, inc 375):** expose a checked ON/OFF state for citation-to-bibliography links;
   the current state-blind toggle is functional but requires testing a citation after reopen. A later grouped-
   citation source chooser belongs with the remaining per-source hyperlink work.
+  **UX follow-up (deadline author, inc 376):** expose a checked ON/OFF state for bibliography DOI/URL links
+  alongside the inc-375 internal-link state. Title-level links for styles that omit visible DOI/URL text remain
+  part of the open bibliography-title-link scope. The shipped confirmation now reports the applied link count
+  and explains a zero-result style instead of leaving an unchanged bibliography looking like failure.
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
   verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
   tool; build only if a one-click install becomes worth the ongoing maintenance cost.
@@ -440,7 +450,8 @@ which "pairs with #16").
 
 ## Shipped — breadcrumbs only (full detail in increment-notes/ + `INCREMENT-BACKLOG-DONE.md`)
 
-*(Breadcrumbs through inc 202 were already condensed in a prior pass; this section extends them through inc 308.)*
+*(Breadcrumbs through inc 202 were already condensed in a prior pass; this section extends them through inc 308
+plus later reconciliation findings.)*
 
 - ⭐ Star key publications + scope the AI summary to starred — inc 84
 - Review queue for OpenAlex works missing from My Pubs + import missing own-papers — inc 85
@@ -549,3 +560,8 @@ which "pairs with #16").
 - **QA-pass fixes** (308) — read-only credit-403 gating, mobile Help layout, Discover Clear × — **all three
   browser-verified 2026-07-19** (a Playwright follow-up session; the Clear × fix needed a genuine second pass —
   see `INCREMENT-308-NOTES.md`).
+- **WIP manuscript workspace MVP — incs 351–356.** The unprocessed source prompt was reconciled from the watched
+  inbox on 2026-07-24 after confirming the implementation directly: WIP is a distinct top-level manuscript
+  collection with watched-folder discovery, workflow/files/tasks/references/activity, exact content checkpoints,
+  snapshot-bound deterministic checks/findings, reverse Library navigation, dedicated facets/context actions, and
+  tab reorder parity. The canonical design source now lives in `future-tracks/`.

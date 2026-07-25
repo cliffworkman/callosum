@@ -51,6 +51,7 @@ VASWANI = {
     "author": [{"family": "Vaswani", "given": "Ashish"}, {"family": "Shazeer", "given": "Noam"}],
     "issued": {"date-parts": [[2017]]},
     "container-title": "Advances in Neural Information Processing Systems",
+    "DOI": "10.5555/callosum.vaswani",
 }
 DEVLIN = {
     "type": "article-journal",
@@ -58,6 +59,7 @@ DEVLIN = {
     "author": [{"family": "Devlin", "given": "Jacob"}, {"family": "Chang", "given": "Ming-Wei"}],
     "issued": {"date-parts": [[2019]]},
     "container-title": "NAACL",
+    "DOI": "10.5555/callosum.devlin",
 }
 
 

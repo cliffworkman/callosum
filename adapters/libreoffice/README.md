@@ -140,15 +140,19 @@ message if it isn't):
     citation links to its own managed bibliography entry and the setting survives save/reopen. Grouped citations
     stay plain because one cluster has several possible destinations; excluded works have no entry and stay
     plain. Turning the feature off removes only Callosum's internal links, not an external link you added.
-18. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
+18. **Toggle bibliography DOI/URL links** — make DOI and URL text that the selected style already prints in each
+    bibliography entry clickable. The opt-in setting is saved in the Writer file and applies immediately. It
+    does not add missing DOI/URL text or change the style's output; invalid or unsafe destinations remain plain.
+    Turning it off removes only these managed bibliography links, not hyperlinks outside the bibliography.
+19. **Toggle automatic bibliography rebuild** — pause the bibliography specifically (citations keep updating
     normally on refresh; the bibliography just stays as-is until you turn this back on) — useful for a long
     document where rebuilding the reference list on every edit is unwanted friction.
-19. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
+20. **Document diagnostics…** — a read-only health check: reports any malformed citation field, a citation
     written by a newer callosum schema this plugin doesn't understand, a citation-id collision, a citation whose
     source paper is no longer in your library, and whether the bibliography block is damaged or just not built
     yet. Never changes your document — it only tells you what it finds (and, for a damaged bibliography,
     that a plain Refresh safely rebuilds it).
-20. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
+21. **Citations in this document…** — an overview of every unique work you've cited: how many times, whether
     it's still in your library, and its retraction/correction status, with a live filter box and a **Go to**
     button that jumps you to its first occurrence. The same panel can **Toggle bibliography exclude** for a
     cited work or **Add uncited work(s)…** (for further reading). It is a snapshot at the moment you open it —
@@ -166,6 +170,7 @@ and the Infobar; it never renders or contacts the Callosum server until you choo
 `CallosumInsertCitation` (by id), `CallosumSetServerUrl`, `CallosumEditCitation`, `CallosumDeleteCitation`,
 `CallosumMergeWithNext`, `CallosumMergeWithPrevious`, `CallosumSplitCitation`, `CallosumOpenInCallosum`,
 `CallosumInsertBibliographyHere`, `CallosumSetBibliographyHeading`, `CallosumToggleBibliographyLinks`,
+`CallosumToggleBibliographyExternalLinks`,
 `CallosumToggleCiteAuto`,
 `CallosumToggleBibAuto`, `CallosumDiagnostics`,
 `CallosumCitationsPanel` — are also runnable from the Python macro dialog if you installed by hand.)

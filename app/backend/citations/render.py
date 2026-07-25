@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import shutil
 import subprocess
+import urllib.parse
 from collections.abc import Mapping, Sequence
 from html.parser import HTMLParser
 from typing import Any
@@ -33,6 +34,8 @@ DEFAULT_LOCALE = "en-US"
 MAX_ITEMS = 5000  # bound a render request (rule #4)
 MAX_CLUSTERS = 5000  # document-render: max citation clusters per request
 MAX_ITEMS_PER_CLUSTER = 50  # document-render: max items in one citation cluster
+MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20
+MAX_EXTERNAL_LINK_LENGTH = 2048
 
 # citeproc emits only these inline formatting tags in citation text; everything else (div/span/class) is dropped.
 _ALLOWED_HTML_TAGS = {"i", "b", "em", "strong", "sup", "sub"}
@@ -88,6 +91,70 @@ def _safe_html(html: str) -> str:
     s = _Sanitizer()
     s.feed(html)
     return " ".join("".join(s.out).split())
+
+
+def _validated_external_url(value: str | None) -> str | None:
+    """Accept only bounded web destinations; citeproc output never grants authority to other URI schemes."""
+    if not isinstance(value, str) or not value or len(value) > MAX_EXTERNAL_LINK_LENGTH:
+        return None
+    if any(char.isspace() or ord(char) < 32 for char in value):
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        hostname = parsed.hostname
+    except ValueError:
+        return None
+    if parsed.scheme.lower() not in {"http", "https"} or not hostname or parsed.username or parsed.password:
+        return None
+    return value
+
+
+class _BibliographyLinkExtractor(HTMLParser):
+    """Collect citeproc's DOI/URL anchor text without retaining arbitrary HTML or attributes."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self._anchors: list[dict[str, Any]] = []
+        self._active: dict[str, Any] | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a" or self._active is not None:
+            return
+        href = _validated_external_url(next((value for name, value in attrs if name == "href"), None))
+        self._active = {"url": href, "parts": []}
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag != "a" or self._active is None:
+            return
+        if self._active["url"]:
+            self._anchors.append(self._active)
+        self._active = None
+
+    def handle_data(self, data: str) -> None:
+        if self._active is not None:
+            self._active["parts"].append(data)
+
+
+def _bibliography_link_spans(html: str) -> list[dict[str, Any]]:
+    """Return bounded, non-overlapping offsets into the exact normalized plain-text bibliography entry."""
+    parser = _BibliographyLinkExtractor()
+    parser.feed(html)
+    plain_text = _to_text(html)
+    spans: list[dict[str, Any]] = []
+    search_from = 0
+    for anchor in parser._anchors[:MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY]:
+        display = " ".join("".join(anchor["parts"]).split())
+        if not display:
+            continue
+        start = plain_text.find(display, search_from)
+        if start < 0:
+            start = plain_text.find(display)
+        end = start + len(display)
+        if start < 0 or (spans and start < spans[-1]["start"] + spans[-1]["length"]):
+            continue
+        spans.append({"start": start, "length": len(display), "url": anchor["url"]})
+        search_from = end
+    return spans
 
 
 # ── the engine call ───────────────────────────────────────────────────────────────────────────────────
@@ -276,6 +343,7 @@ def render_document(
         "bibliography_text": "\n".join(_to_text(e) for e in bib),
         "bibliography_html": [_safe_html(e) for e in bib],
         "bibliography_entry_ids": [[str(item_id) for item_id in ids] for ids in bib_entry_ids],
+        "bibliography_links": [_bibliography_link_spans(entry) for entry in bib],
     }
 
 

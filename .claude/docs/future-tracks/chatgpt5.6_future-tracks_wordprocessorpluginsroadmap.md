@@ -285,6 +285,13 @@ links survive save/reopen and placement conversion; grouped or excluded citation
 choosing an arbitrary target, and toggling off removes only Callosum internal links. Categorized and
 chapter/section bibliographies, title/DOI links, and per-source grouped-citation navigation remain.
 
+**Continued in increment 376 (2026-07-24):** Writer can now opt into external links for DOI/URL text already
+rendered by the active CSL style. citeproc supplies aligned text spans, Callosum validates bounded HTTP(S)
+destinations, and Writer formats only those ranges without changing bibliography text. The preference and links
+survive refresh, save/reopen, bibliography moves, and placement conversion; turning it off preserves unrelated
+hyperlinks. Categorized and chapter/section bibliographies, bibliography-title links, and per-source grouped-
+citation navigation remain.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

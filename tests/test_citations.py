@@ -788,6 +788,36 @@ def test_render_document_ieee_numbering_and_renumber(temp_db_url: str) -> None:
     assert by_id2 == {"C": "[1]", "B": "[2]", "A": "[3]"}  # A was [1], now [3]
 
 
+def test_render_document_returns_validated_doi_link_spans(temp_db_url: str) -> None:
+    item = {**_DOC_ITEMS["a"], "DOI": "10.1234/callosum.test"}
+    response = TestClient(create_app(db_url=temp_db_url)).post(
+        "/citations/render-document",
+        json={"style": "apa", "citations": [{"citationID": "A", "items": [item]}]},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    entry = data["bibliography_text"].splitlines()[0]
+    assert len(data["bibliography_links"]) == 1
+    assert len(data["bibliography_links"][0]) == 1
+    link = data["bibliography_links"][0][0]
+    assert link["url"] == "https://doi.org/10.1234/callosum.test"
+    assert entry[link["start"] : link["start"] + link["length"]] == "https://doi.org/10.1234/callosum.test"
+    assert "<a" not in data["bibliography_html"][0]  # established sanitized-HTML contract remains unchanged
+
+
+def test_bibliography_link_spans_reject_unsafe_or_credentialed_destinations() -> None:
+    html = (
+        'Unsafe <a href="javascript:alert(1)">javascript</a>; '
+        '<a href="https://user:secret@example.test/private">credentialed</a>; '
+        '<a href="https://example.test/safe">safe link</a>.'
+    )
+    start = render._to_text(html).index("safe link")
+    assert render._bibliography_link_spans(html) == [
+        {"start": start, "length": 9, "url": "https://example.test/safe"},
+    ]
+    assert render._validated_external_url("https://example.test/" + "x" * 2048) is None
+
+
 def test_render_document_apa_disambiguation(temp_db_url: str) -> None:
     client = TestClient(create_app(db_url=temp_db_url))
     s1 = {

@@ -472,9 +472,23 @@ def spike_incremental_rendering(ctx, base, p1, p2):
         calls["citations"] += 1
         return original_replace(doc_, mark, rendered)
 
-    def tracked_bibliography(doc_, entries, entry_ids=None, cursor=None):
+    def tracked_bibliography(
+        doc_,
+        entries,
+        entry_ids=None,
+        entry_links=None,
+        external_links=False,
+        cursor=None,
+    ):
         calls["bibliography"] += 1
-        return original_write_bibliography(doc_, entries, entry_ids=entry_ids, cursor=cursor)
+        return original_write_bibliography(
+            doc_,
+            entries,
+            entry_ids=entry_ids,
+            entry_links=entry_links,
+            external_links=external_links,
+            cursor=cursor,
+        )
 
     cc._replace_mark_text = tracked_replace
     cc._write_bibliography = tracked_bibliography
@@ -1930,6 +1944,7 @@ def spike_bibliography_links(ctx, base, p1, p2):
     cc.insert_citation_items(doc, [{"paper_id": p1}, {"paper_id": p2}], base, cursor=insertion("CCC"))
     insertion("LINK").setPropertyValue("HyperLinkURL", "https://example.test/manual")
     check(not cc.bibliography_links_enabled(doc), "bibliography links must default off")
+    check(not cc.bibliography_external_links_enabled(doc), "bibliography DOI/URL links must default off")
 
     cc.set_bibliography_links(doc, True, base)
     fields = cc.scan_citations_in_order(doc)
@@ -1950,6 +1965,27 @@ def spike_bibliography_links(ctx, base, p1, p2):
         "second single-work citation did not link to its entry",
     )
     check(cc._mark_hyperlink_url(fields[2]["_mark"]) == "", "grouped citation must remain unlinked")
+
+    cc.set_bibliography_external_links(doc, True, base)
+    style, locale = cc._get_pref(doc, base)
+    link_response = cc.render_document(base, cc.build_render_request(fields, style, locale))
+    link_entries = link_response["bibliography_text"].splitlines()
+    entry_links = cc.normalize_bibliography_links(link_entries, link_response.get("bibliography_links"))
+    check(sum(len(links) for links in entry_links) == 2, "expected one rendered DOI link per bibliography entry")
+    check(
+        cc.bibliography_external_links_are_current(doc, link_entries, entry_links, True),
+        "bibliography DOI links were not applied",
+    )
+    cc.set_bibliography_external_links(doc, False, base)
+    check(
+        cc.bibliography_external_links_are_current(doc, link_entries, entry_links, False),
+        "turning bibliography DOI links off left a managed web link",
+    )
+    check(
+        insertion("LINK").getPropertyValue("HyperLinkURL") == "https://example.test/manual",
+        "turning bibliography DOI links off changed an unrelated external hyperlink",
+    )
+    cc.set_bibliography_external_links(doc, True, base)
 
     cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, [p1])
     cc.refresh(doc, base)
@@ -1989,6 +2025,7 @@ def spike_bibliography_links(ctx, base, p1, p2):
         reopened = load_doc(ctx, save_url)
         reopened_fields = cc.scan_citations_in_order(reopened)
         check(cc.bibliography_links_enabled(reopened), "link preference did not survive save/reopen")
+        check(cc.bibliography_external_links_enabled(reopened), "DOI/URL link preference did not survive save/reopen")
         check(
             expected_targets <= set(reopened.getBookmarks().getElementNames()),
             "bibliography targets did not survive save/reopen",
@@ -2006,6 +2043,20 @@ def spike_bibliography_links(ctx, base, p1, p2):
             "citation hyperlink did not survive save/reopen",
         )
         check(cc._mark_hyperlink_url(reopened_fields[2]["_mark"]) == "", "grouped citation gained a link on reopen")
+        reopened_style, reopened_locale = cc._get_pref(reopened, base)
+        reopened_response = cc.render_document(
+            base,
+            cc.build_render_request(reopened_fields, reopened_style, reopened_locale),
+        )
+        reopened_entries = reopened_response["bibliography_text"].splitlines()
+        reopened_links = cc.normalize_bibliography_links(
+            reopened_entries,
+            reopened_response.get("bibliography_links"),
+        )
+        check(
+            cc.bibliography_external_links_are_current(reopened, reopened_entries, reopened_links, True),
+            "bibliography DOI links did not survive save/reopen",
+        )
         cc.convert_citation_placement(
             reopened,
             "chicago-notes-bibliography",
@@ -2028,13 +2079,27 @@ def spike_bibliography_links(ctx, base, p1, p2):
             cc._mark_hyperlink_url(converted_fields[2]["_mark"]) == "",
             "placement conversion linked a grouped citation",
         )
+        converted_style, converted_locale = cc._get_pref(reopened, base)
+        converted_response = cc.render_document(
+            base,
+            cc.build_render_request(converted_fields, converted_style, converted_locale),
+        )
+        converted_entries = converted_response["bibliography_text"].splitlines()
+        converted_links = cc.normalize_bibliography_links(
+            converted_entries,
+            converted_response.get("bibliography_links"),
+        )
+        check(
+            cc.bibliography_external_links_are_current(reopened, converted_entries, converted_links, True),
+            "placement conversion lost bibliography DOI links",
+        )
         reopened.close(False)
     finally:
         try:
             os.remove(save_path)
         except OSError:
             pass
-    log("spike (P1 #11): OK — single-work links/targets toggle and round-trip; grouped citation stays plain")
+    log("spike (P1 #11): OK — citation targets + DOI links toggle/round-trip; grouped citation stays plain")
 
 
 def spike_partial_refresh_controls(ctx, base, p1):

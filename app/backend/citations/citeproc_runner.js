@@ -16,7 +16,8 @@
 //               "uncited_items": [ <CSL-JSON item with `id`>, ... ],       // bibliography-only, no in-text cite
 //               "bibliography_exclude_ids": [ <id>, ... ] }               // cited, but omitted from the bibliography
 //    stdout : { "citations": [ { "citationID", "html" }, ... ], "bibliography": [ "<entry>", ... ],
-//               "bibliography_entry_ids": [ [<id>, ...], ... ] }
+//               "bibliography_entry_ids": [ [<id>, ...], ... ] }  // DOI/URL anchors remain in entry HTML;
+//                                                                    // Python validates/extracts their spans
 //
 //  On failure either mode writes { "error": "<message>" } to stdout and exits non-zero.
 
@@ -111,6 +112,9 @@ function main() {
   let engine;
   try {
     engine = new CSL.Engine(sys, styleXml, locale);
+    // This legacy extension is intentionally not one of citeproc-js's constructor-level SYS_OPTIONS. Enable it
+    // on the instantiated engine so rendered DOI/URL variables carry anchors that Python can validate/extract.
+    engine.opt.development_extensions.wrap_url_and_doi = true;
   } catch (e) {
     fail("citeproc engine error: " + e.message);
   }

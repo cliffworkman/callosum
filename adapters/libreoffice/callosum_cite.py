@@ -43,6 +43,8 @@ BIB_BOOKMARK = "CALLOSUM_BIBLIOGRAPHY"  # bookmark marking the START of the mana
 # any user text placed after the bibliography.
 BIB_BOOKMARK_END = "CALLOSUM_BIBLIOGRAPHY_END"
 BIB_ENTRY_PREFIX = "CALLOSUM_BIB_ENTRY_"  # stable internal-link targets, one per rendered bibliography item
+MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20
+MAX_BIBLIOGRAPHY_EXTERNAL_URL = 2048
 PREF_BIB_AUTO = "CallosumBibAuto"  # document user-property: "0" pauses bibliography rebuilds on refresh (P0 phase 7)
 PREF_CITE_AUTO = "CallosumCiteAuto"  # document user-property: "0" pauses automatic citation formatting (P1 #13)
 PREF_CITE_DIRTY = "CallosumCiteDirty"  # "1" means visible citation text needs an explicit refresh (P1 #13)
@@ -101,6 +103,7 @@ PREF_BIB_EXCLUDE = "CallosumBibExclude"  # cited works omitted from the bibliogr
 PREF_BIB_UNCITED = "CallosumBibUncited"  # uncited "further reading" works included in the bibliography
 PREF_BIB_HEADING = "CallosumBibHeading"  # custom per-document heading; absent/blank means "References"
 PREF_BIB_LINKS = "CallosumBibLinks"  # "1" hyperlinks unambiguous one-work citations to their bibliography entry
+PREF_BIB_EXTERNAL_LINKS = "CallosumBibExternalLinks"  # "1" links DOI/URL text rendered by the current CSL style
 DEFAULT_STYLE = "apa"
 DEFAULT_LOCALE = "en-US"
 DEFAULT_NOTE_PLACEMENT = "footnote"
@@ -1338,6 +1341,90 @@ def bibliography_links_enabled(doc) -> bool:
     return _effective_user_prop(doc, PREF_BIB_LINKS) == "1"
 
 
+def bibliography_external_links_enabled(doc) -> bool:
+    """Rendered DOI/URL text becomes an external web link only after a per-document opt-in."""
+    return _effective_user_prop(doc, PREF_BIB_EXTERNAL_LINKS) == "1"
+
+
+def _validated_bibliography_external_url(value) -> str | None:
+    if not isinstance(value, str) or not value or len(value) > MAX_BIBLIOGRAPHY_EXTERNAL_URL:
+        return None
+    if any(char.isspace() or ord(char) < 32 for char in value):
+        return None
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        hostname = parsed.hostname
+    except ValueError:
+        return None
+    if parsed.scheme.lower() not in {"http", "https"} or not hostname or parsed.username or parsed.password:
+        return None
+    return value
+
+
+def normalize_bibliography_links(entries: list[str], raw_links) -> list[list[tuple[int, int, str]]]:
+    """Validate the additive render metadata against its exact entry text; malformed input degrades to plain."""
+    if not isinstance(raw_links, list) or len(raw_links) != len(entries):
+        return [[] for _entry in entries]
+    normalized = []
+    for entry, links in zip(entries, raw_links, strict=True):
+        accepted = []
+        previous_end = 0
+        if not isinstance(links, list):
+            normalized.append(accepted)
+            continue
+        for link in links[:MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY]:
+            if not isinstance(link, dict):
+                continue
+            start, length = link.get("start"), link.get("length")
+            url = _validated_bibliography_external_url(link.get("url"))
+            if (
+                not isinstance(start, int)
+                or isinstance(start, bool)
+                or not isinstance(length, int)
+                or isinstance(length, bool)
+                or start < previous_end
+                or length <= 0
+                or start + length > len(entry)
+                or url is None
+            ):
+                continue
+            accepted.append((start, length, url))
+            previous_end = start + length
+        normalized.append(accepted)
+    return normalized
+
+
+def _bibliography_span_url(doc, offset: int, length: int) -> str:
+    """Read one expected link range relative to the managed bibliography's start bookmark."""
+    bookmarks = doc.getBookmarks()
+    if not bookmarks.hasByName(BIB_BOOKMARK) or not bookmarks.hasByName(BIB_BOOKMARK_END):
+        return ""
+    text = doc.getText()
+    cursor = text.createTextCursorByRange(bookmarks.getByName(BIB_BOOKMARK).getAnchor().getStart())
+    if not cursor.goRight(offset, False) or not cursor.goRight(length, True):
+        return ""
+    try:
+        return str(cursor.getPropertyValue("HyperLinkURL") or "")
+    except Exception:
+        return ""
+
+
+def bibliography_external_links_are_current(
+    doc,
+    entries: list[str],
+    entry_links: list[list[tuple[int, int, str]]],
+    enabled: bool,
+) -> bool:
+    """Compare only citeproc-declared DOI/URL spans; arbitrary prose outside the managed block is never read."""
+    offset = len(bibliography_heading(doc)) + 1
+    for entry, links in zip(entries, entry_links, strict=True):
+        for start, length, url in links:
+            if _bibliography_span_url(doc, offset + start, length) != (url if enabled else ""):
+                return False
+        offset += len(entry) + 1
+    return True
+
+
 def _mark_hyperlink_url(mark) -> str:
     """Read the uniform hyperlink URL over one ReferenceMark anchor; mixed/unreadable formatting is unmanaged."""
     try:
@@ -1599,10 +1686,21 @@ def refresh(
         bibliography_entry_ids = response.get("bibliography_entry_ids", [])
         if len(bibliography_entry_ids) != len(bibliography_entries):
             bibliography_entry_ids = [[] for _entry in bibliography_entries]
+        bibliography_entry_links = normalize_bibliography_links(
+            bibliography_entries,
+            response.get("bibliography_links", []),
+        )
+        external_links_enabled = bibliography_external_links_enabled(doc)
         apply_bibliography = write_bibliography and (
             bib_cursor is not None
             or not bibliography_render_is_current(doc, bibliography_entries)
             or not bibliography_targets_are_current(doc, bibliography_entry_ids)
+            or not bibliography_external_links_are_current(
+                doc,
+                bibliography_entries,
+                bibliography_entry_links,
+                external_links_enabled,
+            )
         )
         available_ids = {
             str(item_id)
@@ -1619,6 +1717,8 @@ def refresh(
             plan,
             bibliography_entries,
             bib_entry_ids=bibliography_entry_ids,
+            bib_entry_links=bibliography_entry_links,
+            bib_external_links=external_links_enabled,
             bib_cursor=bib_cursor,
             write_bibliography=apply_bibliography,
             progress=progress,
@@ -1701,6 +1801,24 @@ def set_bibliography_links(doc, enabled: bool, base: str = DEFAULT_BASE) -> bool
     return enabled
 
 
+def set_bibliography_external_links(doc, enabled: bool, base: str = DEFAULT_BASE) -> tuple[bool, int]:
+    """Persist/rebuild DOI/URL links and report how many validated spans the style rendered."""
+    previous = _effective_user_prop(doc, PREF_BIB_EXTERNAL_LINKS)
+    _set_user_prop_value(doc, PREF_BIB_EXTERNAL_LINKS, "1" if enabled else None)
+    try:
+        response = refresh_bibliography(doc, base)
+    except Exception:
+        _set_user_prop_value(doc, PREF_BIB_EXTERNAL_LINKS, previous)
+        raise
+    link_count = 0
+    if enabled and isinstance(response, dict):
+        entries = str(response.get("bibliography_text", "")).splitlines()
+        link_count = sum(
+            len(links) for links in normalize_bibliography_links(entries, response.get("bibliography_links"))
+        )
+    return enabled, link_count
+
+
 def refresh_pending(doc, base: str = DEFAULT_BASE) -> dict | None:
     """Refresh exactly the surfaces named by the persisted dirty flags, regardless of automatic-mode settings."""
     citations_pending, bibliography_pending = dirty_state(doc)
@@ -1772,6 +1890,8 @@ def _transactional_apply(
     bib_cursor=None,
     *,
     bib_entry_ids: list[list[str]] | None = None,
+    bib_entry_links: list[list[tuple[int, int, str]]] | None = None,
+    bib_external_links: bool = False,
     write_bibliography: bool | None = None,
     progress: _RefreshProgress | None = None,
     progress_offset: int = 0,
@@ -1829,7 +1949,14 @@ def _transactional_apply(
         if should_write_bibliography:
             if progress is not None:
                 progress.update(progress_offset + len(plan), "Callosum: updating the bibliography")
-            _write_bibliography(doc, bib_entries, entry_ids=bib_entry_ids, cursor=bib_cursor)
+            _write_bibliography(
+                doc,
+                bib_entries,
+                entry_ids=bib_entry_ids,
+                entry_links=bib_entry_links,
+                external_links=bib_external_links,
+                cursor=bib_cursor,
+            )
             if progress is not None:
                 progress.update(progress_offset + len(plan) + 1, "Callosum: refresh complete")
     except Exception as exc:
@@ -1871,7 +1998,24 @@ def _set_mark_hyperlink(mark, hyperlink_url: str) -> None:
     cursor.setPropertyValue("HyperLinkURL", hyperlink_url)
 
 
-def _write_bibliography(doc, entries: list[str], entry_ids: list[list[str]] | None = None, cursor=None) -> None:
+def _set_bibliography_span_url(doc, offset: int, length: int, url: str) -> None:
+    """Apply one validated link to an existing range inside the bounded bibliography."""
+    text = doc.getText()
+    start = doc.getBookmarks().getByName(BIB_BOOKMARK).getAnchor().getStart()
+    cursor = text.createTextCursorByRange(start)
+    if (offset and not cursor.goRight(offset, False)) or not cursor.goRight(length, True):
+        raise RuntimeError("Writer could not select a rendered bibliography link.")
+    cursor.setPropertyValue("HyperLinkURL", url)
+
+
+def _write_bibliography(
+    doc,
+    entries: list[str],
+    entry_ids: list[list[str]] | None = None,
+    entry_links: list[list[tuple[int, int, str]]] | None = None,
+    external_links: bool = False,
+    cursor=None,
+) -> None:
     """(Re)build the BOUNDED managed bibliography block — a `BIB_BOOKMARK` (start) / `BIB_BOOKMARK_END` (end)
     bookmark PAIR delimits the exact managed range (P0 phase 7, backlog #33/#34). Clearing + rebuilding NEVER
     touches `text.getEnd()` — the verified data-loss fix for the old "bookmark to document end" design: any
@@ -1936,7 +2080,10 @@ def _write_bibliography(doc, entries: list[str], entry_ids: list[list[str]] | No
     if entries:
         text.insertString(cursor, bibliography_heading(doc) + "\n", False)
         aligned_ids = entry_ids if entry_ids is not None and len(entry_ids) == len(entries) else [[] for _ in entries]
-        for entry, ids in zip(entries, aligned_ids, strict=True):
+        aligned_links = (
+            entry_links if entry_links is not None and len(entry_links) == len(entries) else [[] for _ in entries]
+        )
+        for entry, ids, _links in zip(entries, aligned_ids, aligned_links, strict=True):
             for item_id in ids:
                 target_name = bibliography_entry_bookmark(item_id)
                 if target_name is None:
@@ -1944,10 +2091,17 @@ def _write_bibliography(doc, entries: list[str], entry_ids: list[list[str]] | No
                 target = doc.createInstance("com.sun.star.text.Bookmark")
                 target.Name = target_name
                 text.insertTextContent(cursor, target, False)
+            cursor.setPropertyValue("HyperLinkURL", "")
             text.insertString(cursor, entry + "\n", False)
     end_mark = doc.createInstance("com.sun.star.text.Bookmark")
     end_mark.Name = BIB_BOOKMARK_END
     text.insertTextContent(cursor, end_mark, False)  # placed AFTER the content — no bookmark-gravity ambiguity
+    if entries and external_links:
+        offset = len(bibliography_heading(doc)) + 1
+        for entry, links in zip(entries, aligned_links, strict=True):
+            for start, length, url in links:
+                _set_bibliography_span_url(doc, offset + start, length, url)
+            offset += len(entry) + 1
 
 
 def _restore_managed_bibliography(doc, signature: tuple[bool, bool, str]) -> None:
@@ -2487,6 +2641,11 @@ def convert_citation_placement(
     bibliography_entry_ids = response.get("bibliography_entry_ids", [])
     if len(bibliography_entry_ids) != len(bibliography_entries):
         bibliography_entry_ids = [[] for _entry in bibliography_entries]
+    bibliography_entry_links = normalize_bibliography_links(
+        bibliography_entries,
+        response.get("bibliography_links", []),
+    )
+    external_links_enabled = bibliography_external_links_enabled(doc)
     write_bibliography = bib_auto_enabled(doc)
     before_snapshot = _conversion_snapshot(doc)
     before_state_key = _conversion_state_key(doc)
@@ -2522,7 +2681,13 @@ def convert_citation_placement(
         for name, citation_id in reversed(relocation_plan):
             _relocate_mark(doc, name, rendered[citation_id], target_placement)
         if write_bibliography:
-            _write_bibliography(doc, bibliography_entries, bibliography_entry_ids)
+            _write_bibliography(
+                doc,
+                bibliography_entries,
+                bibliography_entry_ids,
+                bibliography_entry_links,
+                external_links_enabled,
+            )
         available_ids = {
             str(item_id)
             for ids in bibliography_entry_ids
@@ -2563,6 +2728,13 @@ def convert_citation_placement(
             verification_failures.append(f"document preferences ({mismatched_props})")
         if write_bibliography and not bibliography_render_is_current(doc, bibliography_entries):
             verification_failures.append("bibliography")
+        if write_bibliography and not bibliography_external_links_are_current(
+            doc,
+            bibliography_entries,
+            bibliography_entry_links,
+            external_links_enabled,
+        ):
+            verification_failures.append("bibliography DOI/URL links")
         if _tracked_changes_signature(doc) != before_redlines:
             verification_failures.append("tracked changes")
         if verification_failures:
@@ -3457,6 +3629,18 @@ def toggle_bib_auto_interactive(doc, base: str) -> None:
     )
 
 
+def toggle_bibliography_external_links_interactive(doc, base: str) -> None:
+    """Toggle web links over DOI/URL text that the active CSL style already includes."""
+    enabled, link_count = set_bibliography_external_links(doc, not bibliography_external_links_enabled(doc), base)
+    if enabled and link_count:
+        detail = f" {link_count} rendered DOI/URL link{'s are' if link_count != 1 else ' is'} now clickable."
+    elif enabled:
+        detail = " The current citation style does not print a DOI or URL, so there is no link to apply."
+    else:
+        detail = " Managed bibliography web links were removed; the rendered text is unchanged."
+    _msgbox(f"Bibliography DOI/URL links are now {'ON' if enabled else 'OFF'}.{detail}")
+
+
 def toggle_cite_auto_interactive(doc, base: str) -> None:
     """Flip automatic citation formatting independently of automatic bibliography rebuilding."""
     enabled = not cite_auto_enabled(doc)
@@ -3738,6 +3922,7 @@ _ACTIONS = {
     "insertBibliographyHere": insert_bibliography_here_interactive,
     "setBibliographyHeading": set_bibliography_heading_interactive,
     "toggleBibliographyLinks": toggle_bibliography_links_interactive,
+    "toggleBibliographyExternalLinks": toggle_bibliography_external_links_interactive,
     "toggleCiteAuto": toggle_cite_auto_interactive,
     "toggleBibAuto": toggle_bib_auto_interactive,
     "diagnostics": document_diagnostics_interactive,
@@ -3864,6 +4049,10 @@ def CallosumToggleBibliographyLinks(*_args):
     _macro("toggleBibliographyLinks")
 
 
+def CallosumToggleBibliographyExternalLinks(*_args):
+    _macro("toggleBibliographyExternalLinks")
+
+
 def CallosumToggleBibAuto(*_args):
     _macro("toggleBibAuto")
 
@@ -3911,6 +4100,7 @@ g_exportedScripts = (
     CallosumInsertBibliographyHere,
     CallosumSetBibliographyHeading,
     CallosumToggleBibliographyLinks,
+    CallosumToggleBibliographyExternalLinks,
     CallosumToggleCiteAuto,
     CallosumToggleBibAuto,
     CallosumPrepareSubmissionCopy,

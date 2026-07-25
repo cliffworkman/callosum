@@ -109,6 +109,12 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     work and confirm its link/target disappear without affecting the other. Save/reopen, refresh, and convert
     citation placement; links and targets must remain coherent. Toggle the feature off and confirm Callosum
     internal links are removed while an unrelated external hyperlink remains unchanged.
+17. **Manual Writer bibliography DOI/URL links:** use a style that renders DOI or URL text, choose **Toggle
+    bibliography DOI/URL links**, and confirm only that already-rendered text becomes an external hyperlink.
+    Save/reopen, refresh, move the bibliography, and convert citation placement; the opt-in setting and links
+    must remain coherent. Toggle off and confirm the bibliography text is byte-for-byte unchanged, managed
+    DOI/URL links are removed, and a hyperlink in ordinary prose remains untouched. Malformed, credentialed,
+    non-HTTP(S), oversized, overlapping, or out-of-range link metadata must remain plain.
 
 ## Pass criteria
 

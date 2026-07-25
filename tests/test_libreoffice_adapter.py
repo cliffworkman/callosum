@@ -329,6 +329,73 @@ def test_bibliography_targets_and_citation_links_are_stable_and_unambiguous() ->
         cc._mark_hyperlink_url = original
 
 
+def test_bibliography_external_link_metadata_is_bounded_and_fails_plain(monkeypatch) -> None:
+    entries = ["A reference. https://doi.org/10.1234/example."]
+    start = entries[0].index("https://")
+    url = "https://doi.org/10.1234/example"
+    raw = [
+        [
+            {"start": start, "length": len(url), "url": url},
+            {"start": 0, "length": 1, "url": "javascript:alert(1)"},
+            {"start": 999, "length": 1, "url": "https://example.test/out-of-range"},
+        ]
+    ]
+    links = cc.normalize_bibliography_links(entries, raw)
+    assert links == [[(start, len(url), url)]]
+    assert cc.normalize_bibliography_links(entries, []) == [[]]
+
+    seen = []
+    monkeypatch.setattr(cc, "bibliography_heading", lambda _doc: "References")
+    monkeypatch.setattr(cc, "_bibliography_span_url", lambda _doc, offset, length: seen.append((offset, length)) or "")
+    assert cc.bibliography_external_links_are_current(object(), entries, links, False)
+    assert seen == [(len("References\n") + start, len(url))]
+    assert not cc.bibliography_external_links_are_current(object(), entries, links, True)
+
+
+def test_set_bibliography_span_url_selects_only_declared_range() -> None:
+    class Cursor:
+        moves = []
+        hyperlink = None
+
+        def setPropertyValue(self, name, value):
+            assert name == "HyperLinkURL"
+            self.hyperlink = value
+
+        def goRight(self, count, select):
+            self.moves.append((count, select))
+            return True
+
+    cursor = Cursor()
+
+    class Text:
+        def createTextCursorByRange(self, _range):
+            return cursor
+
+    class Bookmark:
+        class Anchor:
+            def getStart(self):
+                return object()
+
+        def getAnchor(self):
+            return self.Anchor()
+
+    class Bookmarks:
+        def getByName(self, name):
+            assert name == cc.BIB_BOOKMARK
+            return Bookmark()
+
+    class Doc:
+        def getText(self):
+            return Text()
+
+        def getBookmarks(self):
+            return Bookmarks()
+
+    cc._set_bibliography_span_url(Doc(), 12, 3, "https://doi.org/10/x")
+    assert cursor.moves == [(12, False), (3, True)]
+    assert cursor.hyperlink == "https://doi.org/10/x"
+
+
 def test_bibliography_heading_validation_is_bounded_single_line() -> None:
     assert cc.normalize_bibliography_heading(None) == "References"
     assert cc.normalize_bibliography_heading("   ") == "References"
@@ -382,6 +449,36 @@ def test_set_bibliography_links_refreshes_explicitly_and_rolls_back_on_failure(m
     monkeypatch.setattr(cc, "refresh", lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")))
     with pytest.raises(RuntimeError, match="boom"):
         cc.set_bibliography_links(doc, False, "http://x")
+    assert state["value"] == "1"
+
+
+def test_set_bibliography_external_links_rebuilds_and_rolls_back_on_failure(monkeypatch) -> None:
+    state = {"value": None}
+    calls = []
+    monkeypatch.setattr(cc, "_effective_user_prop", lambda _doc, _name: state["value"])
+    monkeypatch.setattr(cc, "_set_user_prop_value", lambda _doc, _name, value: state.update(value=value))
+    monkeypatch.setattr(
+        cc,
+        "refresh_bibliography",
+        lambda doc, base: calls.append((doc, base))
+        or {
+            "bibliography_text": "DOI",
+            "bibliography_links": [[{"start": 0, "length": 3, "url": "https://doi.org/10/x"}]],
+        },
+    )
+    doc = object()
+
+    assert cc.set_bibliography_external_links(doc, True, "http://x") == (True, 1)
+    assert state["value"] == "1"
+    assert calls == [(doc, "http://x")]
+
+    monkeypatch.setattr(
+        cc,
+        "refresh_bibliography",
+        lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    with pytest.raises(RuntimeError, match="boom"):
+        cc.set_bibliography_external_links(doc, False, "http://x")
     assert state["value"] == "1"
 
 
