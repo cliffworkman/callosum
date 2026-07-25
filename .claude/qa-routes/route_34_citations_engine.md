@@ -109,12 +109,14 @@ Clean seeded instance (`_TEMPLATE.md` -> Environment). **Egress UNSET.** Registe
     work and confirm its link/target disappear without affecting the other. Save/reopen, refresh, and convert
     citation placement; links and targets must remain coherent. Toggle the feature off and confirm Callosum
     internal links are removed while an unrelated external hyperlink remains unchanged.
-17. **Manual Writer bibliography DOI/URL links:** use a style that renders DOI or URL text, choose **Toggle
-    bibliography DOI/URL links**, and confirm only that already-rendered text becomes an external hyperlink.
-    Save/reopen, refresh, move the bibliography, and convert citation placement; the opt-in setting and links
-    must remain coherent. Toggle off and confirm the bibliography text is byte-for-byte unchanged, managed
-    DOI/URL links are removed, and a hyperlink in ordinary prose remains untouched. Malformed, credentialed,
-    non-HTTP(S), oversized, overlapping, or out-of-range link metadata must remain plain.
+17. **Manual Writer bibliography title/DOI links:** first use a style that renders DOI or URL text, choose
+    **Toggle bibliography title/DOI links**, and confirm only that already-rendered identifier becomes an external
+    hyperlink. Switch to a style such as Nature that omits the identifier and confirm the exact rendered title
+    links to the source DOI without adding or changing text. Save/reopen, refresh, move the bibliography, and
+    convert citation placement; the opt-in setting and links must remain coherent. Toggle off and confirm the
+    bibliography text is byte-for-byte unchanged, managed web links are removed, and a hyperlink in ordinary
+    prose remains untouched. Unsafe URLs, ambiguous/transformed/oversized titles, multi-source entries, and
+    malformed, credentialed, non-HTTP(S), overlapping, or out-of-range metadata must remain plain.
 18. **Manual Writer categorized bibliography:** create at least three visible bibliography entries, open
     **Citations in this document…**, and assign works to differently named categories. Ctrl/Shift-select a mixed
     batch, choose **Set category…**, confirm the picker defaults to the no-op placeholder, then reuse an existing

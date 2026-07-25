@@ -805,6 +805,34 @@ def test_render_document_returns_validated_doi_link_spans(temp_db_url: str) -> N
     assert "<a" not in data["bibliography_html"][0]  # established sanitized-HTML contract remains unchanged
 
 
+def test_render_document_links_title_when_style_omits_doi_text(temp_db_url: str) -> None:
+    title = "Deterministic Title Linking Across Styles"
+    item = {
+        **_DOC_ITEMS["a"],
+        "title": title,
+        "volume": "12",
+        "page": "10-20",
+        "DOI": "10.1234/title-link",
+    }
+    response = TestClient(create_app(db_url=temp_db_url)).post(
+        "/citations/render-document",
+        json={"style": "nature", "citations": [{"citationID": "A", "items": [item]}]},
+    )
+    assert response.status_code == 200, response.text
+    data = response.json()
+    entry = data["bibliography_text"].splitlines()[0]
+    assert "10.1234/title-link" not in entry
+    assert data["bibliography_links"] == [
+        [
+            {
+                "start": entry.index(title),
+                "length": len(title),
+                "url": "https://doi.org/10.1234/title-link",
+            }
+        ]
+    ]
+
+
 def test_bibliography_link_spans_reject_unsafe_or_credentialed_destinations() -> None:
     html = (
         'Unsafe <a href="javascript:alert(1)">javascript</a>; '
@@ -816,6 +844,39 @@ def test_bibliography_link_spans_reject_unsafe_or_credentialed_destinations() ->
         {"start": start, "length": 9, "url": "https://example.test/safe"},
     ]
     assert render._validated_external_url("https://example.test/" + "x" * 2048) is None
+
+
+def test_bibliography_title_link_fails_plain_on_unsafe_ambiguous_or_transformed_metadata() -> None:
+    item = {
+        "id": "a",
+        "title": "A Unique Title",
+        "URL": "https://example.test/source",
+    }
+    html = "<div>Author. A Unique Title. Journal.</div>"
+    expected = [{"start": 8, "length": 14, "url": "https://example.test/source"}]
+    assert render._bibliography_title_link_span(html, ["a"], {"a": item}) == expected
+    assert render._bibliography_title_link_span(html.lower(), ["a"], {"a": item}) == expected
+    assert render._bibliography_title_link_span(f"{html} A Unique Title.", ["a"], {"a": item}) == []
+    assert render._bibliography_title_link_span("<div>Author. A Shortened Title.</div>", ["a"], {"a": item}) == []
+    assert render._bibliography_title_link_span(html, ["a", "b"], {"a": item}) == []
+    assert (
+        render._bibliography_title_link_span(
+            html,
+            ["a"],
+            {"a": {**item, "URL": "https://user:secret@example.test/source"}},
+        )
+        == []
+    )
+    assert (
+        render._bibliography_title_destination({**item, "DOI": "doi:10.1234/title?link"})
+        == "https://doi.org/10.1234/title%3Flink"
+    )
+
+    visible = '<div>A Unique Title. <a href="https://example.test/id">visible id</a>.</div>'
+    visible_start = render._to_text(visible).index("visible id")
+    assert render._bibliography_links(visible, ["a"], {"a": item}) == [
+        {"start": visible_start, "length": 10, "url": "https://example.test/id"}
+    ]
 
 
 def test_render_document_apa_disambiguation(temp_db_url: str) -> None:

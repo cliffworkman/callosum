@@ -2362,7 +2362,7 @@ def spike_bibliography_links(ctx, base, p1, p2):
     cc.insert_citation_items(doc, [{"paper_id": p1}, {"paper_id": p2}], base, cursor=insertion("CCC"))
     insertion("LINK").setPropertyValue("HyperLinkURL", "https://example.test/manual")
     check(not cc.bibliography_links_enabled(doc), "bibliography links must default off")
-    check(not cc.bibliography_external_links_enabled(doc), "bibliography DOI/URL links must default off")
+    check(not cc.bibliography_external_links_enabled(doc), "bibliography title/DOI links must default off")
 
     cc.set_bibliography_links(doc, True, base)
     fields = cc.scan_citations_in_order(doc)
@@ -2404,6 +2404,35 @@ def spike_bibliography_links(ctx, base, p1, p2):
         "turning bibliography DOI links off changed an unrelated external hyperlink",
     )
     cc.set_bibliography_external_links(doc, True, base)
+    cc.set_style(doc, "nature", "en-US", base)
+    nature_fields = cc.scan_citations_in_order(doc)
+    nature_response = cc.render_document(base, cc.build_render_request(nature_fields, "nature", "en-US"))
+    nature_entries = nature_response["bibliography_text"].splitlines()
+    nature_ids = nature_response["bibliography_entry_ids"]
+    nature_links = cc.normalize_bibliography_links(
+        nature_entries,
+        nature_response.get("bibliography_links"),
+    )
+    titles_by_id = {
+        str(item["id"]): str(item["title"])
+        for field in nature_fields
+        for item in field["items"]
+        if item.get("id") and item.get("title")
+    }
+    check(sum(len(links) for links in nature_links) == 2, "Nature title-link fallback did not cover both entries")
+    for entry, ids, links in zip(nature_entries, nature_ids, nature_links, strict=True):
+        check(len(ids) == 1 and len(links) == 1, "Nature title-link metadata was not one-to-one")
+        start, length, url = links[0]
+        check(
+            entry[start : start + length].lower() == titles_by_id[ids[0]].lower(),
+            "Nature fallback did not select the exact rendered source title",
+        )
+        check(url.startswith("https://doi.org/10.5555/"), "Nature title fallback did not prefer the source DOI")
+    check(
+        cc.bibliography_external_links_are_current(doc, nature_entries, nature_links, True),
+        "Nature bibliography title links were not applied",
+    )
+    cc.set_style(doc, "apa", "en-US", base)
 
     cc._set_id_list(doc, cc.PREF_BIB_EXCLUDE, [p1])
     cc.refresh(doc, base)
@@ -2517,7 +2546,10 @@ def spike_bibliography_links(ctx, base, p1, p2):
             os.remove(save_path)
         except OSError:
             pass
-    log("spike (P1 #11): OK — citation targets + DOI links toggle/round-trip; grouped citation stays plain")
+    log(
+        "spike (P1 #11): OK — citation targets + visible DOI and title-fallback links round-trip; "
+        "grouped citation stays plain"
+    )
 
 
 def spike_partial_refresh_controls(ctx, base, p1):

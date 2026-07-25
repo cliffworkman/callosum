@@ -327,6 +327,13 @@ objects and replaces only the safe interior, so Undo/Redo, injected rollback, co
 save/reopen preserve exact multi-range snapshots. Damaged or empty section blocks fail before mutation.
 Bibliography-title links and per-source grouped navigation remain.
 
+**Continued in increment 382 (2026-07-25):** the existing opt-in bibliography web-link setting now falls back
+to a uniquely matched rendered title when a style omits visible DOI/URL text. A single citeproc entry id ties the
+span to its source payload; DOI is preferred over URL, and unsafe destinations or ambiguous, transformed,
+oversized, and multi-source titles remain plain. No rendered text changes. Full, categorized, and section
+bibliographies retain the bounded links through refresh, placement conversion, and save/reopen. Per-source
+grouped-citation navigation remains.
+
 12. Add a persistent "Citations in this document" panel
 
 This should list:

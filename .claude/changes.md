@@ -9,6 +9,27 @@ are the design diary; this is the chronological "what & why" record.
 > deciding whether the help docs need updating (see CLAUDE.md Session kickoff). When an increment updates
 > the corpus, it moves the marker forward to the top of its entry (replacing the prior one).
 
+<!-- HELP-DOCS-SYNCED: 2026-07-25 inc 382 — Writer bibliography title links -->
+## 2026-07-25 — Increment 382: Writer bibliography title links
+
+- **Files:** shared citation render metadata, Writer link wording/installed-UNO fixture, OXT 0.27.0, pure tests,
+  README/help, QA, security, roadmap/backlog/CLAUDE/increment notes.
+- **What changed:** **Toggle bibliography title/DOI links** still links DOI/URL text printed by the active style;
+  when the style omits that identifier, a uniquely matched rendered title links to the source DOI (preferred) or
+  URL without changing bibliography text.
+- **Failure policy:** a fallback requires exactly one citeproc entry id, one safe bounded destination, and one
+  exact or ASCII-case-only unique title occurrence. Ambiguous, transformed, oversized, multi-source, malformed,
+  credentialed, or unsafe metadata stays plain.
+- **Writer proof:** installed OXT **0.27.0** linked APA's visible DOI spans and Nature's title fallbacks, preserved
+  unrelated hyperlinks, toggled managed links off cleanly, and retained links through refresh, save/reopen,
+  categories/section bibliographies, and placement conversion: focused spike and full matrix **SELFTEST OK**.
+- **Experience:** a code/help-grounded deadline-author pass found the renamed command and link-count confirmation
+  clear, with no added text or extra workflow. A persona subagent was not used because delegation was disabled.
+  Checked ON/OFF state remains the already-recorded discoverability follow-up.
+- **Verification:** focused backend/adapter/OXT/install/help **213 passed**; full suite **1584 passed, 1 skipped**;
+  Ruff, line budget, QA surface map, OXT packaging, security audit, and diff hygiene pass.
+- **Revert:** `git revert` this commit.
+
 <!-- HELP-DOCS-SYNCED: 2026-07-25 inc 381 — Writer section-bibliography placement conversion -->
 ## 2026-07-25 — Increment 381: Writer section-bibliography placement conversion
 

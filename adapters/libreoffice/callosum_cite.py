@@ -1658,7 +1658,7 @@ def bibliography_links_enabled(doc) -> bool:
 
 
 def bibliography_external_links_enabled(doc) -> bool:
-    """Rendered DOI/URL text becomes an external web link only after a per-document opt-in."""
+    """Rendered title/DOI/URL text becomes an external web link only after a per-document opt-in."""
     return _effective_user_prop(doc, PREF_BIB_EXTERNAL_LINKS) == "1"
 
 
@@ -1734,7 +1734,7 @@ def bibliography_external_links_are_current(
     *,
     start_name: str = BIB_BOOKMARK,
 ) -> bool:
-    """Compare only citeproc-declared DOI/URL spans; arbitrary prose outside the managed block is never read."""
+    """Compare only backend-declared title/DOI/URL spans; arbitrary prose outside the block is never read."""
     _text, offsets = bibliography_layout(entries, categories, bibliography_heading(doc))
     for offset, links in zip(offsets, entry_links, strict=True):
         for start, length, url in links:
@@ -2396,7 +2396,7 @@ def set_bibliography_links(doc, enabled: bool, base: str = DEFAULT_BASE) -> bool
 
 
 def set_bibliography_external_links(doc, enabled: bool, base: str = DEFAULT_BASE) -> tuple[bool, int]:
-    """Persist/rebuild DOI/URL links and report how many validated spans the style rendered."""
+    """Persist/rebuild title/DOI/URL links and report how many validated spans were rendered."""
     previous = _effective_user_prop(doc, PREF_BIB_EXTERNAL_LINKS)
     _set_user_prop_value(doc, PREF_BIB_EXTERNAL_LINKS, "1" if enabled else None)
     try:
@@ -4580,15 +4580,15 @@ def toggle_bib_auto_interactive(doc, base: str) -> None:
 
 
 def toggle_bibliography_external_links_interactive(doc, base: str) -> None:
-    """Toggle web links over DOI/URL text that the active CSL style already includes."""
+    """Toggle web links over visible DOI/URL text or a uniquely matched source title fallback."""
     enabled, link_count = set_bibliography_external_links(doc, not bibliography_external_links_enabled(doc), base)
     if enabled and link_count:
-        detail = f" {link_count} rendered DOI/URL link{'s are' if link_count != 1 else ' is'} now clickable."
+        detail = f" {link_count} bibliography link{'s are' if link_count != 1 else ' is'} now clickable."
     elif enabled:
-        detail = " The current citation style does not print a DOI or URL, so there is no link to apply."
+        detail = " No safe DOI or URL could be matched to a visible title or identifier."
     else:
         detail = " Managed bibliography web links were removed; the rendered text is unchanged."
-    _msgbox(f"Bibliography DOI/URL links are now {'ON' if enabled else 'OFF'}.{detail}")
+    _msgbox(f"Bibliography title/DOI links are now {'ON' if enabled else 'OFF'}.{detail}")
 
 
 def toggle_cite_auto_interactive(doc, base: str) -> None:

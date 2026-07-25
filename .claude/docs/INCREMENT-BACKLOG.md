@@ -313,6 +313,12 @@ the Principles + A-A gates before build.)*
   range back, and converted-copy save/reopen leaves the source unchanged. Conversion rewrites only block interiors
   so section boundary bookmarks remain native and stable. Damaged or empty section blocks refuse before mutation.
   Bibliography-title links and per-source grouped-citation navigation remain.
+  **Inc 382 completes bibliography-title links:** the existing opt-in link command still uses visible DOI/URL
+  spans when the style prints them; otherwise, a single-source entry with a safe DOI or URL links its uniquely
+  matched rendered title without changing one character. DOI is preferred over URL. Ambiguous, transformed,
+  oversized, multi-source, or unsafe metadata stays plain. Full, categorized, and section bibliographies share
+  the same bounded spans across refresh, conversion, and save/reopen. Per-source grouped-citation navigation
+  remains.
   **UX follow-up (deadline author, inc 380):** add a list/jump-to surface and **Remove all section
   bibliographies** for long manuscripts; success feedback could name the owning heading and cited-work count.
   **P1 item #10 started (inc 362, 2026-07-23):** selecting the bundled
@@ -395,10 +401,9 @@ the Principles + A-A gates before build.)*
   **UX follow-up (deadline writer, inc 375):** expose a checked ON/OFF state for citation-to-bibliography links;
   the current state-blind toggle is functional but requires testing a citation after reopen. A later grouped-
   citation source chooser belongs with the remaining per-source hyperlink work.
-  **UX follow-up (deadline author, inc 376):** expose a checked ON/OFF state for bibliography DOI/URL links
-  alongside the inc-375 internal-link state. Title-level links for styles that omit visible DOI/URL text remain
-  part of the open bibliography-title-link scope. The shipped confirmation now reports the applied link count
-  and explains a zero-result style instead of leaving an unchanged bibliography looking like failure.
+  **UX follow-up (deadline author, incs 376/382):** expose a checked ON/OFF state for bibliography title/DOI
+  links alongside the inc-375 internal-link state. The shipped confirmation reports the applied link count and
+  explains a zero-result bibliography instead of leaving an unchanged bibliography looking like failure.
   **#43** (a true Google Workspace Marketplace one-click install) is its own project (GCP project, OAuth
   verification, a public privacy policy, Google app review) — likely overkill for a local-first single-user
   tool; build only if a one-click install becomes worth the ongoing maintenance cost.

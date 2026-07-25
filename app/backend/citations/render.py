@@ -36,6 +36,7 @@ MAX_CLUSTERS = 5000  # document-render: max citation clusters per request
 MAX_ITEMS_PER_CLUSTER = 50  # document-render: max items in one citation cluster
 MAX_BIBLIOGRAPHY_LINKS_PER_ENTRY = 20
 MAX_EXTERNAL_LINK_LENGTH = 2048
+MAX_BIBLIOGRAPHY_TITLE_LENGTH = 2000
 
 # citeproc emits only these inline formatting tags in citation text; everything else (div/span/class) is dropped.
 _ALLOWED_HTML_TAGS = {"i", "b", "em", "strong", "sup", "sub"}
@@ -155,6 +156,67 @@ def _bibliography_link_spans(html: str) -> list[dict[str, Any]]:
         spans.append({"start": start, "length": len(display), "url": anchor["url"]})
         search_from = end
     return spans
+
+
+def _bibliography_title_destination(item: Mapping[str, Any]) -> str | None:
+    """Prefer a canonical DOI resolver, then a source URL; malformed metadata stays plain."""
+    raw_doi = item.get("DOI")
+    if isinstance(raw_doi, str):
+        doi = raw_doi.strip()
+        lowered = doi.lower()
+        for prefix in ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/", "http://dx.doi.org/", "doi:"):
+            if lowered.startswith(prefix):
+                doi = doi[len(prefix) :].strip()
+                break
+        if (
+            0 < len(doi) <= MAX_EXTERNAL_LINK_LENGTH
+            and doi.lower().startswith("10.")
+            and "/" in doi
+            and not any(char.isspace() or ord(char) < 32 for char in doi)
+        ):
+            encoded = urllib.parse.quote(doi, safe="/:;()[]-._~!$&'*,=@")
+            if destination := _validated_external_url(f"https://doi.org/{encoded}"):
+                return destination
+
+    raw_url = item.get("URL")
+    return _validated_external_url(raw_url.strip()) if isinstance(raw_url, str) else None
+
+
+def _bibliography_title_link_span(
+    html: str,
+    entry_ids: Sequence[str],
+    items_by_id: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Link one exact/ASCII-case-only unique title; ambiguity or citeproc transformation fails plain."""
+    if len(entry_ids) != 1:
+        return []
+    item = items_by_id.get(str(entry_ids[0]))
+    if item is None or (destination := _bibliography_title_destination(item)) is None:
+        return []
+    raw_title = item.get("title")
+    if not isinstance(raw_title, str):
+        return []
+    title = _to_text(raw_title)
+    if not title or len(title) > MAX_BIBLIOGRAPHY_TITLE_LENGTH:
+        return []
+
+    plain_text = _to_text(html)
+    if plain_text.count(title) == 1:
+        start = plain_text.index(title)
+    elif plain_text.isascii() and title.isascii() and plain_text.lower().count(title.lower()) == 1:
+        start = plain_text.lower().index(title.lower())
+    else:
+        return []
+    return [{"start": start, "length": len(title), "url": destination}]
+
+
+def _bibliography_links(
+    html: str,
+    entry_ids: Sequence[str],
+    items_by_id: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    """Keep citeproc's visible DOI/URL anchors, otherwise safely fall back to the rendered source title."""
+    return _bibliography_link_spans(html) or _bibliography_title_link_span(html, entry_ids, items_by_id)
 
 
 # ── the engine call ───────────────────────────────────────────────────────────────────────────────────
@@ -336,6 +398,8 @@ def render_document(
     bib_entry_ids = data.get("bibliography_entry_ids", []) or []
     if len(bib_entry_ids) != len(bib) or not all(isinstance(ids, list) for ids in bib_entry_ids):
         bib_entry_ids = [[] for _entry in bib]
+    items_by_id = {str(item["id"]): item for cluster in clusters for item in cluster["items"]}
+    items_by_id.update({str(item["id"]): item for item in out_uncited})
     return {
         "style": style,
         "locale": locale,
@@ -343,7 +407,10 @@ def render_document(
         "bibliography_text": "\n".join(_to_text(e) for e in bib),
         "bibliography_html": [_safe_html(e) for e in bib],
         "bibliography_entry_ids": [[str(item_id) for item_id in ids] for ids in bib_entry_ids],
-        "bibliography_links": [_bibliography_link_spans(entry) for entry in bib],
+        "bibliography_links": [
+            _bibliography_links(entry, entry_ids, items_by_id)
+            for entry, entry_ids in zip(bib, bib_entry_ids, strict=True)
+        ],
     }
 
 
